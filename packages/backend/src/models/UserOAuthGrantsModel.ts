@@ -1,3 +1,4 @@
+import { NotFoundError } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     UserOAuthGrantProvider,
@@ -35,11 +36,23 @@ export class UserOAuthGrantsModel {
     }
 
     async upsertGrant(grant: UpsertUserOAuthGrant): Promise<void> {
+        if (!grant.refreshToken) {
+            try {
+                const existingRefreshToken = await this.getRefreshToken(
+                    grant.userUuid,
+                    grant.provider,
+                );
+                if (existingRefreshToken) return;
+            } catch (error) {
+                if (!(error instanceof NotFoundError)) throw error;
+            }
+        }
+
         const encryptedRefreshToken = this.encryptionUtil.encrypt(
             grant.refreshToken,
         );
         const scopes = [...new Set(grant.scopes)];
-        await this.database(UserOAuthGrantsTableName)
+        const upsert = this.database(UserOAuthGrantsTableName)
             .insert({
                 user_uuid: grant.userUuid,
                 provider: grant.provider,
@@ -48,8 +61,12 @@ export class UserOAuthGrantsModel {
                 scopes,
                 encrypted_refresh_token: encryptedRefreshToken,
             })
-            .onConflict(['user_uuid', 'provider'])
-            .merge({
+            .onConflict(['user_uuid', 'provider']);
+
+        if (!grant.refreshToken) {
+            await upsert.ignore();
+        } else {
+            await upsert.merge({
                 provider_subject: grant.subject,
                 provider_email: grant.email,
                 scopes: this.database.raw(
@@ -59,6 +76,7 @@ export class UserOAuthGrantsModel {
                 encrypted_refresh_token: encryptedRefreshToken,
                 updated_at: new Date(),
             });
+        }
     }
 
     async getRefreshToken(
