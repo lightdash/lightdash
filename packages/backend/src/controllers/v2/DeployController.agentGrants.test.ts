@@ -24,7 +24,10 @@ const setup = () => {
         getAgentConnectionGrantService: () => ({
             assertRestOperation: vi.fn().mockResolvedValue([]),
         }),
-        getProjectService: () => ({ setExplores: dispatch }),
+        getProjectService: () => ({
+            setExplores: dispatch,
+            getCliDeployCapabilities: dispatch,
+        }),
         getDeployService: () => ({
             startDeploySession: dispatch,
             addDeployBatch: dispatch,
@@ -43,6 +46,8 @@ const setup = () => {
         project = grant.approvedProjectUuids[0],
         overrides = {},
     ) => {
+        if (operation === 'getDeployCapabilities')
+            return controller.getDeployCapabilities(req, project);
         if (operation === 'deployExplores')
             return controller.deployExplores(req, project, {
                 ...body,
@@ -63,6 +68,7 @@ const setup = () => {
     return { call, grant, account, dispatch };
 };
 it.each([
+    'getDeployCapabilities',
     'deployExplores',
     'startDeploySession',
     'addDeployBatch',

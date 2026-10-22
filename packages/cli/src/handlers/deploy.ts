@@ -12,6 +12,7 @@ import {
     Project,
     ProjectType,
     WarehouseTypes,
+    type CliDeployMetadata,
     type ConnectionRoute,
     type DeployTarget,
     type LightdashProjectConfig,
@@ -26,6 +27,7 @@ import {
     assertConnectionResponse,
     isResponseCount,
 } from '../agentConnections/responseValidation';
+import { ConnectionServerError } from '../agentConnections/serverError';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setProject } from '../config';
 import { getAgentConnectionSelection } from '../credentials';
@@ -54,6 +56,10 @@ import {
 } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
+import {
+    getDeployMetadata,
+    isLegacyDbtModelNamesValidationError,
+} from './deployMetadata';
 import {
     logSelectedProject,
     selectProject,
@@ -86,6 +92,9 @@ type DeployHandlerOptions = DbtCompileOptions & {
 };
 
 type DeployArgs = DeployHandlerOptions & {
+    dbtProjectName?: string;
+    projectType?: CliProjectType;
+    connectionRoute?: ConnectionRoute;
     projectUuid: string;
     complete?: boolean;
     dbtModelNames?: string[];
@@ -301,6 +310,7 @@ const retryBatchUpload = async <T>(
 const deployBatched = async (
     explores: (Explore | ExploreError)[],
     options: DeployArgs,
+    metadata: CliDeployMetadata | undefined,
 ): Promise<boolean> => {
     const batchSize = parseInt(options.batchSize || '50', 10);
     if (Number.isNaN(batchSize) || batchSize < 1 || batchSize > 1000) {
@@ -335,7 +345,7 @@ const deployBatched = async (
         const startSessionResponse = (await lightdashApi<any>({
             method: 'POST',
             url: `/api/v2/projects/${options.projectUuid}/deploy`,
-            body: JSON.stringify({}),
+            body: JSON.stringify({ ...metadata }),
         })) as { deploySessionUuid: string };
         assertConnectionResponse(
             typeof startSessionResponse?.deploySessionUuid === 'string' &&
@@ -343,8 +353,13 @@ const deployBatched = async (
         );
         sessionUuid = startSessionResponse.deploySessionUuid;
     } catch (error) {
-        if (getAgentConnectionSelection() !== null) throw error;
-        if (error instanceof LightdashError && error.statusCode === 404) {
+        if (getAgentConnectionSelection() !== null && metadata === undefined)
+            throw error;
+        if (
+            (error instanceof LightdashError ||
+                error instanceof ConnectionServerError) &&
+            error.statusCode === 404
+        ) {
             GlobalState.log(
                 styles.info(
                     'Batched deploy is not supported by this server; falling back to legacy deploy',
@@ -384,6 +399,7 @@ const deployBatched = async (
                         explores: batch,
                         batchNumber: batchIndex,
                         complete: options.complete === true,
+                        ...metadata,
                     }),
                 }) as Promise<{ batchNumber: number; exploreCount: number }>,
             batchIndex + 1,
@@ -439,6 +455,7 @@ const deployBatched = async (
             dbtModelNames: options.dbtModelNames,
             sourceUuid: options.sourceUuid,
             target: options.deployTarget,
+            ...metadata,
         }),
     });
 
@@ -462,8 +479,9 @@ const deployBatched = async (
 
 export const deploy = async (
     explores: (Explore | ExploreError)[],
-    options: DeployArgs,
+    originalOptions: DeployArgs,
 ): Promise<void> => {
+    let options = originalOptions;
     if (getAgentConnectionSelection() !== null)
         assertAgentCommandAllowed('deploy', {
             source: options.sourceUuid,
@@ -493,6 +511,25 @@ export const deploy = async (
     }
 
     const deployableExplores = explores.map(stripWarehouseColumnErrors);
+    const metadata = await getDeployMetadata(options);
+    if (
+        options.deployTarget === undefined &&
+        options.connectionRoute === 'multi'
+    ) {
+        options = {
+            ...options,
+            deployTarget: await getDeployTarget(
+                options,
+                options.projectType ?? CliProjectType.Dbt,
+                options.connectionRoute,
+            ),
+        };
+        if (getAgentConnectionSelection() !== null)
+            assertAgentCommandAllowed('deploy', {
+                source: options.sourceUuid,
+                target: options.deployTarget,
+            });
+    }
 
     const lightdashProjectConfig = await readAndLoadLightdashProjectConfig(
         path.resolve(options.projectDir),
@@ -501,11 +538,11 @@ export const deploy = async (
 
     const shouldUseLegacyDeploy =
         options.batchedDeploy === false ||
-        !(await deployBatched(deployableExplores, options));
+        !(await deployBatched(deployableExplores, options, metadata));
     if (shouldUseLegacyDeploy) {
         const deployStartTime = Date.now();
         const deployPayload = JSON.stringify(
-            options.dbtModelNames === undefined
+            options.dbtModelNames === undefined && metadata === undefined
                 ? deployableExplores
                 : {
                       explores: deployableExplores,
@@ -513,6 +550,7 @@ export const deploy = async (
                       complete: options.complete === true,
                       sourceUuid: options.sourceUuid,
                       target: options.deployTarget,
+                      ...metadata,
                   },
         );
         try {
@@ -520,23 +558,36 @@ export const deploy = async (
                 {
                     method: 'PUT',
                     url:
-                        options.dbtModelNames === undefined
+                        options.dbtModelNames === undefined &&
+                        metadata === undefined
                             ? `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${deployDestinationQuery(options)}`
                             : `/api/v2/projects/${options.projectUuid}/deploy`,
                     body: deployPayload,
                 },
             ).catch(async (error: unknown) => {
-                if (getAgentConnectionSelection() !== null) throw error;
                 if (
-                    options.dbtModelNames === undefined ||
-                    !(error instanceof LightdashError) ||
-                    error.statusCode !== 404
-                ) {
+                    getAgentConnectionSelection() !== null &&
+                    metadata === undefined
+                )
+                    throw error;
+                const missingV2Endpoint =
+                    (options.dbtModelNames !== undefined ||
+                        metadata !== undefined) &&
+                    (error instanceof LightdashError ||
+                        error instanceof ConnectionServerError) &&
+                    error.statusCode === 404;
+                const oldPreviewValidator =
+                    options.dbtModelNames === undefined &&
+                    metadata !== undefined &&
+                    isLegacyDbtModelNamesValidationError(error);
+                if (!missingV2Endpoint && !oldPreviewValidator) {
                     throw error;
                 }
                 GlobalState.log(
                     styles.warning(
-                        'This server does not support deleted dbt model cleanup; deploying without cleanup. Upgrade the server to enable it.',
+                        options.dbtModelNames === undefined
+                            ? 'This server does not support dbt deployment metadata; deploying without metadata. Upgrade the server to enable it.'
+                            : 'This server does not support deleted dbt model cleanup; deploying without cleanup. Upgrade the server to enable it.',
                     ),
                 );
                 return lightdashApi<ApiDeployExploresResults>({
@@ -863,7 +914,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         connectionRoute = projectSettings.connectionRoute;
     }
 
-    const { explores, isProjectComplete, dbtModelNames } =
+    const { explores, isProjectComplete, dbtModelNames, dbtProjectName } =
         await compileProject(options);
 
     let projectUuid: string;
@@ -903,12 +954,10 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         projectUuid,
         complete: isProjectComplete,
         dbtModelNames,
+        dbtProjectName,
+        projectType: projectTypeConfig.type,
+        connectionRoute,
         sourceUuid,
-        deployTarget: await getDeployTarget(
-            options,
-            projectTypeConfig.type,
-            connectionRoute,
-        ),
     });
 
     const serverUrl = config.context?.serverUrl?.replace(/\/$/, '');

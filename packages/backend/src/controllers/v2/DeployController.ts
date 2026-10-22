@@ -8,10 +8,14 @@ import {
     ApiStartDeploySessionResponse,
     assertRegisteredAccount,
     LightdashCliVersionHeader,
+    type CliDeployCapabilities,
+    type CliDeployMetadata,
     type DeployTarget,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
+    Get,
     Middlewares,
     OperationId,
     Path,
@@ -27,6 +31,7 @@ import express from 'express';
 import { toSessionUser } from '../../auth/account';
 import { assertAgentConnectionGrantOperation } from '../../auth/agentConnectionGrants/evaluateGrant';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
+import { parseCliDeployMetadata } from '../../services/cliDeployMetadata';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -38,6 +43,30 @@ import { BaseController } from '../baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Project')
 export class DeployController extends BaseController {
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/capabilities')
+    @OperationId('getDeployCapabilities')
+    async getDeployCapabilities(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<{ status: 'ok'; results: CliDeployCapabilities }> {
+        assertAgentConnectionGrantOperation(req.account, {
+            kind: 'rest',
+            key: 'DeployController.getDeployCapabilities',
+            projectUuids: [projectUuid],
+        });
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getProjectService()
+            .getCliDeployCapabilities(req.account, projectUuid);
+        return { status: 'ok', results };
+    }
+
     /**
      * Deploy explores with the full dbt model inventory for selective cleanup.
      * @summary Deploy explores
@@ -53,10 +82,10 @@ export class DeployController extends BaseController {
     async deployExplores(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Body() body: {
+        @Body() body: CliDeployMetadata & {
             explores: AnyType[];
             complete: boolean;
-            dbtModelNames: string[];
+            dbtModelNames?: string[];
             sourceUuid?: string;
             target?: DeployTarget;
         },
@@ -78,6 +107,7 @@ export class DeployController extends BaseController {
                 body.complete,
                 body.dbtModelNames,
                 {
+                    ...parseCliDeployMetadata(body),
                     sourceUuid: body.sourceUuid ?? null,
                     target: body.target ?? null,
                 },
@@ -100,6 +130,7 @@ export class DeployController extends BaseController {
     async startDeploySession(
         @Request() req: express.Request,
         @Path() projectUuid: string,
+        @Body() body?: CliDeployMetadata,
     ): Promise<ApiStartDeploySessionResponse> {
         assertAgentConnectionGrantOperation(req.account, {
             kind: 'rest',
@@ -110,7 +141,11 @@ export class DeployController extends BaseController {
         this.setStatus(200);
         const result = await this.services
             .getDeployService()
-            .startDeploySession(req.account!, projectUuid);
+            .startDeploySession(
+                req.account!,
+                projectUuid,
+                parseCliDeployMetadata(body),
+            );
         return {
             status: 'ok',
             results: result,
@@ -170,6 +205,7 @@ export class DeployController extends BaseController {
                 (body as unknown as ApiAddDeployBatchRequest).explores,
                 (body as unknown as ApiAddDeployBatchRequest).batchNumber,
                 (body as unknown as ApiAddDeployBatchRequest).complete,
+                parseCliDeployMetadata(body),
             );
         return {
             status: 'ok',
@@ -195,7 +231,7 @@ export class DeployController extends BaseController {
         @Path() projectUuid: string,
         @Path() sessionUuid: string,
         @Body()
-        body?: {
+        body?: CliDeployMetadata & {
             dbtModelNames?: string[];
             sourceUuid?: string;
             target?: DeployTarget;
@@ -235,6 +271,7 @@ export class DeployController extends BaseController {
                 req.header(LightdashCliVersionHeader),
                 body?.dbtModelNames,
                 {
+                    ...parseCliDeployMetadata(body),
                     sourceUuid: body?.sourceUuid ?? null,
                     target: body?.target ?? null,
                 },

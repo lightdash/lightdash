@@ -35,6 +35,7 @@ import {
     calculateExploreWarningReport,
     ChartSourceType,
     ChartSummary,
+    CliDeployCapabilities,
     combineManifestSources,
     CompilationSource,
     CompiledDimension,
@@ -515,6 +516,7 @@ import {
     withoutClientBindings,
     type CliDeploySelection,
 } from '../cliDeploy';
+import { parseCliDeployMetadata } from '../cliDeployMetadata';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import { inferCliDeploySource } from '../inferCliDeploySource';
@@ -4314,12 +4316,72 @@ export class ProjectService
         }
     }
 
+    async getCliDeployCapabilities(
+        account: RegisteredAccount,
+        projectUuid: UUID,
+    ): Promise<CliDeployCapabilities> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('DeployProject', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User does not have permission to deploy to this project',
+            );
+        }
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.PeerDbtSources,
+            user: { organizationUuid: project.organizationUuid },
+        });
+        const active =
+            enabled &&
+            (await this.projectDbtSourcesModel.hasSources(projectUuid));
+        return {
+            version: 1,
+            dbtProjectIdentity: 1,
+            dbtTargetLocation: 1,
+            peerDbtSources: {
+                active,
+                requiresDbtProjectName: active,
+                requiresDbtTarget: active,
+            },
+        };
+    }
+
     async saveDeployExplores(
         args: SaveCompiledExploresArgs & {
             explores: (Explore | ExploreError)[];
             cliDeploy: CliDeploySelection;
         },
     ): Promise<string> {
+        const cliMetadata = parseCliDeployMetadata(args.cliDeploy);
+        if (
+            cliMetadata.cliCapabilities !== undefined ||
+            cliMetadata.dbtProjectName !== undefined ||
+            cliMetadata.dbtTarget !== undefined
+        ) {
+            const project = await this.projectModel.getSummary(
+                args.projectUuid,
+            );
+            const { enabled } = await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.PeerDbtSources,
+                user: { organizationUuid: project.organizationUuid },
+            });
+            if (enabled) {
+                this.logger.debug('CLI deploy identity metadata', {
+                    projectUuid: args.projectUuid,
+                    ...cliMetadata,
+                });
+            }
+        }
         if (agentExecutionContext.getStore()?.agentConnectionExecution)
             await this.assertConnectionPreAggregateRefresh(
                 args.projectUuid,

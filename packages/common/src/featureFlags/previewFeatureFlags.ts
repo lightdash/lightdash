@@ -39,6 +39,7 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // Changes permission semantics per org: makes the org custom role's PAT
     // scope authoritative. Opt-in only; QA enables via feature_flag_overrides.
     CommercialFeatureFlags.PatScopeAuthoritative,
+    FeatureFlags.PeerDbtSources,
     FeatureFlags.ResultsCacheEnabled,
     FeatureFlags.EnableTimezoneSupport,
 ]);

@@ -32,7 +32,7 @@ import {
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { getProject } from './dbt/refresh';
-import { deploy, getDeployTarget } from './deploy';
+import { deploy } from './deploy';
 import { resolveProjectSourceUuid } from './sourceSelection';
 import {
     getDisableTimestampConversionFromProject,
@@ -73,7 +73,6 @@ type PreviewHandlerOptions = DbtCompileOptions & {
 const previewDeployDestination = async (
     project: Pick<Project, 'projectUuid' | 'connectionRoute'>,
     options: PreviewHandlerOptions,
-    projectType: CliProjectType,
     upstreamProjectUuid: string | undefined,
 ) => ({
     sourceUuid: await resolveProjectSourceUuid(
@@ -81,11 +80,7 @@ const previewDeployDestination = async (
         options.source,
         upstreamProjectUuid,
     ),
-    deployTarget: await getDeployTarget(
-        options,
-        projectType,
-        project.connectionRoute,
-    ),
+    connectionRoute: project.connectionRoute,
 });
 
 type StopPreviewHandlerOptions = {
@@ -585,17 +580,19 @@ export const previewHandler = async (
             );
         }
 
-        const { explores, isProjectComplete } = await compileProject(options);
+        const { explores, isProjectComplete, dbtProjectName } =
+            await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
             ...(await previewDeployDestination(
                 project,
                 options,
-                projectTypeConfig.type,
                 config.context?.project,
             )),
             complete: isProjectComplete,
+            dbtProjectName,
+            projectType: projectTypeConfig.type,
         });
 
         await setPreviewProject(project.projectUuid, name);
@@ -672,10 +669,11 @@ export const previewHandler = async (
                             ...(await previewDeployDestination(
                                 project,
                                 options,
-                                projectTypeConfig.type,
                                 config.context?.project,
                             )),
                             complete: compileResult.isProjectComplete,
+                            dbtProjectName: compileResult.dbtProjectName,
+                            projectType: projectTypeConfig.type,
                         });
                     }
 
@@ -805,7 +803,8 @@ export const startPreviewHandler = async (
         );
         options.disableTimestampConversion =
             previewSettings.disableTimestampConversion;
-        const { explores, isProjectComplete } = await compileProject(options);
+        const { explores, isProjectComplete, dbtProjectName } =
+            await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: previewProject.projectUuid,
@@ -815,10 +814,11 @@ export const startPreviewHandler = async (
                     connectionRoute: previewSettings.connectionRoute,
                 },
                 options,
-                projectTypeConfig.type,
                 config.context?.project,
             )),
             complete: isProjectComplete,
+            dbtProjectName,
+            projectType: projectTypeConfig.type,
         });
         const url = await projectUrl(previewProject);
         console.error(`Project updated on ${url}`);
@@ -958,17 +958,19 @@ export const startPreviewHandler = async (
             );
         }
 
-        const { explores, isProjectComplete } = await compileProject(options);
+        const { explores, isProjectComplete, dbtProjectName } =
+            await compileProject(options);
         await deploy(explores, {
             ...options,
             projectUuid: project.projectUuid,
             ...(await previewDeployDestination(
                 project,
                 options,
-                projectTypeConfig.type,
                 config.context?.project,
             )),
             complete: isProjectComplete,
+            dbtProjectName,
+            projectType: projectTypeConfig.type,
         });
         const url = await projectUrl(project);
 

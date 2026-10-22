@@ -193,6 +193,36 @@ it.each(['target', 'sourceUuid'])(
     },
 );
 
+it('allows deploy capability negotiation only for an approved deploy project', async () => {
+    const { service, token, user, grant } = setup();
+    grant.approvedCapabilities = [AgentCapability.DeployUpload];
+    const account = fromOauth(
+        user,
+        token,
+        null,
+        await service.authenticate(token, user),
+    );
+    const request = {
+        account,
+        method: 'GET',
+        params: { projectUuid: grant.approvedProjectUuids[0] },
+        query: {},
+        body: undefined,
+    };
+    await expect(
+        service.assertRestOperation(
+            request,
+            'DeployController.getDeployCapabilities',
+        ),
+    ).resolves.toEqual(grant.approvedProjectUuids);
+    await expect(
+        service.assertRestOperation(
+            { ...request, params: { projectUuid: otherProjectUuid } },
+            'DeployController.getDeployCapabilities',
+        ),
+    ).rejects.toThrow('project');
+});
+
 it('resolves a resource slug using its explicit project scope', async () => {
     const { service, token, user, grant, deps } = setup();
     const account = fromOauth(

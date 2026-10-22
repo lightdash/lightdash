@@ -219,6 +219,7 @@ beforeEach(() => {
     vi.mocked(compileProject).mockResolvedValue({
         explores: [],
         isProjectComplete: true,
+        dbtProjectName: 'project_a',
     });
     vi.spyOn(console, 'error').mockImplementation(() => {});
     spinner = ora();
@@ -286,6 +287,8 @@ describe('startPreviewHandler credential refresh', () => {
             expect.objectContaining({
                 projectUuid: 'preview',
                 sourceUuid: 'finance-source',
+                dbtProjectName: 'project_a',
+                projectType: CliProjectType.Dbt,
             }),
         );
     });

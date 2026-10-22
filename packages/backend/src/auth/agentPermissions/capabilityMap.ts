@@ -755,6 +755,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'DeployController.addDeployBatch': [AgentCapability.DeployUpload],
     'DeployController.deployExplores': [AgentCapability.DeployUpload],
     'DeployController.finalizeDeploySession': [AgentCapability.DeployUpload],
+    'DeployController.getDeployCapabilities': [AgentCapability.DeployUpload],
     'DeployController.startDeploySession': [AgentCapability.DeployUpload],
     'DirectAccessController.listDirectAccessAssignments': [
         AgentCapability.ReadDiscover,

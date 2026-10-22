@@ -9944,6 +9944,152 @@ describe('ProjectService', () => {
     });
 
     describe('selective deploy model inventory', () => {
+        test.each([
+            { enabled: false, hasSources: false },
+            { enabled: false, hasSources: true },
+            { enabled: true, hasSources: false },
+            { enabled: true, hasSources: true },
+        ])(
+            'advertises peer identity requirements with flag $enabled and extra sources $hasSources',
+            async ({ enabled, hasSources }) => {
+                const get = vi.fn().mockResolvedValue({ enabled });
+                const hasExtraSources = vi.fn().mockResolvedValue(hasSources);
+                const configured = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                    {
+                        projectModel: {
+                            getSummary: vi.fn().mockResolvedValue({
+                                ...projectSummary,
+                                organizationUuid: 'resource-organisation',
+                            }),
+                        } as never,
+                        featureFlagModel: { get } as never,
+                        projectDbtSourcesModel: {
+                            hasSources: hasExtraSources,
+                        } as never,
+                    },
+                );
+                const deployAccount = fromSession({
+                    ...user,
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'DeployProject',
+                            action: 'manage',
+                            conditions: {
+                                organizationUuid: 'resource-organisation',
+                            },
+                        },
+                    ]),
+                });
+                await expect(
+                    configured.getCliDeployCapabilities(
+                        deployAccount,
+                        projectUuid,
+                    ),
+                ).resolves.toEqual({
+                    version: 1,
+                    dbtProjectIdentity: 1,
+                    dbtTargetLocation: 1,
+                    peerDbtSources: {
+                        active: enabled && hasSources,
+                        requiresDbtProjectName: enabled && hasSources,
+                        requiresDbtTarget: enabled && hasSources,
+                    },
+                });
+                expect(hasExtraSources).toHaveBeenCalledTimes(enabled ? 1 : 0);
+                expect(get).toHaveBeenCalledExactlyOnceWith({
+                    featureFlagId: FeatureFlags.PeerDbtSources,
+                    user: { organizationUuid: 'resource-organisation' },
+                });
+            },
+        );
+
+        test('refuses capability discovery without deploy permission before resolving the flag', async () => {
+            const get = vi.fn().mockResolvedValue({ enabled: true });
+            const configured = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                { featureFlagModel: { get } as never },
+            );
+            await expect(
+                configured.getCliDeployCapabilities(
+                    fromSession({ ...user, ability: new Ability([]) }),
+                    projectUuid,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(get).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            { enabled: false, withIdentity: false },
+            { enabled: true, withIdentity: false },
+            { enabled: false, withIdentity: true },
+            { enabled: true, withIdentity: true },
+        ])(
+            'keeps single connection saves with flag $enabled and identity $withIdentity',
+            async ({ enabled, withIdentity }) => {
+                const get = vi.fn().mockResolvedValue({ enabled });
+                const getSummary = vi.fn().mockResolvedValue(projectSummary);
+                const configured = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                    {
+                        featureFlagModel: { get } as never,
+                        projectModel: {
+                            getConnectionRoute: vi
+                                .fn()
+                                .mockResolvedValue('single'),
+                            hasExploreNameAllocations: vi
+                                .fn()
+                                .mockResolvedValue(false),
+                            getSummary,
+                        } as never,
+                    },
+                );
+                const save = vi.fn().mockResolvedValue('catalog-job');
+                configured[
+                    'saveExploresToCacheAndIndexCatalogWithRefreshCheck'
+                ] = save;
+                const debug = vi.fn();
+                const info = vi.fn();
+                Reflect.set(configured, 'logger', { debug, info });
+                const metadata = withIdentity
+                    ? {
+                          cliCapabilities: {
+                              dbtProjectIdentity: 1 as const,
+                              dbtTargetLocation: 1 as const,
+                          },
+                          dbtProjectName: 'example_project',
+                          dbtTarget: {
+                              type: WarehouseTypes.POSTGRES,
+                              database: 'different_database',
+                          },
+                      }
+                    : {};
+                const args = {
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [validExplore],
+                    compilationSource: 'cli_deploy' as const,
+                    complete: true,
+                    cliDeploy: { sourceUuid: null, target: null, ...metadata },
+                };
+                await expect(configured.saveDeployExplores(args)).resolves.toBe(
+                    'catalog-job',
+                );
+                expect(save).toHaveBeenCalledOnce();
+                expect(get).toHaveBeenCalledTimes(withIdentity ? 1 : 0);
+                expect(getSummary).toHaveBeenCalledTimes(withIdentity ? 1 : 0);
+                if (withIdentity && enabled) {
+                    expect(debug).toHaveBeenCalledExactlyOnceWith(
+                        'CLI deploy identity metadata',
+                        { projectUuid, ...metadata },
+                    );
+                } else {
+                    expect(debug).not.toHaveBeenCalled();
+                }
+                expect(info).not.toHaveBeenCalled();
+            },
+        );
+
         test('tracks a selected source deploy after validation succeeds', async () => {
             const deployService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,

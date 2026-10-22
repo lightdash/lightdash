@@ -204,6 +204,35 @@ that generates virtual pre-aggregate explores has no organization context and
 checks only the instance infra; an organization switched off still compiles
 those explores but never materializes, serves, or shows them.
 
+## Peer dbt sources
+
+`peer-dbt-sources` is organisation-scoped and off by default on Cloud and
+self-hosted instances, including previews. It has no custom handler and does
+not use personal overrides. Resolve the flag with the deployed project's
+organisation through `FeatureFlagModel.get`.
+
+The authenticated `GET /api/v2/projects/{projectUuid}/deploy/capabilities`
+endpoint requires deploy permission. It always advertises version 1 identity
+metadata support. Its `peerDbtSources.active`, `requiresDbtProjectName`, and
+`requiresDbtTarget` values are true only when the flag is on and the project
+has extra dbt sources. Single-source projects keep their existing profile
+requirements. These requirements guide
+capable clients; the server still accepts old clients without identity metadata
+when the flag is on.
+
+Deploy identity metadata uses `cliCapabilities`, `dbtProjectName`, and
+`dbtTarget`. Direct deploys and staged uploads validate metadata when present.
+Finalization supplies the staged deploy's identity; start and batch metadata
+are not stored. Identity metadata does not select a source or connection and
+does not replace the existing `target` connection check. The server logs it at
+debug level only when the flag is on.
+
+Console organisation changes apply on the next request without restart.
+Self-hosted installations use the generic ENV lists and precedence above;
+ENV changes require a process restart. Disabling the flag stops identity
+logging and clears the advertised requirements without changing existing
+source selection or deploy behaviour.
+
 ## Agent identity
 
 `agent-identity` enables organisation identity rules for each warehouse type and

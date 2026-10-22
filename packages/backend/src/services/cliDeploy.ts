@@ -2,6 +2,7 @@ import {
     getWarehouseLocation,
     ParameterError,
     WarehouseTypes,
+    type CliDeployMetadata,
     type CreateWarehouseCredentials,
     type DeployTarget,
     type Explore,
@@ -11,7 +12,7 @@ import { type ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
 import { type ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../models/WarehouseConnectionModel/WarehouseConnectionModel';
 
-export type CliDeploySelection = {
+export type CliDeploySelection = CliDeployMetadata & {
     sourceUuid: string | null;
     target: DeployTarget | null;
 };

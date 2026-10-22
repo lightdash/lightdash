@@ -199,6 +199,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'DashboardControllerV2.getDashboardSchedulerRuns',
     'DatabricksSSOController.get',
     'DeployController.deployExplores',
+    'DeployController.getDeployCapabilities',
     'DeployController.startDeploySession',
     'DocumentController.create',
     'DocumentController.get',

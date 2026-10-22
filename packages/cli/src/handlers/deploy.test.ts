@@ -11,6 +11,9 @@ import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { lightdashApi } from './dbt/apiClient';
 import { deploy } from './deploy';
 
+vi.mock('./deployMetadata', () => ({
+    getDeployMetadata: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('../analytics/analytics');
 vi.mock('../lightdash-config');
 vi.mock('./dbt/apiClient', async (importOriginal) => ({

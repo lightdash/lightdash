@@ -11,6 +11,7 @@ import {
     SessionUser,
     type AgentConnectionTaskEffect,
     type ApiDeployExploresResults,
+    type CliDeployMetadata,
     type ProjectDefaults,
     type WeekDay,
 } from '@lightdash/common';
@@ -21,6 +22,7 @@ import { captureAgentConnectionTask } from '../utils/agentConnectionExecution';
 import { agentExecutionContext } from './AiAccessService/agentExecutionContext';
 import { BaseService } from './BaseService';
 import { NO_CLI_DEPLOY_SELECTION, type CliDeploySelection } from './cliDeploy';
+import { parseCliDeployMetadata } from './cliDeployMetadata';
 import {
     assertPreAggregateRefresh,
     EMPTY_PRE_AGGREGATE_REFRESH,
@@ -120,7 +122,9 @@ export class DeployService extends BaseService {
     async startDeploySession(
         account: Account,
         projectUuid: string,
+        metadata: CliDeployMetadata = {},
     ): Promise<{ deploySessionUuid: string }> {
+        parseCliDeployMetadata(metadata);
         // Check deploy permission
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -176,7 +180,9 @@ export class DeployService extends BaseService {
         explores: (Explore | ExploreError)[],
         batchNumber: number,
         complete?: boolean,
+        metadata: CliDeployMetadata = {},
     ): Promise<{ batchNumber: number; exploreCount: number }> {
+        parseCliDeployMetadata(metadata);
         if (agentExecutionContext.getStore()?.agentConnectionExecution)
             await this.projectService.assertConnectionPreAggregateRefresh(
                 projectUuid,
@@ -250,6 +256,7 @@ export class DeployService extends BaseService {
         dbtModelNames?: string[],
         cliDeploy: CliDeploySelection = NO_CLI_DEPLOY_SELECTION,
     ): Promise<ApiDeployExploresResults & { status: DeploySessionStatus }> {
+        parseCliDeployMetadata(cliDeploy);
         const deployAnalytics = {
             userUuid: user.userUuid,
             projectUuid,

@@ -12,6 +12,9 @@ import GlobalState from '../globalState';
 import { lightdashApi } from './dbt/apiClient';
 import { deploy } from './deploy';
 
+vi.mock('./deployMetadata', () => ({
+    getDeployMetadata: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('../analytics/analytics');
 vi.mock('../config', () => ({
     getConfig: vi.fn(async () => ({ user: null, context: null })),
