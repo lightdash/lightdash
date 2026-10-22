@@ -332,6 +332,53 @@ export class AiOrganizationSettingsModel {
         return row ? this.mapDbToEntity(row) : null;
     }
 
+    async findMcpEnabled(organizationUuid: string): Promise<boolean | null> {
+        const row = await this.database<AiOrganizationSettingsTable>(
+            AiOrganizationSettingsTableName,
+        )
+            .select('mcp_enabled')
+            .where('organization_uuid', organizationUuid)
+            .first();
+        return row?.mcp_enabled ?? null;
+    }
+
+    async setMcpEnabled(
+        organizationUuid: string,
+        mcpEnabled: boolean,
+    ): Promise<{ previous: boolean; current: boolean }> {
+        return this.database.transaction(async (trx) => {
+            // Create the row before locking so first-ever writes serialize too.
+            await trx<AiOrganizationSettingsTable>(
+                AiOrganizationSettingsTableName,
+            )
+                .insert({ organization_uuid: organizationUuid })
+                .onConflict('organization_uuid')
+                .ignore();
+            const previous = await trx<AiOrganizationSettingsTable>(
+                AiOrganizationSettingsTableName,
+            )
+                .select('mcp_enabled')
+                .where('organization_uuid', organizationUuid)
+                .forUpdate()
+                .first();
+            const [current] = await trx<AiOrganizationSettingsTable>(
+                AiOrganizationSettingsTableName,
+            )
+                .where('organization_uuid', organizationUuid)
+                .update({ mcp_enabled: mcpEnabled, updated_at: new Date() })
+                .returning('mcp_enabled');
+            if (!previous || !current) {
+                throw new NotFoundError(
+                    `AI organization settings not found for organization ${organizationUuid}`,
+                );
+            }
+            return {
+                previous: previous.mcp_enabled,
+                current: current.mcp_enabled,
+            };
+        });
+    }
+
     async getByOrganizationUuid(
         organizationUuid: string,
         database: Knex = this.database,

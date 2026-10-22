@@ -9,9 +9,6 @@
  * to the env default is resolved in the auth layer, not here.
  */
 export type OrganizationSettings = {
-    /** Allow inbound MCP requests for this organization. Null or absent keeps
-     * normal MCP availability. Optional for compatibility with older servers. */
-    mcpEnabled?: boolean | null;
     /**
      * Auto-link a new OIDC identity to an existing user who already has a
      * different OIDC identity with the same email (overrides
@@ -298,7 +295,6 @@ const resolveEffectiveOrganizationSettingsFields = (
     OrganizationSettings,
     'dataAppCapturesEnabled' | 'dataAppAutomaticThumbnailsEnabled'
 > => ({
-    mcpEnabled: raw.mcpEnabled ?? true,
     oidcLinkingEnabled:
         raw.oidcLinkingEnabled ?? instanceDefaults.enableOidcLinking,
     oidcToEmailLinkingEnabled:

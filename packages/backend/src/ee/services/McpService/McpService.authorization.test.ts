@@ -44,11 +44,6 @@ const createService = ({
 } = {}) =>
     Object.assign(Object.create(McpService.prototype), {
         lightdashConfig: { mcp: { enabled: mcpEnabled } },
-        organizationSettingsModel: {
-            get: vi
-                .fn()
-                .mockResolvedValue({ mcpEnabled: organizationMcpEnabled }),
-        },
         featureFlagService: {
             get: vi.fn(
                 async ({ featureFlagId }: { featureFlagId: string }) => ({
@@ -58,6 +53,9 @@ const createService = ({
             ),
         },
         aiOrganizationSettingsService: {
+            isMcpEnabled: vi
+                .fn()
+                .mockResolvedValue(organizationMcpEnabled ?? true),
             isEligibleForTrial: vi.fn().mockResolvedValue(trialEligible),
         },
     }) as McpService;
@@ -89,7 +87,7 @@ describe('McpService organization MCP availability', () => {
             false,
         );
         expect(
-            service['organizationSettingsModel'].get,
+            service['aiOrganizationSettingsService'].isMcpEnabled,
         ).toHaveBeenCalledExactlyOnceWith(defaultSessionUser.organizationUuid);
         expect(service['featureFlagService'].get).not.toHaveBeenCalled();
         expect(
@@ -134,11 +132,10 @@ describe('McpService organization MCP availability', () => {
 
     it('rechecks the setting on the same running service', async () => {
         const service = createService();
-        const settings = await service['organizationSettingsModel'].get('org');
-        vi.mocked(service['organizationSettingsModel'].get)
-            .mockResolvedValueOnce({ ...settings, mcpEnabled: true })
-            .mockResolvedValueOnce({ ...settings, mcpEnabled: false })
-            .mockResolvedValueOnce({ ...settings, mcpEnabled: true });
+        vi.mocked(service['aiOrganizationSettingsService'].isMcpEnabled)
+            .mockResolvedValueOnce(true)
+            .mockResolvedValueOnce(false)
+            .mockResolvedValueOnce(true);
 
         await expect(service.isEnabled(defaultSessionUser)).resolves.toBe(true);
         await expect(service.isEnabled(defaultSessionUser)).resolves.toBe(
@@ -150,7 +147,7 @@ describe('McpService organization MCP availability', () => {
     it('refuses to proceed when the organization settings cannot be read', async () => {
         const service = createService();
         vi.mocked(
-            service['organizationSettingsModel'].get,
+            service['aiOrganizationSettingsService'].isMcpEnabled,
         ).mockRejectedValueOnce(new Error('Settings unavailable'));
         await expect(service.isEnabled(defaultSessionUser)).rejects.toThrow(
             'Settings unavailable',
@@ -165,7 +162,9 @@ describe('McpService organization MCP availability', () => {
                 organizationUuid: undefined,
             }),
         ).resolves.toBe(false);
-        expect(service['organizationSettingsModel'].get).not.toHaveBeenCalled();
+        expect(
+            service['aiOrganizationSettingsService'].isMcpEnabled,
+        ).not.toHaveBeenCalled();
     });
 });
 

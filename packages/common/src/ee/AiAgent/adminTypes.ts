@@ -640,6 +640,12 @@ export type AiOrganizationSettings = {
     threadRetentionHours?: number | null;
 };
 
+export type UpdateOrganizationMcpAccess = { mcpEnabled: boolean };
+
+export type ApiOrganizationMcpAccessResponse = ApiSuccess<{
+    mcpEnabled: boolean;
+}>;
+
 export type CreateAiOrganizationSettings = Omit<
     AiOrganizationSettings,
     | 'providerApiKeysSet'

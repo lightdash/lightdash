@@ -10,6 +10,7 @@ import {
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     FeatureFlags,
     ForbiddenError,
+    getErrorMessage,
     getVisibleDataAppClaudeModels,
     isValidRetentionWindowHours,
     LightdashUser,
@@ -33,9 +34,11 @@ import {
 } from '@lightdash/common';
 import { toSessionUser } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
+import { createAuditLogEvent } from '../../logging/auditLog';
+import { createActorFromAccount } from '../../logging/caslAuditWrapper';
+import { logAuditEvent } from '../../logging/winston';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
-import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { assertHumanManagedMutation } from '../../services/AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../../services/BaseService';
@@ -219,7 +222,6 @@ type AiOrganizationSettingsServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     aiOrganizationProviderCredentialModel: AiOrganizationProviderCredentialModel;
     organizationModel: OrganizationModel;
-    organizationSettingsModel: OrganizationSettingsModel;
     projectModel: ProjectModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
     featureFlagModel: FeatureFlagModel;
@@ -233,8 +235,6 @@ export class AiOrganizationSettingsService extends BaseService {
     private readonly aiOrganizationProviderCredentialModel: AiOrganizationProviderCredentialModel;
 
     private readonly organizationModel: OrganizationModel;
-
-    private readonly organizationSettingsModel: OrganizationSettingsModel;
 
     private readonly projectModel: ProjectModel;
 
@@ -256,7 +256,6 @@ export class AiOrganizationSettingsService extends BaseService {
         this.aiOrganizationProviderCredentialModel =
             dependencies.aiOrganizationProviderCredentialModel;
         this.organizationModel = dependencies.organizationModel;
-        this.organizationSettingsModel = dependencies.organizationSettingsModel;
         this.projectModel = dependencies.projectModel;
         this.commercialFeatureFlagModel =
             dependencies.commercialFeatureFlagModel;
@@ -264,6 +263,64 @@ export class AiOrganizationSettingsService extends BaseService {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
+    }
+
+    async isMcpEnabled(organizationUuid: string): Promise<boolean> {
+        return (
+            (await this.aiOrganizationSettingsModel.findMcpEnabled(
+                organizationUuid,
+            )) ?? true
+        );
+    }
+
+    async updateMcpEnabled(
+        account: RegisteredAccount,
+        mcpEnabled: boolean,
+    ): Promise<{ mcpEnabled: boolean }> {
+        const organizationUuid = account.organization?.organizationUuid;
+        if (!organizationUuid) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        if (
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const { previous, current } =
+            await this.aiOrganizationSettingsModel.setMcpEnabled(
+                organizationUuid,
+                mcpEnabled,
+            );
+        try {
+            logAuditEvent(
+                createAuditLogEvent(
+                    createActorFromAccount(account),
+                    'update',
+                    {
+                        type: 'OrganizationSettings',
+                        organizationUuid,
+                        metadata: {
+                            mcpEnabled: { from: previous, to: current },
+                        },
+                    },
+                    {
+                        ip: account.requestContext?.ip,
+                        userAgent: account.requestContext?.userAgent,
+                        requestId: account.requestContext?.requestId,
+                    },
+                    'allowed',
+                ),
+            );
+        } catch (error) {
+            this.logger.warn('Failed to log MCP settings audit event', {
+                error: getErrorMessage(error),
+                organizationUuid,
+            });
+        }
+        return { mcpEnabled: current };
     }
 
     private checkManageAiAgentAccess(user: SessionUser): void {
@@ -727,9 +784,7 @@ export class AiOrganizationSettingsService extends BaseService {
             aiSettingsUpdate.mcpAgentsEnabled !== undefined ||
             aiSettingsUpdate.mcpContentWritesEnabled !== undefined
         ) {
-            const organizationSettings =
-                await this.organizationSettingsModel.get(organizationUuid);
-            if (organizationSettings.mcpEnabled === false) {
+            if (!(await this.isMcpEnabled(organizationUuid))) {
                 const storedSettings =
                     await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                         organizationUuid,

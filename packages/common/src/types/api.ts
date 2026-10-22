@@ -102,6 +102,7 @@ import type {
     ApiOrganizationDesignResponse,
     ApiOrganizationDesignsResponse,
     ApiOrganizationHomepageSettingsResponse,
+    ApiOrganizationMcpAccessResponse,
     ApiPreviewTokenResponse,
     ApiProjectAiCredentialResponse,
     ApiProjectHomepageOrNullResponse,
@@ -1723,6 +1724,7 @@ type ApiResults =
     | ApiAgentSuggestionsResponse['results']
     | ApiAppendInstructionResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
+    | ApiOrganizationMcpAccessResponse['results']
     | ApiAiOrganizationRuntimeSettingsResponse['results']
     | ApiAiCreditUsageResponse['results']
     | ApiAiCreditDailyUsageResponse['results']

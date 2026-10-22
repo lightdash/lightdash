@@ -361,9 +361,6 @@ describe('trusted surface to persisted chart identity', () => {
         async (enabled) => {
             const f = await setup(enabled);
             const mcp = new McpService({
-                organizationSettingsModel: {
-                    get: vi.fn().mockResolvedValue({ mcpEnabled: null }),
-                },
                 lightdashConfig: f.config,
                 aiAgentToolsService: f.tools,
                 agentActionLogModel: f.agentActionLogModel,
@@ -373,6 +370,7 @@ describe('trusted surface to persisted chart identity', () => {
                     getProject: vi.fn().mockResolvedValue(f.projectInfo),
                 },
                 aiOrganizationSettingsService: {
+                    isMcpEnabled: vi.fn().mockResolvedValue(true),
                     isMcpContentWritesEnabled: vi.fn().mockResolvedValue(true),
                 },
                 aiAgentSkillService: {
@@ -466,6 +464,7 @@ describe('trusted surface to persisted chart identity', () => {
             } as ConstructorParameters<typeof AiAgentModel>[0]),
             featureFlagService: f.featureFlagService,
             aiOrganizationSettingsService: {
+                isMcpEnabled: vi.fn().mockResolvedValue(true),
                 isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(false),
             },
             orgAiCopilotConfigResolver: {

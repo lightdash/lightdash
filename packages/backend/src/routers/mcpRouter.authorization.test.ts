@@ -15,12 +15,13 @@ import {
 import { defaultSessionUser } from '../auth/account/account.mock';
 import { getOAuthScopeContext } from '../auth/oauthScopes/scopedAbility';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import { AiOrganizationSettingsModel } from '../ee/models/AiOrganizationSettingsModel';
 import { McpService } from '../ee/services/McpService/McpService';
-import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import {
     agentExecutionContext,
     getContentWriteAgentIdentity,
 } from '../services/AiAccessService/agentExecutionContext';
+import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import mcpRouter, { extractMcpProjectUuid } from './mcpRouter';
 
 vi.mock('../auth/oauthScopes/scopedAbility', () => ({
@@ -274,9 +275,7 @@ describe('MCP organization access', () => {
                     response.end();
                 },
             );
-            const getSettings = vi
-                .fn()
-                .mockResolvedValue({ mcpEnabled: false });
+            const getSettings = vi.fn().mockResolvedValue(false);
             const { response, mcpService } = await requestMcp({
                 account: createAccount(authentication),
                 method,
@@ -293,7 +292,9 @@ describe('MCP organization access', () => {
                 configureService: (service) => {
                     Object.assign(service, {
                         lightdashConfig: { mcp: { enabled: true } },
-                        organizationSettingsModel: { get: getSettings },
+                        aiOrganizationSettingsService: {
+                            isMcpEnabled: getSettings,
+                        },
                         isEnabled: McpService.prototype.isEnabled,
                     });
                 },
@@ -321,13 +322,16 @@ describe('MCP organization access', () => {
             enabledFeatureFlags: new Set<string>(),
             disabledFeatureFlags: new Set<string>(),
         };
-        const settings = new OrganizationSettingsModel({ database });
-        tracker.on.select('organization_settings').responseOnce([]);
+        const settings = new AiOrganizationSettingsModel({
+            database,
+            encryptionUtil: new EncryptionUtil({ lightdashConfig: config }),
+        });
+        tracker.on.select('ai_organization_settings').responseOnce([]);
         tracker.on
-            .select('organization_settings')
+            .select('ai_organization_settings')
             .responseOnce({ mcp_enabled: false });
         tracker.on
-            .select('organization_settings')
+            .select('ai_organization_settings')
             .responseOnce({ mcp_enabled: true });
         transport.handleRequest.mockImplementation(
             async (_request: unknown, response: ServerResponse) =>
@@ -356,7 +360,12 @@ describe('MCP organization access', () => {
                 configureService: (service) =>
                     Object.assign(service, {
                         lightdashConfig: config,
-                        organizationSettingsModel: settings,
+                        aiOrganizationSettingsService: {
+                            isMcpEnabled: async (organizationUuid: string) =>
+                                (await settings.findMcpEnabled(
+                                    organizationUuid,
+                                )) ?? true,
+                        },
                         isEnabled: McpService.prototype.isEnabled,
                     }),
             });

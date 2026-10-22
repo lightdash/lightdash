@@ -67,7 +67,6 @@ const renderSettings = (
         dbtConnection: { type: DbtProjectType.NONE },
         provisioningSource: isAnalyticsProject ? 'analytics' : null,
     });
-    queryClient.setQueryData(['organization_settings'], { mcpEnabled: true });
     queryClient.setQueryData(['organization'], {
         organizationUuid: 'org',
         name: 'Test organization',
@@ -782,9 +781,6 @@ describe('MCP settings route permission parity', () => {
             { isCopilotEnabled: true, isTrial: false },
         );
         act(() => {
-            queryClient.setQueryData(['organization_settings'], {
-                mcpEnabled: false,
-            });
             queryClient.setQueryData(['organization'], {
                 organizationUuid: 'org',
                 name: 'Test organization',
@@ -809,11 +805,14 @@ describe('MCP settings route permission parity', () => {
         });
         expect(agents).toBeDisabled();
         expect(writes).toBeDisabled();
-        const patch = nock(BASE_API_URL)
-            .patch('/api/v1/org/settings', { mcpEnabled: true })
-            .reply(200, { status: 'ok', results: { mcpEnabled: true } });
         nock(BASE_API_URL)
-            .get('/api/v1/org/settings')
+            .get('/api/v1/aiAgents/settings')
+            .reply(200, { status: 'ok', results: agentSettingsMcpMock() });
+        nock(BASE_API_URL)
+            .get('/api/v1/aiAgents/admin/settings')
+            .reply(200, { status: 'ok', results: agentSettingsMcpMock() });
+        const patch = nock(BASE_API_URL)
+            .patch('/api/v1/aiAgents/settings/mcp-access', { mcpEnabled: true })
             .reply(200, { status: 'ok', results: { mcpEnabled: true } });
         nock(BASE_API_URL)
             .get('/api/v1/org')
@@ -826,10 +825,24 @@ describe('MCP settings route permission parity', () => {
                 },
             });
         fireEvent.click(master);
-        await waitFor(() => expect(agents).toBeEnabled());
-        expect(writes).toBeEnabled();
-        expect(agents).toBeChecked();
-        expect(writes).toBeChecked();
+        await waitFor(() => {
+            expect(
+                screen.getByRole('switch', { name: 'Enable agents over MCP' }),
+            ).toBeEnabled();
+            expect(
+                screen.getByRole('switch', {
+                    name: 'Allow content changes via MCP',
+                }),
+            ).toBeEnabled();
+        });
+        expect(
+            screen.getByRole('switch', { name: 'Enable agents over MCP' }),
+        ).toBeChecked();
+        expect(
+            screen.getByRole('switch', {
+                name: 'Allow content changes via MCP',
+            }),
+        ).toBeChecked();
         expect(patch.isDone()).toBe(true);
     });
 
@@ -845,7 +858,9 @@ describe('MCP settings route permission parity', () => {
                 .optionally()
                 .reply(200, adminRead);
             const patch = nock(BASE_API_URL)
-                .patch('/api/v1/org/settings', { mcpEnabled: false })
+                .patch('/api/v1/aiAgents/settings/mcp-access', {
+                    mcpEnabled: false,
+                })
                 .reply(
                     success ? 200 : 500,
                     success
@@ -860,17 +875,14 @@ describe('MCP settings route permission parity', () => {
                           },
                 );
             const read = nock(BASE_API_URL)
-                .get('/api/v1/org/settings')
-                .optionally(!success)
-                .reply(200, { status: 'ok', results: { mcpEnabled: false } });
-            nock(BASE_API_URL)
                 .get('/api/v1/org')
-                .optionally()
+                .optionally(!success)
                 .reply(200, {
                     status: 'ok',
                     results: {
                         organizationUuid: 'org',
                         name: 'Test organization',
+                        mcpEnabled: false,
                     },
                 });
 

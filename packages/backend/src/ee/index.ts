@@ -1005,8 +1005,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiOrganizationSettingsService: ({ models, context }) =>
                 new AiOrganizationSettingsService({
-                    organizationSettingsModel:
-                        models.getOrganizationSettingsModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     aiOrganizationSettingsModel:
                         models.getAiOrganizationSettingsModel(),
@@ -1205,6 +1203,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     rolesModel: models.getRolesModel(),
                     organizationSettingsModel:
                         models.getOrganizationSettingsModel(),
+                    isMcpEnabled: (organizationUuid) =>
+                        repository
+                            .getAiOrganizationSettingsService<AiOrganizationSettingsService>()
+                            .isMcpEnabled(organizationUuid),
                     onOrganizationCreated: ({ user, organizationUuid }) =>
                         provisionOnboardingOrgFlags({
                             user,
@@ -1600,8 +1602,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             mcpService: ({ context, repository, models }) =>
                 new McpService({
-                    organizationSettingsModel:
-                        models.getOrganizationSettingsModel(),
                     agentActionLogModel: models.getAgentActionLogModel(),
                     aiAccessService: repository.getAiAccessService(),
                     lightdashConfig: context.lightdashConfig,

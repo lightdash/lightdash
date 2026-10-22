@@ -8,37 +8,26 @@ type Captured = {
 
 /**
  * Builds an OrganizationSettingsModel backed by a chainable Knex mock. `row`
- * is what `.first()` and `.returning()` resolve to, and `captured` records
- * the args passed to `.insert()` / `.merge()` so we can assert exactly which
- * columns a write touched.
+ * is what `.first()` resolves to (the row `get` reads — also what `update`
+ * re-reads at the end), and `captured` records the args passed to `.insert()`
+ * / `.merge()` so we can assert exactly which columns a write touched.
  */
 const createModel = (row: Record<string, unknown> | undefined) => {
     const captured: Captured = {};
     const builder: Record<string, import('vitest').Mock> = {};
     Object.assign(builder, {
         where: vi.fn(() => builder),
-        forUpdate: vi.fn(() => builder),
         first: vi.fn(async () => row),
         insert: vi.fn((arg: Record<string, unknown>) => {
             captured.insert = arg;
             return builder;
         }),
         onConflict: vi.fn(() => builder),
-        ignore: vi.fn(async () => undefined),
-        merge: vi.fn((arg: Record<string, unknown>) => {
+        merge: vi.fn(async (arg: Record<string, unknown>) => {
             captured.merge = arg;
-            return builder;
         }),
-        returning: vi.fn(async () => [row]),
     });
-    const database = Object.assign(
-        vi.fn(() => builder),
-        {
-            transaction: vi.fn(async (run: (trx: Knex) => Promise<unknown>) =>
-                run(database),
-            ),
-        },
-    ) as unknown as Knex;
+    const database = vi.fn(() => builder) as unknown as Knex;
     return {
         model: new OrganizationSettingsModel({ database }),
         captured,
@@ -52,7 +41,6 @@ describe('OrganizationSettingsModel', () => {
         test('returns all-null (nothing overridden → inherit) when no row exists', async () => {
             const { model } = createModel(undefined);
             expect(await model.get(ORG)).toEqual({
-                mcpEnabled: null,
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
@@ -81,7 +69,6 @@ describe('OrganizationSettingsModel', () => {
                 persistent_download_urls_enabled: null,
             });
             expect(await model.get(ORG)).toEqual({
-                mcpEnabled: null,
                 oidcLinkingEnabled: true,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
@@ -107,7 +94,6 @@ describe('OrganizationSettingsModel', () => {
                 support_impersonation_enabled: true,
             });
             expect(await model.get(ORG)).toEqual({
-                mcpEnabled: null,
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: true,
@@ -135,7 +121,6 @@ describe('OrganizationSettingsModel', () => {
                 scheduled_delivery_expiration_seconds_slack: 1209600,
             });
             expect(await model.get(ORG)).toEqual({
-                mcpEnabled: null,
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
@@ -162,7 +147,6 @@ describe('OrganizationSettingsModel', () => {
                 ],
             });
             expect(await model.get(ORG)).toEqual({
-                mcpEnabled: null,
                 oidcLinkingEnabled: null,
                 oidcToEmailLinkingEnabled: null,
                 supportImpersonationEnabled: null,
@@ -252,9 +236,8 @@ describe('OrganizationSettingsModel', () => {
             );
             expect(captured.merge?.updated_at).toBeInstanceOf(Date);
 
-            // returns the transaction's current settings
-            expect(result.current).toEqual({
-                mcpEnabled: null,
+            // returns the re-read settings
+            expect(result).toEqual({
                 oidcLinkingEnabled: true,
                 oidcToEmailLinkingEnabled: false,
                 supportImpersonationEnabled: null,

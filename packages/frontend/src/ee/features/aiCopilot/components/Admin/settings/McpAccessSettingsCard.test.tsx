@@ -1,11 +1,11 @@
-import { type ApiError, type OrganizationSettings } from '@lightdash/common';
+import { type ApiError, type Organization } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { McpAccessSettingsCard } from './McpAccessSettingsCard';
 
 type SettingsQuery = {
-    data: Pick<OrganizationSettings, 'mcpEnabled'> | undefined;
+    data: Pick<Organization, 'mcpEnabled'> | undefined;
     isInitialLoading: boolean;
     isError: boolean;
     error: ApiError | undefined;
@@ -28,9 +28,12 @@ const { query, mutation, updateSettings, refetch } = vi.hoisted(() => {
     };
 });
 
-vi.mock('../../../../../../hooks/organization/useOrganizationSettings', () => ({
-    useOrganizationSettings: () => ({ ...query.current, refetch }),
-    useUpdateOrganizationSettings: () => ({
+vi.mock('../../../../../../hooks/organization/useOrganization', () => ({
+    useOrganization: () => ({ ...query.current, refetch }),
+}));
+
+vi.mock('../../../hooks/useAiOrganizationSettings', () => ({
+    useUpdateOrganizationMcpAccess: () => ({
         mutate: updateSettings,
         isLoading: mutation.isLoading,
     }),
@@ -63,7 +66,7 @@ test.each([true, false])(
     },
 );
 
-test.each([null, undefined])(
+test.each([undefined])(
     'preserves normal MCP availability when the setting is %s',
     (mcpEnabled) => {
         query.current.data = { mcpEnabled };

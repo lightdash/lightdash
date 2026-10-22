@@ -115,6 +115,7 @@ export type OrganizationServiceArguments = {
     featureFlagModel: FeatureFlagModel;
     rolesModel: RolesModel;
     organizationSettingsModel: Pick<OrganizationSettingsModel, 'get'>;
+    isMcpEnabled?: (organizationUuid: string) => Promise<boolean>;
     onOrganizationCreated?: (args: {
         user: SessionUser;
         organizationUuid: string;
@@ -151,6 +152,8 @@ export class OrganizationService extends BaseService {
 
     private readonly onOrganizationCreated: OrganizationServiceArguments['onOrganizationCreated'];
 
+    private readonly isMcpEnabled: OrganizationServiceArguments['isMcpEnabled'];
+
     constructor({
         lightdashConfig,
         analytics,
@@ -164,6 +167,7 @@ export class OrganizationService extends BaseService {
         featureFlagModel,
         rolesModel,
         organizationSettingsModel,
+        isMcpEnabled,
         onOrganizationCreated,
     }: OrganizationServiceArguments) {
         super();
@@ -180,6 +184,7 @@ export class OrganizationService extends BaseService {
         this.featureFlagModel = featureFlagModel;
         this.rolesModel = rolesModel;
         this.organizationSettingsModel = organizationSettingsModel;
+        this.isMcpEnabled = isMcpEnabled;
         this.onOrganizationCreated = onOrganizationCreated;
     }
 
@@ -187,25 +192,26 @@ export class OrganizationService extends BaseService {
         assertIsAccountWithOrg(account);
         const { organizationUuid } = account.organization;
 
-        const [needsProject, organization, settings] = await Promise.all([
-            this.projectModel
-                .hasProjects(organizationUuid)
-                .then((hasProjects) => !hasProjects),
-            this.organizationModel.get(organizationUuid),
-            this.organizationSettingsModel.get(organizationUuid),
-        ]);
+        const [needsProject, organization, settings, mcpEnabled] =
+            await Promise.all([
+                this.projectModel
+                    .hasProjects(organizationUuid)
+                    .then((hasProjects) => !hasProjects),
+                this.organizationModel.get(organizationUuid),
+                this.organizationSettingsModel.get(organizationUuid),
+                this.isMcpEnabled?.(organizationUuid),
+            ]);
         // Every member gets the effective captures switch so the data app
         // builder can hide its capture affordances; GET /org/settings is
         // admin-only.
-        const { dataAppCapturesEnabled, mcpEnabled } =
-            resolveEffectiveOrganizationSettings(
-                settings,
-                getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
-            );
+        const { dataAppCapturesEnabled } = resolveEffectiveOrganizationSettings(
+            settings,
+            getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+        );
         return {
             ...organization,
             needsProject,
-            mcpEnabled: mcpEnabled !== false,
+            ...(mcpEnabled !== undefined ? { mcpEnabled } : {}),
             dataAppCapturesEnabled: dataAppCapturesEnabled !== false,
             pgWire: this.getPgWireConnectionDetails(account, organizationUuid),
         };

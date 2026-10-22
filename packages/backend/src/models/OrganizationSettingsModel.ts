@@ -6,7 +6,6 @@ import { Knex } from 'knex';
 import isUndefined from 'lodash/isUndefined';
 import omitBy from 'lodash/omitBy';
 import {
-    DbOrganizationSettings,
     DbOrganizationSettingsColumns,
     OrganizationSettingsTableName,
 } from '../database/entities/organizationSettings';
@@ -31,11 +30,17 @@ export class OrganizationSettingsModel {
         this.database = database;
     }
 
-    private static fromRow(
-        row: DbOrganizationSettings | undefined,
-    ): OrganizationSettings {
+    /**
+     * Returns the org's raw stored overrides — `null` for anything not set (no
+     * row, or a NULL column), which the resolver treats as "inherit the
+     * instance default". The model is env-agnostic; resolving the fallback is
+     * the caller's job.
+     */
+    async get(organizationUuid: string): Promise<OrganizationSettings> {
+        const row = await this.database(OrganizationSettingsTableName)
+            .where('organization_uuid', organizationUuid)
+            .first();
         return {
-            mcpEnabled: row?.mcp_enabled ?? null,
             oidcLinkingEnabled: row?.oidc_linking_enabled ?? null,
             oidcToEmailLinkingEnabled:
                 row?.oidc_to_email_linking_enabled ?? null,
@@ -63,19 +68,6 @@ export class OrganizationSettingsModel {
         };
     }
 
-    /**
-     * Returns the org's raw stored overrides — `null` for anything not set (no
-     * row, or a NULL column), which the resolver treats as "inherit the
-     * instance default". The model is env-agnostic; resolving the fallback is
-     * the caller's job.
-     */
-    async get(organizationUuid: string): Promise<OrganizationSettings> {
-        const row = await this.database(OrganizationSettingsTableName)
-            .where('organization_uuid', organizationUuid)
-            .first();
-        return OrganizationSettingsModel.fromRow(row);
-    }
-
     async getAllEnabledCorsAllowedDomains(): Promise<string[]> {
         const rows = await this.database(OrganizationSettingsTableName)
             .select('cors_allowed_domains')
@@ -86,18 +78,14 @@ export class OrganizationSettingsModel {
 
     /**
      * Upserts only the settings present in `patch` (undefined entries are
-     * dropped, so omitted settings keep their stored value). Returns the
-     * previous and new raw state from the same transaction.
+     * dropped, so omitted settings keep their stored value). Returns the new
+     * raw state.
      */
     async update(
         organizationUuid: string,
         patch: UpdateOrganizationSettings,
-    ): Promise<{
-        previous: OrganizationSettings;
-        current: OrganizationSettings;
-    }> {
+    ): Promise<OrganizationSettings> {
         const columns: SettingsColumnPatch = {
-            mcp_enabled: patch.mcpEnabled,
             oidc_linking_enabled: patch.oidcLinkingEnabled,
             oidc_to_email_linking_enabled: patch.oidcToEmailLinkingEnabled,
             support_impersonation_enabled: patch.supportImpersonationEnabled,
@@ -125,25 +113,10 @@ export class OrganizationSettingsModel {
             isUndefined,
         ) as Partial<DbOrganizationSettingsColumns>;
 
-        return this.database.transaction(async (trx) => {
-            // Create the row before locking so first-ever writes serialize too.
-            await trx(OrganizationSettingsTableName)
-                .insert({ organization_uuid: organizationUuid })
-                .onConflict('organization_uuid')
-                .ignore();
-            const previous = await trx(OrganizationSettingsTableName)
-                .where('organization_uuid', organizationUuid)
-                .forUpdate()
-                .first();
-            const [current] = await trx(OrganizationSettingsTableName)
-                .insert({ organization_uuid: organizationUuid, ...toWrite })
-                .onConflict('organization_uuid')
-                .merge({ ...toWrite, updated_at: new Date() })
-                .returning('*');
-            return {
-                previous: OrganizationSettingsModel.fromRow(previous),
-                current: OrganizationSettingsModel.fromRow(current),
-            };
-        });
+        await this.database(OrganizationSettingsTableName)
+            .insert({ organization_uuid: organizationUuid, ...toWrite })
+            .onConflict('organization_uuid')
+            .merge({ ...toWrite, updated_at: new Date() });
+        return this.get(organizationUuid);
     }
 }

@@ -427,21 +427,19 @@ describe('upsertSettings model validation', () => {
         canManageAi?: boolean;
     } = {}) => {
         const upsert = vi.fn(async (_org: string, data: unknown) => data);
-        const getOrganizationSettings = vi.fn(async () => ({
-            mcpEnabled: organizationMcpEnabled,
-        }));
+        const findMcpEnabled = vi.fn(async () => organizationMcpEnabled);
         const findAiOrganizationSettings = vi.fn(async () => ({
             defaultAiAgentModelConfig: storedDefault,
             mcpAgentsEnabled: storedMcpAgentsEnabled,
             mcpContentWritesEnabled: storedMcpContentWritesEnabled,
         }));
         const service = new AiOrganizationSettingsService({
-            organizationSettingsModel: { get: getOrganizationSettings },
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: true }),
             } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findByOrganizationUuid: findAiOrganizationSettings,
+                findMcpEnabled,
                 upsert,
             },
             organizationModel: {
@@ -471,7 +469,7 @@ describe('upsertSettings model validation', () => {
         return {
             service,
             upsert,
-            getOrganizationSettings,
+            findMcpEnabled,
             findAiOrganizationSettings,
         };
     };
@@ -565,19 +563,19 @@ describe('upsertSettings model validation', () => {
     );
 
     it('keeps unrelated AI settings writable while MCP is disabled', async () => {
-        const { service, upsert, getOrganizationSettings } = buildService({
+        const { service, upsert, findMcpEnabled } = buildService({
             organizationMcpEnabled: false,
         });
         await service.upsertSettings(user, { aiAgentsVisible: false });
         expect(upsert).toHaveBeenCalledExactlyOnceWith('org-uuid', {
             aiAgentsVisible: false,
         });
-        expect(getOrganizationSettings).not.toHaveBeenCalled();
+        expect(findMcpEnabled).not.toHaveBeenCalled();
     });
 
     it('does not write MCP preferences when organization settings cannot be read', async () => {
-        const { service, upsert, getOrganizationSettings } = buildService();
-        getOrganizationSettings.mockRejectedValueOnce(new Error('Read failed'));
+        const { service, upsert, findMcpEnabled } = buildService();
+        findMcpEnabled.mockRejectedValueOnce(new Error('Read failed'));
         await expect(
             service.upsertSettings(user, { mcpContentWritesEnabled: true }),
         ).rejects.toThrow('Read failed');
@@ -585,7 +583,7 @@ describe('upsertSettings model validation', () => {
     });
 
     it('checks AI permissions before reporting organization MCP consent', async () => {
-        const { service, upsert, getOrganizationSettings } = buildService({
+        const { service, upsert, findMcpEnabled } = buildService({
             organizationMcpEnabled: false,
             canManageAi: false,
         });
@@ -594,7 +592,7 @@ describe('upsertSettings model validation', () => {
         ).rejects.toThrow(
             'Insufficient permissions to manage AI agent settings',
         );
-        expect(getOrganizationSettings).not.toHaveBeenCalled();
+        expect(findMcpEnabled).not.toHaveBeenCalled();
         expect(upsert).not.toHaveBeenCalled();
     });
     it('refuses an OAuth admin enabling agent admission without OAuth scope metadata', async () => {

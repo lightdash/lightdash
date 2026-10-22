@@ -474,6 +474,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiOrganizationSettingsController.getRuntimeSettings': [
         AgentCapability.ReadDiscover,
     ],
+    'AiOrganizationSettingsController.updateMcpAccess': [
+        AgentCapability.Administration,
+    ],
     'AiProviderCredentialController.adoptLegacyCredential': [
         AgentCapability.Administration,
     ],

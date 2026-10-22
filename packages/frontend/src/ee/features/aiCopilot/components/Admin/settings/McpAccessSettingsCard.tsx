@@ -10,10 +10,8 @@ import {
 } from '@mantine/core';
 import ErrorState from '../../../../../../components/common/ErrorState';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
-import {
-    useOrganizationSettings,
-    useUpdateOrganizationSettings,
-} from '../../../../../../hooks/organization/useOrganizationSettings';
+import { useOrganization } from '../../../../../../hooks/organization/useOrganization';
+import { useUpdateOrganizationMcpAccess } from '../../../hooks/useAiOrganizationSettings';
 
 export const McpAccessSettingsCard = () => {
     const {
@@ -22,9 +20,9 @@ export const McpAccessSettingsCard = () => {
         isError,
         error,
         refetch,
-    } = useOrganizationSettings();
+    } = useOrganization();
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
-        useUpdateOrganizationSettings();
+        useUpdateOrganizationMcpAccess();
 
     if (isError) {
         return (

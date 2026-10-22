@@ -164,7 +164,6 @@ import { LightdashConfig } from '../../../config/parseConfig';
 import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { McpContextModel } from '../../../models/McpContextModel';
-import { OrganizationSettingsModel } from '../../../models/OrganizationSettingsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
@@ -558,7 +557,6 @@ type McpServiceArguments = {
     searchModel: SearchModel;
     spaceService: SpaceService;
     mcpContextModel: McpContextModel;
-    organizationSettingsModel: OrganizationSettingsModel;
     mcpToolCallModel: McpToolCallModel;
     featureFlagService: FeatureFlagService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
@@ -702,8 +700,6 @@ export class McpService extends BaseService {
 
     private mcpContextModel: McpContextModel;
 
-    private organizationSettingsModel: OrganizationSettingsModel;
-
     private mcpToolCallModel: McpToolCallModel;
 
     private shareService: ShareService;
@@ -739,7 +735,6 @@ export class McpService extends BaseService {
         spaceService,
         projectModel,
         mcpContextModel,
-        organizationSettingsModel,
         mcpToolCallModel,
         featureFlagService,
         aiOrganizationSettingsService,
@@ -764,7 +759,6 @@ export class McpService extends BaseService {
         this.projectModel = projectModel;
         this.spaceService = spaceService;
         this.mcpContextModel = mcpContextModel;
-        this.organizationSettingsModel = organizationSettingsModel;
         this.mcpToolCallModel = mcpToolCallModel;
         this.featureFlagService = featureFlagService;
         this.aiOrganizationSettingsService = aiOrganizationSettingsService;
@@ -5637,10 +5631,11 @@ export class McpService extends BaseService {
         if (!user.organizationUuid) {
             return false;
         }
-        const settings = await this.organizationSettingsModel.get(
-            user.organizationUuid,
-        );
-        if (settings.mcpEnabled === false) {
+        if (
+            !(await this.aiOrganizationSettingsService.isMcpEnabled(
+                user.organizationUuid,
+            ))
+        ) {
             return false;
         }
 
