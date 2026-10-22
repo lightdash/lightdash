@@ -1,3 +1,10 @@
+# [3.30.0](https://github.com/lightdash/lightdash/compare/3.29.0...3.30.0) (2026-10-22)
+
+
+### Features
+
+* **ai:** allow creating a BYOK provider credential without activating it ([#31353](https://github.com/lightdash/lightdash/issues/31353)) ([b7677f7](https://github.com/lightdash/lightdash/commit/b7677f78e484e3dc746428437e3f5806fa99e4fb)), closes [#31292](https://github.com/lightdash/lightdash/issues/31292)
+
 # [3.29.0](https://github.com/lightdash/lightdash/compare/3.28.0...3.29.0) (2026-10-22)
 
 

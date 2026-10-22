@@ -49195,6 +49195,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                setAsDefault: { dataType: 'boolean' },
                 inferenceGeography: { ref: 'BedrockInferenceGeography' },
                 apiKey: { dataType: 'string', required: true },
                 allowedModels: {
