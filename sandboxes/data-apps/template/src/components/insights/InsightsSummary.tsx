@@ -24,7 +24,9 @@ export function InsightsSummary({
     instructions,
     className,
 }: Props) {
-    const view = useInsights(instructions ? { instructions } : undefined);
+    // Always pass the options object so clearing the prop clears the
+    // guidance instead of leaving the previous value in force.
+    const view = useInsights({ instructions });
     if (view.status === 'unavailable') return null;
     const busy = view.status === 'analysing';
 

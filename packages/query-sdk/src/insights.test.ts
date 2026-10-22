@@ -140,6 +140,13 @@ describe('insights channel', () => {
         expect(requests()).toEqual([
             { type: INSIGHTS_REQUEST_MESSAGE, inUse: true },
         ]);
+        setInsightInstructions('Amounts are EUR.');
+        posted.length = 0;
+        // A hook that stops declaring instructions clears them with undefined.
+        setInsightInstructions(undefined);
+        expect(requests()).toEqual([
+            { type: INSIGHTS_REQUEST_MESSAGE, inUse: true },
+        ]);
     });
 
     it('is unavailable until the host pushes, then stores the payload', () => {

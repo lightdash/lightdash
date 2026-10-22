@@ -14,7 +14,13 @@
  * Mirrored by the host in packages/common/src/ee/apps/types.ts.
  */
 
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useSyncExternalStore,
+} from 'react';
 import type { Row } from './types';
 
 export type InsightSeverity = 'high' | 'medium' | 'positive' | 'info';
@@ -484,8 +490,17 @@ export function useInsights(
         source === undefined
             ? (sourceOrOptions as ViewInsightsOptions | undefined)?.instructions
             : undefined;
+    // A hook that never declares instructions must not clobber another's, but
+    // one that stops declaring them (string → undefined) is clearing its own.
+    const declaredInstructionsRef = useRef(false);
     useEffect(() => {
-        if (instructions === undefined) return;
+        if (instructions === undefined) {
+            if (!declaredInstructionsRef.current) return;
+            declaredInstructionsRef.current = false;
+            setInsightInstructions(undefined);
+            return;
+        }
+        declaredInstructionsRef.current = true;
         setInsightInstructions(instructions);
     }, [instructions]);
     const payload = useInsightsPayload();
