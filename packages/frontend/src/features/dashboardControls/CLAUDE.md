@@ -17,8 +17,18 @@ fields. User-facing copy says *tile*, never *chart*.
 - `features/dashboardTabs/index.tsx` picks `ControlsBar` instead of
   `DashboardFiltersBar`, and puts the rail (`ControlSidebar`) first in the
   grid's row, which gets `CONTROLS_RAIL_LAYOUT` as its class.
-- `pages/Dashboard.tsx` picks `ControlsSidebarPage` instead of `Page` and wraps
-  the header in `DashboardHeaderGuard` (inert while the sidebar is open).
+- `pages/Dashboard.tsx` picks `ControlsSidebarPage` instead of `Page` and
+  renders the header through `DashboardHeaderGuard`: the shipped header with
+  its Save and Cancel wrapped. Save calls `close()` first, as "Done" does, then
+  saves (the save reads the store, so it sees what `close()` wrote); Cancel
+  calls `discard()`, then the shipped Cancel. Both are no-ops on a closed
+  editor. Everything else in the header is inert and dimmed while the editor
+  is open (Add tile's new chart, for one, stores the dashboard with the edit
+  half done and leaves the page): the guard sets `inert` on every element
+  that is not Save, Cancel or on the path down to them, re-applies as the
+  header's DOM changes, and removes exactly what it set once the editor
+  closes. Save and Cancel are found by `data-dashboard-edit-action`, a static
+  attribute on the two shipped buttons in `DashboardHeader`.
 
 ## Openings in shipped files
 
@@ -233,7 +243,8 @@ In `FilterConfiguration/`:
   the placeholder land in the same render, so the new rule is never missing.
 - `close()`, `discard()`, `removeFilter()` and opening another control clear
   the waiting fields. The first three send focus back to the bar once the
-  editor has left the page: to the control's pill when it is still there and
+  editor has left the page (so do Done, the X, Escape and the header's Save,
+  which all go through `close()`): to the control's pill when it is still there and
   not disabled (a fields refetch disables it), else to "Add". The provider finds
   them in the DOM, as the pill carrying the control's id
   (`data-controls-pill`, set by `FilterPill`) and as the shipped "Add filter"
@@ -301,8 +312,9 @@ In `FilterConfiguration/`:
   the control id as `key`, so the draft restarts and a pending commit is
   dropped when another control opens.
 - Focus: the label input has `autoFocus`, so it takes focus whenever the keyed
-  editor mounts (from a pill or a row); a new filter's field search takes it
-  instead. The first field of a
+  editor mounts (from a pill or a row); a new filter's field search
+  (`[data-controls-start]`) takes it instead, on the next frame
+  (`useFocusLabelOnMount`). The first field of a
   filter keeps the same editor mounted: the id is the placeholder's. So the
   pick calls `focusLabelInput()`, from the sidebar and from a tile card.
 - The edited filter's field is resolved as the shipped bar does
@@ -725,15 +737,19 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   prompt, and neither does a SQL column filter.
 - One card per tile, one row per filter that could link: the filter's name
   and a clearable shipped `FieldSelect` ("Not filtered"; picking the chosen
-  field again clears it too). A filter with a single candidate
-  has it chosen, in plain sight, so the pairing is never hidden.
+  field again clears it too). A row starts chosen only on an exact match
+  (`getLinkDefault`): exactly one candidate is one of the filter's own fields
+  (same field id) or has the label of the filter's field (any table).
+  Anything else, a lone candidate of the same type included, starts "Not
+  filtered", so an unrelated field is never linked by default.
 - The card keeps the user's picks per rule: a rule present with `null` was
-  cleared and is not linked, absent means the default (the single candidate).
+  cleared and is not linked, absent means the default (the exact match).
   A pick that is no longer offered is dropped. Choices are derived on render,
   never synced in an effect. Candidates that read the same are told apart by
   their table group.
 - The card never spills out of its tile: `.promptCard` bounds it to the tile
-  and scrolls.
+  and only its rows (`.promptRows`) scroll, so the header with Skip and the
+  footer with Apply stay in view.
 - One "Apply" answers the whole card: "Apply all N" or "Apply X, skip Y",
   and a plain "Apply" for a single row or when no row has a field (then
   disabled). Rows with a field are linked, the rest skipped. "Skip all"

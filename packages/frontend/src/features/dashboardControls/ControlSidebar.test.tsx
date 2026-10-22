@@ -5,7 +5,7 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -44,7 +44,12 @@ vi.mock('./useSqlColumnsByTile', () => ({
 }));
 
 vi.mock('./FieldsAndTiles', () => ({
-    FieldsAndTiles: () => <div data-testid="fields-and-tiles" />,
+    // The placeholder's field search sits in `data-controls-start`
+    FieldsAndTiles: () => (
+        <div data-testid="fields-and-tiles" data-controls-start>
+            <input aria-label="Search fields" />
+        </div>
+    ),
 }));
 
 vi.mock('./FilterSettings', () => ({
@@ -487,6 +492,19 @@ describe('ControlSidebar', () => {
         renderWithProviders(<ControlSidebar />);
 
         expect(screen.getByLabelText('Filter label')).toHaveFocus();
+    });
+
+    it('moves focus to the field search when a new filter opens', async () => {
+        setSidebar({
+            isPlaceholder: true,
+            editingRule: makeRule({ target: { fieldId: '', tableName: '' } }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        // Handed over on the next frame, once the rail can take focus
+        await waitFor(() =>
+            expect(screen.getByLabelText('Search fields')).toHaveFocus(),
+        );
     });
 
     it('stays open on Enter with no label', () => {

@@ -1,4 +1,6 @@
 import {
+    DimensionType,
+    FieldType,
     FilterOperator,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -354,6 +356,26 @@ describe('dismissing in the controls editor', () => {
             escape(label());
             expect(value().isSidebarOpen).toBe(false);
             expect(addButton()).toHaveFocus();
+        });
+
+        it('goes to the new pill once a new control is kept with a field', () => {
+            fireEvent.click(addButton());
+            act(() =>
+                value().addFirstField({
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'status',
+                    label: 'Status',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.status',
+                    hidden: false,
+                }),
+            );
+            const newId = value().editing?.filterId;
+            fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+            expect(pill(newId ?? '')).toHaveFocus();
         });
 
         it('goes to "Add" when the pill cannot take it', () => {
