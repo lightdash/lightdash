@@ -136,8 +136,6 @@ export class ProjectDbtSourcesModel {
         projectUuid: string,
         rows: DbProjectDbtSource[],
     ): Promise<ProjectDbtSource[]> {
-        if (rows.length === 0 || !(await this.peers.isEnabled(projectUuid)))
-            return rows.map((row) => this.convertRow(row));
         await this.peers.ensureRepositories(projectUuid);
         return Promise.all(
             rows.map(async (row) => {
@@ -174,6 +172,8 @@ export class ProjectDbtSourcesModel {
             .where('project_uuid', projectUuid)
             .orderBy('precedence', 'asc')
             .orderBy('name', 'asc');
+        if (rows.length === 0 || !(await this.peers.isEnabled(projectUuid)))
+            return rows.map((row) => this.convertRow(row));
         return this.convertRows(projectUuid, rows);
     }
 
@@ -331,6 +331,8 @@ export class ProjectDbtSourcesModel {
                 `Cannot find dbt source with id: ${projectDbtSourceUuid}`,
             );
         }
+        if (!(await this.peers.isEnabled(row.project_uuid)))
+            return this.convertRow(row);
         return (await this.convertRows(row.project_uuid, [row]))[0];
     }
 
@@ -494,7 +496,10 @@ export class ProjectDbtSourcesModel {
             .where('project_uuid', projectUuid)
             .orderBy('precedence', 'asc')
             .orderBy('name', 'asc');
-        const sources = await this.convertRows(projectUuid, rows);
+        const sources =
+            rows.length > 0 && (await this.peers.isEnabled(projectUuid))
+                ? await this.convertRows(projectUuid, rows)
+                : rows.map((row) => this.convertRow(row));
         return sources.map((source, index) => ({
             ...source,
             warehouseConnectionUuid: rows[index].warehouse_connection_uuid,
