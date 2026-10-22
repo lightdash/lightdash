@@ -803,16 +803,21 @@ export class OrgAiCopilotConfigResolver {
     }
 
     /**
-     * True when the org routes AI through its own Bedrock config. Auxiliary AI
-     * that can only run on the instance provider is skipped for these orgs: the
-     * point of choosing a Bedrock region is that content does not leave it.
+     * True when the org, or the project's pinned credential, routes AI through
+     * its own Bedrock config. Auxiliary AI that can only run on the instance
+     * provider is skipped for these orgs: the point of choosing a Bedrock
+     * region is that content does not leave it. `projectUuid` is required for
+     * the same reason as in `AiConfigScope`: a credential can serve a project
+     * without being the organization default, so a caller must state that it
+     * has no project rather than silently checking only the org default.
      */
     async isOrgBedrockRouted(
         organizationUuid: string | null | undefined,
+        projectUuid: string | null,
     ): Promise<boolean> {
         if (!organizationUuid) return false;
         const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
-            projectUuid: null,
+            projectUuid,
         });
         return Boolean(orgKeys?.bedrock);
     }

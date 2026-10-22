@@ -23,6 +23,7 @@ import {
     getOrgModelOptions,
     MODEL_PRESETS,
     pickAmbientAnthropicPreset,
+    reconcileInheritedModelConfig,
     resolveModelConfigForPrompt,
     type OrgModelOverrides,
 } from './index';
@@ -1521,6 +1522,36 @@ describe('organization Bedrock routing', () => {
                 .filter((preset) => preset.provider === 'bedrock')
                 .map((preset) => preset.name),
         ).toEqual(['claude-sonnet-4-5']);
+    });
+
+    // A project pinned to a Bedrock credential resolves a Bedrock-only config
+    // while the org default model may still point at the instance provider.
+    it('repoints an inherited model at the scoped default when its provider is not served', () => {
+        const config = configForRegion('ap-northeast-1', ['claude-sonnet-4-5']);
+        expect(
+            reconcileInheritedModelConfig(config, {
+                modelProvider: 'openai',
+                modelName: 'gpt-sol',
+            }),
+        ).toEqual({
+            modelProvider: 'bedrock',
+            modelName: 'claude-sonnet-4-5',
+        });
+    });
+
+    it('keeps an inherited model whose provider the scoped config serves', () => {
+        const config = configForRegion('ap-northeast-1', ['claude-sonnet-4-5']);
+        expect(
+            reconcileInheritedModelConfig(config, {
+                modelProvider: 'bedrock',
+                modelName: 'claude-sonnet-4-5',
+                reasoning: true,
+            }),
+        ).toEqual({
+            modelProvider: 'bedrock',
+            modelName: 'claude-sonnet-4-5',
+            reasoning: true,
+        });
     });
 });
 
