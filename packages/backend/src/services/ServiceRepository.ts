@@ -1574,7 +1574,6 @@ export class ServiceRepository
             'directAccessService',
             () =>
                 new DirectAccessService({
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     directAccessModel: this.models.getDirectAccessModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                     directAccessFeatureGate: this.getDirectAccessFeatureGate(),
@@ -1593,7 +1592,6 @@ export class ServiceRepository
             'spacePermissionService',
             () =>
                 new SpacePermissionService({
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     spaceModel: this.models.getSpaceModel(),
                     spacePermissionModel: this.models.getSpacePermissionModel(),
                     appAccessModel: this.models.getAppAccessModel(),
@@ -1959,7 +1957,6 @@ export class ServiceRepository
             'contentService',
             () =>
                 new ContentService({
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     documentService: this.getDocumentService(),
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),

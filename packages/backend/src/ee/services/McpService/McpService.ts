@@ -5779,16 +5779,6 @@ export class McpService extends BaseService {
         );
     }
 
-    public async isDocumentsEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<boolean> {
-        const { enabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.Documents,
-        });
-        return enabled;
-    }
-
     /**
      * Whether the data app build tools should be registered for this caller:
      * data apps enabled and the caller may create them. A project-pinned

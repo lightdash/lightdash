@@ -4,7 +4,6 @@ import {
     ApiSpaceServiceAccountCandidatesResponse,
     BulkActionable,
     CreateSpace,
-    FeatureFlags,
     ForbiddenError,
     getHighestSpaceRole,
     NotFoundError,
@@ -868,25 +867,18 @@ export class SpaceService
         ]);
 
         const allCharts = [...charts, ...sqlCharts];
-        const { enabled: documentsEnabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.Documents,
-        });
-        const contexts = documentsEnabled
-            ? await this.spacePermissionService.resolveAccessBatch(
-                  user.userUuid,
-                  allUuids.map((uuid) => ({ type: 'space', spaceUuid: uuid })),
-              )
-            : [];
+        const contexts = await this.spacePermissionService.resolveAccessBatch(
+            user.userUuid,
+            allUuids.map((uuid) => ({ type: 'space', spaceUuid: uuid })),
+        );
         const ability = this.createAuditedAbility(user);
         const documentSpaceUuids = contexts.flatMap(({ target, context }) =>
             context && ability.can('view', subject('Document', context))
                 ? [target.spaceUuid]
                 : [],
         );
-        const documents = documentsEnabled
-            ? await this.spaceModel.getDocumentsInSpaces(documentSpaceUuids)
-            : [];
+        const documents =
+            await this.spaceModel.getDocumentsInSpaces(documentSpaceUuids);
         const documentCounts = new Map<string, number>();
         documents.forEach(({ spaceUuid: documentSpaceUuid }) => {
             documentCounts.set(

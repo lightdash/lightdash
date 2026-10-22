@@ -20,8 +20,6 @@ export enum FeatureFlags {
     MultiConnectionProjects = 'multi-connection-projects',
     /** Extra warehouse connections of a different type to the project's original connection. */
     MixedWarehouseConnections = 'mixed-warehouse-connections',
-    /** Independent Documents containing narrative and saved chart definitions. */
-    Documents = 'documents',
     /** Backend-provisioned usage analytics projects. */
     AnalyticsProject = 'analytics-project',
     /* Show user groups */
@@ -171,12 +169,6 @@ export enum FeatureFlags {
      * Enable Autopilot project health agent.
      */
     AiAutopilot = 'ai-autopilot',
-
-    /**
-     * Legacy no-op retained so existing self-hosted feature flag configuration
-     * remains valid. Deep Research now follows AI Copilot availability.
-     */
-    AiDeepResearch = 'ai-deep-research',
 
     /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.

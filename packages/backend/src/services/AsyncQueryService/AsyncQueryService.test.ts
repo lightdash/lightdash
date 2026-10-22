@@ -25518,16 +25518,7 @@ describe('fresh execution producer to result reader', () => {
             asyncQueryService: f.service,
             queryHistoryModel: f.service.queryHistoryModel,
             featureFlagService: {
-                get: vi.fn(
-                    async ({
-                        featureFlagId,
-                    }: {
-                        featureFlagId: FeatureFlags;
-                    }) => ({
-                        enabled:
-                            featureFlagId === FeatureFlags.Documents || enabled,
-                    }),
-                ),
+                get: vi.fn(async () => ({ enabled })),
             },
             userModel,
             projectModel: {

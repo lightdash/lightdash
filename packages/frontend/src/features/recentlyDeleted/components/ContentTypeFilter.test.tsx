@@ -4,14 +4,10 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { ContentTypeFilter } from './ContentTypeFilter';
 
 const defaults = {
-    enabled: true,
-    isError: false,
     dataAppsEnabled: false,
     chartTypesEnabled: false,
 };
 const mocks = vi.hoisted(() => ({
-    enabled: true,
-    isError: false,
     dataAppsEnabled: false,
     chartTypesEnabled: false,
 }));
@@ -19,10 +15,9 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: (flag: FeatureFlags) => ({
         data: {
             enabled:
-                (flag === FeatureFlags.Documents && mocks.enabled) ||
-                (flag === FeatureFlags.EnableDataApps && mocks.dataAppsEnabled),
+                flag === FeatureFlags.EnableDataApps && mocks.dataAppsEnabled,
         },
-        isError: mocks.isError,
+        isError: false,
     }),
 }));
 
@@ -38,8 +33,6 @@ vi.mock('../../chartTypes/hooks/useChartTypesEnabled', () => ({
 
 describe('Recently deleted Document filter', () => {
     it('selects documents', () => {
-        mocks.enabled = true;
-        mocks.isError = false;
         const onChange = vi.fn();
         render(
             <MantineProvider env="test">
@@ -51,21 +44,6 @@ describe('Recently deleted Document filter', () => {
         );
         fireEvent.click(screen.getByLabelText('Documents'));
         expect(onChange).toHaveBeenCalledWith(ContentType.DOCUMENT);
-    });
-    it.each([
-        { enabled: false, isError: false },
-        { enabled: true, isError: true },
-    ])('hides documents with unavailable flag %j', (flag) => {
-        Object.assign(mocks, flag);
-        render(
-            <MantineProvider env="test">
-                <ContentTypeFilter
-                    selectedContentType="all"
-                    setSelectedContentType={vi.fn()}
-                />
-            </MantineProvider>,
-        );
-        expect(screen.queryByLabelText('Documents')).not.toBeInTheDocument();
     });
 });
 

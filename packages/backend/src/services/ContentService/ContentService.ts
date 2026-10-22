@@ -13,7 +13,6 @@ import {
     DeletedContentItem,
     DeletedContentWithDescendants,
     DirectAccessResourceType,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     KnexPaginateArgs,
@@ -34,7 +33,6 @@ import {
     ContentArgs,
     ContentFilters,
 } from '../../models/ContentModel/ContentModelTypes';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
@@ -49,7 +47,6 @@ import type { SpacePermissionService } from '../SpaceService/SpacePermissionServ
 import { SpaceService } from '../SpaceService/SpaceService';
 
 type ContentServiceArguments = {
-    featureFlagModel: FeatureFlagModel;
     documentService: DocumentService;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
@@ -67,8 +64,6 @@ type ContentServiceArguments = {
 };
 
 export class ContentService extends BaseService {
-    private readonly featureFlagModel: FeatureFlagModel;
-
     private readonly documentService: DocumentService;
 
     analytics: LightdashAnalytics;
@@ -99,7 +94,6 @@ export class ContentService extends BaseService {
 
     constructor(args: ContentServiceArguments) {
         super();
-        this.featureFlagModel = args.featureFlagModel;
         this.documentService = args.documentService;
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
@@ -187,19 +181,13 @@ export class ContentService extends BaseService {
             );
         }
 
-        const { enabled: documentsEnabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.Documents,
-        });
         if (filters.sharedWithMe === true) {
             return this.findSharedWithMe(
                 user,
                 {
                     ...filters,
                     projectUuids: allowedProjectUuids,
-                    documents: documentsEnabled
-                        ? { allowedSpaceUuids: [] }
-                        : undefined,
+                    documents: { allowedSpaceUuids: [] },
                 },
                 queryArgs,
                 paginateArgs,
@@ -270,19 +258,17 @@ export class ContentService extends BaseService {
                     : [];
         }
 
-        const documentSpaces = documentsEnabled
-            ? await this.spacePermissionService.resolveAccessBatch(
-                  user.userUuid,
-                  [
-                      ...new Set([
-                          ...allowedSpaceUuids,
-                          ...(accessibleChildSpaceUuids ?? []),
-                      ]),
-                  ].map((spaceUuid) => ({ type: 'space', spaceUuid })),
-              )
-            : [];
+        const documentSpaces =
+            await this.spacePermissionService.resolveAccessBatch(
+                user.userUuid,
+                [
+                    ...new Set([
+                        ...allowedSpaceUuids,
+                        ...(accessibleChildSpaceUuids ?? []),
+                    ]),
+                ].map((spaceUuid) => ({ type: 'space', spaceUuid })),
+            );
         const isAllDocuments =
-            documentsEnabled &&
             !isInsideSpace &&
             filters.contentTypes?.length === 1 &&
             filters.contentTypes[0] === ContentType.DOCUMENT;
@@ -308,34 +294,27 @@ export class ContentService extends BaseService {
                   ),
               )
             : [];
-        const documents = documentsEnabled
-            ? {
-                  ...(grantedDocumentUuids !== undefined
-                      ? { grantedUuids: grantedDocumentUuids }
-                      : {}),
-                  ...(includePersonalDocuments
-                      ? {
-                            personal: {
-                                forUserUuid: user.userUuid,
-                                adminProjectUuids: allowedProjectUuids.filter(
-                                    (_, index) =>
-                                        personalDocumentAdminResults[index],
-                                ),
-                            },
-                        }
-                      : {}),
-                  allowedSpaceUuids: documentSpaces.flatMap(
-                      ({ target, context }) =>
-                          context &&
-                          auditedAbility.can(
-                              'view',
-                              subject('Document', context),
-                          )
-                              ? [target.spaceUuid]
-                              : [],
-                  ),
-              }
-            : undefined;
+        const documents = {
+            ...(grantedDocumentUuids !== undefined
+                ? { grantedUuids: grantedDocumentUuids }
+                : {}),
+            ...(includePersonalDocuments
+                ? {
+                      personal: {
+                          forUserUuid: user.userUuid,
+                          adminProjectUuids: allowedProjectUuids.filter(
+                              (_, index) => personalDocumentAdminResults[index],
+                          ),
+                      },
+                  }
+                : {}),
+            allowedSpaceUuids: documentSpaces.flatMap(({ target, context }) =>
+                context &&
+                auditedAbility.can('view', subject('Document', context))
+                    ? [target.spaceUuid]
+                    : [],
+            ),
+        };
 
         const results = await this.contentModel.findSummaryContents(
             {
@@ -983,16 +962,12 @@ export class ContentService extends BaseService {
             ? filters.deletedByUserUuids
             : [user.userUuid];
 
-        const { enabled: documentsEnabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.Documents,
-        });
         const contentTypes = filters.contentTypes ?? [
             ContentType.CHART,
             ContentType.DASHBOARD,
             ContentType.SPACE,
             ContentType.DATA_APP,
-            ...(documentsEnabled ? [ContentType.DOCUMENT] : []),
+            ContentType.DOCUMENT,
         ];
 
         return this.contentModel.findDeletedContents(
@@ -1002,9 +977,7 @@ export class ContentService extends BaseService {
                 search: filters.search,
                 deletedByUserUuids,
                 dataAppVizsFilter: filters.dataAppVizsFilter,
-                documents: documentsEnabled
-                    ? { allowedSpaceUuids: [] }
-                    : undefined,
+                documents: { allowedSpaceUuids: [] },
             },
             paginateArgs,
         );

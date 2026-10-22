@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { AiAgentService } from './AiAgentService';
 
@@ -45,7 +44,6 @@ describe('Document runtime access', () => {
             slack: true,
             trusted: true,
             authorized: true,
-            enabled: true,
             expected: true,
         },
         {
@@ -53,7 +51,6 @@ describe('Document runtime access', () => {
             slack: true,
             trusted: false,
             authorized: true,
-            enabled: true,
             expected: false,
         },
         {
@@ -61,15 +58,6 @@ describe('Document runtime access', () => {
             slack: false,
             trusted: true,
             authorized: false,
-            enabled: true,
-            expected: false,
-        },
-        {
-            name: 'disabled Documents flag',
-            slack: false,
-            trusted: true,
-            authorized: true,
-            enabled: false,
             expected: false,
         },
         {
@@ -77,12 +65,11 @@ describe('Document runtime access', () => {
             slack: false,
             trusted: true,
             authorized: true,
-            enabled: true,
             expected: true,
         },
     ])(
         '$name passes effective access to discovery and authoring',
-        async ({ slack, trusted, authorized, enabled, expected }) => {
+        async ({ slack, trusted, authorized, expected }) => {
             const service = new AiAgentService({
                 agentPermissionService: {
                     loadRequest: vi.fn().mockResolvedValue({
@@ -130,19 +117,7 @@ describe('Document runtime access', () => {
                     findLatestProgressByRunUuids: vi.fn().mockResolvedValue([]),
                 },
                 featureFlagService: {
-                    get: vi
-                        .fn()
-                        .mockImplementation(
-                            async ({
-                                featureFlagId,
-                            }: {
-                                featureFlagId: FeatureFlags;
-                            }) => ({
-                                enabled:
-                                    featureFlagId === FeatureFlags.Documents &&
-                                    enabled,
-                            }),
-                        ),
+                    get: vi.fn().mockResolvedValue({ enabled: false }),
                 },
                 aiAgentToolsService: {
                     canGenerateDataApp: vi.fn().mockResolvedValue(false),

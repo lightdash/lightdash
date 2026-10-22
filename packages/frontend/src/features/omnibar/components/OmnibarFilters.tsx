@@ -1,6 +1,5 @@
 import {
     assertUnreachable,
-    FeatureFlags,
     SearchItemType,
     type OrganizationMemberProfile,
     type SearchFilters,
@@ -31,7 +30,6 @@ import CalendarRangePicker from '../../../components/common/DatePickers/Calendar
 import { type CalendarDateRange } from '../../../components/common/DatePickers/types';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { allSearchItemTypes } from '../types/searchItem';
 import { getDateFilterLabel } from '../utils/getDateFilterLabel';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
@@ -125,12 +123,6 @@ const FilterRightSection: FC<{ isActive: boolean; onClear: () => void }> = ({
     );
 
 const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
-    const searchItemTypes = allSearchItemTypes.filter(
-        (type) =>
-            type !== SearchItemType.DOCUMENT ||
-            (documentsFlag.data?.enabled === true && !documentsFlag.isError),
-    );
     const [isDateMenuOpen, dateMenuHandlers] = useDisclosure(false);
     const [isCreatedByExpanded, setIsCreatedByExpanded] = useState(false);
     const createdByInputRef = useRef<HTMLInputElement>(null);
@@ -252,7 +244,7 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                     >
                         Verified
                     </Menu.Item>
-                    {searchItemTypes.map((type) => (
+                    {allSearchItemTypes.map((type) => (
                         <Menu.Item
                             key={type}
                             leftSection={

@@ -30,9 +30,6 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
     const { enabled: chartTypesEnabled } = useChartTypesEnabled();
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
-    const documentsEnabled =
-        !documentsFlag.isError && documentsFlag.data?.enabled;
 
     const iconProps = {
         style: { display: 'block' },
@@ -76,23 +73,16 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
                 </Tooltip>
             ),
         },
-        ...(documentsEnabled
-            ? [
-                  {
-                      value: ContentType.DOCUMENT,
-                      label: (
-                          <Tooltip label="Show only deleted documents">
-                              <Box aria-label="Documents">
-                                  <MantineIcon
-                                      icon={IconFileText}
-                                      {...iconProps}
-                                  />
-                              </Box>
-                          </Tooltip>
-                      ),
-                  },
-              ]
-            : []),
+        {
+            value: ContentType.DOCUMENT,
+            label: (
+                <Tooltip label="Show only deleted documents">
+                    <Box aria-label="Documents">
+                        <MantineIcon icon={IconFileText} {...iconProps} />
+                    </Box>
+                </Tooltip>
+            ),
+        },
         ...(dataAppsEnabled
             ? [
                   {

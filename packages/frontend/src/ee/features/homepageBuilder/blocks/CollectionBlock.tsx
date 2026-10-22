@@ -17,7 +17,6 @@ import {
     collectionLimitOf,
     collectionSourceOf,
     ContentType,
-    FeatureFlags,
     contentToResourceViewItem,
     isPersonalCollectionSource,
     MAX_COLLECTION_LIMIT,
@@ -61,7 +60,6 @@ import SpaceSelector from '../../../../components/common/SpaceSelector/SpaceSele
 import { usePinnedItems } from '../../../../hooks/pinning/usePinnedItems';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import { useProject } from '../../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import { reorderCollectionItems } from '../configOps';
 import layoutClasses from '../homepageLayout.module.css';
@@ -345,7 +343,6 @@ const CollectionPicker: FC<{
      * selection — the footer lives in MantineModal, outside this component. */
     registerApply: (commit: () => void) => void;
 }> = ({ projectUuid, initialSelected, onApply, registerApply }) => {
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
     const [tab, setTab] = useState<PickerTab>('content');
     const [selectedSpaceUuid, setSelectedSpaceUuid] = useState<string | null>(
         null,
@@ -407,9 +404,7 @@ const CollectionPicker: FC<{
                     data={[
                         { label: 'Charts & dashboards', value: 'content' },
                         { label: 'Data apps', value: 'apps' },
-                        ...(documentsFlag.data?.enabled
-                            ? [{ label: 'Documents', value: 'documents' }]
-                            : []),
+                        { label: 'Documents', value: 'documents' },
                     ]}
                 />
                 <Text size="sm" c="dimmed">
@@ -454,7 +449,7 @@ const CollectionPicker: FC<{
                         </Box>
                     </Group>
                 )}
-                {tab === 'documents' && documentsFlag.data?.enabled && (
+                {tab === 'documents' && (
                     <SearchContentList
                         projectUuid={projectUuid}
                         contentType={ContentType.DOCUMENT}
@@ -712,7 +707,6 @@ const CollectionSourceControls: FC<{
     config: HomepageCollectionBlock['config'];
     onChange: (config: HomepageCollectionBlock['config']) => void;
 }> = ({ config, onChange }) => {
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
     const source = collectionSourceOf(config);
     const hint = SOURCE_OPTIONS.find((o) => o.value === source)?.hint;
     return (
@@ -765,11 +759,7 @@ const CollectionSourceControls: FC<{
                             })
                         }
                     >
-                        {CONTENT_TYPE_OPTIONS.filter(
-                            ({ value }) =>
-                                value !== 'document' ||
-                                documentsFlag.data?.enabled,
-                        ).map(({ value, label }) => (
+                        {CONTENT_TYPE_OPTIONS.map(({ value, label }) => (
                             <Chip
                                 key={value}
                                 value={value}
