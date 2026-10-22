@@ -1033,6 +1033,22 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - Rendered only in edit mode while the rail is closed, so it never stacks
   on `TileOverlays` or a hovered row's rings.
 
+## Sections
+
+A section is a named, ordered set of controls; never "group" (that is
+`requiredGroupId`). Saved on `DashboardConfig`: `controlSections` (`{ id,
+name }[]`, display order) and `parameterSections` (parameter name to section
+id). Membership on the control: `DashboardFilterRule.sectionId` and
+`DateZoomControl.sectionId`. Controls with no section, or a `sectionId` with
+no matching section, render first, unsectioned. The keys are pinned in
+`applyDimensionOverrides` / `applyMetricOverrides` (an override cannot move a
+filter), `adoptPlaceholder` and the emptied placeholder in
+`ControlsSidebarProvider`, and `buildDashboardConfig`, which today carries
+`controlSections` and `parameterSections` forward from the loaded config:
+editing hooks in there with a value plus changed flag, as `parameterOrder`.
+Section names are translatable through `config.controlSections[].name` in
+the language map, as tab names are.
+
 ## Motion
 
 Values are the homepage builder's (`ee/features/homepageBuilder/HomepageEditor.module.css`),

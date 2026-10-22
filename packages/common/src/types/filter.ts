@@ -218,6 +218,8 @@ export type DashboardFilterRule<
      * Empty or omitted means the filter is not locked anywhere.
      */
     lockedTabUuids?: string[];
+    /** Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling. */
+    sectionId?: string;
 };
 
 export type FilterDashboardToRule = DashboardFilterRule & {
@@ -228,7 +230,11 @@ export type FilterDashboardToRule = DashboardFilterRule & {
 
 export type DashboardFilterRuleOverride = Omit<
     DashboardFilterRule,
-    'tileTargets' | 'lockedTabUuids' | 'required' | 'requiredGroupId'
+    | 'tileTargets'
+    | 'lockedTabUuids'
+    | 'required'
+    | 'requiredGroupId'
+    | 'sectionId'
 >;
 
 export type DateFilterSettings = {
@@ -524,6 +530,7 @@ export const applyDimensionOverrides = (
                 lockedTabUuids: dimension.lockedTabUuids,
                 required: dimension.required,
                 requiredGroupId: dimension.requiredGroupId,
+                sectionId: dimension.sectionId,
             };
         },
     );
@@ -538,6 +545,7 @@ export const applyDimensionOverrides = (
             ...o,
             required: undefined,
             requiredGroupId: undefined,
+            sectionId: undefined,
         }));
     overriddenDimensions.push(...newDimensions);
 
@@ -564,6 +572,7 @@ export const applyMetricOverrides = (
                 lockedTabUuids: metric.lockedTabUuids,
                 required: metric.required,
                 requiredGroupId: metric.requiredGroupId,
+                sectionId: metric.sectionId,
             };
         }
         return metric;
