@@ -10910,9 +10910,12 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        if (!isAiComposerChartArtifactConfig(artifact.chartConfig)) {
+        if (
+            !isAiComposerChartArtifactConfig(artifact.chartConfig) ||
+            artifact.chartConfig.schemaVersion !== 1
+        ) {
             throw new ParameterError(
-                'Viz config can only be updated on composer artifacts',
+                'Viz config can only be updated on v1 composer artifacts',
             );
         }
 
