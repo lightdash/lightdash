@@ -1,11 +1,16 @@
-import { type ApiError, type Organization } from '@lightdash/common';
+import {
+    type ApiError,
+    type ApiAiOrganizationSettingsResponse,
+} from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { McpAccessSettingsCard } from './McpAccessSettingsCard';
 
 type SettingsQuery = {
-    data: Pick<Organization, 'mcpEnabled'> | undefined;
+    data:
+        | Pick<ApiAiOrganizationSettingsResponse['results'], 'mcpEnabled'>
+        | undefined;
     isInitialLoading: boolean;
     isError: boolean;
     error: ApiError | undefined;
@@ -28,12 +33,9 @@ const { query, mutation, updateSettings, refetch } = vi.hoisted(() => {
     };
 });
 
-vi.mock('../../../../../../hooks/organization/useOrganization', () => ({
-    useOrganization: () => ({ ...query.current, refetch }),
-}));
-
 vi.mock('../../../hooks/useAiOrganizationSettings', () => ({
-    useUpdateOrganizationMcpAccess: () => ({
+    useAiOrganizationAdminSettings: () => ({ ...query.current, refetch }),
+    useUpdateAiOrganizationSettings: () => ({
         mutate: updateSettings,
         isLoading: mutation.isLoading,
     }),
@@ -66,16 +68,12 @@ test.each([true, false])(
     },
 );
 
-test.each([undefined])(
-    'preserves normal MCP availability when the setting is %s',
-    (mcpEnabled) => {
-        query.current.data = { mcpEnabled };
-        renderWithProviders(<McpAccessSettingsCard />);
-        expect(
-            screen.getByRole('switch', { name: 'Allow MCP access' }),
-        ).toBeChecked();
-    },
-);
+test('hides the control when the server does not support MCP access settings', () => {
+    query.current.data = {};
+    renderWithProviders(<McpAccessSettingsCard />);
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+    expect(updateSettings).not.toHaveBeenCalled();
+});
 
 test('keeps the saved value while disabling the switch during an update', () => {
     query.current.data = { mcpEnabled: false };

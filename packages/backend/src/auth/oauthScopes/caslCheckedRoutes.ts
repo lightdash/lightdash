@@ -346,7 +346,6 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'OrganizationRolesController.upsertOrganizationUserRoleAssignment',
     'OrganizationSettingsController.getOrganizationSettings',
     'OrganizationSettingsController.updateOrganizationSettings',
-    'AiOrganizationSettingsController.updateMcpAccess',
     'OrganizationSsoController.deleteAzureAdConfig',
     'OrganizationSsoController.deleteGenericOidcConfig',
     'OrganizationSsoController.deleteGoogleConfig',

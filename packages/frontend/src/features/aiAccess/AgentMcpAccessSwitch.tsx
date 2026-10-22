@@ -1,7 +1,6 @@
 import { type AiOrganizationSettings } from '@lightdash/common';
 import { Switch } from '@mantine/core';
 import { useUpdateAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
-import { useOrganization } from '../../hooks/organization/useOrganization';
 
 export const AgentMcpAccessSwitch = ({
     settings,
@@ -11,22 +10,20 @@ export const AgentMcpAccessSwitch = ({
 }: {
     settings: Pick<
         AiOrganizationSettings,
-        'mcpAgentsEnabled' | 'mcpContentWritesEnabled'
+        'mcpEnabled' | 'mcpAgentsEnabled' | 'mcpContentWritesEnabled'
     >;
     setting: 'mcpAgentsEnabled' | 'mcpContentWritesEnabled';
     label: string;
     description: string;
 }) => {
     const update = useUpdateAiOrganizationSettings();
-    const organization = useOrganization();
-    const mcpEnabled =
-        organization.isSuccess && organization.data.mcpEnabled !== false;
+    const mcpEnabled = settings.mcpEnabled !== false;
     return (
         <Switch
             aria-label={label}
             label={label}
             description={
-                organization.data?.mcpEnabled === false
+                settings.mcpEnabled === false
                     ? 'MCP access is disabled for this organization.'
                     : description
             }

@@ -43,7 +43,10 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { assertHumanManagedMutation } from '../../services/AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../../services/BaseService';
 import { AiOrganizationProviderCredentialModel } from '../models/AiOrganizationProviderCredentialModel';
-import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
+import {
+    AiOrganizationSettingsModel,
+    type StoredAiOrganizationSettings,
+} from '../models/AiOrganizationSettingsModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
 import {
     filterModelsForOrg,
@@ -273,56 +276,6 @@ export class AiOrganizationSettingsService extends BaseService {
         );
     }
 
-    async updateMcpEnabled(
-        account: RegisteredAccount,
-        mcpEnabled: boolean,
-    ): Promise<{ mcpEnabled: boolean }> {
-        const organizationUuid = account.organization?.organizationUuid;
-        if (!organizationUuid) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
-        if (
-            this.createAuditedAbility(account).cannot(
-                'manage',
-                subject('Organization', { organizationUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        const { previous, current } =
-            await this.aiOrganizationSettingsModel.setMcpEnabled(
-                organizationUuid,
-                mcpEnabled,
-            );
-        try {
-            logAuditEvent(
-                createAuditLogEvent(
-                    createActorFromAccount(account),
-                    'update',
-                    {
-                        type: 'OrganizationSettings',
-                        organizationUuid,
-                        metadata: {
-                            mcpEnabled: { from: previous, to: current },
-                        },
-                    },
-                    {
-                        ip: account.requestContext?.ip,
-                        userAgent: account.requestContext?.userAgent,
-                        requestId: account.requestContext?.requestId,
-                    },
-                    'allowed',
-                ),
-            );
-        } catch (error) {
-            this.logger.warn('Failed to log MCP settings audit event', {
-                error: getErrorMessage(error),
-                organizationUuid,
-            });
-        }
-        return { mcpEnabled: current };
-    }
-
     private checkManageAiAgentAccess(user: SessionUser): void {
         if (!this.canManageAiAgent(user)) {
             throw new ForbiddenError(
@@ -531,6 +484,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiAgentMemoryEnabled,
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 deepResearchRawSqlEnabled: false,
+                mcpEnabled: true,
                 mcpContentWritesEnabled: true,
                 mcpAgentsEnabled: true,
                 dataAppRuntimeAiEnabled: false,
@@ -618,6 +572,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 );
             return {
                 ...availability,
+                mcpEnabled: await this.isMcpEnabled(organizationUuid),
                 aiAgentsVisible: false,
                 aiAgentMemoryEnabled: false,
                 aiAgentReviewsEnabled: false,
@@ -639,6 +594,7 @@ export class AiOrganizationSettingsService extends BaseService {
         const settings = await this.resolveSettings(user, availability);
         return {
             ...availability,
+            mcpEnabled: settings.mcpEnabled ?? true,
             aiAgentsVisible: settings.aiAgentsVisible,
             aiAgentMemoryEnabled: settings.aiAgentMemoryEnabled,
             aiAgentReviewsEnabled: settings.aiAgentReviewsEnabled,
@@ -1020,10 +976,49 @@ export class AiOrganizationSettingsService extends BaseService {
                       ...aiSettingsUpdate,
                       defaultAiAgentModelConfig: reconciledDefaultModelConfig,
                   };
-        const settings = await this.aiOrganizationSettingsModel.upsert(
-            organizationUuid,
-            update,
-        );
+        let settings: StoredAiOrganizationSettings;
+        if (update.mcpEnabled === undefined) {
+            settings = await this.aiOrganizationSettingsModel.upsert(
+                organizationUuid,
+                update,
+            );
+        } else {
+            const saved =
+                await this.aiOrganizationSettingsModel.upsertWithMcpEnabled(
+                    organizationUuid,
+                    update,
+                );
+            settings = saved.settings;
+            try {
+                logAuditEvent(
+                    createAuditLogEvent(
+                        createActorFromAccount(account),
+                        'update',
+                        {
+                            type: 'OrganizationSettings',
+                            organizationUuid,
+                            metadata: {
+                                mcpEnabled: {
+                                    from: saved.previous,
+                                    to: settings.mcpEnabled,
+                                },
+                            },
+                        },
+                        {
+                            ip: account.requestContext?.ip,
+                            userAgent: account.requestContext?.userAgent,
+                            requestId: account.requestContext?.requestId,
+                        },
+                        'allowed',
+                    ),
+                );
+            } catch (error) {
+                this.logger.warn('Failed to log MCP settings audit event', {
+                    error: getErrorMessage(error),
+                    organizationUuid,
+                });
+            }
+        }
 
         return {
             ...settings,

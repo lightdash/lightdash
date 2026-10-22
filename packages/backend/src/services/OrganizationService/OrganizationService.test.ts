@@ -62,9 +62,6 @@ const featureFlagModel = {
         enabled: true,
     })),
 };
-const organizationSettingsModel = {
-    get: vi.fn(async () => ({})),
-};
 vi.spyOn(analyticsMock, 'track');
 vi.spyOn(analyticsMock, 'group');
 const organizationMemberProfileModel = {
@@ -86,7 +83,6 @@ const rolesModel = {
 describe('organization service', () => {
     const buildOrganizationService = (
         onOrganizationCreated?: OrganizationServiceArguments['onOrganizationCreated'],
-        isMcpEnabled?: OrganizationServiceArguments['isMcpEnabled'],
     ) =>
         new OrganizationService({
             lightdashConfig: lightdashConfigMock,
@@ -104,9 +100,8 @@ describe('organization service', () => {
             featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
             rolesModel: rolesModel as unknown as RolesModel,
             // Nothing stored: every setting inherits the instance default.
-            organizationSettingsModel: organizationSettingsModel as never,
+            organizationSettingsModel: { get: async () => ({}) } as never,
             onOrganizationCreated,
-            isMcpEnabled,
         });
     const organizationService = buildOrganizationService();
 
@@ -400,26 +395,6 @@ describe('organization service', () => {
                 port: null,
             },
         });
-    });
-
-    it.each([true, false])(
-        'exposes EE organization MCP consent to ordinary members: %s',
-        async (mcpEnabled) => {
-            const isMcpEnabled = vi.fn().mockResolvedValue(mcpEnabled);
-            const service = buildOrganizationService(undefined, isMcpEnabled);
-            const account = buildAccount({ accountType: 'session' });
-            expect((await service.get(account)).mcpEnabled).toBe(mcpEnabled);
-            expect(isMcpEnabled).toHaveBeenCalledExactlyOnceWith(
-                account.organization?.organizationUuid,
-            );
-        },
-    );
-
-    it('omits MCP settings when no Enterprise reader is injected', async () => {
-        const account = buildAccount({ accountType: 'session' });
-        expect(await organizationService.get(account)).not.toHaveProperty(
-            'mcpEnabled',
-        );
     });
 
     it('Should expose pgwire connection details to org admins', async () => {

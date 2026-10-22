@@ -117,7 +117,7 @@ const createService = ({ copilotEnabled = false } = {}) => {
     return { model, service };
 };
 
-test('organization-only admins can disable and restore MCP without Copilot or trial eligibility', async () => {
+test('AI settings administrators can disable and restore MCP through the existing settings API', async () => {
     const audit = vi
         .spyOn(auditLogger, 'logAuditEvent')
         .mockImplementation(() => undefined);
@@ -132,16 +132,27 @@ test('organization-only admins can disable and restore MCP without Copilot or tr
         'UPDATE organizations SET created_at = ? WHERE organization_uuid = ?',
         [new Date('2020-01-01'), first.organization_uuid],
     );
-    const { model, service } = createService();
-    const admin = accountFor(first.organization_uuid, { organization: true });
+    const { model, service } = createService({ copilotEnabled: true });
+    const admin = accountFor(first.organization_uuid, { ai: true });
     expect(await service.isMcpEnabled(first.organization_uuid)).toBe(true);
     expect(await model.findMcpEnabled(first.organization_uuid)).toBeNull();
     await model.upsert(first.organization_uuid, { mcpAgentsEnabled: false });
-    await expect(service.updateMcpEnabled(admin, false)).resolves.toEqual({
+    await expect(
+        service.upsertSettings(admin, { mcpEnabled: false }),
+    ).resolves.toMatchObject({
         mcpEnabled: false,
     });
     expect(await service.isMcpEnabled(first.organization_uuid)).toBe(false);
     expect(await service.isMcpEnabled(second.organization_uuid)).toBe(true);
+    await expect(
+        createService().service.getRuntimeSettings(
+            toSessionUser(accountFor(first.organization_uuid)),
+        ),
+    ).resolves.toMatchObject({
+        mcpEnabled: false,
+        isCopilotEnabled: false,
+        isTrial: false,
+    });
     expect(
         await model.findByOrganizationUuid(first.organization_uuid),
     ).toMatchObject({ mcpAgentsEnabled: false });
@@ -162,7 +173,9 @@ test('organization-only admins can disable and restore MCP without Copilot or tr
             timestamp: expect.any(String),
         }),
     );
-    await expect(service.updateMcpEnabled(admin, true)).resolves.toEqual({
+    await expect(
+        service.upsertSettings(admin, { mcpEnabled: true }),
+    ).resolves.toMatchObject({
         mcpEnabled: true,
     });
     expect(audit).toHaveBeenCalledWith(
@@ -179,19 +192,21 @@ test('organization-only admins can disable and restore MCP without Copilot or tr
             ([event]) => event.resource.type === 'OrganizationSettings',
         ).length;
     expect(countMcpUpdates()).toBe(2);
-    vi.spyOn(model, 'setMcpEnabled').mockRejectedValueOnce(
+    vi.spyOn(model, 'upsertWithMcpEnabled').mockRejectedValueOnce(
         new Error('Write failed'),
     );
-    await expect(service.updateMcpEnabled(admin, false)).rejects.toThrow(
-        'Write failed',
-    );
+    await expect(
+        service.upsertSettings(admin, { mcpEnabled: false }),
+    ).rejects.toThrow('Write failed');
     expect(countMcpUpdates()).toBe(2);
-    await model.setMcpEnabled(first.organization_uuid, false);
+    await model.upsert(first.organization_uuid, { mcpEnabled: false });
     audit.mockImplementation((event) => {
         if (event.resource.type === 'OrganizationSettings')
             throw new Error('Audit unavailable');
     });
-    await expect(service.updateMcpEnabled(admin, true)).resolves.toEqual({
+    await expect(
+        service.upsertSettings(admin, { mcpEnabled: true }),
+    ).resolves.toMatchObject({
         mcpEnabled: true,
     });
     expect(await model.findMcpEnabled(first.organization_uuid)).toBe(true);
@@ -208,11 +223,13 @@ test.each([false, true])(
             .insert({ organization_name: 'MCP concurrent settings test' })
             .returning('organization_uuid');
         const organizationUuid = organization.organization_uuid;
-        const { model, service } = createService();
+        const { model, service } = createService({ copilotEnabled: true });
         if (settingsRowExists)
-            await model.setMcpEnabled(organizationUuid, true);
+            await model.upsert(organizationUuid, { mcpEnabled: true });
         const holder = await database.transaction();
-        let saving: Promise<{ mcpEnabled: boolean }> | undefined;
+        let saving:
+            | ReturnType<AiOrganizationSettingsService['upsertSettings']>
+            | undefined;
         try {
             const backend = await holder.raw<{ rows: { pid: number }[] }>(
                 'select pg_backend_pid() as pid',
@@ -229,9 +246,9 @@ test.each([false, true])(
                     mcp_enabled: false,
                 });
             }
-            saving = service.updateMcpEnabled(
-                accountFor(organizationUuid, { organization: true }),
-                true,
+            saving = service.upsertSettings(
+                accountFor(organizationUuid, { ai: true }),
+                { mcpEnabled: true },
             );
             void saving.catch(() => undefined);
             await vi.waitFor(
@@ -252,7 +269,7 @@ test.each([false, true])(
                     .update({ mcp_enabled: false });
             }
             await holder.commit();
-            await expect(saving).resolves.toEqual({ mcpEnabled: true });
+            await expect(saving).resolves.toMatchObject({ mcpEnabled: true });
             expect(audit).toHaveBeenCalledWith(
                 expect.objectContaining({
                     resource: {
@@ -284,8 +301,11 @@ test('materializing an AI settings row for MCP preserves every other effective d
     expect(
         await model.findByOrganizationUuid(organization.organization_uuid),
     ).toBeNull();
-    await service.updateMcpEnabled(admin, false);
-    expect(await service.getSettings(toSessionUser(admin))).toEqual(before);
+    await service.upsertSettings(admin, { mcpEnabled: false });
+    expect(await service.getSettings(toSessionUser(admin))).toEqual({
+        ...before,
+        mcpEnabled: false,
+    });
 });
 
 test('MCP preference writes honor consent and reject mixed changes atomically', async () => {
@@ -305,7 +325,7 @@ test('MCP preference writes honor consent and reject mixed changes atomically', 
         mcpAgentsEnabled: true,
         mcpContentWritesEnabled: true,
     });
-    await service.updateMcpEnabled(admin, false);
+    await service.upsertSettings(admin, { mcpEnabled: false });
     await Promise.all(
         (['mcpAgentsEnabled', 'mcpContentWritesEnabled'] as const).map(
             (setting) =>
@@ -340,20 +360,21 @@ test('MCP preference writes honor consent and reject mixed changes atomically', 
     await expect(
         service.upsertSettings(admin, { aiAgentsVisible: false }),
     ).resolves.toMatchObject({ aiAgentsVisible: false });
+    expect(await service.isMcpEnabled(first.organization_uuid)).toBe(false);
     await expect(
         service.upsertSettings(
             accountFor(second.organization_uuid, { ai: true }),
             { mcpContentWritesEnabled: false },
         ),
     ).resolves.toMatchObject({ mcpContentWritesEnabled: false });
-    await service.updateMcpEnabled(admin, true);
+    await service.upsertSettings(admin, { mcpEnabled: true });
     await expect(
         service.upsertSettings(admin, { mcpContentWritesEnabled: false }),
     ).resolves.toMatchObject({
         mcpAgentsEnabled: true,
         mcpContentWritesEnabled: false,
     });
-    await service.updateMcpEnabled(admin, false);
+    await service.upsertSettings(admin, { mcpEnabled: false });
     await expect(
         service.upsertSettings(admin, { mcpContentWritesEnabled: true }),
     ).rejects.toThrow(ForbiddenError);
@@ -363,8 +384,8 @@ test('MCP preference writes honor consent and reject mixed changes atomically', 
 });
 
 test.each([false, true])(
-    'members and AI-only managers cannot change MCP access (AI manager: %s)',
-    async (ai) => {
+    'members and organization-only managers cannot change MCP access (organization manager: %s)',
+    async (organizationManager) => {
         const audit = vi
             .spyOn(auditLogger, 'logAuditEvent')
             .mockImplementation(() => undefined);
@@ -372,12 +393,14 @@ test.each([false, true])(
             .database('organizations')
             .insert({ organization_name: 'MCP permissions test' })
             .returning('organization_uuid');
-        const { model, service } = createService();
-        const account = accountFor(organization.organization_uuid, { ai });
+        const { model, service } = createService({ copilotEnabled: true });
+        const account = accountFor(organization.organization_uuid, {
+            organization: organizationManager,
+        });
         await Promise.all(
             [false, true].map((enabled) =>
                 expect(
-                    service.updateMcpEnabled(account, enabled),
+                    service.upsertSettings(account, { mcpEnabled: enabled }),
                 ).rejects.toThrow(ForbiddenError),
             ),
         );

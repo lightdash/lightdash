@@ -733,41 +733,6 @@ const Settings: FC = () => {
             },
         );
 
-        if (
-            user?.ability.can('manage', 'Organization') ||
-            (isAiCopilotEnabledOrTrial &&
-                hasAnyAiAgentAccess &&
-                canManageOrgAiAgent)
-        ) {
-            allowedRoutes.push({
-                path: '/mcp/general',
-                element: (
-                    <McpGeneralSettingsPage
-                        canManageOrganization={
-                            user?.ability.can('manage', 'Organization') ?? false
-                        }
-                        showAiSettings={
-                            isAiCopilotEnabledOrTrial &&
-                            hasAnyAiAgentAccess &&
-                            canManageOrgAiAgent
-                        }
-                        showAgentsPageLink={
-                            getAgentSettingsAccess({
-                                agentIdentityEnabled: isAgentIdentityEnabled,
-                                canManageOrganization:
-                                    user?.ability.can(
-                                        'manage',
-                                        'Organization',
-                                    ) ?? false,
-                                canManageOrgAiAgent,
-                                isAiAvailable: isAiCopilotEnabledOrTrial,
-                            }).mcpPage === 'link'
-                        }
-                    />
-                ),
-            });
-        }
-
         if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
             allowedRoutes.push({
                 path: '/ai',
@@ -829,6 +794,28 @@ const Settings: FC = () => {
                 path: '/ai/mcp',
                 element: <McpActivityRedirect />,
             });
+            if (canManageOrgAiAgent) {
+                allowedRoutes.push({
+                    path: '/mcp/general',
+                    element: (
+                        <McpGeneralSettingsPage
+                            showAgentsPageLink={
+                                getAgentSettingsAccess({
+                                    agentIdentityEnabled:
+                                        isAgentIdentityEnabled,
+                                    canManageOrganization:
+                                        user?.ability.can(
+                                            'manage',
+                                            'Organization',
+                                        ) ?? false,
+                                    canManageOrgAiAgent,
+                                    isAiAvailable: isAiCopilotEnabledOrTrial,
+                                }).mcpPage === 'link'
+                            }
+                        />
+                    ),
+                });
+            }
             allowedRoutes.push({
                 path: '/mcp/analytics',
                 element: (

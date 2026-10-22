@@ -13,7 +13,7 @@ type SettingsQuery = {
     data:
         | Pick<
               ApiAiOrganizationSettingsResponse['results'],
-              'mcpAgentsEnabled' | 'mcpContentWritesEnabled'
+              'mcpEnabled' | 'mcpAgentsEnabled' | 'mcpContentWritesEnabled'
           >
         | undefined;
     isInitialLoading: boolean;
@@ -26,6 +26,7 @@ const { mutationState, refetchSettings, settingsQuery, updateSettings } =
         const settingsQuery: { current: SettingsQuery } = {
             current: {
                 data: {
+                    mcpEnabled: true,
                     mcpAgentsEnabled: true,
                     mcpContentWritesEnabled: false,
                 },
@@ -43,15 +44,6 @@ const { mutationState, refetchSettings, settingsQuery, updateSettings } =
         };
     });
 
-const organizationQuery = vi.hoisted(() => ({
-    data: { mcpEnabled: true },
-    isSuccess: true,
-}));
-
-vi.mock('../../../../../../hooks/organization/useOrganization', () => ({
-    useOrganization: () => organizationQuery,
-}));
-
 vi.mock('../../../hooks/useAiOrganizationSettings', () => ({
     useAiOrganizationAdminSettings: () => ({
         ...settingsQuery.current,
@@ -66,11 +58,7 @@ vi.mock('../../../hooks/useAiOrganizationSettings', () => ({
 const renderPage = () =>
     renderWithProviders(
         <MemoryRouter>
-            <McpGeneralSettingsPage
-                showAgentsPageLink={false}
-                canManageOrganization={false}
-                showAiSettings
-            />
+            <McpGeneralSettingsPage showAgentsPageLink={false} />
         </MemoryRouter>,
     );
 
@@ -78,6 +66,7 @@ describe('McpGeneralSettingsPage', () => {
     beforeEach(() => {
         settingsQuery.current = {
             data: {
+                mcpEnabled: true,
                 mcpAgentsEnabled: true,
                 mcpContentWritesEnabled: false,
             },
@@ -86,8 +75,6 @@ describe('McpGeneralSettingsPage', () => {
             error: undefined,
         };
         mutationState.isLoading = false;
-        organizationQuery.data.mcpEnabled = true;
-        organizationQuery.isSuccess = true;
         refetchSettings.mockReset();
         updateSettings.mockReset();
     });
@@ -143,7 +130,11 @@ describe('McpGeneralSettingsPage', () => {
     });
 
     it('disables tool preferences while MCP is off and restores their saved values when enabled', async () => {
-        organizationQuery.data.mcpEnabled = false;
+        settingsQuery.current.data = {
+            mcpEnabled: false,
+            mcpAgentsEnabled: true,
+            mcpContentWritesEnabled: false,
+        };
         const view = renderPage();
         const agents = screen.getByRole('switch', {
             name: 'Enable agents over MCP',
@@ -161,14 +152,14 @@ describe('McpGeneralSettingsPage', () => {
         expect(updateSettings).not.toHaveBeenCalled();
         expect(screen.getByText('MCP access is disabled')).toBeInTheDocument();
 
-        organizationQuery.data.mcpEnabled = true;
+        settingsQuery.current.data = {
+            mcpEnabled: true,
+            mcpAgentsEnabled: true,
+            mcpContentWritesEnabled: false,
+        };
         view.rerender(
             <MemoryRouter>
-                <McpGeneralSettingsPage
-                    showAgentsPageLink={false}
-                    canManageOrganization={false}
-                    showAiSettings
-                />
+                <McpGeneralSettingsPage showAgentsPageLink={false} />
             </MemoryRouter>,
         );
         expect(agents).toBeEnabled();
@@ -177,17 +168,11 @@ describe('McpGeneralSettingsPage', () => {
         expect(writes).not.toBeChecked();
     });
 
-    it('keeps tool controls disabled until organization consent is available', () => {
-        organizationQuery.isSuccess = false;
+    it('does not offer controls until AI settings have loaded', () => {
+        settingsQuery.current.data = undefined;
+        settingsQuery.current.isInitialLoading = true;
         renderPage();
-        expect(
-            screen.getByRole('switch', { name: 'Enable agents over MCP' }),
-        ).toBeDisabled();
-        expect(
-            screen.getByRole('switch', {
-                name: 'Allow content changes via MCP',
-            }),
-        ).toBeDisabled();
+        expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     });
 
     it('shows a settings query error and allows retrying', async () => {

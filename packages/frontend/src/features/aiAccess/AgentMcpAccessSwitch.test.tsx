@@ -63,8 +63,6 @@ const renderPages = (input: {
                     <AgentIdentitySettingsPage access={access} />
                     {access.mcpPage !== 'hidden' && (
                         <McpGeneralSettingsPage
-                            canManageOrganization={false}
-                            showAiSettings
                             showAgentsPageLink={view === 'link'}
                         />
                     )}
@@ -86,14 +84,13 @@ beforeEach(() => {
         if (request.url === '/aiAgents/admin/settings') {
             if (request.method === 'PATCH')
                 settings = { ...settings, ...JSON.parse(String(request.body)) };
-            return settings;
+            return { ...settings, mcpEnabled };
         }
         if (request.url === '/org/projects') return [];
         if (request.url === '/org')
             return {
                 organizationUuid: 'org',
                 name: 'Test organization',
-                mcpEnabled,
             };
         if (request.url === '/org/agent-identity')
             return agentSettingsIdentityMock;
@@ -165,7 +162,7 @@ describe('Agents over MCP', () => {
                     api.mock.calls.every(
                         ([request]) =>
                             request.url === '/aiAgents/admin/settings' ||
-                            request.url === '/org',
+                            request.url === '/aiAgents/admin/settings',
                     ),
                 ).toBe(true);
         },
@@ -242,7 +239,7 @@ describe('Agents over MCP', () => {
         expect(await screen.findByText('On')).toBeInTheDocument();
         expect(screen.getByText('No changes')).toBeInTheDocument();
     });
-    it('refreshes organization consent after a stale tab gets a forbidden preference update', async () => {
+    it('refreshes AI settings after a stale tab gets a forbidden preference update', async () => {
         renderPages({
             agentIdentityEnabled: true,
             canManageOrganization: true,
@@ -252,8 +249,10 @@ describe('Agents over MCP', () => {
             name: 'Agents over MCP',
         });
         await waitFor(() => expect(agents).toBeEnabled());
-        const orgReadsBefore = api.mock.calls.filter(
-            ([request]) => request.url === '/org',
+        const settingsReadsBefore = api.mock.calls.filter(
+            ([request]) =>
+                request.url === '/aiAgents/admin/settings' &&
+                request.method === 'GET',
         ).length;
         mcpEnabled = false;
         api.mockRejectedValueOnce({
@@ -275,8 +274,12 @@ describe('Agents over MCP', () => {
         expect(settings.mcpAgentsEnabled).toBe(true);
         expect(toasts.error).toHaveBeenCalledTimes(1);
         expect(
-            api.mock.calls.filter(([request]) => request.url === '/org'),
-        ).toHaveLength(orgReadsBefore + 1);
+            api.mock.calls.filter(
+                ([request]) =>
+                    request.url === '/aiAgents/admin/settings' &&
+                    request.method === 'GET',
+            ),
+        ).toHaveLength(settingsReadsBefore + 1);
         await user.click(agents);
         await user.click(writes);
         expect(

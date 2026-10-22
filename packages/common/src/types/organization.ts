@@ -42,9 +42,6 @@ export type Organization = {
     defaultProjectUuid?: string;
     createdAt?: Date;
 
-    /** Organization MCP consent, returned to every member. Absent on older servers. */
-    mcpEnabled?: boolean;
-
     /**
      * Effective value of the org's "allow screenshots and attachments in data
      * app builds" switch (the org setting capped by the instance env). Returned
@@ -76,7 +73,7 @@ export type Organization = {
 export type CreateOrganization = Pick<Organization, 'name'>;
 
 export type UpdateOrganization = Partial<
-    Omit<Organization, 'organizationUuid' | 'needsProject' | 'mcpEnabled'>
+    Omit<Organization, 'organizationUuid' | 'needsProject'>
 >;
 
 export type ApiOrganization = {

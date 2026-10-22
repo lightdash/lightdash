@@ -1203,10 +1203,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     rolesModel: models.getRolesModel(),
                     organizationSettingsModel:
                         models.getOrganizationSettingsModel(),
-                    isMcpEnabled: (organizationUuid) =>
-                        repository
-                            .getAiOrganizationSettingsService<AiOrganizationSettingsService>()
-                            .isMcpEnabled(organizationUuid),
                     onOrganizationCreated: ({ user, organizationUuid }) =>
                         provisionOnboardingOrgFlags({
                             user,

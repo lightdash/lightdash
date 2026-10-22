@@ -10,8 +10,10 @@ import {
 } from '@mantine/core';
 import ErrorState from '../../../../../../components/common/ErrorState';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
-import { useOrganization } from '../../../../../../hooks/organization/useOrganization';
-import { useUpdateOrganizationMcpAccess } from '../../../hooks/useAiOrganizationSettings';
+import {
+    useAiOrganizationAdminSettings,
+    useUpdateAiOrganizationSettings,
+} from '../../../hooks/useAiOrganizationSettings';
 
 export const McpAccessSettingsCard = () => {
     const {
@@ -20,9 +22,9 @@ export const McpAccessSettingsCard = () => {
         isError,
         error,
         refetch,
-    } = useOrganization();
+    } = useAiOrganizationAdminSettings();
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
-        useUpdateOrganizationMcpAccess();
+        useUpdateAiOrganizationSettings();
 
     if (isError) {
         return (
@@ -44,6 +46,8 @@ export const McpAccessSettingsCard = () => {
             </Group>
         );
     }
+
+    if (settings.mcpEnabled === undefined) return null;
 
     return (
         <SettingsCard>
@@ -67,7 +71,7 @@ export const McpAccessSettingsCard = () => {
                 <Switch
                     size="md"
                     aria-label="Allow MCP access"
-                    checked={settings.mcpEnabled ?? true}
+                    checked={settings.mcpEnabled}
                     disabled={isUpdatingSettings}
                     onChange={(event) =>
                         updateSettings({

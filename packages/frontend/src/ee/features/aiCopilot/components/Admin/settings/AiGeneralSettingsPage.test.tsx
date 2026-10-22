@@ -9,17 +9,12 @@ const surfaces = vi.hoisted(() => ({
     aiAgentsVisible: false,
     slackEnabled: false,
 }));
-vi.mock('../../../../../../hooks/organization/useOrganization', () => ({
-    useOrganization: () => ({
-        isSuccess: true,
-        data: { mcpEnabled: surfaces.mcpEnabled },
-    }),
-}));
 vi.mock('../../../hooks/useAiOrganizationSettings', () => ({
     useAiOrganizationAdminSettings: () => ({
         data: {
             ...agentSettingsMcpMock(),
             aiAgentsVisible: surfaces.aiAgentsVisible,
+            mcpEnabled: surfaces.mcpEnabled,
         },
         isInitialLoading: false,
     }),

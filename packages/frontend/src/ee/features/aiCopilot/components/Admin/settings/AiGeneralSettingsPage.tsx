@@ -22,7 +22,6 @@ import {
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
 import { useChartStudioAvailable } from '../../../../../../features/chartTypes/hooks/useChartStudioAvailable';
-import { useOrganization } from '../../../../../../hooks/organization/useOrganization';
 import {
     useGetSlack,
     useUpdateSlackAppCustomSettingsMutation,
@@ -69,7 +68,6 @@ export const AiGeneralSettingsPage = () => {
         useAiOrganizationAdminSettings();
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
         useUpdateAiOrganizationSettings();
-    const organization = useOrganization();
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const chartStudioAvailable = useChartStudioAvailable();
@@ -118,9 +116,7 @@ export const AiGeneralSettingsPage = () => {
 
     const anySurface = settings
         ? settings.aiAgentsVisible ||
-          (settings.mcpAgentsEnabled &&
-              organization.isSuccess &&
-              organization.data.mcpEnabled !== false) ||
+          (settings.mcpAgentsEnabled && settings.mcpEnabled !== false) ||
           slackAgentsEnabled
         : false;
 

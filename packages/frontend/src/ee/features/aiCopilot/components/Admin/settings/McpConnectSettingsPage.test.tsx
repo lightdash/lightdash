@@ -1,18 +1,21 @@
-import { type ApiError, type Organization } from '@lightdash/common';
+import {
+    type ApiError,
+    type AiOrganizationRuntimeSettings,
+} from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { McpConnectSettingsPage } from './McpConnectSettingsPage';
 
-type OrganizationQuery = {
-    data: Pick<Organization, 'mcpEnabled'> | undefined;
+type RuntimeSettingsQuery = {
+    data: Pick<AiOrganizationRuntimeSettings, 'mcpEnabled'> | undefined;
     isSuccess: boolean;
     isError: boolean;
     error: ApiError | undefined;
 };
 const query = vi.hoisted(() => {
-    const current: OrganizationQuery = {
+    const current: RuntimeSettingsQuery = {
         data: { mcpEnabled: true },
         isSuccess: true,
         isError: false,
@@ -20,8 +23,11 @@ const query = vi.hoisted(() => {
     };
     return { current, refetch: vi.fn() };
 });
-vi.mock('../../../../../../hooks/organization/useOrganization', () => ({
-    useOrganization: () => ({ ...query.current, refetch: query.refetch }),
+vi.mock('../../../hooks/useAiOrganizationSettings', () => ({
+    useAiOrganizationSettings: () => ({
+        ...query.current,
+        refetch: query.refetch,
+    }),
 }));
 vi.mock('./McpInstallationCard', () => ({
     McpInstallationCard: () => <div>Client configuration</div>,

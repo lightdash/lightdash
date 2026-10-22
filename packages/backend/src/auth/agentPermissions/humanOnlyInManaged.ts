@@ -6,7 +6,6 @@ export const HUMAN_ONLY_IN_MANAGED: ReadonlySet<string> = new Set<
     'AgentPermissionController.resetToLegacy',
     'AgentPermissionController.saveCeiling',
     'AiAgentAdminController.upsertSettings',
-    'AiOrganizationSettingsController.updateMcpAccess',
     'AiServiceAccountController.delete',
     'AiServiceAccountController.upsert',
     'CustomRolesController.addScopesToRole',

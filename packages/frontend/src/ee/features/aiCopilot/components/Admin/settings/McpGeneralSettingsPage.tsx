@@ -14,19 +14,16 @@ import Callout from '../../../../../../components/common/Callout';
 import ErrorState from '../../../../../../components/common/ErrorState';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
-import { useOrganization } from '../../../../../../hooks/organization/useOrganization';
 import {
     useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
 } from '../../../hooks/useAiOrganizationSettings';
 import { McpAccessSettingsCard } from './McpAccessSettingsCard';
 
-const McpToolSettings = ({
+export const McpGeneralSettingsPage = ({
     showAgentsPageLink,
-    canManageOrganization,
 }: {
     showAgentsPageLink: boolean;
-    canManageOrganization: boolean;
 }) => {
     const {
         data: settings,
@@ -37,17 +34,14 @@ const McpToolSettings = ({
     } = useAiOrganizationAdminSettings();
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
         useUpdateAiOrganizationSettings();
-    const organization = useOrganization();
-    const mcpEnabled =
-        organization.isSuccess && organization.data.mcpEnabled !== false;
-    const savedAgentsStatus = settings?.mcpAgentsEnabled ? 'On' : 'Off';
-    const agentsStatus =
-        organization.data?.mcpEnabled === false
-            ? 'Disabled'
-            : savedAgentsStatus;
+
+    const mcpEnabled = settings?.mcpEnabled !== false;
 
     return (
-        <>
+        <SettingsPage
+            title="General"
+            description="Configure how MCP (Model Context Protocol) clients access Lightdash agents and content."
+        >
             {isError ? (
                 <SettingsCard>
                     <Stack align="center">
@@ -66,14 +60,13 @@ const McpToolSettings = ({
                 </Group>
             ) : (
                 <>
-                    {organization.data?.mcpEnabled === false && (
+                    <McpAccessSettingsCard />
+                    {!mcpEnabled && (
                         <Callout
                             variant="warning"
                             title="MCP access is disabled"
                         >
-                            {canManageOrganization
-                                ? 'Turn on Allow MCP access to change these settings.'
-                                : 'An organization administrator must allow MCP access before these settings can be changed.'}
+                            Turn on Allow MCP access to change these settings.
                         </Callout>
                     )}
                     <SettingsCard>
@@ -94,7 +87,13 @@ const McpToolSettings = ({
                             </Box>
                             {showAgentsPageLink ? (
                                 <Stack gap="xs" align="flex-end">
-                                    <Text size="sm">{agentsStatus}</Text>
+                                    <Text size="sm">
+                                        {!mcpEnabled
+                                            ? 'Disabled'
+                                            : settings.mcpAgentsEnabled
+                                              ? 'On'
+                                              : 'Off'}
+                                    </Text>
                                     <Anchor
                                         component={Link}
                                         to="/generalSettings/agentIdentity"
@@ -157,29 +156,6 @@ const McpToolSettings = ({
                     </SettingsCard>
                 </>
             )}
-        </>
+        </SettingsPage>
     );
 };
-
-export const McpGeneralSettingsPage = ({
-    showAgentsPageLink,
-    canManageOrganization,
-    showAiSettings,
-}: {
-    showAgentsPageLink: boolean;
-    canManageOrganization: boolean;
-    showAiSettings: boolean;
-}) => (
-    <SettingsPage
-        title="General"
-        description="Configure how MCP (Model Context Protocol) clients access Lightdash agents and content."
-    >
-        {canManageOrganization && <McpAccessSettingsCard />}
-        {showAiSettings && (
-            <McpToolSettings
-                showAgentsPageLink={showAgentsPageLink}
-                canManageOrganization={canManageOrganization}
-            />
-        )}
-    </SettingsPage>
-);

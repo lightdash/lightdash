@@ -3,10 +3,8 @@ import {
     type ApiAiOrganizationSettingsResponse,
     type ApiAiThreadRetentionPreviewResponse,
     type ApiError,
-    type ApiOrganizationMcpAccessResponse,
     type ApiUpdateAiOrganizationSettingsResponse,
     type UpdateAiOrganizationSettings,
-    type UpdateOrganizationMcpAccess,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -110,38 +108,6 @@ const updateAiOrganizationSettings = async (
     });
 };
 
-export const useUpdateOrganizationMcpAccess = () => {
-    const lightdashApi = useLightdashApi();
-    const queryClient = useQueryClient();
-    const { showToastApiError, showToastSuccess } = useToaster();
-
-    return useMutation<
-        ApiOrganizationMcpAccessResponse['results'],
-        ApiError,
-        UpdateOrganizationMcpAccess
-    >({
-        mutationFn: (data) =>
-            lightdashApi<ApiOrganizationMcpAccessResponse['results']>({
-                url: '/aiAgents/settings/mcp-access',
-                method: 'PATCH',
-                body: JSON.stringify(data),
-            }),
-        onSuccess: async () => {
-            showToastSuccess({ title: 'Success! MCP access updated' });
-            await Promise.all([
-                queryClient.invalidateQueries(['organization']),
-                invalidateAiOrganizationSettingsQueries(queryClient),
-            ]);
-        },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to update MCP access',
-                apiError: error,
-            });
-        },
-    });
-};
-
 export const useUpdateAiOrganizationSettings = (
     mutationOptions?: UseMutationOptions<
         ApiUpdateAiOrganizationSettingsResponse['results'],
@@ -175,7 +141,7 @@ export const useUpdateAiOrganizationSettings = (
         },
         onError: ({ error }) => {
             if (error.statusCode === 403) {
-                void queryClient.invalidateQueries(['organization']);
+                void invalidateAiOrganizationSettingsQueries(queryClient);
             }
             showToastApiError({
                 title: 'Failed to update AI organization settings',
