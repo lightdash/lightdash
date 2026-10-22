@@ -21,6 +21,7 @@ import {
 } from '../../../../../../components/common/ModelSelector/modelSelectOption';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
+import { useOrganization } from '../../../../../../hooks/organization/useOrganization';
 import {
     useGetSlack,
     useUpdateSlackAppCustomSettingsMutation,
@@ -67,6 +68,7 @@ export const AiGeneralSettingsPage = () => {
         useAiOrganizationAdminSettings();
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
         useUpdateAiOrganizationSettings();
+    const organization = useOrganization();
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppAnalysisFlag = useServerFeatureFlag(
@@ -114,7 +116,9 @@ export const AiGeneralSettingsPage = () => {
 
     const anySurface = settings
         ? settings.aiAgentsVisible ||
-          settings.mcpAgentsEnabled ||
+          (settings.mcpAgentsEnabled &&
+              organization.isSuccess &&
+              organization.data.mcpEnabled !== false) ||
           slackAgentsEnabled
         : false;
 
@@ -187,6 +191,7 @@ export const AiGeneralSettingsPage = () => {
                                         </Text>
                                     </Box>
                                     <Switch
+                                        aria-label="AI Router"
                                         size="md"
                                         checked={isRouterEnabled}
                                         disabled={

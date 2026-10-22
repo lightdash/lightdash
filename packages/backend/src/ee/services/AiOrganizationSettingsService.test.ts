@@ -3,6 +3,7 @@ import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AiOrganizationSettings,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+    ForbiddenError,
     ParameterError,
 } from '@lightdash/common';
 import {
@@ -413,19 +414,34 @@ describe('upsertSettings model validation', () => {
     const buildService = ({
         storedVisibility = null,
         storedDefault = null,
+        storedMcpAgentsEnabled,
+        storedMcpContentWritesEnabled,
+        organizationMcpEnabled = null,
+        canManageAi = true,
     }: {
         storedVisibility?: unknown;
         storedDefault?: unknown;
+        storedMcpAgentsEnabled?: boolean;
+        storedMcpContentWritesEnabled?: boolean;
+        organizationMcpEnabled?: boolean | null;
+        canManageAi?: boolean;
     } = {}) => {
         const upsert = vi.fn(async (_org: string, data: unknown) => data);
+        const getOrganizationSettings = vi.fn(async () => ({
+            mcpEnabled: organizationMcpEnabled,
+        }));
+        const findAiOrganizationSettings = vi.fn(async () => ({
+            defaultAiAgentModelConfig: storedDefault,
+            mcpAgentsEnabled: storedMcpAgentsEnabled,
+            mcpContentWritesEnabled: storedMcpContentWritesEnabled,
+        }));
         const service = new AiOrganizationSettingsService({
+            organizationSettingsModel: { get: getOrganizationSettings },
             featureFlagModel: {
                 get: vi.fn().mockResolvedValue({ enabled: true }),
             } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
-                findByOrganizationUuid: async () => ({
-                    defaultAiAgentModelConfig: storedDefault,
-                }),
+                findByOrganizationUuid: findAiOrganizationSettings,
                 upsert,
             },
             organizationModel: {
@@ -451,8 +467,13 @@ describe('upsertSettings model validation', () => {
         // Bypass real CASL — this covers validation flow, not authorization.
         (
             service as unknown as { createAuditedAbility: () => unknown }
-        ).createAuditedAbility = () => ({ can: () => true });
-        return { service, upsert };
+        ).createAuditedAbility = () => ({ can: () => canManageAi });
+        return {
+            service,
+            upsert,
+            getOrganizationSettings,
+            findAiOrganizationSettings,
+        };
     };
 
     const user = fromSession({
@@ -460,6 +481,122 @@ describe('upsertSettings model validation', () => {
         ability: new Ability([{ action: 'manage', subject: 'all' }]),
         abilityRules: [{ action: 'manage', subject: 'all' }],
     } as never);
+
+    it.each(
+        (['mcpAgentsEnabled', 'mcpContentWritesEnabled'] as const).flatMap(
+            (setting) => [false, true].map((enabled) => ({ setting, enabled })),
+        ),
+    )(
+        'rejects $setting=$enabled while organization MCP is disabled',
+        async ({ setting, enabled }) => {
+            const { service, upsert } = buildService({
+                organizationMcpEnabled: false,
+                storedMcpAgentsEnabled: !enabled,
+                storedMcpContentWritesEnabled: !enabled,
+            });
+            await expect(
+                service.upsertSettings(user, {
+                    [setting]: enabled,
+                    deepResearchRawSqlEnabled: true,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(upsert).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([true, false, undefined])(
+        'allows unchanged MCP preferences with unrelated changes when stored values are %s',
+        async (stored) => {
+            const { service, upsert } = buildService({
+                organizationMcpEnabled: false,
+                storedMcpAgentsEnabled: stored,
+                storedMcpContentWritesEnabled: stored,
+            });
+            const update = {
+                mcpAgentsEnabled: stored ?? true,
+                mcpContentWritesEnabled: stored ?? true,
+                aiAgentsVisible: false,
+            };
+            await service.upsertSettings(user, update);
+            expect(upsert).toHaveBeenCalledExactlyOnceWith('org-uuid', update);
+        },
+    );
+
+    it('rejects a mixed patch when only one MCP preference changes', async () => {
+        const { service, upsert } = buildService({
+            organizationMcpEnabled: false,
+            storedMcpAgentsEnabled: true,
+            storedMcpContentWritesEnabled: true,
+        });
+        await expect(
+            service.upsertSettings(user, {
+                mcpAgentsEnabled: true,
+                mcpContentWritesEnabled: false,
+                aiAgentsVisible: false,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it('does not write preferences when the saved AI settings cannot be read', async () => {
+        const { service, upsert, findAiOrganizationSettings } = buildService({
+            organizationMcpEnabled: false,
+        });
+        findAiOrganizationSettings.mockRejectedValueOnce(
+            new Error('AI settings read failed'),
+        );
+        await expect(
+            service.upsertSettings(user, { mcpAgentsEnabled: true }),
+        ).rejects.toThrow('AI settings read failed');
+        expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it.each([true, null])(
+        'allows MCP preferences when organization consent is %s',
+        async (organizationMcpEnabled) => {
+            const { service, upsert } = buildService({
+                organizationMcpEnabled,
+            });
+            await service.upsertSettings(user, { mcpAgentsEnabled: false });
+            expect(upsert).toHaveBeenCalledExactlyOnceWith('org-uuid', {
+                mcpAgentsEnabled: false,
+            });
+        },
+    );
+
+    it('keeps unrelated AI settings writable while MCP is disabled', async () => {
+        const { service, upsert, getOrganizationSettings } = buildService({
+            organizationMcpEnabled: false,
+        });
+        await service.upsertSettings(user, { aiAgentsVisible: false });
+        expect(upsert).toHaveBeenCalledExactlyOnceWith('org-uuid', {
+            aiAgentsVisible: false,
+        });
+        expect(getOrganizationSettings).not.toHaveBeenCalled();
+    });
+
+    it('does not write MCP preferences when organization settings cannot be read', async () => {
+        const { service, upsert, getOrganizationSettings } = buildService();
+        getOrganizationSettings.mockRejectedValueOnce(new Error('Read failed'));
+        await expect(
+            service.upsertSettings(user, { mcpContentWritesEnabled: true }),
+        ).rejects.toThrow('Read failed');
+        expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it('checks AI permissions before reporting organization MCP consent', async () => {
+        const { service, upsert, getOrganizationSettings } = buildService({
+            organizationMcpEnabled: false,
+            canManageAi: false,
+        });
+        await expect(
+            service.upsertSettings(user, { mcpAgentsEnabled: true }),
+        ).rejects.toThrow(
+            'Insufficient permissions to manage AI agent settings',
+        );
+        expect(getOrganizationSettings).not.toHaveBeenCalled();
+        expect(upsert).not.toHaveBeenCalled();
+    });
     it('refuses an OAuth admin enabling agent admission without OAuth scope metadata', async () => {
         const { service, upsert } = buildService();
         const policy = vi

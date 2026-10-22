@@ -61,9 +61,9 @@ export const McpAccessSettingsCard = () => {
                     </Title>
                     <Text c="dimmed" fz="xs">
                         Allow MCP clients to access this organization. Turning
-                        this off blocks new requests from all clients, including
-                        those already connected. Work already started or
-                        scheduled can continue.
+                        this off blocks new MCP requests from all clients,
+                        including those already connected. Work already started
+                        or scheduled can continue.
                     </Text>
                 </Box>
                 <Switch

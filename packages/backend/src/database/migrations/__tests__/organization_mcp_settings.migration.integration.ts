@@ -7,14 +7,23 @@ import {
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { AiModelCatalog } from '../../../ee/clients/Ai/AiModelCatalog';
+import { AiOrganizationProviderCredentialModel } from '../../../ee/models/AiOrganizationProviderCredentialModel';
+import { AiOrganizationSettingsModel } from '../../../ee/models/AiOrganizationSettingsModel';
+import { CommercialFeatureFlagModel } from '../../../ee/models/CommercialFeatureFlagModel';
+import { OrgAiCopilotConfigResolver } from '../../../ee/services/ai/OrgAiCopilotConfigResolver';
+import { AiOrganizationSettingsService } from '../../../ee/services/AiOrganizationSettingsService';
 import * as auditLogger from '../../../logging/winston';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { OrganizationModel } from '../../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../../models/OrganizationSettingsModel';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { OrganizationSettingsService } from '../../../services/OrganizationSettingsService/OrganizationSettingsService';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../../testing/migratedDatabase';
+import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { down, up } from '../20261022160000_add_organization_mcp_enabled';
 
 let migrated: MigratedDatabase;
@@ -33,6 +42,11 @@ const accountFor = (organizationUuid: string, admin: boolean) => {
                   {
                       action: 'manage',
                       subject: 'Organization',
+                      conditions: { organizationUuid },
+                  },
+                  {
+                      action: 'manage',
+                      subject: 'OrganizationAiAgent',
                       conditions: { organizationUuid },
                   },
               ]
@@ -144,6 +158,130 @@ test('organization admins can disable and restore MCP without affecting other or
         service.updateOrganizationSettings(admin, { mcpEnabled: true }),
     ).resolves.toMatchObject({ mcpEnabled: true });
     expect((await model.get(first.organization_uuid)).mcpEnabled).toBe(true);
+});
+
+test('MCP preference writes honor persisted organization consent and reject mixed patches atomically', async () => {
+    const { database } = migrated;
+    const [first, second] = await database('organizations')
+        .insert([
+            { organization_name: 'MCP disabled preferences' },
+            { organization_name: 'MCP enabled preferences' },
+        ])
+        .returning('organization_uuid');
+    const lightdashConfig = {
+        ...lightdashConfigMock,
+        ai: {
+            ...lightdashConfigMock.ai,
+            copilot: {
+                ...lightdashConfigMock.ai.copilot,
+                enabled: true,
+                requiresFeatureFlag: false,
+            },
+        },
+    };
+    const encryptionUtil = new EncryptionUtil({ lightdashConfig });
+    const organizationSettingsModel = new OrganizationSettingsModel({
+        database,
+    });
+    const aiOrganizationSettingsModel = new AiOrganizationSettingsModel({
+        database,
+        encryptionUtil,
+    });
+    const aiOrganizationProviderCredentialModel =
+        new AiOrganizationProviderCredentialModel({ database, encryptionUtil });
+    const featureFlagModel = new FeatureFlagModel({
+        database,
+        lightdashConfig,
+    });
+    const service = new AiOrganizationSettingsService({
+        organizationSettingsModel,
+        aiOrganizationSettingsModel,
+        aiOrganizationProviderCredentialModel,
+        organizationModel: new OrganizationModel(database, lightdashConfig),
+        projectModel: new ProjectModel({
+            database,
+            lightdashConfig,
+            encryptionUtil,
+        }),
+        commercialFeatureFlagModel: new CommercialFeatureFlagModel({
+            database,
+            lightdashConfig,
+        }),
+        featureFlagModel,
+        lightdashConfig,
+        orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+            lightdashConfig,
+            featureFlagModel,
+            aiOrganizationSettingsModel,
+            aiOrganizationProviderCredentialModel,
+            aiModelCatalog: new AiModelCatalog(),
+        }),
+    });
+    const admin = accountFor(first.organization_uuid, true);
+    await aiOrganizationSettingsModel.upsert(first.organization_uuid, {
+        mcpAgentsEnabled: true,
+        mcpContentWritesEnabled: true,
+    });
+    await organizationSettingsModel.update(first.organization_uuid, {
+        mcpEnabled: false,
+    });
+    await Promise.all(
+        (['mcpAgentsEnabled', 'mcpContentWritesEnabled'] as const).map(
+            (setting) =>
+                expect(
+                    service.upsertSettings(admin, {
+                        [setting]: false,
+                        deepResearchRawSqlEnabled: true,
+                    }),
+                ).rejects.toThrow(
+                    'MCP access is disabled for this organization',
+                ),
+        ),
+    );
+    expect(
+        await aiOrganizationSettingsModel.findByOrganizationUuid(
+            first.organization_uuid,
+        ),
+    ).toMatchObject({
+        mcpAgentsEnabled: true,
+        mcpContentWritesEnabled: true,
+        deepResearchRawSqlEnabled: false,
+    });
+    await expect(
+        service.upsertSettings(admin, {
+            mcpAgentsEnabled: true,
+            mcpContentWritesEnabled: true,
+            deepResearchRawSqlEnabled: true,
+        }),
+    ).resolves.toMatchObject({
+        mcpAgentsEnabled: true,
+        mcpContentWritesEnabled: true,
+        deepResearchRawSqlEnabled: true,
+    });
+    expect(
+        await aiOrganizationSettingsModel.findByOrganizationUuid(
+            first.organization_uuid,
+        ),
+    ).toMatchObject({ deepResearchRawSqlEnabled: true });
+    await expect(
+        service.upsertSettings(admin, { aiAgentsVisible: false }),
+    ).resolves.toMatchObject({ aiAgentsVisible: false });
+    await expect(
+        service.upsertSettings(accountFor(second.organization_uuid, true), {
+            mcpContentWritesEnabled: false,
+        }),
+    ).resolves.toMatchObject({ mcpContentWritesEnabled: false });
+    await organizationSettingsModel.update(first.organization_uuid, {
+        mcpEnabled: true,
+    });
+    await expect(
+        service.upsertSettings(admin, {
+            mcpContentWritesEnabled: false,
+        }),
+    ).resolves.toMatchObject({
+        mcpAgentsEnabled: true,
+        mcpContentWritesEnabled: false,
+    });
 });
 
 test('members cannot read, disable or re-enable MCP organization settings', async () => {

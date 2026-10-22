@@ -43,6 +43,15 @@ const { mutationState, refetchSettings, settingsQuery, updateSettings } =
         };
     });
 
+const organizationQuery = vi.hoisted(() => ({
+    data: { mcpEnabled: true },
+    isSuccess: true,
+}));
+
+vi.mock('../../../../../../hooks/organization/useOrganization', () => ({
+    useOrganization: () => organizationQuery,
+}));
+
 vi.mock('../../../hooks/useAiOrganizationSettings', () => ({
     useAiOrganizationAdminSettings: () => ({
         ...settingsQuery.current,
@@ -77,6 +86,8 @@ describe('McpGeneralSettingsPage', () => {
             error: undefined,
         };
         mutationState.isLoading = false;
+        organizationQuery.data.mcpEnabled = true;
+        organizationQuery.isSuccess = true;
         refetchSettings.mockReset();
         updateSettings.mockReset();
     });
@@ -121,6 +132,54 @@ describe('McpGeneralSettingsPage', () => {
         mutationState.isLoading = true;
         renderPage();
 
+        expect(
+            screen.getByRole('switch', { name: 'Enable agents over MCP' }),
+        ).toBeDisabled();
+        expect(
+            screen.getByRole('switch', {
+                name: 'Allow content changes via MCP',
+            }),
+        ).toBeDisabled();
+    });
+
+    it('disables tool preferences while MCP is off and restores their saved values when enabled', async () => {
+        organizationQuery.data.mcpEnabled = false;
+        const view = renderPage();
+        const agents = screen.getByRole('switch', {
+            name: 'Enable agents over MCP',
+        });
+        const writes = screen.getByRole('switch', {
+            name: 'Allow content changes via MCP',
+        });
+        expect(agents).toBeDisabled();
+        expect(agents).toBeChecked();
+        expect(writes).toBeDisabled();
+        expect(writes).not.toBeChecked();
+        const user = userEvent.setup();
+        await user.click(agents);
+        await user.click(writes);
+        expect(updateSettings).not.toHaveBeenCalled();
+        expect(screen.getByText('MCP access is disabled')).toBeInTheDocument();
+
+        organizationQuery.data.mcpEnabled = true;
+        view.rerender(
+            <MemoryRouter>
+                <McpGeneralSettingsPage
+                    showAgentsPageLink={false}
+                    canManageOrganization={false}
+                    showAiSettings
+                />
+            </MemoryRouter>,
+        );
+        expect(agents).toBeEnabled();
+        expect(agents).toBeChecked();
+        expect(writes).toBeEnabled();
+        expect(writes).not.toBeChecked();
+    });
+
+    it('keeps tool controls disabled until organization consent is available', () => {
+        organizationQuery.isSuccess = false;
+        renderPage();
         expect(
             screen.getByRole('switch', { name: 'Enable agents over MCP' }),
         ).toBeDisabled();

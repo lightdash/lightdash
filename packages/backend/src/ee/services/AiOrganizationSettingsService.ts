@@ -35,6 +35,7 @@ import { toSessionUser } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
+import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { assertHumanManagedMutation } from '../../services/AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../../services/BaseService';
@@ -218,6 +219,7 @@ type AiOrganizationSettingsServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     aiOrganizationProviderCredentialModel: AiOrganizationProviderCredentialModel;
     organizationModel: OrganizationModel;
+    organizationSettingsModel: OrganizationSettingsModel;
     projectModel: ProjectModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
     featureFlagModel: FeatureFlagModel;
@@ -231,6 +233,8 @@ export class AiOrganizationSettingsService extends BaseService {
     private readonly aiOrganizationProviderCredentialModel: AiOrganizationProviderCredentialModel;
 
     private readonly organizationModel: OrganizationModel;
+
+    private readonly organizationSettingsModel: OrganizationSettingsModel;
 
     private readonly projectModel: ProjectModel;
 
@@ -252,6 +256,7 @@ export class AiOrganizationSettingsService extends BaseService {
         this.aiOrganizationProviderCredentialModel =
             dependencies.aiOrganizationProviderCredentialModel;
         this.organizationModel = dependencies.organizationModel;
+        this.organizationSettingsModel = dependencies.organizationSettingsModel;
         this.projectModel = dependencies.projectModel;
         this.commercialFeatureFlagModel =
             dependencies.commercialFeatureFlagModel;
@@ -717,6 +722,32 @@ export class AiOrganizationSettingsService extends BaseService {
         }
 
         await this.checkAiSettingsAccess(user, organizationUuid);
+
+        if (
+            aiSettingsUpdate.mcpAgentsEnabled !== undefined ||
+            aiSettingsUpdate.mcpContentWritesEnabled !== undefined
+        ) {
+            const organizationSettings =
+                await this.organizationSettingsModel.get(organizationUuid);
+            if (organizationSettings.mcpEnabled === false) {
+                const storedSettings =
+                    await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                        organizationUuid,
+                    );
+                if (
+                    (aiSettingsUpdate.mcpAgentsEnabled !== undefined &&
+                        aiSettingsUpdate.mcpAgentsEnabled !==
+                            (storedSettings?.mcpAgentsEnabled ?? true)) ||
+                    (aiSettingsUpdate.mcpContentWritesEnabled !== undefined &&
+                        aiSettingsUpdate.mcpContentWritesEnabled !==
+                            (storedSettings?.mcpContentWritesEnabled ?? true))
+                ) {
+                    throw new ForbiddenError(
+                        'MCP access is disabled for this organization',
+                    );
+                }
+            }
+        }
 
         if (aiSettingsUpdate.deepResearchLimits !== undefined) {
             validateDeepResearchLimits(aiSettingsUpdate.deepResearchLimits);

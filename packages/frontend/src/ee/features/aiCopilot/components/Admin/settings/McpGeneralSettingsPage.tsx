@@ -10,9 +10,11 @@ import {
     Title,
 } from '@mantine/core';
 import { Link } from 'react-router';
+import Callout from '../../../../../../components/common/Callout';
 import ErrorState from '../../../../../../components/common/ErrorState';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../../../../../components/common/Settings/SettingsPage';
+import { useOrganization } from '../../../../../../hooks/organization/useOrganization';
 import {
     useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
@@ -21,8 +23,10 @@ import { McpAccessSettingsCard } from './McpAccessSettingsCard';
 
 const McpToolSettings = ({
     showAgentsPageLink,
+    canManageOrganization,
 }: {
     showAgentsPageLink: boolean;
+    canManageOrganization: boolean;
 }) => {
     const {
         data: settings,
@@ -33,6 +37,14 @@ const McpToolSettings = ({
     } = useAiOrganizationAdminSettings();
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
         useUpdateAiOrganizationSettings();
+    const organization = useOrganization();
+    const mcpDisabled =
+        !organization.isSuccess || organization.data.mcpEnabled === false;
+    const savedAgentsStatus = settings?.mcpAgentsEnabled ? 'On' : 'Off';
+    const agentsStatus =
+        organization.data?.mcpEnabled === false
+            ? 'Disabled'
+            : savedAgentsStatus;
 
     return (
         <>
@@ -54,6 +66,16 @@ const McpToolSettings = ({
                 </Group>
             ) : (
                 <>
+                    {organization.data?.mcpEnabled === false && (
+                        <Callout
+                            variant="warning"
+                            title="MCP access is disabled"
+                        >
+                            {canManageOrganization
+                                ? 'Turn on Allow MCP access to change these settings.'
+                                : 'An organization administrator must allow MCP access before these settings can be changed.'}
+                        </Callout>
+                    )}
                     <SettingsCard>
                         <Group
                             justify="space-between"
@@ -72,11 +94,7 @@ const McpToolSettings = ({
                             </Box>
                             {showAgentsPageLink ? (
                                 <Stack gap="xs" align="flex-end">
-                                    <Text size="sm">
-                                        {settings.mcpAgentsEnabled
-                                            ? 'On'
-                                            : 'Off'}
-                                    </Text>
+                                    <Text size="sm">{agentsStatus}</Text>
                                     <Anchor
                                         component={Link}
                                         to="/generalSettings/agentIdentity"
@@ -90,7 +108,7 @@ const McpToolSettings = ({
                                     size="md"
                                     aria-label="Enable agents over MCP"
                                     checked={settings.mcpAgentsEnabled}
-                                    disabled={isUpdatingSettings}
+                                    disabled={isUpdatingSettings || mcpDisabled}
                                     onChange={(event) =>
                                         updateSettings({
                                             mcpAgentsEnabled:
@@ -127,7 +145,7 @@ const McpToolSettings = ({
                                 size="md"
                                 aria-label="Allow content changes via MCP"
                                 checked={settings.mcpContentWritesEnabled}
-                                disabled={isUpdatingSettings}
+                                disabled={isUpdatingSettings || mcpDisabled}
                                 onChange={(event) =>
                                     updateSettings({
                                         mcpContentWritesEnabled:
@@ -158,7 +176,10 @@ export const McpGeneralSettingsPage = ({
     >
         {canManageOrganization && <McpAccessSettingsCard />}
         {showAiSettings && (
-            <McpToolSettings showAgentsPageLink={showAgentsPageLink} />
+            <McpToolSettings
+                showAgentsPageLink={showAgentsPageLink}
+                canManageOrganization={canManageOrganization}
+            />
         )}
     </SettingsPage>
 );

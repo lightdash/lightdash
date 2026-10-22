@@ -197,13 +197,15 @@ export class OrganizationService extends BaseService {
         // Every member gets the effective captures switch so the data app
         // builder can hide its capture affordances; GET /org/settings is
         // admin-only.
-        const { dataAppCapturesEnabled } = resolveEffectiveOrganizationSettings(
-            settings,
-            getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
-        );
+        const { dataAppCapturesEnabled, mcpEnabled } =
+            resolveEffectiveOrganizationSettings(
+                settings,
+                getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+            );
         return {
             ...organization,
             needsProject,
+            mcpEnabled: mcpEnabled !== false,
             dataAppCapturesEnabled: dataAppCapturesEnabled !== false,
             pgWire: this.getPgWireConnectionDetails(account, organizationUuid),
         };

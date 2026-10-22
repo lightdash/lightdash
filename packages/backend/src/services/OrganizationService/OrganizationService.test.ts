@@ -62,6 +62,9 @@ const featureFlagModel = {
         enabled: true,
     })),
 };
+const organizationSettingsModel = {
+    get: vi.fn(async () => ({})),
+};
 vi.spyOn(analyticsMock, 'track');
 vi.spyOn(analyticsMock, 'group');
 const organizationMemberProfileModel = {
@@ -100,7 +103,7 @@ describe('organization service', () => {
             featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
             rolesModel: rolesModel as unknown as RolesModel,
             // Nothing stored: every setting inherits the instance default.
-            organizationSettingsModel: { get: async () => ({}) } as never,
+            organizationSettingsModel: organizationSettingsModel as never,
             onOrganizationCreated,
         });
     const organizationService = buildOrganizationService();
@@ -368,6 +371,7 @@ describe('organization service', () => {
         expect(await organizationService.get(account)).toEqual({
             ...organization,
             needsProject: false,
+            mcpEnabled: true,
             dataAppCapturesEnabled: true,
             // Default account is a developer (not an org admin), so the pgwire
             // connection details are withheld — only `enabled` is exposed.
@@ -387,6 +391,7 @@ describe('organization service', () => {
         expect(await organizationService.get(account)).toEqual({
             ...organization,
             needsProject: true,
+            mcpEnabled: true,
             dataAppCapturesEnabled: true,
             pgWire: {
                 enabled: false,
@@ -396,6 +401,17 @@ describe('organization service', () => {
             },
         });
     });
+
+    it.each([true, false, null])(
+        'exposes organization MCP consent to ordinary members: %s',
+        async (mcpEnabled) => {
+            organizationSettingsModel.get.mockResolvedValueOnce({ mcpEnabled });
+            const account = buildAccount({ accountType: 'session' });
+            expect((await organizationService.get(account)).mcpEnabled).toBe(
+                mcpEnabled ?? true,
+            );
+        },
+    );
 
     it('Should expose pgwire connection details to org admins', async () => {
         const account = buildAccount({ accountType: 'session' });

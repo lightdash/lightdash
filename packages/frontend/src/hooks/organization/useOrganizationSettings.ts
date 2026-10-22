@@ -58,6 +58,7 @@ export const useUpdateOrganizationSettings = () => {
                     // GET /org carries the resolved data app captures switch for
                     // every member; refresh it so open builders hide their
                     // capture affordances without a reload.
+                    // MCP controls also read the organization response.
                     queryClient.invalidateQueries(['organization']),
                 ]);
                 showToastSuccess({ title: 'Organization settings saved' });

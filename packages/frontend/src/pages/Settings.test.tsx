@@ -622,6 +622,125 @@ describe('MCP settings route permission parity', () => {
     });
     afterEach(() => viewport.restore());
 
+    it('shows disabled MCP settings to an AI manager without organization admin access', async () => {
+        const readAdminSettings = vi.fn();
+        nock(BASE_API_URL)
+            .get('/api/v1/org/settings')
+            .optionally()
+            .reply(403, readAdminSettings);
+        const { queryClient } = renderSettings(
+            '',
+            [
+                viewProject,
+                {
+                    action: 'manage',
+                    subject: 'OrganizationAiAgent',
+                    conditions: { organizationUuid: 'org' },
+                },
+            ],
+            true,
+            '/generalSettings/mcp/general',
+            false,
+            { isCopilotEnabled: true, isTrial: false },
+        );
+        act(() => {
+            queryClient.setQueryData(['organization'], {
+                organizationUuid: 'org',
+                name: 'Test organization',
+                mcpEnabled: false,
+            });
+        });
+        expect(
+            await screen.findByText('MCP access is disabled'),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByText(
+                'An organization administrator must allow MCP access before these settings can be changed.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('switch', { name: 'Enable agents over MCP' }),
+        ).toBeDisabled();
+        expect(
+            screen.getByRole('switch', {
+                name: 'Allow content changes via MCP',
+            }),
+        ).toBeDisabled();
+        expect(
+            screen.queryByRole('switch', { name: 'Allow MCP access' }),
+        ).not.toBeInTheDocument();
+        expect(readAdminSettings).not.toHaveBeenCalled();
+    });
+
+    it('lets organization admins restore MCP and re-enables saved tool preferences', async () => {
+        const { queryClient } = renderSettings(
+            '',
+            [
+                viewProject,
+                manageOrganization,
+                {
+                    action: 'manage',
+                    subject: 'OrganizationAiAgent',
+                    conditions: { organizationUuid: 'org' },
+                },
+            ],
+            true,
+            '/generalSettings/mcp/general',
+            false,
+            { isCopilotEnabled: true, isTrial: false },
+        );
+        act(() => {
+            queryClient.setQueryData(['organization_settings'], {
+                mcpEnabled: false,
+            });
+            queryClient.setQueryData(['organization'], {
+                organizationUuid: 'org',
+                name: 'Test organization',
+                mcpEnabled: false,
+            });
+        });
+        const master = await screen.findByRole('switch', {
+            name: 'Allow MCP access',
+        });
+        expect(master).toBeEnabled();
+        expect(master).not.toBeChecked();
+        expect(
+            screen.getByText(
+                'Turn on Allow MCP access to change these settings.',
+            ),
+        ).toBeInTheDocument();
+        const agents = screen.getByRole('switch', {
+            name: 'Enable agents over MCP',
+        });
+        const writes = screen.getByRole('switch', {
+            name: 'Allow content changes via MCP',
+        });
+        expect(agents).toBeDisabled();
+        expect(writes).toBeDisabled();
+        const patch = nock(BASE_API_URL)
+            .patch('/api/v1/org/settings', { mcpEnabled: true })
+            .reply(200, { status: 'ok', results: { mcpEnabled: true } });
+        nock(BASE_API_URL)
+            .get('/api/v1/org/settings')
+            .reply(200, { status: 'ok', results: { mcpEnabled: true } });
+        nock(BASE_API_URL)
+            .get('/api/v1/org')
+            .reply(200, {
+                status: 'ok',
+                results: {
+                    organizationUuid: 'org',
+                    name: 'Test organization',
+                    mcpEnabled: true,
+                },
+            });
+        fireEvent.click(master);
+        await waitFor(() => expect(agents).toBeEnabled());
+        expect(writes).toBeEnabled();
+        expect(agents).toBeChecked();
+        expect(writes).toBeChecked();
+        expect(patch.isDone()).toBe(true);
+    });
+
     it.each([true, false])(
         'saves MCP access without AI availability (success=%s)',
         async (success) => {

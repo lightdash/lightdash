@@ -1005,6 +1005,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiOrganizationSettingsService: ({ models, context }) =>
                 new AiOrganizationSettingsService({
+                    organizationSettingsModel:
+                        models.getOrganizationSettingsModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     aiOrganizationSettingsModel:
                         models.getAiOrganizationSettingsModel(),
