@@ -87,7 +87,7 @@ describe('buildAiCreditDailyUsage', () => {
             period,
             entries: [usage('agent', 3, '2026-08-31')],
         });
-        expect(daily.series).toEqual([{ feature: 'agent', credits: 0 }]);
-        expect(daily.days.every((day) => day.credits[0] === 0)).toBe(true);
+        expect(daily.series).toEqual([]);
+        expect(daily.days.every((day) => day.credits.length === 0)).toBe(true);
     });
 });

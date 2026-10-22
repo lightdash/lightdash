@@ -32,23 +32,25 @@ export const buildAiCreditDailyUsage = ({
     period: AiCreditPeriod;
     entries: AiCreditDailyUsageEntry[];
 }): AiCreditDailyUsage => {
-    const totals = new Map<AiBillableFeature, number>();
-    entries.forEach(({ feature, credits }) =>
-        totals.set(feature, (totals.get(feature) ?? 0) + credits),
-    );
-    const features = [...totals.entries()]
-        .filter(([, credits]) => credits > 0)
-        .sort(([, a], [, b]) => b - a)
-        .map(([feature]) => feature);
-    const featureIndex = new Map(
-        features.map((feature, index) => [feature, index]),
-    );
-
     const days = listPeriodDays(period);
     const dayIndex = new Map(days.map((date, index) => [date, index]));
+    const inPeriod = entries.filter(({ date }) => dayIndex.has(date));
+
+    const totals = new Map<AiBillableFeature, number>();
+    inPeriod.forEach(({ feature, credits }) =>
+        totals.set(feature, (totals.get(feature) ?? 0) + credits),
+    );
+    const series = [...totals.entries()]
+        .filter(([, credits]) => credits > 0)
+        .sort(([, a], [, b]) => b - a)
+        .map(([feature, credits]) => ({ feature, credits }));
+    const featureIndex = new Map(
+        series.map(({ feature }, index) => [feature, index]),
+    );
+
     // Mutated in place: a year-long period has too many cells to copy per entry.
-    const creditsByDay = days.map(() => features.map(() => 0));
-    entries.forEach(({ date, feature, credits }) => {
+    const creditsByDay = days.map(() => series.map(() => 0));
+    inPeriod.forEach(({ date, feature, credits }) => {
         const day = dayIndex.get(date);
         const index = featureIndex.get(feature);
         if (day === undefined || index === undefined) return;
@@ -57,10 +59,7 @@ export const buildAiCreditDailyUsage = ({
 
     return {
         period,
-        series: features.map((feature, index) => ({
-            feature,
-            credits: creditsByDay.reduce((sum, row) => sum + row[index], 0),
-        })),
+        series,
         days: days.map((date, index) => ({
             date,
             credits: creditsByDay[index],
