@@ -1,12 +1,11 @@
 /* eslint-disable no-console */
-// Spike: inserts composer v2 artifacts (runQuery-style viz over column
+// Spike: inserts composer v2 artifacts (flat viz config over column
 // references) into a local thread. Prints a /minimal URL per example.
 // Run: direnv exec . pnpm -F backend exec tsx src/scripts/dev/seedComposerVizSpike.ts
 import {
     QuerySourceType,
     type AiComposerChartArtifactConfigV2,
-    type ComposerBuiltinVizConfig,
-    type ComposerRunQueryVizConfig,
+    type ComposerStoredChartVizConfig,
     type SourceQuery,
 } from '@lightdash/common';
 import knex from 'knex';
@@ -16,21 +15,34 @@ const THREAD_UUID =
     process.env.SPIKE_THREAD_UUID ?? 'feabd0de-68d4-45b0-acf9-6bfc8ba2d71a';
 const SITE_URL = process.env.SITE_URL ?? 'http://localhost:3000';
 
-const builtin = (
-    config: Partial<ComposerBuiltinVizConfig> &
-        Pick<ComposerBuiltinVizConfig, 'defaultVizType'>,
-): ComposerBuiltinVizConfig => ({
-    xAxisDimension: null,
-    yAxisMetrics: null,
+const viz = (
+    config: Partial<ComposerStoredChartVizConfig> &
+        Pick<ComposerStoredChartVizConfig, 'type'>,
+): ComposerStoredChartVizConfig => ({
+    x: null,
+    y: null,
     groupBy: null,
+    stack: null,
+    horizontal: null,
     xAxisType: null,
-    stackBars: null,
-    lineType: null,
-    xAxisLabel: '',
-    yAxisLabel: '',
-    secondaryYAxisMetric: null,
-    secondaryYAxisLabel: null,
+    y2: null,
+    labels: null,
+    customChartTypeSlug: null,
+    fieldMapping: null,
+    options: null,
+    dataAppVizUuid: null,
+    dataAppVizVersion: null,
     ...config,
+});
+
+const labels = (
+    x: string | null,
+    y: string | null,
+    y2: string | null = null,
+) => ({
+    x,
+    y,
+    y2,
 });
 
 const ordersByMonthStatus: SourceQuery = {
@@ -50,7 +62,7 @@ const examples: {
     description: string;
     queries: SourceQuery[];
     terminalNodeId: string;
-    vizConfig: ComposerRunQueryVizConfig;
+    vizConfig: ComposerStoredChartVizConfig;
 }[] = [
     {
         key: '1-semantic-bar',
@@ -71,13 +83,11 @@ const examples: {
             },
         ],
         terminalNodeId: 'revenue_by_month',
-        vizConfig: builtin({
-            defaultVizType: 'bar',
-            xAxisDimension: 'orders_order_date_month',
-            yAxisMetrics: ['orders_total_order_amount'],
-            xAxisType: 'time',
-            xAxisLabel: 'Month',
-            yAxisLabel: 'Revenue',
+        vizConfig: viz({
+            type: 'bar',
+            x: 'orders_order_date_month',
+            y: ['orders_total_order_amount'],
+            labels: labels('Month', 'Revenue'),
         }),
     },
     {
@@ -86,14 +96,12 @@ const examples: {
         description: 'Multi-series line: groupBy pivots on DuckDB.',
         queries: [ordersByMonthStatus],
         terminalNodeId: 'orders_month_status',
-        vizConfig: builtin({
-            defaultVizType: 'line',
-            xAxisDimension: 'orders_order_date_month',
-            yAxisMetrics: ['orders_unique_order_count'],
+        vizConfig: viz({
+            type: 'line',
+            x: 'orders_order_date_month',
+            y: ['orders_unique_order_count'],
             groupBy: ['orders_status'],
-            xAxisType: 'time',
-            xAxisLabel: 'Month',
-            yAxisLabel: 'Orders',
+            labels: labels('Month', 'Orders'),
         }),
     },
     {
@@ -102,15 +110,28 @@ const examples: {
         description: 'Stacked bar: groupBy pivots on DuckDB.',
         queries: [ordersByMonthStatus],
         terminalNodeId: 'orders_month_status',
-        vizConfig: builtin({
-            defaultVizType: 'bar',
-            xAxisDimension: 'orders_order_date_month',
-            yAxisMetrics: ['orders_unique_order_count'],
+        vizConfig: viz({
+            type: 'bar',
+            x: 'orders_order_date_month',
+            y: ['orders_unique_order_count'],
             groupBy: ['orders_status'],
-            xAxisType: 'time',
-            stackBars: true,
-            xAxisLabel: 'Month',
-            yAxisLabel: 'Orders',
+            stack: true,
+            labels: labels('Month', 'Orders'),
+        }),
+    },
+    {
+        key: '2c-semantic-stacked-area',
+        title: 'Orders by month per status (stacked area)',
+        description: 'Stacked area: groupBy pivots on DuckDB.',
+        queries: [ordersByMonthStatus],
+        terminalNodeId: 'orders_month_status',
+        vizConfig: viz({
+            type: 'area',
+            x: 'orders_order_date_month',
+            y: ['orders_unique_order_count'],
+            groupBy: ['orders_status'],
+            stack: true,
+            labels: labels('Month', 'Orders'),
         }),
     },
     {
@@ -127,13 +148,12 @@ const examples: {
             },
         ],
         terminalNodeId: 'revenue_by_method',
-        vizConfig: builtin({
-            defaultVizType: 'horizontal',
-            xAxisDimension: 'method',
-            yAxisMetrics: ['revenue'],
-            xAxisType: 'category',
-            xAxisLabel: 'Payment method',
-            yAxisLabel: 'Revenue',
+        vizConfig: viz({
+            type: 'bar',
+            horizontal: true,
+            x: 'method',
+            y: ['revenue'],
+            labels: labels('Payment method', 'Revenue'),
         }),
     },
     {
@@ -159,14 +179,12 @@ const examples: {
             },
         ],
         terminalNodeId: 'cumulative_revenue',
-        vizConfig: builtin({
-            defaultVizType: 'line',
-            xAxisDimension: 'week_start',
-            yAxisMetrics: ['cumulative_revenue'],
-            xAxisType: 'time',
-            lineType: 'area',
-            xAxisLabel: 'Week',
-            yAxisLabel: 'Cumulative revenue',
+        vizConfig: viz({
+            type: 'area',
+            x: 'week_start',
+            y: ['cumulative_revenue'],
+            y2: ['weekly_revenue'],
+            labels: labels('Week', 'Cumulative revenue', 'Weekly revenue'),
         }),
     },
     {
@@ -192,17 +210,12 @@ const examples: {
             },
         ],
         terminalNodeId: 'source_share',
-        vizConfig: builtin({
-            defaultVizType: 'pie',
-            xAxisDimension: 'order_source',
-            yAxisMetrics: ['orders'],
-        }),
+        vizConfig: viz({ type: 'pie', x: 'order_source', y: ['orders'] }),
     },
     {
         key: '5b-duckdb-table',
         title: 'Order KPIs',
-        description:
-            'DuckDB single-row summary, table (runQuery has no big number).',
+        description: 'DuckDB summary rows, table.',
         queries: [
             {
                 sourceType: QuerySourceType.SEMANTIC_LAYER,
@@ -225,7 +238,37 @@ const examples: {
             },
         ],
         terminalNodeId: 'order_kpis',
-        vizConfig: builtin({ defaultVizType: 'table' }),
+        vizConfig: viz({ type: 'table' }),
+    },
+    {
+        key: '5c-duckdb-big-number',
+        title: 'Total revenue',
+        description:
+            'DuckDB single-row total over a semantic node, big number.',
+        queries: [
+            {
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'revenue_by_status',
+                title: 'Revenue by status',
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_total_order_amount'],
+                limit: 100,
+            },
+            {
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'total_revenue',
+                title: 'Total revenue',
+                sql: 'SELECT SUM(orders_total_order_amount) AS total_revenue, COUNT(*) AS statuses FROM revenue_by_status',
+                references: ['revenue_by_status'],
+            },
+        ],
+        terminalNodeId: 'total_revenue',
+        vizConfig: viz({
+            type: 'big_number',
+            y: ['total_revenue'],
+            labels: labels(null, 'Total revenue'),
+        }),
     },
     {
         key: '6a-scatter',
@@ -241,13 +284,11 @@ const examples: {
             },
         ],
         terminalNodeId: 'customer_points',
-        vizConfig: builtin({
-            defaultVizType: 'scatter',
-            xAxisDimension: 'shipping_cost',
-            yAxisMetrics: ['order_amount'],
-            xAxisType: 'category',
-            xAxisLabel: 'Shipping cost',
-            yAxisLabel: 'Order amount',
+        vizConfig: viz({
+            type: 'scatter',
+            x: 'shipping_cost',
+            y: ['order_amount'],
+            labels: labels('Shipping cost', 'Order amount'),
         }),
     },
     {
@@ -273,11 +314,7 @@ const examples: {
             },
         ],
         terminalNodeId: 'funnel_stages',
-        vizConfig: builtin({
-            defaultVizType: 'funnel',
-            xAxisDimension: 'stage',
-            yAxisMetrics: ['orders'],
-        }),
+        vizConfig: viz({ type: 'funnel', x: 'stage', y: ['orders'] }),
     },
     {
         key: '7-custom-chart-type',
@@ -286,7 +323,8 @@ const examples: {
             'Custom chart type over a semantic node with a series slot.',
         queries: [ordersByMonthStatus],
         terminalNodeId: 'orders_month_status',
-        vizConfig: {
+        vizConfig: viz({
+            type: 'custom',
             customChartTypeSlug: 'share-over-time-stream-graph',
             dataAppVizUuid: '69e24018-8802-4c75-966a-6dfe4c484686',
             dataAppVizVersion: 1,
@@ -295,8 +333,7 @@ const examples: {
                 series: 'orders_status',
                 value: 'orders_unique_order_count',
             },
-            options: null,
-        },
+        }),
     },
 ];
 

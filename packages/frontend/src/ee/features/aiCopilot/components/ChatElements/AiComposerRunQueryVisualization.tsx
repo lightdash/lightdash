@@ -2,12 +2,11 @@ import {
     ECHARTS_DEFAULT_COLORS,
     getComposerRunQueryChart,
     isApiError,
-    isComposerCustomChartTypeVizConfig,
     QuerySourceType,
     type ApiExecuteSourceQueriesResults,
     type ChartConfig,
     type ComposerRunQueryChart,
-    type ComposerRunQueryVizConfig,
+    type ComposerStoredChartVizConfig,
     type ExecuteSourceQueriesRequestParams,
     type PivotConfiguration,
 } from '@lightdash/common';
@@ -80,7 +79,7 @@ type Props = {
     projectUuid: string;
     /** The terminal node's result of this run. */
     queryUuid: string;
-    vizConfig: ComposerRunQueryVizConfig;
+    vizConfig: ComposerStoredChartVizConfig;
     metadata: { title: string; description: string };
     onScreenshotReady: () => void;
     onScreenshotError: () => void;
@@ -107,9 +106,7 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
         [nodeResults.columns],
     );
 
-    const customChartType = isComposerCustomChartTypeVizConfig(vizConfig)
-        ? vizConfig
-        : null;
+    const customChartType = vizConfig.type === 'custom' ? vizConfig : null;
     const { data: renderMetadata } = useDataAppVizRenderMetadata(
         projectUuid,
         customChartType?.dataAppVizUuid ?? null,

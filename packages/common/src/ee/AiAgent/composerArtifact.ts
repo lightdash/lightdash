@@ -14,7 +14,7 @@ import {
 import assertUnreachable from '../../utils/assertUnreachable';
 import { stableJson } from '../../utils/stableJson';
 import { type AllVizChartConfig } from '../../visualizations/types';
-import { type ComposerRunQueryVizConfig } from './composerRunQueryViz';
+import { type ComposerStoredChartVizConfig } from './composerRunQueryViz';
 
 /**
  * A composer artifact version: a declarative pipeline, its terminal node and
@@ -30,15 +30,15 @@ export type AiComposerChartArtifactConfigV1 = {
 };
 
 /**
- * Spike: v2 describes the chart like the runQuery tool's chartConfig, with
- * result column references of the terminal node in place of field ids.
+ * Spike: v2 describes the chart with the flat composer viz config over result
+ * column references of the terminal node.
  */
 export type AiComposerChartArtifactConfigV2 = {
     source: 'composer';
     schemaVersion: 2;
     queries: SourceQuery[];
     terminalNodeId: QueryNodeId;
-    vizConfig: ComposerRunQueryVizConfig | null;
+    vizConfig: ComposerStoredChartVizConfig | null;
 };
 
 export type AiComposerChartArtifactConfig =
