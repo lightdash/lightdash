@@ -46,6 +46,7 @@ export const getDocumentToolsSection = ({
         : 'Create a Document only when the user explicitly asks for one. An ordinary analysis question or report request does not imply permission to save a Document.'
 }
 - When the user named no Space, the Document is personal: tell them so, and that it can be saved to a Space later.
+- Before editing a Document, read its latest version with readContent.
 ${getChartPlacement(viaComposerQueries, customCharts)}
 - You cannot create or change merge charts, composer charts${
     customCharts && !viaComposerQueries ? '' : ' or custom charts'

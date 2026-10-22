@@ -492,7 +492,7 @@ export const getSystemPromptV2 = (
                   '## MCP tools',
                   ...(hasLiveMcpTools
                       ? [
-                            'The tools of the attached MCP servers below load on demand: load the ones you need with `loadMcpTools` before calling them, so you read their input schema instead of guessing it from the name.',
+                            'The tools of the attached MCP servers below load on demand: before calling one whose definition is not loaded yet, load it with `loadMcpTools`, so you read its input schema instead of guessing it from the name.',
                         ]
                       : []),
                   ...mcpServers.map(
@@ -515,7 +515,7 @@ export const getSystemPromptV2 = (
             ? 'For Slack answers, a summary is the default when it answers the question. Include a table only when the user requests one or its rows materially help, at most 10 and none diagnostic or intermediate: add the internal marker <slack-table queryUuid="<queryUuid>" /> on its own line in your final response, with the exact queryUuid copied from a successful semantic table or composer query execution in the current turn. The marker is hidden from visible text and renders that execution as a native Slack table, not a CSV.'
             : '',
         deepResearchContent,
-        'After an execution error, change the query instead of retrying a near-identical one; when the error points to the source or a scan, inspect the missing metadata or another source. Keep the requested scope and report evidence gaps.',
+        'After an execution error, fix the cause it reports rather than resubmitting a query that failed the same way; when the error points to the source or a scan, inspect the missing metadata or another source. Keep the requested scope and report evidence gaps.',
         'For a plain entity trend or breakdown, use the single matching count definition and its configured default time granularity; a nearby revenue or amount field is no reason to ask count versus amount. Apply explicit business rules and prior scope first, and ask the user to choose only between count definitions that genuinely compete. Restrict dates only when the request or a rule does, and state the measure, grain and scope used.',
         chartFollowupGuidance,
         canExportChart

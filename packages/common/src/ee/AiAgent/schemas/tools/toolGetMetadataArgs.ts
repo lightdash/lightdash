@@ -23,7 +23,7 @@ Purpose:
 Get the full metadata for explores and fields whose IDs you already know, typically from ${grepFields}: an explore's ${exploreMetadataGuidanceByRuntime[runtime]}, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.
 
 When to use:
-Call this once you have narrowed down to the explores and fields you intend to use, before building the query. Batch every explore and field you need into one call. Descriptions and hints truncated elsewhere ("...(truncated)") are returned here in full.
+Call this for the explores and fields you intend to use whose full detail you do not already have. Batch every explore and field you need into one call. Descriptions and hints truncated elsewhere ("...(truncated)") are returned here in full.
 
 Inputs:
 Each entry in \`requests\` is one of:

@@ -121,7 +121,7 @@ const baseVersionUuidSchema = z
     .string()
     .uuid()
     .describe(
-        'Version UUID of the Document as last read. A stale version fails: read the Document again and reapply the change on top of the newer version.',
+        'Version UUID from the latest read of the Document. A stale version fails: read the Document again and reapply the change on top of the newer version.',
     );
 
 export const documentAsCodeSchema = z

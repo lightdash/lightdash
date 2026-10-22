@@ -9,7 +9,7 @@ export const TOOL_READ_PINNED_THREAD_DESCRIPTION = ({
 
 Read the transcript of a previous conversation attached to this thread as context, to understand what the user was trying to achieve there before answering.
 
-Use it when a message in this thread lists a Conversation as attached context and you need its content, or when you are asked to verify or follow up on something from that conversation. Only attached conversations are readable, and a transcript does not change, so read each one once per turn.
+Use it when a message in this thread lists a Conversation as attached context and you need its content, or when you are asked to verify or follow up on something from that conversation. Only attached conversations are readable. A transcript does not change between calls, so reuse one you have already read instead of reading it again.
 
 The attached conversation may predate recent project changes: verify its claims (available fields, metrics, query results) against the current project before relying on them.
 `;

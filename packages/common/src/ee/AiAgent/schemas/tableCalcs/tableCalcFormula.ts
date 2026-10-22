@@ -70,6 +70,7 @@ const formulaDescription = [
     )}); aggregates over the whole result (${FORMULA_SCHEMA_FUNCTION_NAMES.aggregate.join(
         ', ',
     )}); window (${FORMULA_SCHEMA_FUNCTION_NAMES.window.join(', ')}).`,
+    'MIN and MAX take one argument to aggregate over the whole result, or two to compare per row: `MIN(orders_total_revenue, 100)` caps each row at 100. ROUND takes optional decimal places, IF an optional else value, and LAG and LEAD `(value, [offset], [default])`.',
     'String positions are 1-indexed; STRPOS returns 0 when the substring is absent. Date units are "day", "week", "month", "quarter" or "year": `DATE_TRUNC("month", d)`, `DATE_ADD(d, 3, "month")`, and `DATE_DIFF(a, b, "month")`, which is positive when b is after a.',
     'Window functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. `LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)`.',
     'MOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is `MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)`.',

@@ -18,7 +18,7 @@ Compute the exact impact of changing or removing one semantic-layer field (a met
 - scheduled deliveries and alerts on the affected charts or dashboards
 - a severity: "breaking" if anything references the field, otherwise "safe"
 
-It reports references, not values: when a field keeps its id but its SQL or aggregation changes, numbers move without anything breaking, so "safe" does not prove a change keeps the numbers. When a change rests on a value claim (two fields are equivalent, a split reconstructs the original, a refactor leaves results unchanged), prove it before calling the change safe, by construction (the same column and aggregation, a uniqueness guarantee such as a primary key or a row_number() = 1 dedup, a true partition) or by data (query the fields at a total grain and across a time dimension), and report any divergence.
+It reports references, not values: when a field keeps its id but its SQL or aggregation changes, numbers move without anything breaking, so "safe" does not prove a change keeps the numbers. When a change rests on a value claim (two fields are equivalent, a split reconstructs the original, a refactor leaves results unchanged), prove it before calling the change safe, by construction (the same model, column and aggregation, a uniqueness guarantee such as a primary key or a row_number() = 1 dedup, a true partition) or by data (query the fields at a total grain and across a time dimension), and report any divergence.
 `;
 
 export const toolAnalyzeFieldImpactArgsSchema = createToolSchema()
