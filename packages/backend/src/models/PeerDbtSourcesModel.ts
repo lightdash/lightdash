@@ -21,6 +21,7 @@ import Logger from '../logging/logger';
 import { type EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { getPeerDbtSourcesEnabled } from '../utils/peerDbtSourcesOperation';
 import { dbtRepositoryIdentity } from './dbtRepositoryIdentity';
+import { PeerProjectDeletionModel } from './PeerProjectDeletionModel';
 import { normalizeStoredDbtConnection } from './ProjectModel/normalizeStoredDbtConnection';
 
 export type DbPeerDbtSource = DbProjectDbtSource & {
@@ -1035,6 +1036,11 @@ export class PeerDbtSourcesModel {
                 throw new ForbiddenError(
                     'Only an admin of the owning project can share this source',
                 );
+            if (this.enabled)
+                await PeerProjectDeletionModel.assertRepositoryOwnersAvailable(
+                    trx,
+                    [repository],
+                );
             await this.assertCredentialOrganization(trx, repository);
             if (!isShared) {
                 const projects = await trx('project_dbt_sources')
@@ -1087,6 +1093,11 @@ export class PeerDbtSourcesModel {
                 .first();
             if (!repository)
                 throw new NotFoundError('Cannot find a shared dbt source');
+            if (this.enabled)
+                await PeerProjectDeletionModel.assertRepositoryOwnersAvailable(
+                    trx,
+                    [repository],
+                );
             await new PeerDbtSourcesModel({
                 ...this.args,
                 database: trx,
@@ -1305,6 +1316,11 @@ export class PeerDbtSourcesModel {
             .forUpdate();
         if (repositories.length !== repositoryUuids.length)
             throw new NotFoundError('Cannot find a dbt repository to copy');
+        if (this.enabled)
+            await PeerProjectDeletionModel.assertRepositoryOwnersAvailable(
+                this.args.database,
+                repositories,
+            );
         await repositories.reduce(async (previous, repository) => {
             await previous;
             if (repository.organization_uuid !== project.organization_uuid)

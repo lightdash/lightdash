@@ -232,6 +232,7 @@ import {
     hasSameWarehouseCredentialDestination,
 } from '../../utils/credentialDestination';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { getPeerDbtSourcesEnabled } from '../../utils/peerDbtSourcesOperation';
 import {
     acquireProjectSlugLock,
     generateUniqueProjectSlug,
@@ -249,6 +250,7 @@ import {
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
 import { OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
+import { PeerProjectDeletionModel } from '../PeerProjectDeletionModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 import { clearProjectExtraRoles } from '../roleSetUtils';
 import {
@@ -2208,6 +2210,26 @@ export class ProjectModel {
             .first<{ project_id: number } | undefined>();
         if (!project) return;
 
+        if (getPeerDbtSourcesEnabled()) {
+            await this.deleteRowsInBatches(
+                'catalog_search',
+                'catalog_search_uuid',
+                {
+                    project_uuid: projectUuid,
+                },
+            );
+            await this.deleteRowsInBatches('cached_explores', 'project_uuid', {
+                project_uuid: projectUuid,
+            });
+            await this.deleteRowsInBatches(
+                'cached_explore',
+                'cached_explore_uuid',
+                {
+                    project_uuid: projectUuid,
+                },
+            );
+        }
+
         await this.deleteRowsInBatches(SavedChartsTableName, 'saved_query_id', {
             project_uuid: projectUuid,
         });
@@ -2220,19 +2242,59 @@ export class ProjectModel {
         await this.deleteRowsInBatches(SpaceTableName, 'space_id', {
             project_id: project.project_id,
         });
+        if (getPeerDbtSourcesEnabled())
+            await this.deleteRowsInBatches('jobs', 'job_uuid', {
+                project_uuid: projectUuid,
+            });
+    }
+
+    async beginDeletion(projectUuids: string[]): Promise<void> {
+        if (!getPeerDbtSourcesEnabled()) return;
+        await new PeerProjectDeletionModel({ database: this.database }).begin(
+            projectUuids,
+        );
     }
 
     async delete(
         projectUuid: string,
         transaction?: Transaction,
+        deletingProjectUuids: string[] = [projectUuid],
     ): Promise<void> {
-        // Invalidate warehouse credentials cache
         warehouseCredentialsCache?.del(projectUuid);
 
         if (!transaction) {
+            if (getPeerDbtSourcesEnabled())
+                await this.beginDeletion([
+                    ...new Set([projectUuid, ...deletingProjectUuids]),
+                ]);
             await this.deleteContentInBatches(projectUuid);
         }
 
+        await this.finalizeDeletion(
+            projectUuid,
+            transaction,
+            deletingProjectUuids,
+        );
+    }
+
+    async deleteAfterContentCleanup(
+        projectUuid: string,
+        transaction?: Transaction,
+        deletingProjectUuids: string[] = [projectUuid],
+    ): Promise<void> {
+        warehouseCredentialsCache?.del(projectUuid);
+        await this.finalizeDeletion(
+            projectUuid,
+            transaction,
+            deletingProjectUuids,
+        );
+    }
+
+    private async finalizeDeletion(
+        projectUuid: string,
+        transaction: Transaction | undefined,
+        deletingProjectUuids: string[],
+    ): Promise<void> {
         const deleteInTransaction = async (trx: Transaction): Promise<void> => {
             const [project] = await trx('projects')
                 .select('project_id')
@@ -2266,7 +2328,16 @@ export class ProjectModel {
             await trx('projects').where('project_uuid', projectUuid).delete();
         };
 
-        if (transaction) {
+        if (getPeerDbtSourcesEnabled()) {
+            await new PeerProjectDeletionModel({
+                database: this.database,
+            }).withFinalDeletion(
+                projectUuid,
+                deleteInTransaction,
+                transaction,
+                deletingProjectUuids,
+            );
+        } else if (transaction) {
             await deleteInTransaction(transaction);
         } else {
             await this.database.transaction(deleteInTransaction);

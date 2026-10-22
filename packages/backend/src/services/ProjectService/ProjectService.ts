@@ -8042,7 +8042,18 @@ export class ProjectService
     async delete(projectUuid: string, user: SessionUser): Promise<void> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
+        return this.withPeerOperation(project.organizationUuid, () =>
+            this.deleteInPeerOperation(projectUuid, user, project),
+        );
+    }
 
+    private async deleteInPeerOperation(
+        projectUuid: string,
+        user: SessionUser,
+        project: Awaited<ReturnType<ProjectModel['getWithSensitiveFields']>>,
+    ): Promise<void> {
+        const peersEnabled = getPeerDbtSourcesEnabled();
+        let deletingProjectUuids = [projectUuid];
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
@@ -8094,11 +8105,27 @@ export class ProjectService
                     candidate.provisioningSource === 'training' &&
                     candidate.upstreamProjectUuid === projectUuid,
             );
+            if (peersEnabled) {
+                deletingProjectUuids = [
+                    projectUuid,
+                    ...copies.map((copy) => copy.projectUuid),
+                ];
+                await this.projectModel.beginDeletion(deletingProjectUuids);
+            }
             await Promise.all(
                 copies.map((copy) =>
-                    this.deletePreviewAndAppFiles(copy.projectUuid),
+                    peersEnabled
+                        ? this.deletePreviewAndAppFiles(
+                              copy.projectUuid,
+                              deletingProjectUuids,
+                          )
+                        : this.deletePreviewAndAppFiles(copy.projectUuid),
                 ),
             );
+        }
+
+        if (peersEnabled && project.type !== ProjectType.TRAINING) {
+            await this.projectModel.beginDeletion(deletingProjectUuids);
         }
 
         if (project.provisioningSource === 'playground') {
@@ -8115,8 +8142,23 @@ export class ProjectService
                         { playgroundProjectDeletedAt: new Date() },
                         trx,
                     );
-                    await this.projectModel.delete(projectUuid, trx);
+                    if (peersEnabled) {
+                        await this.projectModel.delete(
+                            projectUuid,
+                            trx,
+                            deletingProjectUuids,
+                        );
+                    } else {
+                        await this.projectModel.delete(projectUuid, trx);
+                    }
                 },
+            );
+        } else if (peersEnabled) {
+            await this.projectModel.deleteContentInBatches(projectUuid);
+            await this.projectModel.deleteAfterContentCleanup(
+                projectUuid,
+                undefined,
+                deletingProjectUuids,
             );
         } else {
             await this.projectModel.delete(projectUuid);
@@ -8137,11 +8179,13 @@ export class ProjectService
             await this.projectModel.getExpiredPreviewProjects();
 
         const results = await Promise.allSettled(
-            expiredProjects.map(({ projectUuid }) =>
+            expiredProjects.map(({ projectUuid, organizationUuid }) =>
                 // A preview can carry copied data apps (every training copy
                 // does); deleting the rows alone leaves their bundles in the
                 // bucket for good.
-                this.deletePreviewAndAppFiles(projectUuid).then(() => {
+                this.withPeerOperation(organizationUuid, () =>
+                    this.deletePreviewAndAppFiles(projectUuid),
+                ).then(() => {
                     this.logger.info(
                         `Deleted expired preview project: ${projectUuid}`,
                     );
@@ -17231,7 +17275,13 @@ export class ProjectService
         }
 
         try {
-            await this.projectModel.delete(previewProject.project.projectUuid);
+            await this.withPeerOperation(
+                previewProject.project.organizationUuid,
+                () =>
+                    this.projectModel.delete(
+                        previewProject.project.projectUuid,
+                    ),
+            );
         } catch (e) {
             Sentry.captureException(e);
             this.logger.error(
@@ -17703,32 +17753,43 @@ export class ProjectService
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const training = await this.projectModel.get(trainingProjectUuid);
-        if (
-            training.type !== ProjectType.TRAINING ||
-            training.organizationUuid !== user.organizationUuid
-        ) {
-            throw new ForbiddenError(
-                "Only copies of your organization's training project can be removed this way",
+        return this.withPeerOperation(user.organizationUuid, async () => {
+            const training = await this.projectModel.get(trainingProjectUuid);
+            if (
+                training.type !== ProjectType.TRAINING ||
+                training.organizationUuid !== user.organizationUuid
+            ) {
+                throw new ForbiddenError(
+                    "Only copies of your organization's training project can be removed this way",
+                );
+            }
+            const projects = await this.projectModel.getAllByOrganizationUuid(
+                user.organizationUuid,
             );
-        }
-        const projects = await this.projectModel.getAllByOrganizationUuid(
-            user.organizationUuid,
-        );
-        const copies = projects.filter(
-            (project) =>
-                project.type === ProjectType.PREVIEW &&
-                project.provisioningSource === 'training' &&
-                project.upstreamProjectUuid === trainingProjectUuid &&
-                project.createdByUserUuid === user.userUuid,
-        );
-        await Promise.all(
-            copies.map((copy) =>
-                this.deletePreviewAndAppFiles(copy.projectUuid),
-            ),
-        );
-        this.userModel.invalidateSessionUserCache(user.userUuid);
-        return { deleted: copies.length };
+            const copies = projects.filter(
+                (project) =>
+                    project.type === ProjectType.PREVIEW &&
+                    project.provisioningSource === 'training' &&
+                    project.upstreamProjectUuid === trainingProjectUuid &&
+                    project.createdByUserUuid === user.userUuid,
+            );
+            const peersEnabled = getPeerDbtSourcesEnabled();
+            const deletingProjectUuids = copies.map((copy) => copy.projectUuid);
+            if (peersEnabled)
+                await this.projectModel.beginDeletion(deletingProjectUuids);
+            await Promise.all(
+                copies.map((copy) =>
+                    peersEnabled
+                        ? this.deletePreviewAndAppFiles(
+                              copy.projectUuid,
+                              deletingProjectUuids,
+                          )
+                        : this.deletePreviewAndAppFiles(copy.projectUuid),
+                ),
+            );
+            this.userModel.invalidateSessionUserCache(user.userUuid);
+            return { deleted: copies.length };
+        });
     }
 
     /**
@@ -17739,7 +17800,11 @@ export class ProjectService
      */
     private async deletePreviewAndAppFiles(
         previewProjectUuid: string,
+        deletingProjectUuids?: string[],
     ): Promise<void> {
+        const peersEnabled = getPeerDbtSourcesEnabled();
+        if (peersEnabled && !deletingProjectUuids)
+            await this.projectModel.beginDeletion([previewProjectUuid]);
         try {
             await this.getAppGenerateService?.()?.deleteProjectAppFiles(
                 previewProjectUuid,
@@ -17752,7 +17817,16 @@ export class ProjectService
                 }`,
             );
         }
-        await this.projectModel.delete(previewProjectUuid);
+        if (peersEnabled) {
+            await this.projectModel.deleteContentInBatches(previewProjectUuid);
+            await this.projectModel.deleteAfterContentCleanup(
+                previewProjectUuid,
+                undefined,
+                deletingProjectUuids ?? [previewProjectUuid],
+            );
+        } else {
+            await this.projectModel.delete(previewProjectUuid);
+        }
     }
 
     /*
@@ -17851,7 +17925,9 @@ export class ProjectService
             jobStatus: JobStatusType.ERROR,
         });
         try {
-            await this.projectModel.delete(payload.projectUuid);
+            await this.withPeerOperation(payload.organizationUuid, () =>
+                this.projectModel.delete(payload.projectUuid),
+            );
         } catch (cleanupError) {
             Sentry.captureException(cleanupError);
             this.logger.error(
