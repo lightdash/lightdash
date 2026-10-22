@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
+import { randomUUID } from 'node:crypto';
 import passport from 'passport';
-import { authenticateBigquery, retryGoogleReconnect } from './googleReconnect';
+import { authenticateBigquery } from './googleReconnect';
 
 vi.mock('passport', () => ({
     default: { authenticate: vi.fn(() => vi.fn()) },
@@ -20,6 +21,7 @@ const setup = (query: Record<string, string>, hasIdentity = true) => {
         session: {
             oauth: {
                 isPopup: true,
+                intent: 'link',
                 returnTo: '/projects/project_a/sql-runner',
             },
         },
@@ -28,7 +30,7 @@ const setup = (query: Record<string, string>, hasIdentity = true) => {
     return {
         req,
         service,
-        res: {} as Response,
+        res: { redirect: vi.fn() } as unknown as Response,
         next: vi.fn<(error?: unknown) => void>(),
     };
 };
@@ -51,7 +53,6 @@ test.each([false, true])(
             userUuid: user.userUuid,
             subject: hasIdentity ? context.subject : null,
             email: hasIdentity ? context.email : null,
-            consentAttempted: false,
         });
         expect(req.session.oauth).toMatchObject({
             isPopup: true,
@@ -72,35 +73,27 @@ test('settings links always request consent', async () => {
 
 test('validates ownership before binding a personal credential to the session', async () => {
     const { req, res, next, service } = setup({
-        personalCredentialUuid: 'credential_a',
+        personalCredentialUuid: randomUUID(),
+        reconnect: 'true',
     });
     service.validatePersonalBigqueryReconnect.mockRejectedValueOnce(
         new Error('denied'),
     );
     await authenticateBigquery(req, res, next);
     expect(passport.authenticate).not.toHaveBeenCalled();
-    expect(next).toHaveBeenCalledWith(expect.any(Error));
+    expect(res.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('/auth/popup/failure'),
+    );
+    expect(next).not.toHaveBeenCalled();
     expect(req.session.oauth?.googlePersonalReconnect).toBeUndefined();
 });
 
-test('retries consent once and retains popup and redirect state', async () => {
+test('an explicit reconnect without a login fails without a forced-consent authorization', async () => {
     const { req, res, next } = setup({ reconnect: 'true' });
+    req.user = undefined;
     await authenticateBigquery(req, res, next);
-    req.session.oauth!.googleReconnect!.retryWithConsent = true;
-    retryGoogleReconnect(req, res, next);
-    expect(passport.authenticate).toHaveBeenLastCalledWith(
-        'google',
-        expect.objectContaining({
-            prompt: 'consent',
-            loginHint: context.email,
-        }),
+    expect(res.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('/auth/popup/failure'),
     );
-    expect(req.session.oauth).toMatchObject({
-        isPopup: true,
-        returnTo: '/projects/project_a/sql-runner',
-        googleReconnect: { consentAttempted: true, retryWithConsent: false },
-    });
-    retryGoogleReconnect(req, res, next);
-    expect(passport.authenticate).toHaveBeenCalledTimes(2);
-    expect(next).toHaveBeenCalledOnce();
+    expect(passport.authenticate).not.toHaveBeenCalled();
 });

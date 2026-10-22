@@ -1,11 +1,66 @@
 import type { RequestHandler } from 'express';
 import passport from 'passport';
+import { validate as isUuid } from 'uuid';
+import { getOidcRedirectURL } from './middlewares';
 import { getLoginHint } from './utils';
+
+export const validateGooglePersonalCallback: RequestHandler = async (
+    req,
+    res,
+    next,
+) => {
+    if (
+        !Object.prototype.hasOwnProperty.call(
+            req.session.oauth ?? {},
+            'googlePersonalReconnect',
+        )
+    )
+        return next();
+    const personal = req.session.oauth?.googlePersonalReconnect;
+    try {
+        if (
+            !personal ||
+            typeof personal !== 'object' ||
+            typeof personal.credentialUuid !== 'string' ||
+            !isUuid(personal.credentialUuid) ||
+            !req.user ||
+            personal.userUuid !== req.user.userUuid ||
+            req.session.oauth?.intent !== 'link' ||
+            req.session.oauth.googleReconnect?.userUuid !== req.user.userUuid
+        ) {
+            res.redirect(getOidcRedirectURL(false)(req));
+            return;
+        }
+        await req.services
+            .getUserService()
+            .validatePersonalBigqueryReconnect(
+                req.user,
+                personal.credentialUuid,
+            );
+        next();
+    } catch {
+        res.redirect(getOidcRedirectURL(false)(req));
+    }
+};
 
 export const authenticateBigquery: RequestHandler = async (req, res, next) => {
     try {
         req.session.oauth ??= {};
-        if (typeof req.query.personalCredentialUuid === 'string' && req.user) {
+        const suppliedPersonal = Object.prototype.hasOwnProperty.call(
+            req.query,
+            'personalCredentialUuid',
+        );
+        if (suppliedPersonal) {
+            if (
+                typeof req.query.personalCredentialUuid !== 'string' ||
+                !isUuid(req.query.personalCredentialUuid) ||
+                !req.user ||
+                req.query.reconnect !== 'true' ||
+                req.session.oauth.intent !== 'link'
+            ) {
+                res.redirect(getOidcRedirectURL(false)(req));
+                return;
+            }
             await req.services
                 .getUserService()
                 .validatePersonalBigqueryReconnect(
@@ -16,6 +71,10 @@ export const authenticateBigquery: RequestHandler = async (req, res, next) => {
                 userUuid: req.user.userUuid,
                 credentialUuid: req.query.personalCredentialUuid,
             };
+        }
+        if (req.query.reconnect === 'true' && !req.user) {
+            res.redirect(getOidcRedirectURL(false)(req));
+            return;
         }
         const isReconnect = req.query.reconnect === 'true' && !!req.user;
         const context =
@@ -29,7 +88,6 @@ export const authenticateBigquery: RequestHandler = async (req, res, next) => {
                 subject: context?.subject ?? null,
                 email: context?.email ?? null,
                 userUuid: req.user.userUuid,
-                consentAttempted: false,
             };
         }
         passport.authenticate('google', {
@@ -46,22 +104,15 @@ export const authenticateBigquery: RequestHandler = async (req, res, next) => {
             includeGrantedScopes: true,
         })(req, res, next);
     } catch (error) {
+        if (
+            Object.prototype.hasOwnProperty.call(
+                req.query,
+                'personalCredentialUuid',
+            )
+        ) {
+            res.redirect(getOidcRedirectURL(false)(req));
+            return;
+        }
         next(error);
     }
-};
-
-export const retryGoogleReconnect: RequestHandler = (req, res, next) => {
-    const reconnect = req.session.oauth?.googleReconnect;
-    if (!reconnect || !reconnect.retryWithConsent || reconnect.consentAttempted)
-        return next();
-    reconnect.retryWithConsent = false;
-    reconnect.consentAttempted = true;
-    passport.authenticate('google', {
-        scope: ['profile', 'email', 'https://www.googleapis.com/auth/bigquery'],
-        accessType: 'offline',
-        loginHint: reconnect.email ?? getLoginHint(req),
-        prompt: 'consent',
-        session: false,
-        includeGrantedScopes: true,
-    })(req, res, next);
 };

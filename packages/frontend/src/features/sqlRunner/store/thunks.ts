@@ -16,9 +16,11 @@ import {
     selectCompleteConfigByKind,
 } from '../../../components/DataViz/store/selectors';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
+import { isWarehouseSignInExecutionReady } from '../../../components/NavBar/warehouseSignInPreflight';
 import {
     captureSharedSignInQueryScope,
     isCurrentSharedSignInQueryScope,
+    rememberSharedSignInFailure,
 } from '../../../hooks/sharedSignInQueryRecovery';
 import { reportSharedSignInQueryFailure } from '../../../hooks/useReconnectSharedSignIn';
 import {
@@ -28,6 +30,7 @@ import {
 import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 import {
     selectConnectionUuid,
+    selectConnectionRequest,
     selectSqlRunnerResultsRunner,
 } from './sqlRunnerSlice';
 
@@ -54,7 +57,7 @@ export const runSqlQuery = createAsyncThunk<
     'sqlRunner/runSqlQuery',
     async (
         { sql, limit, projectUuid, parameterValues },
-        { rejectWithValue, getState, signal },
+        { rejectWithValue, getState, signal, requestId },
     ) => {
         const connectionRoute = (getState() as RootState).sqlRunner
             .connectionRoute ?? { route: 'pending' };
@@ -79,7 +82,10 @@ export const runSqlQuery = createAsyncThunk<
             });
         }
         const warehouseConnectionUuid = connection?.warehouseConnectionUuid;
-        const scope = captureSharedSignInQueryScope(projectUuid);
+        const scope = captureSharedSignInQueryScope(
+            projectUuid,
+            warehouseConnectionUuid ?? null,
+        );
         try {
             // SQL Runner is edit-only — always skip cache, matching explore edit mode.
             const results = await executeSqlQuery(
@@ -107,8 +113,13 @@ export const runSqlQuery = createAsyncThunk<
             return { ...results, warehouseConnectionUuid };
         } catch (error) {
             if (isAbortError(error)) throw error;
-            reportSharedSignInQueryFailure(projectUuid, error, scope);
+            const current =
+                (getState() as RootState).sqlRunner.executionRequestId ===
+                requestId;
+            if (current)
+                reportSharedSignInQueryFailure(projectUuid, error, scope);
             if (isApiError(error)) {
+                if (current) rememberSharedSignInFailure(error.error, scope);
                 return rejectWithValue(error.error);
             }
             return rejectWithValue({
@@ -119,6 +130,18 @@ export const runSqlQuery = createAsyncThunk<
                 data: {},
             });
         }
+    },
+    {
+        condition: (args, { getState }) => {
+            const state = getState() as RootState;
+            const request = selectConnectionRequest(state);
+            return isWarehouseSignInExecutionReady(
+                args.projectUuid,
+                request.ready
+                    ? (request.field.warehouseConnectionUuid ?? null)
+                    : undefined,
+            );
+        },
     },
 );
 
@@ -133,7 +156,7 @@ export const prepareAndFetchChartData = createAsyncThunk.withTypes<{
     'cartesianChartBaseConfig/prepareAndFetchChartData',
     async (
         opts: { forceRefresh?: boolean } | undefined,
-        { getState, rejectWithValue },
+        { getState, rejectWithValue, requestId },
     ) => {
         const state = getState() as RootState;
         const { forceRefresh = false } = opts ?? {};
@@ -170,6 +193,7 @@ export const prepareAndFetchChartData = createAsyncThunk.withTypes<{
 
         const scope = captureSharedSignInQueryScope(
             state.sqlRunner.projectUuid,
+            selectConnectionUuid(state) ?? null,
         );
         let chartData;
         try {
@@ -182,13 +206,34 @@ export const prepareAndFetchChartData = createAsyncThunk.withTypes<{
         } catch (error) {
             if (
                 isApiError(error) &&
+                (getState() as RootState).sqlRunner.sql ===
+                    state.sqlRunner.sql &&
+                (getState() as RootState).sqlRunner.limit ===
+                    state.sqlRunner.limit &&
+                (getState() as RootState).sqlRunner.parameterValues ===
+                    state.sqlRunner.parameterValues &&
+                selectCompleteConfigByKind(
+                    getState() as RootState,
+                    selectedChartType,
+                ) === currentVizConfig &&
+                (getState() as RootState).sqlRunner.pivotRequestId ===
+                    requestId &&
+                (getState() as RootState).sqlRunner.executionRequestId ===
+                    state.sqlRunner.executionRequestId &&
                 (!scope || isCurrentSharedSignInQueryScope(scope)) &&
                 (getState() as RootState).sqlRunner.projectUuid ===
                     state.sqlRunner.projectUuid &&
                 selectConnectionUuid(getState() as RootState) ===
                     selectConnectionUuid(state)
-            )
+            ) {
+                rememberSharedSignInFailure(error.error, scope);
+                reportSharedSignInQueryFailure(
+                    state.sqlRunner.projectUuid,
+                    error,
+                    scope,
+                );
                 return rejectWithValue(error.error);
+            }
             throw error;
         }
 
@@ -209,5 +254,17 @@ export const prepareAndFetchChartData = createAsyncThunk.withTypes<{
         };
 
         return info;
+    },
+    {
+        condition: (_args, { getState }) => {
+            const state = getState() as RootState;
+            const request = selectConnectionRequest(state);
+            return isWarehouseSignInExecutionReady(
+                state.sqlRunner.projectUuid,
+                request.ready
+                    ? (request.field.warehouseConnectionUuid ?? null)
+                    : undefined,
+            );
+        },
     },
 );

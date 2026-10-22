@@ -65,12 +65,19 @@ import {
 import { ChartDataTable } from '../../../components/DataViz/visualizations/ChartDataTable';
 import { Table } from '../../../components/DataViz/visualizations/Table';
 import type { EChartsInstance } from '../../../components/EChartsReactWrapper';
+import {
+    isWarehouseSignInExecutionReady,
+    captureWarehouseSignInExecution,
+    isWarehouseSignInExecutionCurrent,
+    type WarehouseSignInExecutionIdentity,
+} from '../../../components/NavBar/warehouseSignInPreflight';
 import { QueryCostConfirmModal } from '../../../components/QueryCostEstimate/QueryCostConfirmModal';
 import { QueryCostEstimateBadge } from '../../../components/QueryCostEstimate/QueryCostEstimateBadge';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import {
-    canReplaySharedSignInQueryScope,
+    canReplayRestoredSql,
+    isCurrentSharedSignInQueryScope,
     captureSharedSignInQueryScope,
     isWarehouseSignInQueryErrorDetail,
 } from '../../../hooks/sharedSignInQueryRecovery';
@@ -86,6 +93,7 @@ import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi
 import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useRunQueryOnLoad } from '../hooks/useRunQueryOnLoad';
+import { useSqlRunnerSignInReady } from '../hooks/useSqlRunnerSignInReady';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { startAppListening } from '../store/listenerMiddleware';
 import { addAutomaticPivotFailureListener } from '../store/sqlRunnerListeners';
@@ -272,39 +280,21 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
               args: Parameters<typeof runSqlQuery>[0];
               connectionUuid: typeof warehouseConnectionUuid;
               scope: ReturnType<typeof captureSharedSignInQueryScope>;
+              requestId: string;
           }
         | {
               kind: 'visualization';
               projectUuid: string;
+              sql: string;
+              limit: typeof limit;
+              parameterValues: typeof parameterValues;
+              config: typeof currentVizConfig;
               connectionUuid: typeof warehouseConnectionUuid;
               scope: ReturnType<typeof captureSharedSignInQueryScope>;
+              requestId: string;
           }
         | null
     >(null);
-
-    useEffect(
-        () =>
-            addAutomaticPivotFailureListener(
-                startAppListening,
-                projectUuid,
-                () => {
-                    lastFailedRun.current = {
-                        kind: 'visualization',
-                        projectUuid,
-                        connectionUuid: warehouseConnectionUuid,
-                        scope: captureSharedSignInQueryScope(projectUuid),
-                    };
-                },
-            ),
-        [projectUuid, warehouseConnectionUuid],
-    );
-
-    useEffect(
-        () => () => {
-            lastFailedRun.current = null;
-        },
-        [projectUuid, warehouseConnectionUuid],
-    );
 
     // Resolved palette from the org → project → space → dashboard cascade.
     // Falls back to org-level colors for brand-new (unsaved) SQL charts where
@@ -349,6 +339,56 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
         selectCompleteConfigByKind(state, selectedChartType),
     );
 
+    const runSequence = useRef(0);
+    const latestExecutionRequestId = useAppSelector(
+        (state) => state.sqlRunner.executionRequestId,
+    );
+    const latestPivotRequestId = useAppSelector(
+        (state) => state.sqlRunner.pivotRequestId,
+    );
+    useEffect(
+        () => () => {
+            runSequence.current += 1;
+            lastFailedRun.current = null;
+        },
+        [
+            projectUuid,
+            warehouseConnectionUuid,
+            sql,
+            limit,
+            parameterValues,
+            currentVizConfig,
+        ],
+    );
+    useEffect(
+        () =>
+            addAutomaticPivotFailureListener(
+                startAppListening,
+                projectUuid,
+                (scope, requestId) => {
+                    lastFailedRun.current = {
+                        kind: 'visualization',
+                        projectUuid,
+                        connectionUuid: warehouseConnectionUuid,
+                        scope,
+                        requestId,
+                        sql,
+                        limit,
+                        parameterValues,
+                        config: currentVizConfig,
+                    };
+                },
+            ),
+        [
+            projectUuid,
+            warehouseConnectionUuid,
+            sql,
+            limit,
+            parameterValues,
+            currentVizConfig,
+        ],
+    );
+
     const hideResultsPanel = useMemo(
         () =>
             activeEditorTab === EditorTabs.VISUALIZATION &&
@@ -359,9 +399,11 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     const queryResults = useAppSelector(selectSqlQueryResults);
     const hasQueryResults = useMemo(() => !!queryResults, [queryResults]);
 
+    const signInReady = useSqlRunnerSignInReady();
     const queryClient = useQueryClient();
     const costEstimateSettings = useQueryCostEstimateSettings(projectUuid);
     const [pendingCostConfirmation, setPendingCostConfirmation] = useState<{
+        execution: WarehouseSignInExecutionIdentity | null;
         sql: string;
         totalBytesProcessed: number;
         confirmEstimatedBytesAbove: number;
@@ -382,15 +424,28 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     const costEstimate = useSqlQueryCostEstimate(
         projectUuid,
         costEstimateBody,
-        costEstimateSettings !== null,
+        signInReady && costEstimateSettings !== null,
     );
 
     const executeRunQuery = useCallback(
         async (sqlToUse: string) => {
-            if (!sqlToUse || !limit) return;
-            const scope = captureSharedSignInQueryScope(projectUuid);
+            if (
+                !sqlToUse ||
+                !limit ||
+                !signInReady ||
+                !isWarehouseSignInExecutionReady(
+                    projectUuid,
+                    warehouseConnectionUuid ?? null,
+                )
+            )
+                return;
+            const scope = captureSharedSignInQueryScope(
+                projectUuid,
+                warehouseConnectionUuid ?? null,
+            );
             const connectionUuid = warehouseConnectionUuid;
             lastFailedRun.current = null;
+            const sequence = ++runSequence.current;
 
             if (
                 activeEditorTab === EditorTabs.VISUALIZATION &&
@@ -404,9 +459,15 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                     prepareAndFetchChartData.rejected.match(result) &&
                     result.payload &&
                     isWarehouseSignInQueryErrorDetail(result.payload) &&
-                    scope === captureSharedSignInQueryScope(projectUuid)
+                    sequence === runSequence.current &&
+                    (!scope || isCurrentSharedSignInQueryScope(scope))
                         ? {
                               kind: 'visualization',
+                              requestId: result.meta.requestId,
+                              sql: sqlToUse,
+                              limit,
+                              parameterValues,
+                              config: currentVizConfig,
                               projectUuid,
                               connectionUuid,
                               scope,
@@ -428,8 +489,15 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                     !result.meta.aborted &&
                     result.payload &&
                     isWarehouseSignInQueryErrorDetail(result.payload) &&
-                    scope === captureSharedSignInQueryScope(projectUuid)
-                        ? { kind: 'sql', args, connectionUuid, scope }
+                    sequence === runSequence.current &&
+                    (!scope || isCurrentSharedSignInQueryScope(scope))
+                        ? {
+                              kind: 'sql',
+                              args,
+                              connectionUuid,
+                              scope,
+                              requestId: result.meta.requestId,
+                          }
                         : null;
 
                 // If we're on viz tab, also fetch chart data after SQL completes
@@ -444,9 +512,15 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                         prepareAndFetchChartData.rejected.match(vizResult) &&
                         vizResult.payload &&
                         isWarehouseSignInQueryErrorDetail(vizResult.payload) &&
-                        scope === captureSharedSignInQueryScope(projectUuid)
+                        sequence === runSequence.current &&
+                        (!scope || isCurrentSharedSignInQueryScope(scope))
                             ? {
                                   kind: 'visualization',
+                                  requestId: vizResult.meta.requestId,
+                                  sql: sqlToUse,
+                                  limit,
+                                  parameterValues,
+                                  config: currentVizConfig,
                                   projectUuid,
                                   connectionUuid,
                                   scope,
@@ -456,13 +530,15 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
             }
         },
         [
+            signInReady,
+            warehouseConnectionUuid,
             activeEditorTab,
             dispatch,
             projectUuid,
             limit,
             parameterValues,
             hasQueryResults,
-            warehouseConnectionUuid,
+            currentVizConfig,
         ],
     );
 
@@ -470,7 +546,20 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     // estimate never blocks, since maximum bytes billed is the backstop.
     const handleRunQuery = useCallback(
         async (sqlToUse: string) => {
-            if (!sqlToUse || !limit) return;
+            if (
+                !sqlToUse ||
+                !limit ||
+                !signInReady ||
+                !isWarehouseSignInExecutionReady(
+                    projectUuid,
+                    warehouseConnectionUuid ?? null,
+                )
+            )
+                return;
+            const execution = captureWarehouseSignInExecution(
+                projectUuid,
+                warehouseConnectionUuid ?? null,
+            );
             if (costEstimateSettings?.confirmEstimatedBytesAbove) {
                 try {
                     const estimate = await fetchSqlQueryCostEstimate(
@@ -485,12 +574,14 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                                 warehouseConnectionUuid ?? undefined,
                         },
                     );
+                    if (!isWarehouseSignInExecutionCurrent(execution)) return;
                     if (
                         estimate.status === 'estimated' &&
                         estimate.requiresConfirmation &&
                         estimate.confirmEstimatedBytesAbove !== null
                     ) {
                         setPendingCostConfirmation({
+                            execution,
                             sql: sqlToUse,
                             totalBytesProcessed: estimate.totalBytesProcessed,
                             confirmEstimatedBytesAbove:
@@ -502,9 +593,11 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                     // Fall through and run the query.
                 }
             }
-            await executeRunQuery(sqlToUse);
+            if (isWarehouseSignInExecutionCurrent(execution))
+                await executeRunQuery(sqlToUse);
         },
         [
+            signInReady,
             costEstimateSettings,
             executeRunQuery,
             limit,
@@ -521,10 +614,20 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
             const failedRun = lastFailedRun.current;
             if (
                 !(event instanceof CustomEvent) ||
-                event.detail !== projectUuid ||
                 !failedRun ||
                 failedRun.connectionUuid !== warehouseConnectionUuid ||
-                !canReplaySharedSignInQueryScope(failedRun.scope) ||
+                !canReplayRestoredSql(failedRun.scope, event.detail) ||
+                !isWarehouseSignInExecutionReady(
+                    projectUuid,
+                    warehouseConnectionUuid ?? null,
+                ) ||
+                (failedRun.kind === 'sql'
+                    ? failedRun.requestId !== latestExecutionRequestId
+                    : failedRun.requestId !== latestPivotRequestId ||
+                      failedRun.sql !== sql ||
+                      failedRun.limit !== limit ||
+                      !deepEqual(failedRun.parameterValues, parameterValues) ||
+                      failedRun.config !== currentVizConfig) ||
                 (failedRun.kind === 'sql' &&
                     (failedRun.args.sql !== sql ||
                         failedRun.args.limit !== limit ||
@@ -557,11 +660,16 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
         sql,
         limit,
         parameterValues,
+        latestExecutionRequestId,
+        latestPivotRequestId,
+        currentVizConfig,
     ]);
 
     useQueryErrorToast(queryError, queryErrorProjectUuid);
 
     const handleCancelQuery = useCallback(() => {
+        runSequence.current += 1;
+        lastFailedRun.current = null;
         runPromiseRef.current?.abort();
     }, []);
     const handleRevealError = useCallback(
@@ -815,7 +923,12 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                     }
                     onConfirm={() => {
                         setPendingCostConfirmation(null);
-                        void executeRunQuery(pendingCostConfirmation.sql);
+                        if (
+                            isWarehouseSignInExecutionCurrent(
+                                pendingCostConfirmation.execution,
+                            )
+                        )
+                            void executeRunQuery(pendingCostConfirmation.sql);
                     }}
                     onClose={() => setPendingCostConfirmation(null)}
                 />

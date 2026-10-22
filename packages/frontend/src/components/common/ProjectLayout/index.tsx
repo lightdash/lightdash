@@ -38,7 +38,7 @@ const ProjectLayout: FC = () => {
     });
 
     return (
-        <>
+        <SharedSignInQueryBoundary>
             <NavBar isFixed={isNavBarFixed || isNavigating} />
             <SharedSignInExpiryListener />
             <Sentry.ErrorBoundary fallback={<></>}>
@@ -49,11 +49,9 @@ const ProjectLayout: FC = () => {
             </Sentry.ErrorBoundary>
             {/* Keep the current page mounted so cancelled navigation preserves edits. */}
             <Box display="contents" inert={isNavigating}>
-                <SharedSignInQueryBoundary>
-                    <ContentAuthoringRoute>
-                        <Outlet />
-                    </ContentAuthoringRoute>
-                </SharedSignInQueryBoundary>
+                <ContentAuthoringRoute>
+                    <Outlet />
+                </ContentAuthoringRoute>
             </Box>
             {isNavigating && (
                 <Box className={classes.loading} role="status">
@@ -61,7 +59,7 @@ const ProjectLayout: FC = () => {
                     <PageSpinner />
                 </Box>
             )}
-        </>
+        </SharedSignInQueryBoundary>
     );
 };
 

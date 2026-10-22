@@ -71,6 +71,7 @@ export class BaseResultsRunner implements IResultsRunner {
     private readonly runPivotQuery: RunPivotQuery;
 
     private readonly projectUuid?: string;
+    private readonly warehouseConnectionUuid?: string | null;
 
     constructor({
         fields,
@@ -78,15 +79,18 @@ export class BaseResultsRunner implements IResultsRunner {
         columnNames,
         runPivotQuery,
         projectUuid,
+        warehouseConnectionUuid,
     }: {
         rows: RawResultRow[];
         columnNames: string[];
         fields: SqlRunnerField[];
         runPivotQuery: RunPivotQuery;
         projectUuid?: string;
+        warehouseConnectionUuid?: string | null;
     }) {
         this.runPivotQuery = runPivotQuery;
         this.projectUuid = projectUuid;
+        this.warehouseConnectionUuid = warehouseConnectionUuid;
 
         this.rows = rows;
 
@@ -128,7 +132,10 @@ export class BaseResultsRunner implements IResultsRunner {
         }
 
         const scope = this.projectUuid
-            ? captureSharedSignInQueryScope(this.projectUuid)
+            ? captureSharedSignInQueryScope(
+                  this.projectUuid,
+                  this.warehouseConnectionUuid ?? null,
+              )
             : null;
         try {
             return await this.queryClient.fetchQuery({

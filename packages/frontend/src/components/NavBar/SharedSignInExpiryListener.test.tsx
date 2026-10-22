@@ -1,5 +1,7 @@
 import {
+    BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     FeatureFlags,
+    getExpiredPersonalSignInMessage,
     QueryHistoryStatus,
     PersonSignInProvider,
     SignInSubjectBasis,
@@ -9,20 +11,18 @@ import { Button, MantineProvider, Text } from '@mantine/core';
 import {
     QueryClient,
     QueryClientProvider,
-    useQuery,
+    QueryObserver,
 } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect } from 'react';
 import { MemoryRouter, useNavigate } from 'react-router';
-import { captureSharedSignInQueryScope } from '../../hooks/sharedSignInQueryRecovery';
 import { shouldSuppressSharedSignInToast } from '../../hooks/toaster/sharedSignInToastSuppression';
 import {
     useGetReadyQueryResults,
     useInfiniteQueryResults,
 } from '../../hooks/useQueryResults';
 import {
-    reportSharedSignInQueryFailure,
     SHARED_SIGN_IN_QUERY_FAILED,
     SHARED_SIGN_IN_RECONNECTED,
 } from '../../hooks/useReconnectSharedSignIn';
@@ -33,6 +33,7 @@ import {
     setWarehouseSignInBannerVisibility,
     useWarehouseSignInBanner,
 } from './warehouseSignInBannerState';
+import { useWarehouseSignInExecution } from './warehouseSignInPreflight';
 
 const state = vi.hoisted(() => ({
     userUuid: 'user_a' as string | null,
@@ -45,8 +46,14 @@ const state = vi.hoisted(() => ({
     success: vi.fn(),
     popup: vi.fn(),
     childMounted: vi.fn(),
-    renderQueries: false,
-    includeUnmounted: true,
+    executed: vi.fn(),
+    binding: null as string | null | undefined,
+    deferPopup: false,
+    popupCallback: null as (() => void) | null,
+    realQueries: false,
+    showRemoved: true,
+    deliberateDisabled: true,
+    toastError: vi.fn(),
 }));
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
@@ -60,6 +67,13 @@ vi.mock('../../hooks/useActiveProject', () => ({
 }));
 vi.mock('../../providers/LightdashApi/useLightdashApi', () => ({
     useLightdashApi: () => state.api,
+}));
+vi.mock('../../hooks/useExplore', () => ({
+    useExploreByProjectUuid: () => ({
+        data: {
+            warehouseConnection: { warehouseConnectionUuid: state.binding },
+        },
+    }),
 }));
 vi.mock('../../hooks/useProject', () => ({
     useProject: () => ({ data: { name: 'Project A' } }),
@@ -79,8 +93,18 @@ vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({
         showToastWarning: state.warning,
         showToastSuccess: state.success,
-        addToastError: vi.fn(),
-        showToastError: vi.fn(),
+        addToastError: (options: {
+            apiError: typeof personalError;
+            projectUuid?: string;
+        }) => {
+            if (
+                !shouldSuppressSharedSignInToast(
+                    options.apiError,
+                    options.projectUuid,
+                )
+            )
+                state.toastError(options);
+        },
     }),
 }));
 vi.mock('../../hooks/gdrive/useGdrive', () => ({
@@ -92,7 +116,8 @@ vi.mock('../../hooks/gdrive/useGdrive', () => ({
         isLoading: false,
         mutate: () => {
             state.popup(options);
-            onLogin();
+            if (state.deferPopup) state.popupCallback = onLogin;
+            else onLogin();
         },
     }),
 }));
@@ -111,6 +136,7 @@ vi.mock('../ProjectConnection/WarehouseForms/BigQueryForm', () => ({
 }));
 
 const personal: SharedSignInStatus = {
+    personalSelection: { warehouseConnectionUuid: null },
     provider: PersonSignInProvider.GOOGLE,
     subject: null,
     subjectBasis: null,
@@ -125,6 +151,7 @@ const personal: SharedSignInStatus = {
     },
 };
 const shared: SharedSignInStatus = {
+    personalSelection: { warehouseConnectionUuid: null },
     provider: PersonSignInProvider.GOOGLE,
     subject: { userUuid: 'user_a', name: 'User A' },
     subjectBasis: SignInSubjectBasis.RECORDED,
@@ -133,66 +160,59 @@ const shared: SharedSignInStatus = {
 };
 const personalError = {
     name: 'BigqueryTokenError',
-    statusCode: 401,
+    statusCode: 400,
     message: 'expired',
     data: { personalSignIn: personal.personalSignIn },
 };
-const WarehouseQuery = ({
-    chartUuid,
-    projectUuid = 'project_a',
-}: {
-    chartUuid: string;
-    projectUuid?: string;
-}) => {
-    const created = useGetReadyQueryResults(
-        { projectUuid, chartUuid, tableId: 'table_a' },
-        [],
-    );
-    const result = useInfiniteQueryResults(
-        projectUuid,
-        created.data?.queryUuid,
-    );
-    return (
-        <Text>
-            {chartUuid}:{' '}
-            {result.error ? 'failed' : (result.queryStatus ?? 'pending')}
-        </Text>
-    );
-};
-const WarehouseQueries = () => {
-    useQuery({
-        queryKey: ['tables', 'project_a'],
-        queryFn: () => state.api({ method: 'GET', url: '/metadata' }),
-    });
-    return (
-        <>
-            {[
-                'chart_a',
-                'chart_b',
-                'chart_c',
-                'chart_d',
-                'chart_e',
-                'successful',
-                'pending',
-            ].map((chartUuid) => (
-                <WarehouseQuery key={chartUuid} chartUuid={chartUuid} />
-            ))}
-            {state.includeUnmounted && <WarehouseQuery chartUuid="unmounted" />}
-            <WarehouseQuery chartUuid="other_project" projectUuid="project_b" />
-        </>
-    );
-};
 const PageQuery = () => {
+    const ready = useWarehouseSignInExecution(
+        state.projectUuid,
+        state.binding,
+        true,
+        1,
+    );
+    useEffect(() => {
+        if (ready) state.executed();
+    }, [ready]);
     useEffect(() => {
         state.childMounted();
     }, []);
-    return (
-        <>
-            <Text>Query page</Text>
-            {state.renderQueries && <WarehouseQueries />}
-        </>
-    );
+    return <Text>Query page</Text>;
 };
+const RealRoot = ({
+    name,
+    disabled = false,
+    projectUuid = 'project_a',
+}: {
+    name: string;
+    disabled?: boolean;
+    projectUuid?: string;
+}) => {
+    const result = useGetReadyQueryResults(
+        { projectUuid, tableId: 'table_a', chartUuid: name },
+        disabled ? ['required'] : [],
+    );
+    useInfiniteQueryResults(projectUuid, result.data?.queryUuid);
+    return null;
+};
+const RealRoots = () => (
+    <>
+        {[
+            'failed_a',
+            'failed_b',
+            'failed_c',
+            'healthy',
+            'inflight',
+            'pending_poll',
+        ].map((name) => (
+            <RealRoot key={name} name={name} />
+        ))}
+        <RealRoot name="healthy" />
+        {state.showRemoved && <RealRoot name="removed" />}
+        <RealRoot name="other_project" projectUuid="project_b" />
+        <RealRoot name="disabled" disabled={state.deliberateDisabled} />
+    </>
+);
 const Harness = () => {
     const banner = useWarehouseSignInBanner();
     const navigate = useNavigate();
@@ -201,7 +221,7 @@ const Harness = () => {
         return () => setWarehouseSignInBannerVisibility(false);
     }, [banner]);
     return (
-        <>
+        <SharedSignInQueryBoundary>
             <SharedSignInExpiryListener />
             {banner && !state.higherPriority && (
                 <WarehouseSignInBanner
@@ -218,13 +238,15 @@ const Harness = () => {
             >
                 Query route
             </Button>
-            <SharedSignInQueryBoundary>
-                <PageQuery />
-            </SharedSignInQueryBoundary>
-        </>
+            <PageQuery />
+            {state.realQueries && <RealRoots />}
+        </SharedSignInQueryBoundary>
     );
 };
-const mount = (path = '/projects/project_a/sql-runner') => {
+const mount = (
+    path = '/projects/project_a/sql-runner',
+    configureClient?: (client: QueryClient) => void,
+) => {
     const client = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
@@ -232,6 +254,7 @@ const mount = (path = '/projects/project_a/sql-runner') => {
         },
         logger: { log: () => {}, warn: () => {}, error: () => {} },
     });
+    configureClient?.(client);
     const tree = () => (
         <MantineProvider env="test">
             <QueryClientProvider client={client}>
@@ -250,8 +273,12 @@ beforeEach(() => {
     state.higherPriority = false;
     state.reconnect = true;
     state.expiry = true;
-    state.renderQueries = false;
-    state.includeUnmounted = true;
+    state.binding = null;
+    state.deferPopup = false;
+    state.popupCallback = null;
+    state.realQueries = false;
+    state.showRemoved = true;
+    state.deliberateDisabled = true;
     state.api.mockImplementation(
         async ({ method, url }: { method: string; url: string }) =>
             method === 'GET' && url.includes('shared-sign-in')
@@ -260,7 +287,7 @@ beforeEach(() => {
     );
 });
 
-test('starts status on route load and holds query children until the modal can render', async () => {
+test('mounts discovery on route load and holds execution until the modal decision', async () => {
     const pending = Promise.withResolvers<SharedSignInStatus>();
     state.api.mockReturnValue(pending.promise);
     mount();
@@ -270,15 +297,17 @@ test('starts status on route load and holds query children until the modal can r
             url: expect.stringContaining('includePersonal=true'),
         }),
     );
-    expect(state.childMounted).not.toHaveBeenCalled();
+    expect(state.childMounted).toHaveBeenCalledOnce();
+    expect(state.executed).not.toHaveBeenCalled();
     expect(screen.queryByRole('dialog')).toBeNull();
     await act(async () => pending.resolve(personal));
     expect(await screen.findByRole('dialog')).toHaveTextContent(
         'Your BigQuery sign-in has expired. Sign in with Google again to load this.',
     );
-    expect(state.childMounted).not.toHaveBeenCalled();
+    expect(state.childMounted).toHaveBeenCalledOnce();
+    expect(state.executed).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
-    await waitFor(() => expect(state.childMounted).toHaveBeenCalledOnce());
+    await waitFor(() => expect(state.executed).toHaveBeenCalledOnce());
     expect(state.warning).not.toHaveBeenCalled();
 });
 
@@ -445,7 +474,7 @@ test('a burst of matching failures shares the pending status request', async () 
                 new CustomEvent(SHARED_SIGN_IN_QUERY_FAILED, {
                     detail: {
                         projectUuid: 'project_a',
-                        error: { status: 'error', error: personalError },
+                        error: { error: personalError },
                     },
                 }),
             );
@@ -470,12 +499,12 @@ test('an unknown status after dismissal retains the known banner', async () => {
             new CustomEvent(SHARED_SIGN_IN_QUERY_FAILED, {
                 detail: {
                     projectUuid: 'project_a',
-                    error: { status: 'error', error: personalError },
+                    error: { error: personalError },
                 },
             }),
         ),
     );
-    await waitFor(() => expect(state.api).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(state.api).toHaveBeenCalledTimes(1));
     expect(screen.getByRole('button', { name: 'Reconnect' })).toBeVisible();
     expect(shouldSuppressSharedSignInToast(personalError, 'project_a')).toBe(
         true,
@@ -483,7 +512,7 @@ test('an unknown status after dismissal retains the known banner', async () => {
     now.mockRestore();
 });
 
-test('a current healthy credential clears a dismissed banner', async () => {
+test('an unbound failure cannot replace a dismissed personal target with a healthy response', async () => {
     mount();
     await screen.findByRole('dialog');
     await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
@@ -497,16 +526,18 @@ test('a current healthy credential clears a dismissed banner', async () => {
             new CustomEvent(SHARED_SIGN_IN_QUERY_FAILED, {
                 detail: {
                     projectUuid: 'project_a',
-                    error: { status: 'error', error: personalError },
+                    error: { error: personalError },
                 },
             }),
         ),
     );
     await waitFor(() =>
-        expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull(),
+        expect(
+            screen.queryByRole('button', { name: 'Reconnect' }),
+        ).toBeVisible(),
     );
     expect(shouldSuppressSharedSignInToast(personalError, 'project_a')).toBe(
-        false,
+        true,
     );
     now.mockRestore();
 });
@@ -514,7 +545,7 @@ test('a current healthy credential clears a dismissed banner', async () => {
 test('a failed initial status check releases query children without inventing expiry', async () => {
     state.api.mockRejectedValue(new Error('unavailable'));
     mount();
-    await waitFor(() => expect(state.childMounted).toHaveBeenCalledOnce());
+    await waitFor(() => expect(state.executed).toHaveBeenCalledOnce());
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
 });
@@ -601,24 +632,20 @@ test('a higher priority banner leaves expiry errors visible after dismissal', as
     );
 });
 
-test('a status response started before reconnect cannot reopen the modal', async () => {
+test('an unbound restored event cannot release a pending selected preflight', async () => {
     const pending = Promise.withResolvers<SharedSignInStatus>();
     state.api.mockReturnValue(pending.promise);
     mount();
-    await act(async () => {
+    await act(() =>
         window.dispatchEvent(
             new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
                 detail: state.projectUuid,
             }),
-        );
-    });
-    await waitFor(() => expect(state.childMounted).toHaveBeenCalledOnce());
+        ),
+    );
+    expect(state.executed).not.toHaveBeenCalled();
     await act(async () => pending.resolve(personal));
-    expect(screen.queryByRole('dialog')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
-    expect(
-        shouldSuppressSharedSignInToast(personalError, state.projectUuid),
-    ).toBe(false);
+    expect(await screen.findByRole('dialog')).toBeVisible();
 });
 
 test('returning to a query route joins an in-flight preflight check', async () => {
@@ -636,7 +663,7 @@ test('returning to a query route joins an in-flight preflight check', async () =
             new CustomEvent(SHARED_SIGN_IN_QUERY_FAILED, {
                 detail: {
                     projectUuid: state.projectUuid,
-                    error: { status: 'error', error: personalError },
+                    error: { error: personalError },
                 },
             }),
         );
@@ -655,14 +682,311 @@ test('a preflight check that finishes away from query routes permits an immediat
     expect(state.api).toHaveBeenCalledTimes(2);
 });
 
-test('reconnect reruns every mounted warehouse query once, including a successful sibling', async () => {
-    state.renderQueries = true;
-    let restored = false;
-    const lateQuery = Promise.withResolvers<unknown>();
-    const executions = new Map<string, number>();
-    state.popup.mockImplementation(() => {
-        restored = true;
+test.each([null, 'connection_a'])(
+    'an old-style original shared response cannot open proactive recovery for binding %s',
+    async (binding) => {
+        state.binding = binding;
+        const { personalSelection: omitted, ...legacy } = shared;
+        state.api.mockResolvedValue(legacy);
+        mount();
+        await waitFor(() => expect(state.executed).toHaveBeenCalledOnce());
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(state.popup).not.toHaveBeenCalled();
+        expect(
+            state.api.mock.calls.some(([request]) => request.method === 'POST'),
+        ).toBe(false);
+    },
+);
+
+test('shared proactive requests keep the cooldown and automatic modal policy across query-page transitions', async () => {
+    state.api.mockResolvedValue(shared);
+    mount();
+    await screen.findByRole('dialog');
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Home' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Query route' }));
+    await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Reconnect' })).toBeVisible(),
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(state.api).toHaveBeenCalledOnce();
+});
+
+test('unresolved selection mounts discovery without requesting original status', async () => {
+    state.binding = undefined;
+    const { rerender, tree } = mount();
+    expect(state.childMounted).toHaveBeenCalledOnce();
+    expect(state.executed).not.toHaveBeenCalled();
+    expect(state.api).not.toHaveBeenCalled();
+    state.binding = 'connection_a';
+    state.api.mockResolvedValue({
+        ...personal,
+        personalSelection: { warehouseConnectionUuid: 'connection_a' },
     });
+    rerender(tree());
+    await screen.findByRole('dialog');
+    expect(state.api).toHaveBeenCalledOnce();
+    expect(state.api.mock.calls[0][0].url).toContain(
+        'warehouseConnectionUuid=connection_a',
+    );
+});
+
+test('a pending popup cannot verify or restore a different selected connection', async () => {
+    state.binding = 'connection_a';
+    state.deferPopup = true;
+    state.api.mockResolvedValue({
+        ...personal,
+        personalSelection: { warehouseConnectionUuid: 'connection_a' },
+    });
+    const restored = vi.fn();
+    window.addEventListener(SHARED_SIGN_IN_RECONNECTED, restored);
+    const { rerender, tree } = mount();
+    await screen.findByRole('dialog');
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    const finishA = state.popupCallback!;
+    state.binding = 'connection_b';
+    state.api.mockResolvedValue({
+        ...personal,
+        personalSelection: { warehouseConnectionUuid: 'connection_b' },
+        personalSignIn: {
+            ...personal.personalSignIn!,
+            userWarehouseCredentialsUuid: 'credential_b',
+            expired: false,
+        },
+    });
+    rerender(tree());
+    await waitFor(() => expect(state.executed).toHaveBeenCalledOnce());
+    await act(async () => finishA());
+    expect(restored).not.toHaveBeenCalled();
+    expect(state.success).not.toHaveBeenCalled();
+    expect(state.api).toHaveBeenCalledTimes(2);
+    expect(
+        state.api.mock.calls.some(([request]) => request.method === 'POST'),
+    ).toBe(false);
+    window.removeEventListener(SHARED_SIGN_IN_RECONNECTED, restored);
+});
+
+test.each(['legacy', 'unknown', 'different-credential', 'different-provider'])(
+    'personal popup verification rejects %s without a shared POST',
+    async (kind) => {
+        state.binding = 'connection_a';
+        const bound = {
+            ...personal,
+            personalSelection: { warehouseConnectionUuid: 'connection_a' },
+        };
+        const healthy = {
+            ...bound,
+            personalSignIn: { ...personal.personalSignIn!, expired: false },
+        };
+        const response =
+            kind === 'legacy'
+                ? shared
+                : kind === 'unknown'
+                  ? { ...healthy, statusUnknown: true }
+                  : {
+                        ...healthy,
+                        personalSignIn: {
+                            ...healthy.personalSignIn,
+                            ...(kind === 'different-credential'
+                                ? {
+                                      userWarehouseCredentialsUuid:
+                                          'credential_b',
+                                  }
+                                : { provider: PersonSignInProvider.SNOWFLAKE }),
+                        },
+                    };
+        state.api.mockResolvedValueOnce(bound).mockResolvedValue(response);
+        mount();
+        await screen.findByRole('dialog');
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Sign in with Google' }),
+        );
+        expect(
+            await screen.findByText(
+                'Sign in with Google did not finish. Try again.',
+            ),
+        ).toBeVisible();
+        expect(
+            state.api.mock.calls.some(([request]) => request.method === 'POST'),
+        ).toBe(false);
+        expect(state.success).not.toHaveBeenCalled();
+    },
+);
+
+test.each(
+    [false, true].flatMap((reconnect) =>
+        [false, true].flatMap((expiry) =>
+            ['structured', 'raw', 'cached'].map((kind) => ({
+                reconnect,
+                expiry,
+                kind,
+            })),
+        ),
+    ),
+)(
+    'shared error recovery preserves the main flag contract: %j',
+    async ({ reconnect, expiry, kind }) => {
+        state.reconnect = reconnect;
+        state.expiry = expiry;
+        const { personalSelection: omitted, ...legacy } = shared;
+        state.api.mockResolvedValue(legacy);
+        const detail = {
+            name: 'BigqueryTokenError',
+            statusCode: 401,
+            message: `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER} (invalid_grant)`,
+            data:
+                kind === 'raw'
+                    ? {}
+                    : {
+                          sharedSignIn: {
+                              projectUuid: state.projectUuid,
+                              provider: shared.provider,
+                              subjectUserUuid: state.userUuid,
+                              subjectBasis: shared.subjectBasis,
+                          },
+                      },
+        };
+        const error = { error: detail };
+        mount(
+            undefined,
+            kind === 'cached'
+                ? (client) => {
+                      client
+                          .getQueryCache()
+                          .build(client, {
+                              queryKey: ['query-results', state.projectUuid],
+                          })
+                          .setState({ status: 'error', error });
+                  }
+                : undefined,
+        );
+        if (reconnect && expiry && kind !== 'cached')
+            await waitFor(() => expect(state.executed).toHaveBeenCalled());
+        if (kind !== 'cached')
+            act(() => {
+                window.dispatchEvent(
+                    new CustomEvent(SHARED_SIGN_IN_QUERY_FAILED, {
+                        detail: { projectUuid: state.projectUuid, error },
+                    }),
+                );
+            });
+        if (reconnect) {
+            expect(await screen.findByRole('dialog')).toHaveTextContent(
+                'Sign in again to restore this project',
+            );
+            if (kind !== 'raw')
+                expect(
+                    shouldSuppressSharedSignInToast(detail, state.projectUuid),
+                ).toBe(true);
+            expect(state.warning).not.toHaveBeenCalled();
+        } else {
+            expect(screen.queryByRole('dialog')).toBeNull();
+            expect(state.api).not.toHaveBeenCalled();
+            expect(state.warning).toHaveBeenCalledTimes(kind === 'raw' ? 0 : 1);
+        }
+    },
+);
+
+test.each(['permission', 'session', 'personal', 'other-project', 'extra'])(
+    'message-off shared recovery rejects %s failures',
+    async (kind) => {
+        state.expiry = false;
+        if (kind === 'extra') state.binding = 'connection_a';
+        const { personalSelection: omitted, ...legacy } = shared;
+        state.api.mockResolvedValue(legacy);
+        mount();
+        act(() => {
+            window.dispatchEvent(
+                new CustomEvent(SHARED_SIGN_IN_QUERY_FAILED, {
+                    detail: {
+                        projectUuid:
+                            kind === 'other-project'
+                                ? 'project_b'
+                                : state.projectUuid,
+                        error: {
+                            error:
+                                kind === 'personal'
+                                    ? personalError
+                                    : {
+                                          name:
+                                              kind === 'permission'
+                                                  ? 'ForbiddenError'
+                                                  : kind === 'session'
+                                                    ? 'AuthorizationError'
+                                                    : 'BigqueryTokenError',
+                                          statusCode:
+                                              kind === 'permission' ? 403 : 401,
+                                          message:
+                                              kind === 'permission'
+                                                  ? 'Permission denied'
+                                                  : kind === 'session'
+                                                    ? 'Login required'
+                                                    : BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
+                                      },
+                        },
+                    },
+                }),
+            );
+        });
+        expect(state.api).not.toHaveBeenCalled();
+        expect(screen.queryByRole('dialog')).toBeNull();
+    },
+);
+
+test('a shared failure during the proactive cooldown rechecks when the cooldown ends', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(100_000);
+    state.api.mockResolvedValue({ ...shared, expired: false });
+    const view = mount();
+    try {
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(state.api).toHaveBeenCalledOnce();
+        state.api.mockResolvedValue(shared);
+        act(() => {
+            window.dispatchEvent(
+                new CustomEvent(SHARED_SIGN_IN_QUERY_FAILED, {
+                    detail: {
+                        projectUuid: state.projectUuid,
+                        error: {
+                            error: {
+                                name: 'BigqueryTokenError',
+                                statusCode: 401,
+                                message: BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
+                            },
+                        },
+                    },
+                }),
+            );
+        });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(59_999);
+        });
+        expect(state.api).toHaveBeenCalledOnce();
+        expect(screen.queryByRole('dialog')).toBeNull();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1);
+        });
+        expect(state.api).toHaveBeenCalledTimes(2);
+        expect(screen.getByRole('dialog')).toHaveTextContent(
+            'Sign in again to restore this project',
+        );
+    } finally {
+        view.unmount();
+        view.client.clear();
+        vi.useRealTimers();
+    }
+});
+
+test('replays every mounted root once through the actual modal gate, including an Infinity-fresh sibling and duplicate observers', async () => {
+    state.realQueries = true;
+    const calls = new Map<string, number>();
+    const oldPending = Promise.withResolvers<never>();
+    const oldPoll = Promise.withResolvers<unknown>();
+    let repaired = false;
     state.api.mockImplementation(
         async ({
             method,
@@ -674,179 +998,237 @@ test('reconnect reruns every mounted warehouse query once, including a successfu
             body?: string;
         }) => {
             if (url.includes('shared-sign-in'))
-                return restored
-                    ? {
-                          ...personal,
-                          personalSignIn: {
-                              ...personal.personalSignIn!,
-                              expired: false,
-                          },
-                      }
-                    : personal;
-            if (url === '/metadata') return [];
+                return {
+                    ...personal,
+                    personalSignIn: {
+                        ...personal.personalSignIn!,
+                        expired: !repaired,
+                    },
+                };
             if (method === 'POST') {
-                let request;
-                try {
-                    request = JSON.parse(body!);
-                } catch {
-                    throw new Error('Invalid query request body');
-                }
-                const count = (executions.get(request.chartUuid) ?? 0) + 1;
-                executions.set(request.chartUuid, count);
-                return { queryUuid: `${request.chartUuid}_${count}` };
+                const { chartUuid } = JSON.parse(body!);
+                const count = (calls.get(chartUuid) ?? 0) + 1;
+                calls.set(chartUuid, count);
+                if (chartUuid === 'inflight' && count === 1)
+                    return oldPending.promise;
+                return { queryUuid: `${chartUuid}_${count}` };
             }
-            const queryUuid = url.split('/query/')[1].split('?')[0];
-            if (!restored && queryUuid.startsWith('pending'))
-                return lateQuery.promise;
-            const failed = !restored && !queryUuid.startsWith('successful');
-            return failed
-                ? {
-                      queryUuid,
-                      status: QueryHistoryStatus.ERROR,
-                      error: 'Your BigQuery sign-in has expired. Sign in with Google again to load this.',
-                  }
-                : {
-                      queryUuid,
-                      status: QueryHistoryStatus.READY,
-                      rows: [],
-                      totalResults: 0,
-                      columns: {},
-                      metadata: { performance: {} },
-                      pivotDetails: null,
-                      nextPage: null,
-                  };
+            if (url.includes('/query/')) {
+                const queryUuid = url.split('/query/')[1].split('?')[0];
+                if (queryUuid === 'pending_poll_1') return oldPoll.promise;
+                return {
+                    queryUuid,
+                    status:
+                        queryUuid.startsWith('failed') && !repaired
+                            ? QueryHistoryStatus.ERROR
+                            : QueryHistoryStatus.READY,
+                    error: getExpiredPersonalSignInMessage({
+                        provider: PersonSignInProvider.GOOGLE,
+                    }),
+                    rows: [],
+                    columns: {},
+                    totalResults: 0,
+                    metadata: { performance: {} },
+                };
+            }
+            return [];
         },
     );
-    const { rerender, tree } = mount();
+    const outsideRuns = vi.fn(async () => ({}));
+    const stops: (() => void)[] = [];
+    const { rerender, tree, client } = mount(
+        '/projects/project_a/sql-runner',
+        (client) => {
+            for (const queryKey of [
+                ['tables', 'project_a'],
+                ['create-query', { projectUuid: 'project_b' }],
+            ]) {
+                const observer = new QueryObserver(client, {
+                    queryKey,
+                    queryFn: outsideRuns,
+                    staleTime: Infinity,
+                });
+                stops.push(observer.subscribe(() => {}));
+            }
+        },
+    );
     await screen.findByRole('dialog');
+    expect(calls.size).toBe(0);
     await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
-    await waitFor(() =>
-        expect(screen.getByText('chart_e: failed')).toBeVisible(),
-    );
-    await waitFor(() =>
-        expect(screen.getByText('successful: ready')).toBeVisible(),
-    );
-    state.includeUnmounted = false;
+    await waitFor(() => expect(calls.get('failed_c')).toBe(1));
+    await waitFor(() => expect(state.toastError).not.toHaveBeenCalled());
+    state.showRemoved = false;
     rerender(tree());
     await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    await screen.findByRole('dialog');
+    expect(
+        client
+            .getQueryCache()
+            .find([
+                'create-query',
+                {
+                    projectUuid: 'project_a',
+                    tableId: 'table_a',
+                    chartUuid: 'healthy',
+                },
+                [],
+            ])
+            ?.isActive(),
+    ).toBe(false);
+    repaired = true;
     await userEvent.click(
         screen.getByRole('button', { name: 'Sign in with Google' }),
     );
-    await waitFor(() =>
-        expect(screen.getByText('chart_e: ready')).toBeVisible(),
-    );
-    expect(Object.fromEntries(executions)).toEqual({
-        chart_a: 2,
-        chart_b: 2,
-        chart_c: 2,
-        chart_d: 2,
-        chart_e: 2,
-        successful: 2,
-        pending: 2,
-        unmounted: 1,
-        other_project: 1,
-    });
+    await waitFor(() => expect(calls.get('healthy')).toBe(2));
+    await waitFor(() => expect(calls.get('inflight')).toBe(2));
+    for (const name of [
+        'failed_a',
+        'failed_b',
+        'failed_c',
+        'healthy',
+        'inflight',
+    ])
+        expect(calls.get(name)).toBe(2);
+    expect(calls.get('removed')).toBe(1);
+    expect(calls.get('other_project')).toBeUndefined();
+    expect(calls.get('disabled')).toBeUndefined();
     await act(async () =>
-        lateQuery.resolve({
-            queryUuid: 'pending_1',
-            status: QueryHistoryStatus.ERROR,
-            error: 'Your BigQuery sign-in has expired. Sign in with Google again to load this.',
-        }),
+        oldPending.reject({ status: 'error', error: personalError }),
     );
-    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
-    expect(
-        state.api.mock.calls.filter(([request]) => request.url === '/metadata'),
-    ).toHaveLength(1);
-    expect(state.warning).not.toHaveBeenCalled();
-});
-
-test('permission errors with misleading provider text do not start an expiry check', async () => {
-    state.api.mockResolvedValue(null);
-    mount();
-    await waitFor(() => expect(state.childMounted).toHaveBeenCalledOnce());
-    const now = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 60_001);
-    act(() =>
-        reportSharedSignInQueryFailure('project_a', {
-            status: 'error',
-            error: {
-                ...personalError,
-                name: 'ForbiddenError',
-                statusCode: 403,
-                message:
-                    'Permission denied: invalid_grant Google token expired',
-            },
+    expect(state.success).toHaveBeenCalledOnce();
+    await act(async () =>
+        oldPoll.resolve({
+            queryUuid: 'pending_poll_1',
+            status: QueryHistoryStatus.ERROR,
+            error: getExpiredPersonalSignInMessage({
+                provider: PersonSignInProvider.GOOGLE,
+            }),
         }),
     );
-    expect(state.api).toHaveBeenCalledOnce();
-    expect(screen.queryByRole('dialog')).toBeNull();
-    now.mockRestore();
+    expect(state.toastError).not.toHaveBeenCalled();
+    expect(outsideRuns).toHaveBeenCalledTimes(2);
+    stops.forEach((stop) => stop());
 });
 
-test('an old query failure after reconnect cannot start a new status request', async () => {
-    state.api.mockResolvedValue(null);
-    mount();
-    await waitFor(() => expect(state.childMounted).toHaveBeenCalledOnce());
-    const scope = captureSharedSignInQueryScope('project_a');
-    await act(() =>
-        window.dispatchEvent(
-            new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
-                detail: 'project_a',
-            }),
-        ),
-    );
-    const now = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 60_001);
-    act(() =>
-        reportSharedSignInQueryFailure(
-            'project_a',
-            { status: 'error', error: personalError },
-            scope,
-        ),
-    );
-    expect(state.api).toHaveBeenCalledOnce();
-    expect(screen.queryByRole('dialog')).toBeNull();
-    now.mockRestore();
-});
-
-test('returning to a recently checked project releases preflight without waiting for cooldown', async () => {
-    state.api.mockResolvedValue(null);
-    const { rerender, tree } = mount();
-    await waitFor(() => expect(state.childMounted).toHaveBeenCalledTimes(1));
-    state.projectUuid = 'project_b';
-    rerender(tree());
-    await waitFor(() => expect(state.childMounted).toHaveBeenCalledTimes(2));
-    state.projectUuid = 'project_a';
-    rerender(tree());
-    await waitFor(() => expect(state.childMounted).toHaveBeenCalledTimes(3));
-    expect(state.api).toHaveBeenCalledTimes(2);
-});
-
-test.each([null, 'user_b'])(
-    'discards a pending response after identity changes to %s',
-    async (userUuid) => {
-        const pending = Promise.withResolvers<SharedSignInStatus>();
-        state.api.mockReturnValueOnce(pending.promise).mockResolvedValue(null);
-        const { rerender, tree } = mount();
-        state.userUuid = userUuid;
-        rerender(tree());
-        await act(async () => pending.resolve(personal));
-        expect(screen.queryByRole('dialog')).toBeNull();
-        expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
-        expect(
-            shouldSuppressSharedSignInToast(personalError, 'project_a'),
-        ).toBe(false);
+test.each([
+    { reconnect: false, expiry: false },
+    { reconnect: false, expiry: true },
+    { reconnect: true, expiry: false },
+])(
+    'keeps raw 401 health handling through the real flag boundary: %j',
+    async (flags) => {
+        state.reconnect = flags.reconnect;
+        state.expiry = flags.expiry;
+        state.realQueries = true;
+        state.api.mockImplementation(
+            async ({
+                method,
+                url,
+                body,
+            }: {
+                method: string;
+                url: string;
+                body?: string;
+            }) => {
+                if (url.includes('shared-sign-in')) return shared;
+                if (method === 'POST')
+                    return {
+                        queryUuid: `${JSON.parse(body!).chartUuid}_query`,
+                    };
+                if (url.includes('/query/'))
+                    return {
+                        queryUuid: 'query_a',
+                        status: QueryHistoryStatus.ERROR,
+                        error: BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
+                    };
+                return [];
+            },
+        );
+        const { client } = mount();
+        const invalidate = vi.spyOn(client, 'invalidateQueries');
+        await waitFor(() =>
+            expect(invalidate).toHaveBeenCalledWith(['health']),
+        );
+        expect(state.toastError).not.toHaveBeenCalled();
+        expect(state.warning).not.toHaveBeenCalled();
+        if (flags.reconnect) await screen.findByRole('dialog');
+        else expect(screen.queryByRole('dialog')).toBeNull();
     },
 );
-
-test('a healthy pending preflight joined after query-home-query navigation releases children at once', async () => {
-    const pending = Promise.withResolvers<null>();
-    state.api.mockReturnValue(pending.promise);
-    mount();
-    await userEvent.click(screen.getByRole('button', { name: 'Home' }));
-    state.childMounted.mockClear();
-    await userEvent.click(screen.getByRole('button', { name: 'Query route' }));
-    await act(async () => pending.resolve(null));
-    await waitFor(() => expect(state.childMounted).toHaveBeenCalledOnce());
-    expect(state.api).toHaveBeenCalledOnce();
+test('an old popup cannot close or replay a newer expired selection', async () => {
+    state.binding = 'connection_a';
+    state.deferPopup = true;
+    let repaired = false;
+    state.api.mockImplementation(async () => ({
+        ...personal,
+        personalSelection: { warehouseConnectionUuid: state.binding },
+        personalSignIn: {
+            ...personal.personalSignIn!,
+            userWarehouseCredentialsUuid:
+                state.binding === 'connection_a'
+                    ? 'credential_a'
+                    : 'credential_b',
+            expired: !repaired,
+        },
+    }));
+    const { rerender, tree } = mount();
+    await screen.findByRole('dialog');
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    const finishA = state.popupCallback!;
+    state.binding = 'connection_b';
+    rerender(tree());
+    await waitFor(() => expect(state.api).toHaveBeenCalledTimes(2));
+    await screen.findByRole('dialog');
+    const before = state.executed.mock.calls.length;
+    await act(async () => finishA());
+    expect(state.api).toHaveBeenCalledTimes(2);
+    expect(state.success).not.toHaveBeenCalled();
+    expect(state.executed).toHaveBeenCalledTimes(before);
+    expect(screen.getByRole('dialog')).toBeVisible();
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    expect(state.popup).toHaveBeenLastCalledWith({
+        light: true,
+        personalCredentialUuid: 'credential_b',
+    });
+    repaired = true;
+    await act(async () => state.popupCallback!());
+    await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
     expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+test('a dismissed verification cannot complete after the same target modal reopens', async () => {
+    const verification = Promise.withResolvers<SharedSignInStatus>();
+    state.api
+        .mockResolvedValueOnce(personal)
+        .mockReturnValueOnce(verification.promise)
+        .mockResolvedValue({
+            ...personal,
+            personalSignIn: { ...personal.personalSignIn!, expired: false },
+        });
+    mount();
+    await screen.findByRole('dialog');
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(state.api).toHaveBeenCalledTimes(2));
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    await act(async () =>
+        verification.resolve({
+            ...personal,
+            personalSignIn: { ...personal.personalSignIn!, expired: false },
+        }),
+    );
+    expect(screen.getByRole('dialog')).toBeVisible();
+    expect(state.success).not.toHaveBeenCalled();
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
 });

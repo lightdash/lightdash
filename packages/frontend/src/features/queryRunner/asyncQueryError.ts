@@ -47,7 +47,7 @@ export const getAsyncQueryError = (message: string | null): ApiError => {
 
 export const getSqlQueryError = (message: string | null): ApiError | Error => {
     const error = getAsyncQueryError(message);
-    return error.error.statusCode === 401
+    return getWarehouseSignInErrorType(message ?? '') !== null
         ? error
         : new Error(message || 'Error executing SQL query');
 };

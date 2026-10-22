@@ -507,13 +507,13 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     private translateGoogleOauthTokenError(error: unknown): Error | undefined {
         const tokenError = getGoogleOauthTokenError(error);
-        const rejection = getWarehouseSignInRejection(
-            tokenError?.error,
-            tokenError?.errorSubtype,
-        );
-        if (!tokenError || !rejection) {
+        if (tokenError?.error !== 'invalid_grant') {
             return undefined;
         }
+        const rejection = getWarehouseSignInRejection(
+            tokenError.error,
+            tokenError.errorSubtype,
+        );
         const details = [
             tokenError.errorDescription
                 ? `${tokenError.error}: ${tokenError.errorDescription}`

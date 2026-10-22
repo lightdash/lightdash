@@ -19,6 +19,9 @@ import {
     selectSqlRunnerResultsRunner,
     setConnectionRoute,
     setState,
+    setSql,
+    setSqlLimit,
+    setParameterValues,
     sqlRunnerSlice,
     type SqlRunnerConnection,
 } from './sqlRunnerSlice';
@@ -83,6 +86,7 @@ describe('SQL runner runs on the active connection', () => {
             expect.objectContaining({
                 detail: {
                     projectUuid: 'project-uuid',
+                    execution: null,
                     error: expect.any(Error),
                 },
             }),
@@ -269,40 +273,48 @@ describe('SQL runner runs on the active connection', () => {
     });
 });
 
-it('does not save a late pivot sign-in failure for a different connection', async () => {
-    store.dispatch(
-        setState({
-            ...initialState,
-            projectUuid: 'project_a',
-            connectionRoute: { route: 'single' },
-        }),
-    );
-    const pending = Promise.withResolvers<never>();
-    const runPivot = vi.fn(() => pending.promise);
-    const runner = vi
-        .spyOn(sqlRunnerSelectors, 'selectSqlRunnerResultsRunner')
-        .mockReturnValue({ invalidatePivotCache: vi.fn() } as never);
-    const model = vi
-        .spyOn(chartDataModel, 'default')
-        .mockReturnValue({ getPivotedChartData: runPivot } as never);
-    try {
-        const runPromise = store.dispatch(prepareAndFetchChartData());
-        await waitFor(() => expect(runPivot).toHaveBeenCalledOnce());
+it.each(['connection', 'sql', 'limit', 'parameters'] as const)(
+    'does not save a late pivot sign-in failure after changing %s',
+    async (kind) => {
         store.dispatch(
-            setConnectionRoute({ route: 'multi', connection: finance }),
+            setState({
+                ...initialState,
+                projectUuid: 'project_a',
+                connectionRoute: { route: 'single' },
+            }),
         );
-        pending.reject(
-            getAsyncQueryError(
-                getExpiredPersonalSignInMessage({
-                    provider: PersonSignInProvider.GOOGLE,
-                }),
-            ),
-        );
-        const result = await runPromise;
-        expect(prepareAndFetchChartData.rejected.match(result)).toBe(true);
-        expect(result.payload).toBeUndefined();
-    } finally {
-        model.mockRestore();
-        runner.mockRestore();
-    }
-});
+        const pending = Promise.withResolvers<never>();
+        const runPivot = vi.fn(() => pending.promise);
+        const runner = vi
+            .spyOn(sqlRunnerSelectors, 'selectSqlRunnerResultsRunner')
+            .mockReturnValue({ invalidatePivotCache: vi.fn() } as never);
+        const model = vi
+            .spyOn(chartDataModel, 'default')
+            .mockReturnValue({ getPivotedChartData: runPivot } as never);
+        try {
+            const runPromise = store.dispatch(prepareAndFetchChartData());
+            await waitFor(() => expect(runPivot).toHaveBeenCalledOnce());
+            if (kind === 'connection')
+                store.dispatch(
+                    setConnectionRoute({ route: 'multi', connection: finance }),
+                );
+            if (kind === 'sql') store.dispatch(setSql('select 2'));
+            if (kind === 'limit') store.dispatch(setSqlLimit(20));
+            if (kind === 'parameters')
+                store.dispatch(setParameterValues({ value: 'changed' }));
+            pending.reject(
+                getAsyncQueryError(
+                    getExpiredPersonalSignInMessage({
+                        provider: PersonSignInProvider.GOOGLE,
+                    }),
+                ),
+            );
+            const result = await runPromise;
+            expect(prepareAndFetchChartData.rejected.match(result)).toBe(true);
+            expect(result.payload).toBeUndefined();
+        } finally {
+            model.mockRestore();
+            runner.mockRestore();
+        }
+    },
+);

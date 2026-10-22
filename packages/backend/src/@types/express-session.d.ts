@@ -22,8 +22,6 @@ declare module 'express-session' {
                 userUuid: string;
                 subject: string | null;
                 email: string | null;
-                consentAttempted: boolean;
-                retryWithConsent?: boolean;
             };
             githubFlow?: 'installation' | 'user_link' | undefined;
             githubInstallation?: {

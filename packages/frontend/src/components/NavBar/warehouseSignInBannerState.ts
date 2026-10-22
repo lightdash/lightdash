@@ -22,22 +22,6 @@ const subscribe = (listener: () => void) => {
 export const useWarehouseSignInBanner = () =>
     useSyncExternalStore(subscribe, () => banner);
 
-let preflight: { projectUuid: string; userUuid: string } | null = null;
-export const setWarehouseSignInPreflight = (
-    projectUuid: string,
-    userUuid: string,
-) => {
-    preflight = { projectUuid, userUuid };
-    listeners.forEach((listener) => listener());
-};
-export const useWarehouseSignInPreflight = () =>
-    useSyncExternalStore(subscribe, () => preflight);
-
-export const clearWarehouseSignInPreflight = () => {
-    preflight = null;
-    listeners.forEach((listener) => listener());
-};
-
 let bannerVisible = false;
 export const setWarehouseSignInBannerVisibility = (visible: boolean) => {
     if (bannerVisible === visible) return;

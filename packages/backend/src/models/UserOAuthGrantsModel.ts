@@ -36,15 +36,30 @@ export class UserOAuthGrantsModel {
     }
 
     async upsertGrant(grant: UpsertUserOAuthGrant): Promise<void> {
+        let observedEmptyCiphertext: Buffer | null = null;
         if (!grant.refreshToken) {
-            try {
-                const existingRefreshToken = await this.getRefreshToken(
-                    grant.userUuid,
-                    grant.provider,
-                );
-                if (existingRefreshToken) return;
-            } catch (error) {
-                if (!(error instanceof NotFoundError)) throw error;
+            const existingGrant = await this.database(UserOAuthGrantsTableName)
+                .where({ user_uuid: grant.userUuid, provider: grant.provider })
+                .first('encrypted_refresh_token');
+            if (existingGrant) {
+                if (
+                    this.encryptionUtil.decrypt(
+                        existingGrant.encrypted_refresh_token,
+                    )
+                )
+                    return;
+                observedEmptyCiphertext = existingGrant.encrypted_refresh_token;
+            } else {
+                try {
+                    const legacyRefreshToken =
+                        await this.userModel.getRefreshToken(
+                            grant.userUuid,
+                            grant.provider,
+                        );
+                    if (legacyRefreshToken) return;
+                } catch (error) {
+                    if (!(error instanceof NotFoundError)) throw error;
+                }
             }
         }
 
@@ -63,10 +78,10 @@ export class UserOAuthGrantsModel {
             })
             .onConflict(['user_uuid', 'provider']);
 
-        if (!grant.refreshToken) {
+        if (!grant.refreshToken && !observedEmptyCiphertext) {
             await upsert.ignore();
         } else {
-            await upsert.merge({
+            const merge = upsert.merge({
                 provider_subject: grant.subject,
                 provider_email: grant.email,
                 scopes: this.database.raw(
@@ -76,6 +91,13 @@ export class UserOAuthGrantsModel {
                 encrypted_refresh_token: encryptedRefreshToken,
                 updated_at: new Date(),
             });
+            if (observedEmptyCiphertext) {
+                merge.where(
+                    `${UserOAuthGrantsTableName}.encrypted_refresh_token`,
+                    observedEmptyCiphertext,
+                );
+            }
+            await merge;
         }
     }
 

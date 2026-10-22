@@ -7,7 +7,12 @@ import {
     selectCompleteConfigByKind,
 } from '../../../components/DataViz/store/selectors';
 import { getChartConfigAndOptions } from '../../../components/DataViz/transformers/getChartConfigAndOptions';
-import { isWarehouseSignInQueryErrorDetail } from '../../../hooks/sharedSignInQueryRecovery';
+import {
+    getSharedSignInFailureScope,
+    isCurrentSharedSignInQueryScope,
+    type captureSharedSignInQueryScope,
+    isWarehouseSignInQueryErrorDetail,
+} from '../../../hooks/sharedSignInQueryRecovery';
 import { type startAppListening } from './listenerMiddleware';
 import {
     EditorTabs,
@@ -216,7 +221,10 @@ export const addLimitChangeListener = (
 export const addAutomaticPivotFailureListener = (
     startListening: typeof startAppListening,
     projectUuid: string,
-    onFailure: () => void,
+    onFailure: (
+        execution: ReturnType<typeof captureSharedSignInQueryScope>,
+        requestId: string,
+    ) => void,
 ) =>
     startListening({
         actionCreator: prepareAndFetchChartData.rejected,
@@ -224,8 +232,16 @@ export const addAutomaticPivotFailureListener = (
             if (
                 listenerApi.getState().sqlRunner.projectUuid === projectUuid &&
                 action.payload &&
-                isWarehouseSignInQueryErrorDetail(action.payload)
+                isWarehouseSignInQueryErrorDetail(action.payload) &&
+                listenerApi.getState().sqlRunner.pivotRequestId ===
+                    action.meta.requestId &&
+                isCurrentSharedSignInQueryScope(
+                    getSharedSignInFailureScope(action.payload),
+                )
             )
-                onFailure();
+                onFailure(
+                    getSharedSignInFailureScope(action.payload),
+                    action.meta.requestId,
+                );
         },
     });

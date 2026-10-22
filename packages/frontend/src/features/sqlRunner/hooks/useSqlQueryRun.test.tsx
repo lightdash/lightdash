@@ -9,9 +9,10 @@ import { type FC, type PropsWithChildren } from 'react';
 import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-    startSharedSignInQueryScope,
-    clearSharedSignInQueryScope,
-} from '../../../hooks/sharedSignInQueryRecovery';
+    WarehouseSignInPreflight,
+    activateWarehouseSignInPreflight,
+} from '../../../components/NavBar/warehouseSignInPreflight';
+import { completeSharedSignInRestoration } from '../../../hooks/sharedSignInQueryRecovery';
 import {
     SHARED_SIGN_IN_QUERY_FAILED,
     SHARED_SIGN_IN_RECONNECTED,
@@ -29,6 +30,48 @@ import { useSqlQueryRun } from './useSqlQueryRun';
 vi.mock('../../queryRunner/executeQuery', () => ({
     executeSqlQuery: vi.fn(async () => ({ columns: [] })),
 }));
+
+const recoveryClient = new QueryClient();
+const setupRecovery = (projectUuid = 'project_a', userUuid = 'user_a') => {
+    const preflight = new WarehouseSignInPreflight(
+        { projectUuid, userUuid, pageGeneration: 'page_a' },
+        true,
+        false,
+    );
+    const stop = activateWarehouseSignInPreflight(preflight);
+    preflight.register('sql', null, 1);
+    const status = {
+        personalSelection: { warehouseConnectionUuid: null },
+        provider: PersonSignInProvider.GOOGLE,
+        subject: null,
+        subjectBasis: null,
+        expired: false,
+        canReconnect: false,
+        personalSignIn: {
+            projectUuid,
+            provider: PersonSignInProvider.GOOGLE,
+            userWarehouseCredentialsUuid: 'credential_a',
+            expired: true,
+            canReconnect: true,
+        },
+    };
+    preflight.settle(
+        null,
+        preflight.checks.get('original')!.generation,
+        status,
+    );
+    preflight.dismiss(preflight.target!);
+    return { preflight, stop };
+};
+const restore = async (preflight: WarehouseSignInPreflight) => {
+    const receipt = await completeSharedSignInRestoration(
+        recoveryClient,
+        preflight.target!,
+    );
+    window.dispatchEvent(
+        new CustomEvent(SHARED_SIGN_IN_RECONNECTED, { detail: receipt }),
+    );
+};
 
 const wrapper: FC<PropsWithChildren> = ({ children }) => (
     <Provider store={store}>
@@ -78,6 +121,7 @@ describe('useSqlQueryRun', () => {
     );
 
     it('replays the last failed mutation after reconnect', async () => {
+        const { preflight, stop } = setupRecovery('project-uuid');
         vi.mocked(executeSqlQuery)
             .mockRejectedValueOnce(
                 getAsyncQueryError(
@@ -96,16 +140,11 @@ describe('useSqlQueryRun', () => {
             ).rejects.toMatchObject({ error: { name: 'BigqueryTokenError' } });
         });
 
-        act(() => {
-            window.dispatchEvent(
-                new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
-                    detail: 'project-uuid',
-                }),
-            );
-        });
+        await act(() => restore(preflight));
 
         await waitFor(() => expect(executeSqlQuery).toHaveBeenCalledTimes(2));
         expect(vi.mocked(executeSqlQuery).mock.calls[1][2]).toBe('select 1');
+        stop();
     });
 
     it('reports a virtual-view failure with its project', async () => {
@@ -123,6 +162,7 @@ describe('useSqlQueryRun', () => {
         expect(onFailure).toHaveBeenCalledOnce();
         expect((onFailure.mock.calls[0][0] as CustomEvent).detail).toEqual({
             projectUuid: 'project-uuid',
+            execution: null,
             error: expect.any(Error),
         });
         window.removeEventListener(SHARED_SIGN_IN_QUERY_FAILED, onFailure);
@@ -134,7 +174,7 @@ it.each(['permission', 'project', 'connection', 'user'] as const)(
     async (kind) => {
         vi.clearAllMocks();
         store.dispatch(resetState());
-        const scope = startSharedSignInQueryScope('project_a', 'user_a');
+        const { preflight, stop } = setupRecovery();
         const error =
             kind === 'permission'
                 ? {
@@ -175,28 +215,21 @@ it.each(['permission', 'project', 'connection', 'user'] as const)(
                     }),
                 ),
             );
-        const current =
-            kind === 'user'
-                ? startSharedSignInQueryScope('project_a', 'user_b')
-                : scope;
-        await act(() =>
-            window.dispatchEvent(
-                new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
-                    detail: kind === 'project' ? 'project_b' : 'project_a',
-                }),
-            ),
-        );
+        const replacement =
+            kind === 'user' ? setupRecovery('project_a', 'user_b') : null;
+        await act(() => restore(replacement?.preflight ?? preflight));
         await act(async () => {});
         expect(executeSqlQuery).toHaveBeenCalledTimes(1);
         unmount();
-        clearSharedSignInQueryScope(current);
+        replacement?.stop();
+        stop();
     },
 );
 
 it('does not save an old pending SQL failure after reconnect', async () => {
     vi.clearAllMocks();
     store.dispatch(resetState());
-    const oldScope = startSharedSignInQueryScope('project_a', 'user_a');
+    const previous = setupRecovery();
     const pending = Promise.withResolvers<never>();
     vi.mocked(executeSqlQuery).mockReturnValueOnce(pending.promise);
     const { result, unmount } = renderHook(() => useSqlQueryRun('project_a'), {
@@ -207,7 +240,7 @@ it('does not save an old pending SQL failure after reconnect', async () => {
         run = result.current.mutateAsync({ sql: 'select 1', limit: 1 });
     });
     await waitFor(() => expect(executeSqlQuery).toHaveBeenCalledTimes(1));
-    const scope = startSharedSignInQueryScope('project_a', 'user_a');
+    await act(() => restore(previous.preflight));
     const error = getAsyncQueryError(
         getExpiredPersonalSignInMessage({
             provider: PersonSignInProvider.GOOGLE,
@@ -227,6 +260,5 @@ it('does not save an old pending SQL failure after reconnect', async () => {
     await act(async () => {});
     expect(executeSqlQuery).toHaveBeenCalledTimes(1);
     unmount();
-    clearSharedSignInQueryScope(oldScope);
-    clearSharedSignInQueryScope(scope);
+    previous.stop();
 });

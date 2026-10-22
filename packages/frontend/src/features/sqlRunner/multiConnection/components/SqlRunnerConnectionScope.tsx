@@ -7,10 +7,13 @@ import {
     type FC,
     type PropsWithChildren,
 } from 'react';
+import { useWarehouseSignInExecution } from '../../../../components/NavBar/warehouseSignInPreflight';
 import { useProject } from '../../../../hooks/useProject';
+import { SqlRunnerSignInReadinessContext } from '../../hooks/useSqlRunnerSignInReady';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import {
     selectConnectionRoute,
+    selectConnectionRequest,
     setConnectionRoute,
     type SqlRunnerConnectionRoute,
 } from '../../store/sqlRunnerSlice';
@@ -27,6 +30,7 @@ const useSyncConnectionRoute = (desired: SqlRunnerConnectionRoute | null) => {
             dispatch(setConnectionRoute(desired));
         }
     }, [dispatch, current, desired]);
+    return desired !== null && isEqual(current, desired);
 };
 
 const toStoreConnection = (connection: SqlRunnerWarehouseConnection) => ({
@@ -37,9 +41,9 @@ const toStoreConnection = (connection: SqlRunnerWarehouseConnection) => ({
     warehouseType: connection.warehouseType,
 });
 
-const ActiveConnectionStoreSync: FC<{ isEditingSavedChart: boolean }> = ({
-    isEditingSavedChart,
-}) => {
+const ActiveConnectionStoreSync: FC<
+    PropsWithChildren<{ isEditingSavedChart: boolean }>
+> = ({ isEditingSavedChart, children }) => {
     const { connections, activeConnection, switchConnection } =
         useActiveConnection();
     const savedSqlChart = useAppSelector(
@@ -81,8 +85,22 @@ const ActiveConnectionStoreSync: FC<{ isEditingSavedChart: boolean }> = ({
         }),
         [activeConnection, isWaitingForChart],
     );
-    useSyncConnectionRoute(desired);
-    return null;
+    const synchronized = useSyncConnectionRoute(desired);
+    const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
+    const request = useAppSelector(selectConnectionRequest);
+    const ready = useWarehouseSignInExecution(
+        projectUuid,
+        synchronized && request.ready
+            ? (request.field.warehouseConnectionUuid ?? null)
+            : undefined,
+        synchronized,
+        1,
+    );
+    return (
+        <SqlRunnerSignInReadinessContext.Provider value={synchronized && ready}>
+            {children}
+        </SqlRunnerSignInReadinessContext.Provider>
+    );
 };
 
 export const SqlRunnerConnectionScope: FC<
@@ -116,9 +134,22 @@ export const SqlRunnerConnectionScope: FC<
             return { route: 'multi', connection: null };
         return null;
     }, [routesSingle, isMulti, connections]);
-    useSyncConnectionRoute(desired);
+    const synchronized = useSyncConnectionRoute(desired);
+    const ready = useWarehouseSignInExecution(
+        projectUuid,
+        routesSingle && synchronized ? null : undefined,
+        routesSingle && synchronized,
+        1,
+    );
 
-    if (routesSingle || !isMulti || !connections) return <>{children}</>;
+    if (routesSingle || !isMulti || !connections)
+        return (
+            <SqlRunnerSignInReadinessContext.Provider
+                value={routesSingle && synchronized && ready}
+            >
+                {children}
+            </SqlRunnerSignInReadinessContext.Provider>
+        );
     return (
         <ActiveConnectionProvider
             projectUuid={projectUuid}
@@ -129,14 +160,15 @@ export const SqlRunnerConnectionScope: FC<
         >
             <ActiveConnectionStoreSync
                 isEditingSavedChart={isEditingSavedChart}
-            />
-            {connectionHint !== undefined && !isSharedLink ? (
-                <ConnectionHintTracker
-                    connectionHint={connectionHint}
-                    organizationUuid={project.organizationUuid}
-                />
-            ) : null}
-            {children}
+            >
+                {connectionHint !== undefined && !isSharedLink ? (
+                    <ConnectionHintTracker
+                        connectionHint={connectionHint}
+                        organizationUuid={project.organizationUuid}
+                    />
+                ) : null}
+                {children}
+            </ActiveConnectionStoreSync>
         </ActiveConnectionProvider>
     );
 };

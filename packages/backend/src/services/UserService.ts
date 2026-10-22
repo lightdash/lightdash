@@ -3698,6 +3698,23 @@ export class UserService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        const selected =
+            await this.userWarehouseCredentialsModel.getByUuidWithSecrets(
+                uuid,
+                undefined,
+                await resolvePersonalCredentialPolicy(this.featureFlagModel, {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+            );
+        if (
+            selected.credentials.type !== WarehouseTypes.BIGQUERY ||
+            selected.credentials.authenticationType ===
+                BigqueryAuthenticationType.ADC ||
+            selected.credentials.keyfileContents?.type !== 'authorized_user' ||
+            !selected.credentials.keyfileContents.refresh_token
+        )
+            throw new ForbiddenError();
         return credential;
     }
 

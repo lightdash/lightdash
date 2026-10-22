@@ -166,6 +166,7 @@ describe('Google reconnect callback', () => {
         const service = {
             ...createUserService(),
             reconnectPersonalBigqueryCredentials: vi.fn(async () => undefined),
+            validatePersonalBigqueryReconnect: vi.fn(async () => undefined),
         };
         const req = {
             session: {
@@ -175,8 +176,6 @@ describe('Google reconnect callback', () => {
                         userUuid: 'user_a',
                         subject: 'subject_a',
                         email: 'account_a',
-                        consentAttempted: false,
-                        retryWithConsent: false,
                     },
                     googlePersonalReconnect: {
                         userUuid: 'user_a',
@@ -206,21 +205,6 @@ describe('Google reconnect callback', () => {
         expect(
             service.reconnectPersonalBigqueryCredentials,
         ).not.toHaveBeenCalled();
-        expect(req.session.oauth?.googleReconnect?.retryWithConsent).toBe(true);
-        expect(done).toHaveBeenCalledWith(null, req.user);
-    });
-    test('stops after the consent retry returns no token', async () => {
-        const { req, service, currentProfile, done } = setup();
-        req.session.oauth!.googleReconnect!.consentAttempted = true;
-        await googleStrategyVerify(
-            req,
-            'access_a',
-            '',
-            params,
-            currentProfile,
-            done,
-        );
-        expect(service.storeOAuthGrant).not.toHaveBeenCalled();
         expect(done).toHaveBeenCalledWith(null, undefined, {
             message:
                 'Google did not return a refresh token. Try signing in again.',
@@ -243,14 +227,16 @@ describe('Google reconnect callback', () => {
         ).not.toHaveBeenCalled();
         expect(done).toHaveBeenCalledWith(null, req.user);
     });
-    test('reconnect without a stored identity still retries consent before any write', async () => {
+    test('reconnect without a stored identity fails before any write', async () => {
         const { req, service, currentProfile, done } = setup();
         req.session.oauth!.googleReconnect!.subject = null;
         req.session.oauth!.googleReconnect!.email = null;
         await googleStrategyVerify(req, '', '', params, currentProfile, done);
         expect(service.storeOAuthGrant).not.toHaveBeenCalled();
-        expect(req.session.oauth!.googleReconnect!.retryWithConsent).toBe(true);
-        expect(done).toHaveBeenCalledWith(null, req.user);
+        expect(done).toHaveBeenCalledWith(null, undefined, {
+            message:
+                'Google did not return a refresh token. Try signing in again.',
+        });
     });
     test('updates only the selected personal credential', async () => {
         const { req, service, currentProfile, done } = setup();

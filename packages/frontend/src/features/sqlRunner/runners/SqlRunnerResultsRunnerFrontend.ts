@@ -72,6 +72,7 @@ export class SqlRunnerResultsRunnerFrontend extends BaseResultsRunner {
             fields,
             rows,
             projectUuid,
+            warehouseConnectionUuid,
             columnNames: fields.map((field) => field.name),
             runPivotQuery: getPivotQueryFunctionForSqlQuery(lightdashApi, {
                 projectUuid,

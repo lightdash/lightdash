@@ -13,14 +13,20 @@ import {
     type SqlChart,
 } from '@lightdash/common';
 import { captureException } from '@sentry/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
+import { useWarehouseSignInExecution } from '../../../components/NavBar/warehouseSignInPreflight';
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
+import {
+    beginSharedSignInQuery,
+    useSharedSignInQueryRecovery,
+} from '../../../hooks/sharedSignInQueryRecovery';
 import {
     CHART_RESULTS_ERROR_NAME,
     useQueryRetryConfig,
 } from '../../../hooks/useQueryRetry';
+import { reportSharedSignInQueryFailure } from '../../../hooks/useReconnectSharedSignIn';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     getDashboardSqlChartPivotChartData,
@@ -96,6 +102,7 @@ export const useSavedSqlChartResults = (
     args: UseSavedSqlChartResultsArguments,
 ) => {
     const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
     const retryConfig = useQueryRetryConfig();
 
     const { savedSqlUuid, slug, projectUuid, context, parameters } = args;
@@ -140,19 +147,39 @@ export const useSavedSqlChartResults = (
         },
     );
 
+    const signInReady = useWarehouseSignInExecution(
+        projectUuid,
+        chartQuery.data?.warehouseConnectionUuid,
+        !!chartQuery.data && !embedDashboard,
+    );
+
+    const resultsQueryKey = [
+        'savedSqlChartResults',
+        savedSqlUuid ?? slug,
+        args,
+        chartQuery.data?.lastUpdatedAt,
+    ];
+    const resultsCandidate = Boolean(
+        chartQuery.data &&
+        !chartQuery.isFetching &&
+        !chartQuery.isError &&
+        projectUuid &&
+        (embedDashboard || savedSqlUuid || slug),
+    );
     // Step 2: Get the results
     const chartResultsQuery = useQuery<
         UseSavedSqlChartResults,
         Partial<ApiError>
     >(
         // uuid/slug eases cache invalidation; lastUpdatedAt reruns results after a chart edit
-        [
-            'savedSqlChartResults',
-            savedSqlUuid ?? slug,
-            args,
-            chartQuery.data?.lastUpdatedAt,
-        ],
+        resultsQueryKey,
         async () => {
+            const execution = beginSharedSignInQuery(
+                queryClient,
+                resultsQueryKey,
+                projectUuid!,
+                chartQuery.data?.warehouseConnectionUuid,
+            );
             try {
                 // Safe to assume these are defined because of the enabled flag
                 const chart = chartQuery.data!;
@@ -231,6 +258,7 @@ export const useSavedSqlChartResults = (
                     originalColumns,
                 };
             } catch (e) {
+                reportSharedSignInQueryFailure(projectUuid!, e, execution);
                 if (isApiError(e)) {
                     throw e;
                 }
@@ -253,15 +281,19 @@ export const useSavedSqlChartResults = (
         },
         {
             // Waiting for a chart refetch avoids running results under a stale key
-            enabled:
-                !!chartQuery.data &&
-                !chartQuery.isFetching &&
-                !chartQuery.isError &&
-                !!projectUuid &&
-                (embedDashboard || !!savedSqlUuid || !!slug),
+            enabled: (embedDashboard || signInReady) && resultsCandidate,
             ...retryConfig,
         },
     );
+
+    useSharedSignInQueryRecovery({
+        queryKey: resultsQueryKey,
+        projectUuid,
+        binding: chartQuery.data?.warehouseConnectionUuid,
+        candidate: !embedDashboard && resultsCandidate,
+        ready: signInReady,
+        refetch: chartResultsQuery.refetch,
+    });
 
     // Get query uuid for download
     const getDownloadQueryUuid = useCallback(

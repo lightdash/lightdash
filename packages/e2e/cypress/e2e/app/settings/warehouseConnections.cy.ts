@@ -52,6 +52,18 @@ describe('Settings - Warehouse connections', () => {
     });
 
     it('creates and edits Athena personal credentials', () => {
+        cy.intercept(
+            'PATCH',
+            '**/api/v1/user/warehouseCredentials/*',
+            (request) => {
+                if (
+                    request.body.credentials.accessKeyId ===
+                    'updated-dummy-athena-access-key'
+                ) {
+                    return Cypress.Promise.delay(1500);
+                }
+            },
+        ).as('updateCredentials');
         cy.visit('/generalSettings/myWarehouseConnections');
         cy.findByRole('button', { name: 'Add credentials' }).click();
 
@@ -74,6 +86,7 @@ describe('Settings - Warehouse connections', () => {
         cy.findByText('Success! Warehouse connection was created.').should(
             'be.visible',
         );
+        cy.findByRole('dialog').should('not.exist');
         openCredentialsMenu(CREDENTIALS_NAME);
 
         cy.findByRole('menuitem', { name: 'Edit' }).click();
@@ -96,6 +109,10 @@ describe('Settings - Warehouse connections', () => {
             cy.findByRole('button', { name: 'Save' }).click();
         });
 
+        cy.wait('@updateCredentials')
+            .its('response.statusCode')
+            .should('eq', 200);
+        cy.findByRole('dialog').should('not.exist');
         cy.findByText('Success! Warehouse connection was updated.').should(
             'be.visible',
         );
@@ -120,6 +137,10 @@ describe('Settings - Warehouse connections', () => {
             cy.findByRole('button', { name: 'Save' }).click();
         });
 
+        cy.wait('@updateCredentials')
+            .its('response.statusCode')
+            .should('eq', 200);
+        cy.findByRole('dialog').should('not.exist');
         cy.findByText('Success! Warehouse connection was updated.').should(
             'be.visible',
         );

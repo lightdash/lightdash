@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { type LightdashApi } from '../api';
+import { useWarehouseSignInExecution } from '../components/NavBar/warehouseSignInPreflight';
 import {
     selectAdditionalMetrics,
     selectChartConfig,
@@ -29,6 +30,7 @@ import {
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { convertDateFilters } from '../utils/dateFilter';
 import { useExplore } from './useExplore';
+import { useExploreSignInExecution } from './useExploreSignInExecution';
 import { useProjectUuid } from './useProjectUuid';
 import useQueryError from './useQueryError';
 
@@ -80,6 +82,11 @@ export const useCompiledSql = (
 
     const { data: explore } = useExplore(tableId);
 
+    const signInReady = useWarehouseSignInExecution(
+        projectUuid,
+        explore?.warehouseConnection?.warehouseConnectionUuid,
+        queryOptions?.enabled ?? true,
+    );
     const setErrorResponse = useQueryError({ projectUuid });
     const metricQuery: MetricQuery = {
         exploreName: tableId,
@@ -129,7 +136,11 @@ export const useCompiledSql = (
         onError: (result) => setErrorResponse(result),
         keepPreviousData: true,
         ...queryOptions,
-        enabled: (queryOptions?.enabled ?? true) && !!tableId && !!projectUuid,
+        enabled:
+            signInReady &&
+            (queryOptions?.enabled ?? true) &&
+            !!tableId &&
+            !!projectUuid,
     });
 };
 
@@ -147,6 +158,11 @@ export const useCompiledSqlFromMetricQuery = ({
     enabled: boolean;
 }>) => {
     const lightdashApi = useLightdashApi();
+    const signInReady = useExploreSignInExecution(
+        projectUuid,
+        tableName,
+        enabled && !!metricQuery,
+    );
     return useQuery<ApiCompiledQueryResults, ApiError>({
         queryKey: [
             'compiledQuery',
@@ -164,6 +180,11 @@ export const useCompiledSqlFromMetricQuery = ({
                 undefined,
                 pivotConfiguration,
             ),
-        enabled: enabled && !!tableName && !!projectUuid && !!metricQuery,
+        enabled:
+            signInReady &&
+            enabled &&
+            !!tableName &&
+            !!projectUuid &&
+            !!metricQuery,
     });
 };

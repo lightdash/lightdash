@@ -4,6 +4,7 @@ import { Ability } from '@casl/ability';
 import {
     AnyType,
     AuthorizationError,
+    BigqueryAuthenticationType,
     CommercialFeatureFlags,
     DeactivatedAccountError,
     defineUserAbility,
@@ -6770,6 +6771,18 @@ describe('Google reconnect service', () => {
                 userUuid: sessionUser.userUuid,
                 name: 'Credential A',
                 credentials: { type: WarehouseTypes.BIGQUERY },
+            })),
+            getByUuidWithSecrets: vi.fn(async () => ({
+                uuid: 'credential_a',
+                expiresAt: null,
+                credentials: {
+                    type: WarehouseTypes.BIGQUERY,
+                    authenticationType: BigqueryAuthenticationType.SSO,
+                    keyfileContents: {
+                        type: 'authorized_user',
+                        refresh_token: 'token_a',
+                    },
+                },
             })),
             update: vi.fn(async () => 'credential_a'),
             create: vi.fn(),

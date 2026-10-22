@@ -33,6 +33,7 @@ export type SharedSignInStatus = {
     expired: boolean;
     canReconnect: boolean;
     statusUnknown?: boolean;
+    personalSelection?: { warehouseConnectionUuid: string | null };
     personalSignIn?: PersonalSignInExpiry & {
         expired: boolean;
         canReconnect: boolean;

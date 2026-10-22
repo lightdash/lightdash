@@ -9,7 +9,7 @@ import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import {
     captureSharedSignInQueryScope,
-    canReplaySharedSignInQueryScope,
+    canReplayRestoredSql,
     isCurrentSharedSignInQueryScope,
     isWarehouseSignInQueryError,
 } from '../../../hooks/sharedSignInQueryRecovery';
@@ -48,6 +48,11 @@ export const useSqlQueryRun = (
 ) => {
     const lightdashApi = useLightdashApi();
     const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
+    const editorSql = useAppSelector((state) => state.sqlRunner.sql);
+    const editorLimit = useAppSelector((state) => state.sqlRunner.limit);
+    const editorParameters = useAppSelector(
+        (state) => state.sqlRunner.parameterValues,
+    );
     const lastFailedRun = useRef<{
         variables: UseSqlQueryRunParams;
         projectUuid: string;
@@ -60,7 +65,13 @@ export const useSqlQueryRun = (
             sequence.current += 1;
             lastFailedRun.current = null;
         },
-        [projectUuid, warehouseConnectionUuid],
+        [
+            projectUuid,
+            warehouseConnectionUuid,
+            editorSql,
+            editorLimit,
+            editorParameters,
+        ],
     );
     const mutation = useMutation<
         ResultsAndColumns | undefined,
@@ -69,7 +80,10 @@ export const useSqlQueryRun = (
     >(
         async (variables) => {
             const request = ++sequence.current;
-            const scope = captureSharedSignInQueryScope(projectUuid);
+            const scope = captureSharedSignInQueryScope(
+                projectUuid,
+                warehouseConnectionUuid ?? null,
+            );
             lastFailedRun.current = null;
             try {
                 return await executeSqlQuery(
@@ -84,7 +98,7 @@ export const useSqlQueryRun = (
             } catch (error) {
                 if (
                     request === sequence.current &&
-                    (!scope || isCurrentSharedSignInQueryScope(scope)) &&
+                    isCurrentSharedSignInQueryScope(scope) &&
                     isWarehouseSignInQueryError(error)
                 )
                     lastFailedRun.current = {
@@ -113,11 +127,10 @@ export const useSqlQueryRun = (
         const retryFailedRun = (event: Event) => {
             if (
                 event instanceof CustomEvent &&
-                event.detail === projectUuid &&
                 lastFailedRun.current?.projectUuid === projectUuid &&
                 lastFailedRun.current.warehouseConnectionUuid ===
                     warehouseConnectionUuid &&
-                canReplaySharedSignInQueryScope(lastFailedRun.current.scope)
+                canReplayRestoredSql(lastFailedRun.current.scope, event.detail)
             ) {
                 const failed = lastFailedRun.current;
                 lastFailedRun.current = null;

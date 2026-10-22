@@ -104,6 +104,8 @@ export interface SqlRunnerState {
     activeConfigs: ChartKind[];
     fetchResultsOnLoad: boolean;
     mode: 'default' | 'virtualView';
+    executionRequestId?: string;
+    pivotRequestId?: string;
     queryIsLoading: boolean;
     queryError: ApiErrorDetail | SerializedError | Error | undefined;
     queryErrorProjectUuid: string | undefined;
@@ -391,12 +393,14 @@ export const sqlRunnerSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            .addCase(runSqlQuery.pending, (state) => {
+            .addCase(runSqlQuery.pending, (state, action) => {
+                state.executionRequestId = action.meta.requestId;
                 state.queryIsLoading = true;
                 state.queryError = undefined;
                 state.queryErrorProjectUuid = undefined;
             })
             .addCase(runSqlQuery.fulfilled, (state, action) => {
+                if (state.executionRequestId !== action.meta.requestId) return;
                 state.queryIsLoading = false;
                 if (
                     action.payload.warehouseConnectionUuid !==
@@ -464,6 +468,7 @@ export const sqlRunnerSlice = createSlice({
                 state.fileUrl = action.payload.fileUrl;
             })
             .addCase(runSqlQuery.rejected, (state, action) => {
+                if (state.executionRequestId !== action.meta.requestId) return;
                 state.queryIsLoading = false;
                 // A cancelled run is not an error; the previous results stand
                 if (action.meta.aborted) return;
@@ -486,13 +491,16 @@ export const sqlRunnerSlice = createSlice({
                           })
                         : undefined;
             })
-            .addCase(prepareAndFetchChartData.pending, (state) => {
+            .addCase(prepareAndFetchChartData.pending, (state, action) => {
+                state.pivotRequestId = action.meta.requestId;
                 state.queryIsLoading = true;
             })
-            .addCase(prepareAndFetchChartData.fulfilled, (state) => {
+            .addCase(prepareAndFetchChartData.fulfilled, (state, action) => {
+                if (state.pivotRequestId !== action.meta.requestId) return;
                 state.queryIsLoading = false;
             })
-            .addCase(prepareAndFetchChartData.rejected, (state) => {
+            .addCase(prepareAndFetchChartData.rejected, (state, action) => {
+                if (state.pivotRequestId !== action.meta.requestId) return;
                 state.queryIsLoading = false;
             });
     },

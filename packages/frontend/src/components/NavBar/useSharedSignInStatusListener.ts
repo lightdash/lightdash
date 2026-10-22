@@ -1,26 +1,22 @@
 import {
     getExpiredSharedSignInMessage,
+    getWarehouseSignInErrorType,
+    isBigqueryTokenErrorMessage,
     SignInSubjectBasis,
     type ApiError,
-    type SharedSignInStatus,
 } from '@lightdash/common';
 import { IconPlugConnected } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import {
-    captureSharedSignInQueryScope,
-    clearSharedSignInQueryScope,
-    isCurrentSharedSignInQuery,
+    activateSharedSignInRestoration,
+    getSharedSignInQueryScope,
+    isCurrentSharedSignInQueryScope,
     isWarehouseSignInQueryError,
-    replaySharedSignInQueries,
-    startSharedSignInQueryScope,
-    trackSharedSignInQuery,
+    type SharedSignInRestoration,
 } from '../../hooks/sharedSignInQueryRecovery';
-import {
-    clearSharedSignInToastSuppression,
-    setSharedSignInToastSuppression,
-} from '../../hooks/toaster/sharedSignInToastSuppression';
+import { type captureSharedSignInQueryScope } from '../../hooks/sharedSignInQueryRecovery';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
     getSharedSignInStatus,
@@ -28,306 +24,350 @@ import {
     SHARED_SIGN_IN_RECONNECTED,
 } from '../../hooks/useReconnectSharedSignIn';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import {
-    getSharedSignInExpiry,
-    shouldOpenSharedSignInReconnectModal,
-} from '../ProjectConnection/SharedSignIn/sharedSignInCopy';
+import { getSharedSignInExpiry } from '../ProjectConnection/SharedSignIn/sharedSignInCopy';
 import {
     queryBelongsToProject,
     scheduleSharedSignInCooldownCheck,
-    shouldCheckSharedSignInStatus,
 } from './sharedSignInListenerDecision';
 import {
-    setWarehouseSignInPreflight,
-    setWarehouseSignInBanner,
-} from './warehouseSignInBannerState';
+    acceptWarehouseSignInStatus,
+    useWarehouseSignInPreflightStore,
+    warehouseSignInBindingKey,
+} from './warehouseSignInPreflight';
 
 export const useSharedSignInStatusListener = ({
-    activeProjectUuid,
-    userUuid,
-    isQueryPage,
     reconnectEnabled,
-    expiryEnabled,
     flagsLoading,
-    currentProjectUuid,
-    lastChecks,
-    pendingProjects,
-    openProjects,
-    dismissedProjects,
 }: {
-    activeProjectUuid: string | undefined;
-    userUuid: string;
-    isQueryPage: boolean;
     reconnectEnabled: boolean | undefined;
-    expiryEnabled: boolean | undefined;
     flagsLoading: boolean;
-    currentProjectUuid: RefObject<string | undefined>;
-    lastChecks: RefObject<Map<string, number>>;
-    pendingProjects: RefObject<Set<string>>;
-    openProjects: RefObject<Set<string>>;
-    dismissedProjects: RefObject<Set<string>>;
 }) => {
-    const [statuses, setStatuses] = useState<
-        Record<string, SharedSignInStatus>
-    >({});
-    const statusesRef = useRef(statuses);
-    const version = useRef(0);
-    const [modalProjectUuid, setModalProjectUuid] = useState<string | null>(
-        null,
-    );
+    const store = useWarehouseSignInPreflightStore();
+    const revision = store?.snapshot();
     const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { showToastWarning } = useToaster();
+    const lastSharedChecks = useRef(new Map<string, number>());
     useEffect(() => {
-        if (!activeProjectUuid || !isQueryPage) return;
+        if (!store || !store.enabled || store.loading) return;
+        for (const check of store.checks.values()) {
+            if (check.started) continue;
+            check.started = true;
+            const { binding, generation, requestVersion } = check;
+            void queryClient
+                .fetchQuery({
+                    queryKey: [
+                        'shared-sign-in-status',
+                        store.identity.projectUuid,
+                        store.identity.userUuid,
+                        warehouseSignInBindingKey(binding),
+                        store.identity.pageGeneration,
+                        generation,
+                    ],
+                    queryFn: () =>
+                        store.statusCache.fetch(
+                            store.identity,
+                            binding,
+                            generation,
+                            () =>
+                                getSharedSignInStatus(
+                                    lightdashApi,
+                                    store.identity.projectUuid,
+                                    binding,
+                                ),
+                            check.forceRefresh,
+                        ),
+                    retry: false,
+                    staleTime: 0,
+                    cacheTime: 0,
+                })
+                .then((status) => {
+                    if (check.requestVersion !== requestVersion) return;
+                    const accepted =
+                        status?.personalSignIn &&
+                        status.personalSignIn.projectUuid !==
+                            store.identity.projectUuid
+                            ? null
+                            : acceptWarehouseSignInStatus(status, binding);
+                    if (!store.settle(binding, generation, accepted))
+                        store.statusCache.abandon(
+                            store.identity,
+                            binding,
+                            generation,
+                        );
+                })
+                .catch(() => {
+                    if (check.requestVersion !== requestVersion) return;
+                    if (!store.settle(binding, generation, null))
+                        store.statusCache.abandon(
+                            store.identity,
+                            binding,
+                            generation,
+                        );
+                });
+        }
+    }, [store, revision, queryClient, lightdashApi]);
+
+    useEffect(() => {
+        if (!store || flagsLoading) return;
         let cancelled = false;
-        startSharedSignInQueryScope(activeProjectUuid, userUuid);
-        if (
-            lastChecks.current.has(activeProjectUuid) &&
-            !pendingProjects.current.has(activeProjectUuid) &&
-            !openProjects.current.has(activeProjectUuid)
-        )
-            setWarehouseSignInPreflight(activeProjectUuid, userUuid);
         let trailingCheck: ReturnType<typeof setTimeout> | null = null;
         const clearTrailingCheck = () => {
-            if (trailingCheck) clearTimeout(trailingCheck);
+            if (trailingCheck !== null) clearTimeout(trailingCheck);
             trailingCheck = null;
         };
-        const showExpiryToast = (error: unknown) => {
-            const apiError = (error as Partial<ApiError> | null)?.error;
-            if (!apiError || !activeProjectUuid) return;
-            const expiry = getSharedSignInExpiry(apiError);
-            if (!expiry) return;
-            const isSubject =
-                !!userUuid &&
-                expiry.subjectUserUuid === userUuid &&
-                (expiry.subjectBasis === SignInSubjectBasis.RECORDED ||
-                    expiry.subjectBasis === SignInSubjectBasis.PROJECT_CREATOR);
-            showToastWarning({
-                key: 'shared-sign-in-expired',
-                projectUuid: expiry.projectUuid,
-                title: getExpiredSharedSignInMessage(expiry, userUuid),
-                autoClose: false,
-                action: isSubject
-                    ? {
-                          children: 'Reconnect',
-                          icon: IconPlugConnected,
-                          onClick: () =>
-                              navigate(
-                                  `/generalSettings/projectManagement/${expiry.projectUuid}/settings`,
-                              ),
-                      }
-                    : undefined,
-            });
+        const scheduleCheck = (error: unknown, checkedAt: number) => {
+            clearTrailingCheck();
+            trailingCheck = scheduleSharedSignInCooldownCheck(checkedAt, () =>
+                notify(error),
+            );
         };
-        const notify = (error: unknown, joinPending = false) => {
-            if (!activeProjectUuid) return;
-            if (flagsLoading) return;
-            if (error && !isWarehouseSignInQueryError(error)) return;
-            if (!reconnectEnabled) {
-                showExpiryToast(error);
+        const pendingPersonal = new Set<string>();
+        const notify = (
+            error: unknown,
+            execution: ReturnType<typeof captureSharedSignInQueryScope> = null,
+        ) => {
+            if (execution && !isCurrentSharedSignInQueryScope(execution))
+                return;
+            const detail = (error as Partial<ApiError> | null)?.error;
+            const controlled =
+                detail && typeof detail.message === 'string'
+                    ? getWarehouseSignInErrorType(detail.message)
+                    : null;
+            if (
+                detail &&
+                (detail.data?.personalSignIn ||
+                    controlled?.scope === 'personal')
+            ) {
+                if (
+                    !store.enabled ||
+                    !execution ||
+                    !isCurrentSharedSignInQueryScope(execution) ||
+                    !isWarehouseSignInQueryError(error)
+                )
+                    return;
+                const { binding, generation } = execution;
+                const key = warehouseSignInBindingKey(binding);
+                const check = store.checks.get(key);
+                if (!check || pendingPersonal.has(key) || store.target) return;
+                pendingPersonal.add(key);
+                const version = ++check.requestVersion;
+                void getSharedSignInStatus(
+                    lightdashApi,
+                    store.identity.projectUuid,
+                    binding,
+                )
+                    .then((status) => {
+                        if (
+                            cancelled ||
+                            !isCurrentSharedSignInQueryScope(execution) ||
+                            check.requestVersion !== version
+                        )
+                            return;
+                        const accepted = acceptWarehouseSignInStatus(
+                            status,
+                            binding,
+                        );
+                        const selected = accepted?.personalSignIn;
+                        const failure =
+                            detail.data?.personalSignIn ??
+                            execution.personalSignIn;
+                        if (
+                            !selected ||
+                            selected.projectUuid !== execution.projectUuid ||
+                            (failure &&
+                                (failure.userWarehouseCredentialsUuid !==
+                                    selected.userWarehouseCredentialsUuid ||
+                                    failure.provider !== selected.provider)) ||
+                            (controlled?.provider &&
+                                selected.provider !== controlled.provider)
+                        )
+                            return;
+                        if (
+                            accepted.statusUnknown ||
+                            (!failure && !selected.expired)
+                        )
+                            return;
+                        store.settle(binding, generation, {
+                            ...accepted,
+                            personalSignIn: { ...selected, expired: true },
+                        });
+                    })
+                    .catch(() => {})
+                    .finally(() => pendingPersonal.delete(key));
                 return;
             }
-            const joiningPending =
-                joinPending && pendingProjects.current.has(activeProjectUuid);
+            if (execution && execution.binding !== null) return;
+            const apiError = (error as Partial<ApiError> | null)?.error;
+            const expiry = apiError && getSharedSignInExpiry(apiError);
+            if (!apiError || apiError.data?.personalSignIn) return;
+            const rawTokenFailure =
+                apiError.name === 'BigqueryTokenError' &&
+                (apiError.statusCode === 400 || apiError.statusCode === 401) &&
+                typeof apiError.message === 'string' &&
+                isBigqueryTokenErrorMessage(apiError.message);
             if (
-                !joiningPending &&
-                !shouldCheckSharedSignInStatus({
-                    projectUuid: activeProjectUuid,
-                    pendingProjects: pendingProjects.current,
-                    openProjects: openProjects.current,
-                    dismissedProjects: new Set(),
-                    lastChecks: lastChecks.current,
-                    now: Date.now(),
-                })
-            ) {
-                const lastCheck = lastChecks.current.get(activeProjectUuid);
-                if (
-                    lastCheck !== undefined &&
-                    Date.now() - lastCheck < 60_000 &&
-                    !openProjects.current.has(activeProjectUuid)
-                ) {
-                    clearTrailingCheck();
-                    trailingCheck = scheduleSharedSignInCooldownCheck(
-                        lastCheck,
-                        () => notify(error),
-                    );
-                }
+                expiry
+                    ? expiry.projectUuid !== store.identity.projectUuid
+                    : !(
+                          rawTokenFailure ||
+                          (controlled?.scope === 'shared' &&
+                              execution?.binding === null)
+                      )
+            )
+                return;
+            if (!reconnectEnabled) {
+                if (!expiry) return;
+                const isSubject =
+                    expiry.subjectUserUuid === store.identity.userUuid &&
+                    (expiry.subjectBasis === SignInSubjectBasis.RECORDED ||
+                        expiry.subjectBasis ===
+                            SignInSubjectBasis.PROJECT_CREATOR);
+                showToastWarning({
+                    key: 'shared-sign-in-expired',
+                    projectUuid: expiry.projectUuid,
+                    title: getExpiredSharedSignInMessage(
+                        expiry,
+                        store.identity.userUuid,
+                    ),
+                    autoClose: false,
+                    action: isSubject
+                        ? {
+                              children: 'Reconnect',
+                              icon: IconPlugConnected,
+                              onClick: () =>
+                                  navigate(
+                                      `/generalSettings/projectManagement/${expiry.projectUuid}/settings`,
+                                  ),
+                          }
+                        : undefined,
+                });
+                return;
+            }
+            if (
+                !store.checks.has(warehouseSignInBindingKey(null)) ||
+                !store.hasPreferredBinding(null) ||
+                store.target
+            )
+                return;
+            const projectUuid = store.identity.projectUuid;
+            const sharedKey = JSON.stringify([
+                projectUuid,
+                store.identity.userUuid,
+            ]);
+            const last = lastSharedChecks.current.get(sharedKey) ?? -Infinity;
+            if (Date.now() - last < 60_000) {
+                scheduleCheck(error, last);
                 return;
             }
             clearTrailingCheck();
-            if (!joiningPending)
-                lastChecks.current.set(activeProjectUuid, Date.now());
-            pendingProjects.current.add(activeProjectUuid);
-            const projectUuid = activeProjectUuid;
-            const requestVersion = version.current;
-            const startedAt = lastChecks.current.get(projectUuid) ?? Date.now();
-            void queryClient
-                .fetchQuery({
-                    queryKey: ['shared-sign-in-status', projectUuid, userUuid],
-                    queryFn: () =>
-                        getSharedSignInStatus(lightdashApi, projectUuid),
-                    staleTime: 0,
-                    retry: false,
-                })
+            const cachedAt = store.statusCache.checkedAt(store.identity, null);
+            lastSharedChecks.current.set(
+                sharedKey,
+                cachedAt !== undefined && Date.now() - cachedAt < 60_000
+                    ? cachedAt
+                    : Date.now(),
+            );
+            const release = store.register('shared-error', null, 0);
+            const check = store.checks.get(warehouseSignInBindingKey(null))!;
+            const generation = check.generation;
+            const requestVersion = check.requestVersion;
+            void store.statusCache
+                .fetch(store.identity, null, generation, () =>
+                    getSharedSignInStatus(lightdashApi, projectUuid, null),
+                )
                 .then((status) => {
-                    pendingProjects.current.delete(projectUuid);
-                    if (cancelled) {
-                        if (requestVersion === version.current)
-                            lastChecks.current.delete(projectUuid);
+                    if (cancelled || check.requestVersion !== requestVersion)
                         return;
-                    }
+                    const accepted = status?.personalSignIn
+                        ? null
+                        : acceptWarehouseSignInStatus(status, null, true);
+                    if (!store.settle(null, generation, accepted)) return;
                     if (
-                        requestVersion !== version.current ||
-                        projectUuid !== currentProjectUuid.current
+                        cachedAt !== undefined &&
+                        Date.now() - cachedAt < 60_000 &&
+                        !status?.personalSignIn &&
+                        !accepted?.expired
                     )
-                        return;
-                    lastChecks.current.set(projectUuid, startedAt);
-                    const expired =
-                        status &&
-                        (status.personalSignIn?.expired ?? status.expired);
-                    if (status?.statusUnknown && !expired) {
-                        setWarehouseSignInPreflight(projectUuid, userUuid);
-                        return;
-                    }
-                    let opensModal = false;
-                    if (status && expired) {
-                        statusesRef.current = {
-                            ...statusesRef.current,
-                            [projectUuid]: status,
-                        };
-                        setStatuses(statusesRef.current);
-                        setSharedSignInToastSuppression(
-                            projectUuid,
-                            status,
-                            userUuid,
-                        );
-                        if (
-                            shouldOpenSharedSignInReconnectModal(status) &&
-                            !dismissedProjects.current.has(projectUuid)
-                        ) {
-                            opensModal = true;
-                            openProjects.current.add(projectUuid);
-                            setModalProjectUuid(projectUuid);
-                        }
-                    } else {
-                        const { [projectUuid]: removed, ...remaining } =
-                            statusesRef.current;
-                        statusesRef.current = remaining;
-                        setStatuses(remaining);
-                        clearSharedSignInToastSuppression(projectUuid);
-                        dismissedProjects.current.delete(projectUuid);
-                        if (error) showExpiryToast(error);
-                    }
-                    if (!opensModal)
-                        setWarehouseSignInPreflight(projectUuid, userUuid);
+                        scheduleCheck(error, cachedAt);
                 })
                 .catch(() => {
-                    pendingProjects.current.delete(projectUuid);
-                    if (cancelled && requestVersion === version.current)
-                        lastChecks.current.delete(projectUuid);
-                    if (
-                        !cancelled &&
-                        requestVersion === version.current &&
-                        projectUuid === currentProjectUuid.current
-                    ) {
-                        lastChecks.current.set(projectUuid, startedAt);
-                        setWarehouseSignInPreflight(projectUuid, userUuid);
-                        showExpiryToast(error);
-                    }
-                });
+                    if (!cancelled && check.requestVersion === requestVersion)
+                        store.settle(null, generation, null);
+                })
+                .finally(release);
         };
         const unsubscribeQueries = queryClient
             .getQueryCache()
             .subscribe((event) => {
-                if (event.type === 'updated' && event.action.type === 'fetch')
-                    trackSharedSignInQuery(event.query);
                 if (
                     event.type === 'updated' &&
                     event.action.type === 'error' &&
-                    isCurrentSharedSignInQuery(event.query) &&
+                    event.query.state.error &&
                     event.query.queryKey[0] !== 'shared-sign-in-status' &&
-                    !!event.query.state.error &&
                     queryBelongsToProject(
                         event.query.queryKey,
-                        activeProjectUuid,
+                        store.identity.projectUuid,
                     )
                 )
-                    notify(event.query.state.error);
+                    notify(
+                        event.query.state.error,
+                        getSharedSignInQueryScope(event.query),
+                    );
             });
         const unsubscribeMutations = queryClient
             .getMutationCache()
             .subscribe((event) => {
-                if (event.type === 'updated' && event.action.type === 'loading')
-                    trackSharedSignInQuery(event.mutation);
                 if (
                     event.type === 'updated' &&
-                    event.action.type === 'error' &&
-                    isCurrentSharedSignInQuery(event.mutation) &&
+                    event.mutation.state.error &&
                     queryBelongsToProject(
                         event.mutation.options.mutationKey,
-                        activeProjectUuid,
+                        store.identity.projectUuid,
                     )
-                ) {
-                    notify(event.mutation?.state.error);
-                }
+                )
+                    notify(event.mutation.state.error);
             });
         for (const query of queryClient.getQueryCache().getAll()) {
             if (
-                isCurrentSharedSignInQuery(query) &&
                 query.state.status === 'error' &&
-                queryBelongsToProject(query.queryKey, activeProjectUuid)
+                query.queryKey[0] !== 'shared-sign-in-status' &&
+                queryBelongsToProject(
+                    query.queryKey,
+                    store.identity.projectUuid,
+                )
             )
                 notify(query.state.error);
         }
         const onQueryFailed = (event: Event) => {
             if (
                 event instanceof CustomEvent &&
-                event.detail?.projectUuid === activeProjectUuid
+                event.detail?.projectUuid === store.identity.projectUuid
             )
-                notify(event.detail.error);
+                notify(event.detail.error, event.detail.execution);
         };
         const onRestored = (event: Event) => {
+            if (event instanceof CustomEvent)
+                activateSharedSignInRestoration(event.detail);
             if (
-                !(event instanceof CustomEvent) ||
-                event.detail !== activeProjectUuid
-            )
-                return;
-            replaySharedSignInQueries(queryClient, (query) =>
-                queryBelongsToProject(query.queryKey, activeProjectUuid),
-            );
-            version.current += 1;
-            void queryClient.cancelQueries({
-                queryKey: [
-                    'shared-sign-in-status',
-                    activeProjectUuid,
-                    userUuid,
-                ],
-            });
-            pendingProjects.current.delete(activeProjectUuid);
-            clearTrailingCheck();
-            lastChecks.current.delete(activeProjectUuid);
-            dismissedProjects.current.delete(activeProjectUuid);
-            openProjects.current.delete(activeProjectUuid);
-            const { [activeProjectUuid]: removed, ...remaining } =
-                statusesRef.current;
-            statusesRef.current = remaining;
-            setStatuses(remaining);
-            setModalProjectUuid(null);
-            setWarehouseSignInPreflight(activeProjectUuid, userUuid);
-            clearSharedSignInToastSuppression(activeProjectUuid);
-            setWarehouseSignInBanner(null);
+                event instanceof CustomEvent &&
+                (event.detail as SharedSignInRestoration)?.target
+                    ?.pageGeneration === store.identity.pageGeneration
+            ) {
+                clearTrailingCheck();
+                lastSharedChecks.current.delete(
+                    JSON.stringify([
+                        store.identity.projectUuid,
+                        store.identity.userUuid,
+                    ]),
+                );
+            }
         };
         window.addEventListener(SHARED_SIGN_IN_RECONNECTED, onRestored);
         window.addEventListener(SHARED_SIGN_IN_QUERY_FAILED, onQueryFailed);
-        if (expiryEnabled) notify(undefined, true);
         return () => {
             cancelled = true;
-            const currentScope =
-                captureSharedSignInQueryScope(activeProjectUuid);
-            if (currentScope?.userUuid === userUuid)
-                clearSharedSignInQueryScope(currentScope);
             clearTrailingCheck();
             window.removeEventListener(SHARED_SIGN_IN_RECONNECTED, onRestored);
             unsubscribeQueries();
@@ -338,21 +378,13 @@ export const useSharedSignInStatusListener = ({
             );
         };
     }, [
+        store,
+        flagsLoading,
+        reconnectEnabled,
+        lightdashApi,
         queryClient,
-        activeProjectUuid,
-        userUuid,
         showToastWarning,
         navigate,
-        reconnectEnabled,
-        flagsLoading,
-        lightdashApi,
-        isQueryPage,
-        expiryEnabled,
-        currentProjectUuid,
-        lastChecks,
-        pendingProjects,
-        openProjects,
-        dismissedProjects,
     ]);
-    return { statuses, modalProjectUuid, setModalProjectUuid };
+    return store;
 };

@@ -121,4 +121,48 @@ describe('UserOAuthGrantsModel', () => {
             ),
         ).toBe(true);
     });
+    it('propagates a legacy read failure before writing an empty callback', async () => {
+        tracker.on.select(UserOAuthGrantsTableName).responseOnce([]);
+        const failure = new Error('legacy_read_failed');
+        userModel.getRefreshToken.mockRejectedValueOnce(failure);
+        await expect(
+            model.upsertGrant({
+                userUuid,
+                provider: OpenIdIdentityIssuerType.GOOGLE,
+                subject: providerSubject,
+                email: providerEmail,
+                scopes: [],
+                refreshToken: '',
+            }),
+        ).rejects.toBe(failure);
+        expect(tracker.history.insert).toHaveLength(0);
+    });
+
+    it('propagates decryption failure without consulting legacy storage or writing', async () => {
+        tracker.on
+            .select(UserOAuthGrantsTableName)
+            .responseOnce([{ encrypted_refresh_token: Buffer.alloc(0) }]);
+        const failure = new Error('decryption_failed');
+        const decrypt = vi
+            .spyOn(encryptionUtil, 'decrypt')
+            .mockImplementationOnce(() => {
+                throw failure;
+            });
+        try {
+            await expect(
+                model.upsertGrant({
+                    userUuid,
+                    provider: OpenIdIdentityIssuerType.GOOGLE,
+                    subject: providerSubject,
+                    email: providerEmail,
+                    scopes: [],
+                    refreshToken: '',
+                }),
+            ).rejects.toBe(failure);
+            expect(userModel.getRefreshToken).not.toHaveBeenCalled();
+            expect(tracker.history.insert).toHaveLength(0);
+        } finally {
+            decrypt.mockRestore();
+        }
+    });
 });
