@@ -5,7 +5,7 @@ import {
 } from '../outputMetadata';
 
 export const TOOL_LOAD_MCP_TOOLS_DESCRIPTION =
-    'Load the definitions for MCP tools you need before calling them. Pass exact tool names from the MCP tools section of the system prompt. Loaded definitions remain available for the rest of the thread.';
+    'Load the definitions of MCP tools by exact name from the MCP tools list in the system prompt. Loaded tools stay available for the rest of the thread.';
 
 export const toolLoadMcpToolsArgsSchema = z.object({
     names: z

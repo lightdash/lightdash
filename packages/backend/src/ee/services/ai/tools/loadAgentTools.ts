@@ -8,13 +8,13 @@ export const getLoadAgentTools = (
 ) =>
     tool({
         description:
-            'Load the remaining tools available to this agent for this turn. Call this only when the request requires a capability absent from the current toolbox. Do not claim a capability is unavailable merely because its tool has not been loaded. Loading does not execute or authorize an action; existing permissions still apply.',
+            "Load the rest of this agent's tools for this turn. Call it only when the request needs a capability your current tools lack, and before telling the user that a capability is unavailable.",
         inputSchema: z.object({}),
         execute: async () => {
             onLoad();
             return {
                 result: [
-                    'The remaining available agent tools are now loaded. Use their actual schemas; all existing access and action requirements still apply.',
+                    'The remaining agent tools are now loaded.',
                     deferredInstructions,
                 ]
                     .filter(Boolean)

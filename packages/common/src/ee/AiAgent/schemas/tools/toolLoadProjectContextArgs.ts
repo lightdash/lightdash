@@ -10,7 +10,7 @@ import {
 } from '../outputMetadata';
 
 export const TOOL_LOAD_PROJECT_CONTEXT_DESCRIPTION =
-    'Load the project business context: curated acronyms, definitions, rules and conventions that are NOT in the field metadata. Call this BEFORE grepFields — it can change which explore, field, or filter value you should use. Treat what it returns as authoritative over your own assumptions. Pass `patterns` to load only the entries relevant to your question (recommended); omit to load the entire context.';
+    "Load the project's curated business context. Prefer `patterns`, which load only the entries relevant to the question.";
 
 export const toolLoadProjectContextArgsSchema = z.object({
     patterns: z

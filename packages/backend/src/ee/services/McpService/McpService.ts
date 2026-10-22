@@ -438,7 +438,7 @@ const mcpCreateContentDocumentTool = withProjectScopeInput(
 );
 const mcpCreateContentTool = {
     ...mcpCreateContentDocumentTool,
-    description: `${mcpCreateContentDocumentTool.description} After a multi-step investigation (two or more queries or charts), offer once to save it as a Document the user can share, and create it when they agree. Pass a spaceSlug only for a Space the user named, so the Document stays personal.`,
+    description: `${mcpCreateContentDocumentTool.description} After a multi-step investigation (two or more queries or charts), offer once to save it as a Document the user can share, and create it when they agree.`,
 };
 const mcpEditContentTool = withProjectScopeInput(
     mcpEditContentToolDefinition.for('mcp'),

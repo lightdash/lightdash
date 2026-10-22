@@ -357,12 +357,12 @@ describe('getRunComposerQueries', () => {
             description: null,
         });
         expect(output.result).toContain(
-            'Not presented to the user yet. To present it, write <show node="joined"/> in your final answer; the same marker presents it again in a later message without rerunning it.',
+            'Not presented to the user yet. To present it, write <show node="joined"/> in your final answer, in this message or a later one.',
         );
         expect(output.result).toContain(
             [
                 'Composer query complete. Terminal node "joined" returned 1 rows.',
-                'Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):',
+                'Nodes in this pipeline:',
                 '- revenue: "Revenue by month" (semanticLayer)',
                 '- signups: "Signups by month" (sql)',
                 '- joined: "Revenue vs signups" (duckdb)',
@@ -979,7 +979,7 @@ describe('composer artifact with reused nodes', () => {
         expect(output.result).toContain(
             [
                 'Composer query complete. Terminal node "summary" returned 1 rows.',
-                'Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):',
+                'Nodes in this pipeline:',
                 '- orders: "Orders by customer" (semanticLayer)',
                 '- customers: "Customers" (semanticLayer)',
                 '- enriched: "Orders with customer names" (duckdb)',

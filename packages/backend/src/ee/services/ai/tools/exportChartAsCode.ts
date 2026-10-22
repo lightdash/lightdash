@@ -13,19 +13,34 @@ export const getExportChartAsCode = (
     artifacts?: ArtifactChartExportAccess,
 ) =>
     tool({
-        description: `Export a chart as schema-validated chart-as-code YAML without running queries, saving or publishing content.
-
-When to use: whenever the user wants chart YAML. You MUST call this tool for chart YAML; never write or reconstruct YAML yourself. It supports built-in semantic, merged and pinned custom charts; use the content tools for other sources.
+        description: `Export a chart as schema-validated chart-as-code YAML without running queries, saving or publishing content. Call it whenever the user wants chart YAML rather than writing YAML yourself, which skips the schema validation. It supports built-in semantic, merged and pinned custom charts; use the content tools for other sources.
 
 Inputs:
-- Source: for a chart generated in this turn, pass its queryUuid from generateVisualization and null artifactUuid and versionUuid. For a chart from an earlier turn, pass its exact artifactUuid and versionUuid with null queryUuid. When those identifiers are unknown, pass null for all three to list the conversation's artifacts first. Never invent or use placeholder UUIDs.
+- Source: for a chart from an earlier message, its artifactUuid and versionUuid with null queryUuid; queryUuid only for a chart generated in this same turn, with null artifact identifiers. Null for all three lists the conversation's artifacts. Copy identifiers exactly; never invent placeholder UUIDs.
 - Destination: pass the slug and spaceSlug the user gave, or null for any the user has not specified.
 
-Returns the YAML. Without a source identifier it returns the conversation's artifacts to choose from; with a destination value missing it reports exactly which one, so you can ask the user. Never search content to infer a destination, and never regenerate the chart or rerun its query just to export it.`,
+Returns the YAML. Without a source identifier it returns the conversation's artifacts to choose from; with a destination value missing it names which one, so you can ask the user rather than searching content for it. Export the existing chart instead of regenerating it or rerunning its query.`,
         inputSchema: z.object({
-            queryUuid: z.string().uuid().nullable().optional(),
-            artifactUuid: z.string().uuid().nullable().optional(),
-            versionUuid: z.string().uuid().nullable().optional(),
+            queryUuid: z
+                .string()
+                .uuid()
+                .nullable()
+                .optional()
+                .describe(
+                    'Query UUID of a chart generated in the current turn; it does not resolve in a later turn.',
+                ),
+            artifactUuid: z
+                .string()
+                .uuid()
+                .nullable()
+                .optional()
+                .describe('Exact UUID of a stored chart artifact.'),
+            versionUuid: z
+                .string()
+                .uuid()
+                .nullable()
+                .optional()
+                .describe('Exact version UUID of that stored chart artifact.'),
             slug: z.string().min(1).max(255).nullable().optional(),
             spaceSlug: z.string().min(1).max(1024).nullable().optional(),
         }),

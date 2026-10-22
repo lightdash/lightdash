@@ -14,24 +14,16 @@ import {
     toolRunQueryArgsSchemaV2FormulaOnly,
 } from './toolRunQueryArgs';
 
-export const TOOL_DASHBOARD_V2_DESCRIPTION = `
+export const TOOL_DASHBOARD_V2_DESCRIPTION = `Generate a dashboard of visualizations on one theme in a single call.
 
-Use this tool to generate multiple visualizations for a dashboard based on a specific theme.
-
-Instead of making multiple parallel tool calls for individual visualizations, this tool takes an array of visualization configurations and generates them all at once, ensuring thematic consistency and better performance.
-
-Dashboard Design Philosophy:
-Create "summary" or "executive" level dashboards that provide high-level overviews of specific topics (e.g., Support Dashboard, Revenue Performance, Sales Operations). These dashboards should be designed to monitor trends and key metric performance at a glance.
-
-Recommended Dashboard Structure:
-1. **Summary Metrics at the Top**: Start with key performance indicators (KPIs) as tables showing overall summary metrics
-2. **Time-Series Analysis**: Include time-series charts (line or area charts) to show how metrics trend over time
-3. **Categorical Comparisons**: Use bar or horizontal bar charts to compare metrics across categories
-4. **Proportional Analysis**: Use pie charts to show part-to-whole relationships (e.g., market share, revenue by segment)
-5. **Correlation Analysis**: Use scatter plots to explore relationships between two metrics
-6. **Conversion Flows**: Use funnel charts to visualize sequential conversion processes (e.g., sales funnel, user onboarding)
-7. **Detailed Breakdowns**: Add tables with more detail and specific line items that have the biggest impact on metrics
-`;
+Design a summary dashboard for monitoring a topic at a glance (e.g. Support, Revenue Performance, Sales Operations), ordering the kinds of visualization that fit the data like this:
+1. KPI tables with the overall summary metrics.
+2. Line or area charts for how metrics trend over time.
+3. Bar or horizontal bar charts comparing metrics across categories.
+4. Pie charts for part-to-whole relationships (e.g. revenue by segment).
+5. Scatter plots for relationships between two metrics.
+6. Funnel charts for sequential conversion (e.g. a sales funnel).
+7. Detail tables with the line items that move the metrics most.`;
 
 // Dashboard visualization schema - use generateVisualization format for each
 // visualization. Custom chart types are thread-only for the PoC, so each
@@ -57,7 +49,7 @@ const dashboardV2Fields = {
 } as const;
 
 const visualizationsDescription =
-    'Array of visualization configurations to generate for this dashboard. Each should contribute to the overall theme and leverage the available chart types (table, bar, horizontal, line, scatter, pie, funnel).';
+    "Visualizations in generateVisualization's format, each serving the dashboard's theme.";
 
 // Advertised agent contract: formula-only table calcs per visualization.
 export const toolDashboardV2ArgsSchema = createToolSchema()

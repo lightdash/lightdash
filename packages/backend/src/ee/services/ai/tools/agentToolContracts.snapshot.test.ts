@@ -2,6 +2,7 @@ import {
     agentToolDefinitions,
     agentToolDefinitionsByName,
     AI_DEFAULT_MAX_QUERY_LIMIT,
+    queryConfigBaseSchema,
 } from '@lightdash/common';
 import { asSchema, type FlexibleSchema, type ToolSet } from 'ai';
 import { DISTILL_TOOL_POLICIES } from '../../AiAgentMemoryService/transcriptToolPolicy';
@@ -290,20 +291,23 @@ describe('AI agent tool contracts', () => {
             const { generateVisualization, runSql } = makeAgentTools(
                 enableFilterExpressions,
             );
+            const runQueryDescription =
+                agentToolDefinitionsByName.runQuery.for('agent').description;
             for (const description of [
                 generateVisualization.description,
                 runSql.description,
-                agentToolDefinitionsByName.runQuery.for('agent').description,
+                runQueryDescription,
                 agentToolDefinitionsByName.runSql.for('agent').description,
             ]) {
-                expect(description).toContain('execution');
                 expect(description).not.toMatch(
                     /get_query_result|render_chart|structuredContent|nextPollAfterMs|heartbeatAt|~50s/,
                 );
             }
-            expect(generateVisualization.description).toContain(
-                'queryConfig.parameters',
-            );
+            expect(generateVisualization.description).toContain('execution');
+            expect(runQueryDescription).toContain('execution');
+            expect(
+                queryConfigBaseSchema.shape.parameters.description,
+            ).toContain('requires parameters');
             expect(runSql.description).toContain(
                 `max ${AI_DEFAULT_MAX_QUERY_LIMIT}`,
             );

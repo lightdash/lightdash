@@ -65,7 +65,7 @@ describe('getEditRepo success output', () => {
         );
 
         expect(output.result).toBe(
-            `Opened a pull request against repository acme/analytics. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which repository it targeted.\n\nAgent summary:\n${runResult.output}`,
+            `Opened a pull request against repository acme/analytics. The user sees a "View pull request" button, so summarise the change and the repository it targeted without the pull request URL or number.\n\nAgent summary:\n${runResult.output}`,
         );
         expect(output.metadata).toEqual({
             status: 'success',
@@ -225,7 +225,7 @@ describe('getEditRepo error classification', () => {
         );
 
         expect(output.result).toContain('.github/workflows/ci.yml, .env');
-        expect(output.result).toContain('Do not retry this');
+        expect(output.result).toContain('Retrying fails the same way');
         expect(output.metadata).toEqual({
             status: 'error',
             errorCode: 'denied_path',

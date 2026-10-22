@@ -15,7 +15,7 @@ export const renderAvailableCustomChartTypes = ({
     const remainder = totalCount - types.length;
     const lines = [
         '## Available custom chart types',
-        "This project has custom chart types — the team's own reusable visualizations, identified by slug. When the user asks about one, answer from the list below; call `findCustomChartTypes` with a slug to read a type's full schema (field slots and config options), or with a query to search the library.",
+        "This project has custom chart types: the team's own reusable visualizations, listed below by slug with their field labels and options. Answer questions about a type from this list, and read its full schema with `findCustomChartTypes` before rendering a chart through it.",
         '<availableCustomChartTypes>',
         ...types.map(serializeCustomChartTypeForPrompt),
         ...(remainder > 0

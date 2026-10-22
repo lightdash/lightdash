@@ -379,10 +379,7 @@ describe('MCP tool contracts', () => {
                     ).toBe(documentsEnabled);
                     if (documentsEnabled) {
                         expect(tool.config.description).toContain(
-                            'Explicit user scope and format instructions take precedence',
-                        );
-                        expect(tool.config.description).toContain(
-                            'do not invent findings or research steps',
+                            'rather than inventing findings or steps',
                         );
                     }
                 }
@@ -649,7 +646,7 @@ describe('MCP tool contracts', () => {
                 {
                     name: McpToolName.GREP_FIELDS,
                     details: [
-                        '1–5 patterns in a SINGLE call',
+                        'cover every angle of the question in one call',
                         'long natural-language phrases',
                         'right grain',
                     ],
@@ -659,7 +656,7 @@ describe('MCP tool contracts', () => {
                     details: [
                         'required filters',
                         'filter type, case-sensitivity',
-                        'Batch every explore and field you need into a SINGLE call',
+                        'Batch every explore and field you need into one call',
                     ],
                 },
                 {
@@ -673,8 +670,8 @@ describe('MCP tool contracts', () => {
                 {
                     name: McpToolName.SEARCH_FIELD_VALUES,
                     details: [
-                        'dimension before building a filter',
-                        'use it directly instead of searching',
+                        'dimension (e.g. a product name or status) before filtering on it',
+                        'already gives the exact value, filter on it directly',
                     ],
                 },
                 {
@@ -695,7 +692,7 @@ describe('MCP tool contracts', () => {
                 },
                 {
                     name: McpToolName.LIST_CONTENT,
-                    details: ['direct children and content inside that space'],
+                    details: ['child spaces and content inside one space'],
                 },
                 {
                     name: McpToolName.FIND_CONTENT,
@@ -707,8 +704,11 @@ describe('MCP tool contracts', () => {
                     (registered) => registered.name === name,
                 );
                 expect(tool).toBeDefined();
+                const text = `${tool?.config.description}\n${JSON.stringify(
+                    schemaToJson(tool?.config.inputSchema, 'input'),
+                )}`;
                 for (const detail of details) {
-                    expect(tool?.config.description).toContain(detail);
+                    expect(text).toContain(detail);
                 }
             }
         },

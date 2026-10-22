@@ -5,7 +5,7 @@ exports[`MCP tool contracts > matches the 'filter-expression' MCP server instruc
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
 
-0. \`get_context\`: select scope; pass \`projectUuid\` (and \`agentUuid\` when agent-scoped) explicitly to project-scoped tools.
+0. \`get_context\`: select the project, and the agent when agent-scoped.
 1. \`grep_fields\`: discover fields and select one explore at the right grain.
 2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
 3. \`search_field_values\`: find valid filter values when needed.
@@ -30,7 +30,7 @@ exports[`MCP tool contracts > matches the 'structured-filter' MCP server instruc
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
 
-0. \`get_context\`: select scope; pass \`projectUuid\` (and \`agentUuid\` when agent-scoped) explicitly to project-scoped tools.
+0. \`get_context\`: select the project, and the agent when agent-scoped.
 1. \`grep_fields\`: discover fields and select one explore at the right grain.
 2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
 3. \`search_field_values\`: find valid filter values when needed.
@@ -55,7 +55,7 @@ exports[`MCP tool contracts > matches the agent-identity tools and instructions 
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
 
-0. \`get_context\`: select scope; pass \`projectUuid\` (and \`agentUuid\` when agent-scoped) explicitly to project-scoped tools.
+0. \`get_context\`: select the project, and the agent when agent-scoped.
 1. \`grep_fields\`: discover fields and select one explore at the right grain.
 2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
 3. \`search_field_values\`: find valid filter values when needed.
@@ -160,8 +160,6 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
     {
       "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore. For running queries, follow the polling instructions in the response.
 
-If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
-
 If the user mentions any time period, add an explicit date filter; never use sort + limit instead. Use inThePast for relative windows. Date fields from joined tables work identically in filters.
 
 Before authoring table calculations, read the \`table-calculations\` skill. Use type \`formula\`.
@@ -173,7 +171,7 @@ This tool returns metric query data only. For a visual, call render_chart after 
 If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
 Stop on terminal errors and correct the request before retrying.
 
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data.
  If agent identity is required, offer connect_agent first; on refusal, show the connect link for warehouse approval once per person, then retry the same call.",
       "name": "run_metric_query",
     },
@@ -187,7 +185,7 @@ Returns SQL data, not chart artifacts. The platform provides a query-specific SQ
 If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
 Stop on terminal errors and correct the request before retrying.
 
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app. If agent identity is required, offer connect_agent first; on refusal, show the connect link for warehouse approval once per person, then retry the same call.",
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. If agent identity is required, offer connect_agent first; on refusal, show the connect link for warehouse approval once per person, then retry the same call.",
       "name": "run_sql",
     },
   ],
@@ -209,7 +207,7 @@ exports[`MCP tool contracts > matches the current MCP tool and prompt contract s
 
 For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
 
-0. \`get_context\`: select scope; pass \`projectUuid\` (and \`agentUuid\` when agent-scoped) explicitly to project-scoped tools.
+0. \`get_context\`: select the project, and the agent when agent-scoped.
 1. \`grep_fields\`: discover fields and select one explore at the right grain.
 2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
 3. \`search_field_values\`: find valid filter values when needed.
@@ -308,14 +306,7 @@ For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`ru
       },
       "description": "Tool: list_explores
 
-Purpose:
-Lists all Explores available to the user in the current project. Returns a summary of each explore including its name, label, base table, and tags.
-
-Usage Tips:
-- Use this to discover what data sources are available before using MCP schema-discovery tools for detailed field information
-- No arguments needed - automatically uses the current project context
-- Results are filtered based on user permissions and selected tags
-- Returns explore metadata without field details for quick overview
+List the explores the user can access in a project, limited to the agent's tags when agent-scoped: each explore's name, label, base table, tags, joined tables and required filters, without its fields. Use it for an overview of the available data; grep_fields and get_metadata give the fields.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -353,20 +344,15 @@ Usage Tips:
       "description": "Tool: grep_fields
 
 Purpose:
-Find which explores and fields can answer a data question by grepping an in-memory, annotated view of the project's fields (names, labels, descriptions, hints and tags). grep_fields tells you which fields exist; get_metadata gives the detail needed to query them.
+Find which explores and fields can answer a data question by grepping the project's field catalog (names, labels, descriptions, hints and tags). grep_fields tells you which fields exist; get_metadata gives the detail needed to query them.
 
 When to use:
-- Use this as the first step of a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). For questions about existing dashboards, charts or Data Apps, use find_content instead.
-
-Inputs:
-- Each pattern is a case-insensitive keyword pattern, not a full regex: use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status" matches fields mentioning both "order" and "status").
-- Pass 1–5 patterns in a SINGLE call, covering every angle of the question at once (e.g. ["revenue|sales", "country|region", "segment|tier"]). They run together, so you see all results in one step instead of grepping one pattern at a time.
-- Use short, meaningful keywords; long natural-language phrases do not match.
+- Use this to discover the fields for a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). For questions about existing dashboards, charts or Data Apps, use find_content instead.
 
 Returns:
-Matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.
+Matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore. Pick the single explore that answers at the right grain before building a query.
 - A description or hint ending in "...(truncated)" is incomplete; read the full text with get_metadata before using that field.
-- A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters: what it returns changes with the parameter values the query runs with (unset parameters resolve to their default). Read the parameter definitions with get_metadata on its explore before querying such a field.
+- A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters; read their definitions with get_metadata on its explore before querying it.
 
 Recovery:
 When no field matches literally, the result lists the closest catalog matches (fuzzy search) under "No exact grep matches". Use those rather than re-grepping a long list of synonyms; broaden the patterns only when those miss too.
@@ -385,7 +371,7 @@ When no field matches literally, the result lists the closest catalog matches (f
             "type": "string",
           },
           "patterns": {
-            "description": "Up to 5 case-insensitive keyword patterns, run together in one call. Use \`|\` to OR synonyms and a space or \`.*\` between words to require all of them. Each is matched against field names, labels, descriptions, hints and tags.",
+            "description": "Up to 5 case-insensitive keyword patterns, not full regexes, matched against field names, labels, descriptions, hints and tags. Use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status"). Use short keywords: long natural-language phrases do not match. The patterns run together, so cover every angle of the question in one call (e.g. ["revenue|sales", "country|region", "segment|tier"]).",
             "items": {
               "minLength": 1,
               "type": "string",
@@ -830,21 +816,18 @@ When no field matches literally, the result lists the closest catalog matches (f
       "description": "Tool: get_metadata
 
 Purpose:
-Get the full metadata for explores and fields whose IDs you already know, typically from grep_fields. grep_fields tells you which fields exist; get_metadata gives the detail you need to build a correct query: an explore's joined tables, table filters, required filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.
+Get the full metadata for explores and fields whose IDs you already know, typically from grep_fields: an explore's joined tables, table filters, required filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.
 
 When to use:
-Call this once you have narrowed down to the explore(s) and field(s) you intend to use, before building the query. Batch every explore and field you need into a SINGLE call instead of one request per item. Descriptions and hints truncated elsewhere ("...(truncated)") are returned here in full.
+Call this for the explores and fields you intend to use whose full detail you do not already have. Batch every explore and field you need into one call. Descriptions and hints truncated elsewhere ("...(truncated)") are returned here in full.
 
 Inputs:
 Each entry in \`requests\` is one of:
-- \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` — full metadata for those explores (joined tables, table filters, field counts).
-- \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` — full metadata for those specific fields.
+- \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` for whole explores.
+- \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` for specific fields.
 
 Applying the result:
-- Table filters marked \`required\` apply to every query on the explore, but their operator and values are replaceable defaults, not fixed constraints on the data. When the user's requested scope differs, you MUST use a compatible filter on the same field or a derived time dimension of it, replacing the default: if \`created_at inThePast [4 weeks]\` is required and the user asks for ten months, use \`created_at inThePast [10 months]\`. A required default is not a modelling limitation or a reason to switch to saved chart results.
-- Table filters marked \`suggested\` are soft defaults: apply them unless the user asks for a different range or scope.
-- Use a metric's default time dimension unless the user asks for a different one.
-- A field with required parameters returns different results depending on the parameter values the query runs with; unset parameters resolve to their default.
+Use a metric's default time dimension unless the user asks for a different one.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1397,18 +1380,9 @@ Purpose:
 Finds spaces, charts, dashboards, or Data Apps by name or description within a project, returning detailed information about each.
 
 Usage tips:
-- IMPORTANT: Pass the user's full query or relevant portion directly (e.g., "revenue based on campaigns" instead of just "campaigns").
-- The search engine understands natural language and context — more descriptive queries yield better results.
-- You can provide multiple search queries to look for different topics simultaneously (e.g., ["monthly revenue", "user acquisition trends"]).
-- Pass spaceSlug to search only inside that space and its descendants.
-- verifiedOnly=true searches only admin-verified charts/dashboards (spaces omitted). Data Apps have no verification state and remain included. Verification is a status, not text — search topic keywords, never the word "verified". If nothing matches, verified content may still exist under other terms, so never claim the project has none from one query. Re-run with verifiedOnly=false only if unverified charts or dashboards are acceptable.
 - If results aren't relevant, retry with the full user query or more specific terms.
-- Dashboards with validation errors will be deprioritized.
-- Returns space breadcrumb/path metadata and canonical chart, dashboard, and Data App URLs when available.
-- Dashboards show a preview of the first 5 charts and the total chart count. Use "read_content" to see all charts for a specific dashboard.
-- Data Apps are readable: call "read_content" with type "data_app" and the app slug to see what the app shows, the charts and dashboard it was generated from, and the explores, fields, filters, parameters and external connections it queries.
-- It doesn't provide summaries for dashboards yet, so don't suggest this capability.
-- If neither run_metric_query nor run_sql is available, search here FIRST: saved charts/dashboards may answer the question. Search before claiming information is unavailable or suggesting raw SQL or elevated permissions.",
+- A dashboard result previews at most its first 5 charts; use "read_content" to see all of them.
+- If neither run_metric_query nor run_sql is available, search here first: saved charts/dashboards may answer the question. Search before claiming information is unavailable or suggesting raw SQL or elevated permissions.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1425,10 +1399,11 @@ Usage tips:
             "type": "string",
           },
           "searchQueries": {
+            "description": "Searches run together; pass several to cover different topics at once (e.g. "monthly revenue" and "user acquisition trends").",
             "items": {
               "properties": {
                 "label": {
-                  "description": "Full search query from the user (e.g., "revenue based on campaigns" not just "campaigns"). Include full context for better results.",
+                  "description": "The user's full request or its relevant part ("revenue based on campaigns", not just "campaigns"): the search understands natural language, so more context matches better.",
                   "type": "string",
                 },
               },
@@ -1440,7 +1415,7 @@ Usage tips:
             "type": "array",
           },
           "spaceSlug": {
-            "description": "Optional space slug/path. Use null to search the whole project. When set, only content in this space and descendants is returned.",
+            "description": "Space slug or path to search only inside that space and its descendants, or null to search the whole project.",
             "type": "string",
           },
           "verifiedOnly": {
@@ -1452,7 +1427,7 @@ Usage tips:
                 "type": "null",
               },
             ],
-            "description": "Set to true to search only admin-verified charts and dashboards; matching Data Apps remain included because they have no verification state. Null or false searches all content.",
+            "description": "True searches only admin-verified charts and dashboards; spaces are omitted, and Data Apps stay included because they have no verification state. Verification is a status, not text, so search topic keywords rather than the word "verified". Null or false searches all content.",
           },
         },
         "required": [
@@ -1473,15 +1448,7 @@ Usage tips:
         "readOnlyHint": true,
         "title": "List content",
       },
-      "description": "Tool: "list_content"
-Purpose:
-Lists accessible Lightdash content in a project as a browsable hierarchy.
-
-Usage tips:
-- By default, lists root-level spaces.
-- Pass a spaceSlug to list direct children and content inside that space.
-- Use page for pagination. Page starts at 1.
-- Results include names, slugs, content types, URLs, and space content counts.",
+      "description": "Browse the content you can access in a project as a hierarchy: the root-level spaces, or the child spaces and content inside one space.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1503,7 +1470,7 @@ Usage tips:
             "type": "string",
           },
           "spaceSlug": {
-            "description": "Optional space slug/path to list. Use null to list root-level content.",
+            "description": "Slug or path of the space to list; null lists the root-level spaces.",
             "type": "string",
           },
         },
@@ -1524,7 +1491,7 @@ Usage tips:
         "readOnlyHint": true,
         "title": "Read content",
       },
-      "description": "Read a dashboard, chart, or data app as JSON using its slug. Call this before editing a dashboard or chart. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only and returned without code.",
+      "description": "Read a dashboard, chart, SQL chart or data app as JSON by its slug. Dashboard chart tiles include a read-only chartQuery (the explore and field ids the chart uses) for targeting dashboard filters per tile without reading each chart. Data apps are read-only: a view of what the app shows and its per-explore data references, without code.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1541,7 +1508,7 @@ Usage tips:
             "type": "string",
           },
           "slug": {
-            "description": "Slug of the dashboard, chart, or data app to read.",
+            "description": "Slug of the content to read.",
             "minLength": 1,
             "type": "string",
           },
@@ -1577,16 +1544,9 @@ Usage tips:
       },
       "description": "Tool: resolve_url
 
-Purpose:
-Expands a Lightdash share short-link into the full URL it redirects to. Share links are opaque — this tool is the only way to see what they point at.
+Expand a share link, a URL whose path is "/share/<id>" (e.g. "<host>/share/aBcD1234..."), into the full URL it redirects to. Share links are opaque, so this is the only way to see what they point at; read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then fetch the content with other tools such as read_content.
 
-When to use:
-- ONLY for URLs whose path is "/share/<id>" (e.g. "<host>/share/aBcD1234..."). Nothing else is a share link.
-- NEVER call this for any other URL. A URL like "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/dashboards/<uuid>" already contains its identifiers — read them directly from the path and go straight to the appropriate tool.
-
-Usage tips:
-- Read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then use other tools (e.g. read_content) to fetch the content.
-- URLs that don't belong to this Lightdash instance cannot be resolved.",
+Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/dashboards/<uuid>", already contains its identifiers: read them from the path and go straight to the appropriate tool. URLs from another instance cannot be resolved.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1626,7 +1586,7 @@ Usage tips:
         "readOnlyHint": false,
         "title": "Create content",
       },
-      "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
+      "description": "Create a dashboard, chart or SQL chart from its JSON; the developing-in-lightdash skill has the shapes. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1656,7 +1616,7 @@ Usage tips:
                   },
                   "parameters": {},
                   "slug": {
-                    "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                    "description": "Requested slug. A taken slug gets a suffix, so reference the slug the result returns.",
                     "minLength": 1,
                     "type": "string",
                   },
@@ -1745,7 +1705,7 @@ Usage tips:
                   "parameters": {},
                   "pivotConfig": {},
                   "slug": {
-                    "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                    "description": "Requested slug. A taken slug gets a suffix, so reference the slug the result returns.",
                     "minLength": 1,
                     "type": "string",
                   },
@@ -1830,7 +1790,7 @@ Usage tips:
                     "type": "string",
                   },
                   "slug": {
-                    "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                    "description": "Requested slug. A taken slug gets a suffix, so reference the slug the result returns.",
                     "minLength": 1,
                     "type": "string",
                   },
@@ -1898,7 +1858,7 @@ Usage tips:
         "readOnlyHint": false,
         "title": "Edit content",
       },
-      "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
+      "description": "Edit a dashboard, chart or SQL chart with an RFC6902 patch against its JSON as read_content last returned it; the edited content is validated before it is saved. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -1909,7 +1869,7 @@ Usage tips:
             "type": "string",
           },
           "patch": {
-            "description": "RFC6902 Patch objects array to apply to the current dashboard or chart JSON",
+            "description": "RFC6902 operations applied to the current JSON",
             "items": {},
             "type": "array",
           },
@@ -1920,7 +1880,7 @@ Usage tips:
             "type": "string",
           },
           "slug": {
-            "description": "Slug of the dashboard or chart to edit",
+            "description": "Exact slug of the content to edit",
             "minLength": 1,
             "type": "string",
           },
@@ -1954,7 +1914,7 @@ Usage tips:
         "readOnlyHint": false,
         "title": "Create scheduled delivery",
       },
-      "description": "Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule. IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with create_content first, then schedule the created uuid. On success, share the returned href with the user — the delivery is managed (paused, edited, deleted) from that page.",
+      "description": "Create a scheduled delivery that sends a saved chart or dashboard to Slack channels or email recipients on a cron schedule. An enabled delivery sends from the moment it is created, so first propose the full configuration to the user (name, schedule in plain words, cron, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Content that exists only in this conversation is saved with create_content first, then scheduled by the created uuid: propose the save and the schedule as one plan with a single confirmation.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -2005,7 +1965,7 @@ Usage tips:
             "type": "object",
           },
           "enabled": {
-            "description": "Whether the delivery starts firing immediately. Use true only when the user explicitly confirmed it should go live; when in doubt, create it paused (false) — the user can enable it from the UI.",
+            "description": "true only when the user confirmed the delivery should go live; otherwise false creates it paused, for the user to enable from its page.",
             "type": "boolean",
           },
           "format": {
@@ -2492,8 +2452,6 @@ Usage tips:
       },
       "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore. For running queries, follow the polling instructions in the response.
 
-If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
-
 If the user mentions any time period, add an explicit date filter; never use sort + limit instead. Use inThePast for relative windows. Date fields from joined tables work identically in filters.
 
 Before authoring table calculations, read the \`table-calculations\` skill. Use type \`formula\`.
@@ -2505,7 +2463,7 @@ This tool returns metric query data only. For a visual, call render_chart after 
 If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
 Stop on terminal errors and correct the request before retrying.
 
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -2532,7 +2490,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
                 "type": "string",
               },
               "groupBy": {
-                "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.",
+                "description": "Dimensions that split metrics into separate series (one line per region, one bar per status), never the x-axis dimension. Example: dimensions=["order_date", "status"], groupBy=["status"] creates one series per status value. null for a single-series chart.",
                 "items": {
                   "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
                   "type": "string",
@@ -2646,8 +2604,8 @@ DO NOT simulate a period comparison by adding a second time-dimension granularit
 
 For aggregation entries:
 1. Add the entry to customMetrics with kind: "aggregation"
-2. Reference it in queryConfig.metrics using the format "table_name" (e.g. "customers_avg_customer_age")
-3. Reference it the same way in sorts, filters, chartConfig.yAxisMetrics
+2. Reference it in queryConfig.metrics by its field id, \`<table>_<name>\` (e.g. "customers_avg_customer_age")
+3. Reference it the same way in sorts, filters, tableCalculations and chartConfig.yAxisMetrics
 
 Example A — "Average customer age sorted descending"
   customMetrics: [{ kind: "aggregation", name: "avg_customer_age", label: "Average Customer Age", description: "...", type: "AVERAGE", baseDimensionName: "age", table: "customers", filters: null }]
@@ -3993,7 +3951,7 @@ Example B — "Revenue by month with year-over-year comparison"
                 "type": "array",
               },
               "dimensions": {
-                "description": "The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels.",
+                "description": "The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels. For a date, pick the field at the grain the user asked for (\`order_date_month\`, not \`order_date\`, for "by month").",
                 "items": {
                   "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
                   "type": "string",
@@ -4005,6 +3963,7 @@ Example B — "Revenue by month with year-over-year comparison"
                 "type": "string",
               },
               "filters": {
+                "description": "\`type\` sets how rules combine within each category; dimensions, metrics and tableCalculations always combine with each other by AND. \`or\` makes every rule in a category optional, so a non-date filter beside alternative date ranges is silently dropped. For several periods at one granularity (e.g. "Mar or May 2025"), keep \`and\` with one \`equals\` rule on the date field at that grain and a value per period (\`2025-03-01\`, \`2025-05-01\`). Use \`or\`, with one \`inBetween\` per range, only when arbitrary date ranges (e.g. "Mar 1–6 vs Apr 1–6") are the sole dimension filters.",
                 "properties": {
                   "dimensions": {
                     "items": {
@@ -6920,10 +6879,10 @@ Example B — "Revenue by month with year-over-year comparison"
                   },
                 ],
                 "default": null,
-                "description": "Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). REQUIRED whenever a selected field is marked "requires parameters" and the default value does not match what the user asked for — an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
+                "description": "Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
               },
               "sorts": {
-                "description": "Sort configuration for the query, it can use a combination of metrics and dimensions.",
+                "description": "Sort configuration for the query. Every sorted field must also be selected in dimensions, metrics or tableCalculations: to order by one field (e.g. \`order_date_month_num\`) while displaying another (\`order_date_month_name\`), select both as dimensions.",
                 "items": {
                   "properties": {
                     "descending": {
@@ -6959,7 +6918,14 @@ Example B — "Revenue by month with year-over-year comparison"
                 "description": "
 Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
-Use them whenever the question needs math the metric query alone can't express: arithmetic across metrics (\`metric_a + metric_b\`), ratios, percent of total, period-over-period change, running totals, moving averages, ranking, row-level comparisons, or aggregating already-aggregated metrics.
+Use them whenever the question needs math the metric query alone can't express; the metric query cannot combine metrics, only a table calculation can. Patterns (\`m\` a metric, \`d\` a date dimension, \`g\` a grouping dimension):
+- Arithmetic and ratios across metrics: \`metric_a + metric_b\`, \`metric_a / metric_b\`
+- Percent of total: \`m / SUM(m)\`
+- Aggregating already-aggregated metrics, e.g. the average of monthly totals: \`AVG(m)\` over a monthly query
+- Period-over-period change: \`(m - LAG(m, ORDER BY d)) / LAG(m, ORDER BY d)\`; add \`PARTITION BY g\` per group
+- Running totals and moving averages: \`RUNNING_TOTAL(m, ORDER BY d)\`, \`MOVING_AVG(m, 2, ORDER BY d)\`
+- Cohort rebasing: \`m / FIRST(m, PARTITION BY g, ORDER BY d)\`
+- Top N per group: \`ROW_NUMBER(PARTITION BY g, ORDER BY m DESC)\` or \`RANK(...)\`, then filter that calculation in \`filters.tableCalculations\`; without the filter every row comes back with its rank
 
 **Technical Requirements:**
 - Appear as additional columns in query results
@@ -6986,7 +6952,9 @@ Use them whenever the question needs math the metric query alone can't express: 
 Reference fields by their field id directly, e.g. \`orders_total_revenue / orders_order_count\`. No prefix, no braces, no leading \`=\`.
 Any selected dimension, metric, custom metric (\`<table>_<name>\`), or another table calculation name can be referenced.
 Operators: + - * / % ^, comparisons = < > <= >= <>, boolean AND/OR/NOT, string literals in double quotes, parentheses for grouping.
-Functions include IF, COALESCE, ROUND, ABS, CONCAT, date functions (YEAR, DATE_TRUNC, DATE_DIFF, DATE_ADD), aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF), and window functions (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, FIRST, LAST).
+Functions: IF, COALESCE, ISNULL, ROUND, ABS, CEIL, FLOOR; string (CONCAT, LEN, TRIM, LOWER, UPPER, LEFT, RIGHT, REPLACE, SUBSTRING, SPLIT_PART, STRPOS, STARTS_WITH); date (TODAY, NOW, YEAR, MONTH, DAY, LAST_DAY, DATE_TRUNC, DATE_ADD, DATE_SUB, DATE_DIFF); aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF, AVERAGEIF, COUNTIF); window (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, NTILE, FIRST, LAST).
+MIN and MAX take one argument to aggregate over the whole result, or two to compare per row: \`MIN(orders_total_revenue, 100)\` caps each row at 100. ROUND takes optional decimal places, IF an optional else value, and LAG and LEAD \`(value, [offset], [default])\`.
+String positions are 1-indexed; STRPOS returns 0 when the substring is absent. Date units are "day", "week", "month", "quarter" or "year": \`DATE_TRUNC("month", d)\`, \`DATE_ADD(d, 3, "month")\`, and \`DATE_DIFF(a, b, "month")\`, which is positive when b is after a.
 Window functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. \`LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)\`.
 MOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is \`MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)\`.
 All branches of an IF must return the same type.",
@@ -6998,7 +6966,7 @@ All branches of an IF must return the same type.",
                       "type": "string",
                     },
                     "resultType": {
-                      "description": "Data type the formula evaluates to. null defaults to "number".",
+                      "description": "Data type the formula evaluates to, e.g. "boolean" for \`date_a < date_b\` or "string" for \`IF(m > 1000, "high", "low")\`. null defaults to "number".",
                       "enum": [
                         "number",
                         "string",
@@ -7232,7 +7200,7 @@ To render a custom chart type instead, set chartConfig to { customChartTypeSlug,
 
 The full chart payload is app metadata, drawn only by MCP App-capable clients. In structuredContent, \`echartsOption: {}\` is a placeholder for that payload, not a failed render. If your client cannot display MCP Apps, the user has not seen the chart: build the visual from the query rows. Custom artifacts should build visuals from query data instead.
 
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -7260,7 +7228,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
                     "type": "string",
                   },
                   "groupBy": {
-                    "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.",
+                    "description": "Dimensions that split metrics into separate series (one line per region, one bar per status), never the x-axis dimension. Example: dimensions=["order_date", "status"], groupBy=["status"] creates one series per status value. null for a single-series chart.",
                     "items": {
                       "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
                       "type": "string",
@@ -7573,15 +7541,11 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
       "description": "Tool: search_field_values
 
 Purpose:
-Validate or discover concrete values for a specific dimension before building a filter. Returns up to 100 unique values matching the query.
+Validate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.
 
 Usage Tips:
-- Specify the table and field ID whose values you want to search
-- Prefer a non-empty query containing candidate text, such as "complete" for a status
-- Do not omit query or use an empty query to enumerate a warehouse column. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
-- If the user or field metadata already provides the exact value, use it directly instead of searching
+- Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly
 - Omit filters when the search does not need additional filters
-- When a filters object is provided, include type, dimensions, metrics, and tableCalculations. Use null or [] for every unused category; never omit a category
 
 Reading the result: the values describe observed data, not the permitted filter literals.
 ",
@@ -10475,7 +10439,7 @@ Reading the result: the values describe observed data, not the permitted filter 
             "type": "string",
           },
           "query": {
-            "description": "Candidate text to match within field values. Prefer a non-empty value. Without candidate text, only curated field metadata values can be returned reliably; an empty warehouse-backed search may be rejected.",
+            "description": "Candidate text to match within field values, e.g. "complete" for a status. Without candidate text only curated field metadata values come back reliably, and an empty warehouse-backed search may be rejected, so never use it to enumerate a column.",
             "type": "string",
           },
           "table": {
@@ -10511,13 +10475,13 @@ Returns SQL data, not chart artifacts. The platform provides a query-specific SQ
 If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
 Stop on terminal errors and correct the request before retrying.
 
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
           "limit": {
             "default": 500,
-            "description": "Maximum number of rows to return. Defaults to 500, max 500.",
+            "description": "Maximum number of rows to return.",
             "exclusiveMinimum": 0,
             "maximum": 500,
             "type": "integer",
@@ -10656,7 +10620,7 @@ Stop on terminal errors and correct the request before retrying.
 
 Returns the original query's data on completion. For a visual, call render_chart after get_query_result returns done for a metric query. SQL results cannot be rendered by render_chart.
 
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.",
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -11029,7 +10993,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "readOnlyHint": true,
         "title": "Read Skill",
       },
-      "description": "Read the main SKILL.md instructions for a Lightdash built-in skill. Call list_skills first to discover available skill names.",
+      "description": "Read the main SKILL.md instructions of a Lightdash built-in skill named by list_skills.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -11149,7 +11113,7 @@ When building an HTML/React artifact that calls MCP, load the mcp-artifact-integ
         "readOnlyHint": true,
         "title": "Read Skill Resource",
       },
-      "description": "Read a supporting resource file for a Lightdash built-in skill. Use the resource path returned by list_skills.",
+      "description": "Read a supporting resource file of a Lightdash built-in skill.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -11502,25 +11466,13 @@ Response shape (MCP CallToolResult):
       "description": "Tool: generate_data_app
 
 Purpose:
-Start building a new data app: an interactive application generated from a brief on top of a Lightdash project's semantic layer. Each build produces one version of the app. Charts, dashboards, and other saved content have their own tools.
+Start building a new data app (an interactive app, a slide show or a PDF report) from a brief, on top of a Lightdash project's semantic layer. Each build produces one version of the app. To change an existing app, use iterate_data_app; charts, dashboards and other saved content have their own tools.
 
 Important:
-- You name the app. The name fixes both the app's name and its slug at creation, and neither changes afterwards. A name already taken in the project gets a numeric suffix on the slug, so identify the app by the slug this call returns, never one you derived from the name.
-- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the returned slug every 15 seconds until its status is "ready", "error", or "cancelled". Call this tool once per request.
+- The build runs in the background for several minutes, and this call returns once it starts. Call it once per request, then poll get_data_app_build_status with the returned slug until the build ends.
+- A name already taken in the project gets a numeric suffix on the slug, so use the slug this call returns, never one derived from the name.
 - The app is created as the calling user's personal app: at the project root, in no space, visible only to them until they move it.
 - An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.
-- An unknown themeSlug fails before the build starts and lists the valid slugs. Call list_data_app_themes when the user names a theme, brand, or look.
-- For an outside API (analytics, billing, CRM), pass externalConnectionSlugs from list_data_app_connections.
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<confirmation that the build started>" }]
-- structuredContent: {
-    slug:     string,  // the app's permanent slug; pass it to get_data_app_build_status
-    version:  number,  // the version of the app this build produces
-    warnings: string[] // e.g. a connection the brief names but does not link
-  }
-
-Errors: an unknown themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -11544,7 +11496,7 @@ Errors: an unknown themeSlug, dashboardSlug, chartSlug, or externalConnectionSlu
               },
             ],
             "default": null,
-            "description": "Saved charts (slugs from findContent) whose queries the app is built on; the charts themselves stay unchanged. Omit when not building on saved charts.",
+            "description": "Saved charts whose queries the app builds on: slugs from findContent (find_content over MCP). The charts stay unchanged.",
           },
           "dashboardSlug": {
             "anyOf": [
@@ -11556,7 +11508,7 @@ Errors: an unknown themeSlug, dashboardSlug, chartSlug, or externalConnectionSlu
               },
             ],
             "default": null,
-            "description": "Generate from an existing dashboard: its slug (from findContent). The app starts from the dashboard's layout and charts; the dashboard itself stays unchanged. Omit when not generating from a dashboard.",
+            "description": "Existing dashboard to start from: its slug, from findContent (find_content over MCP). The app starts from the dashboard's layout and charts; the dashboard stays unchanged.",
           },
           "externalConnectionSlugs": {
             "anyOf": [
@@ -11571,10 +11523,10 @@ Errors: an unknown themeSlug, dashboardSlug, chartSlug, or externalConnectionSlu
               },
             ],
             "default": null,
-            "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). The build gets their instructions and samples and can call them at runtime. An unknown or unlinkable slug fails and starts no build. Omit when the app uses no external API.",
+            "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). A data app calls an outside API only through a linked connection; naming one in the brief does not link it. Omit when the app uses no outside API.",
           },
           "name": {
-            "description": "Display name for the app: a headline-short title, in title case, naming what the app shows ("Revenue Overview"). The app's slug is derived from it at creation, so treat the name as final — it is not renamed later.",
+            "description": "Display name: a headline-short title in title case naming what the app shows ("Revenue Overview"). It also sets the app's permanent slug, so pick the final name now.",
             "type": "string",
           },
           "projectUuid": {
@@ -11584,7 +11536,7 @@ Errors: an unknown themeSlug, dashboardSlug, chartSlug, or externalConnectionSlu
             "type": "string",
           },
           "prompt": {
-            "description": "A self-contained brief for the coding agent that builds the app: what the app shows, for whom, and how it behaves. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results: when this thread has already settled the analysis, carry it over — for each visualization, its title, a one-line description, and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\` — as queries, never pasted numbers, which would be hardcoded into the app.",
+            "description": "Self-contained brief for the coding agent: what the app shows, for whom, and how it behaves. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results. Give a visualization as a one-line description and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.",
             "type": "string",
           },
           "template": {
@@ -11603,7 +11555,7 @@ Errors: an unknown themeSlug, dashboardSlug, chartSlug, or externalConnectionSlu
               },
             ],
             "default": null,
-            "description": "Starter template the builder would use: "dashboard" for a dashboard-style app, "slideshow" for a slide show, "pdf" for a PDF report, "custom" for anything else. Omit when the user did not ask for one.",
+            "description": "Starter template: "dashboard" for a dashboard-style app, "slideshow" for a slide show, "pdf" for a PDF report. Omit it, or pass "custom", for anything else.",
           },
           "themeSlug": {
             "anyOf": [
@@ -11615,7 +11567,7 @@ Errors: an unknown themeSlug, dashboardSlug, chartSlug, or externalConnectionSlu
               },
             ],
             "default": null,
-            "description": "Organization theme to build the app with: its slug, from the attached context ("Theme: <name> (slug: <slug>)"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build.",
+            "description": "Organization theme slug: the one the attached context lists ("Theme: <name> (slug: <slug>)"), which beats a theme named in the message, or else, when the user names a theme, brand or look, one from listDataAppThemes (list_data_app_themes over MCP). The coding agent receives the theme's files directly, so set the look here, not in the brief. Omit it for the organization default.",
           },
         },
         "required": [
@@ -11669,26 +11621,12 @@ Errors: an unknown themeSlug, dashboardSlug, chartSlug, or externalConnectionSlu
       "description": "Tool: iterate_data_app
 
 Purpose:
-Start a build that adds a version to an existing data app from a follow-up brief. Use it to change, fix, or extend an app that already exists; generate_data_app is the tool for a brand-new app.
+Start a build that adds a version to an existing data app from a brief describing the change. The app's name and slug stay as they are. Use generate_data_app for a brand-new app, and iterate_custom_chart_type, if available, for a custom chart type.
 
 Important:
-- The coding agent works from the app's current source, so the brief describes the change rather than restating the whole app.
-- The app's name and slug stay as they are. The build adds a version to the app named by appSlug.
-- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the same appSlug every 15 seconds until its status is "ready", "error", or "cancelled". Call this tool once per request.
-- While a version is already building for the app, this call fails with "A version is already building for this app". Poll get_data_app_build_status until that build reaches a terminal status, then call this tool again.
+- The build runs in the background for several minutes, and this call returns once it starts. Call it once per request, then poll get_data_app_build_status with the same appSlug until the build ends.
+- While a version of the app is already building, this call fails. Poll get_data_app_build_status until that build ends, then call this tool again.
 - An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.
-- Pass themeSlug only when the user asks to switch the app's theme; omitting it keeps the current one. An unknown themeSlug fails before the build starts and lists the valid slugs, which list_data_app_themes also returns.
-- For an outside API (analytics, billing, CRM), pass externalConnectionSlugs from list_data_app_connections.
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<confirmation that the build started>" }]
-- structuredContent: {
-    slug:     string,  // the app's slug, unchanged by this build
-    version:  number,  // the version of the app this build produces
-    warnings: string[] // e.g. a connection the brief names but does not link
-  }
-
-Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those, if available.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -11700,7 +11638,7 @@ Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConn
             "type": "string",
           },
           "appSlug": {
-            "description": "Slug of the data app to change — from an earlier generateDataApp or iterateDataApp result, findContent, or readContent.",
+            "description": "Slug of the app to change: from an earlier build result, findContent or readContent (find_content, read_content over MCP).",
             "type": "string",
           },
           "chartSlugs": {
@@ -11716,7 +11654,7 @@ Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConn
               },
             ],
             "default": null,
-            "description": "Saved charts (slugs from findContent) whose queries the change builds on; the charts themselves stay unchanged. Omit when the change does not reference saved charts.",
+            "description": "Saved charts whose queries the change builds on: slugs from findContent (find_content over MCP). The charts stay unchanged.",
           },
           "dashboardSlug": {
             "anyOf": [
@@ -11728,7 +11666,7 @@ Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConn
               },
             ],
             "default": null,
-            "description": "Pull in an existing dashboard: its slug (from findContent). The coding agent gets the dashboard's layout and charts as context; the dashboard itself stays unchanged. Omit when the change does not reference a dashboard.",
+            "description": "Existing dashboard to pull in: its slug, from findContent (find_content over MCP). The coding agent gets the dashboard's layout and charts; the dashboard stays unchanged.",
           },
           "externalConnectionSlugs": {
             "anyOf": [
@@ -11743,7 +11681,7 @@ Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConn
               },
             ],
             "default": null,
-            "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). Adds to the connections the app already links; none are removed. An unknown or unlinkable slug fails and starts no build. Omit when the change needs no new external API.",
+            "description": "External connections to add to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). Connections the app already links stay. A data app calls an outside API only through a linked connection; naming one in the brief does not link it. Omit when the change needs no new outside API.",
           },
           "projectUuid": {
             "description": "Project UUID for this operation.",
@@ -11752,7 +11690,7 @@ Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConn
             "type": "string",
           },
           "prompt": {
-            "description": "A self-contained brief of the change for the coding agent, which works from the app's current source and explores the semantic layer itself, but sees neither this conversation nor its query results. Describe what to change and the outcome you expect; carry over any analysis this thread already settled as queries — a number pasted into the brief gets hardcoded into the app.",
+            "description": "Self-contained brief of the change for the coding agent, which works from the app's current source. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results. Describe what to change and the outcome to expect, leaving out what stays the same; for a failed build, name what went wrong. Give a visualization as a one-line description and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.",
             "type": "string",
           },
           "themeSlug": {
@@ -11765,7 +11703,7 @@ Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConn
               },
             ],
             "default": null,
-            "description": "Organization theme to build the app with: its slug, from the attached context ("Theme: <name> (slug: <slug>)"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build. On an existing app, passing it switches the app's theme; omit it unless the user asked to switch the theme in this request, so the app keeps its current theme.",
+            "description": "Organization theme slug: the one the attached context lists ("Theme: <name> (slug: <slug>)"), which beats a theme named in the message, or else, when the user names a theme, brand or look, one from listDataAppThemes (list_data_app_themes over MCP). The coding agent receives the theme's files directly, so set the look here, not in the brief. Passing it switches the app's theme, so pass it only when the user asks to switch the theme in this request; omit it to keep the current one.",
           },
         },
         "required": [
@@ -11819,25 +11757,10 @@ Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConn
       "description": "Tool: list_data_app_themes
 
 Purpose:
-List the organization's themes. A theme is a bundle of styling a data app or custom chart type can be built with; each has a slug you pass as themeSlug to whichever build tools are available: generate_data_app, iterate_data_app, create_custom_chart_type or iterate_custom_chart_type.
+List the organization's themes: bundles of styling a data app or custom chart type can be built with.
 
 Important:
-- Call it when the user names a theme, brand, or look for a data app or custom chart type, then match the request to a theme and pass its slug.
-- Skip it when the user says nothing about the look: the organization default theme applies.
-- An organization may have no themes at all, in which case omit themeSlug.
-
-Parameters: none.
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<the themes, one per line>" }]
-- structuredContent: {
-    themes: [{
-      slug:        string,        // pass as themeSlug to a build tool
-      name:        string,
-      isDefault:   boolean,       // applied when themeSlug is omitted
-      description: string | null
-    }]
-  }
+- Call it when the user names a theme, brand or look; match the request to one theme by name or description and pass its slug as themeSlug. When none matches, ask the user which theme they mean.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -11924,30 +11847,10 @@ Response shape (MCP CallToolResult):
       "description": "Tool: list_data_app_connections
 
 Purpose:
-List the project's external connections you can link to a data app. An external connection is an admin-configured, credentialed proxy to an outside API (product analytics, billing, CRM, ...); a data app can call an API only through a linked connection.
+List the project's external connections you may link to a data app: admin-configured, credentialed proxies to outside APIs (product analytics, billing, CRM).
 
 Important:
-- Call it when the user wants a data app to use an outside API or names a connection, then pass the matching slugs as externalConnectionSlugs to generate_data_app or iterate_data_app.
-- Only connections you may link are listed. Credentials are never returned.
-- Pass appSlug to also see which connections that app already links.
-
-Parameters:
-- appSlug: Optional. A data app's slug; fills linkedAliases for that app.
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<the connections, one per line>" }]
-- structuredContent: {
-    connections: [{
-      slug:          string,        // pass in externalConnectionSlugs
-      name:          string,
-      authType:      string,        // "none" | "api_key" | "bearer_token" | "google_service_account" | "oauth_client_credentials"
-      origin:        string,        // the API's base URL
-      instructions:  string | null, // how to use the API, written by an admin
-      linkedAliases: string[]       // aliases the appSlug app links it under; empty when not linked or no appSlug
-    }]
-  }
-
-Errors: an unknown appSlug, or an app this caller may not view, returns an error.
+- Call it when the user wants a data app to use an outside API or names a connection; match the request to a connection by name, slug or origin and pass its slug in externalConnectionSlugs. When none matches, tell the user no such connection is available rather than starting a build that cannot reach it.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -12060,31 +11963,13 @@ Errors: an unknown appSlug, or an app this caller may not view, returns an error
       "description": "Tool: get_data_app_build_status
 
 Purpose:
-Check how a data app or custom chart type build is going, and get its URL once it is ready. Each build produces one version.
+Check how a data app or custom chart type build is going, and get its URL once it is ready.
 
 Important:
-- Poll every 15 seconds — "nextPollAfterMs" in the response carries the same number in milliseconds. A build usually takes several minutes.
-- Stop polling once "status" is "ready", "error", or "cancelled". Those are terminal; the version never changes again.
-- "slug" is the app's permanent identifier and never changes, even when the app is renamed. Keep using the slug you started the build with.
+- Poll every 15 seconds, as "nextPollAfterMs" in the response says; a build usually takes several minutes.
+- Stop polling once "status" is "ready", "error" or "cancelled": the version never changes again.
+- Keep using the slug the build started with: it never changes, even when the app is renamed.
 - An agent-scoped session restricted to specific spaces cannot read a personal app, which is what a build started over MCP creates. Call this tool without agentUuid to poll a build you started.
-
-Parameters:
-- appSlug: The app's slug, as returned when the build started.
-- version: Which version of the app to report on. Omit it for the latest version, which is the one a build you just started produces.
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<human-readable status summary>" }]
-- structuredContent: {
-    status:          string,        // "pending" | "sandbox" | "catalog" | "generating" | "building" | "packaging" | "ready" | "error" | "cancelled"
-    statusMessage:   string,        // short line describing what the build is doing, or how it ended
-    errorMessage:    string | null, // why the build failed, set only when status is "error"
-    name:            string,        // the app's name
-    slug:            string,        // the app's permanent slug
-    href:            string,        // URL to open the app in Lightdash; Chart Studio for a custom chart type
-    nextPollAfterMs: number         // how long to wait before polling again
-  }
-
-Errors: an unknown slug, or an app or version this caller may not view, returns an error rather than a status.
 ",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -12200,9 +12085,8 @@ Errors: an unknown slug, or an app or version this caller may not view, returns 
 
 Build a custom chart type: a reusable visualization for saved charts in the project, when built-in chart types cannot draw what the user wants. For a whole interactive app, use generate_data_app, if available.
 
-- Describe the expected data by role (a date, a category, a value), not by a query's fields. Pass queryUuid to share sample rows from a completed run_metric_query.
-- Poll get_data_app_build_status with the returned slug as appSlug until "ready", "error" or "cancelled", then send the user to Chart Studio. Call this tool once per request.
-- Use the returned slug: a taken name gets a numeric suffix.
+- Describe the expected data by role (a date, a category, a value), not by a query's fields.
+- Poll get_data_app_build_status with the returned slug as appSlug (a taken name gets a numeric suffix) until "ready", "error" or "cancelled", then send the user to Chart Studio. Call this tool once per request.
 - For a named theme, brand or look, find its themeSlug with list_data_app_themes.
 - A chart type created over MCP is the caller's personal one, in no space, so a space-restricted agent-scoped session cannot read it. Omit agentUuid here and in get_data_app_build_status.
 ",
@@ -12300,7 +12184,7 @@ Build a custom chart type: a reusable visualization for saved charts in the proj
 
 Start a build that adds a version to an existing custom chart type from a follow-up brief. For a new chart type use create_custom_chart_type; for a data app use iterate_data_app, if available.
 
-- Describe the change, not the whole chart type. The build keeps the chart type's inputs, so charts that already use it keep working. Pass queryUuid to share the first rows of a completed run_metric_query as sample data. Pass themeSlug only to switch the theme.
+- Describe the change, not the whole chart type. The build keeps the chart type's inputs, so charts that already use it keep working. Pass themeSlug only to switch the theme.
 - Poll get_data_app_build_status with appSlug set to the slug until it is "ready", "error" or "cancelled". If a version is already building, wait for it to end before calling again.
 - A chart type created over MCP is the caller's personal one, in no space, so a space-restricted agent-scoped session cannot read it. Omit agentUuid here and in get_data_app_build_status.
 ",
@@ -12396,7 +12280,7 @@ Start a build that adds a version to an existing custom chart type from a follow
       },
       "description": "Tool: find_custom_chart_types
 
-Search the project's custom chart types (reusable visualizations, including ones installed from the library) by \`query\` against name and description, or fetch one by \`slug\`. Set exactly one of the two; to browse page by page, use list_custom_chart_types.
+Search the project's custom chart types (reusable visualizations, including ones installed from the library) by \`query\` against name and description, or fetch one by \`slug\`. To browse page by page, use list_custom_chart_types.
 
 - Each match has its latest version, field slots, config options and a Chart Studio link.
 - Reuse a fitting type before building one with create_custom_chart_type, if available.
@@ -12782,7 +12666,7 @@ Search the project's custom chart types (reusable visualizations, including ones
       },
       "description": "Tool: list_custom_chart_types
 
-Browse the project's custom chart types (including ones installed from the library), newest first, one page at a time. Page starts at 1.
+Browse the project's custom chart types (including ones installed from the library), newest first, one page at a time.
 
 - Each item has the same fields as find_custom_chart_types: latest version, field slots, config options and a Chart Studio link.
 - Use find_custom_chart_types to search by text or fetch one by slug.
@@ -13186,8 +13070,6 @@ exports[`MCP tool contracts > matches the filter-expression run_metric_query too
   },
   "description": "Run a governed metric query through the Lightdash semantic layer. Choose an explore and its metrics and dimensions (from grep_fields / get_metadata), add filters, sorts and a limit, and get consistent, centrally defined results. This is the preferred way to answer data questions and to reproduce a saved chart's query — prefer it over raw SQL whenever the fields exist in a modeled explore. For running queries, follow the polling instructions in the response.
 
-If any selected field is marked "requires parameters" in field discovery or metadata, set the right values in queryConfig.parameters — an unset parameter silently resolves to its default, which can make the query return data that does not match the question.
-
 If the user mentions any time period, add an explicit date filter; never use sort + limit instead. Use inThePast for relative windows. Date fields from joined tables work identically in filters.
 
 Before authoring table calculations, read the \`table-calculations\` skill. Use type \`formula\`.
@@ -13199,7 +13081,7 @@ This tool returns metric query data only. For a visual, call render_chart after 
 If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.
 Stop on terminal errors and correct the request before retrying.
 
-When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.
+When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data.
 
 Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines category placement and nullability. Each category uses AND or OR, never both; categories combine with AND. Conditional custom metric filters are AND-only. Before writing filter expressions, read the \`filter-expressions\` skill.",
   "inputSchema": {
@@ -13227,7 +13109,7 @@ Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema d
             "type": "string",
           },
           "groupBy": {
-            "description": "Dimensions to split metrics into separate series (e.g., one line per region, one bar per status). IMPORTANT: Do NOT include the x-axis dimension in groupBy - only include dimensions you want to use for breaking down the data into multiple series. Example: dimensions=["order_date", "status"], groupBy=["status"] creates separate series for each status value. Leave null for simple single-series charts.",
+            "description": "Dimensions that split metrics into separate series (one line per region, one bar per status), never the x-axis dimension. Example: dimensions=["order_date", "status"], groupBy=["status"] creates one series per status value. null for a single-series chart.",
             "items": {
               "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
               "type": "string",
@@ -13341,8 +13223,8 @@ DO NOT simulate a period comparison by adding a second time-dimension granularit
 
 For aggregation entries:
 1. Add the entry to customMetrics with kind: "aggregation"
-2. Reference it in queryConfig.metrics using the format "table_name" (e.g. "customers_avg_customer_age")
-3. Reference it the same way in sorts, filters, chartConfig.yAxisMetrics
+2. Reference it in queryConfig.metrics by its field id, \`<table>_<name>\` (e.g. "customers_avg_customer_age")
+3. Reference it the same way in sorts, filters, tableCalculations and chartConfig.yAxisMetrics
 
 Example A — "Average customer age sorted descending"
   customMetrics: [{ kind: "aggregation", name: "avg_customer_age", label: "Average Customer Age", description: "...", type: "AVERAGE", baseDimensionName: "age", table: "customers", filters: null }]
@@ -13461,7 +13343,7 @@ Example B — "Revenue by month with year-over-year comparison"
             "type": "array",
           },
           "dimensions": {
-            "description": "The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels.",
+            "description": "The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels. For a date, pick the field at the grain the user asked for (\`order_date_month\`, not \`order_date\`, for "by month").",
             "items": {
               "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
               "type": "string",
@@ -13544,10 +13426,10 @@ Example B — "Revenue by month with year-over-year comparison"
               },
             ],
             "default": null,
-            "description": "Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). REQUIRED whenever a selected field is marked "requires parameters" and the default value does not match what the user asked for — an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
+            "description": "Lightdash parameter values for this query, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.",
           },
           "sorts": {
-            "description": "Sort configuration for the query, it can use a combination of metrics and dimensions.",
+            "description": "Sort configuration for the query. Every sorted field must also be selected in dimensions, metrics or tableCalculations: to order by one field (e.g. \`order_date_month_num\`) while displaying another (\`order_date_month_name\`), select both as dimensions.",
             "items": {
               "properties": {
                 "descending": {
@@ -13583,7 +13465,14 @@ Example B — "Revenue by month with year-over-year comparison"
             "description": "
 Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
-Use them whenever the question needs math the metric query alone can't express: arithmetic across metrics (\`metric_a + metric_b\`), ratios, percent of total, period-over-period change, running totals, moving averages, ranking, row-level comparisons, or aggregating already-aggregated metrics.
+Use them whenever the question needs math the metric query alone can't express; the metric query cannot combine metrics, only a table calculation can. Patterns (\`m\` a metric, \`d\` a date dimension, \`g\` a grouping dimension):
+- Arithmetic and ratios across metrics: \`metric_a + metric_b\`, \`metric_a / metric_b\`
+- Percent of total: \`m / SUM(m)\`
+- Aggregating already-aggregated metrics, e.g. the average of monthly totals: \`AVG(m)\` over a monthly query
+- Period-over-period change: \`(m - LAG(m, ORDER BY d)) / LAG(m, ORDER BY d)\`; add \`PARTITION BY g\` per group
+- Running totals and moving averages: \`RUNNING_TOTAL(m, ORDER BY d)\`, \`MOVING_AVG(m, 2, ORDER BY d)\`
+- Cohort rebasing: \`m / FIRST(m, PARTITION BY g, ORDER BY d)\`
+- Top N per group: \`ROW_NUMBER(PARTITION BY g, ORDER BY m DESC)\` or \`RANK(...)\`, then filter that calculation in \`filters.tableCalculations\`; without the filter every row comes back with its rank
 
 **Technical Requirements:**
 - Appear as additional columns in query results
@@ -13610,7 +13499,9 @@ Use them whenever the question needs math the metric query alone can't express: 
 Reference fields by their field id directly, e.g. \`orders_total_revenue / orders_order_count\`. No prefix, no braces, no leading \`=\`.
 Any selected dimension, metric, custom metric (\`<table>_<name>\`), or another table calculation name can be referenced.
 Operators: + - * / % ^, comparisons = < > <= >= <>, boolean AND/OR/NOT, string literals in double quotes, parentheses for grouping.
-Functions include IF, COALESCE, ROUND, ABS, CONCAT, date functions (YEAR, DATE_TRUNC, DATE_DIFF, DATE_ADD), aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF), and window functions (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, FIRST, LAST).
+Functions: IF, COALESCE, ISNULL, ROUND, ABS, CEIL, FLOOR; string (CONCAT, LEN, TRIM, LOWER, UPPER, LEFT, RIGHT, REPLACE, SUBSTRING, SPLIT_PART, STRPOS, STARTS_WITH); date (TODAY, NOW, YEAR, MONTH, DAY, LAST_DAY, DATE_TRUNC, DATE_ADD, DATE_SUB, DATE_DIFF); aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF, AVERAGEIF, COUNTIF); window (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, NTILE, FIRST, LAST).
+MIN and MAX take one argument to aggregate over the whole result, or two to compare per row: \`MIN(orders_total_revenue, 100)\` caps each row at 100. ROUND takes optional decimal places, IF an optional else value, and LAG and LEAD \`(value, [offset], [default])\`.
+String positions are 1-indexed; STRPOS returns 0 when the substring is absent. Date units are "day", "week", "month", "quarter" or "year": \`DATE_TRUNC("month", d)\`, \`DATE_ADD(d, 3, "month")\`, and \`DATE_DIFF(a, b, "month")\`, which is positive when b is after a.
 Window functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. \`LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)\`.
 MOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is \`MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)\`.
 All branches of an IF must return the same type.",
@@ -13622,7 +13513,7 @@ All branches of an IF must return the same type.",
                   "type": "string",
                 },
                 "resultType": {
-                  "description": "Data type the formula evaluates to. null defaults to "number".",
+                  "description": "Data type the formula evaluates to, e.g. "boolean" for \`date_a < date_b\` or "string" for \`IF(m > 1000, "high", "low")\`. null defaults to "number".",
                   "enum": [
                     "number",
                     "string",
@@ -13782,13 +13673,10 @@ exports[`MCP tool contracts > matches the filter-expression search_field_values 
   "description": "Tool: search_field_values
 
 Purpose:
-Validate or discover concrete values for a specific dimension before building a filter. Returns up to 100 unique values matching the query.
+Validate or disambiguate a candidate value for a specific dimension (e.g. a product name or status) before filtering on it. Returns up to 100 unique values matching the query.
 
 Usage Tips:
-- Specify the table and field ID whose values you want to search
-- Prefer a non-empty query containing candidate text, such as "complete" for a status
-- Do not omit query or use an empty query to enumerate a warehouse column. A query without candidate text can return curated values defined in field metadata; otherwise it may be rejected to prevent an unbounded distinct-value scan
-- If the user or field metadata already provides the exact value, use it directly instead of searching
+- Search only when the value is uncertain: when the user or field metadata already gives the exact value, filter on it directly
 - Omit filters when the search does not need additional filters
 - Filter expressions use \`<fieldId> <operator>[=<value>...]\`. The input schema defines filter scope, nullability, and the dimension-only AND constraint. Before writing filter expressions, read the \`filter-expressions\` skill.
 
@@ -13828,7 +13716,7 @@ Reading the result: the values describe observed data, not the permitted filter 
         "type": "string",
       },
       "query": {
-        "description": "Candidate text to match within field values. Prefer a non-empty value. Without candidate text, only curated field metadata values can be returned reliably; an empty warehouse-backed search may be rejected.",
+        "description": "Candidate text to match within field values, e.g. "complete" for a status. Without candidate text only curated field metadata values come back reliably, and an empty warehouse-backed search may be rejected, so never use it to enumerate a column.",
         "type": "string",
       },
       "table": {
