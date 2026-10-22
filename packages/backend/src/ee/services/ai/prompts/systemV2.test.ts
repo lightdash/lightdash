@@ -1111,8 +1111,6 @@ describe('getSystemPromptV2 data apps', () => {
         expect(content).toContain('## Data apps');
         expect(content).toContain('generateDataApp');
         expect(content).toContain('iterateDataApp');
-        expect(content).toContain('dashboardSlug');
-        expect(content).toContain('chartSlugs');
         expect(content).not.toContain('{{generate_data_app_section}}');
     });
 

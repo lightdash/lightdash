@@ -905,7 +905,7 @@
                 "readOnlyHint": false,
                 "title": "Generate data app"
             },
-            "description": "Tool: generate_data_app\n\nPurpose:\nStart building a new data app: an interactive application generated from a brief on top of a Lightdash project's semantic layer. Each build produces one version of the app. Charts, dashboards, and other saved content have their own tools.\n\nImportant:\n- You name the app. The name fixes both the app's name and its slug at creation, and neither changes afterwards. A name already taken in the project gets a numeric suffix on the slug, so identify the app by the slug this call returns, never one you derived from the name.\n- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the returned slug every 15 seconds until its status is \"ready\", \"error\", or \"cancelled\". Call this tool once per request.\n- The app is created as the calling user's personal app: at the project root, in no space, visible only to them until they move it.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n- An unknown themeSlug fails before the build starts and lists the valid slugs. Call list_data_app_themes when the user names a theme, brand, or look.\n- For an outside API (analytics, billing, CRM), pass externalConnectionSlugs from list_data_app_connections.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<confirmation that the build started>\" }]\n- structuredContent: {\n    slug:     string,  // the app's permanent slug; pass it to get_data_app_build_status\n    version:  number,  // the version of the app this build produces\n    warnings: string[] // e.g. a connection the brief names but does not link\n  }\n\nErrors: an unknown themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build.\n",
+            "description": "Tool: generate_data_app\n\nPurpose:\nStart building a new data app (an interactive app, a slide show or a PDF report) from a brief, on top of a Lightdash project's semantic layer. Each build produces one version of the app. To change an existing app, use iterate_data_app; charts, dashboards and other saved content have their own tools.\n\nImportant:\n- The build runs in the background for several minutes, and this call returns once it starts. Call it once per request, then poll get_data_app_build_status with the returned slug until the build ends.\n- A name already taken in the project gets a numeric suffix on the slug, so use the slug this call returns, never one derived from the name.\n- The app is created as the calling user's personal app: at the project root, in no space, visible only to them until they move it.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -922,7 +922,7 @@
                             }
                         ],
                         "default": null,
-                        "description": "Saved charts (slugs from findContent) whose queries the app is built on; the charts themselves stay unchanged. Omit when not building on saved charts."
+                        "description": "Saved charts whose queries the app builds on: slugs from findContent (find_content over MCP). The charts stay unchanged."
                     },
                     "dashboardSlug": {
                         "anyOf": [
@@ -934,7 +934,7 @@
                             }
                         ],
                         "default": null,
-                        "description": "Generate from an existing dashboard: its slug (from findContent). The app starts from the dashboard's layout and charts; the dashboard itself stays unchanged. Omit when not generating from a dashboard."
+                        "description": "Existing dashboard to start from: its slug, from findContent (find_content over MCP). The app starts from the dashboard's layout and charts; the dashboard stays unchanged."
                     },
                     "externalConnectionSlugs": {
                         "anyOf": [
@@ -949,14 +949,14 @@
                             }
                         ],
                         "default": null,
-                        "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). The build gets their instructions and samples and can call them at runtime. An unknown or unlinkable slug fails and starts no build. Omit when the app uses no external API."
+                        "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). A data app calls an outside API only through a linked connection; naming one in the brief does not link it. Omit when the app uses no outside API."
                     },
                     "name": {
-                        "description": "Display name for the app: a headline-short title, in title case, naming what the app shows (\"Revenue Overview\"). The app's slug is derived from it at creation, so treat the name as final — it is not renamed later.",
+                        "description": "Display name: a headline-short title in title case naming what the app shows (\"Revenue Overview\"). It also sets the app's permanent slug, so pick the final name now.",
                         "type": "string"
                     },
                     "prompt": {
-                        "description": "A self-contained brief for the coding agent that builds the app: what the app shows, for whom, and how it behaves. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results: when this thread has already settled the analysis, carry it over — for each visualization, its title, a one-line description, and a metric query line `[viz title][explore; metrics; dimensions; filters; sort]` — as queries, never pasted numbers, which would be hardcoded into the app.",
+                        "description": "Self-contained brief for the coding agent: what the app shows, for whom, and how it behaves. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results. When this conversation already settled the analysis, carry each visualization over as a one-line description and a metric query line `[viz title][explore; metrics; dimensions; filters; sort]`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.",
                         "type": "string"
                     },
                     "template": {
@@ -975,7 +975,7 @@
                             }
                         ],
                         "default": null,
-                        "description": "Starter template the builder would use: \"dashboard\" for a dashboard-style app, \"slideshow\" for a slide show, \"pdf\" for a PDF report, \"custom\" for anything else. Omit when the user did not ask for one."
+                        "description": "Starter template: \"dashboard\" for a dashboard-style app, \"slideshow\" for a slide show, \"pdf\" for a PDF report. Omit it, or pass \"custom\", for anything else."
                     },
                     "themeSlug": {
                         "anyOf": [
@@ -987,7 +987,7 @@
                             }
                         ],
                         "default": null,
-                        "description": "Organization theme to build the app with: its slug, from the attached context (\"Theme: <name> (slug: <slug>)\"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build."
+                        "description": "Organization theme slug: the one the attached context lists (\"Theme: <name> (slug: <slug>)\"), which beats a theme named in the message, or else, when the user names a theme, brand or look, one from listDataAppThemes (list_data_app_themes over MCP). The coding agent receives the theme's files directly, so set the look here, not in the brief. Omit it for the organization default."
                     }
                 },
                 "required": ["name", "prompt"],
@@ -1304,7 +1304,7 @@
                 "readOnlyHint": true,
                 "title": "Get data app build status"
             },
-            "description": "Tool: get_data_app_build_status\n\nPurpose:\nCheck how a data app or custom chart type build is going, and get its URL once it is ready. Each build produces one version.\n\nImportant:\n- Poll every 15 seconds — \"nextPollAfterMs\" in the response carries the same number in milliseconds. A build usually takes several minutes.\n- Stop polling once \"status\" is \"ready\", \"error\", or \"cancelled\". Those are terminal; the version never changes again.\n- \"slug\" is the app's permanent identifier and never changes, even when the app is renamed. Keep using the slug you started the build with.\n- An agent-scoped session restricted to specific spaces cannot read a personal app, which is what a build started over MCP creates. Call this tool without agentUuid to poll a build you started.\n\nParameters:\n- appSlug: The app's slug, as returned when the build started.\n- version: Which version of the app to report on. Omit it for the latest version, which is the one a build you just started produces.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<human-readable status summary>\" }]\n- structuredContent: {\n    status:          string,        // \"pending\" | \"sandbox\" | \"catalog\" | \"generating\" | \"building\" | \"packaging\" | \"ready\" | \"error\" | \"cancelled\"\n    statusMessage:   string,        // short line describing what the build is doing, or how it ended\n    errorMessage:    string | null, // why the build failed, set only when status is \"error\"\n    name:            string,        // the app's name\n    slug:            string,        // the app's permanent slug\n    href:            string,        // URL to open the app in Lightdash; Chart Studio for a custom chart type\n    nextPollAfterMs: number         // how long to wait before polling again\n  }\n\nErrors: an unknown slug, or an app or version this caller may not view, returns an error rather than a status.\n",
+            "description": "Tool: get_data_app_build_status\n\nPurpose:\nCheck how a data app or custom chart type build is going, and get its URL once it is ready.\n\nImportant:\n- Poll every 15 seconds, as \"nextPollAfterMs\" in the response says; a build usually takes several minutes.\n- Stop polling once \"status\" is \"ready\", \"error\" or \"cancelled\": the version never changes again.\n- Keep using the slug the build started with: it never changes, even when the app is renamed.\n- An agent-scoped session restricted to specific spaces cannot read a personal app, which is what a build started over MCP creates. Call this tool without agentUuid to poll a build you started.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -2645,12 +2645,12 @@
                 "readOnlyHint": false,
                 "title": "Iterate on data app"
             },
-            "description": "Tool: iterate_data_app\n\nPurpose:\nStart a build that adds a version to an existing data app from a follow-up brief. Use it to change, fix, or extend an app that already exists; generate_data_app is the tool for a brand-new app.\n\nImportant:\n- The coding agent works from the app's current source, so the brief describes the change rather than restating the whole app.\n- The app's name and slug stay as they are. The build adds a version to the app named by appSlug.\n- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the same appSlug every 15 seconds until its status is \"ready\", \"error\", or \"cancelled\". Call this tool once per request.\n- While a version is already building for the app, this call fails with \"A version is already building for this app\". Poll get_data_app_build_status until that build reaches a terminal status, then call this tool again.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n- Pass themeSlug only when the user asks to switch the app's theme; omitting it keeps the current one. An unknown themeSlug fails before the build starts and lists the valid slugs, which list_data_app_themes also returns.\n- For an outside API (analytics, billing, CRM), pass externalConnectionSlugs from list_data_app_connections.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<confirmation that the build started>\" }]\n- structuredContent: {\n    slug:     string,  // the app's slug, unchanged by this build\n    version:  number,  // the version of the app this build produces\n    warnings: string[] // e.g. a connection the brief names but does not link\n  }\n\nErrors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those, if available.\n",
+            "description": "Tool: iterate_data_app\n\nPurpose:\nStart a build that adds a version to an existing data app from a brief describing the change. The app's name and slug stay as they are. Use generate_data_app for a brand-new app, and iterate_custom_chart_type, if available, for a custom chart type.\n\nImportant:\n- The build runs in the background for several minutes, and this call returns once it starts. Call it once per request, then poll get_data_app_build_status with the same appSlug until the build ends.\n- While a version of the app is already building, this call fails. Poll get_data_app_build_status until that build ends, then call this tool again.\n- An agent-scoped session restricted to specific spaces cannot read a personal app. Call this tool and get_data_app_build_status without agentUuid to build and poll an app you own.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
                     "appSlug": {
-                        "description": "Slug of the data app to change — from an earlier generateDataApp or iterateDataApp result, findContent, or readContent.",
+                        "description": "Slug of the app to change: from an earlier build result, findContent or readContent (find_content, read_content over MCP).",
                         "type": "string"
                     },
                     "chartSlugs": {
@@ -2666,7 +2666,7 @@
                             }
                         ],
                         "default": null,
-                        "description": "Saved charts (slugs from findContent) whose queries the change builds on; the charts themselves stay unchanged. Omit when the change does not reference saved charts."
+                        "description": "Saved charts whose queries the change builds on: slugs from findContent (find_content over MCP). The charts stay unchanged."
                     },
                     "dashboardSlug": {
                         "anyOf": [
@@ -2678,7 +2678,7 @@
                             }
                         ],
                         "default": null,
-                        "description": "Pull in an existing dashboard: its slug (from findContent). The coding agent gets the dashboard's layout and charts as context; the dashboard itself stays unchanged. Omit when the change does not reference a dashboard."
+                        "description": "Existing dashboard to pull in: its slug, from findContent (find_content over MCP). The coding agent gets the dashboard's layout and charts; the dashboard stays unchanged."
                     },
                     "externalConnectionSlugs": {
                         "anyOf": [
@@ -2693,10 +2693,10 @@
                             }
                         ],
                         "default": null,
-                        "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). Adds to the connections the app already links; none are removed. An unknown or unlinkable slug fails and starts no build. Omit when the change needs no new external API."
+                        "description": "External connections to add to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). Connections the app already links stay. A data app calls an outside API only through a linked connection; naming one in the brief does not link it. Omit when the change needs no new outside API."
                     },
                     "prompt": {
-                        "description": "A self-contained brief of the change for the coding agent, which works from the app's current source and explores the semantic layer itself, but sees neither this conversation nor its query results. Describe what to change and the outcome you expect; carry over any analysis this thread already settled as queries — a number pasted into the brief gets hardcoded into the app.",
+                        "description": "Self-contained brief of the change for the coding agent, which works from the app's current source. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results. Describe what to change and the outcome to expect, leaving out what stays the same; for a failed build, name what went wrong. When this conversation already settled the analysis, carry each visualization over as a one-line description and a metric query line `[viz title][explore; metrics; dimensions; filters; sort]`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.",
                         "type": "string"
                     },
                     "themeSlug": {
@@ -2709,7 +2709,7 @@
                             }
                         ],
                         "default": null,
-                        "description": "Organization theme to build the app with: its slug, from the attached context (\"Theme: <name> (slug: <slug>)\"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build. On an existing app, passing it switches the app's theme; omit it unless the user asked to switch the theme in this request, so the app keeps its current theme."
+                        "description": "Organization theme slug: the one the attached context lists (\"Theme: <name> (slug: <slug>)\"), which beats a theme named in the message, or else, when the user names a theme, brand or look, one from listDataAppThemes (list_data_app_themes over MCP). The coding agent receives the theme's files directly, so set the look here, not in the brief. Passing it switches the app's theme, so pass it only when the user asks to switch the theme in this request; omit it to keep the current one."
                     }
                 },
                 "required": ["appSlug", "prompt"],
@@ -3172,7 +3172,7 @@
                 "readOnlyHint": true,
                 "title": "List data app connections"
             },
-            "description": "Tool: list_data_app_connections\n\nPurpose:\nList the project's external connections you can link to a data app. An external connection is an admin-configured, credentialed proxy to an outside API (product analytics, billing, CRM, ...); a data app can call an API only through a linked connection.\n\nImportant:\n- Call it when the user wants a data app to use an outside API or names a connection, then pass the matching slugs as externalConnectionSlugs to generate_data_app or iterate_data_app.\n- Only connections you may link are listed. Credentials are never returned.\n- Pass appSlug to also see which connections that app already links.\n\nParameters:\n- appSlug: Optional. A data app's slug; fills linkedAliases for that app.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<the connections, one per line>\" }]\n- structuredContent: {\n    connections: [{\n      slug:          string,        // pass in externalConnectionSlugs\n      name:          string,\n      authType:      string,        // \"none\" | \"api_key\" | \"bearer_token\" | \"google_service_account\" | \"oauth_client_credentials\"\n      origin:        string,        // the API's base URL\n      instructions:  string | null, // how to use the API, written by an admin\n      linkedAliases: string[]       // aliases the appSlug app links it under; empty when not linked or no appSlug\n    }]\n  }\n\nErrors: an unknown appSlug, or an app this caller may not view, returns an error.\n",
+            "description": "Tool: list_data_app_connections\n\nPurpose:\nList the project's external connections you may link to a data app: admin-configured, credentialed proxies to outside APIs (product analytics, billing, CRM).\n\nImportant:\n- Call it when the user wants a data app to use an outside API or names a connection; match the request to a connection by name, slug or origin and pass its slug in externalConnectionSlugs. When none matches, tell the user no such connection is available rather than starting a build that cannot reach it.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -3263,7 +3263,7 @@
                 "readOnlyHint": true,
                 "title": "List data app themes"
             },
-            "description": "Tool: list_data_app_themes\n\nPurpose:\nList the organization's themes. A theme is a bundle of styling a data app or custom chart type can be built with; each has a slug you pass as themeSlug to whichever build tools are available: generate_data_app, iterate_data_app, create_custom_chart_type or iterate_custom_chart_type.\n\nImportant:\n- Call it when the user names a theme, brand, or look for a data app or custom chart type, then match the request to a theme and pass its slug.\n- Skip it when the user says nothing about the look: the organization default theme applies.\n- An organization may have no themes at all, in which case omit themeSlug.\n\nParameters: none.\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<the themes, one per line>\" }]\n- structuredContent: {\n    themes: [{\n      slug:        string,        // pass as themeSlug to a build tool\n      name:        string,\n      isDefault:   boolean,       // applied when themeSlug is omitted\n      description: string | null\n    }]\n  }\n",
+            "description": "Tool: list_data_app_themes\n\nPurpose:\nList the organization's themes: bundles of styling a data app or custom chart type can be built with.\n\nImportant:\n- Call it when the user names a theme, brand or look; match the request to one theme by name or description and pass its slug as themeSlug. When none matches, ask the user which theme they mean.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {},

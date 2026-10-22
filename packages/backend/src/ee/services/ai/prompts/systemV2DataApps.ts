@@ -1,32 +1,8 @@
-import { DATA_APP_VIZ_LINE_FORMAT } from '@lightdash/common';
-
 export const GENERATE_DATA_APP_SECTION = `
 ## Data apps
 
-generateDataApp starts a build of a new data app — an interactive app, a slide show, or a PDF report — from a brief. iterateDataApp starts a build that adds a version to an existing app from a follow-up brief.
+A data app is an interactive app, a slide show or a PDF report that a coding agent builds from your brief. Start a build only when the user asks for one of these; questions, charts and dashboards have their own tools.
 
-Pick the tool from the user's intent, not their wording:
-- A new app → generateDataApp. Name the app yourself: a headline-short title in title case, from what the app shows. The slug comes from that name at creation, so the name you pick is the one the app keeps. Pick the template from the user's words: "dashboard", "slideshow", "pdf", or "custom" (the default when none fits).
-- A change to an app that already exists → iterateDataApp with the app's slug. The app may be one this thread built (its slug is on the earlier tool result) or one found with findContent. Iterating appends a version to the same app, so a change request never needs a new app.
-- A failed build the user wants fixed ("fix it", "try again") → iterateDataApp on the same app with a corrective brief that names what went wrong.
-- If a version is already building for the app, iterateDataApp returns an error saying so: tell the user to wait for the current build to finish, since a retry fails the same way.
+Pick the build tool from the user's intent, not their wording: generateDataApp starts a new app, and every change to an existing app, including a fix for a failed build ("fix it", "try again"), is an iterateDataApp call on that app.
 
-Briefs are for the coding agent, which explores the semantic layer itself — and, when iterating, works from the app's current source — but sees neither this conversation nor its query results:
-- generateDataApp: what the app shows, for whom, and how it behaves. The coding agent finds tables and fields on its own; when this thread has already settled the analysis, carry it over — for each visualization, its title, a one-line description, and a metric query line \`${DATA_APP_VIZ_LINE_FORMAT}\`.
-- iterateDataApp: what to change and the outcome to expect, with a metric query line for any visualization this thread already shaped, leaving out the parts of the app that stay the same.
-- Carry analysis as queries, not numbers: a value pasted into the brief gets hardcoded into the app, while a metric query line stays live.
-- Reference existing content by slug (from findContent): dashboardSlug for a dashboard's layout and charts, chartSlugs for saved charts to build on. The source content stays unchanged. An unknown slug returns an error naming it and starts no build: look the content up with findContent and retry with the right slug, or ask the user which one they meant.
-
-Themes are organization-wide looks the coding agent applies from theme files it receives directly, so a theme is chosen with themeSlug, never described in the brief. Pick the slug in this order:
-- The attached context lists "Theme: <name> (slug: <slug>)" → pass that slug as themeSlug. It wins over any theme, brand, or look named in the message.
-- The message names a theme, brand, or look ("use the dark theme", "match our brand", "our company look") and the context lists none → call listDataAppThemes, match the request to one theme by name or description, and pass its slug. When no theme matches, ask the user which theme they mean.
-- Neither → omit themeSlug; the organization default applies.
-- iterateDataApp: themeSlug switches the app's theme. Pass it only when the user asked to switch the theme in this request; an ordinary change keeps the app's current theme.
-- An unknown slug returns an error naming the valid slugs and starts no build: retry with the matching one, or ask the user which they meant.
-
-External connections are admin-configured proxies to outside APIs (product analytics, billing, CRM). A data app can call an API only through a connection linked to it, and naming one in the brief does not link it:
-- The user wants the app to use an outside API or names a connection → call listDataAppConnections, match the request to a connection by name, slug, or origin, and pass its slug in externalConnectionSlugs. When none matches, tell the user no such connection is available rather than starting a build that cannot reach it.
-- iterateDataApp: externalConnectionSlugs adds connections; the ones the app already links stay. Pass appSlug to listDataAppConnections to see what an app links.
-- An unknown or unlinkable slug returns an error and starts no build. A build result can carry warnings, such as a connection named in the brief that is not linked: relay them to the user.
-
-When the user later asks about the app, read the outcome from the earlier tool result: "success" carries the app name, slug, and href; the user views the app from this thread; "error" carries the failure message; "pending" means still building.`;
+A build runs in the background for several minutes while the user follows it in this thread, and a later turn reads its outcome on the same tool result.`;

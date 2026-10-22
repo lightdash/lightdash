@@ -5,34 +5,18 @@ import {
 } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-export const TOOL_LIST_DATA_APP_THEMES_DESCRIPTION = [
-    "List the organization's data app themes: slug, name, whether it is the organization default, and its description.",
-    'Call it when the user names a theme, brand, or look for a data app and no theme slug is in the attached context; match the request to a theme and pass its slug as themeSlug to generateDataApp or iterateDataApp.',
-    'Skip it when the context already carries a theme slug, or when the user says nothing about the look — the organization default applies.',
-].join(' ');
+const THEME_MATCH_GUIDANCE =
+    'match the request to one theme by name or description and pass its slug as themeSlug. When none matches, ask the user which theme they mean.';
+
+export const TOOL_LIST_DATA_APP_THEMES_DESCRIPTION = `List the organization's data app themes. Call it when the user names a theme, brand or look ("the dark theme", "our brand") and the attached context lists no theme; ${THEME_MATCH_GUIDANCE}`;
 
 export const MCP_TOOL_LIST_DATA_APP_THEMES_DESCRIPTION = `Tool: list_data_app_themes
 
 Purpose:
-List the organization's themes. A theme is a bundle of styling a data app or custom chart type can be built with; each has a slug you pass as themeSlug to whichever build tools are available: generate_data_app, iterate_data_app, create_custom_chart_type or iterate_custom_chart_type.
+List the organization's themes: bundles of styling a data app or custom chart type can be built with.
 
 Important:
-- Call it when the user names a theme, brand, or look for a data app or custom chart type, then match the request to a theme and pass its slug.
-- Skip it when the user says nothing about the look: the organization default theme applies.
-- An organization may have no themes at all, in which case omit themeSlug.
-
-Parameters: none.
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<the themes, one per line>" }]
-- structuredContent: {
-    themes: [{
-      slug:        string,        // pass as themeSlug to a build tool
-      name:        string,
-      isDefault:   boolean,       // applied when themeSlug is omitted
-      description: string | null
-    }]
-  }
+- Call it when the user names a theme, brand or look; ${THEME_MATCH_GUIDANCE}
 `;
 
 export const toolListDataAppThemesArgsSchema = createToolSchema().build();

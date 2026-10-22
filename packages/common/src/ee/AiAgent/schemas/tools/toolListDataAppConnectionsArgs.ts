@@ -4,39 +4,21 @@ import {
     structuredToolOutputSchema,
 } from '../outputMetadata';
 
-export const TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION = [
-    "List the project's external connections you can link to a data app: admin-configured, credentialed proxies to outside APIs (product analytics, billing, CRM). A data app can call an API only through a linked connection.",
-    'Call it when the user wants a data app to use an outside API or names a connection; match the request to a connection and pass its slug in externalConnectionSlugs to generateDataApp or iterateDataApp.',
-    'Pass appSlug to see which connections an existing app already links. Credentials are never returned.',
-].join(' ');
+const CONNECTION_DEFINITION =
+    'admin-configured, credentialed proxies to outside APIs (product analytics, billing, CRM)';
+
+const CONNECTION_MATCH_GUIDANCE =
+    'Call it when the user wants a data app to use an outside API or names a connection; match the request to a connection by name, slug or origin and pass its slug in externalConnectionSlugs. When none matches, tell the user no such connection is available rather than starting a build that cannot reach it.';
+
+export const TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION = `List the project's external connections a data app can link: ${CONNECTION_DEFINITION}. ${CONNECTION_MATCH_GUIDANCE}`;
 
 export const MCP_TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION = `Tool: list_data_app_connections
 
 Purpose:
-List the project's external connections you can link to a data app. An external connection is an admin-configured, credentialed proxy to an outside API (product analytics, billing, CRM, ...); a data app can call an API only through a linked connection.
+List the project's external connections you may link to a data app: ${CONNECTION_DEFINITION}.
 
 Important:
-- Call it when the user wants a data app to use an outside API or names a connection, then pass the matching slugs as externalConnectionSlugs to generate_data_app or iterate_data_app.
-- Only connections you may link are listed. Credentials are never returned.
-- Pass appSlug to also see which connections that app already links.
-
-Parameters:
-- appSlug: Optional. A data app's slug; fills linkedAliases for that app.
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<the connections, one per line>" }]
-- structuredContent: {
-    connections: [{
-      slug:          string,        // pass in externalConnectionSlugs
-      name:          string,
-      authType:      string,        // "none" | "api_key" | "bearer_token" | "google_service_account" | "oauth_client_credentials"
-      origin:        string,        // the API's base URL
-      instructions:  string | null, // how to use the API, written by an admin
-      linkedAliases: string[]       // aliases the appSlug app links it under; empty when not linked or no appSlug
-    }]
-  }
-
-Errors: an unknown appSlug, or an app this caller may not view, returns an error.
+- ${CONNECTION_MATCH_GUIDANCE}
 `;
 
 export const toolListDataAppConnectionsArgsSchema = z.object({

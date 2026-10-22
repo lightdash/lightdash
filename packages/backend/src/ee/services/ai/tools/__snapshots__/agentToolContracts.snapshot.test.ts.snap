@@ -31,33 +31,11 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 
 ## Data apps
 
-generateDataApp starts a build of a new data app — an interactive app, a slide show, or a PDF report — from a brief. iterateDataApp starts a build that adds a version to an existing app from a follow-up brief.
+A data app is an interactive app, a slide show or a PDF report that a coding agent builds from your brief. Start a build only when the user asks for one of these; questions, charts and dashboards have their own tools.
 
-Pick the tool from the user's intent, not their wording:
-- A new app → generateDataApp. Name the app yourself: a headline-short title in title case, from what the app shows. The slug comes from that name at creation, so the name you pick is the one the app keeps. Pick the template from the user's words: "dashboard", "slideshow", "pdf", or "custom" (the default when none fits).
-- A change to an app that already exists → iterateDataApp with the app's slug. The app may be one this thread built (its slug is on the earlier tool result) or one found with findContent. Iterating appends a version to the same app, so a change request never needs a new app.
-- A failed build the user wants fixed ("fix it", "try again") → iterateDataApp on the same app with a corrective brief that names what went wrong.
-- If a version is already building for the app, iterateDataApp returns an error saying so: tell the user to wait for the current build to finish, since a retry fails the same way.
+Pick the build tool from the user's intent, not their wording: generateDataApp starts a new app, and every change to an existing app, including a fix for a failed build ("fix it", "try again"), is an iterateDataApp call on that app.
 
-Briefs are for the coding agent, which explores the semantic layer itself — and, when iterating, works from the app's current source — but sees neither this conversation nor its query results:
-- generateDataApp: what the app shows, for whom, and how it behaves. The coding agent finds tables and fields on its own; when this thread has already settled the analysis, carry it over — for each visualization, its title, a one-line description, and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`.
-- iterateDataApp: what to change and the outcome to expect, with a metric query line for any visualization this thread already shaped, leaving out the parts of the app that stay the same.
-- Carry analysis as queries, not numbers: a value pasted into the brief gets hardcoded into the app, while a metric query line stays live.
-- Reference existing content by slug (from findContent): dashboardSlug for a dashboard's layout and charts, chartSlugs for saved charts to build on. The source content stays unchanged. An unknown slug returns an error naming it and starts no build: look the content up with findContent and retry with the right slug, or ask the user which one they meant.
-
-Themes are organization-wide looks the coding agent applies from theme files it receives directly, so a theme is chosen with themeSlug, never described in the brief. Pick the slug in this order:
-- The attached context lists "Theme: <name> (slug: <slug>)" → pass that slug as themeSlug. It wins over any theme, brand, or look named in the message.
-- The message names a theme, brand, or look ("use the dark theme", "match our brand", "our company look") and the context lists none → call listDataAppThemes, match the request to one theme by name or description, and pass its slug. When no theme matches, ask the user which theme they mean.
-- Neither → omit themeSlug; the organization default applies.
-- iterateDataApp: themeSlug switches the app's theme. Pass it only when the user asked to switch the theme in this request; an ordinary change keeps the app's current theme.
-- An unknown slug returns an error naming the valid slugs and starts no build: retry with the matching one, or ask the user which they meant.
-
-External connections are admin-configured proxies to outside APIs (product analytics, billing, CRM). A data app can call an API only through a connection linked to it, and naming one in the brief does not link it:
-- The user wants the app to use an outside API or names a connection → call listDataAppConnections, match the request to a connection by name, slug, or origin, and pass its slug in externalConnectionSlugs. When none matches, tell the user no such connection is available rather than starting a build that cannot reach it.
-- iterateDataApp: externalConnectionSlugs adds connections; the ones the app already links stay. Pass appSlug to listDataAppConnections to see what an app links.
-- An unknown or unlinkable slug returns an error and starts no build. A build result can carry warnings, such as a connection named in the brief that is not linked: relay them to the user.
-
-When the user later asks about the app, read the outcome from the earlier tool result: "success" carries the app name, slug, and href; the user views the app from this thread; "error" carries the failure message; "pending" means still building.
+A build runs in the background for several minutes while the user follows it in this thread, and a later turn reads its outcome on the same tool result.
 
 ## Scheduled deliveries
 
@@ -11896,14 +11874,14 @@ Parameters:
     },
   },
   {
-    "description": "Start building a new data app — an interactive application generated from a brief on top of this project's semantic layer. Use it when the user asks to build, make, or generate a data app (or an app, slide show, or PDF report); questions, charts, dashboards, and other saved content have their own tools. This tool always creates a new app: to change an app that already exists, use iterateDataApp instead. Name the app yourself: the name fixes both the app name and its slug at creation, and neither changes afterwards. The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn. When the app needs an outside API (product analytics, billing, CRM) or the user names a connection, call listDataAppConnections first and pass the matching slugs as externalConnectionSlugs; a connection named only in the brief is not linked.",
+    "description": "Start a background build of a new data app (an interactive app, a slide show or a PDF report) from a brief.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "chartSlugs": {
           "default": null,
-          "description": "Saved charts (slugs from findContent) whose queries the app is built on; the charts themselves stay unchanged. Omit when not building on saved charts.",
+          "description": "Saved charts whose queries the app builds on: slugs from findContent (find_content over MCP). The charts stay unchanged.",
           "items": {
             "type": "string",
           },
@@ -11914,7 +11892,7 @@ Parameters:
         },
         "dashboardSlug": {
           "default": null,
-          "description": "Generate from an existing dashboard: its slug (from findContent). The app starts from the dashboard's layout and charts; the dashboard itself stays unchanged. Omit when not generating from a dashboard.",
+          "description": "Existing dashboard to start from: its slug, from findContent (find_content over MCP). The app starts from the dashboard's layout and charts; the dashboard stays unchanged.",
           "type": [
             "string",
             "null",
@@ -11922,7 +11900,7 @@ Parameters:
         },
         "externalConnectionSlugs": {
           "default": null,
-          "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). The build gets their instructions and samples and can call them at runtime. An unknown or unlinkable slug fails and starts no build. Omit when the app uses no external API.",
+          "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). A data app calls an outside API only through a linked connection; naming one in the brief does not link it. Omit when the app uses no outside API.",
           "items": {
             "type": "string",
           },
@@ -11932,16 +11910,16 @@ Parameters:
           ],
         },
         "name": {
-          "description": "Display name for the app: a headline-short title, in title case, naming what the app shows ("Revenue Overview"). The app's slug is derived from it at creation, so treat the name as final — it is not renamed later.",
+          "description": "Display name: a headline-short title in title case naming what the app shows ("Revenue Overview"). It also sets the app's permanent slug, so pick the final name now.",
           "type": "string",
         },
         "prompt": {
-          "description": "A self-contained brief for the coding agent that builds the app: what the app shows, for whom, and how it behaves. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results: when this thread has already settled the analysis, carry it over — for each visualization, its title, a one-line description, and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\` — as queries, never pasted numbers, which would be hardcoded into the app.",
+          "description": "Self-contained brief for the coding agent: what the app shows, for whom, and how it behaves. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results. When this conversation already settled the analysis, carry each visualization over as a one-line description and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.",
           "type": "string",
         },
         "template": {
           "default": null,
-          "description": "Starter template the builder would use: "dashboard" for a dashboard-style app, "slideshow" for a slide show, "pdf" for a PDF report, "custom" for anything else. Omit when the user did not ask for one.",
+          "description": "Starter template: "dashboard" for a dashboard-style app, "slideshow" for a slide show, "pdf" for a PDF report. Omit it, or pass "custom", for anything else.",
           "enum": [
             "dashboard",
             "slideshow",
@@ -11956,7 +11934,7 @@ Parameters:
         },
         "themeSlug": {
           "default": null,
-          "description": "Organization theme to build the app with: its slug, from the attached context ("Theme: <name> (slug: <slug>)"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build.",
+          "description": "Organization theme slug: the one the attached context lists ("Theme: <name> (slug: <slug>)"), which beats a theme named in the message, or else, when the user names a theme, brand or look, one from listDataAppThemes (list_data_app_themes over MCP). The coding agent receives the theme's files directly, so set the look here, not in the brief. Omit it for the organization default.",
           "type": [
             "string",
             "null",
@@ -12253,18 +12231,18 @@ Parameters:
     },
   },
   {
-    "description": "Start a build that adds a version to an existing data app from a follow-up brief. Use it when the user wants to change, fix, or extend a data app that already exists — one built earlier in this thread, or one found with findContent; use generateDataApp only for a brand-new app. The coding agent works from the app's current source, so the brief should describe the change, not restate the whole app. The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn. While a version is already building for the app, the call fails — relay that the user should wait for the current build to finish. When the attached context lists element references for this app (bracketed \`[tag "text" @path:line]\` strings), copy every one of them verbatim into the brief — the coding agent resolves them by source location and cannot see them otherwise. When the app needs an outside API (product analytics, billing, CRM) or the user names a connection, call listDataAppConnections first and pass the matching slugs as externalConnectionSlugs; a connection named only in the brief is not linked.",
+    "description": "Start a background build that adds a version to an existing data app from a brief describing the change. While a version of the app is already building, this call and every retry fail until that build ends: tell the user to wait for it to finish.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "appSlug": {
-          "description": "Slug of the data app to change — from an earlier generateDataApp or iterateDataApp result, findContent, or readContent.",
+          "description": "Slug of the app to change: from an earlier build result, findContent or readContent (find_content, read_content over MCP).",
           "type": "string",
         },
         "chartSlugs": {
           "default": null,
-          "description": "Saved charts (slugs from findContent) whose queries the change builds on; the charts themselves stay unchanged. Omit when the change does not reference saved charts.",
+          "description": "Saved charts whose queries the change builds on: slugs from findContent (find_content over MCP). The charts stay unchanged.",
           "items": {
             "type": "string",
           },
@@ -12275,7 +12253,7 @@ Parameters:
         },
         "dashboardSlug": {
           "default": null,
-          "description": "Pull in an existing dashboard: its slug (from findContent). The coding agent gets the dashboard's layout and charts as context; the dashboard itself stays unchanged. Omit when the change does not reference a dashboard.",
+          "description": "Existing dashboard to pull in: its slug, from findContent (find_content over MCP). The coding agent gets the dashboard's layout and charts; the dashboard stays unchanged.",
           "type": [
             "string",
             "null",
@@ -12283,7 +12261,7 @@ Parameters:
         },
         "externalConnectionSlugs": {
           "default": null,
-          "description": "External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). Adds to the connections the app already links; none are removed. An unknown or unlinkable slug fails and starts no build. Omit when the change needs no new external API.",
+          "description": "External connections to add to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). Connections the app already links stay. A data app calls an outside API only through a linked connection; naming one in the brief does not link it. Omit when the change needs no new outside API.",
           "items": {
             "type": "string",
           },
@@ -12293,12 +12271,12 @@ Parameters:
           ],
         },
         "prompt": {
-          "description": "A self-contained brief of the change for the coding agent, which works from the app's current source and explores the semantic layer itself, but sees neither this conversation nor its query results. Describe what to change and the outcome you expect; carry over any analysis this thread already settled as queries — a number pasted into the brief gets hardcoded into the app.",
+          "description": "Self-contained brief of the change for the coding agent, which works from the app's current source. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results. Describe what to change and the outcome to expect, leaving out what stays the same; for a failed build, name what went wrong. When this conversation already settled the analysis, carry each visualization over as a one-line description and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.",
           "type": "string",
         },
         "themeSlug": {
           "default": null,
-          "description": "Organization theme to build the app with: its slug, from the attached context ("Theme: <name> (slug: <slug>)"). Omit when no theme is given — the organization default applies. An unknown slug returns an error listing the valid slugs and starts no build. On an existing app, passing it switches the app's theme; omit it unless the user asked to switch the theme in this request, so the app keeps its current theme.",
+          "description": "Organization theme slug: the one the attached context lists ("Theme: <name> (slug: <slug>)"), which beats a theme named in the message, or else, when the user names a theme, brand or look, one from listDataAppThemes (list_data_app_themes over MCP). The coding agent receives the theme's files directly, so set the look here, not in the brief. Passing it switches the app's theme, so pass it only when the user asks to switch the theme in this request; omit it to keep the current one.",
           "type": [
             "string",
             "null",
@@ -12567,7 +12545,7 @@ Parameters:
     },
   },
   {
-    "description": "List the organization's data app themes: slug, name, whether it is the organization default, and its description. Call it when the user names a theme, brand, or look for a data app and no theme slug is in the attached context; match the request to a theme and pass its slug as themeSlug to generateDataApp or iterateDataApp. Skip it when the context already carries a theme slug, or when the user says nothing about the look — the organization default applies.",
+    "description": "List the organization's data app themes. Call it when the user names a theme, brand or look ("the dark theme", "our brand") and the attached context lists no theme; match the request to one theme by name or description and pass its slug as themeSlug. When none matches, ask the user which theme they mean.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -12918,7 +12896,7 @@ Parameters:
     },
   },
   {
-    "description": "List the project's external connections you can link to a data app: admin-configured, credentialed proxies to outside APIs (product analytics, billing, CRM). A data app can call an API only through a linked connection. Call it when the user wants a data app to use an outside API or names a connection; match the request to a connection and pass its slug in externalConnectionSlugs to generateDataApp or iterateDataApp. Pass appSlug to see which connections an existing app already links. Credentials are never returned.",
+    "description": "List the project's external connections a data app can link: admin-configured, credentialed proxies to outside APIs (product analytics, billing, CRM). Call it when the user wants a data app to use an outside API or names a connection; match the request to a connection by name, slug or origin and pass its slug in externalConnectionSlugs. When none matches, tell the user no such connection is available rather than starting a build that cannot reach it.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
