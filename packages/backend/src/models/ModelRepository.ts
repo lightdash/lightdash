@@ -69,6 +69,7 @@ import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PersistentDownloadFileModel } from './PersistentDownloadFileModel';
 import { PinnedListModel } from './PinnedListModel';
 import { ProjectCompileLogModel } from './ProjectCompileLogModel';
+import { ProjectCompileModel } from './ProjectCompileModel';
 import { ProjectDbtSourcesModel } from './ProjectDbtSourcesModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ProjectParametersModel } from './ProjectParametersModel';
@@ -170,6 +171,7 @@ export type ModelManifest = {
     projectModel: ProjectModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
     dbtSourceRefCatalogModel: DbtSourceRefCatalogModel;
+    projectCompileModel: ProjectCompileModel;
     projectCompileLogModel: ProjectCompileLogModel;
     pullRequestsModel: PullRequestsModel;
     resourceViewItemModel: ResourceViewItemModel;
@@ -853,6 +855,13 @@ export class ModelRepository
                     lightdashConfig: this.lightdashConfig,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
+        );
+    }
+
+    public getProjectCompileModel(): ProjectCompileModel {
+        return this.getModel(
+            'projectCompileModel',
+            () => new ProjectCompileModel({ database: this.database }),
         );
     }
 

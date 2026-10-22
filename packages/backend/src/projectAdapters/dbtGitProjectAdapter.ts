@@ -16,6 +16,8 @@ import {
     CachedWarehouse,
     DbtSourcePreparation,
     ProjectAdapter,
+    type DbtManifestFetchOptions,
+    type DbtManifestFetchResult,
     type TrackingParams,
 } from '../types';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
@@ -60,6 +62,8 @@ export class DbtGitProjectAdapter
     private gitRefresh: Promise<number> | null = null;
 
     private gitPreparation: Promise<DbtSourcePreparation> | null = null;
+
+    private pinnedManifestFetches?: Set<Promise<DbtManifestFetchResult>>;
 
     constructor({
         warehouseClient,
@@ -127,6 +131,7 @@ export class DbtGitProjectAdapter
         await Promise.allSettled([
             ...(this.gitRefresh ? [this.gitRefresh] : []),
             ...(this.gitPreparation ? [this.gitPreparation] : []),
+            ...(this.pinnedManifestFetches ?? []),
         ]);
         await super.releaseDisk(options);
         if (!options?.keepProject) {
@@ -147,6 +152,30 @@ export class DbtGitProjectAdapter
             throw new UnexpectedServerError(
                 `Unexpected error while removing local git directory: ${e}`,
             );
+        }
+    }
+
+    public async getDbtManifest(
+        options?: DbtManifestFetchOptions,
+    ): Promise<DbtManifestFetchResult> {
+        if (!options?.capturePins) return super.getDbtManifest(options);
+        const fetch = (async () => {
+            await this.prepareDbtSource(
+                options.signal ? { signal: options.signal } : undefined,
+            );
+            options.signal?.throwIfAborted();
+            const commitSha = (
+                await this.git.cwd(this.localRepositoryDir).revparse(['HEAD'])
+            ).trim();
+            options.signal?.throwIfAborted();
+            return { ...(await super.getDbtManifest(options)), commitSha };
+        })();
+        this.pinnedManifestFetches ??= new Set();
+        this.pinnedManifestFetches.add(fetch);
+        try {
+            return await fetch;
+        } finally {
+            this.pinnedManifestFetches.delete(fetch);
         }
     }
 

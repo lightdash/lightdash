@@ -513,6 +513,7 @@ const getMockedAsyncQueryService = (
     // nodes reach the same mocks a direct call would
     let querySourceService: QuerySourceService | undefined;
     const service: AsyncQueryService = new AsyncQueryService({
+        projectCompileModel: {} as never,
         dbtSourceRefCatalogModel: {} as never,
         refreshTokenRotation: { run: vi.fn() },
         aiAccessService: {

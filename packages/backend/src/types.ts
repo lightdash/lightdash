@@ -19,6 +19,7 @@ export type TrackingParams = {
 export type DbtManifestFetchOptions = {
     externalNodes: DbtExternalModelNode[];
     signal?: AbortSignal;
+    capturePins?: boolean;
 };
 
 export type DbtManifestFetchTimings = {
@@ -29,6 +30,7 @@ export type DbtManifestFetchTimings = {
 
 export type DbtManifestFetchResult = DbtRpcGetManifestResults & {
     timings: DbtManifestFetchTimings;
+    commitSha?: string | null;
 };
 
 export type DbtSourcePreparation = {

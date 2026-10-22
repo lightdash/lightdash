@@ -1221,6 +1221,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({
+                    projectCompileModel: models.getProjectCompileModel(),
                     dbtSourceRefCatalogModel:
                         models.getDbtSourceRefCatalogModel(),
                     getAgentConnectionGrantService: () =>
@@ -1463,6 +1464,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 prometheusMetrics,
             }) =>
                 new AsyncQueryService({
+                    projectCompileModel: models.getProjectCompileModel(),
                     dbtSourceRefCatalogModel:
                         models.getDbtSourceRefCatalogModel(),
                     refreshTokenRotation: models.getRefreshTokenRotation(),

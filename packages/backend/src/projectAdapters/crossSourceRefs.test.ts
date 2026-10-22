@@ -466,6 +466,121 @@ const boundResult = (
     return fetched;
 };
 
+it('records the final provider-scoped versioned and two-argument ref bindings', async () => {
+    const first = withRefs('project_a', []);
+    first.key = 'up_1';
+    const fetched = result('project_a');
+    fetched.manifest.nodes = Object.fromEntries(
+        [1, 2].map((version) => {
+            const node = {
+                ...model('project_a'),
+                unique_id: `model.project_a.orders.v${version}`,
+                version,
+                latest_version: 2,
+            };
+            return [node.unique_id, node];
+        }),
+    );
+    first.fetch.mockResolvedValue(fetched);
+    const second = withRefs('project_b', []);
+    second.key = 'up_2';
+    const refs = [
+        ref('project_a', 'orders', '1'),
+        ref('project_a'),
+        ref('project_b'),
+    ];
+    const consumer = withRefs('consumer', refs);
+    consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+        boundResult('consumer', externalNodes, refs),
+    );
+
+    const resolution = await resolveCrossSourceManifests({
+        tasks: [first, second, consumer],
+        enabled: true,
+        concurrency: 2,
+        captureBindings: true,
+    });
+
+    expect(resolution.bindings).toEqual([
+        {
+            consumerKey: 'consumer',
+            consumerNodeId: 'model.consumer.orders',
+            refPackage: 'project_a',
+            refName: 'orders',
+            requestedVersion: '1',
+            providerKey: 'up_1',
+            providerPackage: 'project_a',
+            providerName: 'orders',
+            resolvedVersion: '1',
+        },
+        {
+            consumerKey: 'consumer',
+            consumerNodeId: 'model.consumer.orders',
+            refPackage: 'project_a',
+            refName: 'orders',
+            requestedVersion: null,
+            providerKey: 'up_1',
+            providerPackage: 'project_a',
+            providerName: 'orders',
+            resolvedVersion: '2',
+        },
+        {
+            consumerKey: 'consumer',
+            consumerNodeId: 'model.consumer.orders',
+            refPackage: 'project_b',
+            refName: 'orders',
+            requestedVersion: null,
+            providerKey: 'up_2',
+            providerPackage: 'project_b',
+            providerName: 'orders',
+            resolvedVersion: null,
+        },
+    ]);
+    for (const source of [first, second, consumer])
+        expect(source.fetch).toHaveBeenCalledWith(
+            expect.objectContaining({ capturePins: true }),
+        );
+    const ordinary = await resolveCrossSourceManifests({
+        tasks: [first, second, consumer],
+        enabled: true,
+        concurrency: 2,
+    });
+    expect(ordinary).not.toHaveProperty('bindings');
+    expect(consumer.fetch.mock.calls.at(-1)![0]).not.toHaveProperty(
+        'capturePins',
+    );
+});
+
+it('records refs learned from a failed dbt fetch and preserves one-argument identity', async () => {
+    const provider = withRefs('project_a', []);
+    const consumer = withRefs('consumer', [], ['consumer_model']);
+    consumer.fetch
+        .mockRejectedValueOnce(missing('project_a'))
+        .mockImplementation(async ({ externalNodes }) =>
+            boundResult('consumer', externalNodes, [ref(null)]),
+        );
+
+    const resolution = await resolveCrossSourceManifests({
+        tasks: [provider, consumer],
+        enabled: true,
+        concurrency: 2,
+        captureBindings: true,
+    });
+
+    expect(resolution.bindings).toEqual([
+        expect.objectContaining({
+            consumerKey: 'consumer',
+            consumerNodeId: 'model.consumer.orders',
+            refPackage: null,
+            refName: 'orders',
+            requestedVersion: null,
+            providerKey: 'project_a',
+            providerPackage: 'project_a',
+            resolvedVersion: null,
+        }),
+    ]);
+});
+
 it('preserves disabled work byte for byte and never prepares or writes cache rows', async () => {
     const source = scannedTask('a');
     const onSourceResolved = vi.fn();

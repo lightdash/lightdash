@@ -160,6 +160,33 @@ describe('Git manifest fetch', () => {
         vi.restoreAllMocks();
     });
 
+    it('captures the actual checkout HEAD only when pin capture is enabled', async () => {
+        const adapter = buildGitAdapter();
+        adapter.localRepositoryDir = '/tmp/project_a';
+        Object.defineProperty(adapter, '_refreshRepo', {
+            value: vi.fn(async () => undefined),
+        });
+        const revparse = vi.fn(async () => `${'a'.repeat(40)}\n`);
+        const cwd = vi.fn(() => ({ revparse }));
+        adapter.git = { cwd } as unknown as DbtGitProjectAdapter['git'];
+        const manifest = { nodes: {} } as unknown as DbtManifest;
+        adapter.dbtClient = {
+            installDeps: vi.fn(async () => undefined),
+            getDbtManifest: vi.fn(async () => ({ manifest })),
+        } as unknown as DbtGitProjectAdapter['dbtClient'];
+
+        const ordinary = await adapter.getDbtManifest({ externalNodes: [] });
+        expect(ordinary).not.toHaveProperty('commitSha');
+        expect(cwd).not.toHaveBeenCalled();
+        const pinned = await adapter.getDbtManifest({
+            externalNodes: [],
+            capturePins: true,
+        });
+        expect(pinned.commitSha).toBe('a'.repeat(40));
+        expect(cwd).toHaveBeenCalledExactlyOnceWith('/tmp/project_a');
+        expect(revparse).toHaveBeenCalledExactlyOnceWith(['HEAD']);
+    });
+
     it('refreshes and installs dependencies once across two manifest fetches', async () => {
         const adapter = buildGitAdapter();
         const refresh = vi.fn(async () => {

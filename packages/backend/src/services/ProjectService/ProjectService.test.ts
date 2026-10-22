@@ -727,12 +727,14 @@ const getMockedProjectService = (
             | 'getDataAppCustomSqlProvenance'
             | 'featureFlagModel'
             | 'dbtSourceRefCatalogModel'
+            | 'projectCompileModel'
             | 'projectDbtSourcesModel'
             | 'githubAppInstallationsModel'
         >
     > = {},
 ) =>
     new ProjectService({
+        projectCompileModel: {} as never,
         dbtSourceRefCatalogModel:
             overrides.dbtSourceRefCatalogModel ?? ({} as never),
         refreshTokenRotation: { run: vi.fn() },
@@ -10575,6 +10577,7 @@ describe('ProjectService', () => {
                         userUuid: user.userUuid,
                         status: 'uploading',
                     }),
+                    getPeerCompileSlices: vi.fn().mockResolvedValue(null),
                     getDeployData: vi.fn().mockResolvedValue({
                         explores: [validExplore],
                         complete: true,
@@ -10925,6 +10928,7 @@ describe('ProjectService', () => {
                         userUuid: user.userUuid,
                         status: 'uploading',
                     }),
+                    getPeerCompileSlices: vi.fn().mockResolvedValue(null),
                     getDeployData: vi.fn().mockResolvedValue({
                         explores: [validExplore],
                         complete: true,
@@ -11079,6 +11083,7 @@ describe('ProjectService', () => {
                         }),
                         addBatch,
                         updateStatus: vi.fn(),
+                        getPeerCompileSlices: vi.fn().mockResolvedValue(null),
                         getDeployData: vi.fn().mockResolvedValue({
                             explores: [exploreWithCron('0 2 * * *')],
                             complete: true,
@@ -16309,6 +16314,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                         userUuid: compileUser.userUuid,
                         status: DeploySessionStatus.UPLOADING,
                     }),
+                    getPeerCompileSlices: vi.fn().mockResolvedValue(null),
                     getDeployData: vi.fn().mockResolvedValue({
                         explores: [validExplore],
                         complete: true,

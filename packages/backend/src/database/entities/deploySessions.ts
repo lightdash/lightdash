@@ -1,5 +1,6 @@
 import { type DeploySessionStatus } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { type CompileSlice } from '../../models/ProjectCompileModel';
 
 export const DEPLOY_SESSIONS_TABLE_NAME = 'deploy_sessions';
 export const DEPLOY_SESSION_BATCH_EXPLORES_TABLE_NAME =
@@ -13,6 +14,7 @@ export type DbDeploySession = {
     batch_count: number;
     explore_count: number;
     created_at: Date;
+    peer_compile_slices: CompileSlice[] | null;
 };
 
 export type DbDeploySessionBatch = {
@@ -27,7 +29,7 @@ export type DbDeploySessionBatch = {
 
 export type DbDeploySessionInsert = Omit<
     DbDeploySession,
-    'deploy_session_uuid' | 'created_at'
+    'deploy_session_uuid' | 'created_at' | 'peer_compile_slices'
 >;
 
 export type DbDeploySessionBatchInsert = Omit<

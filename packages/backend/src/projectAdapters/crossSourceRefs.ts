@@ -72,7 +72,19 @@ export type CrossSourceCatalog = {
     referencedProjects: string[];
     nodes: DbtExternalModelNode[];
 };
+export type CrossSourceBinding = {
+    consumerKey: string;
+    consumerNodeId: string;
+    refPackage: string | null;
+    refName: string;
+    requestedVersion: string | null;
+    providerKey: string;
+    providerPackage: string;
+    providerName: string;
+    resolvedVersion: string | null;
+};
 export type CrossSourceResolution<T> = {
+    bindings?: CrossSourceBinding[];
     results: {
         task: CrossSourceFetchTask<T>;
         result: CrossSourceFetchResult;
@@ -152,8 +164,10 @@ export const resolveCrossSourceManifests = async <T>({
     cache = [],
     onSourceResolved,
     onSourceFailure,
+    captureBindings = false,
 }: {
     tasks: CrossSourceFetchTask<T>[];
+    captureBindings?: boolean;
     onSourceFailure?: (
         task: CrossSourceFetchTask<T>,
         error: unknown,
@@ -189,6 +203,7 @@ export const resolveCrossSourceManifests = async <T>({
                         result: await task.fetch({
                             externalNodes: [],
                             ...(onSourceFailure ? { signal } : {}),
+                            ...(captureBindings ? { capturePins: true } : {}),
                         }),
                         injectedFrom: [],
                     };
@@ -205,6 +220,7 @@ export const resolveCrossSourceManifests = async <T>({
         );
         onRoundComplete?.(1);
         return {
+            ...(captureBindings ? { bindings: [] } : {}),
             results: results.filter((entry) => entry !== null),
             rounds: 1,
             attempts: tasks.length,
@@ -716,7 +732,13 @@ export const resolveCrossSourceManifests = async <T>({
                             );
                         }
                         return cancellation.run(task.key, 'ls', (fetchSignal) =>
-                            task.fetch({ externalNodes, signal: fetchSignal }),
+                            task.fetch({
+                                externalNodes,
+                                signal: fetchSignal,
+                                ...(captureBindings
+                                    ? { capturePins: true }
+                                    : {}),
+                            }),
                         );
                     };
                     let result: CrossSourceFetchResult;
@@ -1256,7 +1278,98 @@ export const resolveCrossSourceManifests = async <T>({
             );
         await Promise.all([...resolved.keys()].map(finalizeSource));
         const sources = [...stats.values()];
+        const bindings = new Map<string, CrossSourceBinding>();
+        let bindingBytes = 2;
+        if (captureBindings) {
+            for (const [consumer, entry] of [...resolved].filter(
+                ([task]) => !skipped.has(task),
+            )) {
+                const injectedById = new Map(
+                    [...(supplied.get(consumer)?.entries() ?? [])].flatMap(
+                        ([provider, nodes]) =>
+                            nodes.map(
+                                (node) =>
+                                    [nodeId(node), { provider, node }] as const,
+                            ),
+                    ),
+                );
+                const models = Object.values(entry.result.manifest.nodes)
+                    .map((raw) => raw as DbtRawModelNode)
+                    .filter(
+                        (model) =>
+                            ['model', 'snapshot'].includes(
+                                model.resource_type,
+                            ) && !isExternalDbtNode(model),
+                    );
+                for (const model of models) {
+                    const dependencies = (model.depends_on?.nodes ?? [])
+                        .map((dependency) => injectedById.get(dependency))
+                        .filter((injected) => injected !== undefined);
+                    for (const injected of dependencies) {
+                        const { provider, node } = injected;
+                        const requested = (model.refs ?? []).filter(
+                            (ref) =>
+                                ref.name === node.name &&
+                                (ref.package == null ||
+                                    ref.package === node.package_name) &&
+                                (ref.version == null ||
+                                String(ref.version) === 'latest'
+                                    ? node.version === null ||
+                                      String(node.version) ===
+                                          String(node.latest_version)
+                                    : String(ref.version) ===
+                                      String(node.version)),
+                        );
+                        const refs =
+                            requested.length === 0 &&
+                            (model.refs ?? []).length === 0
+                                ? [
+                                      {
+                                          package: node.package_name,
+                                          name: node.name,
+                                          version: node.version,
+                                      },
+                                  ]
+                                : requested;
+                        for (const ref of refs) {
+                            const binding: CrossSourceBinding = {
+                                consumerKey: consumer.key,
+                                consumerNodeId: model.unique_id,
+                                refPackage: ref.package ?? null,
+                                refName: ref.name,
+                                requestedVersion:
+                                    ref.version == null ||
+                                    String(ref.version) === 'latest'
+                                        ? null
+                                        : String(ref.version),
+                                providerKey: provider.key,
+                                providerPackage: node.package_name,
+                                providerName: node.name,
+                                resolvedVersion:
+                                    node.version === null
+                                        ? null
+                                        : String(node.version),
+                            };
+                            const key = JSON.stringify(binding);
+                            if (!bindings.has(key)) {
+                                bindingBytes +=
+                                    Buffer.byteLength(key, 'utf8') + 1;
+                                if (
+                                    bindings.size >= 100_000 ||
+                                    bindingBytes > 16 * 1024 * 1024
+                                )
+                                    throw new ParameterError(
+                                        'Cross-source ref bindings exceed the compile limit of 100000 records or 16 MiB. Reduce the number of cross-source refs and run the compile again.',
+                                    );
+                                bindings.set(key, binding);
+                            }
+                        }
+                    }
+                }
+            }
+        }
         return {
+            ...(captureBindings ? { bindings: [...bindings.values()] } : {}),
             rounds: passes,
             passes,
             attempts: sources.reduce((sum, source) => sum + source.lsRuns, 0),
