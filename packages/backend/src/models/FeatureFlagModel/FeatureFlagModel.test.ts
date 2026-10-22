@@ -155,70 +155,70 @@ const buildFakeWriteDatabase = ({
 };
 
 describe('FeatureFlagModel', () => {
-    describe.each([FeatureFlags.DbtPartialParse, FeatureFlags.AgentIdentity])(
-        '%s production rollout',
-        (featureFlagId) => {
-            const config = {
-                previewFeatureFlags: { enabled: false },
-                enabledFeatureFlags: new Set<string>(),
-                disabledFeatureFlags: new Set<string>(),
-            };
-            it('is off without database or ENV configuration', async () => {
-                const model = buildModel(config, buildFakeDatabase({}));
-                await expect(
-                    model.get({ featureFlagId, user: dbUser }),
-                ).resolves.toEqual({
-                    id: featureFlagId,
-                    enabled: false,
+    describe.each([
+        FeatureFlags.DbtPartialParse,
+        FeatureFlags.AgentIdentity,
+        FeatureFlags.PeerDbtSources,
+    ])('%s production rollout', (featureFlagId) => {
+        const config = {
+            previewFeatureFlags: { enabled: false },
+            enabledFeatureFlags: new Set<string>(),
+            disabledFeatureFlags: new Set<string>(),
+        };
+        it('is off without database or ENV configuration', async () => {
+            const model = buildModel(config, buildFakeDatabase({}));
+            await expect(
+                model.get({ featureFlagId, user: dbUser }),
+            ).resolves.toEqual({
+                id: featureFlagId,
+                enabled: false,
+            });
+        });
+        it('supports Console enable, disable and re-enable without restart and isolates organizations', async () => {
+            const rows: FakeRows = { flag: { default_enabled: false } };
+            const model = buildModel(config, buildFakeDatabase(rows));
+            const get = (organizationUuid = dbUser.organizationUuid) =>
+                model.get({
+                    featureFlagId,
+                    user: { ...dbUser, organizationUuid },
                 });
-            });
-            it('supports Console enable, disable and re-enable without restart and isolates organizations', async () => {
-                const rows: FakeRows = { flag: { default_enabled: false } };
-                const model = buildModel(config, buildFakeDatabase(rows));
-                const get = (organizationUuid = dbUser.organizationUuid) =>
-                    model.get({
-                        featureFlagId,
-                        user: { ...dbUser, organizationUuid },
-                    });
-                expect((await get()).enabled).toBe(false);
-                rows.orgOverride = {
-                    organization_uuid: dbUser.organizationUuid,
-                    enabled: true,
-                };
-                expect((await get()).enabled).toBe(true);
-                expect((await get('other-org')).enabled).toBe(false);
-                rows.orgOverride.enabled = false;
-                expect((await get()).enabled).toBe(false);
-                rows.orgOverride.enabled = true;
-                expect((await get()).enabled).toBe(true);
-            });
-            it.each([
-                { enable: true, disable: false, expected: true },
-                { enable: false, disable: true, expected: false },
-                { enable: true, disable: true, expected: true },
-            ])(
-                'honors ENV precedence $enable / $disable',
-                async ({ enable, disable, expected }) => {
-                    const model = buildModel(
-                        {
-                            ...config,
-                            enabledFeatureFlags: new Set(
-                                enable ? [featureFlagId] : [],
-                            ),
-                            disabledFeatureFlags: new Set(
-                                disable ? [featureFlagId] : [],
-                            ),
-                        },
-                        buildFakeDatabase({ orgOverride: { enabled: true } }),
-                    );
-                    expect(
-                        (await model.get({ featureFlagId, user: dbUser }))
-                            .enabled,
-                    ).toBe(expected);
-                },
-            );
-        },
-    );
+            expect((await get()).enabled).toBe(false);
+            rows.orgOverride = {
+                organization_uuid: dbUser.organizationUuid,
+                enabled: true,
+            };
+            expect((await get()).enabled).toBe(true);
+            expect((await get('other-org')).enabled).toBe(false);
+            rows.orgOverride.enabled = false;
+            expect((await get()).enabled).toBe(false);
+            rows.orgOverride.enabled = true;
+            expect((await get()).enabled).toBe(true);
+        });
+        it.each([
+            { enable: true, disable: false, expected: true },
+            { enable: false, disable: true, expected: false },
+            { enable: true, disable: true, expected: true },
+        ])(
+            'honors ENV precedence $enable / $disable',
+            async ({ enable, disable, expected }) => {
+                const model = buildModel(
+                    {
+                        ...config,
+                        enabledFeatureFlags: new Set(
+                            enable ? [featureFlagId] : [],
+                        ),
+                        disabledFeatureFlags: new Set(
+                            disable ? [featureFlagId] : [],
+                        ),
+                    },
+                    buildFakeDatabase({ orgOverride: { enabled: true } }),
+                );
+                expect(
+                    (await model.get({ featureFlagId, user: dbUser })).enabled,
+                ).toBe(expected);
+            },
+        );
+    });
     describe.each([
         FeatureFlags.PreviewSsoCredentialSync,
         FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
@@ -531,6 +531,19 @@ describe('FeatureFlagModel', () => {
 
     describe('preview environment defaults', () => {
         const previewConfig = { previewFeatureFlags: { enabled: true } };
+
+        it('keeps peer publication off without an explicit preview rollout', async () => {
+            const model = buildModel(previewConfig, buildFakeDatabase({}));
+            await expect(
+                model.get({
+                    featureFlagId: FeatureFlags.PeerDbtSources,
+                    user: dbUser,
+                }),
+            ).resolves.toEqual({
+                id: FeatureFlags.PeerDbtSources,
+                enabled: false,
+            });
+        });
 
         it('enables flags in the preview set', async () => {
             const model = buildModel(previewConfig);
