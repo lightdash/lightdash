@@ -819,7 +819,7 @@ Purpose:
 Get the full metadata for explores and fields whose IDs you already know, typically from grep_fields: an explore's joined tables, table filters, required filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.
 
 When to use:
-Call this once you have narrowed down to the explores and fields you intend to use, before building the query. Batch every explore and field you need into one call. Descriptions and hints truncated elsewhere ("...(truncated)") are returned here in full.
+Call this for the explores and fields you intend to use whose full detail you do not already have. Batch every explore and field you need into one call. Descriptions and hints truncated elsewhere ("...(truncated)") are returned here in full.
 
 Inputs:
 Each entry in \`requests\` is one of:
@@ -6953,6 +6953,7 @@ Reference fields by their field id directly, e.g. \`orders_total_revenue / order
 Any selected dimension, metric, custom metric (\`<table>_<name>\`), or another table calculation name can be referenced.
 Operators: + - * / % ^, comparisons = < > <= >= <>, boolean AND/OR/NOT, string literals in double quotes, parentheses for grouping.
 Functions: IF, COALESCE, ISNULL, ROUND, ABS, CEIL, FLOOR; string (CONCAT, LEN, TRIM, LOWER, UPPER, LEFT, RIGHT, REPLACE, SUBSTRING, SPLIT_PART, STRPOS, STARTS_WITH); date (TODAY, NOW, YEAR, MONTH, DAY, LAST_DAY, DATE_TRUNC, DATE_ADD, DATE_SUB, DATE_DIFF); aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF, AVERAGEIF, COUNTIF); window (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, NTILE, FIRST, LAST).
+MIN and MAX take one argument to aggregate over the whole result, or two to compare per row: \`MIN(orders_total_revenue, 100)\` caps each row at 100. ROUND takes optional decimal places, IF an optional else value, and LAG and LEAD \`(value, [offset], [default])\`.
 String positions are 1-indexed; STRPOS returns 0 when the substring is absent. Date units are "day", "week", "month", "quarter" or "year": \`DATE_TRUNC("month", d)\`, \`DATE_ADD(d, 3, "month")\`, and \`DATE_DIFF(a, b, "month")\`, which is positive when b is after a.
 Window functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. \`LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)\`.
 MOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is \`MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)\`.
@@ -11535,7 +11536,7 @@ Important:
             "type": "string",
           },
           "prompt": {
-            "description": "Self-contained brief for the coding agent: what the app shows, for whom, and how it behaves. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results. When this conversation already settled the analysis, carry each visualization over as a one-line description and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.",
+            "description": "Self-contained brief for the coding agent: what the app shows, for whom, and how it behaves. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results. Give a visualization as a one-line description and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.",
             "type": "string",
           },
           "template": {
@@ -11689,7 +11690,7 @@ Important:
             "type": "string",
           },
           "prompt": {
-            "description": "Self-contained brief of the change for the coding agent, which works from the app's current source. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results. Describe what to change and the outcome to expect, leaving out what stays the same; for a failed build, name what went wrong. When this conversation already settled the analysis, carry each visualization over as a one-line description and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.",
+            "description": "Self-contained brief of the change for the coding agent, which works from the app's current source. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results. Describe what to change and the outcome to expect, leaving out what stays the same; for a failed build, name what went wrong. Give a visualization as a one-line description and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.",
             "type": "string",
           },
           "themeSlug": {
@@ -13499,6 +13500,7 @@ Reference fields by their field id directly, e.g. \`orders_total_revenue / order
 Any selected dimension, metric, custom metric (\`<table>_<name>\`), or another table calculation name can be referenced.
 Operators: + - * / % ^, comparisons = < > <= >= <>, boolean AND/OR/NOT, string literals in double quotes, parentheses for grouping.
 Functions: IF, COALESCE, ISNULL, ROUND, ABS, CEIL, FLOOR; string (CONCAT, LEN, TRIM, LOWER, UPPER, LEFT, RIGHT, REPLACE, SUBSTRING, SPLIT_PART, STRPOS, STARTS_WITH); date (TODAY, NOW, YEAR, MONTH, DAY, LAST_DAY, DATE_TRUNC, DATE_ADD, DATE_SUB, DATE_DIFF); aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF, AVERAGEIF, COUNTIF); window (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, NTILE, FIRST, LAST).
+MIN and MAX take one argument to aggregate over the whole result, or two to compare per row: \`MIN(orders_total_revenue, 100)\` caps each row at 100. ROUND takes optional decimal places, IF an optional else value, and LAG and LEAD \`(value, [offset], [default])\`.
 String positions are 1-indexed; STRPOS returns 0 when the substring is absent. Date units are "day", "week", "month", "quarter" or "year": \`DATE_TRUNC("month", d)\`, \`DATE_ADD(d, 3, "month")\`, and \`DATE_DIFF(a, b, "month")\`, which is positive when b is after a.
 Window functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. \`LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)\`.
 MOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is \`MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)\`.

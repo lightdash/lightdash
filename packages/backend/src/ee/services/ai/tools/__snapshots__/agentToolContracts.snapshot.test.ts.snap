@@ -33,11 +33,14 @@ A data app is an interactive app, a slide show or a PDF report that a coding age
 
 Pick the build tool from the user's intent, not their wording: generateDataApp starts a new app, and every change to an existing app, including a fix for a failed build ("fix it", "try again"), is an iterateDataApp call on that app.
 
+When this conversation already settled the analysis, carry each of its visualizations into the brief. When the app needs an outside API or the user names a connection, match it with listDataAppConnections before starting the build and pass its slug in externalConnectionSlugs; when none matches, tell the user no such connection is available instead of starting the build.
+
 A build runs in the background for several minutes while the user follows it in this thread, and a later turn reads its outcome on the same tool result.
 
 ## Scheduled deliveries
 
 - Use createScheduledDelivery when the user wants a chart or dashboard sent to Slack or email on a recurring schedule.
+- A delivery needs saved content. For a chart or dashboard that exists only in this conversation, propose saving it with createContent and the delivery as one plan with a single confirmation, then schedule the created uuid.
 
 ## Tool workflow
 
@@ -205,11 +208,13 @@ Claim a cause only with direct evidence of the mechanism (a documented change, a
 
 Lead short answers with the result, not a title or restated request; the UI already labels each artifact. Give the key finding rather than repeating the chart as a table or list, state material scope and uncertainty, leave out speculative diagnoses, and end with an offer only when it is specific to the result (e.g. related dashboards after a new chart).
 
-After an execution error, change the query instead of retrying a near-identical one; when the error points to the source or a scan, inspect the missing metadata or another source. Keep the requested scope and report evidence gaps.
+After an execution error, fix the cause it reports rather than resubmitting a query that failed the same way; when the error points to the source or a scan, inspect the missing metadata or another source. Keep the requested scope and report evidence gaps.
 
 For a plain entity trend or breakdown, use the single matching count definition and its configured default time granularity; a nearby revenue or amount field is no reason to ask count versus amount. Apply explicit business rules and prior scope first, and ask the user to choose only between count definitions that genuinely compete. Restrict dates only when the request or a rule does, and state the measure, grain and scope used.
 
 To change an existing chart, edit the last successful query input only where the user asked and call generateVisualization; say the chart was updated only after that call succeeds. Discover a requested field missing from the carried-forward ones rather than binding its value to an unrelated dimension.
+
+Export a chart from an earlier turn with its artifactUuid and versionUuid and null queryUuid; pass a queryUuid only for a chart generated in this turn.
 
 Keep an exclusion the user explicitly names in the executed query even when no rows match it, and say it currently removes no rows. When a category needs interpretation rather than a literal match, ask the user what it means before filtering.
 
@@ -409,11 +414,13 @@ Claim a cause only with direct evidence of the mechanism (a documented change, a
 
 Lead short answers with the result, not a title or restated request; the UI already labels each artifact. Give the key finding rather than repeating the chart as a table or list, state material scope and uncertainty, leave out speculative diagnoses, and end with an offer only when it is specific to the result (e.g. related dashboards after a new chart).
 
-After an execution error, change the query instead of retrying a near-identical one; when the error points to the source or a scan, inspect the missing metadata or another source. Keep the requested scope and report evidence gaps.
+After an execution error, fix the cause it reports rather than resubmitting a query that failed the same way; when the error points to the source or a scan, inspect the missing metadata or another source. Keep the requested scope and report evidence gaps.
 
 For a plain entity trend or breakdown, use the single matching count definition and its configured default time granularity; a nearby revenue or amount field is no reason to ask count versus amount. Apply explicit business rules and prior scope first, and ask the user to choose only between count definitions that genuinely compete. Restrict dates only when the request or a rule does, and state the measure, grain and scope used.
 
 To change an existing chart, edit the last successful query input only where the user asked and call generateVisualization; say the chart was updated only after that call succeeds. Discover a requested field missing from the carried-forward ones rather than binding its value to an unrelated dimension.
+
+Export a chart from an earlier turn with its artifactUuid and versionUuid and null queryUuid; pass a queryUuid only for a chart generated in this turn.
 
 Keep an exclusion the user explicitly names in the executed query even when no rows match it, and say it currently removes no rows. When a category needs interpretation rather than a literal match, ask the user what it means before filtering.
 
@@ -534,11 +541,13 @@ Claim a cause only with direct evidence of the mechanism (a documented change, a
 
 Lead short answers with the result, not a title or restated request; the UI already labels each artifact. Give the key finding rather than repeating the chart as a table or list, state material scope and uncertainty, leave out speculative diagnoses, and end with an offer only when it is specific to the result (e.g. related dashboards after a new chart).
 
-After an execution error, change the query instead of retrying a near-identical one; when the error points to the source or a scan, inspect the missing metadata or another source. Keep the requested scope and report evidence gaps.
+After an execution error, fix the cause it reports rather than resubmitting a query that failed the same way; when the error points to the source or a scan, inspect the missing metadata or another source. Keep the requested scope and report evidence gaps.
 
 For a plain entity trend or breakdown, use the single matching count definition and its configured default time granularity; a nearby revenue or amount field is no reason to ask count versus amount. Apply explicit business rules and prior scope first, and ask the user to choose only between count definitions that genuinely compete. Restrict dates only when the request or a rule does, and state the measure, grain and scope used.
 
 To change an existing chart, edit the last successful query input only where the user asked and call generateVisualization; say the chart was updated only after that call succeeds. Discover a requested field missing from the carried-forward ones rather than binding its value to an unrelated dimension.
+
+Export a chart from an earlier turn with its artifactUuid and versionUuid and null queryUuid; pass a queryUuid only for a chart generated in this turn.
 
 Keep an exclusion the user explicitly names in the executed query even when no rows match it, and say it currently removes no rows. When a category needs interpretation rather than a literal match, ask the user what it means before filtering.
 
@@ -730,7 +739,7 @@ Claim a cause only with direct evidence of the mechanism (a documented change, a
 
 Lead short answers with the result, not a title or restated request; the UI already labels each artifact. Give the key finding rather than repeating the chart as a table or list, state material scope and uncertainty, leave out speculative diagnoses, and end with an offer only when it is specific to the result (e.g. related dashboards after a new chart).
 
-After an execution error, change the query instead of retrying a near-identical one; when the error points to the source or a scan, inspect the missing metadata or another source. Keep the requested scope and report evidence gaps.
+After an execution error, fix the cause it reports rather than resubmitting a query that failed the same way; when the error points to the source or a scan, inspect the missing metadata or another source. Keep the requested scope and report evidence gaps.
 
 For a plain entity trend or breakdown, use the single matching count definition and its configured default time granularity; a nearby revenue or amount field is no reason to ask count versus amount. Apply explicit business rules and prior scope first, and ask the user to choose only between count definitions that genuinely compete. Restrict dates only when the request or a rule does, and state the measure, grain and scope used.
 
@@ -747,10 +756,6 @@ exports[`AI agent tool contracts > matches the current agent tool contract snaps
 [
   {
     "description": "Return the column names and types of one raw, staging or seed table that no explore exposes. It reads cached metadata, so it is fast and needs no approval, and returns schema only, not data.
-
-- Before writing raw SQL against such a table, call it to confirm the columns you need exist, such as a join key.
-- After a "column does not exist" or "relation not found" error, call it for the real columns, then rewrite the SQL once instead of guessing again.
-- When the columns show that the relationship you need does not exist (no foreign key, no junction table), stop and tell the user what you expected and what the table has, then offer a proxy or ask for the right table.
 
 For explore-backed tables use grepFields and getMetadata; to find a table's name use listWarehouseTables.",
     "inputSchema": {
@@ -2123,7 +2128,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
-    "description": "Create a scheduled delivery that sends a saved chart or dashboard to Slack channels or email recipients on a cron schedule. An enabled delivery sends from the moment it is created, so first propose the full configuration to the user (name, schedule in plain words, cron, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Content that exists only in this conversation is saved with createContent first, then scheduled by the created uuid: propose the save and the schedule as one plan with a single confirmation.",
+    "description": "Create a scheduled delivery that sends a saved chart or dashboard to Slack channels or email recipients on a cron schedule. An enabled delivery sends from the moment it is created, so first propose the full configuration to the user (name, schedule in plain words, cron, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -5566,6 +5571,7 @@ Reference fields by their field id directly, e.g. \`orders_total_revenue / order
 Any selected dimension, metric, custom metric (\`<table>_<name>\`), or another table calculation name can be referenced.
 Operators: + - * / % ^, comparisons = < > <= >= <>, boolean AND/OR/NOT, string literals in double quotes, parentheses for grouping.
 Functions: IF, COALESCE, ISNULL, ROUND, ABS, CEIL, FLOOR; string (CONCAT, LEN, TRIM, LOWER, UPPER, LEFT, RIGHT, REPLACE, SUBSTRING, SPLIT_PART, STRPOS, STARTS_WITH); date (TODAY, NOW, YEAR, MONTH, DAY, LAST_DAY, DATE_TRUNC, DATE_ADD, DATE_SUB, DATE_DIFF); aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF, AVERAGEIF, COUNTIF); window (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, NTILE, FIRST, LAST).
+MIN and MAX take one argument to aggregate over the whole result, or two to compare per row: \`MIN(orders_total_revenue, 100)\` caps each row at 100. ROUND takes optional decimal places, IF an optional else value, and LAG and LEAD \`(value, [offset], [default])\`.
 String positions are 1-indexed; STRPOS returns 0 when the substring is absent. Date units are "day", "week", "month", "quarter" or "year": \`DATE_TRUNC("month", d)\`, \`DATE_ADD(d, 3, "month")\`, and \`DATE_DIFF(a, b, "month")\`, which is positive when b is after a.
 Window functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. \`LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)\`.
 MOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is \`MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)\`.
@@ -11089,7 +11095,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
     },
   },
   {
-    "description": "Load the definitions of MCP tools before calling them. Pass exact names from the MCP tools list in the system prompt. Loaded tools stay available for the rest of the thread.",
+    "description": "Load the definitions of MCP tools by exact name from the MCP tools list in the system prompt. Loaded tools stay available for the rest of the thread.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -11483,7 +11489,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
           "type": "string",
         },
         "prompt": {
-          "description": "Self-contained brief for the coding agent: what the app shows, for whom, and how it behaves. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results. When this conversation already settled the analysis, carry each visualization over as a one-line description and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.",
+          "description": "Self-contained brief for the coding agent: what the app shows, for whom, and how it behaves. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results. Give a visualization as a one-line description and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.",
           "type": "string",
         },
         "template": {
@@ -11840,7 +11846,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
           ],
         },
         "prompt": {
-          "description": "Self-contained brief of the change for the coding agent, which works from the app's current source. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results. Describe what to change and the outcome to expect, leaving out what stays the same; for a failed build, name what went wrong. When this conversation already settled the analysis, carry each visualization over as a one-line description and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.",
+          "description": "Self-contained brief of the change for the coding agent, which works from the app's current source. The coding agent explores the semantic layer itself but sees neither this conversation nor its query results. Describe what to change and the outcome to expect, leaving out what stays the same; for a failed build, name what went wrong. Give a visualization as a one-line description and a metric query line \`[viz title][explore; metrics; dimensions; filters; sort]\`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.",
           "type": "string",
         },
         "themeSlug": {
@@ -12465,7 +12471,7 @@ For explore-backed tables use grepFields; for a raw table's columns use describe
     },
   },
   {
-    "description": "List the project's external connections a data app can link: admin-configured, credentialed proxies to outside APIs (product analytics, billing, CRM). Call it when the user wants a data app to use an outside API or names a connection; match the request to a connection by name, slug or origin and pass its slug in externalConnectionSlugs. When none matches, tell the user no such connection is available rather than starting a build that cannot reach it.",
+    "description": "List the project's external connections a data app can link: admin-configured, credentialed proxies to outside APIs (product analytics, billing, CRM).",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -17619,6 +17625,7 @@ Reference fields by their field id directly, e.g. \`orders_total_revenue / order
 Any selected dimension, metric, custom metric (\`<table>_<name>\`), or another table calculation name can be referenced.
 Operators: + - * / % ^, comparisons = < > <= >= <>, boolean AND/OR/NOT, string literals in double quotes, parentheses for grouping.
 Functions: IF, COALESCE, ISNULL, ROUND, ABS, CEIL, FLOOR; string (CONCAT, LEN, TRIM, LOWER, UPPER, LEFT, RIGHT, REPLACE, SUBSTRING, SPLIT_PART, STRPOS, STARTS_WITH); date (TODAY, NOW, YEAR, MONTH, DAY, LAST_DAY, DATE_TRUNC, DATE_ADD, DATE_SUB, DATE_DIFF); aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF, AVERAGEIF, COUNTIF); window (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, NTILE, FIRST, LAST).
+MIN and MAX take one argument to aggregate over the whole result, or two to compare per row: \`MIN(orders_total_revenue, 100)\` caps each row at 100. ROUND takes optional decimal places, IF an optional else value, and LAG and LEAD \`(value, [offset], [default])\`.
 String positions are 1-indexed; STRPOS returns 0 when the substring is absent. Date units are "day", "week", "month", "quarter" or "year": \`DATE_TRUNC("month", d)\`, \`DATE_ADD(d, 3, "month")\`, and \`DATE_DIFF(a, b, "month")\`, which is positive when b is after a.
 Window functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. \`LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)\`.
 MOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is \`MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)\`.
@@ -23979,7 +23986,7 @@ Purpose:
 Get the full metadata for explores and fields whose IDs you already know, typically from grepFields: an explore's joined tables, table filters, and parameters, and a field's filter type, case-sensitivity, resolved default time dimension, parameter dependencies, hints, and whether it comes from a joined table.
 
 When to use:
-Call this once you have narrowed down to the explores and fields you intend to use, before building the query. Batch every explore and field you need into one call. Descriptions and hints truncated elsewhere ("...(truncated)") are returned here in full.
+Call this for the explores and fields you intend to use whose full detail you do not already have. Batch every explore and field you need into one call. Descriptions and hints truncated elsewhere ("...(truncated)") are returned here in full.
 
 Inputs:
 Each entry in \`requests\` is one of:
@@ -24825,7 +24832,7 @@ Compute the exact impact of changing or removing one semantic-layer field (a met
 - scheduled deliveries and alerts on the affected charts or dashboards
 - a severity: "breaking" if anything references the field, otherwise "safe"
 
-It reports references, not values: when a field keeps its id but its SQL or aggregation changes, numbers move without anything breaking, so "safe" does not prove a change keeps the numbers. When a change rests on a value claim (two fields are equivalent, a split reconstructs the original, a refactor leaves results unchanged), prove it before calling the change safe, by construction (the same column and aggregation, a uniqueness guarantee such as a primary key or a row_number() = 1 dedup, a true partition) or by data (query the fields at a total grain and across a time dimension), and report any divergence.
+It reports references, not values: when a field keeps its id but its SQL or aggregation changes, numbers move without anything breaking, so "safe" does not prove a change keeps the numbers. When a change rests on a value claim (two fields are equivalent, a split reconstructs the original, a refactor leaves results unchanged), prove it before calling the change safe, by construction (the same model, column and aggregation, a uniqueness guarantee such as a primary key or a row_number() = 1 dedup, a true partition) or by data (query the fields at a total grain and across a time dimension), and report any divergence.
 ",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -26614,6 +26621,7 @@ Reference fields by their field id directly, e.g. \`orders_total_revenue / order
 Any selected dimension, metric, custom metric (\`<table>_<name>\`), or another table calculation name can be referenced.
 Operators: + - * / % ^, comparisons = < > <= >= <>, boolean AND/OR/NOT, string literals in double quotes, parentheses for grouping.
 Functions: IF, COALESCE, ISNULL, ROUND, ABS, CEIL, FLOOR; string (CONCAT, LEN, TRIM, LOWER, UPPER, LEFT, RIGHT, REPLACE, SUBSTRING, SPLIT_PART, STRPOS, STARTS_WITH); date (TODAY, NOW, YEAR, MONTH, DAY, LAST_DAY, DATE_TRUNC, DATE_ADD, DATE_SUB, DATE_DIFF); aggregates over the whole result (SUM, AVG, MIN, MAX, COUNT, SUMIF, AVERAGEIF, COUNTIF); window (RUNNING_TOTAL, MOVING_SUM, MOVING_AVG, LAG, LEAD, RANK, DENSE_RANK, ROW_NUMBER, NTILE, FIRST, LAST).
+MIN and MAX take one argument to aggregate over the whole result, or two to compare per row: \`MIN(orders_total_revenue, 100)\` caps each row at 100. ROUND takes optional decimal places, IF an optional else value, and LAG and LEAD \`(value, [offset], [default])\`.
 String positions are 1-indexed; STRPOS returns 0 when the substring is absent. Date units are "day", "week", "month", "quarter" or "year": \`DATE_TRUNC("month", d)\`, \`DATE_ADD(d, 3, "month")\`, and \`DATE_DIFF(a, b, "month")\`, which is positive when b is after a.
 Window functions accept optional PARTITION BY / ORDER BY clauses as trailing arguments, e.g. \`LAG(orders_total_revenue, PARTITION BY orders_status, ORDER BY orders_order_date)\`.
 MOVING_SUM and MOVING_AVG take the count of preceding rows as second argument; the current row is always included, so a trailing 3-period average is \`MOVING_AVG(orders_total_revenue, 2, ORDER BY orders_order_month)\`.
@@ -27851,7 +27859,7 @@ exports[`AI agent tool contracts > matches the opt-in chart-as-code export contr
   "description": "Export a chart as schema-validated chart-as-code YAML without running queries, saving or publishing content. Call it whenever the user wants chart YAML rather than writing YAML yourself, which skips the schema validation. It supports built-in semantic, merged and pinned custom charts; use the content tools for other sources.
 
 Inputs:
-- Source: for a chart generated in this turn, pass its queryUuid from generateVisualization with null artifactUuid and versionUuid. For a chart from an earlier turn, pass its exact artifactUuid and versionUuid with null queryUuid. When those identifiers are unknown, pass null for all three to list the conversation's artifacts first. Copy identifiers exactly; never invent placeholder UUIDs.
+- Source: queryUuid, or the artifactUuid and versionUuid pair, with null for the other. Null for all three lists the conversation's artifacts. Copy identifiers exactly; never invent placeholder UUIDs.
 - Destination: pass the slug and spaceSlug the user gave, or null for any the user has not specified.
 
 Returns the YAML. Without a source identifier it returns the conversation's artifacts to choose from; with a destination value missing it names which one, so you can ask the user rather than searching content for it. Export the existing chart instead of regenerating it or rerunning its query.",
@@ -27870,6 +27878,7 @@ Returns the YAML. Without a source identifier it returns the conversation's arti
             "type": "null",
           },
         ],
+        "description": "Exact UUID of a stored chart artifact.",
       },
       "queryUuid": {
         "anyOf": [
@@ -27882,6 +27891,7 @@ Returns the YAML. Without a source identifier it returns the conversation's arti
             "type": "null",
           },
         ],
+        "description": "Query UUID of a chart generated in the current turn; it does not resolve in a later turn.",
       },
       "slug": {
         "anyOf": [
@@ -27918,6 +27928,7 @@ Returns the YAML. Without a source identifier it returns the conversation's arti
             "type": "null",
           },
         ],
+        "description": "Exact version UUID of that stored chart artifact.",
       },
     },
     "type": "object",
