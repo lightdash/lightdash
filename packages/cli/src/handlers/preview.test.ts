@@ -5,6 +5,7 @@ import {
     ProjectType,
     SupportedDbtVersions,
     WarehouseTypes,
+    type CliDeployCapabilities,
     type CreateWarehouseCredentials,
     type DbtSourceBindings,
     type Project,
@@ -13,6 +14,8 @@ import {
 import inquirer from 'inquirer';
 import ora from 'ora';
 import { getConfig } from '../config';
+import { getDbtContext } from '../dbt/context';
+import { loadDbtTarget } from '../dbt/profile';
 import GlobalState from '../globalState';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
 import { compileProject } from './compile';
@@ -25,6 +28,17 @@ import { getFinalJobState } from './dbt/refresh';
 import { deploy } from './deploy';
 import { previewHandler, startPreviewHandler } from './preview';
 
+const { watcher } = vi.hoisted(() => ({
+    watcher: {
+        on: vi
+            .fn<(event: string, listener: () => Promise<void>) => void>()
+            .mockReturnThis(),
+        unwatch: vi.fn(),
+        add: vi.fn(),
+        close: vi.fn(),
+    },
+}));
+
 vi.mock('../analytics/analytics', () => ({
     LightdashAnalytics: { track: vi.fn() },
 }));
@@ -34,17 +48,15 @@ vi.mock('../config', () => ({
     unsetPreviewProject: vi.fn(),
 }));
 vi.mock('inquirer', () => ({ default: { prompt: vi.fn() } }));
-vi.mock('chokidar', () => {
-    const watcher = {
-        on: () => watcher,
-        unwatch: vi.fn(),
-        add: vi.fn(),
-        close: vi.fn(),
-    };
-    return { default: { watch: () => watcher } };
-});
+vi.mock('chokidar', () => ({
+    default: { watch: vi.fn(() => watcher) },
+}));
 vi.mock('../dbt/context', () => ({
     getDbtContext: vi.fn().mockResolvedValue({ targetDir: 'target' }),
+}));
+vi.mock('../dbt/profile', async (original) => ({
+    ...(await original<typeof import('../dbt/profile')>()),
+    loadDbtTarget: vi.fn(),
 }));
 vi.mock('../credentials', async (original) => ({
     ...(await original<typeof import('../credentials')>()),
@@ -113,6 +125,7 @@ const options: Parameters<typeof startPreviewHandler>[0] = {
     tableConfiguration: CreateProjectTableConfiguration.ALL,
     validateWarehouseColumns: false,
 };
+let advertised: unknown;
 let project: Project;
 let bindings: DbtSourceBindings;
 let bindingsError: Error | undefined;
@@ -152,6 +165,26 @@ beforeEach(() => {
     bindingsError = undefined;
     writeError = undefined;
     existingPreview = true;
+    advertised = {
+        version: 1,
+        dbtProjectIdentity: 1,
+        dbtTargetLocation: 1,
+        peerDbtSources: {
+            active: false,
+            requiresDbtProjectName: false,
+            requiresDbtTarget: false,
+        },
+    } satisfies CliDeployCapabilities;
+    vi.mocked(getDbtContext).mockResolvedValue({
+        projectName: 'project_a',
+        profileName: 'profile_a',
+        targetDir: 'target',
+        modelsDir: 'models',
+    });
+    vi.mocked(loadDbtTarget).mockResolvedValue({
+        name: 'dev',
+        target: { type: 'postgres', dbname: 'database_a' },
+    });
     extraConnection = {
         warehouseConnectionUuid: 'extra',
         name: 'Finance warehouse',
@@ -226,6 +259,8 @@ beforeEach(() => {
     vi.spyOn(spinner, 'fail');
     vi.spyOn(GlobalState, 'startSpinner').mockReturnValue(spinner);
     vi.mocked(lightdashApi).mockImplementation(async ({ method, url }) => {
+        if (method === 'GET' && url.endsWith('/deploy/capabilities'))
+            return advertised as never;
         if (method === 'GET' && url === '/api/v1/org/projects/')
             return existingPreview ? [project] : [];
         if (method === 'GET' && url === projectUrl) return project;
@@ -575,5 +610,283 @@ describe('previewHandler source connection', () => {
             body: undefined,
         });
         expect(deploy).not.toHaveBeenCalled();
+    });
+});
+
+describe('previewHandler watcher profile preflight', () => {
+    beforeEach(() => {
+        existingPreview = false;
+        vi.mocked(createProject).mockResolvedValue({
+            project,
+            hasContentCopy: true,
+        } as never);
+        vi.spyOn(spinner, 'start').mockReturnValue(spinner);
+        vi.spyOn(process, 'on').mockReturnValue(process);
+    });
+
+    const withPreviewWatcher = async (
+        check: (onChange: () => Promise<void>) => Promise<void>,
+    ) => {
+        let releasePrompt!: () => void;
+        let notifyPrompt!: () => void;
+        const promptStarted = new Promise<void>((resolve) => {
+            notifyPrompt = resolve;
+        });
+        const promptResult = new Promise<void>((resolve) => {
+            releasePrompt = resolve;
+        });
+        vi.mocked(inquirer.prompt).mockImplementationOnce(() => {
+            notifyPrompt();
+            return promptResult as never;
+        });
+        const preview = previewHandler({
+            ...options,
+            profile: 'profile_a',
+            target: 'dev',
+        });
+        try {
+            await Promise.race([promptStarted, preview]);
+            expect(inquirer.prompt).toHaveBeenCalledOnce();
+            expect(watcher.on).toHaveBeenCalledWith(
+                'change',
+                expect.any(Function),
+            );
+            expect(compileProject).toHaveBeenCalledOnce();
+            expect(deploy).toHaveBeenCalledOnce();
+            const [, onChange] = watcher.on.mock.calls[0];
+            await check(onChange);
+        } finally {
+            releasePrompt();
+            await preview;
+        }
+        expect(watcher.close).toHaveBeenCalledOnce();
+    };
+
+    it('sanitizes a profile invalidated after startup before recompiling', async () => {
+        advertised = {
+            version: 1,
+            dbtProjectIdentity: 1,
+            dbtTargetLocation: 1,
+            peerDbtSources: {
+                active: true,
+                requiresDbtProjectName: true,
+                requiresDbtTarget: true,
+            },
+        } satisfies CliDeployCapabilities;
+        await withPreviewWatcher(async (onChange) => {
+            expect(loadDbtTarget).toHaveBeenCalledOnce();
+            const rawError = new Error(
+                'YAML invalid mapping: private-host password=secret_value',
+            );
+            vi.mocked(loadDbtTarget).mockRejectedValue(rawError);
+            vi.mocked(compileProject).mockRejectedValue(rawError);
+
+            const change = onChange();
+            await expect(change).rejects.toThrow(
+                'profile "profile_a" and target "dev": the profile contains invalid YAML',
+            );
+            await expect(change).rejects.not.toThrow(
+                /private-host|secret_value/,
+            );
+            expect(loadDbtTarget).toHaveBeenCalledTimes(2);
+            expect(compileProject).toHaveBeenCalledOnce();
+            expect(deploy).toHaveBeenCalledOnce();
+            expect(lightdashApi).toHaveBeenLastCalledWith({
+                method: 'GET',
+                url: '/api/v2/projects/preview/deploy/capabilities',
+                body: undefined,
+                safeToRetry: true,
+            });
+            expect(
+                JSON.stringify(vi.mocked(console.error).mock.calls),
+            ).not.toMatch(/private-host|secret_value/);
+        });
+    });
+
+    it('keeps inactive watcher compilation behavior without reading the profile', async () => {
+        await withPreviewWatcher(async (onChange) => {
+            vi.mocked(loadDbtTarget).mockRejectedValue(
+                new Error('YAML invalid mapping: password=secret_value'),
+            );
+
+            await onChange();
+
+            expect(loadDbtTarget).not.toHaveBeenCalled();
+            expect(compileProject).toHaveBeenCalledTimes(2);
+            expect(compileProject).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    profile: 'profile_a',
+                    target: 'dev',
+                    disableTimestampConversion: true,
+                }),
+            );
+            expect(deploy).toHaveBeenCalledTimes(2);
+            expect(watcher.add).toHaveBeenCalledWith('target/manifest.json');
+        });
+    });
+
+    it('preserves the compiled identity and preview destination for a valid active profile', async () => {
+        advertised = {
+            version: 1,
+            dbtProjectIdentity: 1,
+            dbtTargetLocation: 1,
+            peerDbtSources: {
+                active: true,
+                requiresDbtProjectName: true,
+                requiresDbtTarget: true,
+            },
+        } satisfies CliDeployCapabilities;
+        await withPreviewWatcher(async (onChange) => {
+            vi.mocked(compileProject).mockResolvedValue({
+                explores: [],
+                isProjectComplete: false,
+                dbtProjectName: 'updated_project',
+            });
+
+            await onChange();
+
+            expect(loadDbtTarget).toHaveBeenCalledTimes(2);
+            expect(compileProject).toHaveBeenCalledTimes(2);
+            expect(deploy).toHaveBeenCalledTimes(2);
+            expect(deploy).toHaveBeenLastCalledWith(
+                [],
+                expect.objectContaining({
+                    projectUuid: 'preview',
+                    connectionRoute: 'multi',
+                    sourceUuid: 'finance-source',
+                    dbtProjectName: 'updated_project',
+                    projectType: CliProjectType.Dbt,
+                    complete: false,
+                }),
+            );
+            expect(watcher.add).toHaveBeenCalledWith('target/manifest.json');
+        });
+    });
+});
+
+describe.each([
+    {
+        command: 'preview',
+        run: previewHandler,
+        existing: false,
+        destination: 'upstream',
+    },
+    {
+        command: 'start-preview new',
+        run: startPreviewHandler,
+        existing: false,
+        destination: 'upstream',
+    },
+    {
+        command: 'start-preview existing',
+        run: startPreviewHandler,
+        existing: true,
+        destination: 'preview',
+    },
+])('$command profile preflight', ({ run, existing, destination }) => {
+    beforeEach(() => {
+        existingPreview = existing;
+        vi.mocked(createProject).mockResolvedValue({
+            project,
+            hasContentCopy: true,
+        } as never);
+        vi.mocked(inquirer.prompt).mockResolvedValue({} as never);
+    });
+
+    it.each([false, true])(
+        'fails safely before create, refresh, or compile with skipDbtCompile=%s',
+        async (skipDbtCompile) => {
+            advertised = {
+                version: 1,
+                dbtProjectIdentity: 1,
+                dbtTargetLocation: 1,
+                peerDbtSources: {
+                    active: true,
+                    requiresDbtProjectName: true,
+                    requiresDbtTarget: true,
+                },
+            } satisfies CliDeployCapabilities;
+            vi.mocked(loadDbtTarget).mockRejectedValue(
+                new Error('ENOENT private-host password=secret_value'),
+            );
+            const failure = run({
+                ...options,
+                profile: 'profile_a',
+                target: 'dev',
+                skipDbtCompile,
+            });
+            await expect(failure).rejects.toThrow(
+                'profile "profile_a" and target "dev": a required file is missing',
+            );
+            await expect(failure).rejects.not.toThrow(
+                /private-host|secret_value/,
+            );
+            expect(createProject).not.toHaveBeenCalled();
+            expect(loadWarehouseCredentialsFromProfiles).not.toHaveBeenCalled();
+            expect(compileProject).not.toHaveBeenCalled();
+            expect(deploy).not.toHaveBeenCalled();
+            expect(credentialWrites()).toEqual([]);
+            expect(lightdashApi).toHaveBeenCalledWith({
+                method: 'GET',
+                url: `/api/v2/projects/${destination}/deploy/capabilities`,
+                body: undefined,
+                safeToRetry: true,
+            });
+            expect(loadDbtTarget).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('accepts an active profile before compilation provides the project name', async () => {
+        advertised = {
+            version: 1,
+            dbtProjectIdentity: 1,
+            dbtTargetLocation: 1,
+            peerDbtSources: {
+                active: true,
+                requiresDbtProjectName: true,
+                requiresDbtTarget: true,
+            },
+        } satisfies CliDeployCapabilities;
+        await run({ ...options, profile: 'profile_a', target: 'dev' });
+        expect(loadDbtTarget).toHaveBeenCalledOnce();
+        expect(compileProject).toHaveBeenCalled();
+        expect(deploy).toHaveBeenCalledWith(
+            [],
+            expect.objectContaining({
+                projectUuid: 'preview',
+                dbtProjectName: 'project_a',
+            }),
+        );
+        expect(
+            vi
+                .mocked(lightdashApi)
+                .mock.calls.filter(([call]) =>
+                    call.url.endsWith('/deploy/capabilities'),
+                ),
+        ).toHaveLength(1);
+    });
+
+    it('does not read a profile during inactive preflight', async () => {
+        await run(options);
+        expect(loadDbtTarget).not.toHaveBeenCalled();
+        expect(compileProject).toHaveBeenCalled();
+    });
+
+    it('does not query capabilities or read a profile for native YAML', async () => {
+        vi.mocked(detectProjectType).mockResolvedValue({
+            type: CliProjectType.LightdashYaml,
+            warehouseCredentials: false,
+            skipDbtCompile: true,
+            skipWarehouseCatalog: true,
+        });
+        await run(options);
+        expect(loadDbtTarget).not.toHaveBeenCalled();
+        expect(lightdashApi).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: expect.stringContaining('/capabilities'),
+            }),
+        );
+        expect(compileProject).toHaveBeenCalled();
+        expect(watcher.on).not.toHaveBeenCalled();
     });
 });

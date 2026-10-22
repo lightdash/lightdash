@@ -10004,20 +10004,160 @@ describe('ProjectService', () => {
             },
         );
 
-        test('refuses capability discovery without deploy permission before resolving the flag', async () => {
-            const get = vi.fn().mockResolvedValue({ enabled: true });
-            const configured = getMockedProjectService(
-                lightdashConfigWithGoogleOAuthMock,
-                { featureFlagModel: { get } as never },
-            );
-            await expect(
-                configured.getCliDeployCapabilities(
-                    fromSession({ ...user, ability: new Ability([]) }),
-                    projectUuid,
-                ),
-            ).rejects.toThrow(ForbiddenError);
-            expect(get).not.toHaveBeenCalled();
-        });
+        test.each([
+            { enabled: false, creator: 'organisation developer' },
+            { enabled: true, creator: 'organisation developer' },
+            { enabled: false, creator: 'project preview creator' },
+            { enabled: true, creator: 'project preview creator' },
+        ])(
+            'allows $creator without parent deploy permission with flag $enabled',
+            async ({ enabled, creator }) => {
+                const get = vi.fn().mockResolvedValue({ enabled });
+                const hasSources = vi.fn().mockResolvedValue(true);
+                const project = {
+                    ...projectSummary,
+                    type: ProjectType.DEFAULT,
+                    organizationUuid: 'resource-organisation',
+                };
+                const ability =
+                    creator === 'organisation developer'
+                        ? defineUserAbility(
+                              {
+                                  userUuid: user.userUuid,
+                                  role: OrganizationMemberRole.DEVELOPER,
+                                  organizationUuid: project.organizationUuid,
+                              },
+                              [],
+                          )
+                        : new Ability<PossibleAbilities>([
+                              {
+                                  action: 'view',
+                                  subject: 'Project',
+                                  conditions: {
+                                      organizationUuid:
+                                          project.organizationUuid,
+                                      projectUuid,
+                                  },
+                              },
+                              {
+                                  action: 'create',
+                                  subject: 'Project',
+                                  conditions: {
+                                      organizationUuid:
+                                          project.organizationUuid,
+                                      upstreamProjectUuid: projectUuid,
+                                      type: ProjectType.PREVIEW,
+                                      'metadata.upstreamProjectUuid':
+                                          projectUuid,
+                                      'metadata.upstreamProjectName':
+                                          project.name,
+                                  },
+                              },
+                          ]);
+                const configured = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                    {
+                        projectModel: {
+                            getSummary: vi.fn().mockResolvedValue(project),
+                        } as never,
+                        featureFlagModel: { get } as never,
+                        projectDbtSourcesModel: { hasSources } as never,
+                    },
+                );
+                expect(
+                    ability.can('manage', subject('DeployProject', project)),
+                ).toBe(false);
+                await expect(
+                    configured.getCliDeployCapabilities(
+                        fromSession({ ...user, ability }),
+                        projectUuid,
+                    ),
+                ).resolves.toEqual({
+                    version: 1,
+                    dbtProjectIdentity: 1,
+                    dbtTargetLocation: 1,
+                    peerDbtSources: {
+                        active: enabled,
+                        requiresDbtProjectName: enabled,
+                        requiresDbtTarget: enabled,
+                    },
+                });
+                expect(get).toHaveBeenCalledExactlyOnceWith({
+                    featureFlagId: FeatureFlags.PeerDbtSources,
+                    user: { organizationUuid: project.organizationUuid },
+                });
+                expect(hasSources).toHaveBeenCalledTimes(enabled ? 1 : 0);
+            },
+        );
+
+        test.each([
+            'no permissions',
+            'view only',
+            'wrong parent',
+            'wrong organisation',
+            'wrong project type',
+            'no view access',
+        ])(
+            'refuses capability discovery with %s before resolving the flag',
+            async (permission) => {
+                const get = vi.fn().mockResolvedValue({ enabled: true });
+                const hasSources = vi.fn().mockResolvedValue(true);
+                const configured = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                    {
+                        featureFlagModel: { get } as never,
+                        projectDbtSourcesModel: { hasSources } as never,
+                    },
+                );
+                const ability = new Ability<PossibleAbilities>([
+                    ...(permission === 'no permissions' ||
+                    permission === 'no view access'
+                        ? []
+                        : [
+                              {
+                                  action: 'view' as const,
+                                  subject: 'Project' as const,
+                                  conditions: {
+                                      projectUuid,
+                                      organizationUuid:
+                                          projectSummary.organizationUuid,
+                                  },
+                              },
+                          ]),
+                    ...(permission === 'no permissions' ||
+                    permission === 'view only'
+                        ? []
+                        : [
+                              {
+                                  action: 'create' as const,
+                                  subject: 'Project' as const,
+                                  conditions: {
+                                      organizationUuid:
+                                          permission === 'wrong organisation'
+                                              ? 'other-organisation'
+                                              : projectSummary.organizationUuid,
+                                      upstreamProjectUuid:
+                                          permission === 'wrong parent'
+                                              ? 'other-project'
+                                              : projectUuid,
+                                      type:
+                                          permission === 'wrong project type'
+                                              ? ProjectType.DEFAULT
+                                              : ProjectType.PREVIEW,
+                                  },
+                              },
+                          ]),
+                ]);
+                await expect(
+                    configured.getCliDeployCapabilities(
+                        fromSession({ ...user, ability }),
+                        projectUuid,
+                    ),
+                ).rejects.toThrow(ForbiddenError);
+                expect(get).not.toHaveBeenCalled();
+                expect(hasSources).not.toHaveBeenCalled();
+            },
+        );
 
         test.each([
             { enabled: false, withIdentity: false },

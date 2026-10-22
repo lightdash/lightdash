@@ -14,6 +14,7 @@ import { deploy } from './deploy';
 
 vi.mock('./deployMetadata', () => ({
     getDeployMetadata: vi.fn().mockResolvedValue(undefined),
+    preflightDeployProfile: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock('../analytics/analytics');
 vi.mock('../config', () => ({

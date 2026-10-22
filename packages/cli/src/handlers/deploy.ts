@@ -59,6 +59,7 @@ import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import {
     getDeployMetadata,
     isLegacyDbtModelNamesValidationError,
+    preflightDeployProfile,
 } from './deployMetadata';
 import {
     logSelectedProject,
@@ -810,43 +811,6 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     options.skipDbtCompile = projectTypeConfig.skipDbtCompile;
     options.skipWarehouseCatalog = projectTypeConfig.skipWarehouseCatalog;
 
-    // Auto-detect Spark adapter and skip warehouse credentials
-    // Spark session-based projects have no warehouse server to connect to;
-    // users configure their actual query engine (e.g., Athena) in the UI.
-    if (
-        projectTypeConfig.type === CliProjectType.Dbt &&
-        options.warehouseCredentials !== false
-    ) {
-        try {
-            const context = await getDbtContext({
-                projectDir: path.resolve(options.projectDir),
-                targetPath: options.targetPath,
-            });
-            const { target } = await loadDbtTarget({
-                profilesDir: path.resolve(options.profilesDir),
-                profileName: options.profile || context.profileName,
-                targetName: options.target,
-            });
-            if (target.type === 'spark') {
-                options.warehouseCredentials = false;
-                options.skipWarehouseCatalog = true;
-                GlobalState.debug(
-                    '> Spark adapter detected, skipping warehouse credentials',
-                );
-                console.error(
-                    styles.warning(
-                        `Spark adapter detected. Project will be created without warehouse credentials.\nConfigure your query engine (e.g., Athena) in the Lightdash UI.`,
-                    ),
-                );
-            }
-        } catch (e) {
-            // If we can't read the profile, let the normal flow handle it
-            GlobalState.debug(
-                `> Could not detect adapter type: ${getErrorMessage(e)}`,
-            );
-        }
-    }
-
     // Resolve organization credentials early before doing any heavy work
     if (options.organizationCredentials) {
         try {
@@ -912,6 +876,48 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         options.disableTimestampConversion =
             projectSettings.disableTimestampConversion;
         connectionRoute = projectSettings.connectionRoute;
+        await preflightDeployProfile({
+            ...options,
+            projectUuid: existingProjectSelection.projectUuid,
+            projectType: projectTypeConfig.type,
+        });
+    }
+
+    // Auto-detect Spark adapter and skip warehouse credentials
+    // Spark session-based projects have no warehouse server to connect to;
+    // users configure their actual query engine (e.g., Athena) in the UI.
+    if (
+        projectTypeConfig.type === CliProjectType.Dbt &&
+        options.warehouseCredentials !== false
+    ) {
+        try {
+            const context = await getDbtContext({
+                projectDir: path.resolve(options.projectDir),
+                targetPath: options.targetPath,
+            });
+            const { target } = await loadDbtTarget({
+                profilesDir: path.resolve(options.profilesDir),
+                profileName: options.profile || context.profileName,
+                targetName: options.target,
+            });
+            if (target.type === 'spark') {
+                options.warehouseCredentials = false;
+                options.skipWarehouseCatalog = true;
+                GlobalState.debug(
+                    '> Spark adapter detected, skipping warehouse credentials',
+                );
+                console.error(
+                    styles.warning(
+                        `Spark adapter detected. Project will be created without warehouse credentials.\nConfigure your query engine (e.g., Athena) in the Lightdash UI.`,
+                    ),
+                );
+            }
+        } catch (e) {
+            // If we can't read the profile, let the normal flow handle it
+            GlobalState.debug(
+                `> Could not detect adapter type: ${getErrorMessage(e)}`,
+            );
+        }
     }
 
     const { explores, isProjectComplete, dbtModelNames, dbtProjectName } =

@@ -212,8 +212,10 @@ not use personal overrides. Resolve the flag with the deployed project's
 organisation through `FeatureFlagModel.get`.
 
 The authenticated `GET /api/v2/projects/{projectUuid}/deploy/capabilities`
-endpoint requires deploy permission. It always advertises version 1 identity
-metadata support. Its `peerDbtSources.active`, `requiresDbtProjectName`, and
+endpoint requires deploy permission on the project, or view access and permission
+to create previews of that project in its organisation. Actual deploys still
+require deploy permission. It always advertises version 1 identity metadata
+support. Its `peerDbtSources.active`, `requiresDbtProjectName`, and
 `requiresDbtTarget` values are true only when the flag is on and the project
 has extra dbt sources. Single-source projects keep their existing profile
 requirements. These requirements guide

@@ -86,9 +86,9 @@ const profileFailureReason = (error: unknown): string => {
     return 'the profile or warehouse target configuration is invalid';
 };
 
-export const getDeployMetadata = async (
-    options: DeployMetadataOptions,
-): Promise<CliDeployMetadata | undefined> => {
+const getDeployCapabilities = async (
+    options: Pick<DeployMetadataOptions, 'projectUuid' | 'projectType'>,
+): Promise<CliDeployCapabilities | undefined> => {
     if (options.projectType === CliProjectType.LightdashYaml) return undefined;
 
     let capabilities: unknown;
@@ -111,23 +111,18 @@ export const getDeployMetadata = async (
     }
     if (!isDeployCapabilities(capabilities)) return undefined;
 
-    const metadata: CliDeployMetadata = {
-        cliCapabilities: { dbtProjectIdentity: 1, dbtTargetLocation: 1 },
-        ...(options.dbtProjectName?.trim()
-            ? { dbtProjectName: options.dbtProjectName.trim() }
-            : {}),
-    };
-    const peerActive = capabilities.peerDbtSources.active;
-    if (
-        peerActive &&
-        capabilities.peerDbtSources.requiresDbtProjectName &&
-        metadata.dbtProjectName === undefined
-    ) {
-        throw new ParseError(
-            'Peer dbt sources require a dbt project name. Set metadata.project_name in the compiled manifest or name in dbt_project.yml.',
-        );
-    }
+    return capabilities;
+};
 
+type DeployProfileOptions = Omit<
+    DeployMetadataOptions,
+    'projectUuid' | 'projectType' | 'dbtProjectName'
+>;
+
+const readDeployTarget = async (
+    options: DeployProfileOptions,
+    peerActive: boolean,
+): Promise<CliDeployMetadata['dbtTarget']> => {
     let profileName = options.profile || '(dbt project profile)';
     let targetName = options.target || '(profile default)';
     const fail = (reason: string): never => {
@@ -150,11 +145,47 @@ export const getDeployMetadata = async (
             targetName: options.target,
         });
         targetName = loaded.name;
-        metadata.dbtTarget = getDbtTargetLocation(loaded.target);
+        return getDbtTargetLocation(loaded.target);
     } catch (error) {
         if (error instanceof DbtTargetNotFoundError)
             targetName = error.targetName;
         if (peerActive) fail(profileFailureReason(error));
     }
+    return undefined;
+};
+
+export const preflightDeployProfile = async (
+    options: Omit<DeployMetadataOptions, 'dbtProjectName'>,
+): Promise<void> => {
+    const capabilities = await getDeployCapabilities(options);
+    if (!capabilities?.peerDbtSources.active) return;
+    await readDeployTarget(options, true);
+};
+
+export const getDeployMetadata = async (
+    options: DeployMetadataOptions,
+): Promise<CliDeployMetadata | undefined> => {
+    const capabilities = await getDeployCapabilities(options);
+    if (!capabilities) return undefined;
+
+    const metadata: CliDeployMetadata = {
+        cliCapabilities: { dbtProjectIdentity: 1, dbtTargetLocation: 1 },
+        ...(options.dbtProjectName?.trim()
+            ? { dbtProjectName: options.dbtProjectName.trim() }
+            : {}),
+    };
+    const peerActive = capabilities.peerDbtSources.active;
+    if (
+        peerActive &&
+        capabilities.peerDbtSources.requiresDbtProjectName &&
+        metadata.dbtProjectName === undefined
+    ) {
+        throw new ParseError(
+            'Peer dbt sources require a dbt project name. Set metadata.project_name in the compiled manifest or name in dbt_project.yml.',
+        );
+    }
+
+    const dbtTarget = await readDeployTarget(options, peerActive);
+    if (dbtTarget) metadata.dbtTarget = dbtTarget;
     return metadata;
 };

@@ -4321,8 +4321,9 @@ export class ProjectService
         projectUuid: UUID,
     ): Promise<CliDeployCapabilities> {
         const project = await this.projectModel.getSummary(projectUuid);
+        const ability = this.createAuditedAbility(account);
         if (
-            this.createAuditedAbility(account).cannot(
+            ability.cannot(
                 'manage',
                 subject('DeployProject', {
                     projectUuid,
@@ -4331,10 +4332,29 @@ export class ProjectService
                     type: project.type,
                     createdByUserUuid: project.createdByUserUuid,
                 }),
-            )
+            ) &&
+            (ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            ) ||
+                ability.cannot(
+                    'create',
+                    subject('Project', {
+                        organizationUuid: project.organizationUuid,
+                        upstreamProjectUuid: projectUuid,
+                        type: ProjectType.PREVIEW,
+                        metadata: {
+                            upstreamProjectUuid: projectUuid,
+                            upstreamProjectName: project.name,
+                        },
+                    }),
+                ))
         ) {
             throw new ForbiddenError(
-                'User does not have permission to deploy to this project',
+                'User does not have permission to deploy to or create previews of this project',
             );
         }
         const { enabled } = await this.featureFlagModel.get({

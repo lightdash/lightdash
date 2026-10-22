@@ -33,6 +33,7 @@ import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { getProject } from './dbt/refresh';
 import { deploy } from './deploy';
+import { preflightDeployProfile } from './deployMetadata';
 import { resolveProjectSourceUuid } from './sourceSelection';
 import {
     getDisableTimestampConversionFromProject,
@@ -471,6 +472,13 @@ export const previewHandler = async (
         config.context?.project && upstreamProjectValid
             ? config.context.project
             : undefined;
+    if (upstreamProjectUuid) {
+        await preflightDeployProfile({
+            ...options,
+            projectUuid: upstreamProjectUuid,
+            projectType: projectTypeConfig.type,
+        });
+    }
     const upstreamSourceConnection =
         upstreamProject &&
         upstreamProjectUuid &&
@@ -662,6 +670,11 @@ export const previewHandler = async (
                     watcher!.unwatch(manifestFilePath);
                     // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
                     if (project) {
+                        await preflightDeployProfile({
+                            ...options,
+                            projectUuid: project.projectUuid,
+                            projectType: projectTypeConfig.type,
+                        });
                         const compileResult = await compileProject(options);
                         await deploy(compileResult.explores, {
                             ...options,
@@ -758,6 +771,11 @@ export const startPreviewHandler = async (
 
     const previewProject = await getPreviewProject(projectName);
     if (previewProject) {
+        await preflightDeployProfile({
+            ...options,
+            projectUuid: previewProject.projectUuid,
+            projectType: projectTypeConfig.type,
+        });
         console.error(
             `\n${styles.success('Updating preview project:')} ${styles.bold(projectName)}\n`,
         );
@@ -854,6 +872,13 @@ export const startPreviewHandler = async (
         }
 
         const upstreamProjectUuid = config.context?.project;
+        if (upstreamProjectUuid) {
+            await preflightDeployProfile({
+                ...options,
+                projectUuid: upstreamProjectUuid,
+                projectType: projectTypeConfig.type,
+            });
+        }
         const upstreamSourceConnection =
             upstreamProjectUuid &&
             projectTypeConfig.warehouseCredentials !== false &&

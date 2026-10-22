@@ -26,6 +26,7 @@ import { deploy } from './deploy';
 import {
     getDeployMetadata,
     isLegacyDbtModelNamesValidationError,
+    preflightDeployProfile,
 } from './deployMetadata';
 
 vi.mock('../analytics/analytics');
@@ -68,6 +69,14 @@ const options = {
     targetPath: undefined,
     favorState: false,
     combineManifest: undefined,
+};
+const preflightOptions = {
+    projectType: options.projectType,
+    projectUuid: options.projectUuid,
+    projectDir: options.projectDir,
+    profilesDir: options.profilesDir,
+    target: options.target,
+    profile: options.profile,
 };
 const capabilities = (active: boolean): CliDeployCapabilities => ({
     version: 1,
@@ -148,6 +157,120 @@ beforeEach(() => {
     vi.spyOn(GlobalState, 'debug').mockImplementation(() => {});
 });
 afterEach(() => vi.restoreAllMocks());
+
+describe('preflightDeployProfile', () => {
+    it('validates an active target without a compiled project name or authentication', async () => {
+        advertised = capabilities(true);
+        vi.mocked(getDbtContext).mockRejectedValue(new Error('No local YAML'));
+        await expect(
+            preflightDeployProfile(preflightOptions),
+        ).resolves.toBeUndefined();
+        expect(loadDbtTarget).toHaveBeenCalledWith({
+            profilesDir: options.profilesDir,
+            profileName: options.profile,
+            targetName: options.target,
+        });
+        expect(getDbtContext).not.toHaveBeenCalled();
+        expect(warehouseCredentialsFromDbtTarget).not.toHaveBeenCalled();
+    });
+
+    it('reads no local files while peer sources are inactive', async () => {
+        await expect(
+            preflightDeployProfile({ ...preflightOptions, profile: undefined }),
+        ).resolves.toBeUndefined();
+        expect(getDbtContext).not.toHaveBeenCalled();
+        expect(loadDbtTarget).not.toHaveBeenCalled();
+    });
+
+    it('makes no capability query or local read for native YAML', async () => {
+        await expect(
+            preflightDeployProfile({
+                ...preflightOptions,
+                projectType: CliProjectType.LightdashYaml,
+            }),
+        ).resolves.toBeUndefined();
+        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(getDbtContext).not.toHaveBeenCalled();
+        expect(loadDbtTarget).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        missingEndpoint(),
+        new ConnectionServerError('Missing endpoint', 404),
+    ])('reads no local files after a legacy 404 (%s)', async (error) => {
+        vi.mocked(lightdashApi).mockRejectedValue(error);
+        await expect(
+            preflightDeployProfile(preflightOptions),
+        ).resolves.toBeUndefined();
+        expect(getDbtContext).not.toHaveBeenCalled();
+        expect(loadDbtTarget).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { ...capabilities(true), version: 2 },
+        { ...capabilities(true), dbtTargetLocation: 2 },
+        { ...capabilities(true), peerDbtSources: { active: 'true' } },
+        { status: 'ok', results: capabilities(true) },
+        undefined,
+    ])(
+        'reads no local files for unsupported capabilities (%j)',
+        async (value) => {
+            advertised = value;
+            await expect(
+                preflightDeployProfile(preflightOptions),
+            ).resolves.toBeUndefined();
+            expect(getDbtContext).not.toHaveBeenCalled();
+            expect(loadDbtTarget).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([
+        new ConnectionServerError('Unauthorized', 401),
+        new ConnectionServerError('Forbidden', 403),
+        new Error('Network unavailable'),
+    ])(
+        'propagates capability errors before local reads (%s)',
+        async (error) => {
+            vi.mocked(lightdashApi).mockRejectedValue(error);
+            await expect(preflightDeployProfile(preflightOptions)).rejects.toBe(
+                error,
+            );
+            expect(getDbtContext).not.toHaveBeenCalled();
+            expect(loadDbtTarget).not.toHaveBeenCalled();
+        },
+    );
+
+    it('reports the profile and target with a safe failure reason', async () => {
+        advertised = capabilities(true);
+        vi.mocked(loadDbtTarget).mockRejectedValue(
+            new Error('ENOENT private-host password=secret_value'),
+        );
+        const failure = preflightDeployProfile(preflightOptions);
+        await expect(failure).rejects.toThrow(
+            'profile "profile_a" and target "dev": a required file is missing',
+        );
+        await expect(failure).rejects.not.toThrow(/secret_value|private-host/);
+    });
+
+    it('negotiates again for the upload project and validates its target', async () => {
+        advertised = capabilities(true);
+        await preflightDeployProfile(preflightOptions);
+        vi.mocked(loadDbtTarget).mockResolvedValue({
+            name: 'dev',
+            target: { type: 'postgres', dbname: '' },
+        });
+        await expect(
+            deploy([explore], { ...options, projectUuid: 'preview' }),
+        ).rejects.toThrow('the selected target has no database or catalog');
+        expect(
+            vi.mocked(lightdashApi).mock.calls.map(([call]) => call.url),
+        ).toEqual([
+            '/api/v2/projects/project_a/deploy/capabilities',
+            '/api/v2/projects/preview/deploy/capabilities',
+        ]);
+        expect(loadDbtTarget).toHaveBeenCalledTimes(2);
+    });
+});
 
 it('negotiates the results envelope and reads the location for single connection routes', async () => {
     await expect(getDeployMetadata(options)).resolves.toEqual(metadata);
