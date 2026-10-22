@@ -159,6 +159,20 @@ describe('applyIncompletePeriodStyle', () => {
         ]);
     });
 
+    test('draws the hollow end point only on lines that show points', () => {
+        const endPointSize = (symbolSize: number) => {
+            const [, overlay] = apply([
+                { ...mkSeries(CartesianSeriesType.LINE), symbolSize },
+            ]).series;
+            if (typeof overlay.symbolSize !== 'function') {
+                throw new Error('expected callback');
+            }
+            return overlay.symbolSize(undefined, { dataIndex: 2 });
+        };
+        expect(endPointSize(4)).toBe(7);
+        expect(endPointSize(0)).toBe(0);
+    });
+
     test('leaves stacked lines alone', () => {
         const stacked = { ...mkSeries(CartesianSeriesType.LINE), stack: 's' };
         const result = apply([stacked]);

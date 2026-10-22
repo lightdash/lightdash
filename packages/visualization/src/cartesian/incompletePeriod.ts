@@ -107,7 +107,7 @@ const toPatternColor = (color: string) =>
 
 export const getHatchPattern = (color: string): EChartsImagePattern => {
     const fill = toPatternColor(color);
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="6" height="6"><rect width="6" height="6" fill="${fill}" fill-opacity="0.3"/><path d="M-1,1 l2,-2 M0,6 l6,-6 M5,7 l2,-2" stroke="${fill}" stroke-width="1.5"/></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="6" height="6"><rect width="6" height="6" fill="${fill}" fill-opacity="0.6"/><path d="M-1,1 l2,-2 M0,6 l6,-6 M5,7 l2,-2" stroke="${fill}" stroke-width="2"/></svg>`;
     return {
         image: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
         imageWidth: 6,
@@ -257,6 +257,9 @@ export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
         const incompleteKey = `${valueKey}${INCOMPLETE_SUFFIX}`;
         splitKeys.set(completeKey, valueKey);
         const { markLine, ...overlayBase } = serie;
+        // Only lines that already draw their points get the hollow end point
+        const hasPoints =
+            typeof serie.symbolSize === 'number' && serie.symbolSize > 0;
         overlays.push({
             ...overlayBase,
             id: `${OVERLAY_ID_PREFIX}${seriesIndex}`,
@@ -266,7 +269,7 @@ export const applyIncompletePeriodStyle = <T extends { formatter?: unknown }>({
             showSymbol: true,
             symbol: 'emptyCircle',
             symbolSize: (_value: unknown, params: { dataIndex: number }) =>
-                incompleteIndexes.has(params.dataIndex) ? 7 : 0,
+                hasPoints && incompleteIndexes.has(params.dataIndex) ? 7 : 0,
             silent: true,
             tooltip: { show: false },
             lineStyle: { ...serie.lineStyle, type: 'dashed' },
