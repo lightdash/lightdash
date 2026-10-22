@@ -3173,6 +3173,10 @@
                     "description": "Show horizontal grid lines",
                     "type": "boolean"
                 },
+                "showIncompletePeriod": {
+                    "description": "Style the current, unfinished time period (eg this week) as dashed lines and hatched bars",
+                    "type": "boolean"
+                },
                 "showLeftYAxis": {
                     "description": "Controls left/primary Y-axis visibility",
                     "type": "boolean"

@@ -376,7 +376,18 @@ export type VizTableHeaderSortConfig = {
     };
 };
 
+/** A repeating image fill, eg the hatching of an incomplete period's bar */
+export type EChartsImagePattern = {
+    image: string;
+    imageWidth: number;
+    imageHeight: number;
+    repeat: 'repeat';
+};
+
 export type EChartsSeries = {
+    id?: string;
+    silent?: boolean;
+    symbol?: string;
     type: Series['type'];
     connectNulls?: boolean;
     stack?: string;
@@ -439,7 +450,9 @@ export type EChartsSeries = {
     };
     data?: unknown[];
     showSymbol?: boolean;
-    symbolSize?: number;
+    symbolSize?:
+        | number
+        | ((value: unknown, params: { dataIndex: number }) => number);
     markLine?: { z?: number; [key: string]: unknown };
     colorBy?: 'series' | 'data';
     itemStyle?: {
@@ -450,7 +463,7 @@ export type EChartsSeries = {
                   dataIndex: number;
                   name: string;
                   data: Record<string, unknown>;
-              }) => string);
+              }) => string | EChartsImagePattern);
         opacity?: number;
     };
     lineStyle?: {

@@ -785,6 +785,8 @@ export type CompleteCartesianChartLayout = {
     colorByCategory?: boolean | undefined;
     /** Per-category color overrides (maps category value to hex color) */
     categoryColorOverrides?: Record<string, string> | undefined;
+    /** Style the current, unfinished time period (eg this week) as dashed lines and hatched bars */
+    showIncompletePeriod?: boolean | undefined;
 };
 
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;
@@ -1256,9 +1258,7 @@ export const isSeriesWithMixedChartTypes = (
     new Set(
         series?.map(
             ({ type, areaStyle }) =>
-                `${type}${
-                    type === CartesianSeriesType.LINE ? areaStyle : undefined
-                }`,
+                `${type}${type === CartesianSeriesType.LINE ? areaStyle : undefined}`,
         ),
     ).size >= 2;
 
