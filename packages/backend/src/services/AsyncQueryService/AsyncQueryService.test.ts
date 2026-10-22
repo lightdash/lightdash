@@ -21782,6 +21782,120 @@ describe('fresh stored result read boundary', () => {
             ).not.toHaveBeenCalled();
         },
     );
+    const setupDashboardTileRead = (tiles: { uuid: string }[]) => {
+        const f = setupRead();
+        f.history.requestParameters = {
+            ...f.history.requestParameters,
+            chartUuid: 'chart',
+            dashboardUuid: 'dashboard',
+            tileUuid: 'unsaved-tile',
+            dashboardFilters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+            dashboardSorts: [],
+        };
+        Object.assign(f.service.dashboardModel, {
+            getByIdOrSlug: vi.fn(async () => ({
+                uuid: 'dashboard',
+                organizationUuid: projectSummary.organizationUuid,
+                projectUuid,
+                spaceUuid: 'space',
+                tiles,
+            })),
+        });
+        const chartAccess = vi
+            .spyOn(f.service as AnyType, 'assertSavedChartQuerySourceAccess')
+            .mockResolvedValue(undefined);
+        return { ...f, chartAccess };
+    };
+    test('the creator reads results of a tile not yet saved to the dashboard', async () => {
+        const f = setupDashboardTileRead([{ uuid: 'saved-tile' }]);
+        f.history.createdByUserUuid = f.account.user.id;
+        await expect(
+            f.service.getRawAsyncQueryResults({
+                account: f.account,
+                projectUuid,
+                queryUuid: f.history.queryUuid,
+            }),
+        ).resolves.toMatchObject({ rows: [{}] });
+        expect(f.chartAccess).toHaveBeenCalled();
+    });
+    test('another user cannot read results of a tile missing from the dashboard', async () => {
+        const f = setupDashboardTileRead([{ uuid: 'saved-tile' }]);
+        f.history.createdByUserUuid = 'another-user';
+        await expect(
+            f.service.getRawAsyncQueryResults({
+                account: f.account,
+                projectUuid,
+                queryUuid: f.history.queryUuid,
+            }),
+        ).rejects.toThrow('tile is no longer available');
+        expect(
+            f.service.resultsStorageClient.getDownloadStream,
+        ).not.toHaveBeenCalled();
+    });
+    test.each([
+        { tiles: [{ uuid: 'unsaved-tile' }], refused: false },
+        { tiles: [{ uuid: 'saved-tile' }], refused: true },
+    ])(
+        'an embed reader is refused a tile missing from the dashboard (refused: $refused)',
+        async ({ tiles, refused }) => {
+            const f = setupDashboardTileRead(tiles);
+            const embedAccount = fromJwt({
+                decodedToken: {
+                    ...defaultJwtToken,
+                    content: { type: 'dashboard', dashboardUuid: 'dashboard' },
+                },
+                embed: {
+                    projectUuid,
+                    organization: {
+                        organizationUuid: projectSummary.organizationUuid,
+                        name: 'Test Organization',
+                        createdAt: new Date('2024-01-01'),
+                    },
+                    encodedSecret: 'test-encoded-secret',
+                    dashboardUuids: ['dashboard'],
+                    allowAllDashboards: false,
+                    chartUuids: [],
+                    allowAllCharts: false,
+                    allowAllApps: false,
+                    appUuids: [],
+                    createdAt: '2024-01-01',
+                    user: null,
+                },
+                source: 'test-jwt-token',
+                content: {
+                    type: 'dashboard',
+                    dashboardUuid: 'dashboard',
+                    chartUuids: ['chart'],
+                    explores: [validExplore.name],
+                },
+                userAttributes: {
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                },
+            });
+            f.history.createdByUserUuid = embedAccount.user.id;
+            f.history.requestParameters.resultProducer!.authMethod =
+                embedAccount.authentication.type;
+            vi.spyOn(
+                f.service as AnyType,
+                'getJwtDashboardQueryContext',
+            ).mockResolvedValue({ dashboardUuid: 'dashboard' });
+            const read = f.service.getRawAsyncQueryResults({
+                account: embedAccount,
+                projectUuid,
+                queryUuid: f.history.queryUuid,
+            });
+            if (refused)
+                await expect(read).rejects.toThrow(
+                    'tile is no longer available',
+                );
+            else await expect(read).resolves.toMatchObject({ rows: [{}] });
+        },
+    );
     test('the kill switch permits an incompatible producer but still refuses revoked access', async () => {
         const f = setupRead(false);
         f.history.requestParameters.resultProducer!.credentialOwner = {

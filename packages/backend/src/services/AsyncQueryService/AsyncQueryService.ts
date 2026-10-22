@@ -2003,8 +2003,16 @@ export class AsyncQueryService extends ProjectService {
                                 "You don't have access to this dashboard",
                             );
                     }
+                    // A tile not yet saved in edit mode exists only for the person who ran it; its chart or SQL source was checked above
+                    const isOwnUnsavedTile =
+                        reader.kind === 'person' &&
+                        fresh.isRegisteredUser() &&
+                        !isJwtUser(fresh) &&
+                        node.createdByUserUuid === fresh.user.id &&
+                        (!!chartUuid || !!source);
                     if (
                         tileUuid &&
+                        !isOwnUnsavedTile &&
                         !dashboard.tiles.some((tile) => tile.uuid === tileUuid)
                     )
                         throw new ForbiddenError(
