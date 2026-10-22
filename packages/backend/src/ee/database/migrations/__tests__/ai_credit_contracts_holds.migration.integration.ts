@@ -486,43 +486,36 @@ describe('AI credit contracts, holds and usage on the real PostgreSQL schema', (
     describe('daily usage', () => {
         const at = (day: string) => new Date(`${day}T12:00:00Z`);
 
-        test('splits billable credits by day and channel, with empty days kept', async () => {
+        test('splits billable credits by day and feature, with empty days kept', async () => {
             await record(
-                usageEvent(organizationUuid, { channel: 'web' }),
+                usageEvent(organizationUuid, { feature: 'agent' }),
                 at('2026-09-16'),
             );
             await record(
-                usageEvent(organizationUuid, { channel: 'slack' }),
+                usageEvent(organizationUuid, { feature: 'data-app' }),
                 at('2026-09-16'),
             );
             await record(
-                usageEvent(organizationUuid, { channel: 'web' }),
+                usageEvent(organizationUuid, { feature: 'agent' }),
                 at('2026-09-18'),
             );
             await record(
                 usageEvent(organizationUuid, {
-                    channel: 'web',
+                    feature: 'agent',
                     keyManagement: 'self-managed',
                 }),
                 at('2026-09-18'),
             );
             await record(
-                usageEvent(organizationUuid, {
-                    channel: 'web',
-                    feature: 'review-classifier',
-                }),
+                usageEvent(organizationUuid, { feature: 'review-classifier' }),
                 at('2026-09-18'),
             );
 
-            const daily = await usage.summarizeByDay(
-                organizationUuid,
-                period,
-                'channel',
-            );
+            const daily = await usage.summarizeByDay(organizationUuid, period);
 
-            expect(daily.series).toEqual([
-                expect.objectContaining({ key: 'web', name: null }),
-                expect.objectContaining({ key: 'slack', name: null }),
+            expect(daily.series.map((series) => series.feature)).toEqual([
+                'agent',
+                'data-app',
             ]);
             const credits = (day: string) =>
                 daily.days.find((d) => d.date === day)?.credits;
@@ -541,75 +534,6 @@ describe('AI credit contracts, holds and usage on the real PostgreSQL schema', (
             );
             expect(credits('2026-09-18')?.[1]).toBe(0);
             expect(daily.days).toHaveLength(30);
-        });
-
-        test('names projects and groups deleted and unattributed usage', async () => {
-            const {
-                rows: [{ project_uuid: projectUuid }],
-            } = await transaction.raw<{ rows: { project_uuid: string }[] }>(
-                `INSERT INTO projects (name, organization_id)
-                 SELECT 'Marketing', organization_id FROM organizations WHERE organization_uuid = ?
-                 RETURNING project_uuid`,
-                [organizationUuid],
-            );
-            await record(
-                usageEvent(organizationUuid, { projectId: projectUuid }),
-                at('2026-09-16'),
-            );
-            await record(
-                usageEvent(organizationUuid, { projectId: projectUuid }),
-                at('2026-09-16'),
-            );
-            await record(
-                usageEvent(organizationUuid, { projectId: randomUUID() }),
-                at('2026-09-16'),
-            );
-            await record(
-                usageEvent(organizationUuid, { projectId: null }),
-                at('2026-09-16'),
-            );
-
-            const daily = await usage.summarizeByDay(
-                organizationUuid,
-                period,
-                'project',
-            );
-
-            expect(daily.series.map((series) => series.type)).toEqual([
-                'value',
-                'deleted',
-                'unattributed',
-            ]);
-            expect(daily.series[0]).toEqual(
-                expect.objectContaining({
-                    key: projectUuid,
-                    name: 'Marketing',
-                }),
-            );
-        });
-
-        test('groups embedded viewers instead of listing them', async () => {
-            await record(
-                usageEvent(organizationUuid, { externalUserId: 'viewer-1' }),
-                at('2026-09-16'),
-            );
-            await record(
-                usageEvent(organizationUuid, { externalUserId: 'viewer-2' }),
-                at('2026-09-16'),
-            );
-
-            const daily = await usage.summarizeByDay(
-                organizationUuid,
-                period,
-                'user',
-            );
-
-            expect(daily.series).toEqual([
-                {
-                    type: 'embeddedViewers',
-                    credits: expect.closeTo(2 * SONNET_INPUT_MTOK_CREDITS, 6),
-                },
-            ]);
         });
     });
 

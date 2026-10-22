@@ -14,8 +14,8 @@ const days = (count: number) =>
     }));
 
 const series: AiCreditDailyUsageSeries[] = [
-    { type: 'value', key: 'agent', name: null, credits: 0 },
-    { type: 'other', credits: 0 },
+    { feature: 'agent', credits: 0 },
+    { feature: 'data-app', credits: 0 },
 ];
 
 describe('toAiCreditChartBuckets', () => {
@@ -42,9 +42,10 @@ describe('toAiCreditChartBuckets', () => {
 });
 
 describe('getAiCreditSeriesColor', () => {
-    it('shows combined usage in a neutral colour', () => {
-        expect(getAiCreditSeriesColor(series[1], 1)).toContain('ldGray');
-        expect(getAiCreditSeriesColor(series[0], 0)).toContain('violet');
+    it('gives each series its own hue and wraps around', () => {
+        expect(getAiCreditSeriesColor(0)).toContain('violet');
+        expect(getAiCreditSeriesColor(1)).not.toBe(getAiCreditSeriesColor(0));
+        expect(getAiCreditSeriesColor(6)).toBe(getAiCreditSeriesColor(0));
     });
 });
 
