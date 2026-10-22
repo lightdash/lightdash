@@ -39,6 +39,7 @@ import {
     useCreateProjectChartType,
     useSelectProjectChartType,
 } from '../../CustomChartType/useSelectProjectChartType';
+import { ChartStudioInfoCallout } from './components/ChartStudioInfoCallout';
 import { ChartStudioNudgeCard } from './components/ChartStudioNudgeCard';
 import { GenerateVizWithAi } from './components/CustomVisAi';
 import { SelectTemplate } from './components/CustomVisTemplate';
@@ -278,6 +279,10 @@ export const ConfigTabs: React.FC = memo(() => {
         projectUuid,
         track,
     ]);
+    const openChartStudioGallery = useCallback(
+        () => void navigate(`/projects/${projectUrlIdentifier}/chart-studio`),
+        [navigate, projectUrlIdentifier],
+    );
     const dismissNudge = useCallback(() => {
         forgetNudge();
         if (projectUuid) {
@@ -400,6 +405,15 @@ export const ConfigTabs: React.FC = memo(() => {
                         </Config.Group>
                     </Config.Section>
                 </Config>
+
+                {/* The dismissable card above already makes the pitch. */}
+                {!isNudgeVisible && (
+                    <ChartStudioInfoCallout
+                        onOpenChartStudio={
+                            chartStudioAvailable ? openChartStudioGallery : null
+                        }
+                    />
+                )}
             </Stack>
             <Group
                 h="calc(100vh - 300px)"
