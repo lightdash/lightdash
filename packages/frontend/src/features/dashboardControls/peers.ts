@@ -167,6 +167,18 @@ export const getMissingTileFieldId = (
     return doesTileOfferField(tile, fieldId, fieldsByTile) ? null : fieldId;
 };
 
+// On the filter: a field or column the tile still offers, or a data app tile
+// that is on
+export const isTileOnFilter = (
+    rule: DashboardFilterRule,
+    tile: DashboardTile,
+    fieldsByTile: FieldsByTile,
+    sqlColumnsByTile: SqlColumnsByTile = {},
+): boolean =>
+    canTileTakeFilter(tile, fieldsByTile, sqlColumnsByTile) &&
+    getTileField(rule, tile, fieldsByTile, sqlColumnsByTile) !== null &&
+    getMissingTileFieldId(rule, tile, fieldsByTile, sqlColumnsByTile) === null;
+
 // Never a field of the filter: a SQL column mapping, or one left behind by
 // a tile that is gone. With `tiles` undefined (not loaded) every one counts
 const getPeerTargets = (

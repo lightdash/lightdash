@@ -10,15 +10,15 @@ type Props = Omit<ComponentProps<typeof DashboardFiltersBar>, 'filterArea'>;
 // The shipped bar with its filter area swapped in edit mode. View mode is the
 // shipped bar as it is
 export const ControlsBar: FC<Props> = (props) => {
-    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
     return (
         <DashboardFiltersBar
             {...props}
             filterArea={
                 props.isEditMode ? (
                     <>
-                        {/* The open editor holds the filters and "Add filter" */}
-                        {!isSidebarOpen && (
+                        {/* The open rail holds the filters and "Add filter" */}
+                        {!isRailOpen && (
                             <>
                                 <AddControl isVisibilityToggleHidden={false} />
                                 <FilterPills

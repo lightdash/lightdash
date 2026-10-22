@@ -211,7 +211,7 @@ const LinkCard: FC<CardProps> = ({
 };
 
 export const LinkPrompts: FC = () => {
-    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
     const newTileUuids = useControlsSidebarSelector((c) => c.newTileUuids);
     const dismissedLinks = useControlsSidebarSelector((c) => c.dismissedLinks);
     const { mode } = useParams<{ mode?: string }>();
@@ -221,7 +221,7 @@ export const LinkPrompts: FC = () => {
         (c) => c.filterableFieldsByTileUuid,
     );
     const fieldsMap = useDashboardContext((c) => c.allFilterableFieldsMap);
-    const isEnabled = mode === 'edit' && !isSidebarOpen;
+    const isEnabled = mode === 'edit' && !isRailOpen;
 
     const prompts = useMemo(() => {
         const tiles = (dashboardTiles ?? []).filter((tile) =>

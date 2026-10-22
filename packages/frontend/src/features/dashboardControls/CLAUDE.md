@@ -101,8 +101,9 @@ In `FilterConfiguration/`:
 - `ControlsBar` is the shipped `DashboardFiltersBar` with its one opening,
   `filterArea`: the slot that replaces `DashboardFilters` and the requirements
   button. In edit mode it holds `AddControl`, `FilterPills` and the shipped
-  requirements button. While the sidebar is open all three fold away: the
-  rail lists the filters and its footer has "Add filter". In view mode
+  requirements button. While the rail is open (`isRailOpen`, a filter
+  expanded or not) all three fold away: the rail lists the filters and its
+  footer has "Add filter". In view mode
   nothing is passed, so the bar is the shipped one. Separators, parameters, date zoom,
   the hide button, the compact drawer and the `data-tour-*` anchors are the
   shipped bar's own.
@@ -189,6 +190,18 @@ In `FilterConfiguration/`:
   kind). A locked control comes back not `required` when
   the new field brings no value (`isLockedRequiredMissingValue`).
 - `updateFilter(rule)` writes to the dashboard context, so tiles preview live.
+- The rail and the edit are two states. `isRailOpen` is the rail on screen;
+  `isSidebarOpen` is a filter expanded in it. `open`/`openNew` open both.
+  `collapse()` does to the edited filter exactly what `close()` does (edits
+  kept, a filter with no field dropped, an empty default switched off, a new
+  filter tracked) but leaves the rail open with every filter a row. So do
+  `removeFilter()` and `discard()`: the rail stays on the rows that are left,
+  and only `close()` (Done, the X, Escape, the header's Save) closes it,
+  expanded filter or not. With nothing expanded the rail lists rows with
+  "Add filter" and "Done" in the footer, the tiles have no overlay or veil,
+  the header is not locked, and the tab badges are gone. Leaving edit mode
+  closes both. Internally `closeEdited`, `discardEdited` and `removeEdited`
+  take `keepRail`; `resetEdit` ends the edit, `reset` also closes the rail.
 - `close()` keeps the edits: they already live in the dashboard draft. A
   control that cannot be kept (`canKeepFilterRule`: no field) is dropped
   instead: a new one by `discard()`, an existing one as `removeFilter()`
@@ -236,16 +249,23 @@ In `FilterConfiguration/`:
   `isDirty`, which shows Discard, also counts the other rules the
   editor wrote (`haveOtherFilterRulesChanged` over `touchedFilterIds`).
 - `isSidebarOpen` is derived: a control is being edited and its rule is
-  still in the dashboard filters. A rule that something else removed closes
-  the sidebar at once; the next `open` or `openNew` starts over: `close()`
-  only resets then, so the rule stays away and the flag is left alone.
+  still in the dashboard filters. A rule that something else removed ends
+  the edit at once and the rail stays on its rows; the next `open` or
+  `openNew` starts over: `close()` only resets then, so the rule stays away
+  and the flag is left alone. Readers: the header guard (locks on an edit,
+  not on the rail), `FocusReturn`, the overlays' "a filter is edited". The
+  bar, the link prompts and `useEditorDismiss` read `isRailOpen`.
   Nothing is reset in an effect. A first field's store write and dropping
   the placeholder land in the same render, so the new rule is never missing.
-- `close()`, `discard()`, `removeFilter()` and opening another control clear
-  the waiting fields. The first three send focus back to the bar once the
-  editor has left the page (so do Done, the X, Escape and the header's Save,
-  which all go through `close()`): to the control's pill when it is still there and
-  not disabled (a fields refetch disables it), else to "Add". The provider finds
+- `close()`, `collapse()`, `discard()`, `removeFilter()` and opening another
+  control clear the waiting fields. `close()` sends focus back to the bar
+  once the rail has left the page (so do Done, the X, Escape and the header's
+  Save, which all go through it): to the control's pill when it is still
+  there and not disabled (a fields refetch disables it), else to "Add".
+  `collapse()`, `discard()` and `removeFilter()` keep the rail, so focus goes
+  to the filter's row (`data-controls-row`, set by `FilterRow`) once the edit
+  has ended, else the next row, else the row before, else the rail's "Add"
+  (the bar's is hidden then). The provider finds
   them in the DOM, as the pill carrying the control's id
   (`data-controls-pill`, set by `FilterPill`) and as the shipped "Add filter"
   button (`[data-filter-actions] > button[data-dashboard-filter-control]`);
@@ -260,15 +280,15 @@ In `FilterConfiguration/`:
 
 ## Dismissing (`useEditorDismiss`)
 
-- Escape is one capture listener on `document`, attached while the editor is
-  open, so one press does one thing. In order: an open list, menu or popover
+- Escape is one capture listener on `document`, attached while the rail is
+  open (a filter expanded or not), so one press does one thing. In order: an open list, menu or popover
   (`aria-expanded="true"` on its target, or `data-expanded` on a Mantine
   combobox target) or a modal owns the press; an input
   marked `data-own-escape` owns it (nothing carries it today); a clicked field
   is unclicked;
   otherwise, with focus inside the editor (`data-controls-editor` on
   `EditorShell`), the focused input is blurred so its label commits and the
-  editor closes as "Done" does. From the page, Escape never closes.
+  rail closes as "Done" does. From the page, Escape never closes.
 - A mouse down never unclicks the field, and neither does changing the
   dashboard tab: the selection is kept while the editor walks the tabs. It
   ends only by clicking the card again, Escape, selecting another field,
@@ -288,15 +308,30 @@ In `FilterConfiguration/`:
   (`filters.filterIsLockedOnTab`, `filters.filterIsLocked` without tabs) and
   "Required" in yellow; a required filter with no value reads the shipped
   `filters.required.setValueTooltip`). The edited filter is open in its
-  place, a placeholder last. A row opens with `open`. Strings are in
-  `railSummaries.ts`.
+  place, a placeholder last; with nothing expanded every filter is a row,
+  and with no filters the rail is only its header and footer. A row opens
+  with `open`. Strings are in `railSummaries.ts`.
+- Hovering a row, or focusing it from the keyboard (`:focus-visible`, so
+  focus handed back after a click lights nothing), sets `hoveredFilterId`;
+  leaving or blurring clears it, and opening a filter or closing the rail
+  forgets it. `useHoveredFilterRule` reads it as a rule, null on the edited
+  filter. Its tiles on the tab in view (`isTileOnFilter`: a field or column
+  the tile still offers, or a data app tile that is on) get the `mapped`
+  look and every other tile none, over the edited filter's overlays (the
+  unreachable veil carries a `.ring` for it). With nothing edited
+  `HoveredFilterReach` portals only a `.reach` ring into those tiles: no
+  veil, card or lock. The tab badges count the hovered filter as a whole,
+  blue where it reaches.
 - The open row sits on the muted fill (`ldGray-1`). Type icon, the label
   input in place (placeholder: the field's name), borderless until hovered
-  or focused, the shipped `ConfirmDeleteButton` ("Remove filter", a second
-  click removes) on an existing filter, and a More actions menu while there
-  is something to discard ("Discard filter" for a new one, "Discard changes"
-  once dirty). A new filter with no field shows "New filter", the field
-  search and neither.
+  or focused, an `IconArrowBackUp` action icon while there is something to
+  discard ("Discard filter" for a new one, "Discard changes" once dirty; the
+  app's revert icon, as "Revert to published" in the homepage builder), the
+  shipped `ConfirmDeleteButton` ("Remove filter", a second click removes) on
+  an existing filter, and a chevron ("Collapse filter", `aria-expanded`). A
+  click anywhere on the head that is not its input or a button collapses the
+  filter too. A new filter with no field shows "New filter", the field
+  search, no discard or trash.
   Under the value, two disclosures (`activeSection`, one at a time, both
   closed whenever a filter opens): "Tiles" (`FieldsAndTiles`, "N tiles · M
   fields") and "Rules" (`ViewerControls`, the lock and requirement summary,
@@ -760,8 +795,8 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - Linking writes `tileTargets[tileUuid]` on the rule (`setTileField`), which
   ends the row. Skipping is `dismissLink`; skips live in the provider until
   edit mode ends.
-- Rendered only in edit mode while the sidebar is closed, so it never stacks
-  on `TileOverlays`.
+- Rendered only in edit mode while the rail is closed, so it never stacks
+  on `TileOverlays` or a hovered row's rings.
 
 ## Motion
 

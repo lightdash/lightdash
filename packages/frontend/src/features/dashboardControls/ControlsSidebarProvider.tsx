@@ -78,12 +78,20 @@ const ADD_SELECTOR =
 // `FilterPill` sets it
 const PILL_ATTRIBUTE = 'data-controls-pill';
 
-const findPill = (filterId: string): HTMLElement | null =>
-    [...document.querySelectorAll<HTMLElement>(`[${PILL_ATTRIBUTE}]`)].find(
-        (pill) => pill.getAttribute(PILL_ATTRIBUTE) === filterId,
+// `FilterRow` sets it, on the rail's closed rows
+const ROW_ATTRIBUTE = 'data-controls-row';
+
+const findByAttribute = (
+    attribute: string,
+    filterId: string,
+): HTMLElement | null =>
+    [...document.querySelectorAll<HTMLElement>(`[${attribute}]`)].find(
+        (element) => element.getAttribute(attribute) === filterId,
     ) ?? null;
 
-type FocusTarget = { filterId: string | null };
+// inRail: the rail stays open, so focus goes to a row there. filterIds are
+// tried in order: the filter's own, then its neighbours in the rail
+type FocusTarget = { filterIds: string[]; inRail: boolean };
 
 // Focus is a DOM matter: it moves once the editor has left the page and the
 // bar has its pills again. The bar reads the context through selectors, which
@@ -92,17 +100,23 @@ const FocusReturn: FC<{ target: RefObject<FocusTarget | null> }> = ({
     target,
 }) => {
     const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
     useEffect(() => {
-        if (isSidebarOpen || target.current === null) return;
-        const { filterId } = target.current;
+        const current = target.current;
+        if (current === null) return;
+        if (current.inRail ? isSidebarOpen : isRailOpen) return;
         target.current = null;
-        const pill = filterId === null ? null : findPill(filterId);
-        // A pill disabled by a refetch cannot take it
-        (pill !== null && !pill.hasAttribute('disabled')
-            ? pill
-            : document.querySelector<HTMLElement>(ADD_SELECTOR)
-        )?.focus();
-    }, [isSidebarOpen, target]);
+        const attribute = current.inRail ? ROW_ATTRIBUTE : PILL_ATTRIBUTE;
+        // A pill or row disabled by a refetch cannot take it. "Add" is the
+        // rail's while it is open, since the bar's is hidden then
+        const element = current.filterIds
+            .map((filterId) => findByAttribute(attribute, filterId))
+            .find(
+                (candidate) =>
+                    candidate !== null && !candidate.hasAttribute('disabled'),
+            );
+        (element ?? document.querySelector<HTMLElement>(ADD_SELECTOR))?.focus();
+    }, [isSidebarOpen, isRailOpen, target]);
     return null;
 };
 
@@ -139,6 +153,7 @@ const createPlaceholder = (id: string): DashboardFilterRule => ({
 // written eagerly so two calls in one event (commit a label, then close) agree.
 type Latest = {
     state: SidebarState | null;
+    isRailOpen: boolean;
     placeholder: DashboardFilterRule | null;
     dashboardFilters: DashboardFilters;
     dashboardTemporaryFilters: DashboardFilters;
@@ -225,6 +240,9 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
 
     const [state, setState] = useState<SidebarState | null>(null);
+    // The rail can be open with no filter edited: every filter is a row
+    const [isRailOpen, setIsRailOpen] = useState(false);
+    const [hoveredFilterId, setHoveredFilterId] = useState<string | null>(null);
     // Lives here, never in the dashboard filters, until it gets a mapping
     const [placeholder, setPlaceholder] = useState<DashboardFilterRule | null>(
         null,
@@ -243,6 +261,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
 
     const rendered: Latest = {
         state,
+        isRailOpen,
         placeholder,
         dashboardFilters,
         dashboardTemporaryFilters,
@@ -338,7 +357,13 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         setState(next);
     }, []);
 
-    const reset = useCallback(() => {
+    const writeRailOpen = useCallback((next: boolean) => {
+        latest.current.isRailOpen = next;
+        setIsRailOpen(next);
+    }, []);
+
+    // Ends the edit; the rail stays open on its rows
+    const resetEdit = useCallback(() => {
         writeState(null);
         writePlaceholder(null);
         setActiveSection(null);
@@ -346,6 +371,12 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         setHoveredFieldId(null);
         setWaiting(null);
     }, [writeState, writePlaceholder]);
+
+    const reset = useCallback(() => {
+        resetEdit();
+        writeRailOpen(false);
+        setHoveredFilterId(null);
+    }, [resetEdit, writeRailOpen]);
 
     // Unclicks the field and drops its hover, so the tiles go back at once
     const clearHighlightedField = useCallback(() => {
@@ -357,13 +388,36 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
     }, []);
 
     // Where focus goes once the editor is gone: the control's pill when it
-    // is back on the bar, else "Add". Null while nothing asked for it
+    // is back on the bar, else "Add". In the rail: its row, else the next
+    // row, else the one before, else "Add". Null while nothing asked for it
     const focusReturn = useRef<FocusTarget | null>(null);
-    const rememberFocusReturn = useCallback(() => {
-        const { placeholder: rule, state: editingState } = latest.current;
-        // A control with no field yet was never on the bar
+    const rememberFocusReturn = useCallback((inRail: boolean) => {
+        const {
+            placeholder: rule,
+            state: editingState,
+            dashboardFilters: filters,
+        } = latest.current;
+        // A control with no field yet was never on the bar or a row
+        const filterId =
+            rule === null ? (editingState?.filterId ?? null) : null;
+        if (filterId === null) {
+            focusReturn.current = { filterIds: [], inRail };
+            return;
+        }
+        const ids = [...filters.dimensions, ...filters.metrics].map(
+            (filter) => filter.id,
+        );
+        const index = ids.indexOf(filterId);
         focusReturn.current = {
-            filterId: rule === null ? (editingState?.filterId ?? null) : null,
+            filterIds:
+                inRail && index !== -1
+                    ? [
+                          filterId,
+                          ...ids.slice(index + 1),
+                          ...ids.slice(0, index).reverse(),
+                      ]
+                    : [filterId],
+            inRail,
         };
     }, []);
 
@@ -380,6 +434,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             setHighlightedFieldId(null);
             setHoveredFieldId(null);
             setWaiting(null);
+            setHoveredFilterId(null);
+            writeRailOpen(true);
             writeState({
                 filterId,
                 isNew: false,
@@ -391,7 +447,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
                 touchedFilterIds: [],
             });
         },
-        [writeState, writePlaceholder],
+        [writeState, writePlaceholder, writeRailOpen],
     );
 
     const openPlaceholder = useCallback(() => {
@@ -404,6 +460,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
         setWaiting(null);
+        setHoveredFilterId(null);
+        writeRailOpen(true);
         writeState({
             filterId: rule.id,
             isNew: true,
@@ -414,7 +472,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             },
             touchedFilterIds: [],
         });
-    }, [writeState, writePlaceholder]);
+    }, [writeState, writePlaceholder, writeRailOpen]);
 
     // A control that lost its last field goes back where it was
     const writeFirstRule = useCallback(
@@ -669,39 +727,67 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
 
     // The edited rule goes and the editor's writes to other rules are undone;
     // what was written from outside the editor stays, and keeps it changed
-    const removeFilter = useCallback(() => {
-        const { state: editingState } = latest.current;
-        if (editingState === null) return;
-        rememberFocusReturn();
-        const { snapshot, filterId, touchedFilterIds } = editingState;
-        writeFilters((filters) =>
-            restoreFilterRules(
-                removeFilterRule(filters, filterId),
-                snapshot.dashboardFilters,
-                touchedFilterIds,
-            ),
-        );
-        settleFiltersChanged(snapshot);
-        reset();
-    }, [writeFilters, settleFiltersChanged, reset, rememberFocusReturn]);
+    // keepRail: the rail stays open on its rows, else it closes too
+    const removeEdited = useCallback(
+        (keepRail: boolean) => {
+            const { state: editingState } = latest.current;
+            if (editingState === null) return;
+            rememberFocusReturn(keepRail);
+            const { snapshot, filterId, touchedFilterIds } = editingState;
+            writeFilters((filters) =>
+                restoreFilterRules(
+                    removeFilterRule(filters, filterId),
+                    snapshot.dashboardFilters,
+                    touchedFilterIds,
+                ),
+            );
+            settleFiltersChanged(snapshot);
+            if (keepRail) resetEdit();
+            else reset();
+        },
+        [
+            writeFilters,
+            settleFiltersChanged,
+            reset,
+            resetEdit,
+            rememberFocusReturn,
+        ],
+    );
+    // The rail stays open on the rows that are left
+    const removeFilter = useCallback(() => removeEdited(true), [removeEdited]);
 
     // The edited rule goes back to its snapshot, or out when it was new, and
     // so do the other rules the editor wrote; outside writes are left alone
-    const discard = useCallback(() => {
-        const { state: editingState } = latest.current;
-        if (editingState === null) return;
-        rememberFocusReturn();
-        const { snapshot, filterId, touchedFilterIds } = editingState;
-        writeFilters((filters) =>
-            restoreFilterRules(
-                restoreFilterRule(filters, snapshot.dashboardFilters, filterId),
-                snapshot.dashboardFilters,
-                touchedFilterIds,
-            ),
-        );
-        settleFiltersChanged(snapshot);
-        reset();
-    }, [writeFilters, settleFiltersChanged, reset, rememberFocusReturn]);
+    const discardEdited = useCallback(
+        (keepRail: boolean) => {
+            const { state: editingState } = latest.current;
+            if (editingState === null) return;
+            rememberFocusReturn(keepRail);
+            const { snapshot, filterId, touchedFilterIds } = editingState;
+            writeFilters((filters) =>
+                restoreFilterRules(
+                    restoreFilterRule(
+                        filters,
+                        snapshot.dashboardFilters,
+                        filterId,
+                    ),
+                    snapshot.dashboardFilters,
+                    touchedFilterIds,
+                ),
+            );
+            settleFiltersChanged(snapshot);
+            if (keepRail) resetEdit();
+            else reset();
+        },
+        [
+            writeFilters,
+            settleFiltersChanged,
+            reset,
+            resetEdit,
+            rememberFocusReturn,
+        ],
+    );
+    const discard = useCallback(() => discardEdited(true), [discardEdited]);
 
     const isPlaceholder = state !== null && placeholder !== null;
 
@@ -748,48 +834,64 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         return waiting.fieldIds.filter((fieldId) => !current.has(fieldId));
     }, [state, waiting, editingRule, dashboardTiles]);
 
-    // Keeps the edits, which already live in the dashboard draft
-    const close = useCallback(() => {
-        const current = latest.current;
-        if (current.state === null) return;
-        const { snapshot } = current.state;
-        const rule = getEditingRule(current);
-        // Something outside took the rule away: that write is kept, and
-        // nothing of this edit is put back
-        if (rule === null) {
-            reset();
-            return;
-        }
-        if (!canKeepFilterRule(rule)) {
-            // An existing control left with no field goes as "Remove filter"
-            if (!current.state.isNew) removeFilter();
-            else discard();
-            return;
-        }
-        rememberFocusReturn();
-        // A new filter is created once it is kept, as the shipped bar tracks it
-        if (current.state.isNew) {
-            current.track({
-                name: EventName.ADD_FILTER_CLICKED,
-                properties: { mode: 'edit' },
-            });
-        }
-        if (isDefaultValueIncomplete(rule)) {
-            writeFilters((filters) =>
-                replaceFilterRule(filters, { ...rule, disabled: true }),
-            );
-        }
-        // An edit that was undone by hand leaves the dashboard unchanged
-        settleFiltersChanged(snapshot);
-        reset();
-    }, [
-        discard,
-        removeFilter,
-        reset,
-        writeFilters,
-        settleFiltersChanged,
-        rememberFocusReturn,
-    ]);
+    // Keeps the edits, which already live in the dashboard draft. keepRail:
+    // the filter collapses to its row and the rail stays open
+    const closeEdited = useCallback(
+        (keepRail: boolean) => {
+            const current = latest.current;
+            if (current.state === null) {
+                // Nothing is edited: Done, the X and Escape close the rail itself
+                if (!keepRail && current.isRailOpen) {
+                    focusReturn.current = { filterIds: [], inRail: false };
+                    reset();
+                }
+                return;
+            }
+            const { snapshot } = current.state;
+            const rule = getEditingRule(current);
+            // Something outside took the rule away: that write is kept, and
+            // nothing of this edit is put back
+            if (rule === null) {
+                if (keepRail) resetEdit();
+                else reset();
+                return;
+            }
+            if (!canKeepFilterRule(rule)) {
+                // An existing control left with no field goes as "Remove filter"
+                if (!current.state.isNew) removeEdited(keepRail);
+                else discardEdited(keepRail);
+                return;
+            }
+            rememberFocusReturn(keepRail);
+            // A new filter is created once it is kept, as the shipped bar tracks it
+            if (current.state.isNew) {
+                current.track({
+                    name: EventName.ADD_FILTER_CLICKED,
+                    properties: { mode: 'edit' },
+                });
+            }
+            if (isDefaultValueIncomplete(rule)) {
+                writeFilters((filters) =>
+                    replaceFilterRule(filters, { ...rule, disabled: true }),
+                );
+            }
+            // An edit that was undone by hand leaves the dashboard unchanged
+            settleFiltersChanged(snapshot);
+            if (keepRail) resetEdit();
+            else reset();
+        },
+        [
+            discardEdited,
+            removeEdited,
+            reset,
+            resetEdit,
+            writeFilters,
+            settleFiltersChanged,
+            rememberFocusReturn,
+        ],
+    );
+    const close = useCallback(() => closeEdited(false), [closeEdited]);
+    const collapse = useCallback(() => closeEdited(true), [closeEdited]);
 
     // Whatever is being edited is closed first, as "Done" would. A new
     // control with no field yet stays as it is, label included
@@ -797,26 +899,26 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         const { state: editingState, placeholder: editingPlaceholder } =
             latest.current;
         if (editingState?.isNew && editingPlaceholder !== null) return;
-        close();
+        collapse();
         openPlaceholder();
-    }, [close, openPlaceholder]);
+    }, [collapse, openPlaceholder]);
 
     // The control that is open stays as it is. Any other one is closed
     // first, as "Done" would, new or not
     const open = useCallback(
         (filterId: string) => {
             if (latest.current.state?.filterId === filterId) return;
-            close();
+            collapse();
             openExisting(filterId);
         },
-        [close, openExisting],
+        [collapse, openExisting],
     );
 
     // Derived, not reset: a rule that left the dashboard filters closes the
     // sidebar, and the next open or Add starts over
     const isSidebarOpen = state !== null && editingRule !== null;
     useEditorDismiss({
-        isOpen: isSidebarOpen,
+        isOpen: isRailOpen,
         isFieldClicked: highlightedFieldId !== null,
         clearField: clearHighlightedField,
         close,
@@ -837,6 +939,9 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             isPlaceholder,
             editingRule,
             isSidebarOpen,
+            isRailOpen,
+            hoveredFilterId,
+            setHoveredFilterId,
             newTileUuids,
             dismissedLinks,
             dismissLink,
@@ -863,6 +968,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             removeFilterById,
             discard,
             close,
+            collapse,
             isDirty:
                 state !== null &&
                 (isPlaceholder ||
@@ -882,6 +988,8 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
         [
             state,
             isSidebarOpen,
+            isRailOpen,
+            hoveredFilterId,
             editing,
             isPlaceholder,
             editingRule,
@@ -904,6 +1012,7 @@ export const ControlsSidebarProvider: FC<PropsWithChildren> = ({
             removeFilterById,
             discard,
             close,
+            collapse,
             dashboardFilters,
             toSavedRule,
             newTileUuids,

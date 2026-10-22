@@ -7,12 +7,15 @@ import {
     ActionIcon,
     Box,
     Group,
-    Menu,
     Text,
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconDots, IconTrash } from '@tabler/icons-react';
+import {
+    IconArrowBackUp,
+    IconChevronDown,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -61,6 +64,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const removeFilter = useControlsSidebarSelector((c) => c.removeFilter);
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
     const discard = useControlsSidebarSelector((c) => c.discard);
+    const collapse = useControlsSidebarSelector((c) => c.collapse);
     const isDirty = useControlsSidebarSelector((c) => c.isDirty);
     useFocusLabelOnMount();
     // As the control was opened: an emptied label goes back to exactly that
@@ -127,11 +131,25 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
           : null;
     const fieldCount = getFilterFields(filterRule, dashboardTiles).length;
     // A new filter with no field yet leaves through the footer's Cancel
-    const hasMenu = !(isPlaceholder && isNew) && discardLabel !== null;
+    const hasDiscard = !(isPlaceholder && isNew) && discardLabel !== null;
 
     return (
         <Box className={classes.edited}>
-            <Group gap="xs" wrap="nowrap" className={classes.editedHead}>
+            {/* A click on the head collapses the filter, as its chevron does;
+                the name input and the buttons keep their own clicks */}
+            <Group
+                gap="xs"
+                wrap="nowrap"
+                className={classes.editedHead}
+                onClick={(event) => {
+                    if (
+                        event.target instanceof Element &&
+                        event.target.closest('input, button')
+                    )
+                        return;
+                    collapse();
+                }}
+            >
                 <FilterTypeIcon field={field} />
                 {isPlaceholder && isNew ? (
                     <Text fz="sm" fw={600} flex={1}>
@@ -163,6 +181,17 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                         }}
                     />
                 )}
+                {hasDiscard && (
+                    <Tooltip label={discardLabel}>
+                        <ActionIcon
+                            variant="subtle"
+                            aria-label={discardLabel}
+                            onClick={discard}
+                        >
+                            <MantineIcon icon={IconArrowBackUp} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
                 {!isNew && (
                     <ConfirmDeleteButton
                         aria-label="Remove filter"
@@ -172,26 +201,16 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                         <MantineIcon icon={IconTrash} />
                     </ConfirmDeleteButton>
                 )}
-                {hasMenu && (
-                    <Menu position="bottom-end">
-                        <Menu.Target>
-                            <Tooltip label="More actions">
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    aria-label="More actions"
-                                >
-                                    <MantineIcon icon={IconDots} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Item onClick={discard}>
-                                {discardLabel}
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
-                )}
+                <Tooltip label="Collapse">
+                    <ActionIcon
+                        variant="subtle"
+                        aria-label="Collapse filter"
+                        aria-expanded
+                        onClick={collapse}
+                    >
+                        <MantineIcon icon={IconChevronDown} size={14} />
+                    </ActionIcon>
+                </Tooltip>
             </Group>
             <Box className={classes.editedBody}>
                 {isPlaceholder ? (
@@ -226,7 +245,11 @@ export const ControlSidebar: FC = () => {
     );
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
     const open = useControlsSidebarSelector((c) => c.open);
+    const setHoveredFilterId = useControlsSidebarSelector(
+        (c) => c.setHoveredFilterId,
+    );
     const close = useControlsSidebarSelector((c) => c.close);
     const discard = useControlsSidebarSelector((c) => c.discard);
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
@@ -251,9 +274,13 @@ export const ControlSidebar: FC = () => {
     const allFilterableMetricsMap = useDashboardContext(
         (c) => c.allFilterableMetricsMap,
     );
-    if (filterId === null || editingRule === null) return null;
+    if (!isRailOpen) return null;
 
-    const editor = <FilterEditor key={filterId} rule={editingRule} />;
+    // Null while every filter is a row
+    const editor =
+        filterId === null || editingRule === null ? null : (
+            <FilterEditor key={filterId} rule={editingRule} />
+        );
     const rows = GROUPS.flatMap((group) =>
         dashboardFilters[group].map((rule) => {
             if (rule.id === filterId) return editor;
@@ -282,24 +309,28 @@ export const ControlSidebar: FC = () => {
                         (!areFieldsLoaded && !rule.target.isSqlColumn)
                     }
                     onOpen={open}
+                    onHover={setHoveredFilterId}
                 />
             );
         }),
     );
     // A placeholder is not in the dashboard filters yet: it comes last. One
     // keyed list, so the editor keeps its state when its rule joins them
-    const isListed = rows.includes(editor);
+    const isListed = editor === null || rows.includes(editor);
     // Closing keeps the edits, so the footer says what closing would drop
-    const footerStatus = isPlaceholder
-        ? 'Select a field to keep this filter'
-        : isDefaultValueIncomplete(editingRule)
-          ? 'No default value set, so the default stays off'
-          : null;
+    const footerStatus =
+        editingRule === null || editor === null
+            ? null
+            : isPlaceholder
+              ? 'Select a field to keep this filter'
+              : isDefaultValueIncomplete(editingRule)
+                ? 'No default value set, so the default stays off'
+                : null;
 
     return (
         <EditorShell
             onClose={close}
-            onCancel={isPlaceholder ? discard : null}
+            onCancel={editor !== null && isPlaceholder ? discard : null}
             footerStatus={footerStatus}
         >
             {isListed ? rows : [...rows, editor]}

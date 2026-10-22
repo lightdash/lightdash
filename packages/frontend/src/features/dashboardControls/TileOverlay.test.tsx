@@ -5,6 +5,7 @@ import {
     FilterOperator,
     TimeFrames,
     type DashboardFilterRule,
+    type DashboardFilters,
     type DashboardTile,
     type FilterableDimension,
 } from '@lightdash/common';
@@ -183,6 +184,9 @@ const renderWithProviders = (ui: ReactElement) => {
     const store = createDashboardTestStore({
         sqlChartTilesMetadata: mockTileStatusContext.current
             .sqlChartTilesMetadata as Record<string, SqlChartTileMetadata>,
+        dashboardFilters: mockDashboardContext.current.dashboardFilters as
+            | DashboardFilters
+            | undefined,
     });
     seedDashboardEditState(
         store,
@@ -242,6 +246,91 @@ describe('TileOverlays', () => {
         };
         mockTileStatusContext.current = { sqlChartTilesMetadata: {} };
         setSidebar();
+    });
+
+    describe('a hovered rail row', () => {
+        // On "both" only: every other tile is left out
+        const hovered = rule({
+            id: 'hovered',
+            tileTargets: {
+                [statusOnly.uuid]: false,
+                [otherTab.uuid]: false,
+            },
+        });
+        beforeEach(() => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardFilters: {
+                    dimensions: [rule(), hovered],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            };
+        });
+
+        it('rings the tiles its filter is on, over the edited filter', () => {
+            setSidebar({
+                editing: { filterId: 'control' },
+                hoveredFilterId: 'hovered',
+            });
+            renderWithProviders(<TileOverlays />);
+
+            expect(overlay(both.uuid)).toHaveAttribute(
+                'data-highlighted',
+                'mapped',
+            );
+            // On the edited filter, not on the hovered one
+            expect(overlay(statusOnly.uuid)).not.toHaveAttribute(
+                'data-highlighted',
+            );
+            expect(overlay(markdown.uuid)).not.toHaveAttribute(
+                'data-highlighted',
+            );
+        });
+
+        it('clears once the row is left', () => {
+            setSidebar({
+                editing: { filterId: 'control' },
+                hoveredFilterId: 'hovered',
+            });
+            const { rerender } = renderWithProviders(<TileOverlays />);
+            setSidebar({
+                editing: { filterId: 'control' },
+                hoveredFilterId: null,
+            });
+            rerender(<TileOverlays />);
+
+            expect(overlay(statusOnly.uuid)).toHaveAttribute(
+                'data-highlighted',
+                'filtered',
+            );
+        });
+
+        it('rings only its tiles on this tab, with no veil, while nothing is edited', () => {
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                hoveredFilterId: 'hovered',
+            });
+            const { rerender } = renderWithProviders(<TileOverlays />);
+
+            expect(
+                container(both.uuid).querySelector('[class*="reach"]'),
+            ).not.toBeNull();
+            expect(
+                container(both.uuid).querySelector('[data-controls-overlay]'),
+            ).toBeNull();
+            expect(container(statusOnly.uuid)).toBeEmptyDOMElement();
+            expect(container(otherTab.uuid)).toBeEmptyDOMElement();
+
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                hoveredFilterId: null,
+            });
+            rerender(<TileOverlays />);
+            expect(container(both.uuid)).toBeEmptyDOMElement();
+        });
     });
 
     it('shows the field a filterable tile is filtered by', () => {
@@ -680,7 +769,7 @@ describe('TileOverlays', () => {
         renderWithProviders(<TileOverlays />);
 
         expect(overlay(markdown.uuid)).not.toBeNull();
-        expect(overlay(markdown.uuid)).toBeEmptyDOMElement();
+        expect(overlay(markdown.uuid)?.textContent).toBe('');
     });
 
     it("veils a tile with none of the filter's fields and none it could add, with no text", () => {
@@ -697,7 +786,7 @@ describe('TileOverlays', () => {
         };
         renderWithProviders(<TileOverlays />);
 
-        expect(overlay(statusOnly.uuid)).toBeEmptyDOMElement();
+        expect(overlay(statusOnly.uuid)?.textContent).toBe('');
         expect(overlay(statusOnly.uuid)).not.toHaveAttribute(
             'data-highlighted',
         );
@@ -1219,7 +1308,7 @@ describe('TileOverlays', () => {
             expect(overlay(markdown.uuid)).not.toHaveAttribute(
                 'data-highlighted',
             );
-            expect(overlay(markdown.uuid)).toBeEmptyDOMElement();
+            expect(overlay(markdown.uuid)?.textContent).toBe('');
             expect(overlay(markdown.uuid)).toHaveAttribute(
                 'title',
                 'This tile has no field this filter can use',
@@ -1247,7 +1336,7 @@ describe('TileOverlays', () => {
             renderWithProviders(<TileOverlays />);
 
             expect(overlay(sql.uuid)).not.toHaveAttribute('data-highlighted');
-            expect(overlay(sql.uuid)).toBeEmptyDOMElement();
+            expect(overlay(sql.uuid)?.textContent).toBe('');
         });
 
         it('lists the fields of every kind, each grain of a date included', async () => {

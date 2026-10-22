@@ -106,6 +106,9 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         isPlaceholder: false,
         editingRule: makeRule({}),
         isSidebarOpen: true,
+        isRailOpen: true,
+        hoveredFilterId: null,
+        setHoveredFilterId: vi.fn(),
         activeSection: null,
         setActiveSection: vi.fn(),
         open: vi.fn(),
@@ -130,6 +133,7 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         removeFilterById: vi.fn(),
         discard: vi.fn(),
         close: vi.fn(),
+        collapse: vi.fn(),
         isDirty: true,
         newTileUuids: [],
         dismissedLinks: [],
@@ -321,10 +325,96 @@ describe('ControlSidebar', () => {
         );
     });
 
-    it('renders nothing when no control is being edited', () => {
-        setSidebar({ editing: null, editingRule: null });
+    it('renders nothing while the rail is closed', () => {
+        setSidebar({
+            editing: null,
+            editingRule: null,
+            isSidebarOpen: false,
+            isRailOpen: false,
+        });
         renderWithProviders(<ControlSidebar />);
         expect(screen.queryByText('Done')).not.toBeInTheDocument();
+    });
+
+    it('lists every filter as a row while the rail is open with none expanded', () => {
+        const { open, close } = setSidebar({
+            editing: null,
+            editingRule: null,
+            isSidebarOpen: false,
+        });
+        renderWithProviders(
+            <ControlSidebar />,
+            filters([
+                makeRule({ label: 'Order status' }),
+                makeRule({ id: 'filter-2', label: 'Region' }),
+            ]),
+        );
+
+        expect(screen.queryByLabelText('Filter label')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /Region/ }));
+        expect(open).toHaveBeenCalledWith('filter-2');
+        expect(
+            screen.getByRole('button', { name: 'Add filter' }),
+        ).toBeVisible();
+        fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+        expect(close).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows only the footer once the last filter is gone', () => {
+        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
+        renderWithProviders(<ControlSidebar />);
+
+        expect(
+            screen.getByRole('button', { name: 'Add filter' }),
+        ).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
+        expect(screen.queryByText(/to keep|stays off/)).not.toBeInTheDocument();
+    });
+
+    it('collapses the open filter from its chevron and its head, never from the input or buttons', () => {
+        const { collapse, discard } = setSidebar({
+            isNew: false,
+            editingRule: makeRule({ label: 'Order status' }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        const chevron = screen.getByRole('button', { name: 'Collapse filter' });
+        expect(chevron).toHaveAttribute('aria-expanded', 'true');
+        fireEvent.click(chevron);
+        expect(collapse).toHaveBeenCalledTimes(1);
+
+        const input = screen.getByLabelText('Filter label');
+        fireEvent.click(input.closest('[class*="editedHead"]') as HTMLElement);
+        expect(collapse).toHaveBeenCalledTimes(2);
+
+        fireEvent.click(input);
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Discard changes' }),
+        );
+        expect(collapse).toHaveBeenCalledTimes(2);
+        expect(discard).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports the row under the pointer or focus as hovered, and its leaving', () => {
+        const { setHoveredFilterId } = setSidebar({ isNew: false });
+        renderWithProviders(
+            <ControlSidebar />,
+            filters([
+                makeRule({}),
+                makeRule({ id: 'filter-2', label: 'Region' }),
+            ]),
+        );
+
+        const row = screen.getByRole('button', { name: /Region/ });
+        expect(row).toHaveAttribute('data-controls-row', 'filter-2');
+        fireEvent.mouseEnter(row);
+        expect(setHoveredFilterId).toHaveBeenLastCalledWith('filter-2');
+        fireEvent.mouseLeave(row);
+        expect(setHoveredFilterId).toHaveBeenLastCalledWith(null);
+        act(() => row.focus());
+        expect(setHoveredFilterId).toHaveBeenLastCalledWith('filter-2');
+        act(() => row.blur());
+        expect(setHoveredFilterId).toHaveBeenLastCalledWith(null);
     });
 
     it('opens a new filter on its field search, with Cancel as the only way out', () => {
@@ -338,7 +428,9 @@ describe('ControlSidebar', () => {
 
         expect(screen.getByText('New filter')).toBeInTheDocument();
         expect(screen.queryByLabelText('Filter label')).not.toBeInTheDocument();
-        expect(screen.queryByLabelText('More actions')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /Discard/ }),
+        ).not.toBeInTheDocument();
         expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
         expect(screen.queryByTestId('filter-settings')).not.toBeInTheDocument();
         expect(
@@ -517,7 +609,7 @@ describe('ControlSidebar', () => {
         expect(close).not.toHaveBeenCalled();
     });
 
-    it('closes on Done and the X, adds on Add filter, and discards a new filter from its menu', async () => {
+    it('closes on Done and the X, adds on Add filter, and discards a new filter from its icon', () => {
         const { close, discard, openNew } = setSidebar({
             editingRule: makeRule({ label: 'Order status' }),
         });
@@ -533,20 +625,24 @@ describe('ControlSidebar', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Add filter' }));
         expect(openNew).toHaveBeenCalledTimes(1);
 
-        fireEvent.click(screen.getByLabelText('More actions'));
-        expect(screen.queryByText('Remove filter')).not.toBeInTheDocument();
-        fireEvent.click(await screen.findByText('Discard filter'));
+        expect(screen.queryByLabelText('More actions')).not.toBeInTheDocument();
+        expect(
+            screen.queryByLabelText('Remove filter'),
+        ).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Discard filter' }));
         expect(discard).toHaveBeenCalledTimes(1);
     });
 
-    it('offers Discard changes only once an existing filter has changed', async () => {
+    it('offers Discard changes only once an existing filter has changed', () => {
         const { discard } = setSidebar({
             isNew: false,
             isDirty: false,
             editingRule: makeRule({ label: 'Order status' }),
         });
         const { rerender } = renderWithProviders(<ControlSidebar />);
-        expect(screen.queryByLabelText('More actions')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /Discard/ }),
+        ).not.toBeInTheDocument();
 
         setSidebar({
             isNew: false,
@@ -555,8 +651,9 @@ describe('ControlSidebar', () => {
             editingRule: makeRule({ label: 'Order status' }),
         });
         rerender(<ControlSidebar />);
-        fireEvent.click(screen.getByLabelText('More actions'));
-        fireEvent.click(await screen.findByText('Discard changes'));
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Discard changes' }),
+        );
         expect(discard).toHaveBeenCalledTimes(1);
     });
 

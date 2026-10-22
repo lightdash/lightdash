@@ -63,21 +63,25 @@ const disabledPills = { current: false };
 const Page: FC = () => {
     const value = useControlsSidebar();
     sidebar.current = value;
-    const { isSidebarOpen, openNew, open, close } = value;
+    const { isSidebarOpen, isRailOpen, editing, openNew, open, close } = value;
     const filters = useDashboardSelector(selectDashboardFilters);
+    // The bar's and, while the rail is open, the rail footer's
+    const add = (
+        <div data-filter-actions>
+            <button
+                type="button"
+                data-dashboard-filter-control
+                aria-label="Add filter"
+                onClick={openNew}
+            />
+        </div>
+    );
     return (
         <>
             <div data-testid="bar">
-                <div data-filter-actions>
-                    <button
-                        type="button"
-                        data-dashboard-filter-control
-                        aria-label="Add filter"
-                        onClick={openNew}
-                    />
-                </div>
-                {/* The pills fold away while the editor is open */}
-                {!isSidebarOpen &&
+                {/* Add and the pills fold away while the rail is open */}
+                {!isRailOpen && add}
+                {!isRailOpen &&
                     filters.dimensions.map((filter) => (
                         <button
                             key={filter.id}
@@ -90,16 +94,35 @@ const Page: FC = () => {
                         </button>
                     ))}
             </div>
-            {isSidebarOpen && (
+            {isRailOpen && (
                 <div data-controls-editor data-testid="editor">
-                    <input
-                        aria-label="Label"
-                        onBlur={() => onLabelBlur(sidebar.current?.editing)}
-                    />
-                    <button type="button" aria-pressed>
-                        Field row
-                    </button>
-                    <input aria-label="Search fields" data-own-escape />
+                    {filters.dimensions
+                        .filter((filter) => filter.id !== editing?.filterId)
+                        .map((filter) => (
+                            <button
+                                key={filter.id}
+                                type="button"
+                                data-controls-row={filter.id}
+                                onClick={() => open(filter.id)}
+                            >
+                                {`Row ${filter.id}`}
+                            </button>
+                        ))}
+                    {isSidebarOpen && (
+                        <>
+                            <input
+                                aria-label="Label"
+                                onBlur={() =>
+                                    onLabelBlur(sidebar.current?.editing)
+                                }
+                            />
+                            <button type="button" aria-pressed>
+                                Field row
+                            </button>
+                            <input aria-label="Search fields" data-own-escape />
+                        </>
+                    )}
+                    {add}
                     <button type="button" onClick={close}>
                         Done
                     </button>
@@ -167,6 +190,7 @@ const value = () => {
     return sidebar.current;
 };
 const pill = (id: string) => screen.getByRole('button', { name: `Pill ${id}` });
+const row = (id: string) => screen.getByRole('button', { name: `Row ${id}` });
 const addButton = () => screen.getByRole('button', { name: 'Add filter' });
 const label = () => screen.getByLabelText('Label');
 const escape = (target: Element = document.body) =>
@@ -334,20 +358,52 @@ describe('dismissing in the controls editor', () => {
     });
 
     describe('focus after the editor is gone', () => {
-        it('returns to the pill after Done and after discarding changes', () => {
+        it('returns to the pill after Done, and to the row after discarding changes', () => {
             fireEvent.click(screen.getByRole('button', { name: 'Done' }));
             expect(pill('a')).toHaveFocus();
 
             fireEvent.click(pill('b'));
             act(() => label().focus());
             act(() => value().discard());
-            expect(pill('b')).toHaveFocus();
+            expect(value().isRailOpen).toBe(true);
+            expect(row('b')).toHaveFocus();
         });
 
-        it('goes to "Add" when the pill is gone', () => {
+        it('goes to the filter row after a collapse', () => {
+            act(() => value().collapse());
+            expect(value().isRailOpen).toBe(true);
+            expect(row('a')).toHaveFocus();
+        });
+
+        it('after a remove goes to the next row, else the one before, else "Add"', () => {
             act(() => value().removeFilter());
-            expect(screen.queryByText('Pill a')).not.toBeInTheDocument();
+            expect(value().isRailOpen).toBe(true);
+            expect(screen.queryByText('Row a')).not.toBeInTheDocument();
+            expect(row('b')).toHaveFocus();
+
+            fireEvent.click(row('b'));
+            act(() => value().removeFilter());
+            expect(value().isRailOpen).toBe(true);
             expect(addButton()).toHaveFocus();
+        });
+
+        it('goes to the row before when the last row is removed', () => {
+            fireEvent.click(row('b'));
+            act(() => value().removeFilter());
+            expect(row('a')).toHaveFocus();
+        });
+
+        it('goes to the bar\'s "Add" once Done closes the rail with nothing expanded', () => {
+            act(() => value().collapse());
+            fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+            expect(value().isRailOpen).toBe(false);
+            expect(addButton()).toHaveFocus();
+        });
+
+        it('closes the rail on Escape with nothing expanded', () => {
+            act(() => value().collapse());
+            escape(row('a'));
+            expect(value().isRailOpen).toBe(false);
         });
 
         it('goes to "Add" after a new control is closed with no field', () => {

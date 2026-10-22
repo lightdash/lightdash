@@ -18,7 +18,7 @@ const renderWithProviders = (ui: ReactElement) =>
         </DashboardStoreTestProvider>,
     );
 const mockCompact = vi.hoisted(() => ({ current: false }));
-const mockSidebar = vi.hoisted(() => ({ current: { isSidebarOpen: false } }));
+const mockSidebar = vi.hoisted(() => ({ current: { isRailOpen: false } }));
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -86,7 +86,7 @@ const baseProps: ComponentProps<typeof ControlsBar> = {
 describe('ControlsBar', () => {
     beforeEach(() => {
         mockCompact.current = false;
-        mockSidebar.current = { isSidebarOpen: false };
+        mockSidebar.current = { isRailOpen: false };
         mockDashboardContext.current = {
             isAddFilterDisabled: false,
             setIsDateZoomDisabled: vi.fn(),
@@ -134,8 +134,8 @@ describe('ControlsBar', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('folds Add, the pills and the Required button away while the sidebar is open', () => {
-        mockSidebar.current = { isSidebarOpen: true };
+    it('folds Add, the pills and the Required button away while the rail is open', () => {
+        mockSidebar.current = { isRailOpen: true };
         renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
         expect(

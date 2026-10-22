@@ -244,6 +244,118 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.editing).toBeNull();
     });
 
+    describe('the rail with nothing expanded', () => {
+        it('collapse keeps the edits and the rail, with nothing edited', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['9'])));
+            act(() => result.current.collapse());
+            expect(latest.filters.dimensions[0].values).toEqual(['9']);
+            expect(latest.changed).toBe(true);
+            expect(result.current.editing).toBeNull();
+            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isRailOpen).toBe(true);
+        });
+
+        it('collapse drops a new filter with no field, and keeps the rail', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.collapse());
+            expect(latest.filters).toEqual(initialFilters);
+            expect(latest.changed).toBe(false);
+            expect(result.current.isRailOpen).toBe(true);
+            expect(mockTrack).not.toHaveBeenCalled();
+        });
+
+        it('collapse keeps a new filter with a field, as Done does', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+            act(() => result.current.collapse());
+            expect(latest.filters.dimensions).toHaveLength(3);
+            expect(mockTrack).toHaveBeenCalledTimes(1);
+            expect(result.current.isRailOpen).toBe(true);
+        });
+
+        it('collapse turns off an empty default value', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.updateFilter({
+                    ...rule('a', []),
+                    disabled: false,
+                }),
+            );
+            act(() => result.current.collapse());
+            expect(latest.filters.dimensions[0].disabled).toBe(true);
+        });
+
+        it('a row opens again from there, and close shuts the rail', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.collapse());
+            act(() => result.current.open('b'));
+            expect(result.current.editing).toEqual({ filterId: 'b' });
+            expect(result.current.isSidebarOpen).toBe(true);
+
+            act(() => result.current.collapse());
+            act(() => result.current.close());
+            expect(result.current.isRailOpen).toBe(false);
+        });
+
+        it('removing a filter keeps the rail open on the rest', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.removeFilter());
+            expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['b']);
+            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isRailOpen).toBe(true);
+        });
+
+        it('discarding a new filter keeps the rail open', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+            act(() => result.current.discard());
+            expect(latest.filters).toEqual(initialFilters);
+            expect(result.current.isRailOpen).toBe(true);
+        });
+
+        it('a rule removed from outside leaves the rail open on the rows', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            writeOutsideTheEditor((filters) => ({
+                ...filters,
+                dimensions: filters.dimensions.filter((r) => r.id !== 'a'),
+            }));
+            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isRailOpen).toBe(true);
+        });
+
+        it('forgets the hovered row when a filter opens or the rail closes', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.collapse());
+            act(() => result.current.setHoveredFilterId('b'));
+            expect(result.current.hoveredFilterId).toBe('b');
+            act(() => result.current.open('b'));
+            expect(result.current.hoveredFilterId).toBeNull();
+
+            act(() => result.current.setHoveredFilterId('a'));
+            act(() => result.current.close());
+            expect(result.current.hoveredFilterId).toBeNull();
+        });
+
+        it('leaving edit mode closes the rail', () => {
+            const { result, rerender } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.collapse());
+            mockParams.current = { mode: 'view' };
+            rerender();
+            expect(result.current.isRailOpen).toBe(false);
+        });
+    });
+
     it('moves to another filter keeping the edits made so far', () => {
         const { result } = setup();
         act(() => result.current.open('a'));
@@ -1690,7 +1802,7 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(19);
+        expect(Object.keys(initial)).toHaveLength(21);
         expect(initial).toHaveProperty('updateOtherFilters');
         expect(initial).toHaveProperty('removeLastField');
         expect(initial).toHaveProperty('addFirstSqlColumn');

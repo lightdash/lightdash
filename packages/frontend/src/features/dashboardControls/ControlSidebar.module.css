@@ -103,6 +103,8 @@
 .editedHead {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0
         var(--mantine-spacing-md);
+    /* A click on it collapses the filter */
+    cursor: pointer;
 }
 
 .editedBody {
