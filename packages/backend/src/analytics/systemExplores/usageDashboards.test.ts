@@ -4,6 +4,8 @@ import {
     ChartType,
     DashboardTileTypes,
     FilterOperator,
+    getTemplatedUrlRowDependencies,
+    renderTemplatedUrl,
     TableCalculationType,
     WarehouseTypes,
     type ChartAsCode,
@@ -44,6 +46,81 @@ const compile = (chart: ChartAsCode) =>
     }).compileQuery();
 
 describe('built-in usage dashboards', () => {
+    it('makes every built-in table content action usable with hidden selected URL values', () => {
+        const linked = charts.filter(
+            (chart) =>
+                chart.chartConfig.type === ChartType.TABLE &&
+                chart.metricQuery.dimensions.some((field) =>
+                    /_(chart|dashboard|content)_name$/.test(field),
+                ),
+        );
+        expect(linked.map(({ slug }) => slug)).toHaveLength(9);
+        expect(
+            linked.some(({ slug }) =>
+                slug.endsWith('-adoption-dashboard-audience'),
+            ),
+        ).toBe(true);
+        for (const chart of linked) {
+            if (chart.chartConfig.type !== ChartType.TABLE)
+                throw new Error('Expected table');
+            const table = explores.find(({ name }) => name === chart.tableName)!
+                .tables[chart.tableName];
+            for (const fieldId of chart.metricQuery.dimensions.filter((field) =>
+                /_(chart|dashboard|content)_name$/.test(field),
+            )) {
+                const field = Object.values(table.dimensions).find(
+                    ({ name }) => `${table.name}_${name}` === fieldId,
+                )!;
+                const [action] = field.urls!;
+                const urlId = fieldId.replace(/_name$/, '_url');
+                expect(getTemplatedUrlRowDependencies(action.url)).toEqual([
+                    urlId,
+                ]);
+                expect(chart.metricQuery.dimensions).toContain(urlId);
+                expect(
+                    chart.chartConfig.config?.columns?.[urlId]?.visible,
+                ).toBe(false);
+                expect(chart.tableConfig?.columnOrder).toContain(urlId);
+                const urlName = field.name.replace(/_name$/, '_url');
+                const target =
+                    'https://lightdash.example/projects/project/dashboards/dashboard';
+                expect(
+                    renderTemplatedUrl(
+                        action.url,
+                        {
+                            raw: '<untrusted name>',
+                            formatted: '<untrusted name>',
+                        },
+                        {
+                            [table.name]: {
+                                [urlName]: { raw: target, formatted: target },
+                            },
+                        },
+                    ),
+                ).toBe(target);
+                expect(
+                    renderTemplatedUrl(
+                        action.url,
+                        { raw: 'Legacy content', formatted: 'Legacy content' },
+                        {
+                            [table.name]: {
+                                [urlName]: { raw: null, formatted: '-' },
+                            },
+                        },
+                    ),
+                ).toBe('');
+            }
+        }
+        const scatter = charts.find(({ slug }) =>
+            slug.endsWith(
+                '-high-compute-dashboards-audience-versus-warehouse-time',
+            ),
+        )!;
+        expect(scatter.metricQuery.dimensions).not.toContain(
+            'content_health_content_url',
+        );
+    });
+
     it('uses display-only user labels without changing the selected identities', () => {
         const userCharts = charts.filter((chart) =>
             chart.metricQuery.dimensions.includes(
