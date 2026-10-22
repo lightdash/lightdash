@@ -1,3 +1,10 @@
+## [3.21.3](https://github.com/lightdash/lightdash/compare/3.21.2...3.21.3) (2026-10-22)
+
+
+### Bug Fixes
+
+* patch Node.js October 2026 security vulnerabilities ([#31370](https://github.com/lightdash/lightdash/issues/31370)) ([f2329d1](https://github.com/lightdash/lightdash/commit/f2329d10fb04ad46baa4104934ddb4dfdc81b9ef))
+
 ## [3.21.2](https://github.com/lightdash/lightdash/compare/3.21.1...3.21.2) (2026-10-22)
 
 
