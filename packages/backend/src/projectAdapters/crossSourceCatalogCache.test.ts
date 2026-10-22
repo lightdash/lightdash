@@ -121,3 +121,16 @@ it('logs the cache error message and code without the raw error object', async (
     });
     warn.mockRestore();
 });
+
+it('does not confirm nodes from a consumer that was skipped after resolution', async () => {
+    const { model, cache } = setup();
+    await cache.resolved('healthy', nodes, 'provider', []);
+    await cache.resolved('skipped', nodes, 'consumer', ['provider']);
+    cache.discard('skipped');
+    await cache.confirm();
+    expect(model.confirm).toHaveBeenCalledWith({
+        projectUuid: 'project',
+        connectionGroup: 'original',
+        entries: [{ dbtSourceUuid: 'healthy', nodesDigest: 'digest' }],
+    });
+});

@@ -440,6 +440,10 @@ import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapt
 import { DbtSourceDiskPool } from '../../projectAdapters/DbtSourceDiskPool';
 import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
+import {
+    SourceFailureIsolation,
+    validateDbtSourceManifest,
+} from '../../projectAdapters/sourceFailureIsolation';
 import { compileMetricQuery } from '../../queryCompiler';
 import {
     armCompileShutdown,
@@ -819,6 +823,7 @@ type ResolvedCompileAdapter = {
     adapter: ProjectAdapter;
     stagedMergedManifest?: Buffer;
     connectionWarnings?: string[];
+    failedDbtSourceUuids?: string[];
     exploreNaming?: ExploreNaming;
 };
 type SaveCompiledExploresArgs = {
@@ -832,6 +837,7 @@ type SaveCompiledExploresArgs = {
     complete?: boolean;
     dbtModelNames?: string[];
     connectionWarnings?: string[];
+    failedDbtSourceUuids?: string[];
 };
 
 const connectionCheckedExploreStreams = new WeakSet<
@@ -844,6 +850,7 @@ type PreparedExploreStream = {
     projectContext: ProjectContextEntry[] | undefined;
     stagedMergedManifest?: Buffer;
     connectionWarnings?: string[];
+    failedDbtSourceUuids?: string[];
     onCompiled?: (summary: ExploreCompilationSummary) => void;
     exploreNaming?: ExploreNaming;
     multiConnection: PreparedMultiConnectionSave | null;
@@ -4596,6 +4603,7 @@ export class ProjectService
             multiConnection: preparedMultiConnection,
             exploreNaming,
             connectionWarnings = [],
+            failedDbtSourceUuids = [],
             ...metadata
         } = args;
         const multiConnection =
@@ -4607,6 +4615,9 @@ export class ProjectService
                       carry: {
                           kind: 'connections' as const,
                           warehouseConnectionUuids: [],
+                          ...(failedDbtSourceUuids.length > 0
+                              ? { dbtSourceUuids: failedDbtSourceUuids }
+                              : {}),
                       },
                       naming: exploreNaming,
                       warnings: exploreNaming.warnings,
@@ -4683,7 +4694,8 @@ export class ProjectService
                 return this.projectModel.saveExploreStreamToCache(
                     args.projectUuid,
                     observedExplores(),
-                    ...this.getConnectionStagedWriteChecks(args.projectUuid),
+                    this.getConnectionStagedWriteChecks(args.projectUuid)[0],
+                    failedDbtSourceUuids,
                 );
             },
         });
@@ -6979,6 +6991,7 @@ export class ProjectService
                         let compileAdapter = primaryAdapter;
                         let stagedMergedManifest: Buffer | undefined;
                         let connectionWarnings: string[] | undefined;
+                        let failedDbtSourceUuids: string[] | undefined;
                         let exploreNaming: ExploreNaming | undefined;
                         let multiConnection: MultiConnectionCompilation | null =
                             null;
@@ -7022,6 +7035,7 @@ export class ProjectService
                                     adapter: compileAdapter,
                                     stagedMergedManifest,
                                     connectionWarnings,
+                                    failedDbtSourceUuids,
                                     exploreNaming,
                                 } = await this.resolveCompileAdapter({
                                     projectUuid,
@@ -7109,6 +7123,7 @@ export class ProjectService
                                         exploreStream,
                                         multiConnection,
                                         connectionWarnings,
+                                        failedDbtSourceUuids,
                                         exploreNaming,
                                         compilationSource,
                                         jobUuid: job.jobUuid,
@@ -8687,20 +8702,6 @@ export class ProjectService
         // MANIFEST adapter is what compiles, so destroy the primary clone in finally.
         manifestFetchAdapters.push(primary.adapter);
 
-        // A credential error fails the whole deploy by name, matching every
-        // other per-source failure below (broken clone, broken manifest) — a
-        // silently-skipped source would otherwise produce a green deploy that
-        // is quietly missing one sibling's models, the exact failure mode the
-        // recompile-all-sources design exists to prevent.
-        const brokenCredentialSource = sources.find(
-            (source) => source.hasCredentialError,
-        );
-        if (brokenCredentialSource) {
-            throw new ParameterError(
-                `Failed to load dbt source "${brokenCredentialSource.name}": its connection credentials could not be decrypted. Remove it and add it again with a fresh connection.`,
-            );
-        }
-
         const compilableSources = sources.filter(
             (
                 source,
@@ -8709,7 +8710,10 @@ export class ProjectService
             } => source.dbtConnection !== null,
         );
         sources
-            .filter((source) => source.dbtConnection === null)
+            .filter(
+                (source) =>
+                    source.dbtConnection === null && !source.hasCredentialError,
+            )
             .forEach((source) => {
                 this.logger.warn(
                     `Skipping dbt source "${source.name}" (${source.projectDbtSourceUuid}) — it has no dbt connection configured`,
@@ -8718,6 +8722,39 @@ export class ProjectService
 
         const identity =
             await this.projectModel.getDbtSourceIdentity(projectUuid);
+
+        const isolation = new SourceFailureIsolation(
+            this.projectModel,
+            projectUuid,
+            identity.dbtSourceUuid,
+            async (warning) => {
+                if (jobUuid)
+                    await this.jobModel.appendJobStepWarning(
+                        jobUuid,
+                        JobStepType.COMPILING,
+                        warning,
+                    );
+            },
+        );
+
+        await Promise.all(
+            sources
+                .filter(
+                    (source) =>
+                        source.hasCredentialError &&
+                        source.dbtConnection === null,
+                )
+                .map((source) =>
+                    isolation.skip(
+                        source.projectDbtSourceUuid,
+                        source.name,
+                        new ParameterError(
+                            'The stored dbt credentials could not be decrypted.',
+                        ),
+                        'prepare',
+                    ),
+                ),
+        );
 
         const concurrencyDecision = resolveDbtSourceFetchConcurrency(
             this.lightdashConfig.dbt.sourceFetchConcurrency,
@@ -8812,6 +8849,17 @@ export class ProjectService
             uuid: string;
         }>({
             enabled: crossSourceRefsEnabled,
+            signal: armCompileShutdown(),
+            onSourceFailure: async (task, error, phase) => {
+                const skipped = await isolation.skip(
+                    task.context.uuid,
+                    task.key,
+                    error,
+                    phase,
+                );
+                if (skipped) catalogCache?.discard(task.context.uuid);
+                return skipped;
+            },
             onSourceFinal: async (task) => {
                 if (task.context.uuid === identity.dbtSourceUuid) {
                     await primary.adapter.releaseDisk({ keepProject: true });
@@ -8890,6 +8938,10 @@ export class ProjectService
                             ? ` (${source.dbtConnection.repository})`
                             : '';
                     const getAdapter = async (): Promise<ProjectAdapter> => {
+                        if (source.hasCredentialError)
+                            throw new ParameterError(
+                                'The stored dbt credentials could not be decrypted.',
+                            );
                         if (adapter === null) {
                             try {
                                 const build = this.buildSourceAdapter(
@@ -8975,6 +9027,9 @@ export class ProjectService
                                             await sourceAdapter.getDbtManifest(
                                                 options,
                                             );
+                                        validateDbtSourceManifest(
+                                            result.manifest,
+                                        );
                                         if (!crossSourceRefsEnabled)
                                             await sourceAdapter.releaseDisk();
                                         return result;
@@ -9244,7 +9299,8 @@ export class ProjectService
                 },
             ),
             stagedMergedManifest,
-            connectionWarnings: resolution.warnings,
+            connectionWarnings: [...resolution.warnings, ...isolation.warnings],
+            failedDbtSourceUuids: isolation.failedSourceUuids,
             exploreNaming: {
                 mode: 'refresh',
                 warnings: [],
@@ -9372,6 +9428,14 @@ export class ProjectService
             ? null
             : await primary.adapter.getDbtManifest();
         return this.multiConnectionCompiler.compile({
+            onSourceWarning: async (warning) => {
+                if (jobUuid)
+                    await this.jobModel.appendJobStepWarning(
+                        jobUuid,
+                        JobStepType.COMPILING,
+                        warning,
+                    );
+            },
             projectUuid,
             concurrency: concurrencyDecision.chosen,
             diskStats: diskPool.stats,
@@ -13647,6 +13711,7 @@ export class ProjectService
                         let dbtSourceCount = 1;
                         let stagedMergedManifest: Buffer | undefined;
                         let connectionWarnings: string[] | undefined;
+                        let failedDbtSourceUuids: string[] | undefined;
                         let exploreNaming: ExploreNaming | undefined;
                         const trackingParams = {
                             projectUuid,
@@ -13687,6 +13752,7 @@ export class ProjectService
                                 adapter,
                                 stagedMergedManifest,
                                 connectionWarnings,
+                                failedDbtSourceUuids,
                                 exploreNaming,
                             } = await this.resolveCompileAdapter({
                                 projectUuid,
@@ -13749,6 +13815,7 @@ export class ProjectService
                             projectContext,
                             stagedMergedManifest,
                             connectionWarnings,
+                            failedDbtSourceUuids,
                             exploreNaming,
                             onCompiled,
                             multiConnection,
@@ -14236,6 +14303,7 @@ export class ProjectService
                                 projectContext,
                                 stagedMergedManifest,
                                 connectionWarnings,
+                                failedDbtSourceUuids,
                                 exploreNaming,
                                 onCompiled,
                                 multiConnection,
@@ -14336,6 +14404,7 @@ export class ProjectService
                                             onCompiled,
                                             multiConnection,
                                             connectionWarnings,
+                                            failedDbtSourceUuids,
                                             exploreNaming,
                                             compilationSource: 'refresh_dbt',
                                             jobUuid: job.jobUuid,

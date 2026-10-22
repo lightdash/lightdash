@@ -30,6 +30,17 @@ import {
     validateCrossSourceProjectScans,
     type OtherConnectionProject,
 } from './crossSourcePreflight';
+import {
+    isFatalSourceFailure,
+    type SourceFailurePhase,
+} from './sourceFailureIsolation';
+
+export class DbtSourceDependencyError extends ParameterError {
+    constructor() {
+        super('A referenced dbt source failed during this refresh.');
+        this.name = 'DbtSourceDependencyError';
+    }
+}
 
 export type CrossSourceFetchResult = DbtManifestFetchResult;
 export type CrossSourceFetchTask<T> = {
@@ -140,8 +151,14 @@ export const resolveCrossSourceManifests = async <T>({
     maxPasses = 3,
     cache = [],
     onSourceResolved,
+    onSourceFailure,
 }: {
     tasks: CrossSourceFetchTask<T>[];
+    onSourceFailure?: (
+        task: CrossSourceFetchTask<T>,
+        error: unknown,
+        phase: SourceFailurePhase,
+    ) => Promise<boolean>;
     enabled: boolean;
     concurrency: number;
     onRoundComplete?: (round: number) => void;
@@ -164,15 +181,31 @@ export const resolveCrossSourceManifests = async <T>({
         const results = await runWithConcurrency(
             tasks,
             concurrency,
-            async (task) => ({
-                task,
-                result: await task.fetch({ externalNodes: [] }),
-                injectedFrom: [],
-            }),
+            async (task) => {
+                try {
+                    if (onSourceFailure) signal?.throwIfAborted();
+                    return {
+                        task,
+                        result: await task.fetch({
+                            externalNodes: [],
+                            ...(onSourceFailure ? { signal } : {}),
+                        }),
+                        injectedFrom: [],
+                    };
+                } catch (error) {
+                    if (onSourceFailure) signal?.throwIfAborted();
+                    if (
+                        !isFatalSourceFailure(error) &&
+                        (await onSourceFailure?.(task, error, 'manifest'))
+                    )
+                        return null;
+                    throw error;
+                }
+            },
         );
         onRoundComplete?.(1);
         return {
-            results,
+            results: results.filter((entry) => entry !== null),
             rounds: 1,
             attempts: tasks.length,
             warnings: [],
@@ -186,18 +219,39 @@ export const resolveCrossSourceManifests = async <T>({
         resolutionElapsedMs,
     );
     try {
+        const skipped = new Set<CrossSourceFetchTask<T>>();
+        const skip = async (
+            task: CrossSourceFetchTask<T>,
+            error: unknown,
+            phase: SourceFailurePhase,
+        ) => {
+            cancellation.controller.signal.throwIfAborted();
+            if (skipped.has(task)) return true;
+            if (
+                isFatalSourceFailure(error) ||
+                !(await onSourceFailure?.(task, error, phase))
+            )
+                return false;
+            skipped.add(task);
+            return true;
+        };
         const scans = new Map<CrossSourceFetchTask<T>, DbtProjectScan | null>();
         await runWithConcurrency(tasks, concurrency, async (task) => {
-            scans.set(
-                task,
-                await cancellation.run(
-                    task.key,
-                    'prepare',
-                    async (prepareSignal) =>
-                        (await task.prepare?.({ signal: prepareSignal })) ??
-                        null,
-                ),
-            );
+            try {
+                scans.set(
+                    task,
+                    await cancellation.run(
+                        task.key,
+                        'prepare',
+                        async (prepareSignal) =>
+                            (await task.prepare?.({ signal: prepareSignal })) ??
+                            null,
+                    ),
+                );
+            } catch (error) {
+                if (!(await skip(task, error, 'prepare'))) throw error;
+                scans.set(task, null);
+            }
         });
         validateCrossSourceProjectScans(
             tasks.map((task) => ({
@@ -244,12 +298,16 @@ export const resolveCrossSourceManifests = async <T>({
         const projectName = (task: CrossSourceFetchTask<T>) =>
             scans.get(task)?.projectName ??
             resolved.get(task)?.result.manifest.metadata.project_name ??
+            (skipped.has(task)
+                ? cache.find((row) => row.key === task.key)?.projectName
+                : null) ??
             null;
         const cachedCatalog = (task: CrossSourceFetchTask<T>) =>
             cache.find(
                 (row) =>
                     row.key === task.key &&
-                    row.projectName === scans.get(task)?.projectName,
+                    (skipped.has(task) ||
+                        row.projectName === scans.get(task)?.projectName),
             );
         const catalog = (task: CrossSourceFetchTask<T>) =>
             fresh.get(task) ?? cachedCatalog(task)?.nodes ?? [];
@@ -554,6 +612,52 @@ export const resolveCrossSourceManifests = async <T>({
             await onSourceFinal?.(task);
             finalized.add(task);
         };
+        const skipFailedConsumers = async (
+            queued: Set<CrossSourceFetchTask<T>>,
+        ): Promise<void> => {
+            if (skipped.size === 0) return;
+            const consumers = tasks.filter((task) => {
+                if (skipped.has(task)) return false;
+                const entry = resolved.get(task);
+                const dependencies = new Set(
+                    entry
+                        ? Object.values(entry.result.manifest.nodes).flatMap(
+                              (raw) =>
+                                  (raw as DbtRawModelNode).depends_on?.nodes ??
+                                  [],
+                          )
+                        : [],
+                );
+                const missing = getMissingDbtNodeReferences(failures.get(task));
+                return tasks.some(
+                    (provider) =>
+                        skipped.has(provider) &&
+                        ((supplied.get(task)?.get(provider) ?? []).some(
+                            (node) => dependencies.has(nodeId(node)),
+                        ) ||
+                            missing.some((ref) =>
+                                ref.packageName !== null
+                                    ? projectName(provider) === ref.packageName
+                                    : oneArgProviders(task, {
+                                          packageName: null,
+                                          name: ref.model,
+                                          version: ref.version,
+                                      }).includes(provider),
+                            )),
+                );
+            });
+            if (consumers.length === 0) return;
+            await Promise.all(
+                consumers.map(async (task) => {
+                    const error = new DbtSourceDependencyError();
+                    if (!(await skip(task, error, 'dependency'))) throw error;
+                    resolved.delete(task);
+                    fresh.delete(task);
+                    queued.delete(task);
+                }),
+            );
+            await skipFailedConsumers(queued);
+        };
         let contradictions = 0;
         let firstAttemptInjected = 0;
         const runPass = async (
@@ -615,9 +719,27 @@ export const resolveCrossSourceManifests = async <T>({
                             task.fetch({ externalNodes, signal: fetchSignal }),
                         );
                     };
-                    const result = await (task.withDisk
-                        ? task.withDisk(fetch, cancellation.controller.signal)
-                        : fetch());
+                    let result: CrossSourceFetchResult;
+                    try {
+                        result = await (task.withDisk
+                            ? task.withDisk(
+                                  fetch,
+                                  cancellation.controller.signal,
+                              )
+                            : fetch());
+                    } catch (error) {
+                        cancellation.controller.signal.throwIfAborted();
+                        if (
+                            getMissingDbtNodeReferences(error).length === 0 &&
+                            (await skip(task, error, 'manifest'))
+                        ) {
+                            failures.set(task, error);
+                            resolved.delete(task);
+                            fresh.delete(task);
+                            return;
+                        }
+                        throw error;
+                    }
                     lsFinishedAt = Date.now();
                     const nodes = getExternalModelNodesFromManifest(
                         result.manifest,
@@ -986,8 +1108,13 @@ export const resolveCrossSourceManifests = async <T>({
                     contradictions += 1;
                 }
             }
+            await skipFailedConsumers(queued);
             const unsettled = new Set(
-                tasks.filter((task) => queued.has(task) || !resolved.has(task)),
+                tasks.filter(
+                    (task) =>
+                        !skipped.has(task) &&
+                        (queued.has(task) || !resolved.has(task)),
+                ),
             );
             let added = true;
             while (added) {
@@ -1036,14 +1163,57 @@ export const resolveCrossSourceManifests = async <T>({
             if (
                 queued.size > 0 &&
                 (!progress || !canLearn || pass === maxPasses)
-            )
-                throw unresolvedError(queued);
+            ) {
+                const ambiguity = [...queued].some((task) =>
+                    getMissingDbtNodeReferences(failures.get(task)).some(
+                        (ref) =>
+                            ref.packageName === null &&
+                            oneArgProviders(task, {
+                                packageName: null,
+                                name: ref.model,
+                                version: ref.version,
+                            }).length > 1,
+                    ),
+                );
+                const crossesConnection = [...queued].some((task) =>
+                    getMissingDbtNodeReferences(failures.get(task)).some(
+                        (ref) =>
+                            ref.packageName !== null &&
+                            crossConnectionReferenceReason(
+                                task.key,
+                                ref.packageName,
+                                false,
+                                connectionName,
+                                otherConnectionProjects,
+                            ) !== null,
+                    ),
+                );
+                if (ambiguity || crossesConnection)
+                    throw unresolvedError(queued);
+                await Promise.all(
+                    [...queued].map(async (task) => {
+                        if (
+                            resolved.has(task) ||
+                            !(await skip(task, failures.get(task), 'manifest'))
+                        )
+                            throw unresolvedError(queued);
+                        queued.delete(task);
+                    }),
+                );
+                await skipFailedConsumers(queued);
+            }
             if (queued.size > 0) return runPass([...queued], pass + 1);
             return pass;
         };
         if (tasks.length > 0 && maxPasses < 1)
             throw unresolvedError(new Set(tasks));
-        const passes = tasks.length === 0 ? 0 : await runPass(tasks, 1);
+        const passes =
+            tasks.length === 0
+                ? 0
+                : await runPass(
+                      tasks.filter((task) => !skipped.has(task)),
+                      1,
+                  );
         cancellation.controller.signal.throwIfAborted();
         const realNodes = new Map<string, DbtRawModelNode>();
         resolved.forEach(({ result }) =>
@@ -1112,25 +1282,29 @@ export const resolveCrossSourceManifests = async <T>({
                 ),
                 ordered: 0,
             },
-            results: tasks.map((task) => {
-                const entry = resolved.get(task)!;
-                const manifest = stripExternalDbtNodes(entry.result.manifest);
-                return {
-                    ...entry,
-                    result: {
-                        ...entry.result,
-                        manifest,
-                        ...(entry.result.selectedModelIds
-                            ? {
-                                  selectedModelIds:
-                                      entry.result.selectedModelIds.filter(
-                                          (id) => id in manifest.nodes,
-                                      ),
-                              }
-                            : {}),
-                    },
-                };
-            }),
+            results: tasks
+                .filter((task) => !skipped.has(task))
+                .map((task) => {
+                    const entry = resolved.get(task)!;
+                    const manifest = stripExternalDbtNodes(
+                        entry.result.manifest,
+                    );
+                    return {
+                        ...entry,
+                        result: {
+                            ...entry.result,
+                            manifest,
+                            ...(entry.result.selectedModelIds
+                                ? {
+                                      selectedModelIds:
+                                          entry.result.selectedModelIds.filter(
+                                              (id) => id in manifest.nodes,
+                                          ),
+                                  }
+                                : {}),
+                        },
+                    };
+                }),
         };
     } catch (error) {
         return await cancellation.fail(error);

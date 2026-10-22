@@ -381,6 +381,7 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
 }));
 
 const projectModel = {
+    countCachedExploresForDbtSource: vi.fn(async () => 2),
     hasExploreNameAllocations: vi.fn(async () => false),
     reconnectSharedSignIn: vi.fn<ProjectModel['reconnectSharedSignIn']>(
         async () => ({ kind: 'skipped' }),
@@ -615,6 +616,7 @@ const dashboardModel = {
     ),
 };
 const jobModel = {
+    appendJobStepWarning: vi.fn(async () => undefined),
     get: vi.fn(async () => job),
     findActiveCreateProjectJob: vi.fn<JobModel['findActiveCreateProjectJob']>(),
     findStaleCreateProjectJobUuids: vi.fn<
@@ -14725,7 +14727,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         }
     });
 
-    it('names a source preparation failure before fetching any manifest', async () => {
+    it('carries a source preparation failure and fetches the primary manifest', async () => {
         const { projectService } = buildServiceWithMocks(true, []);
         projectService.featureFlagModel.get = vi.fn(async (args: unknown) => ({
             id: (args as { featureFlagId: FeatureFlags }).featureFlagId,
@@ -14739,17 +14741,21 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         vi.spyOn(projectService, 'buildSourceAdapter').mockResolvedValue(
             sourceAdapter,
         );
-        await expect(
-            projectService.buildMergedManifestAdapter({
-                userUuid: 'user-uuid',
-                projectUuid: 'project-uuid',
-                organizationUuid: 'org-uuid',
-                primary: { ...primary, adapter: preparedPrimary },
-                sources: [buildSource('source-b')],
-                manifestFetchAdapters: [],
-            }),
-        ).rejects.toThrow('Failed to load dbt source "source-b": deps failed');
-        expect(preparedPrimary.getDbtManifest).not.toHaveBeenCalled();
+        const resolved = await projectService.buildMergedManifestAdapter({
+            userUuid: 'user-uuid',
+            projectUuid: 'project-uuid',
+            organizationUuid: 'org-uuid',
+            primary: { ...primary, adapter: preparedPrimary },
+            sources: [buildSource('source-b')],
+            manifestFetchAdapters: [],
+        });
+        expect(resolved).toMatchObject({
+            failedDbtSourceUuids: ['source-b-uuid'],
+            connectionWarnings: [
+                expect.stringContaining('kept its 2 explores'),
+            ],
+        });
+        expect(preparedPrimary.getDbtManifest).toHaveBeenCalledOnce();
         expect(sourceAdapter.getDbtManifest).not.toHaveBeenCalled();
     });
 
@@ -14847,9 +14853,11 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 ]);
                 expect(build).toHaveBeenCalledTimes(1);
             } else {
-                await expect(resolution).rejects.toThrow(
-                    'This model references a model in another dbt project. Connect that project as a dbt source and enable cross-source dbt refs for your organization.',
-                );
+                expect(await resolution).toMatchObject({
+                    connectionWarnings: [
+                        expect.stringContaining('Source "analytics" failed'),
+                    ],
+                });
                 expect(fetchManifest).toHaveBeenCalledTimes(1);
             }
             expect(projectService.featureFlagModel.get).toHaveBeenCalledWith({
@@ -15128,7 +15136,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             ]);
         });
 
-        it('fails on a source with broken credentials before fetching anything', async () => {
+        it('carries a source with broken credentials and fetches the primary', async () => {
             const events: string[] = [];
             const projectService = buildService(2);
             const buildSourceAdapter = vi.spyOn(
@@ -15157,10 +15165,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                     ],
                     manifestFetchAdapters: [],
                 }),
-            ).rejects.toThrow(
-                'Failed to load dbt source "source-b": its connection credentials could not be decrypted',
-            );
-            expect(events).toEqual([]);
+            ).resolves.toMatchObject({
+                connectionWarnings: [
+                    expect.stringContaining('Source "source-b" failed'),
+                ],
+            });
+            expect(events).toEqual(['primary started', 'primary finished']);
             expect(buildSourceAdapter).not.toHaveBeenCalled();
         });
 

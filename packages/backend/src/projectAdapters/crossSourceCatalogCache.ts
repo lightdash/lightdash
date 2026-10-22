@@ -81,6 +81,10 @@ export class CrossSourceCatalogCache {
         }
     }
 
+    discard(dbtSourceUuid: string): void {
+        this.entries.delete(dbtSourceUuid);
+    }
+
     async confirm(): Promise<void> {
         try {
             await this.model.confirm({

@@ -29,6 +29,7 @@ export type ExploreNaming = {
     refreshedSourceUuids: string[];
     warnings: string[];
     onPublished?: (explores: (Explore | ExploreError)[]) => void;
+    cachedExploreSources?: ReadonlyMap<string, string>;
     sourceMapping?: {
         sourcesByPackage: ReadonlyMap<string, string>;
         sourceAliases: ReadonlyMap<string, string>;
@@ -120,6 +121,11 @@ export const allocateStagedExploreNames = async (
     let cached = await trx(CachedExploreTableName)
         .where('project_uuid', projectUuid)
         .select('name', 'explore', 'warehouse_connection_uuid');
+    const carriedSources = new WeakMap<Explore | ExploreError, string>();
+    cached.forEach(({ name, explore }) => {
+        const sourceUuid = naming.cachedExploreSources?.get(name);
+        if (sourceUuid) carriedSources.set(explore, sourceUuid);
+    });
     if (naming.sourceMapping) {
         const { sourcesByPackage, sourceAliases } = naming.sourceMapping;
         const changed: { name: string; explore: Explore | ExploreError }[] = [];
@@ -276,15 +282,27 @@ export const allocateStagedExploreNames = async (
     const identityOf = (
         explore: Explore | ExploreError,
     ): DbtExploreIdentity => {
+        const carriedSourceUuid = carriedSources.get(explore);
         if (explore.dbtModelIdentity)
-            return selectedIdentity(explore.dbtModelIdentity);
+            return selectedIdentity(
+                carriedSourceUuid
+                    ? {
+                          ...explore.dbtModelIdentity,
+                          sourceUuid: carriedSourceUuid,
+                          sourceName:
+                              sourceNames.get(carriedSourceUuid) ?? null,
+                      }
+                    : explore.dbtModelIdentity,
+            );
         const table = explore.tables?.[explore.baseTable ?? explore.name];
         const sourceUuid =
+            carriedSourceUuid ??
             table?.dbtSourceUuid ??
             (explore as { dbtSourceUuid?: string }).dbtSourceUuid ??
             primaryUuid;
-        const namespace =
-            table?.dbtSourceName ?? sourceNames.get(sourceUuid) ?? null;
+        const namespace = carriedSourceUuid
+            ? (sourceNames.get(carriedSourceUuid) ?? null)
+            : (table?.dbtSourceName ?? sourceNames.get(sourceUuid) ?? null);
         const modelName =
             table && explore.baseTable !== explore.name
                 ? explore.name

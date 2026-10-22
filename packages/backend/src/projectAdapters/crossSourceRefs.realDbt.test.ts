@@ -1067,6 +1067,125 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 ).toEqual(['model.access_upstream.public_model']);
             }, 120_000);
 
+            it('source failure isolation keeps real dbt work after a Git clone failure', async () => {
+                const healthy = await task('access_upstream');
+                const fetch = vi.fn(async () => {
+                    throw new Error('The failed source must not be fetched');
+                });
+                const broken: CrossSourceFetchTask<string> = {
+                    key: 'unavailable',
+                    context: 'unavailable',
+                    fetch,
+                    prepare: async () => {
+                        await execa('git', [
+                            'clone',
+                            '--no-local',
+                            path.join(directory, 'missing-repository'),
+                            path.join(directory, 'clone-target'),
+                        ]);
+                        return null;
+                    },
+                };
+                const skipped = vi.fn(
+                    async (source: CrossSourceFetchTask<string>) =>
+                        source.key !== healthy.key,
+                );
+                const resolution = await resolveCrossSourceManifests({
+                    tasks: [healthy, broken],
+                    enabled: true,
+                    concurrency: 1,
+                    onSourceFailure: skipped,
+                });
+                expect(
+                    resolution.results.map((entry) => entry.task.key),
+                ).toEqual(['access_upstream']);
+                expect(skipped).toHaveBeenCalledWith(
+                    broken,
+                    expect.any(Error),
+                    'prepare',
+                );
+                expect(fetch).not.toHaveBeenCalled();
+            }, 120_000);
+
+            it('source failure isolation keeps a healthy real dbt source after a parse failure', async () => {
+                const healthy = await task('access_upstream');
+                const broken = await task('shared_dimensions');
+                const brokenClient = clients[clients.length - 1];
+                await fs.writeFile(
+                    path.join(
+                        brokenClient.dbtProjectDirectory,
+                        'models',
+                        'broken.sql',
+                    ),
+                    '{% if %}',
+                );
+                const skipped = vi.fn(
+                    async (source: CrossSourceFetchTask<string>) =>
+                        source.key !== healthy.key,
+                );
+                const resolution = await resolveCrossSourceManifests({
+                    tasks: [healthy, broken],
+                    enabled: true,
+                    concurrency: 1,
+                    onSourceFailure: skipped,
+                });
+                expect(
+                    resolution.results.map((entry) => entry.task.key),
+                ).toEqual(['access_upstream']);
+                expect(skipped).toHaveBeenCalledWith(
+                    broken,
+                    expect.any(DbtError),
+                    'manifest',
+                );
+            }, 120_000);
+
+            it('source failure isolation drops real dbt consumers of a failed provider despite cached nodes', async () => {
+                const consumer = await task('analytics');
+                const provider = await task('shared_dimensions');
+                const healthy = await task('access_upstream');
+                const first = await resolveCrossSourceManifests({
+                    tasks: [consumer, provider],
+                    enabled: true,
+                    concurrency: 1,
+                });
+                const cache = first.results.map(({ task: source, result }) => ({
+                    key: source.key,
+                    referencedProjects: [],
+                    projectName: result.manifest.metadata.project_name!,
+                    nodes: getExternalModelNodesFromManifest(result.manifest),
+                }));
+                const providerClient = clients[clients.length - 2];
+                await fs.writeFile(
+                    path.join(
+                        providerClient.dbtProjectDirectory,
+                        'models',
+                        'broken.sql',
+                    ),
+                    '{% if %}',
+                );
+                const skipped = vi.fn(
+                    async (source: CrossSourceFetchTask<string>) =>
+                        source.key !== healthy.key,
+                );
+                const resolution = await resolveCrossSourceManifests({
+                    tasks: [healthy, consumer, provider],
+                    cache,
+                    enabled: true,
+                    concurrency: 1,
+                    onSourceFailure: skipped,
+                });
+                expect(
+                    resolution.results.map((entry) => entry.task.key),
+                ).toEqual(['access_upstream']);
+                expect(skipped).toHaveBeenCalledWith(
+                    consumer,
+                    expect.objectContaining({
+                        name: 'DbtSourceDependencyError',
+                    }),
+                    'dependency',
+                );
+            }, 120_000);
+
             it('rejects a cached model deleted from the provider fixture', async () => {
                 const tasks = [
                     await task('analytics'),
