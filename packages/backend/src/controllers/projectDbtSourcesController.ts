@@ -7,6 +7,10 @@ import {
     ApiSuccessEmpty,
     ApiUpdateProjectDbtSource,
     assertRegisteredAccount,
+    type AddSharedDbtSource,
+    type DbtRepositorySummary,
+    type PeerDbtSourceSummary,
+    type UpdatePeerDbtSource,
     type UUID,
 } from '@lightdash/common';
 import {
@@ -87,6 +91,101 @@ export class ProjectDbtSourcesController extends BaseController {
             status: 'ok',
             results,
         };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/peers')
+    @OperationId('ListProjectDbtPeers')
+    async listProjectDbtPeers(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: PeerDbtSourceSummary[] }> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getPeerDbtSourcesService()
+                .listPeers(req.account, projectUuid),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Patch('/peers/{sourceUuid}')
+    @OperationId('UpdateProjectDbtPeer')
+    async updateProjectDbtPeer(
+        @Path() projectUuid: UUID,
+        @Path() sourceUuid: UUID,
+        @Body() body: UpdatePeerDbtSource,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getPeerDbtSourcesService()
+            .updatePeer(req.account, projectUuid, sourceUuid, body);
+        return { status: 'ok', results: undefined };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/shared')
+    @OperationId('ListSharedDbtRepositories')
+    async listSharedDbtRepositories(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: DbtRepositorySummary[] }> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getPeerDbtSourcesService()
+                .listShared(req.account, projectUuid),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Post('/shared')
+    @SuccessResponse('201', 'Created')
+    @OperationId('AddSharedDbtRepository')
+    async addSharedDbtRepository(
+        @Path() projectUuid: UUID,
+        @Body() body: AddSharedDbtSource,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: string }> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getPeerDbtSourcesService()
+                .addShared(req.account, projectUuid, body),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Patch('/repositories/{repositoryUuid}')
+    @OperationId('ShareDbtRepository')
+    async shareDbtRepository(
+        @Path() projectUuid: UUID,
+        @Path() repositoryUuid: UUID,
+        @Body() body: { isShared: boolean },
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getPeerDbtSourcesService()
+            .setShared(req.account, projectUuid, repositoryUuid, body.isShared);
+        return { status: 'ok', results: undefined };
     }
 
     /**

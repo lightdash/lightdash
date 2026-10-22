@@ -1609,6 +1609,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectDashboardControllerV2.get': [AgentCapability.ReadDiscover],
     'ProjectDashboardControllerV2.getComments': [AgentCapability.ReadDiscover],
     'ProjectDashboardControllerV2.update': [AgentCapability.ContentWrite],
+    'ProjectDbtSourcesController.addSharedDbtRepository': [
+        AgentCapability.Administration,
+    ],
     'ProjectDbtSourcesController.createProjectDbtSource': [
         AgentCapability.Administration,
     ],
@@ -1619,8 +1622,20 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectDbtSourcesController.getProjectDbtSource': [
         AgentCapability.ReadDiscover,
     ],
+    'ProjectDbtSourcesController.listProjectDbtPeers': [
+        AgentCapability.ReadDiscover,
+    ],
     'ProjectDbtSourcesController.listProjectDbtSources': [
         AgentCapability.ReadDiscover,
+    ],
+    'ProjectDbtSourcesController.listSharedDbtRepositories': [
+        AgentCapability.ReadDiscover,
+    ],
+    'ProjectDbtSourcesController.shareDbtRepository': [
+        AgentCapability.Administration,
+    ],
+    'ProjectDbtSourcesController.updateProjectDbtPeer': [
+        AgentCapability.Administration,
     ],
     'ProjectDbtSourcesController.updateProjectDbtSource': [
         AgentCapability.Administration,
