@@ -3,6 +3,7 @@ import {
     AGENT_SUGGESTIONS_SPACE_SLUG,
     AgentActorSurface,
     AiAccessRefusedError,
+    applyNewChartDefaults,
     assertUnreachable,
     computeAutopilotExcludedSpaceUuids,
     ConflictError,
@@ -3460,8 +3461,9 @@ chartConfig:
             description: description ?? null,
             tableName: chartAsCode.tableName as string,
             metricQuery: chartAsCode.metricQuery as MetricQuery,
-            chartConfig: (chartConfig ??
-                chartAsCode.chartConfig) as ChartConfig,
+            chartConfig: applyNewChartDefaults(
+                (chartConfig ?? chartAsCode.chartConfig) as ChartConfig,
+            ),
             tableConfig: (chartAsCode.tableConfig as {
                 columnOrder: string[];
             }) ?? {

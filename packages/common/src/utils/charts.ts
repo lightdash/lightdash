@@ -1,4 +1,6 @@
 import {
+    ChartType,
+    type ChartConfig,
     type CreateSavedChartVersion,
     type ReplaceCustomFields,
     type SkippedReplaceCustomFields,
@@ -120,3 +122,30 @@ export function getColumnOrderFromVizTableConfig(
         .sort(([_, a], [__, b]) => (a.order ?? 0) - (b.order ?? 0))
         .map(([key]) => key);
 }
+
+/**
+ * Defaults for a chart being created from scratch (UI, API, content as code,
+ * agents). Saved, duplicated and promoted charts keep their config untouched,
+ * so a setting absent from older content keeps its original behaviour.
+ */
+export const applyNewChartDefaults = (
+    chartConfig: ChartConfig,
+): ChartConfig => {
+    if (
+        chartConfig.type !== ChartType.CARTESIAN ||
+        !chartConfig.config ||
+        chartConfig.config.layout?.showIncompletePeriod !== undefined
+    ) {
+        return chartConfig;
+    }
+    return {
+        ...chartConfig,
+        config: {
+            ...chartConfig.config,
+            layout: {
+                ...chartConfig.config.layout,
+                showIncompletePeriod: true,
+            },
+        },
+    };
+};
