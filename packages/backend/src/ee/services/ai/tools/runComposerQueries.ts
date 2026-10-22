@@ -16,7 +16,12 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
-import { type QueryReviewer } from '../decisions/queryReview';
+import { type AiDecisionClient } from '../decisions/AiDecisionClient';
+import { getEmptyFilterHints } from '../decisions/queryChecks';
+import {
+    EMPTY_QUERY_GUIDANCE,
+    type QueryReviewer,
+} from '../decisions/queryReview';
 import type {
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
@@ -25,6 +30,7 @@ import type {
     RecordSqlApprovalFn,
     RegisterThreadComposerQueryNodesFn,
     RunComposerQueriesFn,
+    SearchFieldValuesFn,
     StoreToolResultsFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
@@ -51,6 +57,8 @@ import {
 type Dependencies = {
     agentContext: AgentContext;
     reviewQuery?: QueryReviewer;
+    decisions?: Pick<AiDecisionClient, 'evaluate'>;
+    searchFieldValues?: SearchFieldValuesFn;
     updateProgress: UpdateProgressFn;
     runComposerQueries: RunComposerQueriesFn;
     getPrompt: GetPromptFn;
@@ -148,6 +156,8 @@ export const resolveTerminalNodeId = (
 export const getRunComposerQueries = ({
     agentContext,
     reviewQuery,
+    decisions,
+    searchFieldValues,
     updateProgress,
     runComposerQueries,
     getPrompt,
@@ -399,9 +409,13 @@ export const getRunComposerQueries = ({
                 const columnSummary = columns
                     .map((column) => `${column.reference} (${column.type})`)
                     .join(', ');
-                const emptyReview =
-                    enableDataAccess && reviewQuery && terminal.rowCount === 0
-                        ? await reviewQuery(
+                const isEmpty = enableDataAccess && terminal.rowCount === 0;
+                const terminalNode = queries.find(
+                    (node) => node.nodeId === resolvedTerminalNodeId,
+                );
+                const [diagnosis, valueHints] = await Promise.all([
+                    isEmpty && reviewQuery
+                        ? reviewQuery(
                               {
                                   kind: 'composer',
                                   queries,
@@ -409,7 +423,24 @@ export const getRunComposerQueries = ({
                               },
                               { emptyResult: true, review },
                           )
-                        : null;
+                        : null,
+                    isEmpty &&
+                    decisions &&
+                    searchFieldValues &&
+                    terminalNode?.sourceType === QuerySourceType.SEMANTIC_LAYER
+                        ? getEmptyFilterHints({
+                              decisions,
+                              query: {
+                                  exploreName: terminalNode.exploreName,
+                                  filters: terminalNode.filters ?? {},
+                              },
+                              searchFieldValues,
+                          })
+                        : '',
+                ]);
+                const emptyReview = valueHints
+                    ? `${EMPTY_QUERY_GUIDANCE} ${valueHints}${review}`
+                    : diagnosis;
                 const resultSummary = [
                     `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.`,
                     `Nodes in this pipeline:\n${nodeSummary}`,

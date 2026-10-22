@@ -974,7 +974,7 @@ export const getRunQuery = ({
                         decisions && enableDataAccess && searchFieldValues
                             ? getEmptyFilterHints({
                                   decisions,
-                                  query: queryTool,
+                                  query: queryTool.queryConfig,
                                   searchFieldValues,
                               })
                             : '',
