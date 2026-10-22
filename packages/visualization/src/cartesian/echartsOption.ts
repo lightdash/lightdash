@@ -109,6 +109,7 @@ import {
 import { getCartesianConditionalFormattingColor } from './conditionalFormatting';
 import { EMPTY_X_AXIS } from './config';
 import { defaultAxisLabelGap, defaultGrid, legendTopSpacing } from './grid';
+import { applyIncompletePeriodStyle } from './incompletePeriod';
 import {
     getLegendLabelTooltipStyle,
     type LegendLabelTooltipStyle,
@@ -4540,7 +4541,10 @@ export const buildCartesianEchartsOptionFromData = (
         sortedAxes,
         sortedSeriesForChart,
     }: CartesianLegendState,
-    { chartWidth = null }: { chartWidth?: number | null } = {},
+    {
+        chartWidth = null,
+        now = new Date(),
+    }: { chartWidth?: number | null; now?: Date } = {},
 ) => {
     const {
         validCartesianConfig,
@@ -4550,6 +4554,7 @@ export const buildCartesianEchartsOptionFromData = (
         series,
         rows,
         timeAxisMode,
+        resolvedTimezone,
     } = data;
 
     const legendLabelTooltipStyle = getLegendLabelTooltipStyle(theme);
@@ -4619,23 +4624,38 @@ export const buildCartesianEchartsOptionFromData = (
                 ? dataZoomLastIndex
                 : Math.min(dataZoomLastIndex, dataZoomSpan);
 
+        const orderedSeries = assignSeriesZByOrder(
+            relocateMarkLinesToVisibleSeries(
+                resolvedLabels.series,
+                validCartesianConfigLegend,
+            ),
+        );
+        const incompletePeriod =
+            validCartesianConfig?.layout?.showIncompletePeriod && itemsMap
+                ? applyIncompletePeriodStyle({
+                      series: orderedSeries,
+                      rows: dataToRender,
+                      tooltip,
+                      xFieldId: validCartesianConfig.layout.xField,
+                      flipAxes: !!flipAxes,
+                      itemsMap,
+                      timezone: resolvedTimezone,
+                      now,
+                  })
+                : { series: orderedSeries, rows: dataToRender, tooltip };
+
         const baseOptions = {
             xAxis: resolvedLabels.xAxis,
             yAxis: resolvedLabels.yAxis,
             useUTC: true,
-            series: assignSeriesZByOrder(
-                relocateMarkLinesToVisibleSeries(
-                    resolvedLabels.series,
-                    validCartesianConfigLegend,
-                ),
-            ),
+            series: incompletePeriod.series,
             animation,
             legend: legendConfigWithInstructionsTooltip,
             dataset: {
                 id: 'lightdashResults',
-                source: dataToRender,
+                source: incompletePeriod.rows,
             },
-            tooltip,
+            tooltip: incompletePeriod.tooltip,
             grid: currentGrid,
             textStyle: {
                 fontFamily: sanitizeEchartsFontFamily(theme.chartFont),

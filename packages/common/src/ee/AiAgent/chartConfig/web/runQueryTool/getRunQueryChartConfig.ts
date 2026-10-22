@@ -1,6 +1,7 @@
 import { type ItemsMap } from '../../../../../types/field';
 import { type MetricQuery } from '../../../../../types/metricQuery';
 import { type ChartConfig } from '../../../../../types/savedCharts';
+import { applyNewChartDefaults } from '../../../../../utils/charts';
 import { isCustomChartTypeSlugChartConfig } from '../../../schemas';
 import { canRenderAsChart } from '../shared/canRenderAsChart';
 import { getTableChartConfig } from '../shared/getTableChartConfig';
@@ -12,11 +13,7 @@ import { getLineChartConfig } from './viz/line';
 import { getPieChartConfig } from './viz/pie';
 import { getScatterChartConfig } from './viz/scatter';
 
-/**
- * Converts runQuery tool result to echarts config
- * This is the main function used for chart type switching
- */
-export const getRunQueryChartConfig = ({
+const buildRunQueryChartConfig = ({
     queryTool,
     metricQuery,
     fieldsMap,
@@ -106,3 +103,11 @@ export const getRunQueryChartConfig = ({
             throw new Error(`Unknown chart type: ${chartType}`);
     }
 };
+
+/**
+ * Converts runQuery tool result to echarts config
+ * This is the main function used for chart type switching
+ */
+export const getRunQueryChartConfig = (
+    args: Parameters<typeof buildRunQueryChartConfig>[0],
+): ChartConfig => applyNewChartDefaults(buildRunQueryChartConfig(args));

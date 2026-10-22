@@ -1223,6 +1223,47 @@ describe('ManagedAgentService query check before saving', () => {
         );
         expect(savedChartModel.create).not.toHaveBeenCalled();
     });
+
+    it('turns the incomplete period on for a cartesian chart it creates', async () => {
+        const { service, savedChartModel, projectModel } = buildService();
+        stubGuards(service);
+        projectModel.findExploresFromCache.mockResolvedValue({
+            orders: {
+                tables: {
+                    orders: {
+                        dimensions: { status: {} },
+                        metrics: { total_revenue: {} },
+                    },
+                },
+            },
+        });
+        await (service as AnyType).handleToolCall(
+            PROJECT_UUID,
+            'session',
+            'run',
+            'create_content_from_code',
+            {
+                description: 'Users keep asking for revenue by status',
+                chart_as_code: {
+                    name: 'Revenue by status',
+                    tableName: 'orders',
+                    metricQuery,
+                    chartConfig: {
+                        type: 'cartesian',
+                        config: {
+                            layout: { xField: 'orders_status' },
+                            eChartsConfig: {},
+                        },
+                    },
+                },
+            },
+        );
+        expect(savedChartModel.create).toHaveBeenCalledTimes(1);
+        expect(
+            (savedChartModel.create.mock.calls[0] as AnyType[])[2].chartConfig
+                .config.layout,
+        ).toEqual({ xField: 'orders_status', showIncompletePeriod: true });
+    });
 });
 
 describe('ManagedAgentService broken-content pagination', () => {
