@@ -50,7 +50,9 @@ All are in `features/dashboardFilters/`.
   (default: the other filter is written to the dashboard filters, and this
   one too), `disabledReason` (default none: the switch is enabled) and
   `isListInPortal` (default false; passed to `FilterSelect`'s new
-  `withinPortal`, since the rail's scrolling body clips the list). The
+  `withinPortal`, since the rail's scrolling body clips the list) and
+  `withCard` (default true; the rail passes false, so "Required" is a plain
+  row under a divider, like "Lock", inside the "Rules" section). The
   group member conversion is `getRequiredGroupMemberUpdates` in `utils`.
 
 In `FilterConfiguration/`:

@@ -5,6 +5,7 @@ import {
     type FilterType,
 } from '@lightdash/common';
 import {
+    Divider,
     Group,
     MultiSelect,
     SegmentedControl,
@@ -167,14 +168,14 @@ export const ViewerControls: FC<Props> = ({
     return (
         <Stack gap="md">
             <Stack gap={6}>
-                <Group justify="space-between" wrap="nowrap" gap="xs">
+                <Group justify="space-between" wrap="nowrap">
                     <Group gap={6} wrap="nowrap">
                         <MantineIcon
                             icon={isLockedSomewhere ? IconLock : IconLockOpen}
                             size="sm"
-                            color={isLockedSomewhere ? 'ldGray.9' : 'dimmed'}
+                            color={isLockedSomewhere ? 'ldGray.9' : 'ldGray.6'}
                         />
-                        <Text fz="sm" fw={500}>
+                        <Text size="xs" fw={600}>
                             Lock
                         </Text>
                     </Group>
@@ -194,7 +195,7 @@ export const ViewerControls: FC<Props> = ({
                         }}
                     />
                 </Group>
-                <Text fz="xs" c="dimmed">
+                <Text size="xs" c="ldGray.7">
                     Viewers see the value but can&apos;t change it.
                 </Text>
                 {hasTabs && isLockedSomewhere && (
@@ -248,7 +249,10 @@ export const ViewerControls: FC<Props> = ({
                 )}
             </Stack>
 
+            <Divider />
+
             <RequiredFilterCard
+                withCard={false}
                 filterRule={rule}
                 onToggleRequired={(checked) =>
                     onChange(getRequiredRule(checked))
