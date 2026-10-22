@@ -83,6 +83,7 @@ const projectDbtSourcesModel = {
     getSources: vi.fn(async () => []),
     getSourcesWithBindings: vi.fn(),
     getSource: vi.fn(),
+    getSourceForApi: vi.fn(),
     createSource: vi.fn(),
     updateSource: vi.fn(),
     deleteSource: vi.fn(),
@@ -668,7 +669,9 @@ describe('ProjectDbtSourcesService', () => {
                 projectUuid,
                 'core_analytics',
             );
-            expect(projectDbtSourcesModel.getSource).not.toHaveBeenCalled();
+            expect(
+                projectDbtSourcesModel.getSourceForApi,
+            ).not.toHaveBeenCalled();
         });
 
         it('rejects a warehouse location on the primary source', async () => {
@@ -693,7 +696,7 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it('rejects the primary source name', async () => {
-            projectDbtSourcesModel.getSource.mockResolvedValue({
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
                 projectUuid,
                 dbtConnection: githubConnection,
@@ -717,7 +720,7 @@ describe('ProjectDbtSourcesService', () => {
             ['a'.repeat(300), 'Name must be 64 characters or fewer'],
             ['sales__orders', 'Name cannot contain "__"'],
         ])('rejects invalid source name %s', async (name, message) => {
-            projectDbtSourcesModel.getSource.mockResolvedValue({
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
                 projectUuid,
                 dbtConnection: githubConnection,
@@ -737,7 +740,7 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it('rejects unsafe dbt environment variables', async () => {
-            projectDbtSourcesModel.getSource.mockResolvedValue({
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
                 projectUuid,
                 dbtConnection: githubConnection,
@@ -767,7 +770,7 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it('rejects non-GitHub connection types on update, matching create', async () => {
-            projectDbtSourcesModel.getSource.mockResolvedValue({
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
                 projectUuid,
                 dbtConnection: githubConnection,
@@ -787,7 +790,7 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it("updates the source's warehouse location", async () => {
-            projectDbtSourcesModel.getSource.mockResolvedValue({
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
                 projectUuid,
                 dbtConnection: githubConnection,
@@ -830,7 +833,7 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it('validates a source location against its bound Trino connection', async () => {
-            projectDbtSourcesModel.getSource.mockResolvedValue({
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
                 projectUuid,
                 dbtConnection: githubConnection,
@@ -872,7 +875,7 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it('rejects an invalid GitHub token before updating the source', async () => {
-            projectDbtSourcesModel.getSource.mockResolvedValue({
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
                 projectUuid,
                 dbtConnection: githubConnection,
@@ -913,7 +916,7 @@ describe('ProjectDbtSourcesService', () => {
         };
 
         it('rejects switching a source to OAuth when the org has no GitHub App installation', async () => {
-            projectDbtSourcesModel.getSource.mockResolvedValue(
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue(
                 storedPatSource as never,
             );
             const service = getService();
@@ -939,7 +942,7 @@ describe('ProjectDbtSourcesService', () => {
             githubAppInstallationsModel.findInstallationId.mockResolvedValue(
                 '999',
             );
-            projectDbtSourcesModel.getSource.mockResolvedValue(
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue(
                 storedPatSource as never,
             );
             projectDbtSourcesModel.updateSource.mockResolvedValue({
@@ -983,7 +986,7 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it('rejects a source uuid that belongs to a different project', async () => {
-            projectDbtSourcesModel.getSource.mockResolvedValue({
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
                 projectUuid: otherProjectUuid,
                 dbtConnection: githubConnection,
@@ -1024,8 +1027,30 @@ describe('ProjectDbtSourcesService', () => {
             },
         } as never;
 
+        it('reads local API configuration without hydrating shared owner credentials', async () => {
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                name: 'source_shared',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: null,
+                hasCredentialError: false,
+            });
+            projectDbtSourcesModel.getSource.mockResolvedValue(
+                sourceWithEnvironment,
+            );
+            const result = await getService().getProjectDbtSource(
+                adminAccount,
+                projectUuid,
+                sourceUuid,
+            );
+            expect(result.dbtConnection).toBeNull();
+            expect(projectDbtSourcesModel.getSource).not.toHaveBeenCalled();
+        });
+
         it('strips sensitive credential fields from the returned connection', async () => {
-            projectDbtSourcesModel.getSource.mockResolvedValue({
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
                 projectUuid,
                 name: 'jaffle-2',
@@ -1057,7 +1082,7 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it('does not expose dbt environment variables to project viewers', async () => {
-            projectDbtSourcesModel.getSource.mockResolvedValue(
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue(
                 sourceWithEnvironment,
             );
             const service = getService();
@@ -1072,7 +1097,7 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it('returns dbt environment variables to users who can manage the project', async () => {
-            projectDbtSourcesModel.getSource.mockResolvedValue(
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue(
                 sourceWithEnvironment,
             );
             const service = getService();
@@ -1089,7 +1114,7 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it('fails clearly, naming the source, when its credentials cannot be decrypted', async () => {
-            projectDbtSourcesModel.getSource.mockResolvedValue({
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
                 projectUuid,
                 name: 'broken-source',
@@ -1119,7 +1144,7 @@ describe('ProjectDbtSourcesService', () => {
 
     describe('deleteProjectDbtSource', () => {
         it('rejects a source uuid that belongs to a different project', async () => {
-            projectDbtSourcesModel.getSource.mockResolvedValue({
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
                 projectUuid: otherProjectUuid,
             } as never);
@@ -1137,7 +1162,7 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it('deletes a source belonging to the project', async () => {
-            projectDbtSourcesModel.getSource.mockResolvedValue({
+            projectDbtSourcesModel.getSourceForApi.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
                 projectUuid,
             } as never);
@@ -1160,7 +1185,7 @@ describe('cross-source catalogue invalidation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         crossSourceRefs.enabled = true;
-        projectDbtSourcesModel.getSource.mockResolvedValue({
+        projectDbtSourcesModel.getSourceForApi.mockResolvedValue({
             projectDbtSourceUuid: sourceUuid,
             projectUuid,
             dbtConnection: primaryDbtConnection,

@@ -249,6 +249,7 @@ import {
 import { AwsWebIdentityAudienceModel } from '../AwsWebIdentityAudienceModel';
 import { FeatureFlagModel } from '../FeatureFlagModel/FeatureFlagModel';
 import { OrganizationWarehouseCredentialsModel } from '../OrganizationWarehouseCredentialsModel';
+import { PeerDbtSourcesModel } from '../PeerDbtSourcesModel';
 import { RefreshTokenSourceChangedError } from '../RefreshTokenRotation/RefreshTokenRotation';
 import { clearProjectExtraRoles } from '../roleSetUtils';
 import {
@@ -325,6 +326,7 @@ export type ProjectModelArguments = {
     lightdashConfig: LightdashConfig;
     encryptionUtil: EncryptionUtil;
     googleIdentityTokenSource?: GoogleIdentityTokenSource;
+    featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
@@ -572,6 +574,8 @@ export class ProjectModel {
 
     private connectionRouter: WarehouseConnectionRouter;
 
+    private peerDbtSourcesModel: PeerDbtSourcesModel;
+
     readonly awsWebIdentity: AwsWebIdentityResolver;
 
     constructor(args: ProjectModelArguments) {
@@ -581,9 +585,16 @@ export class ProjectModel {
         this.connectionRouter = new WarehouseConnectionRouter({
             database: args.database,
         });
-        const featureFlagModel = new FeatureFlagModel({
+        const featureFlagModel =
+            args.featureFlagModel ??
+            new FeatureFlagModel({
+                database: args.database,
+                lightdashConfig: args.lightdashConfig,
+            });
+        this.peerDbtSourcesModel = new PeerDbtSourcesModel({
             database: args.database,
-            lightdashConfig: args.lightdashConfig,
+            encryptionUtil: args.encryptionUtil,
+            featureFlagModel,
         });
         this.awsWebIdentity = new AwsWebIdentityResolver({
             isEnabledFor: async (organizationUuid) =>
@@ -2219,18 +2230,44 @@ export class ProjectModel {
         });
     }
 
+    async assertCanDelete(
+        projectUuid: string,
+        transaction?: Transaction,
+    ): Promise<void> {
+        if (!(await this.peerDbtSourcesModel.isEnabled(projectUuid))) return;
+        const assertInTransaction = async (trx: Transaction): Promise<void> => {
+            await new PeerDbtSourcesModel({
+                database: trx,
+                encryptionUtil: this.encryptionUtil,
+            }).assertProjectCanBeDeleted(projectUuid);
+        };
+        if (transaction) {
+            await assertInTransaction(transaction);
+        } else {
+            await this.database.transaction(assertInTransaction);
+        }
+    }
+
     async delete(
         projectUuid: string,
         transaction?: Transaction,
     ): Promise<void> {
+        const peersEnabled =
+            await this.peerDbtSourcesModel.isEnabled(projectUuid);
         // Invalidate warehouse credentials cache
         warehouseCredentialsCache?.del(projectUuid);
 
-        if (!transaction) {
-            await this.deleteContentInBatches(projectUuid);
-        }
-
         const deleteInTransaction = async (trx: Transaction): Promise<void> => {
+            if (peersEnabled) {
+                const repositoryUuids = await new PeerDbtSourcesModel({
+                    database: trx,
+                    encryptionUtil: this.encryptionUtil,
+                }).assertProjectCanBeDeleted(projectUuid);
+                if (repositoryUuids.length > 0)
+                    await trx('dbt_repositories')
+                        .whereIn('dbt_repository_uuid', repositoryUuids)
+                        .update({ is_shared: false, updated_at: new Date() });
+            }
             const [project] = await trx('projects')
                 .select('project_id')
                 .where('project_uuid', projectUuid);
@@ -2265,7 +2302,17 @@ export class ProjectModel {
 
         if (transaction) {
             await deleteInTransaction(transaction);
+        } else if (peersEnabled) {
+            await this.database.transaction(async (trx) => {
+                await new PeerDbtSourcesModel({
+                    database: trx,
+                    encryptionUtil: this.encryptionUtil,
+                }).assertProjectCanBeDeleted(projectUuid);
+                await this.deleteContentInBatches(projectUuid);
+                await deleteInTransaction(trx);
+            });
         } else {
+            await this.deleteContentInBatches(projectUuid);
             await this.database.transaction(deleteInTransaction);
         }
     }

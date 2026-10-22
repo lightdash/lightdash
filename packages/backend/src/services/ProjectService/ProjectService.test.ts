@@ -509,6 +509,7 @@ const projectModel = {
     ),
     update: vi.fn(async () => undefined),
     delete: vi.fn(async () => undefined),
+    assertCanDelete: vi.fn(async (_projectUuid: string) => undefined),
     deleteContentInBatches: vi.fn(async () => undefined),
     getResultsCacheSettings: vi.fn<ProjectModel['getResultsCacheSettings']>(
         async () => ({ cacheTtlSeconds: null }),
@@ -4627,6 +4628,30 @@ describe('ProjectService', () => {
         ).rejects.toThrow(
             'Embedded DuckDB connections can only be provisioned internally',
         );
+    });
+
+    test('refuses deletion before removing playground content when a shared source is in use', async () => {
+        const deletingUser = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'delete' },
+            ]),
+        };
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            provisioningSource: 'playground',
+        });
+        projectModel.assertCanDelete.mockRejectedValueOnce(
+            new ConflictError('Shared source is in use'),
+        );
+        await expect(service.delete(projectUuid, deletingUser)).rejects.toThrow(
+            'Shared source is in use',
+        );
+        expect(projectModel.deleteContentInBatches).not.toHaveBeenCalled();
+        expect(projectModel.delete).not.toHaveBeenCalled();
+        expect(
+            onboardingModel.runInPlaygroundProvisioningLock,
+        ).not.toHaveBeenCalled();
     });
 
     test('deletes a playground and records its tombstone in the provisioning lock transaction', async () => {

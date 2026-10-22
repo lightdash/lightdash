@@ -346,6 +346,9 @@ export class ProjectDbtSourcesService extends BaseService {
                 dbtConnection,
                 warehouseLocation:
                     warehouseLocation ?? EMPTY_WAREHOUSE_LOCATION,
+                ...(data.dbtProjectName !== undefined
+                    ? { dbtProjectName: data.dbtProjectName }
+                    : {}),
             },
         );
         this.analytics.track({
@@ -375,7 +378,9 @@ export class ProjectDbtSourcesService extends BaseService {
             subject('Project', { organizationUuid, projectUuid }),
         );
         const source =
-            await this.projectDbtSourcesModel.getSource(projectDbtSourceUuid);
+            await this.projectDbtSourcesModel.getSourceForApi(
+                projectDbtSourceUuid,
+            );
         if (source.projectUuid !== projectUuid) {
             throw new ForbiddenError(
                 'This dbt source does not belong to the project',
@@ -450,10 +455,23 @@ export class ProjectDbtSourcesService extends BaseService {
             };
         }
         const existing =
-            await this.projectDbtSourcesModel.getSource(projectDbtSourceUuid);
+            await this.projectDbtSourcesModel.getSourceForApi(
+                projectDbtSourceUuid,
+            );
         if (existing.projectUuid !== projectUuid) {
             throw new ForbiddenError(
                 'This dbt source does not belong to the project',
+            );
+        }
+        if (
+            data.dbtConnection !== undefined &&
+            (await this.projectDbtSourcesModel.peers?.isSharedConsumer(
+                projectUuid,
+                projectDbtSourceUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                'Edit shared repository credentials in the owning project',
             );
         }
         if (data.name !== undefined) {
@@ -562,7 +580,9 @@ export class ProjectDbtSourcesService extends BaseService {
             'manage',
         );
         const source =
-            await this.projectDbtSourcesModel.getSource(projectDbtSourceUuid);
+            await this.projectDbtSourcesModel.getSourceForApi(
+                projectDbtSourceUuid,
+            );
         if (source.projectUuid !== projectUuid) {
             throw new ForbiddenError(
                 'This dbt source does not belong to the project',

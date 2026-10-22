@@ -7972,6 +7972,8 @@ export class ProjectService
             );
         }
 
+        await this.projectModel.assertCanDelete(projectUuid);
+
         if (project.type === ProjectType.TRAINING) {
             // Deleting the playground takes every learner's copy with it and
             // switches Learn off for the org, so it is an org admin's call
@@ -8958,6 +8960,13 @@ export class ProjectService
                                         await primary.adapter.getDbtManifest(
                                             options,
                                         );
+                                    if (result.manifest.metadata.project_name)
+                                        await this.projectDbtSourcesModel.peers?.learnProjectName(
+                                            projectUuid,
+                                            identity.dbtSourceUuid,
+                                            result.manifest.metadata
+                                                .project_name,
+                                        );
                                     if (!crossSourceRefsEnabled)
                                         await primary.adapter.releaseDisk({
                                             keepProject: true,
@@ -9072,6 +9081,16 @@ export class ProjectService
                                         validateDbtSourceManifest(
                                             result.manifest,
                                         );
+                                        if (
+                                            result.manifest.metadata
+                                                .project_name
+                                        )
+                                            await this.projectDbtSourcesModel.peers?.learnProjectName(
+                                                projectUuid,
+                                                source.projectDbtSourceUuid,
+                                                result.manifest.metadata
+                                                    .project_name,
+                                            );
                                         if (!crossSourceRefsEnabled)
                                             await sourceAdapter.releaseDisk();
                                         return result;
@@ -17599,6 +17618,7 @@ export class ProjectService
     private async deletePreviewAndAppFiles(
         previewProjectUuid: string,
     ): Promise<void> {
+        await this.projectModel.assertCanDelete(previewProjectUuid);
         try {
             await this.getAppGenerateService?.()?.deleteProjectAppFiles(
                 previewProjectUuid,

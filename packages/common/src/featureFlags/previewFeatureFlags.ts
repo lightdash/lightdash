@@ -41,6 +41,7 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     CommercialFeatureFlags.PatScopeAuthoritative,
     FeatureFlags.ResultsCacheEnabled,
     FeatureFlags.EnableTimezoneSupport,
+    FeatureFlags.PeerDbtSources,
 ]);
 
 export const ALL_FEATURE_FLAG_IDS: readonly string[] = [

@@ -1239,6 +1239,7 @@ export type CreateProjectDbtSource = {
     precedence: number;
     dbtConnection: DbtProjectConfig | null;
     warehouseLocation: WarehouseLocation;
+    dbtProjectName?: string | null;
 };
 
 export type UpdateProjectDbtSource = {
@@ -1279,6 +1280,7 @@ export type ApiCreateProjectDbtSource = {
     name: string;
     dbtConnection: DbtProjectConfig;
     warehouseLocation?: WarehouseLocation;
+    dbtProjectName?: string | null;
 };
 
 export type ApiProjectDbtSourcesResponse = {

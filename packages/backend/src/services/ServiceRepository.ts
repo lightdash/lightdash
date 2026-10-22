@@ -81,6 +81,7 @@ import { OrganizationDomainVerificationService } from './OrganizationDomainVerif
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { OrganizationSettingsService } from './OrganizationSettingsService/OrganizationSettingsService';
 import { OrganizationSsoService } from './OrganizationSsoService/OrganizationSsoService';
+import { PeerDbtSourcesService } from './PeerDbtSourcesService';
 import { PermissionsService } from './PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from './PersistentDownloadFileService/PersistentDownloadFileService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
@@ -207,6 +208,7 @@ interface ServiceManifest {
     renameService: RenameService;
     projectParametersService: ProjectParametersService;
     projectDbtSourcesService: ProjectDbtSourcesService;
+    peerDbtSourcesService: PeerDbtSourcesService;
     warehouseConnectionService: WarehouseConnectionService;
     warehouseConnectionSwitchService: WarehouseConnectionSwitchService;
     warehouseConnectionBindingService: WarehouseConnectionBindingService;
@@ -2380,6 +2382,21 @@ export class ServiceRepository
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
                     featureFlagService: this.getFeatureFlagService(),
+                }),
+        );
+    }
+
+    public getPeerDbtSourcesService(): PeerDbtSourcesService {
+        return this.getService(
+            'peerDbtSourcesService',
+            () =>
+                new PeerDbtSourcesService({
+                    projectModel: this.models.getProjectModel(),
+                    projectDbtSourcesModel:
+                        this.models.getProjectDbtSourcesModel(),
+                    projectDbtSourcesService:
+                        this.getProjectDbtSourcesService(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
