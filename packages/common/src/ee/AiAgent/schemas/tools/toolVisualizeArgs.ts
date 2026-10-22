@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import { composerBuiltinChartVizConfigSchemaV1 } from './composerChartVizConfigSchema';
+import { defaultPersistedToolArgsVersion } from './persistedToolArgsVersion';
 
 export const TOOL_VISUALIZE_DESCRIPTION = `Visualize a node's result for the user as a chart or table. Each call adds one card to the thread; a result stays hidden until it is visualized.
 
@@ -28,10 +29,18 @@ const toolVisualizeArgsSchemaV1 = createToolSchema()
     .build();
 
 export const toolVisualizeArgsSchema = toolVisualizeArgsSchemaV1;
+export const TOOL_VISUALIZE_ARGS_VERSION = 1;
 
-// Wide persisted contract, evolved like toolRunQueryArgsSchemaPersisted; a
-// vizConfig restructure also bumps the composer artifact schemaVersion.
-export const toolVisualizeArgsSchemaPersisted = toolVisualizeArgsSchemaV1;
+// Stored args carry the version stamped at save. Additive field: nullish with a
+// default, no bump. Restructure: add V(N), point the advertised export and
+// TOOL_VISUALIZE_ARGS_VERSION at it, add a union member whose older members
+// transform to V(N). A vizConfig restructure also bumps the artifact schemaVersion.
+export const toolVisualizeArgsSchemaPersisted = z.preprocess(
+    defaultPersistedToolArgsVersion,
+    z.discriminatedUnion('version', [
+        toolVisualizeArgsSchemaV1.extend({ version: z.literal(1) }),
+    ]),
+);
 
 export type ToolVisualizeArgs = z.infer<typeof toolVisualizeArgsSchema>;
 

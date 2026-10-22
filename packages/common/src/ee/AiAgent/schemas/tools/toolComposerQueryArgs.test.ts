@@ -398,6 +398,38 @@ describe('toolComposerQueriesArgsSchemaPersisted', () => {
         queries: [node],
     });
 
+    const sqlArgs = args({
+        sourceType: QuerySourceType.SQL,
+        nodeId: 'signups',
+        title: 'Signups',
+        description: null,
+        sql: 'SELECT 1',
+    });
+
+    it('reads stored args without a version as version 1', () => {
+        expect(
+            toolComposerQueriesArgsSchemaPersisted.parse(sqlArgs),
+        ).toMatchObject({ version: 1 });
+    });
+
+    it('parses stored args stamped version 1', () => {
+        expect(
+            toolComposerQueriesArgsSchemaPersisted.parse({
+                ...sqlArgs,
+                version: 1,
+            }),
+        ).toMatchObject({ version: 1 });
+    });
+
+    it('rejects an unknown version', () => {
+        expect(
+            toolComposerQueriesArgsSchemaPersisted.safeParse({
+                ...sqlArgs,
+                version: 99,
+            }).success,
+        ).toBe(false);
+    });
+
     it('parses python nodes and limits above the advertised max', () => {
         const pythonNode = {
             sourceType: QuerySourceType.PYTHON,
