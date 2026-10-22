@@ -53,6 +53,7 @@ export * from './chartConfig/web';
 export * from './constants';
 export * from './coder';
 export * from './composerArtifact';
+export * from './composerRunQueryViz';
 export * from './composerViz';
 export * from './composerVizPanel';
 export * from './dashboardContext';

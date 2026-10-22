@@ -4,14 +4,14 @@ import {
     FunnelChartDataInput,
     type FunnelChartConfig,
 } from '../../../../../../types/savedCharts';
-import { type ToolRunQueryArgsTransformedBuiltinChart } from '../../../../schemas';
 import { isMetricsOnlyFunnel } from '../../../shared/isMetricsOnlyFunnel';
+import { type RunQueryBuiltinChartInput } from '../../types';
 
 export const getFunnelChartConfig = ({
     queryTool,
     metricQuery,
 }: {
-    queryTool: ToolRunQueryArgsTransformedBuiltinChart;
+    queryTool: RunQueryBuiltinChartInput;
     metricQuery: MetricQuery;
 }): FunnelChartConfig => {
     const { metrics } = metricQuery;

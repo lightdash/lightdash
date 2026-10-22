@@ -2,6 +2,7 @@ import {
     FeatureFlags,
     ChartKind,
     getComposerVizPanelOptions,
+    getComposerV1VizConfig,
     getComposerVizPanelValue,
     switchComposerVizKind,
     type AiComposerChartArtifactConfig,
@@ -111,7 +112,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     );
     const { columns, rows, isLoading } = useArtifactResultRows(results);
     const storedVizConfig = isTerminalDisplayed
-        ? (config.vizConfig ?? null)
+        ? getComposerV1VizConfig(config)
         : null;
     const derivedValue = useMemo(
         () =>

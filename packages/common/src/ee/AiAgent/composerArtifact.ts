@@ -14,12 +14,13 @@ import {
 import assertUnreachable from '../../utils/assertUnreachable';
 import { stableJson } from '../../utils/stableJson';
 import { type AllVizChartConfig } from '../../visualizations/types';
+import { type ComposerRunQueryVizConfig } from './composerRunQueryViz';
 
 /**
  * A composer artifact version: a declarative pipeline, its terminal node and
  * the viz config. Holds no results; opening it runs the pipeline.
  */
-export type AiComposerChartArtifactConfig = {
+export type AiComposerChartArtifactConfigV1 = {
     source: 'composer';
     schemaVersion: 1;
     /** Self-contained pipeline: every node has a node id and reads only nodes of this pipeline. */
@@ -27,6 +28,28 @@ export type AiComposerChartArtifactConfig = {
     terminalNodeId: QueryNodeId;
     vizConfig: AllVizChartConfig | null;
 };
+
+/**
+ * Spike: v2 describes the chart like the runQuery tool's chartConfig, with
+ * result column references of the terminal node in place of field ids.
+ */
+export type AiComposerChartArtifactConfigV2 = {
+    source: 'composer';
+    schemaVersion: 2;
+    queries: SourceQuery[];
+    terminalNodeId: QueryNodeId;
+    vizConfig: ComposerRunQueryVizConfig | null;
+};
+
+export type AiComposerChartArtifactConfig =
+    | AiComposerChartArtifactConfigV1
+    | AiComposerChartArtifactConfigV2;
+
+/** The v1 viz config of a composer artifact; null for v2 artifacts. */
+export const getComposerV1VizConfig = (
+    config: AiComposerChartArtifactConfig,
+): AllVizChartConfig | null =>
+    config.schemaVersion === 1 ? (config.vizConfig ?? null) : null;
 
 /** Arguments for saving a composer artifact version. */
 export type AiComposerArtifactVersion = {
@@ -69,7 +92,7 @@ export const isAiComposerChartArtifactConfig = (
     'source' in config &&
     config.source === 'composer' &&
     'schemaVersion' in config &&
-    config.schemaVersion === 1 &&
+    (config.schemaVersion === 1 || config.schemaVersion === 2) &&
     'queries' in config &&
     Array.isArray(config.queries) &&
     'terminalNodeId' in config &&
