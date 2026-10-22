@@ -3811,6 +3811,27 @@ describe('ProjectService', () => {
             expect(locked).toBe(false);
         });
 
+        test('keeps legacy preview cleanup order without a peer transaction', async () => {
+            let finishFiles!: () => void;
+            const files = new Promise<void>((resolve) => {
+                finishFiles = resolve;
+            });
+            getExpiredPreviewProjects.mockResolvedValueOnce([
+                { projectUuid: 'copy-1', organizationUuid: 'org' },
+            ]);
+            deleteProjectAppFiles.mockImplementationOnce(async () => files);
+            const deletion = sweepService().deleteExpiredPreviewProjects();
+            await vi.waitFor(() =>
+                expect(deleteProjectAppFiles).toHaveBeenCalledOnce(),
+            );
+            expect(projectModel.deleteContentInBatches).not.toHaveBeenCalled();
+            expect(projectModel.delete).not.toHaveBeenCalled();
+            finishFiles();
+            await expect(deletion).resolves.toBe(1);
+            expect(projectModel.delete).toHaveBeenCalledWith('copy-1');
+            expect(projectModel.deleteContentInBatches).not.toHaveBeenCalled();
+        });
+
         test('leaves preview app files intact when its deletion lock refuses a consumer', async () => {
             getExpiredPreviewProjects.mockResolvedValueOnce([
                 { projectUuid: 'copy-1', organizationUuid: 'org' },
@@ -4900,6 +4921,56 @@ describe('ProjectService', () => {
         expect(projectModel.withDeletionLock).toHaveBeenCalledTimes(1);
         expect(projectModel.delete).toHaveBeenCalledTimes(3);
         expect(locked).toBe(false);
+    });
+
+    test('keeps legacy training copy cleanup before the parent without a peer transaction', async () => {
+        const copies = ['copy-1', 'copy-2'].map((uuid) => ({
+            ...defaultProject,
+            projectUuid: uuid,
+            type: ProjectType.PREVIEW,
+            provisioningSource: 'training',
+            upstreamProjectUuid: projectUuid,
+        }));
+        const events: string[] = [];
+        const deleteProjectAppFiles = vi.fn(async (uuid: string) => {
+            events.push(`files:${uuid}`);
+        });
+        const deletingService = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                getAppGenerateService: () =>
+                    ({ deleteProjectAppFiles }) as never,
+            },
+        );
+        projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+            ...projectWithSensitiveFields,
+            type: ProjectType.TRAINING,
+        });
+        projectModel.getAllByOrganizationUuid.mockResolvedValueOnce(copies);
+        [projectUuid, ...copies.map((copy) => copy.projectUuid)].forEach(() => {
+            projectModel.delete.mockImplementationOnce(async (uuid) => {
+                events.push(`delete:${uuid}`);
+            });
+        });
+        await deletingService.delete(projectUuid, {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'Project', action: 'delete' },
+                { subject: 'Organization', action: 'manage' },
+            ]),
+        });
+        expect(events.at(-1)).toBe(`delete:${projectUuid}`);
+        copies.forEach(({ projectUuid: uuid }) => {
+            expect(events.indexOf(`files:${uuid}`)).toBeLessThan(
+                events.indexOf(`delete:${uuid}`),
+            );
+            expect(projectModel.delete).toHaveBeenCalledWith(uuid);
+        });
+        expect(projectModel.delete).toHaveBeenCalledWith(projectUuid);
+        expect(projectModel.deleteContentInBatches).not.toHaveBeenCalled();
+        expect(
+            onboardingModel.runInPlaygroundProvisioningLock,
+        ).not.toHaveBeenCalled();
     });
 
     describe('refreshTablesAndProjectConfig for a CLI/NONE preview', () => {
