@@ -4,6 +4,30 @@ import { MetricQueryBuilder } from '../../../utils/QueryBuilder/MetricQueryBuild
 import { createAnalyticsExplores } from './createAnalyticsExplores';
 
 describe('createAnalyticsExplores', () => {
+    it('offers native content links through the same Explore URL aliases', () => {
+        const explores = createAnalyticsExplores();
+        for (const name of [
+            'query_events',
+            'export_events',
+            'semantic_usage',
+            'content_reach',
+            'content_health',
+        ]) {
+            const table = explores.find((explore) => explore.name === name)!
+                .tables[name];
+            for (const type of name.startsWith('content_')
+                ? ['content']
+                : ['chart', 'dashboard']) {
+                expect(table.dimensions[`${type}_name`].urls).toEqual([
+                    {
+                        label: `Open ${type}`,
+                        url: `\${row.${name}.${type}_url.raw}`,
+                    },
+                ]);
+            }
+        }
+    });
+
     it('exposes one field list per Explore including available names and slugs', () => {
         const explores = createAnalyticsExplores();
         for (const explore of explores) {
