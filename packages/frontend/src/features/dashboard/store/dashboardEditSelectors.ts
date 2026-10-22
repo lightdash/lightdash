@@ -34,6 +34,10 @@ export const selectIsAddFilterDisabled = (state: DashboardStoreState) =>
     state.edit.isAddFilterDisabled;
 export const selectEditedRequiredFiltersNote = (state: DashboardStoreState) =>
     state.edit.editedRequiredFiltersNote;
+export const selectControlSections = (state: DashboardStoreState) =>
+    state.edit.controlSections;
+export const selectHaveControlSectionsChanged = (state: DashboardStoreState) =>
+    state.edit.haveControlSectionsChanged;
 
 const tileTypesThatSupportFilters = [
     DashboardTileTypes.SQL_CHART,

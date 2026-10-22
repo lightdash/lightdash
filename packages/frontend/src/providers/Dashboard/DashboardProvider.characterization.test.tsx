@@ -454,6 +454,16 @@ describe('filters: load', () => {
         expect(result.current.allFilters).toEqual(emptyFilters);
     });
 
+    it('loads a dashboard whose saved config is null', () => {
+        // The API serialises a dashboard saved without config as null
+        mocks.dashboard = {
+            ...makeDashboard({ filters: savedFilters }),
+            config: null,
+        } as unknown as Dashboard;
+        const { result } = renderDashboard();
+        expect(result.current.dashboardFilters).toEqual(savedFilters);
+    });
+
     it('composes allFilters from saved and temporary filters in all categories', () => {
         mocks.dashboard = makeDashboard({ filters: savedFilters });
         const { result } = renderDashboard();

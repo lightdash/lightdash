@@ -3,6 +3,7 @@ import {
     pruneDateZoomConfig,
     type AdditionalMetric,
     type DashboardConfig,
+    type DashboardControlSection,
     type DateGranularity,
     type DateZoomConfig,
 } from '@lightdash/common';
@@ -22,6 +23,8 @@ type BuildDashboardConfigArgs = {
     hasDateZoomConfigChanged: boolean;
     requiredFiltersNote: string | undefined;
     stagedCustomMetrics?: AdditionalMetric[];
+    controlSections: DashboardControlSection[];
+    haveControlSectionsChanged: boolean;
 };
 
 /**
@@ -43,6 +46,8 @@ export const buildDashboardConfig = ({
     hasDateZoomConfigChanged,
     requiredFiltersNote,
     stagedCustomMetrics,
+    controlSections,
+    haveControlSectionsChanged,
 }: BuildDashboardConfigArgs): DashboardConfig => {
     // Prune empty controls + dangling targets on save; omit the field
     // entirely when no controls remain so untouched dashboards don't churn.
@@ -70,8 +75,10 @@ export const buildDashboardConfig = ({
         requiredFiltersNote: requiredFiltersNote || undefined,
         // Staged edits win; otherwise carry the persisted registry forward.
         customMetrics: stagedCustomMetrics ?? existingConfig?.customMetrics,
+        controlSections: haveControlSectionsChanged
+            ? controlSections
+            : existingConfig?.controlSections,
         // No editor yet: carried forward as loaded
-        controlSections: existingConfig?.controlSections,
         parameterSections: existingConfig?.parameterSections,
     };
 };

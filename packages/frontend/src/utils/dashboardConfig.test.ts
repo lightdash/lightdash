@@ -28,6 +28,8 @@ const baseArgs = {
     dateZoomConfig: { controls: [], tileTargets: {} },
     hasDateZoomConfigChanged: false,
     requiredFiltersNote: undefined,
+    controlSections: [],
+    haveControlSectionsChanged: false,
 };
 
 describe('buildDashboardConfig', () => {
@@ -165,5 +167,31 @@ describe('buildDashboardConfig', () => {
         expect(Object.keys(result).sort()).toEqual(
             Object.keys(expectedKeys).sort(),
         );
+    });
+
+    it('carries the saved control sections through an unrelated save', () => {
+        const controlSections = [{ id: 'section-1', name: 'Dates' }];
+        const result = buildDashboardConfig({
+            ...baseArgs,
+            existingConfig: { isDateZoomDisabled: false, controlSections },
+            isDateZoomDisabled: true,
+        });
+
+        expect(result.controlSections).toBe(controlSections);
+    });
+
+    it('saves the edited control sections once they have changed', () => {
+        const controlSections = [{ id: 'section-2', name: 'Regions' }];
+        const result = buildDashboardConfig({
+            ...baseArgs,
+            existingConfig: {
+                isDateZoomDisabled: false,
+                controlSections: [{ id: 'section-1', name: 'Dates' }],
+            },
+            controlSections,
+            haveControlSectionsChanged: true,
+        });
+
+        expect(result.controlSections).toBe(controlSections);
     });
 });

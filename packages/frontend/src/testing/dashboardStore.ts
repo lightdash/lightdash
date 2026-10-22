@@ -155,6 +155,13 @@ export const seedDashboardEditState = (
 ) => {
     const saved = getSavedDateZoomSettings(values.dashboard?.config);
     const { dispatch } = store;
+    if (values.dashboard?.config?.controlSections) {
+        dispatch(
+            dashboardEditActions.syncControlSections(
+                values.dashboard.config.controlSections,
+            ),
+        );
+    }
     if ('dashboardTiles' in values) {
         dispatch(dashboardEditActions.setTiles(values.dashboardTiles));
     }
