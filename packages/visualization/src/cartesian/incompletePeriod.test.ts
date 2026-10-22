@@ -133,10 +133,19 @@ describe('applyIncompletePeriodStyle', () => {
         expect(line.encode?.y).toBe('orders_total__complete_period');
         expect(overlay.encode?.y).toBe('orders_total__incomplete_period');
         expect(overlay.lineStyle?.type).toBe('dashed');
-        expect(line.dimensions?.[1].name).toBe('orders_total__complete_period');
-        expect(overlay.dimensions?.[1].name).toBe(
+        expect(line.dimensions?.map((d) => d.name)).toEqual([
+            'orders_created_week',
+            'orders_total',
+            'orders_total__complete_period',
+        ]);
+        expect(overlay.dimensions?.map((d) => d.name)).toEqual([
+            'orders_created_week',
+            'orders_total',
             'orders_total__incomplete_period',
-        );
+        ]);
+        // Both keep the series name the legend matches on
+        expect(line.encode?.seriesName).toBe('orders_total');
+        expect(overlay.encode?.seriesName).toBe('orders_total');
         expect(overlay.tooltip?.show).toBe(false);
         expect(
             result.rows.map((row) => [
