@@ -78,6 +78,7 @@ const dimensionFields = {
     dashboards: { key: 'dashboard_id', label: 'Dashboard name' },
     users: { key: 'user_id', label: 'User name' },
     agents: { key: 'agent_id', label: 'Agent name' },
+    projects: { key: 'project_id', label: 'Project name' },
 };
 
 const dimensionTypes: Record<CompactedColumnType, DimensionType> = {
@@ -419,6 +420,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'tool_activity'
         )
             dimensions.push('agents');
+        if (name === 'ai_usage') dimensions.push('projects');
         const dimensionTables = Object.fromEntries(
             dimensions.map((dimension) => {
                 const tableName = usageDimensionTable(dimension);
@@ -442,6 +444,9 @@ export const createAnalyticsExplores = (): Explore[] => {
                 if (dimension === 'agents')
                     fields.name.sql =
                         "COALESCE(${TABLE}.name, 'Unknown agent')";
+                if (dimension === 'projects')
+                    fields.name.sql =
+                        "COALESCE(${TABLE}.name, 'Unknown project')";
                 return [
                     tableName,
                     {
@@ -613,6 +618,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             lightdash_dashboards: 'dashboard',
             lightdash_users: 'user',
             lightdash_agents: 'agent',
+            lightdash_projects: 'project',
             lightdash_apps: 'app',
         };
         const baseTable = explore.tables[name];

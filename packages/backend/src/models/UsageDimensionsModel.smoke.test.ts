@@ -107,6 +107,42 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             await db.destroy();
         });
 
+        it('paginates projects without requiring content or exposing another organization', async () => {
+            await db.raw(`INSERT INTO projects
+                SELECT n, md5('empty-project-' || n)::uuid, 1, 'Empty project ' || n
+                FROM generate_series(4, 1004) n`);
+            const readProjects = async () => {
+                const projects = [];
+                for await (const line of new UsageDimensionsModel(
+                    db,
+                    'https://lightdash.example.com/',
+                ).getJsonLines(organization, 'projects')) {
+                    projects.push(JSON.parse(line));
+                }
+                return projects;
+            };
+            const projects = await readProjects();
+            expect(projects).toHaveLength(1003);
+            expect(new Set(projects.map((row) => row.project_id)).size).toBe(
+                1003,
+            );
+            expect(projects.every((row) => row.org_id === org)).toBe(true);
+            expect(projects.map((row) => row.name)).not.toContain(
+                'Other organization',
+            );
+            const emptyProject = projects.find(
+                (row) => row.name === 'Empty project 1004',
+            );
+            expect(emptyProject).toBeDefined();
+            await db('projects')
+                .where('project_uuid', emptyProject.project_id)
+                .update({ name: 'Renamed empty project' });
+            expect(await readProjects()).toContainEqual({
+                ...emptyProject,
+                name: 'Renamed empty project',
+            });
+        });
+
         it('paginates every type without omissions, fanout or cross-tenant dependencies', async () => {
             const rows = await read();
             expect(rows).toHaveLength(4020);

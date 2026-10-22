@@ -7,6 +7,7 @@ export const usageDimensionNames = [
     'dashboards',
     'users',
     'agents',
+    'projects',
     'content',
     'people',
 ] as const;
@@ -45,6 +46,11 @@ export const usageDimensionSchemas: Record<
     agents: [
         { name: 'org_id', type: 'VARCHAR' },
         { name: 'agent_id', type: 'VARCHAR' },
+        { name: 'name', type: 'VARCHAR' },
+    ],
+    projects: [
+        { name: 'org_id', type: 'VARCHAR' },
+        { name: 'project_id', type: 'VARCHAR' },
         { name: 'name', type: 'VARCHAR' },
     ],
 };
