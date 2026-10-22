@@ -426,6 +426,11 @@
     min-width: 0;
 }
 
+/* The submit controls keep their width; the left section absorbs the squeeze. */
+.toolbarSection:last-child {
+    flex-shrink: 0;
+}
+
 .inlineActions {
     display: flex;
     align-items: center;
