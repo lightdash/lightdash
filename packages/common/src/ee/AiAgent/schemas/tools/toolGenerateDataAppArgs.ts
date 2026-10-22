@@ -35,7 +35,7 @@ export const DATA_APP_BRIEF_AUDIENCE =
     'The coding agent explores the semantic layer itself but sees neither this conversation nor its query results.';
 
 /** Shared by the generate and iterate briefs. */
-export const DATA_APP_BRIEF_QUERY_GUIDANCE = `When this conversation already settled the analysis, carry each visualization over as a one-line description and a metric query line \`${DATA_APP_VIZ_LINE_FORMAT}\`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.`;
+export const DATA_APP_BRIEF_QUERY_GUIDANCE = `Give a visualization as a one-line description and a metric query line \`${DATA_APP_VIZ_LINE_FORMAT}\`, never as numbers: a number in the brief is hardcoded into the app, while a query stays live.`;
 
 /** Shared by generate and iterate; each adds what omitting it does. */
 export const DATA_APP_THEME_SLUG_SOURCE =

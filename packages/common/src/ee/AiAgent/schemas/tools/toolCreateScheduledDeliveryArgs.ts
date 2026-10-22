@@ -5,14 +5,17 @@ import { toolNameFor } from './discoveryToolNames';
 
 export const TOOL_CREATE_SCHEDULED_DELIVERY_DESCRIPTION = ({
     runtime,
-}: ToolDescriptionContext): string => {
-    const createContent = toolNameFor('createContent', runtime);
-    return [
+}: ToolDescriptionContext): string =>
+    [
         'Create a scheduled delivery that sends a saved chart or dashboard to Slack channels or email recipients on a cron schedule.',
         'An enabled delivery sends from the moment it is created, so first propose the full configuration to the user (name, schedule in plain words, cron, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation.',
-        `Content that exists only in this conversation is saved with ${createContent} first, then scheduled by the created uuid: propose the save and the schedule as one plan with a single confirmation.`,
+        // MCP has no system prompt to carry the save-then-schedule order.
+        ...(runtime === 'mcp'
+            ? [
+                  `Content that exists only in this conversation is saved with ${toolNameFor('createContent', runtime)} first, then scheduled by the created uuid: propose the save and the schedule as one plan with a single confirmation.`,
+              ]
+            : []),
     ].join(' ');
-};
 
 const slackTargetSchema = z.object({
     type: z.literal('slack'),

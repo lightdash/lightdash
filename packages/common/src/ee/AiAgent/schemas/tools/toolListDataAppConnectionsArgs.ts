@@ -7,10 +7,11 @@ import {
 const CONNECTION_DEFINITION =
     'admin-configured, credentialed proxies to outside APIs (product analytics, billing, CRM)';
 
-const CONNECTION_MATCH_GUIDANCE =
+// MCP has no system prompt, so its description keeps the build policy the agent prompt owns.
+const MCP_CONNECTION_MATCH_GUIDANCE =
     'Call it when the user wants a data app to use an outside API or names a connection; match the request to a connection by name, slug or origin and pass its slug in externalConnectionSlugs. When none matches, tell the user no such connection is available rather than starting a build that cannot reach it.';
 
-export const TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION = `List the project's external connections a data app can link: ${CONNECTION_DEFINITION}. ${CONNECTION_MATCH_GUIDANCE}`;
+export const TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION = `List the project's external connections a data app can link: ${CONNECTION_DEFINITION}.`;
 
 export const MCP_TOOL_LIST_DATA_APP_CONNECTIONS_DESCRIPTION = `Tool: list_data_app_connections
 
@@ -18,7 +19,7 @@ Purpose:
 List the project's external connections you may link to a data app: ${CONNECTION_DEFINITION}.
 
 Important:
-- ${CONNECTION_MATCH_GUIDANCE}
+- ${MCP_CONNECTION_MATCH_GUIDANCE}
 `;
 
 export const toolListDataAppConnectionsArgsSchema = z.object({
