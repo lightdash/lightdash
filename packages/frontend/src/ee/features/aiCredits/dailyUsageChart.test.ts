@@ -2,7 +2,6 @@ import { type AiCreditDailyUsageSeries } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     findTopSeriesIndex,
-    getAiCreditRowShare,
     getAiCreditSeriesColor,
     renderAiCreditTooltip,
     toAiCreditChartBuckets,
@@ -39,38 +38,6 @@ describe('toAiCreditChartBuckets', () => {
             0,
         );
         expect(total).toBe(365 * 3);
-    });
-});
-
-describe('getAiCreditRowShare', () => {
-    it('measures a row against the allowance so rows add up to the usage bar', () => {
-        expect(
-            getAiCreditRowShare({
-                credits: 3,
-                allowanceCredits: 6,
-                usedCredits: 4,
-            }),
-        ).toBe(50);
-    });
-
-    it('measures against credits used when there is no allowance', () => {
-        expect(
-            getAiCreditRowShare({
-                credits: 1,
-                allowanceCredits: null,
-                usedCredits: 4,
-            }),
-        ).toBe(25);
-    });
-
-    it('never overflows the bar past the allowance', () => {
-        expect(
-            getAiCreditRowShare({
-                credits: 9,
-                allowanceCredits: 6,
-                usedCredits: 9,
-            }),
-        ).toBe(100);
     });
 });
 
