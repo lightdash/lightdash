@@ -82,12 +82,15 @@ export class DeployController extends BaseController {
     async deployExplores(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Body() body: CliDeployMetadata & {
+        @Body() body: {
             explores: AnyType[];
             complete: boolean;
             dbtModelNames?: string[];
             sourceUuid?: string;
             target?: DeployTarget;
+            cliCapabilities?: CliDeployMetadata['cliCapabilities'];
+            dbtProjectName?: CliDeployMetadata['dbtProjectName'];
+            dbtTarget?: CliDeployMetadata['dbtTarget'];
         },
     ): Promise<ApiSetExploresResponse> {
         assertAgentConnectionGrantOperation(req.account, {
@@ -231,10 +234,13 @@ export class DeployController extends BaseController {
         @Path() projectUuid: string,
         @Path() sessionUuid: string,
         @Body()
-        body?: CliDeployMetadata & {
+        body?: {
             dbtModelNames?: string[];
             sourceUuid?: string;
             target?: DeployTarget;
+            cliCapabilities?: CliDeployMetadata['cliCapabilities'];
+            dbtProjectName?: CliDeployMetadata['dbtProjectName'];
+            dbtTarget?: CliDeployMetadata['dbtTarget'];
         },
     ): Promise<ApiFinalizeDeployResponse> {
         assertAgentConnectionGrantOperation(req.account, {
