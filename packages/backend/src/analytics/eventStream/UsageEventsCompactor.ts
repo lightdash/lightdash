@@ -21,6 +21,7 @@ import {
     UsageDimensionsRefresher,
     type DimensionRefreshSummary,
 } from './UsageDimensionsRefresher';
+import { MAX_PARTITIONS_PER_RUN } from './usageProcessingLimits';
 import { usageProcessingStartDate } from './usageProcessingWindow';
 import {
     UsageUserActivityBuilder,
@@ -29,7 +30,7 @@ import {
 
 const RAW_KEY_PREFIX = 'events/raw/';
 const COMPACTED_KEY_PREFIX = 'events/compacted';
-export const MAX_PARTITIONS_PER_RUN = 500;
+export { MAX_PARTITIONS_PER_RUN } from './usageProcessingLimits';
 const DELETE_BATCH_SIZE = 1000;
 export const DELETE_MAX_ATTEMPTS = 3;
 const DELETE_RETRY_BASE_DELAY_MS = 1_000;
