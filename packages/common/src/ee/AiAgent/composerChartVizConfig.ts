@@ -40,7 +40,7 @@ const refSchema = z
     .string()
     .describe('A result column reference of the presented node');
 
-export const composerChartVizTypeSchema = z.enum([
+const composerBuiltinChartVizTypeSchema = z.enum([
     'table',
     'big_number',
     'bar',
@@ -49,14 +49,11 @@ export const composerChartVizTypeSchema = z.enum([
     'scatter',
     'pie',
     'funnel',
-    'custom',
 ]);
 
-export type ComposerChartVizType = z.infer<typeof composerChartVizTypeSchema>;
-
-const composerChartVizConfigSchemaV1 = z.object({
-    type: composerChartVizTypeSchema.describe(
-        'Chart type. area is a filled line; custom renders a custom chart type.',
+const composerBuiltinChartVizConfigSchemaV1 = z.object({
+    type: composerBuiltinChartVizTypeSchema.describe(
+        'Chart type. area is a filled line.',
     ),
     x: refSchema
         .nullable()
@@ -98,23 +95,26 @@ const composerChartVizConfigSchemaV1 = z.object({
         })
         .nullable()
         .describe('Axis titles. big_number uses labels.y as its label.'),
-    customChartTypeSlug: z
-        .string()
-        .nullable()
-        .describe('custom only: slug of the custom chart type.'),
+});
+
+const composerCustomChartVizConfigSchemaV1 = z.object({
+    type: z.literal('custom').describe('Renders a custom chart type.'),
+    customChartTypeSlug: z.string().describe('Slug of the custom chart type.'),
     fieldMapping: z
         .record(z.string(), z.union([refSchema, z.array(refSchema)]))
-        .nullable()
         .describe(
-            'custom only: binds each slot of the custom chart type to a column, or ordered columns for a multiple slot.',
+            'Binds each slot of the custom chart type to a column, or ordered columns for a multiple slot.',
         ),
     options: z
         .record(z.string(), customChartTypeOptionValueSchema)
         .nullable()
-        .describe(
-            "custom only: values for the type's options; null for defaults.",
-        ),
+        .describe("Values for the type's options; null for defaults."),
 });
+
+const composerChartVizConfigSchemaV1 = z.discriminatedUnion('type', [
+    composerBuiltinChartVizConfigSchemaV1,
+    composerCustomChartVizConfigSchemaV1,
+]);
 
 /** The viz config the agent writes: the agent chart vocabulary over result column references. */
 export const composerChartVizConfigSchema = composerChartVizConfigSchemaV1;
@@ -123,11 +123,24 @@ export type ComposerChartVizConfig = z.infer<
     typeof composerChartVizConfigSchema
 >;
 
-const composerStoredChartVizConfigSchemaV1 =
-    composerChartVizConfigSchemaV1.extend({
-        dataAppVizUuid: z.string().nullable(),
+export type ComposerBuiltinChartVizConfig = z.infer<
+    typeof composerBuiltinChartVizConfigSchemaV1
+>;
+
+export type ComposerCustomChartVizConfig = z.infer<
+    typeof composerCustomChartVizConfigSchemaV1
+>;
+
+const composerStoredCustomChartVizConfigSchemaV1 =
+    composerCustomChartVizConfigSchemaV1.extend({
+        dataAppVizUuid: z.string(),
         dataAppVizVersion: z.number().nullable(),
     });
+
+const composerStoredChartVizConfigSchemaV1 = z.discriminatedUnion('type', [
+    composerBuiltinChartVizConfigSchemaV1,
+    composerStoredCustomChartVizConfigSchemaV1,
+]);
 
 // Wide contract for parsing stored viz configs; call sites use this alias.
 // Additive fields are `.nullish().default(null)` on the current version; a
@@ -136,9 +149,13 @@ const composerStoredChartVizConfigSchemaV1 =
 export const composerChartVizConfigSchemaPersisted =
     composerStoredChartVizConfigSchemaV1;
 
-/** Stored form: the custom chart type pinned by the server; both null unless type is custom. */
+/** Stored form: a custom chart type carries the version the server pinned. */
 export type ComposerStoredChartVizConfig = z.infer<
     typeof composerChartVizConfigSchemaPersisted
+>;
+
+export type ComposerStoredCustomChartVizConfig = z.infer<
+    typeof composerStoredCustomChartVizConfigSchemaV1
 >;
 
 export const parseComposerStoredChartVizConfig = (
@@ -321,7 +338,7 @@ const getTableChart = (columns: ComposerColumns): ComposerRunQueryChart => {
 
 const getBigNumberChart = (
     columns: ComposerColumns,
-    vizConfig: ComposerChartVizConfig,
+    vizConfig: ComposerBuiltinChartVizConfig,
 ): ComposerRunQueryChart => {
     const value =
         vizConfig.y?.[0] ??
@@ -369,7 +386,7 @@ const withUnstackedSecondaryArea = (chartConfig: ChartConfig): ChartConfig => {
 
 const getRunQueryBuilderChart = (
     columns: ComposerColumns,
-    vizConfig: ComposerChartVizConfig,
+    vizConfig: ComposerBuiltinChartVizConfig,
     type: RunQueryBuilderVizType,
     metadata: { title: string; description: string },
 ): ComposerRunQueryChart => {
@@ -466,13 +483,10 @@ const getCustomChartTypeReferences = (
 /** The custom chart type as a DATA_APP_VIZ chart; columns bound to its series slots pivot. */
 const getCustomChartTypeChart = (
     columns: ComposerColumns,
-    vizConfig: ComposerStoredChartVizConfig,
+    vizConfig: ComposerStoredCustomChartVizConfig,
     slots: ComposerCustomChartTypeSlot[],
 ): ComposerRunQueryChart => {
     const { dataAppVizUuid, fieldMapping } = vizConfig;
-    if (!dataAppVizUuid || !fieldMapping) {
-        throw new Error('custom needs a resolved chart type and fieldMapping');
-    }
     const { index, split, values } = getCustomChartTypeReferences(
         fieldMapping,
         slots,
@@ -514,18 +528,19 @@ export const getComposerRunQueryChart = ({
     customChartTypeSlots: ComposerCustomChartTypeSlot[];
 }): ComposerRunQueryChart => {
     const columns = new ComposerColumns(resultColumns);
+    if (vizConfig.type === 'custom') {
+        return getCustomChartTypeChart(
+            columns,
+            vizConfig,
+            customChartTypeSlots,
+        );
+    }
     const { type } = vizConfig;
     switch (type) {
         case 'table':
             return getTableChart(columns);
         case 'big_number':
             return getBigNumberChart(columns, vizConfig);
-        case 'custom':
-            return getCustomChartTypeChart(
-                columns,
-                vizConfig,
-                customChartTypeSlots,
-            );
         case 'bar':
         case 'line':
         case 'area':
@@ -562,6 +577,17 @@ const getSplitReferences = (
     vizConfig: ComposerStoredChartVizConfig,
     customChartTypeSlots: ComposerCustomChartTypeSlot[],
 ): { index: string[]; split: string[]; values: string[] } | null => {
+    if (vizConfig.type === 'custom') {
+        const references = getCustomChartTypeReferences(
+            vizConfig.fieldMapping,
+            customChartTypeSlots,
+        );
+        if (references.split.length === 0) return null;
+        if (references.values.length === 0) {
+            throw new Error('A series split needs a column on a metric slot');
+        }
+        return references;
+    }
     const { type } = vizConfig;
     switch (type) {
         case 'table':
@@ -587,20 +613,6 @@ const getSplitReferences = (
                 split,
                 values: unique([...y, ...(y2 ? [y2] : [])]),
             };
-        }
-        case 'custom': {
-            if (!vizConfig.fieldMapping) return null;
-            const references = getCustomChartTypeReferences(
-                vizConfig.fieldMapping,
-                customChartTypeSlots,
-            );
-            if (references.split.length === 0) return null;
-            if (references.values.length === 0) {
-                throw new Error(
-                    'A series split needs a column on a metric slot',
-                );
-            }
-            return references;
         }
         default:
             return assertUnreachable(type, 'Unknown composer viz type');

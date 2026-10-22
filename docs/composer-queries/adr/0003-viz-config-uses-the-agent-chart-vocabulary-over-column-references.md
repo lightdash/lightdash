@@ -1,9 +1,10 @@
 # The viz config uses the agent chart vocabulary over column references
 
 A composer artifact version (schemaVersion 2) describes its chart in the
-agent chart vocabulary that runQuery already speaks (type, x, y, groupBy,
-stack, horizontal, y2, labels, or a custom chart type with a field mapping),
-with result column references of the presented node where runQuery names
+agent chart vocabulary that runQuery already speaks, as a union on type:
+a builtin type with x, y, groupBy, stack, horizontal, y2 and labels, or a
+custom chart type with its slug, field mapping and options (stored with the
+version the server pinned), with result column references of the presented node where runQuery names
 field ids. The artifact stays declarative (queries, terminal node and viz
 config, no stored columns): a shared adapter in common turns the columns of the
 render-time run and that config into a synthetic metric query, field map and

@@ -106,9 +106,10 @@ focused node
 
 **Viz config**:
 How the presented node's result is visualized, in the agent chart vocabulary
-over the node's result column references: type (table, big number, bar, line,
-area, scatter, pie, funnel or a custom chart type), x, y, series split, stack,
-horizontal, secondary axis and labels. Stored with the artifact version and
+over the node's result column references: a builtin type (table, big number,
+bar, line, area, scatter, pie, funnel) with x, y, series split, stack,
+horizontal, secondary axis and labels, or a custom chart type with its slug,
+field mapping and options, pinned to a chart type version when stored. Stored with the artifact version and
 drawn by the same chart builders as a classic runQuery chart, with fields
 synthesized from the columns of the render-time run (no columns are stored).
 A series split adds a pivot stage over the node result and needs explicit x

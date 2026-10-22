@@ -126,11 +126,6 @@ describe('parseAiArtifactChartConfig', () => {
             horizontal: null,
             y2: null,
             labels: null,
-            customChartTypeSlug: null,
-            fieldMapping: null,
-            options: null,
-            dataAppVizUuid: null,
-            dataAppVizVersion: null,
         };
         const config = {
             source: 'composer',

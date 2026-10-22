@@ -10,10 +10,12 @@ import {
 import { type DataAppVizFieldType } from '../apps/types';
 import {
     composerChartVizConfigSchema,
+    composerChartVizConfigSchemaPersisted,
     getComposerChartStage,
     getComposerRunQueryChart,
+    parseComposerStoredChartVizConfig,
     toComposerResultRows,
-    type ComposerChartVizConfig,
+    type ComposerBuiltinChartVizConfig,
     type ComposerStoredChartVizConfig,
 } from './composerChartVizConfig';
 
@@ -29,10 +31,10 @@ const columns: ResultColumn[] = [
 ];
 
 const viz = (
-    config: Partial<ComposerChartVizConfig> &
-        Pick<ComposerChartVizConfig, 'type'>,
-): ComposerStoredChartVizConfig => ({
-    ...composerChartVizConfigSchema.parse({
+    config: Partial<ComposerBuiltinChartVizConfig> &
+        Pick<ComposerBuiltinChartVizConfig, 'type'>,
+): ComposerStoredChartVizConfig =>
+    composerChartVizConfigSchemaPersisted.parse({
         x: null,
         y: null,
         groupBy: null,
@@ -40,13 +42,95 @@ const viz = (
         horizontal: null,
         y2: null,
         labels: null,
-        customChartTypeSlug: null,
-        fieldMapping: null,
-        options: null,
         ...config,
-    }),
-    dataAppVizUuid: null,
-    dataAppVizVersion: null,
+    });
+
+const ribbon: ComposerStoredChartVizConfig = {
+    type: 'custom',
+    customChartTypeSlug: 'ribbon',
+    fieldMapping: {
+        x: 'orders_month',
+        series: 'status',
+        values: ['revenue'],
+    },
+    options: null,
+    dataAppVizUuid: 'viz-uuid',
+    dataAppVizVersion: 3,
+};
+
+describe('composer viz config schemas', () => {
+    test('builtin types take axes and drop custom fields', () => {
+        expect(
+            composerChartVizConfigSchema.parse({
+                type: 'bar',
+                x: 'status',
+                y: ['revenue'],
+                groupBy: null,
+                stack: null,
+                horizontal: null,
+                y2: null,
+                labels: null,
+                customChartTypeSlug: 'ribbon',
+            }),
+        ).not.toHaveProperty('customChartTypeSlug');
+    });
+
+    test('builtin types require their axes', () => {
+        expect(
+            composerChartVizConfigSchema.safeParse({
+                type: 'bar',
+                customChartTypeSlug: 'ribbon',
+                fieldMapping: { x: 'status' },
+                options: null,
+            }).success,
+        ).toBe(false);
+    });
+
+    test('custom requires a slug and a field mapping', () => {
+        const custom = {
+            type: 'custom',
+            customChartTypeSlug: 'ribbon',
+            fieldMapping: { x: 'status' },
+            options: null,
+        };
+        expect(composerChartVizConfigSchema.parse(custom)).toEqual(custom);
+        expect(
+            composerChartVizConfigSchema.safeParse({
+                ...custom,
+                customChartTypeSlug: null,
+            }).success,
+        ).toBe(false);
+        expect(
+            composerChartVizConfigSchema.safeParse({
+                ...custom,
+                fieldMapping: null,
+            }).success,
+        ).toBe(false);
+    });
+
+    test('stored custom carries the pinned chart type, stored builtin none', () => {
+        expect(parseComposerStoredChartVizConfig(ribbon)).toEqual(ribbon);
+        expect(
+            parseComposerStoredChartVizConfig({
+                ...ribbon,
+                dataAppVizUuid: null,
+            }),
+        ).toBeNull();
+        expect(
+            parseComposerStoredChartVizConfig({
+                type: 'line',
+                x: null,
+                y: null,
+                groupBy: null,
+                stack: null,
+                horizontal: null,
+                y2: null,
+                labels: null,
+                dataAppVizUuid: null,
+                dataAppVizVersion: null,
+            }),
+        ).not.toHaveProperty('dataAppVizUuid');
+    });
 });
 
 const chart = (
@@ -330,26 +414,11 @@ describe('getComposerRunQueryChart', () => {
     });
 
     test('custom maps slots to field ids and pivots series slots', () => {
-        const result = chart(
-            {
-                ...viz({
-                    type: 'custom',
-                    customChartTypeSlug: 'ribbon',
-                    fieldMapping: {
-                        x: 'orders_month',
-                        series: 'status',
-                        values: ['revenue'],
-                    },
-                }),
-                dataAppVizUuid: 'viz-uuid',
-                dataAppVizVersion: 3,
-            },
-            [
-                { name: 'x', type: 'dimension' },
-                { name: 'series', type: 'series' },
-                { name: 'values', type: 'metric' },
-            ],
-        );
+        const result = chart(ribbon, [
+            { name: 'x', type: 'dimension' },
+            { name: 'series', type: 'series' },
+            { name: 'values', type: 'metric' },
+        ]);
         expect(result.chartConfig).toEqual({
             type: ChartType.DATA_APP_VIZ,
             config: {
@@ -454,26 +523,11 @@ describe('getComposerChartStage', () => {
     });
 
     test('custom pivots series slots, metric slots are the values', () => {
-        const result = stage(
-            {
-                ...viz({
-                    type: 'custom',
-                    customChartTypeSlug: 'ribbon',
-                    fieldMapping: {
-                        x: 'orders_month',
-                        series: 'status',
-                        values: ['revenue'],
-                    },
-                }),
-                dataAppVizUuid: 'viz-uuid',
-                dataAppVizVersion: 3,
-            },
-            [
-                { name: 'x', type: 'dimension' },
-                { name: 'series', type: 'series' },
-                { name: 'values', type: 'metric' },
-            ],
-        );
+        const result = stage(ribbon, [
+            { name: 'x', type: 'dimension' },
+            { name: 'series', type: 'series' },
+            { name: 'values', type: 'metric' },
+        ]);
         expect(result?.pivotConfiguration).toMatchObject({
             indexColumn: [{ reference: 'composer_result_orders_month' }],
             groupByColumns: [{ reference: 'composer_result_status' }],
