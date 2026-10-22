@@ -237,6 +237,14 @@ export type DateZoomControl = {
     granularity: DateGranularity | string;
     // Hidden from viewers; grain still applies to its tiles.
     hidden?: boolean;
+    /** Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling. */
+    sectionId?: string;
+};
+
+export type DashboardControlSection = {
+    /** uuid, stable across dashboard versions */
+    id: string;
+    name: string;
 };
 
 export type DateZoomConfig = {
@@ -257,6 +265,11 @@ export type DashboardConfig = {
     /** Custom metrics offered to charts built inside this dashboard. Interim
      *  store — moves to a semantic-layer draft later; don't read it elsewhere. */
     customMetrics?: AdditionalMetric[];
+    /** Named sets of controls, in display order. Controls point at a section
+     *  by id; controls with no section render first, unsectioned. */
+    controlSections?: DashboardControlSection[];
+    /** Parameter name to section id. Parameters have no saved object of their own. */
+    parameterSections?: { [parameterName: string]: string };
 };
 
 export type DashboardOwner = {

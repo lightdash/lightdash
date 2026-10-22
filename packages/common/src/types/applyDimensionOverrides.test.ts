@@ -2,6 +2,7 @@ import cloneDeep from 'lodash/cloneDeep';
 import { DimensionType } from './field';
 import {
     applyDimensionOverrides,
+    applyMetricOverrides,
     FilterOperator,
     type DashboardFilterRule,
     type DashboardFilters,
@@ -856,6 +857,93 @@ describe('applyDimensionOverrides', () => {
             expect(result[1].values).toEqual(['789']);
             expect(result[1].required).toBeUndefined();
             expect(result[1].requiredGroupId).toBeUndefined();
+        });
+    });
+
+    describe('section membership is saved-dashboard-owned', () => {
+        it('keeps the saved sectionId and never adopts one from the override', () => {
+            const savedFilters: DashboardFilters = {
+                dimensions: [
+                    {
+                        ...createBaseDashboardFilter(
+                            'filter-1',
+                            'customers_customer_id',
+                            'customers',
+                        ),
+                        sectionId: 'section-1',
+                    },
+                    createBaseDashboardFilter(
+                        'filter-2',
+                        'orders_status',
+                        'orders',
+                    ),
+                ],
+                metrics: [],
+                tableCalculations: [],
+            };
+            const overrides: DashboardFilterRule[] = [
+                {
+                    ...createOverrideFilter(
+                        'filter-1',
+                        'customers_customer_id',
+                        'customers',
+                    ),
+                    sectionId: 'moved',
+                },
+                {
+                    ...createOverrideFilter(
+                        'filter-2',
+                        'orders_status',
+                        'orders',
+                    ),
+                    sectionId: 'injected',
+                },
+                {
+                    ...createOverrideFilter('new', 'orders_total', 'orders'),
+                    sectionId: 'injected',
+                },
+            ];
+
+            const result = applyDimensionOverrides(savedFilters, overrides);
+
+            expect(result).toHaveLength(3);
+            expect(result[0].sectionId).toBe('section-1');
+            expect(result[1].sectionId).toBeUndefined();
+            expect(result[2].sectionId).toBeUndefined();
+        });
+
+        it('pins the saved sectionId on metric filters too', () => {
+            const savedFilters: DashboardFilters = {
+                dimensions: [],
+                metrics: [
+                    {
+                        ...createBaseDashboardFilter(
+                            'metric-1',
+                            'orders_total',
+                            'orders',
+                        ),
+                        sectionId: 'section-1',
+                    },
+                ],
+                tableCalculations: [],
+            };
+            const result = applyMetricOverrides(savedFilters, [
+                {
+                    ...createOverrideFilter(
+                        'metric-1',
+                        'orders_total',
+                        'orders',
+                    ),
+                    sectionId: 'moved',
+                },
+                {
+                    ...createOverrideFilter('new', 'orders_count', 'orders'),
+                    sectionId: 'injected',
+                },
+            ]);
+
+            // Unmatched metric overrides are never appended
+            expect(result.map((rule) => rule.sectionId)).toEqual(['section-1']);
         });
     });
 });

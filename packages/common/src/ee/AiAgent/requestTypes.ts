@@ -37,7 +37,7 @@ export type AiChartRuntimeOverrides = {
 
 export type AiDashboardFilterRule = Omit<
     DashboardFilterRule,
-    'id' | 'tileTargets' | 'lockedTabUuids' | 'requiredGroupId'
+    'id' | 'tileTargets' | 'lockedTabUuids' | 'requiredGroupId' | 'sectionId'
 >;
 
 export type AiDashboardFilters = {

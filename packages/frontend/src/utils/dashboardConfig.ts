@@ -70,5 +70,8 @@ export const buildDashboardConfig = ({
         requiredFiltersNote: requiredFiltersNote || undefined,
         // Staged edits win; otherwise carry the persisted registry forward.
         customMetrics: stagedCustomMetrics ?? existingConfig?.customMetrics,
+        // No editor yet: carried forward as loaded
+        controlSections: existingConfig?.controlSections,
+        parameterSections: existingConfig?.parameterSections,
     };
 };
