@@ -91,16 +91,23 @@ vi.mock('./ViewerControls', () => ({
 }));
 const close = vi.hoisted(() => vi.fn());
 const updateOtherFilters = vi.hoisted(() => vi.fn());
+const setActiveSection = vi.hoisted(() => vi.fn());
+const mockSection = vi.hoisted(() => ({
+    current: null as 'tiles' | 'rules' | null,
+}));
 const otherRules = vi.hoisted(
     () => [{ id: 'filter-2' }] as DashboardFilterRule[],
 );
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebarSelector: (
-        selector: (value: {
-            close: () => void;
-            updateOtherFilters: (rules: DashboardFilterRule[]) => void;
-        }) => unknown,
-    ) => selector({ close, updateOtherFilters }),
+        selector: (value: Record<string, unknown>) => unknown,
+    ) =>
+        selector({
+            close,
+            updateOtherFilters,
+            activeSection: mockSection.current,
+            setActiveSection,
+        }),
 }));
 
 const amount: DashboardFilterableField = {
@@ -144,7 +151,13 @@ const renderSettings = (
     field: DashboardFilterableField | null,
 ) =>
     renderWithProviders(
-        <FilterSettings rule={filterRule} field={field} onChange={vi.fn()} />,
+        <FilterSettings
+            rule={filterRule}
+            field={field}
+            onChange={vi.fn()}
+            tiles={<div data-testid="tiles-panel" />}
+            tilesSummary="3 tiles · 1 field"
+        />,
     );
 
 const RulesState = () => (
@@ -157,6 +170,8 @@ describe('FilterSettings', () => {
     beforeEach(() => {
         close.mockClear();
         updateOtherFilters.mockClear();
+        setActiveSection.mockClear();
+        mockSection.current = 'rules';
         mockTileStatus.current = { sqlChartTilesMetadata: {} };
         mockDashboardContext.current = {
             allFilterableFieldsMap: {},
@@ -165,6 +180,9 @@ describe('FilterSettings', () => {
             activeTab: undefined,
         };
     });
+
+    const disclosure = (name: string) =>
+        screen.getByRole('button', { name: new RegExp(`^${name}`) });
 
     it("uses the type of the filter's field, dimension or metric", () => {
         const { unmount } = renderSettings(
@@ -225,14 +243,59 @@ describe('FilterSettings', () => {
         expect(screen.getByTestId('viewer-controls')).toBeInTheDocument();
     });
 
-    it('heads the second card "Viewer access"', () => {
+    it('shows the value first, then Tiles and Rules as one-line summaries', () => {
+        mockSection.current = null;
         renderSettings(
             rule({ fieldId: 'orders_amount', tableName: 'orders' }),
             amount,
         );
-        expect(
-            screen.getByRole('heading', { name: 'Viewer access' }),
-        ).toBeInTheDocument();
+
+        expect(screen.getByTestId('value-settings')).toBeVisible();
+        expect(disclosure('Tiles')).toHaveTextContent('Tiles3 tiles · 1 field');
+        expect(disclosure('Tiles')).toHaveAttribute('aria-expanded', 'false');
+        expect(disclosure('Rules')).toHaveTextContent('RulesNone');
+        expect(disclosure('Rules')).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByTestId('tiles-panel')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('viewer-controls')).not.toBeInTheDocument();
+    });
+
+    it('opens one section at a time, and closes the open one on a second click', () => {
+        mockSection.current = 'tiles';
+        renderSettings(
+            rule({ fieldId: 'orders_amount', tableName: 'orders' }),
+            amount,
+        );
+
+        expect(screen.getByTestId('tiles-panel')).toBeVisible();
+        expect(screen.queryByTestId('viewer-controls')).not.toBeInTheDocument();
+        fireEvent.click(disclosure('Rules'));
+        expect(setActiveSection).toHaveBeenLastCalledWith('rules');
+        fireEvent.click(disclosure('Tiles'));
+        expect(setActiveSection).toHaveBeenLastCalledWith(null);
+    });
+
+    it('summarises the lock and the requirement under Rules', () => {
+        mockSection.current = null;
+        const { unmount } = renderSettings(
+            {
+                ...rule({ fieldId: 'orders_amount', tableName: 'orders' }),
+                lockedTabUuids: ['dashboard-1'],
+                required: true,
+            },
+            amount,
+        );
+        expect(disclosure('Rules')).toHaveTextContent('RulesLocked · Required');
+        expect(screen.getByText('Required')).toHaveClass(/required/);
+        unmount();
+
+        renderSettings(
+            {
+                ...rule({ fieldId: 'orders_amount', tableName: 'orders' }),
+                required: true,
+            },
+            amount,
+        );
+        expect(disclosure('Rules')).toHaveTextContent('RulesRequired');
     });
 
     it('gives the viewer controls the type and field the value settings get', () => {
@@ -255,6 +318,8 @@ describe('FilterSettings', () => {
                     })}
                     field={amount}
                     onChange={vi.fn()}
+                    tiles={null}
+                    tilesSummary=""
                 />
                 <RulesState />
             </FilterBarPopoversProvider>,

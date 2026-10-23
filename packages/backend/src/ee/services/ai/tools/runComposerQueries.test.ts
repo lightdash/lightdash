@@ -6,6 +6,8 @@ import {
     QuerySourceType,
     toolComposerQueryNodeToSourceQuery,
     type AiWebAppPrompt,
+    type Explore,
+    type ParameterDefinitions,
     type SlackPrompt,
     type SourceQuery,
     type SubmittedSourceQuery,
@@ -122,6 +124,7 @@ const semanticNode: ComposerNode = {
     metrics: ['payments_total_revenue'],
     filters: null,
     sorts: null,
+    parameters: null,
     limit: 500,
 };
 
@@ -207,6 +210,7 @@ const makeTool = ({
     useSlackStreamCard = false,
     registry = makeNodeRegistry(),
     filterValueHints = null,
+    projectParameterDefinitions = {},
 }: {
     reviewQuery?: QueryReviewer;
     autoApproveSql?: boolean;
@@ -220,6 +224,7 @@ const makeTool = ({
     useSlackStreamCard?: boolean;
     registry?: ReturnType<typeof makeNodeRegistry>;
     filterValueHints?: FilterValueHintDependencies | null;
+    projectParameterDefinitions?: ParameterDefinitions;
 } = {}) => {
     const dependencies = {
         agentContext,
@@ -273,6 +278,7 @@ const makeTool = ({
         autoApproveSql,
         autoApproveSqlUserUuid,
         useSlackStreamCard,
+        projectParameterDefinitions,
     };
 
     return {
@@ -400,6 +406,7 @@ describe('getRunComposerQueries', () => {
                 { reference: 'month', type: 'string' },
                 { reference: 'signups', type: 'number' },
             ],
+            parameters: [],
             review: null,
             preview: {
                 rows: [{ month: '2026-01', signups: 12 }],
@@ -527,12 +534,7 @@ describe('getRunComposerQueries', () => {
 
         expect(dependencies.runComposerQueries).toHaveBeenCalledWith({
             queries: [
-                {
-                    ...semanticNode,
-                    description: undefined,
-                    filters: undefined,
-                    sorts: undefined,
-                },
+                asSubmitted([semanticNode])[0],
                 { ...externalNode, description: undefined },
                 composedNode,
             ],
@@ -878,6 +880,7 @@ const resubmittedOrders = (limit: number): ComposerNode => ({
     metrics: ['orders_total_order_amount'],
     filters: null,
     sorts: null,
+    parameters: null,
     limit,
 });
 
@@ -1270,6 +1273,7 @@ describe('semanticLayer node filters', () => {
         dimensions: ['orders_customer_name'],
         metrics: ['orders_total_revenue'],
         sorts: null,
+        parameters: null,
         limit: 500,
         filters,
     });
@@ -1517,5 +1521,164 @@ describe('semanticLayer node filters', () => {
         expect(output.result).toContain('semanticLayer node "revenue"');
         expect(output.result).toContain('orders_total_revenue');
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+});
+
+describe('semanticLayer node parameters', () => {
+    const parameterizedExplore: Explore = {
+        ...mockOrdersExplore,
+        tables: {
+            ...mockOrdersExplore.tables,
+            orders: {
+                ...mockOrdersExplore.tables.orders,
+                parameters: {
+                    metric: {
+                        label: 'Metric',
+                        options: ['revenue', 'active_users'],
+                        default: 'revenue',
+                    },
+                    region: { label: 'Region' },
+                },
+                dimensions: {
+                    ...mockOrdersExplore.tables.orders.dimensions,
+                    customer_name: {
+                        ...mockOrdersExplore.tables.orders.dimensions
+                            .customer_name,
+                        parameterReferences: ['orders.metric', 'orders.region'],
+                    },
+                },
+            },
+        },
+    };
+    const parameterizedNode = (
+        parameters: ToolComposerSemanticLayerNode['parameters'],
+    ): ComposerNode => ({
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'orders',
+        title: 'Revenue by customer',
+        description: null,
+        exploreName: parameterizedExplore.name,
+        dimensions: ['orders_customer_name'],
+        metrics: ['orders_total_revenue'],
+        filters: null,
+        sorts: null,
+        parameters,
+        limit: 500,
+    });
+
+    it('runs the node with the supplied values and reports applied, defaulted and unset parameters', async () => {
+        const { tool, dependencies } = makeTool({
+            agentContext: new AgentContext([parameterizedExplore]),
+        });
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    parameterizedNode({ 'orders.metric': 'active_users' }),
+                ],
+            }),
+        );
+
+        const [{ queries }] = dependencies.runComposerQueries.mock.calls[0];
+        expect(queries).toEqual([
+            expect.objectContaining({
+                nodeId: 'orders',
+                parameters: { 'orders.metric': 'active_users' },
+            }),
+        ]);
+        expect(output.result).toContain(
+            'set explicitly: {"orders.metric":"active_users"}',
+        );
+        expect(output.result).toContain('unset with no default: orders.region');
+        expect(output.structuredContent).toMatchObject({
+            parameters: [
+                {
+                    nodeId: 'orders',
+                    applied: { 'orders.metric': 'active_users' },
+                    defaulted: {},
+                    unset: ['orders.region'],
+                },
+            ],
+        });
+    });
+
+    it('reports default-resolved values when the node sets none', async () => {
+        const { tool } = makeTool({
+            agentContext: new AgentContext([parameterizedExplore]),
+        });
+
+        const output = await executeTool(
+            tool,
+            makeArgs({ queries: [parameterizedNode(null)] }),
+        );
+
+        expect(output.result).toContain(
+            'resolved to defaults: {"orders.metric":"revenue"}',
+        );
+        expect(output.structuredContent).toMatchObject({
+            parameters: [
+                {
+                    nodeId: 'orders',
+                    applied: {},
+                    defaulted: { 'orders.metric': 'revenue' },
+                    unset: ['orders.region'],
+                },
+            ],
+        });
+    });
+
+    it('reports the values a reused node was defined with', async () => {
+        const { tool } = makeTool({
+            agentContext: new AgentContext([parameterizedExplore]),
+        });
+        await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    parameterizedNode({ 'orders.metric': 'active_users' }),
+                ],
+            }),
+            'tool-call-1',
+        );
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    {
+                        ...duckdbNode,
+                        nodeId: 'top',
+                        sql: 'SELECT * FROM orders LIMIT 5',
+                        references: ['orders'],
+                    },
+                ],
+            }),
+            'tool-call-2',
+        );
+
+        expect(output.structuredContent).toMatchObject({
+            parameters: [
+                {
+                    nodeId: 'orders',
+                    applied: { 'orders.metric': 'active_users' },
+                },
+            ],
+        });
+    });
+
+    it('rejects an unknown parameter name without running the pipeline', async () => {
+        const { tool, dependencies } = makeTool({
+            agentContext: new AgentContext([parameterizedExplore]),
+        });
+
+        const output = await executeTool(
+            tool,
+            makeArgs({ queries: [parameterizedNode({ nonsense: 'x' })] }),
+        );
+
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain('unknown parameter "nonsense"');
     });
 });

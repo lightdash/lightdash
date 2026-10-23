@@ -28,7 +28,11 @@ import {
 import { type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
-import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
+import {
+    DASHBOARD_HEADER_HEIGHT,
+    SCROLL_TO_TOP_BOTTOM,
+    SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER,
+} from '../../components/common/Dashboard/dashboard.constants';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
@@ -57,6 +61,10 @@ import {
     useDashboardUnmetFilterRequirements,
 } from '../dashboard/store';
 import { ControlsBar } from '../dashboardControls/ControlsBar';
+import {
+    CONTROLS_RAIL_LAYOUT,
+    ControlSidebar,
+} from '../dashboardControls/ControlSidebar';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
@@ -90,8 +98,6 @@ const EMPTY_LAYOUTS: DashboardLayouts = {
 };
 
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
-const SCROLL_TO_TOP_BOTTOM = 24;
-const SCROLL_TO_TOP_BOTTOM_WITH_LAUNCHER = 52;
 
 type TabGridPanelProps = {
     tabUuid: string;
@@ -286,10 +292,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const { data: dashboardControlsFlag } = useServerFeatureFlag(
         FeatureFlags.DashboardControls,
     );
-    const FiltersBar =
-        dashboardControlsFlag?.enabled === true
-            ? ControlsBar
-            : DashboardFiltersBar;
+    const isDashboardControlsEnabled = dashboardControlsFlag?.enabled === true;
+    const FiltersBar = isDashboardControlsEnabled
+        ? ControlsBar
+        : DashboardFiltersBar;
 
     const gridWrapperRef = useRef<HTMLDivElement>(null);
     const [isInteracting, setIsInteracting] = useState(false);
@@ -1184,7 +1190,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     grow
                                     pb={dashboardGridBottomPadding}
                                     px="xs"
+                                    className={
+                                        isDashboardControlsEnabled
+                                            ? CONTROLS_RAIL_LAYOUT
+                                            : undefined
+                                    }
                                 >
+                                    {isDashboardControlsEnabled && (
+                                        <ControlSidebar />
+                                    )}
                                     <div
                                         ref={gridWrapperRef}
                                         className={[

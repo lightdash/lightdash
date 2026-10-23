@@ -302,6 +302,76 @@ describe('SavedChartService - Content Verification', () => {
         );
     });
 
+    describe('new chart defaults', () => {
+        const cartesianChart = (layout: Record<string, unknown>) => ({
+            name: 'Orders by week',
+            tableName: 'orders',
+            metricQuery: {
+                exploreName: 'orders',
+                dimensions: [],
+                metrics: [],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+            },
+            chartConfig: {
+                type: ChartType.CARTESIAN as const,
+                config: { layout, eChartsConfig: {} },
+            },
+            tableConfig: { columnOrder: [] },
+            spaceUuid: 'space-uuid',
+            dashboardUuid: null,
+        });
+        const createdLayout = () =>
+            (
+                vi.mocked(savedChartModel.create).mock.calls[0] as unknown as [
+                    string,
+                    string,
+                    {
+                        chartConfig: {
+                            config: { layout: Record<string, unknown> };
+                        };
+                    },
+                ]
+            )[2].chartConfig.config.layout;
+
+        it('turns the incomplete period on for a chart created without it', async () => {
+            await service.create(
+                fromSession(adminUser, 'session-cookie'),
+                'project-uuid',
+                cartesianChart({ xField: 'orders_created_week' }),
+            );
+            expect(createdLayout()).toEqual({
+                xField: 'orders_created_week',
+                showIncompletePeriod: true,
+            });
+        });
+
+        it('keeps an explicit choice on create', async () => {
+            await service.create(
+                fromSession(adminUser, 'session-cookie'),
+                'project-uuid',
+                cartesianChart({ showIncompletePeriod: false }),
+            );
+            expect(createdLayout()).toEqual({ showIncompletePeriod: false });
+        });
+
+        it('copies a duplicated chart config as saved', async () => {
+            await service.duplicate(adminUser, 'project-uuid', 'chart-uuid', {
+                chartName: 'Copy of Orders',
+                chartDesc: 'Orders chart copy',
+            });
+            expect(savedChartModel.create).toHaveBeenCalledWith(
+                'project-uuid',
+                adminUser.userUuid,
+                expect.objectContaining({
+                    chartConfig: savedChartData.chartConfig,
+                }),
+            );
+        });
+    });
+
     describe('CASL authorization', () => {
         it('should allow verifyChart when user is admin', async () => {
             const result = await service.verifyChart(adminUser, 'chart-uuid');

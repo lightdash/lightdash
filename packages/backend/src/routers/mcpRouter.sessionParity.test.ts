@@ -55,6 +55,7 @@ test.each(['off', 'legacy', 'managed'] as const)(
                 })),
             },
             aiOrganizationSettingsService: {
+                isMcpEnabled: vi.fn().mockResolvedValue(true),
                 isMcpContentWritesEnabled: vi.fn().mockResolvedValue(false),
                 isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
             },

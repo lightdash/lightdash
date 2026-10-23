@@ -215,12 +215,10 @@ import { getListContent } from '../ai/tools/listContent';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getReadContent } from '../ai/tools/readContent';
 import { getResolveUrl } from '../ai/tools/resolveUrl';
-import {
-    summarizeAppliedParameters,
-    validateRunQueryTool,
-} from '../ai/tools/runQuery';
+import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import { formatToolJsonOutput } from '../ai/tools/toolOutputFormat';
+import { summarizeAppliedParameters } from '../ai/utils/appliedParameters';
 import {
     formatFilterExpressionError,
     resolveFilterExpressionArgs,
@@ -5624,10 +5622,22 @@ export class McpService extends BaseService {
         return true;
     }
 
-    // MCP is enabled if MCP_ENABLED is true, AI Copilot is enabled, or user is on trial
+    // Organization disablement takes precedence over every MCP enablement path.
     public async isEnabled(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ) {
+        if (!user.organizationUuid) {
+            return false;
+        }
+        if (
+            !(await this.aiOrganizationSettingsService.isMcpEnabled(
+                user.organizationUuid,
+            ))
+        ) {
+            return false;
+        }
+
+        // MCP is enabled if MCP_ENABLED is true, AI Copilot is enabled, or user is on trial
         if (this.lightdashConfig.mcp.enabled) {
             return true;
         }
@@ -5639,10 +5649,6 @@ export class McpService extends BaseService {
 
         if (aiCopilotFlag.enabled) {
             return true;
-        }
-
-        if (!user.organizationUuid) {
-            return false;
         }
 
         return this.aiOrganizationSettingsService.isEligibleForTrial(

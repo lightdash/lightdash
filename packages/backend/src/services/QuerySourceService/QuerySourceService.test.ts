@@ -1036,6 +1036,37 @@ describe('composer pipelines return the standard results interface', () => {
         expect(asyncQueryService.executeAsyncSqlQuery).not.toHaveBeenCalled();
     });
 
+    it("runs a semantic-layer node with its own parameter values over the submission's", async () => {
+        const { registry, asyncQueryService } = createRealSources();
+        const { service } = createService(registry);
+
+        await service.executeSourceQueries({
+            ...executionContext,
+            account,
+            projectUuid,
+            context: QueryExecutionContext.AI,
+            parameters: { region: 'EU', currency: 'USD' },
+            queries: [
+                {
+                    nodeId: 'metric',
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    exploreName: 'orders',
+                    dimensions: [],
+                    metrics: [],
+                    parameters: { region: 'US' },
+                },
+            ],
+        });
+
+        expect(
+            asyncQueryService.executeAsyncMetricQuery,
+        ).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                parameters: { region: 'US', currency: 'USD' },
+            }),
+        );
+    });
+
     it('resolves a single-node semantic-layer pipeline to the metric query itself, without a DuckDB wrapper', async () => {
         const { registry, asyncQueryService } = createRealSources();
         const { service } = createService(registry);

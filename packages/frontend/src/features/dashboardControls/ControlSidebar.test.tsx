@@ -1,10 +1,11 @@
 import {
     DashboardTileTypes,
+    type DashboardFilters,
     type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -43,13 +44,25 @@ vi.mock('./useSqlColumnsByTile', () => ({
 }));
 
 vi.mock('./FieldsAndTiles', () => ({
-    FieldsAndTiles: () => <div data-testid="fields-and-tiles" />,
+    // The placeholder's field search sits in `data-controls-start`
+    FieldsAndTiles: () => (
+        <div data-testid="fields-and-tiles" data-controls-start>
+            <input aria-label="Search fields" />
+        </div>
+    ),
 }));
 
 vi.mock('./FilterSettings', () => ({
-    FilterSettings: ({ field }: { field: { label: string } | null }) => (
+    FilterSettings: ({
+        field,
+        tilesSummary,
+    }: {
+        field: { label: string } | null;
+        tilesSummary: string;
+    }) => (
         <div data-testid="filter-settings">
             {field ? `Settings for ${field.label}` : 'Settings with no field'}
+            <span data-testid="tiles-summary">{tilesSummary}</span>
         </div>
     ),
 }));
@@ -93,7 +106,14 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         isPlaceholder: false,
         editingRule: makeRule({}),
         isSidebarOpen: true,
-        activeSection: 'fields',
+        isRailOpen: true,
+        hoveredFilterId: null,
+        setHoveredFilterId: vi.fn(),
+        clearHoveredFilterId: vi.fn(),
+        applyWithUndo: vi.fn(),
+        undoApply: vi.fn(),
+        fieldUndo: null,
+        activeSection: null,
         setActiveSection: vi.fn(),
         open: vi.fn(),
         openNew: vi.fn(),
@@ -117,6 +137,7 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         removeFilterById: vi.fn(),
         discard: vi.fn(),
         close: vi.fn(),
+        collapse: vi.fn(),
         isDirty: true,
         newTileUuids: [],
         dismissedLinks: [],
@@ -128,9 +149,16 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
 };
 
 // Seeds a real dashboard store from the context fixture, again on rerender
-const renderWithProviders = (ui: ReactElement) => {
+const renderWithProviders = (
+    ui: ReactElement,
+    dashboardFilters: DashboardFilters = {
+        dimensions: [],
+        metrics: [],
+        tableCalculations: [],
+    },
+) => {
     const store = seedDashboardEditState(
-        createDashboardTestStore(),
+        createDashboardTestStore({ dashboardFilters }),
         mockDashboardContext.current as DashboardEditTestValues,
     );
     const wrap = (node: ReactElement) => (
@@ -171,32 +199,124 @@ describe('ControlSidebar', () => {
         };
     });
 
-    it('summarises the reach of a filter over every tile', () => {
+    const filters = (dimensions: DashboardFilterRule[]): DashboardFilters => ({
+        dimensions,
+        metrics: [],
+        tableCalculations: [],
+    });
+
+    describe('closed rows', () => {
+        const other = (overrides: Partial<DashboardFilterRule>) =>
+            makeRule({ id: 'filter-2', label: 'Order status', ...overrides });
+
+        it('lists every filter, the edited one open in its place', () => {
+            setSidebar({ isNew: false });
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([
+                    other({}),
+                    makeRule({}),
+                    other({ id: 'filter-3', label: 'Region' }),
+                ]),
+            );
+
+            const rows = screen.getAllByRole('button', {
+                name: /Order status|Region/,
+            });
+            expect(rows.map((row) => row.textContent)).toEqual([
+                expect.stringContaining('Order status'),
+                expect.stringContaining('Region'),
+            ]);
+            const label = screen.getByLabelText('Filter label');
+            expect(
+                rows[0].compareDocumentPosition(label) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+            expect(
+                rows[1].compareDocumentPosition(label) &
+                    Node.DOCUMENT_POSITION_PRECEDING,
+            ).toBeTruthy();
+        });
+
+        it('reads the value on one line, then Locked and Required', () => {
+            setSidebar({ isNew: false });
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([
+                    makeRule({}),
+                    other({ lockedTabUuids: ['dashboard-1'], required: true }),
+                ]),
+            );
+
+            const row = screen.getByRole('button', { name: /Order status/ });
+            expect(row).toHaveTextContent(
+                /done · Filter is locked · Required$/,
+            );
+            expect(screen.getByText('Required')).toHaveClass(/required/);
+        });
+
+        it('says a required filter with no value has none yet', () => {
+            setSidebar({ isNew: false });
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([makeRule({}), other({ required: true, values: [] })]),
+            );
+
+            const row = screen.getByRole('button', { name: /Order status/ });
+            expect(row).toHaveTextContent(
+                /Required: set a value to run this dashboard$/,
+            );
+            expect(row).not.toHaveTextContent('done');
+        });
+
+        it('opens the filter of a row on click', () => {
+            const { open } = setSidebar({ isNew: false });
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([makeRule({}), other({})]),
+            );
+
+            fireEvent.click(
+                screen.getByRole('button', { name: /Order status/ }),
+            );
+            expect(open).toHaveBeenCalledWith('filter-2');
+        });
+
+        it('disables a row whose field cannot be resolved', () => {
+            setSidebar({ isNew: false });
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([
+                    makeRule({}),
+                    other({
+                        target: { fieldId: 'orders_gone', tableName: 'orders' },
+                    }),
+                ]),
+            );
+
+            expect(
+                screen.getByRole('button', { name: /Order status/ }),
+            ).toBeDisabled();
+        });
+    });
+
+    it('summarises the tiles and fields of the open filter', () => {
         setSidebar({});
         const { rerender } = renderWithProviders(<ControlSidebar />);
-        expect(screen.getByText('Filters 2 of 3 tiles')).toBeInTheDocument();
-        expect(screen.queryByText('No field yet')).not.toBeInTheDocument();
+        expect(screen.getByTestId('tiles-summary')).toHaveTextContent(
+            '2 tiles · 1 field',
+        );
 
         setSidebar({
             editingRule: makeRule({ tileTargets: { a: false, b: REGION } }),
         });
         rerender(<ControlSidebar />);
-        expect(
-            screen.getByText('2 fields · filters 1 of 3 tiles'),
-        ).toBeInTheDocument();
+        expect(screen.getByTestId('tiles-summary')).toHaveTextContent(
+            '1 tile · 2 fields',
+        );
     });
 
-    it('uses the singular for a dashboard with one tile', () => {
-        mockDashboardContext.current = {
-            ...mockDashboardContext.current,
-            dashboardTiles: [tile('a', undefined)],
-        };
-        setSidebar({});
-        renderWithProviders(<ControlSidebar />);
-        expect(screen.getByText('Filters 1 of 1 tile')).toBeInTheDocument();
-    });
-
-    it('adds the tabs the filter reaches when the dashboard has several', () => {
+    it('counts the tiles over every tab', () => {
         mockDashboardContext.current = {
             ...mockDashboardContext.current,
             dashboardTiles: [tile('a', 't1'), tile('b', 't1'), tile('c', 't2')],
@@ -204,30 +324,109 @@ describe('ControlSidebar', () => {
         };
         setSidebar({});
         renderWithProviders(<ControlSidebar />);
-        expect(
-            screen.getByText('Filters 2 of 3 tiles on 1 of 2 tabs'),
-        ).toBeInTheDocument();
+        expect(screen.getByTestId('tiles-summary')).toHaveTextContent(
+            '2 tiles · 1 field',
+        );
     });
 
-    it('leaves the tabs out when the dashboard has a single tab', () => {
-        mockDashboardContext.current = {
-            ...mockDashboardContext.current,
-            dashboardTiles: [tile('a', 't1'), tile('b', 't1'), tile('c', 't1')],
-            dashboardTabs: [tab('t1', 0)],
-        };
-        setSidebar({});
-        renderWithProviders(<ControlSidebar />);
-        expect(screen.getByText('Filters 2 of 3 tiles')).toBeInTheDocument();
-    });
-
-    it('renders nothing when no control is being edited', () => {
-        setSidebar({ editing: null, editingRule: null });
+    it('renders nothing while the rail is closed', () => {
+        setSidebar({
+            editing: null,
+            editingRule: null,
+            isSidebarOpen: false,
+            isRailOpen: false,
+        });
         renderWithProviders(<ControlSidebar />);
         expect(screen.queryByText('Done')).not.toBeInTheDocument();
     });
 
-    it('says a placeholder needs a field to be kept', () => {
-        const { close } = setSidebar({
+    it('lists every filter as a row while the rail is open with none expanded', () => {
+        const { open, close } = setSidebar({
+            editing: null,
+            editingRule: null,
+            isSidebarOpen: false,
+        });
+        renderWithProviders(
+            <ControlSidebar />,
+            filters([
+                makeRule({ label: 'Order status' }),
+                makeRule({ id: 'filter-2', label: 'Region' }),
+            ]),
+        );
+
+        expect(screen.queryByLabelText('Filter label')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: /Region/ }));
+        expect(open).toHaveBeenCalledWith('filter-2');
+        expect(
+            screen.getByRole('button', { name: 'Add filter' }),
+        ).toBeVisible();
+        fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+        expect(close).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows only the footer once the last filter is gone', () => {
+        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
+        renderWithProviders(<ControlSidebar />);
+
+        expect(
+            screen.getByRole('button', { name: 'Add filter' }),
+        ).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
+        expect(screen.queryByText(/to keep|stays off/)).not.toBeInTheDocument();
+    });
+
+    it('collapses the open filter from its chevron and its head, never from the input or buttons', () => {
+        const { collapse, discard } = setSidebar({
+            isNew: false,
+            editingRule: makeRule({ label: 'Order status' }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        const chevron = screen.getByRole('button', { name: 'Collapse filter' });
+        expect(chevron).toHaveAttribute('aria-expanded', 'true');
+        fireEvent.click(chevron);
+        expect(collapse).toHaveBeenCalledTimes(1);
+
+        const input = screen.getByLabelText('Filter label');
+        fireEvent.click(input.closest('[class*="editedHead"]') as HTMLElement);
+        expect(collapse).toHaveBeenCalledTimes(2);
+
+        fireEvent.click(input);
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Discard changes' }),
+        );
+        expect(collapse).toHaveBeenCalledTimes(2);
+        expect(discard).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports the row under the pointer or focus as hovered, and its leaving', () => {
+        const { setHoveredFilterId, clearHoveredFilterId } = setSidebar({
+            isNew: false,
+        });
+        renderWithProviders(
+            <ControlSidebar />,
+            filters([
+                makeRule({}),
+                makeRule({ id: 'filter-2', label: 'Region' }),
+            ]),
+        );
+
+        const row = screen.getByRole('button', { name: /Region/ });
+        expect(row).toHaveAttribute('data-controls-row', 'filter-2');
+        expect(row).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.mouseEnter(row);
+        expect(setHoveredFilterId).toHaveBeenLastCalledWith('filter-2');
+        fireEvent.mouseLeave(row);
+        expect(clearHoveredFilterId).toHaveBeenLastCalledWith('filter-2');
+        act(() => row.focus());
+        expect(setHoveredFilterId).toHaveBeenLastCalledWith('filter-2');
+        act(() => row.blur());
+        expect(clearHoveredFilterId).toHaveBeenLastCalledWith('filter-2');
+        expect(setHoveredFilterId).not.toHaveBeenCalledWith(null);
+    });
+
+    it('opens a new filter on its field search, with Cancel as the only way out', () => {
+        const { discard, openNew, close } = setSidebar({
             isPlaceholder: true,
             editingRule: makeRule({
                 target: { fieldId: '', tableName: '' },
@@ -236,27 +435,33 @@ describe('ControlSidebar', () => {
         renderWithProviders(<ControlSidebar />);
 
         expect(screen.getByText('New filter')).toBeInTheDocument();
-        expect(screen.getByText('No field yet')).toBeInTheDocument();
-        expect(screen.getByLabelText(/^Filter label/)).toBeInTheDocument();
+        expect(screen.queryByLabelText('Filter label')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /Discard/ }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
+        expect(screen.queryByTestId('filter-settings')).not.toBeInTheDocument();
         expect(
             screen.getByText('Select a field to keep this filter'),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Discard filter' }),
-        ).toBeInTheDocument();
-        fireEvent.keyDown(screen.getByLabelText(/^Filter label/), {
-            key: 'Enter',
-        });
+            screen.queryByRole('button', { name: 'Add filter' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Done' }),
+        ).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        expect(discard).toHaveBeenCalledTimes(1);
+        expect(openNew).not.toHaveBeenCalled();
         expect(close).not.toHaveBeenCalled();
-        expect(screen.queryByText('Suggestions')).not.toBeInTheDocument();
-        expect(screen.queryByLabelText('More actions')).not.toBeInTheDocument();
-        expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
     });
 
     it('keeps the name of an existing control left with no field', () => {
         setSidebar({
             isNew: false,
             isPlaceholder: true,
+            emptiedFieldLabel: 'Status',
             editingRule: makeRule({
                 label: 'Order status',
                 target: { fieldId: '', tableName: '' },
@@ -265,203 +470,39 @@ describe('ControlSidebar', () => {
         renderWithProviders(<ControlSidebar />);
 
         expect(screen.queryByText('New filter')).not.toBeInTheDocument();
-        expect(screen.getByLabelText(/^Filter label/)).toHaveValue(
-            'Order status',
-        );
+        const label = screen.getByLabelText('Filter label');
+        expect(label).toHaveValue('Order status');
+        expect(label).toHaveAttribute('placeholder', 'Status');
         expect(
             screen.getByText('Select a field to keep this filter'),
         ).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'Discard changes' }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Cancel' })).toBeVisible();
     });
 
-    it('goes back to "New filter" when a new filter loses the field it got', () => {
-        setSidebar({
-            isNew: true,
-            isPlaceholder: true,
-            emptiedFieldLabel: 'Status',
-            editingRule: makeRule({
-                target: { fieldId: '', tableName: '' },
-            }),
-        });
+    it('names the open filter after its field while it has no label', () => {
+        setSidebar({});
         renderWithProviders(<ControlSidebar />);
 
-        expect(
-            screen.getByRole('heading', { name: 'New filter' }),
-        ).toBeInTheDocument();
+        const input = screen.getByLabelText('Filter label');
+        expect(input).toHaveValue('');
+        expect(input).toHaveAttribute('placeholder', 'Status');
+        expect(screen.getByTestId('filter-settings')).toHaveTextContent(
+            'Settings for Status',
+        );
     });
 
-    it('stays "Filter" for an unlabelled filter whose field was not known', () => {
-        // Before: the field cannot be resolved
+    it('names a filter whose field is gone "Filter name"', () => {
         setSidebar({
-            isNew: false,
             editingRule: makeRule({
                 target: { fieldId: 'orders_gone', tableName: 'orders' },
             }),
         });
-        const { rerender } = renderWithProviders(<ControlSidebar />);
-        expect(
-            screen.getByRole('heading', { name: 'Filter' }),
-        ).toBeInTheDocument();
+        renderWithProviders(<ControlSidebar />);
 
-        // After its last field is removed: no name was kept for it
-        setSidebar({
-            isNew: false,
-            isPlaceholder: true,
-            emptiedFieldLabel: null,
-            editingRule: makeRule({
-                target: { fieldId: '', tableName: '' },
-            }),
-        });
-        rerender(<ControlSidebar />);
-        expect(
-            screen.getByRole('heading', { name: 'Filter' }),
-        ).toBeInTheDocument();
-    });
-
-    it('asks for the name viewers will see, and counts the fields on its tab', async () => {
-        setSidebar({
-            isPlaceholder: true,
-            editingRule: makeRule({
-                target: { fieldId: '', tableName: '' },
-            }),
-        });
-        const { rerender } = renderWithProviders(<ControlSidebar />);
-        expect(screen.getByLabelText(/^Filter label/)).toHaveAttribute(
+        expect(screen.getByLabelText('Filter label')).toHaveAttribute(
             'placeholder',
-            'Name viewers will see',
+            'Filter name',
         );
-
-        setSidebar({});
-        rerender(<ControlSidebar />);
-        await userEvent.hover(screen.getByText('(1)'));
-        expect(await screen.findByText('1 field')).toBeInTheDocument();
-
-        setSidebar({
-            editingRule: makeRule({ tileTargets: { a: false, b: REGION } }),
-        });
-        rerender(<ControlSidebar />);
-        await userEvent.hover(screen.getByText('(2)'));
-        expect(await screen.findByText('2 fields')).toBeInTheDocument();
-    });
-
-    it('keeps the title of an unlabelled filter left with no field', () => {
-        setSidebar({
-            isNew: false,
-            isPlaceholder: true,
-            emptiedFieldLabel: 'Status',
-            editingRule: makeRule({
-                target: { fieldId: '', tableName: '' },
-            }),
-        });
-        renderWithProviders(<ControlSidebar />);
-
-        expect(
-            screen.getByRole('heading', { name: 'Status' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('heading', { name: 'Filter' }),
-        ).not.toBeInTheDocument();
-    });
-
-    it('disables Settings for a placeholder and says why', () => {
-        setSidebar({
-            isPlaceholder: true,
-            activeSection: 'settings',
-            editingRule: makeRule({
-                target: { fieldId: '', tableName: '' },
-            }),
-        });
-        renderWithProviders(<ControlSidebar />);
-
-        const settings = screen.getByRole('tab', { name: 'Settings' });
-        expect(settings).toHaveAttribute('title', 'Select a field first');
-        expect(settings).toBeDisabled();
-        expect(
-            screen.getByRole('tab', { name: /^Fields and tiles/ }),
-        ).toHaveAttribute('aria-selected', 'true');
-        expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
-        expect(screen.queryByTestId('filter-settings')).not.toBeInTheDocument();
-    });
-
-    it('switches between the two tabs', () => {
-        const { setActiveSection } = setSidebar({});
-        const { rerender } = renderWithProviders(<ControlSidebar />);
-
-        expect(
-            screen.getByRole('tab', { name: 'Fields and tiles (1)' }),
-        ).toHaveAttribute('aria-selected', 'true');
-        const settings = screen.getByRole('tab', { name: 'Settings' });
-        expect(settings).toBeEnabled();
-        expect(settings).not.toHaveAttribute('title');
-        fireEvent.click(settings);
-        expect(setActiveSection).toHaveBeenCalledWith('settings');
-
-        setSidebar({ activeSection: 'settings', setActiveSection });
-        rerender(<ControlSidebar />);
-        expect(screen.getByTestId('filter-settings')).toBeInTheDocument();
-        expect(
-            screen.queryByTestId('fields-and-tiles'),
-        ).not.toBeInTheDocument();
-        fireEvent.click(screen.getByRole('tab', { name: /^Fields and tiles/ }));
-        expect(setActiveSection).toHaveBeenCalledWith('fields');
-    });
-
-    it('closes with a missing default value and says it stays off', () => {
-        const { close } = setSidebar({
-            activeSection: 'settings',
-            editingRule: makeRule({ label: 'Order status', values: [] }),
-        });
-        renderWithProviders(<ControlSidebar />);
-
-        expect(
-            screen.getByText('No default value set, so the default stays off'),
-        ).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-        expect(close).toHaveBeenCalledTimes(1);
-    });
-
-    it('says nothing in the footer for a filter that can be kept', () => {
-        setSidebar({
-            isNew: false,
-            editingRule: makeRule({ label: 'Order status', disabled: true }),
-        });
-        renderWithProviders(<ControlSidebar />);
-
-        expect(screen.queryByText(/to keep/)).not.toBeInTheDocument();
-        expect(screen.queryByText(/stays off/)).not.toBeInTheDocument();
-    });
-
-    it('titles an unlabelled filter with its field and suggests the name', () => {
-        const { updateFilter, editingRule } = setSidebar({});
-        renderWithProviders(<ControlSidebar />);
-
-        expect(
-            screen.getByRole('heading', { name: 'Status' }),
-        ).toBeInTheDocument();
-        const input = screen.getByLabelText(/^Filter label/);
-        expect(input).not.toBeRequired();
-        // The name the bar shows while the label is empty
-        expect(input).toHaveAttribute('placeholder', 'Status');
-        expect(screen.queryByText(/Add a label/)).not.toBeInTheDocument();
-        expect(screen.getByText('Suggestions')).toBeInTheDocument();
-
-        fireEvent.click(screen.getByRole('button', { name: 'Status' }));
-        expect(updateFilter).toHaveBeenCalledWith({
-            ...editingRule,
-            label: 'Status',
-        });
-    });
-
-    it('titles an unlabelled existing filter with its field too', () => {
-        setSidebar({ isNew: false });
-        renderWithProviders(<ControlSidebar />);
-
-        expect(
-            screen.getByRole('heading', { name: 'Status' }),
-        ).toBeInTheDocument();
-        expect(screen.queryByText('Suggestions')).not.toBeInTheDocument();
     });
 
     describe('a metric filter', () => {
@@ -484,120 +525,123 @@ describe('ControlSidebar', () => {
             };
         });
 
-        it('is titled and suggested by its metric', () => {
+        it('is named by its metric and hands it to its settings', () => {
             setSidebar({ editingRule: metricRule });
             renderWithProviders(<ControlSidebar />);
 
-            expect(
-                screen.getByRole('heading', { name: 'Revenue' }),
-            ).toBeInTheDocument();
-            expect(screen.getByLabelText(/^Filter label/)).toHaveAttribute(
+            expect(screen.getByLabelText('Filter label')).toHaveAttribute(
                 'placeholder',
                 'Revenue',
             );
-            expect(
-                screen.getByRole('button', { name: 'Revenue' }),
-            ).toBeInTheDocument();
-            expect(
-                screen.getByText('Filters 1 of 3 tiles'),
-            ).toBeInTheDocument();
-        });
-
-        it('hands the metric to its settings', () => {
-            setSidebar({ editingRule: metricRule, activeSection: 'settings' });
-            renderWithProviders(<ControlSidebar />);
-
             expect(screen.getByTestId('filter-settings')).toHaveTextContent(
                 'Settings for Revenue',
             );
-        });
-    });
-
-    describe('a SQL column filter', () => {
-        const sqlRule = makeRule({
-            target: {
-                fieldId: 'country',
-                tableName: 'sql_chart',
-                isSqlColumn: true,
-            },
-        });
-
-        it('is titled by its column, with nothing to suggest', () => {
-            setSidebar({ editingRule: sqlRule });
-            renderWithProviders(<ControlSidebar />);
-
-            expect(
-                screen.getByRole('heading', { name: 'country' }),
-            ).toBeInTheDocument();
-            expect(screen.getByLabelText(/^Filter label/)).toHaveAttribute(
-                'placeholder',
-                'country',
-            );
-            expect(screen.queryByText('Suggestions')).not.toBeInTheDocument();
-        });
-
-        it('has settings with no field', () => {
-            setSidebar({ editingRule: sqlRule, activeSection: 'settings' });
-            renderWithProviders(<ControlSidebar />);
-
-            expect(screen.getByTestId('filter-settings')).toHaveTextContent(
-                'Settings with no field',
+            expect(screen.getByTestId('tiles-summary')).toHaveTextContent(
+                '1 tile · 1 field',
             );
         });
     });
 
-    it('titles a filter whose field is gone "Filter"', () => {
+    it('names a SQL column filter by its column, with settings with no field', () => {
         setSidebar({
             editingRule: makeRule({
-                target: { fieldId: 'orders_gone', tableName: 'orders' },
+                target: {
+                    fieldId: 'country',
+                    tableName: 'sql_chart',
+                    isSqlColumn: true,
+                },
             }),
         });
         renderWithProviders(<ControlSidebar />);
 
+        expect(screen.getByLabelText('Filter label')).toHaveAttribute(
+            'placeholder',
+            'country',
+        );
+        expect(screen.getByTestId('filter-settings')).toHaveTextContent(
+            'Settings with no field',
+        );
+    });
+
+    it('closes with a missing default value and says it stays off', () => {
+        const { close } = setSidebar({
+            editingRule: makeRule({ label: 'Order status', values: [] }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
         expect(
-            screen.getByRole('heading', { name: 'Filter' }),
+            screen.getByText('No default value set, so the default stays off'),
         ).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+        expect(close).toHaveBeenCalledTimes(1);
+    });
+
+    it('says nothing in the footer for a filter that can be kept', () => {
+        setSidebar({
+            isNew: false,
+            editingRule: makeRule({ label: 'Order status', disabled: true }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        expect(screen.queryByText(/to keep/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/stays off/)).not.toBeInTheDocument();
     });
 
     it('moves focus to the label when the editor opens', () => {
         setSidebar({});
         renderWithProviders(<ControlSidebar />);
 
-        expect(screen.getByLabelText(/^Filter label/)).toHaveFocus();
+        expect(screen.getByLabelText('Filter label')).toHaveFocus();
     });
 
-    it('stays open on Enter with no label, with no error', () => {
+    it('moves focus to the field search when a new filter opens', async () => {
+        setSidebar({
+            isPlaceholder: true,
+            editingRule: makeRule({ target: { fieldId: '', tableName: '' } }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        // Handed over on the next frame, once the rail can take focus
+        await waitFor(() =>
+            expect(screen.getByLabelText('Search fields')).toHaveFocus(),
+        );
+    });
+
+    it('stays open on Enter with no label', () => {
         const { close } = setSidebar({});
         renderWithProviders(<ControlSidebar />);
 
-        fireEvent.keyDown(screen.getByLabelText(/^Filter label/), {
+        fireEvent.keyDown(screen.getByLabelText('Filter label'), {
             key: 'Enter',
         });
-        expect(screen.queryByText(/Add a label/)).not.toBeInTheDocument();
         expect(close).not.toHaveBeenCalled();
     });
 
-    it('closes a new filter on Done and the X, and stays open on Enter', () => {
-        const { close, discard } = setSidebar({
+    it('closes on Done and the X, adds on Add filter, and discards a new filter from its icon', () => {
+        const { close, discard, openNew } = setSidebar({
             editingRule: makeRule({ label: 'Order status' }),
         });
         renderWithProviders(<ControlSidebar />);
 
+        expect(screen.getByRole('heading', { name: 'Filters' })).toBeVisible();
+        // The count badge reads as words, not a bare number
         expect(
-            screen.getByRole('heading', { name: 'Order status' }),
-        ).toBeInTheDocument();
-        expect(screen.queryByText('Suggestions')).not.toBeInTheDocument();
+            screen.getByRole('heading', { name: 'Filters' }).nextElementSibling
+                ?.textContent,
+        ).toMatch(/^\d+ filters$/);
         fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-        expect(close).toHaveBeenCalledTimes(1);
-
-        fireEvent.keyDown(screen.getByLabelText(/^Filter label/), {
-            key: 'Enter',
-        });
         expect(close).toHaveBeenCalledTimes(1);
 
         fireEvent.click(screen.getByRole('button', { name: 'Close' }));
         expect(close).toHaveBeenCalledTimes(2);
 
+        fireEvent.click(screen.getByRole('button', { name: 'Add filter' }));
+        expect(openNew).toHaveBeenCalledTimes(1);
+
+        expect(screen.queryByLabelText('More actions')).not.toBeInTheDocument();
+        expect(
+            screen.queryByLabelText('Remove filter'),
+        ).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Discard filter' }));
         expect(discard).toHaveBeenCalledTimes(1);
     });
@@ -609,7 +653,9 @@ describe('ControlSidebar', () => {
             editingRule: makeRule({ label: 'Order status' }),
         });
         const { rerender } = renderWithProviders(<ControlSidebar />);
-        expect(screen.queryByText('Discard changes')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /Discard/ }),
+        ).not.toBeInTheDocument();
 
         setSidebar({
             isNew: false,
@@ -624,12 +670,28 @@ describe('ControlSidebar', () => {
         expect(discard).toHaveBeenCalledTimes(1);
     });
 
+    it('removes an existing filter on the second click', async () => {
+        const { removeFilter } = setSidebar({
+            isNew: false,
+            isDirty: false,
+            editingRule: makeRule({ label: 'Order status' }),
+        });
+        renderWithProviders(<ControlSidebar />);
+
+        const remove = screen.getByRole('button', { name: 'Remove filter' });
+        fireEvent.click(remove);
+        expect(removeFilter).not.toHaveBeenCalled();
+        expect(remove).toHaveAttribute('aria-pressed', 'true');
+        fireEvent.click(remove);
+        expect(removeFilter).toHaveBeenCalledTimes(1);
+    });
+
     describe('label draft', () => {
         afterEach(() => {
             vi.useRealTimers();
         });
 
-        const labelInput = () => screen.getByLabelText(/^Filter label/);
+        const labelInput = () => screen.getByLabelText('Filter label');
         const typeLabel = (value: string) =>
             fireEvent.change(labelInput(), { target: { value } });
 
@@ -641,11 +703,6 @@ describe('ControlSidebar', () => {
             typeLabel('Or');
             typeLabel('Order');
             expect(labelInput()).toHaveValue('Order');
-            // The editor follows the draft, the dashboard does not
-            expect(
-                screen.getByRole('heading', { name: 'Order' }),
-            ).toBeInTheDocument();
-            expect(screen.queryByText('Suggestions')).not.toBeInTheDocument();
             act(() => {
                 vi.advanceTimersByTime(LABEL_COMMIT_DELAY - 1);
             });
@@ -659,19 +716,6 @@ describe('ControlSidebar', () => {
                 ...editingRule,
                 label: 'Order',
             });
-        });
-
-        it('titles an existing filter with the text being typed', () => {
-            setSidebar({
-                isNew: false,
-                editingRule: makeRule({ label: 'Order status' }),
-            });
-            renderWithProviders(<ControlSidebar />);
-
-            typeLabel('Status of the order');
-            expect(
-                screen.getByRole('heading', { name: 'Status of the order' }),
-            ).toBeInTheDocument();
         });
 
         it('writes an emptied label as no label, with no error', () => {
@@ -688,10 +732,7 @@ describe('ControlSidebar', () => {
                 ...editingRule,
                 label: undefined,
             });
-            expect(screen.queryByText(/Add a label/)).not.toBeInTheDocument();
-            expect(
-                screen.getByRole('heading', { name: 'Status' }),
-            ).toBeInTheDocument();
+            expect(labelInput()).toHaveAttribute('placeholder', 'Status');
         });
 
         it('writes a label of spaces as no label', () => {
@@ -746,21 +787,6 @@ describe('ControlSidebar', () => {
             );
         });
 
-        it('moves focus to the label when a suggestion is taken', async () => {
-            setSidebar({});
-            renderWithProviders(<ControlSidebar />);
-            const chip = screen.getByRole('button', { name: 'Status' });
-            chip.focus();
-
-            await userEvent.click(chip);
-
-            // The chip is gone, and focus did not fall to the page with it
-            expect(
-                screen.queryByRole('button', { name: 'Status' }),
-            ).not.toBeInTheDocument();
-            expect(labelInput()).toHaveFocus();
-        });
-
         it('sends the typed label before Done closes', async () => {
             const { updateFilter, close, editingRule } = setSidebar({});
             renderWithProviders(<ControlSidebar />);
@@ -797,25 +823,6 @@ describe('ControlSidebar', () => {
             expect(updateFilter).toHaveBeenCalledTimes(1);
         });
 
-        it('keeps the text in step with a suggestion and drops the pending write', () => {
-            vi.useFakeTimers();
-            const { updateFilter, editingRule } = setSidebar({});
-            renderWithProviders(<ControlSidebar />);
-
-            typeLabel(' ');
-            fireEvent.click(screen.getByRole('button', { name: 'Status' }));
-
-            expect(labelInput()).toHaveValue('Status');
-            act(() => {
-                vi.advanceTimersByTime(LABEL_COMMIT_DELAY * 2);
-            });
-            expect(updateFilter).toHaveBeenCalledTimes(1);
-            expect(updateFilter).toHaveBeenCalledWith({
-                ...editingRule,
-                label: 'Status',
-            });
-        });
-
         it('starts over when another filter is opened, with no late write', () => {
             vi.useFakeTimers();
             const first = setSidebar({ isNew: false });
@@ -847,25 +854,5 @@ describe('ControlSidebar', () => {
             vi.advanceTimersByTime(LABEL_COMMIT_DELAY * 2);
             expect(updateFilter).not.toHaveBeenCalled();
         });
-    });
-
-    it('titles an existing filter with its label and removes it on the second click', async () => {
-        const { removeFilter } = setSidebar({
-            isNew: false,
-            isDirty: false,
-            editingRule: makeRule({ label: 'Order status' }),
-        });
-        renderWithProviders(<ControlSidebar />);
-
-        expect(
-            screen.getByRole('heading', { name: 'Order status' }),
-        ).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled();
-
-        fireEvent.click(screen.getByLabelText('More actions'));
-        fireEvent.click(await screen.findByText('Remove filter'));
-        expect(removeFilter).not.toHaveBeenCalled();
-        fireEvent.click(await screen.findByText('Click again to remove'));
-        expect(removeFilter).toHaveBeenCalledTimes(1);
     });
 });

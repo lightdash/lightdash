@@ -1,4 +1,5 @@
 import { QuerySourceType } from '../../../../types/querySources';
+import { isSameComposerNodeDefinition } from '../../composerArtifact';
 import {
     createToolComposerQueriesArgsSchema,
     DEFAULT_COMPOSER_QUERY_LIMIT,
@@ -140,6 +141,7 @@ describe('parsePartialToolComposerQueriesArgs', () => {
                     metrics: [],
                     filters: null,
                     sorts: null,
+                    parameters: null,
                     limit: DEFAULT_COMPOSER_QUERY_LIMIT,
                 },
                 {
@@ -443,5 +445,82 @@ describe('toolComposerQueriesArgsSchemaPersisted', () => {
             nodeId: 'orders',
             filters: null,
         });
+    });
+
+    it('parses a semanticLayer node persisted before parameters existed', () => {
+        const parsed = toolComposerQueriesArgsSchemaPersisted.parse(
+            args({
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'orders',
+                title: 'Orders',
+                description: null,
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_count'],
+                filters: null,
+                sorts: null,
+                limit: 500,
+            }),
+        );
+        expect(parsed.queries[0]).toMatchObject({ parameters: null });
+    });
+});
+
+describe('semanticLayer node parameters', () => {
+    const semanticNode = {
+        sourceType: QuerySourceType.SEMANTIC_LAYER as const,
+        nodeId: 'orders',
+        title: 'Orders',
+        description: null,
+        exploreName: 'orders',
+        dimensions: ['orders_status'],
+        metrics: ['orders_count'],
+        filters: null,
+        sorts: null,
+        limit: 500,
+    };
+
+    it('accepts parameter values on the node', () => {
+        const parsed = toolComposerQueriesArgsSchema.parse({
+            title: null,
+            description: null,
+            terminalNodeId: null,
+            queries: [
+                {
+                    ...semanticNode,
+                    parameters: { 'orders.metric': 'active_users' },
+                },
+            ],
+        });
+        expect(parsed.queries[0]).toMatchObject({
+            parameters: { 'orders.metric': 'active_users' },
+        });
+    });
+
+    it('carries parameter values to the source query, and none when null or empty', () => {
+        expect(
+            toolComposerQueryNodeToSourceQuery({
+                ...semanticNode,
+                parameters: { 'orders.metric': 'active_users' },
+            }),
+        ).toMatchObject({ parameters: { 'orders.metric': 'active_users' } });
+        expect(
+            toolComposerQueryNodeToSourceQuery({
+                ...semanticNode,
+                parameters: null,
+            }),
+        ).toMatchObject({ parameters: undefined });
+        expect(
+            isSameComposerNodeDefinition(
+                toolComposerQueryNodeToSourceQuery({
+                    ...semanticNode,
+                    parameters: null,
+                }),
+                toolComposerQueryNodeToSourceQuery({
+                    ...semanticNode,
+                    parameters: {},
+                }),
+            ),
+        ).toBe(true);
     });
 });

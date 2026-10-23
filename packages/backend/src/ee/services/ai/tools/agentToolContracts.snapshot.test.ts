@@ -241,6 +241,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             maxQueryLimit: 500,
             updateProgress: noopAsync,
             waitForSqlApproval: noop,
+            projectParameterDefinitions: {},
         }),
         searchFieldValues: getSearchFieldValues({
             searchFieldValues: noop,

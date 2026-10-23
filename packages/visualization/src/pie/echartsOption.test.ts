@@ -1,6 +1,5 @@
 import { type PieSeriesOption } from 'echarts';
 import { describe, expect, test } from 'vitest';
-import { LEGEND_INTERACTION_HINT } from '../cartesian/legendTooltip';
 import { LIGHT_VISUALIZATION_THEME } from '../theme';
 import { resolvePieChartConfig } from './config';
 import { buildPieEchartsOption } from './echartsOption';
@@ -97,7 +96,7 @@ describe('buildPieEchartsOption', () => {
         ).toBe('Done: 150');
     });
 
-    test('places the legend and passes the selection and the double click hint', () => {
+    test('places the legend and passes the selection without a hover tooltip', () => {
         const option = buildPieEchartsOption({
             pieChartConfig: resolve({ legendPosition: 'vertical' }),
             resultsData: { rows: PIE_ROWS },
@@ -112,9 +111,7 @@ describe('buildPieEchartsOption', () => {
         expect(legend.orient).toBe('vertical');
         expect(legend.left).toBe('left');
         expect(legend.selected).toEqual({ pending: false });
-        expect(
-            (legend.tooltip as { formatter: () => string }).formatter(),
-        ).toBe(LEGEND_INTERACTION_HINT);
+        expect(legend.tooltip).toBeUndefined();
         expect(option!.eChartsOption.textStyle?.fontFamily).toBe(
             LIGHT_VISUALIZATION_THEME.chartFont,
         );

@@ -1524,9 +1524,7 @@ const Dashboard: FC = () => {
             >
                 <div>
                     {isDashboardControlsEnabled ? (
-                        <DashboardHeaderGuard>
-                            <DashboardHeader {...dashboardHeaderProps} />
-                        </DashboardHeaderGuard>
+                        <DashboardHeaderGuard {...dashboardHeaderProps} />
                     ) : (
                         <DashboardHeader {...dashboardHeaderProps} />
                     )}

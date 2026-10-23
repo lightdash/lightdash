@@ -381,6 +381,13 @@ const useCartesianChartConfig = ({
         }));
     }, []);
 
+    const setShowIncompletePeriod = useCallback((show: boolean) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            showIncompletePeriod: show,
+        }));
+    }, []);
+
     const setColorByCategory = useCallback((enabled: boolean) => {
         setDirtyLayout((prev) => ({
             ...prev,
@@ -940,6 +947,7 @@ const useCartesianChartConfig = ({
             setShowRightYAxis,
             setShowAxisTicks,
             setConnectNulls,
+            setShowIncompletePeriod,
             setColorByCategory,
             setCategoryColorOverride,
             setAllCategoryColorOverrides,
@@ -1003,6 +1011,7 @@ const useCartesianChartConfig = ({
             setShowRightYAxis,
             setShowAxisTicks,
             setConnectNulls,
+            setShowIncompletePeriod,
             setColorByCategory,
             setCategoryColorOverride,
             setAllCategoryColorOverrides,

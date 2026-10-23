@@ -1,94 +1,60 @@
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     Group,
-    Menu,
+    Paper,
     Stack,
-    Tabs,
     Text,
     Title,
     Tooltip,
+    VisuallyHidden,
 } from '@mantine/core';
-import { IconDots, IconX } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { IconX } from '@tabler/icons-react';
+import { useRef, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { AddControl } from './AddControl';
 import classes from './ControlSidebar.module.css';
-
-type EditorTab = {
-    value: string;
-    label: string;
-    count?: number;
-    changed?: boolean;
-    disabled?: boolean;
-    disabledReason?: string;
-};
+import { useRailTop } from './useRailTop';
 
 type Props = {
-    title: string;
-    subtitle: string | null;
-    menu?: ReactNode;
-    onMenuClose?: () => void;
+    /** The dashboard's filters, listed in the rail. */
+    filterCount: number;
     onClose: () => void;
-    /** Null hides the action: there is nothing to discard. */
-    discardLabel: string | null;
-    onDiscard: () => void;
-    tabs: EditorTab[];
-    activeTab: string;
-    onTabChange: (value: string) => void;
+    /** Set while the filter cannot be kept: the footer offers only this. */
+    onCancel: (() => void) | null;
     footerStatus: string | null;
-    aboveTabs: ReactNode;
     children: ReactNode;
 };
 
+// The rail: a card next to the grid, stuck under the tabs and filter bar
 export const EditorShell: FC<Props> = ({
-    title,
-    subtitle,
-    menu,
-    onMenuClose,
+    filterCount,
     onClose,
-    discardLabel,
-    onDiscard,
-    tabs,
-    activeTab,
-    onTabChange,
+    onCancel,
     footerStatus,
-    aboveTabs,
     children,
-}) => (
-    <Box className={classes.root} data-controls-editor>
-        <Group justify="space-between" wrap="nowrap" px="md" pt="md">
-            <Stack gap={2} align="flex-start">
-                <Title order={5} className={classes.title}>
-                    {title}
-                </Title>
-                {subtitle !== null && (
-                    <Text fz="xs" c="dimmed">
-                        {subtitle}
-                    </Text>
-                )}
-            </Stack>
-            <Group gap={4} wrap="nowrap">
-                {menu && (
-                    <Menu
-                        position="bottom-end"
-                        closeOnItemClick={false}
-                        onClose={onMenuClose}
-                    >
-                        <Menu.Target>
-                            <Tooltip label="More actions">
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    aria-label="More actions"
-                                >
-                                    <MantineIcon icon={IconDots} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Menu.Target>
-                        <Menu.Dropdown>{menu}</Menu.Dropdown>
-                    </Menu>
-                )}
+}) => {
+    const ref = useRef<HTMLDivElement>(null);
+    useRailTop(ref);
+    return (
+        <Paper ref={ref} className={classes.root} data-controls-editor>
+            <Group
+                justify="space-between"
+                wrap="nowrap"
+                pl="md"
+                pr="xs"
+                py="xs"
+                className={classes.header}
+            >
+                <Group gap="xs" wrap="nowrap">
+                    <Title order={5}>Filters</Title>
+                    <Badge size="sm">
+                        {filterCount}
+                        <VisuallyHidden> filters</VisuallyHidden>
+                    </Badge>
+                </Group>
                 <Tooltip label="Close">
                     <ActionIcon
                         variant="subtle"
@@ -100,88 +66,55 @@ export const EditorShell: FC<Props> = ({
                     </ActionIcon>
                 </Tooltip>
             </Group>
-        </Group>
 
-        <Stack gap="xs" px="md" pt="md">
-            {aboveTabs}
-        </Stack>
+            <Box className={classes.body}>{children}</Box>
 
-        {tabs.length > 1 && (
-            <Tabs
-                value={activeTab}
-                onChange={(value) => {
-                    if (value !== null) onTabChange(value);
-                }}
-            >
-                <Tabs.List px="md" mt="md">
-                    {tabs.map((tab) => (
-                        <Tabs.Tab
-                            key={tab.value}
-                            value={tab.value}
-                            disabled={tab.disabled}
-                            // The reason is a description; the name stays the label
-                            aria-label={tab.disabled ? tab.label : undefined}
-                            title={
-                                tab.disabled ? tab.disabledReason : undefined
-                            }
-                            rightSection={
-                                tab.count !== undefined ? (
-                                    <Tooltip
-                                        label={`${tab.count} ${tab.count === 1 ? 'field' : 'fields'}`}
-                                    >
-                                        <Text fz="xs" c="dimmed" span>
-                                            ({tab.count})
-                                        </Text>
-                                    </Tooltip>
-                                ) : tab.changed ? (
-                                    <Box
-                                        role="img"
-                                        aria-label="Changed from the default"
-                                        className={classes.changedDot}
-                                    />
-                                ) : null
-                            }
-                        >
-                            {tab.label}
-                        </Tabs.Tab>
-                    ))}
-                </Tabs.List>
-            </Tabs>
-        )}
-
-        <Stack gap="md" p="md" className={classes.body}>
-            {children}
-        </Stack>
-
-        <Stack gap="xs" p="md" className={classes.footer}>
-            {footerStatus !== null && (
-                <Text
-                    key={footerStatus}
-                    fz="xs"
-                    c="dimmed"
-                    className={classes.footerStatus}
-                >
-                    {footerStatus}
-                </Text>
-            )}
-            <Group
-                justify={discardLabel === null ? 'flex-end' : 'space-between'}
-                gap="xs"
-            >
-                {discardLabel !== null && (
-                    <Button
-                        variant="subtle"
-                        color="gray"
-                        size="compact-sm"
-                        onClick={onDiscard}
+            <Stack gap="xs" p="sm" className={classes.footer}>
+                {footerStatus !== null && !onCancel && (
+                    <Text
+                        key={footerStatus}
+                        fz="xs"
+                        c="dimmed"
+                        className={classes.footerStatus}
                     >
-                        {discardLabel}
-                    </Button>
+                        {footerStatus}
+                    </Text>
                 )}
-                <Button className={classes.done} onClick={onClose}>
-                    Done
-                </Button>
-            </Group>
-        </Stack>
-    </Box>
-);
+                <Group justify="space-between" gap="xs" wrap="nowrap">
+                    {onCancel ? (
+                        <>
+                            <Text
+                                key={footerStatus}
+                                fz="xs"
+                                c="dimmed"
+                                className={classes.footerStatus}
+                            >
+                                {footerStatus}
+                            </Text>
+                            <Button
+                                variant="subtle"
+                                color="gray"
+                                size="xs"
+                                flex="0 0 auto"
+                                onClick={onCancel}
+                            >
+                                Cancel
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <AddControl isVisibilityToggleHidden />
+                            <Button
+                                size="xs"
+                                className={classes.done}
+                                onClick={onClose}
+                            >
+                                Done
+                            </Button>
+                        </>
+                    )}
+                </Group>
+            </Stack>
+        </Paper>
+    );
+};

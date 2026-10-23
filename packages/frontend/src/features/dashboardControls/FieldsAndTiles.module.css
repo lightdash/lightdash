@@ -5,21 +5,26 @@
     --controls-duration-hover: 0.12s;
 
     position: relative;
-    border: 1px solid var(--mantine-color-ldGray-2);
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    margin: 0 calc(-1 * var(--mantine-spacing-xs));
+    padding: calc(var(--mantine-spacing-xs) / 2) var(--mantine-spacing-xs);
+    border: 1px solid transparent;
     border-radius: var(--mantine-radius-sm);
+    transition: background-color var(--controls-duration-hover)
+        var(--controls-ease);
     animation: rowEnter var(--controls-duration-arrive)
         var(--controls-ease-arrive);
 }
 
-/* The fill lifts off the surface in both schemes; a border alone makes the
-   card look sunken in dark mode */
 .row:hover {
-    border-color: var(--mantine-color-ldGray-3);
     background-color: var(--mantine-color-default-hover);
 }
 
 /* A field on no tile yet reads as unfinished */
 .row[data-waiting] {
+    border-color: var(--mantine-color-ldGray-3);
     border-style: dashed;
 }
 
@@ -29,14 +34,14 @@
     background-color: var(--mantine-color-default-hover);
 }
 
-.rowHeader {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
-}
-
 .rowMain {
-    display: block;
+    display: flex;
+    align-items: center;
     flex: 1;
+    align-self: stretch;
     min-width: 0;
+    /* The full height of the row, its padding included */
+    margin-block: calc(-1 * var(--mantine-spacing-xs) / 2);
     border-radius: var(--mantine-radius-sm);
 }
 
@@ -45,7 +50,7 @@
     outline: none;
 }
 
-/* The name button covers the whole card, so a click anywhere toggles it */
+/* The name button covers the whole row, so a click anywhere toggles it */
 .rowMain::after {
     content: '';
     position: absolute;
@@ -56,6 +61,8 @@
 /* The press scales the name, not the button: a transform on the button would
    shrink the click area above to the button itself */
 .rowLabel {
+    /* Lets a long name shrink and end in an ellipsis */
+    min-width: 0;
     transition: transform var(--controls-duration-hover) var(--controls-ease);
 }
 
@@ -63,18 +70,22 @@
     transform: scale(0.98);
 }
 
-/* Keyed by the count, so a changed number fades in */
+/* Above the row-wide click area, for its tooltip. Keyed by the count, so a
+   changed number fades in */
 .rowCount {
-    padding: 0 var(--mantine-spacing-xs) var(--mantine-spacing-xs);
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
     font-variant-numeric: tabular-nums;
     animation: fadeIn var(--controls-duration-hover) var(--controls-ease);
 }
 
-/* Above the card-wide click area. Hidden, never unmounted: focus on the name
+/* Above the row-wide click area. Hidden, never unmounted: focus on the name
    shows it, so the keyboard reaches it */
 .rowRemove {
     position: relative;
     z-index: 1;
+    flex: 0 0 auto;
     visibility: hidden;
 }
 
@@ -86,13 +97,6 @@
 
 .addFieldSelect {
     align-self: stretch;
-}
-
-.hint {
-    padding: var(--mantine-spacing-xs);
-    border: 1px dashed var(--mantine-color-ldGray-3);
-    border-radius: var(--mantine-radius-sm);
-    background-color: var(--mantine-color-ldGray-0);
 }
 
 @keyframes rowEnter {
@@ -121,6 +125,7 @@
         animation: none;
     }
 
+    .row,
     .rowLabel {
         transition: none;
     }

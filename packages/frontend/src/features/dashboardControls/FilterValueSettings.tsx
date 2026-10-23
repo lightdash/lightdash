@@ -6,9 +6,11 @@ import {
 import { Stack, Text } from '@mantine/core';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import ShippedFilterSettings from '../dashboardFilters/FilterConfiguration/FilterSettings';
-import { getFilterRuleWithDisabledState } from '../dashboardFilters/FilterConfiguration/utils';
-import { isLockedRequiredMissingValue } from './requirements';
+import { FilterValueSection } from '../dashboardFilters/FilterConfiguration/FilterValueSection';
+import {
+    getFilterRuleWithDisabledState,
+    isLockedRequiredMissingValue,
+} from '../dashboardFilters/FilterConfiguration/utils';
 import { isDefaultValueIncomplete } from './sidebarState';
 
 type Props = {
@@ -22,7 +24,7 @@ const getInputs = (root: HTMLElement | null): HTMLInputElement[] => [
     ...(root?.querySelectorAll('input') ?? []),
 ];
 
-// The shipped settings form without its label and Required card. No Apply:
+// The value section of the shipped settings form, in edit mode. No Apply:
 // each edit is written at once, except the one the shipped Apply refuses
 export const FilterValueSettings: FC<Props> = ({
     filterType,
@@ -31,7 +33,6 @@ export const FilterValueSettings: FC<Props> = ({
     onChange,
 }) => {
     const getUiString = useUiStrings();
-    const isRequired = !!filterRule.required || !!filterRule.requiredGroupId;
     const isLockedAndRequired =
         !!filterRule.lockedTabUuids?.length && !!filterRule.required;
     const root = useRef<HTMLDivElement>(null);
@@ -70,17 +71,16 @@ export const FilterValueSettings: FC<Props> = ({
 
     return (
         <Stack gap="xs" ref={root}>
-            <ShippedFilterSettings
-                key={refusals}
-                isEditMode
-                isCreatingNew={false}
-                hideLabel
-                hideRequiredCard
-                filterType={filterType}
-                field={field ?? undefined}
-                filterRule={filterRule}
-                onChangeFilterRule={handleChange}
-            />
+            <Stack key={refusals} gap="xs">
+                <FilterValueSection
+                    isEditMode
+                    isCreatingNew={false}
+                    filterType={filterType}
+                    field={field ?? undefined}
+                    filterRule={filterRule}
+                    onChangeFilterRule={handleChange}
+                />
+            </Stack>
             {isLockedAndRequired && (
                 // A new node per refusal, so each one is announced
                 <Text
@@ -96,12 +96,6 @@ export const FilterValueSettings: FC<Props> = ({
             {isDefaultValueIncomplete(filterRule) && (
                 <Text size="xs" c="dimmed">
                     Set a value, or the default stays off.
-                </Text>
-            )}
-            {!!filterRule.disabled && !isRequired && (
-                <Text size="xs" c="dimmed">
-                    No default: each tile keeps its own values until a viewer
-                    sets one.
                 </Text>
             )}
         </Stack>

@@ -1181,11 +1181,16 @@ const AppGenerate: FC = () => {
         () => refreshPreviewRef.current(),
         [],
     );
+    // Author guidance declared in app code, reported by the previewed bundle.
+    const [insightInstructions, setInsightInstructions] = useState<
+        string | null
+    >(null);
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid: previewApp?.appUuid,
         queries: trackedQueries,
         availability: analysisAvailability,
+        instructions: insightInstructions,
         // No agent picker in the builder yet; the viewer's default agent
         // (falling back to the first accessible one) is used.
         onNeedsAgent: () => {},
@@ -3554,6 +3559,9 @@ const AppGenerate: FC = () => {
                                             analysisController.handleAction
                                         }
                                         onInsightsInUse={handleInsightsInUse}
+                                        onInsightInstructionsChange={
+                                            setInsightInstructions
+                                        }
                                         onMountedQueriesChange={
                                             analysisController.setMountedQueryUuids
                                         }

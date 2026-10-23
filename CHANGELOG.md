@@ -1,3 +1,74 @@
+# [3.36.0](https://github.com/lightdash/lightdash/compare/3.35.2...3.36.0) (2026-10-22)
+
+
+### Features
+
+* **charts:** highlight the incomplete current period on time-series charts ([#31403](https://github.com/lightdash/lightdash/issues/31403)) ([51c321d](https://github.com/lightdash/lightdash/commit/51c321da22b3c9dd5d90af80a1832450ad423bd6))
+
+## [3.35.2](https://github.com/lightdash/lightdash/compare/3.35.1...3.35.2) (2026-10-22)
+
+
+### Bug Fixes
+
+* scope analytics chart snapshot scans to tenant projects ([#31400](https://github.com/lightdash/lightdash/issues/31400)) ([78af3ff](https://github.com/lightdash/lightdash/commit/78af3ffc147b271c9c486db901b7c542496b1513))
+
+## [3.35.1](https://github.com/lightdash/lightdash/compare/3.35.0...3.35.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **charts:** keep scrollable legend mode and page when toggling legend entries ([#31389](https://github.com/lightdash/lightdash/issues/31389)) ([4d7bbd0](https://github.com/lightdash/lightdash/commit/4d7bbd0d1c70527958a95cf5da3bcc76070753f7))
+
+# [3.35.0](https://github.com/lightdash/lightdash/compare/3.34.1...3.35.0) (2026-10-22)
+
+
+### Features
+
+* **data-apps:** configurable instructions for the AI analysis summary ([#31421](https://github.com/lightdash/lightdash/issues/31421)) ([514a6f2](https://github.com/lightdash/lightdash/commit/514a6f22ddbd7ed11a324eca9d6c8e69acfeae58))
+
+## [3.34.1](https://github.com/lightdash/lightdash/compare/3.34.0...3.34.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **mcp:** add organization access setting ([#31397](https://github.com/lightdash/lightdash/issues/31397)) ([c50e84c](https://github.com/lightdash/lightdash/commit/c50e84cbe266b05cb6d451842b82ad26acbd9ef0))
+
+# [3.34.0](https://github.com/lightdash/lightdash/compare/3.33.0...3.34.0) (2026-10-22)
+
+
+### Features
+
+* **dashboards:** collapse, hover and apply-to-all in the filter rail ([#31436](https://github.com/lightdash/lightdash/issues/31436)) ([0379668](https://github.com/lightdash/lightdash/commit/03796686a846dbb56e93d1222ce838def5833d58))
+
+# [3.33.0](https://github.com/lightdash/lightdash/compare/3.32.1...3.33.0) (2026-10-22)
+
+
+### Bug Fixes
+
+* **dashboards:** explain why a required filter has no alternative to add ([#31432](https://github.com/lightdash/lightdash/issues/31432)) ([6a5a789](https://github.com/lightdash/lightdash/commit/6a5a789fbd79b1078b29d948f73fdde2446934f4))
+* **dashboards:** save from the filter editor, link tiles by exact field ([#31412](https://github.com/lightdash/lightdash/issues/31412)) ([bfd13d7](https://github.com/lightdash/lightdash/commit/bfd13d77947f02c340efb8013e581ac9e3cee20a))
+
+
+### Features
+
+* **dashboards:** fold the filter editor into a side rail ([#31385](https://github.com/lightdash/lightdash/issues/31385)) ([6537336](https://github.com/lightdash/lightdash/commit/6537336e4c1a32a637ca961eca7def5e366dade0))
+
+## [3.32.1](https://github.com/lightdash/lightdash/compare/3.32.0...3.32.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **ai:** reject an invalid credential config as a validation error, not a 500 ([#31429](https://github.com/lightdash/lightdash/issues/31429)) ([33a0bce](https://github.com/lightdash/lightdash/commit/33a0bced1f19babe6107894f8f7bf3d224b681a4))
+
+# [3.32.0](https://github.com/lightdash/lightdash/compare/3.31.1...3.32.0) (2026-10-22)
+
+
+### Features
+
+* **ai:** composer artifact v2 rendered through runQuery chart builders ([#31417](https://github.com/lightdash/lightdash/issues/31417)) ([c24f0c3](https://github.com/lightdash/lightdash/commit/c24f0c31e9e9fe07a65577b9cf2ef643416addcb))
+* **ai:** rename composer query tool to query ([#31418](https://github.com/lightdash/lightdash/issues/31418)) ([9727e35](https://github.com/lightdash/lightdash/commit/9727e35906020b7cbe81ac2697378f047cf29978))
+* **ai:** run composer v2 chart stage on the server ([#31420](https://github.com/lightdash/lightdash/issues/31420)) ([8469cf6](https://github.com/lightdash/lightdash/commit/8469cf661876e5085209db6d178704adaaafdf2d))
+
 ## [3.31.1](https://github.com/lightdash/lightdash/compare/3.31.0...3.31.1) (2026-10-22)
 
 

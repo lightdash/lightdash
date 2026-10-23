@@ -13,6 +13,8 @@ type FilterSelectProps = {
     selectableFilters: SelectableFilter[];
     placeholder: string;
     onSelect: (filterId: string) => void;
+    /** Renders the list in a portal, for a host that clips its overflow (default false). */
+    withinPortal?: boolean;
 };
 
 /**
@@ -22,6 +24,7 @@ type FilterSelectProps = {
 const FilterSelect: FC<FilterSelectProps> = ({
     selectableFilters,
     placeholder,
+    withinPortal = false,
     onSelect,
 }) => (
     <Select
@@ -31,7 +34,7 @@ const FilterSelect: FC<FilterSelectProps> = ({
         placeholder={placeholder}
         value={null}
         data={selectableFilters}
-        comboboxProps={{ withinPortal: false }}
+        comboboxProps={{ withinPortal }}
         classNames={{ input: classes.addFilterInput }}
         onChange={(filterId) => {
             if (filterId) onSelect(filterId);

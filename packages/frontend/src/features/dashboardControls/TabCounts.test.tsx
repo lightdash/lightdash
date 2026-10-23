@@ -5,6 +5,7 @@ import {
     FilterOperator,
     MetricType,
     type DashboardFilterRule,
+    type DashboardFilters,
     type DashboardTile,
     type FilterableDimension,
 } from '@lightdash/common';
@@ -119,6 +120,9 @@ const renderWithProviders = (ui: ReactElement) => {
     const store = createDashboardTestStore({
         sqlChartTilesMetadata: tileStatus.current
             .sqlChartTilesMetadata as Record<string, SqlChartTileMetadata>,
+        dashboardFilters: mockDashboardContext.current.dashboardFilters as
+            | DashboardFilters
+            | undefined,
     });
     seedDashboardEditState(
         store,
@@ -178,6 +182,39 @@ describe('TabCounts', () => {
             },
         };
         setSidebar();
+    });
+
+    it("counts a hovered rail row's filter in blue, edited filter or not", () => {
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboardFilters: {
+                dimensions: [
+                    rule(),
+                    rule({
+                        id: 'hovered',
+                        target: {
+                            fieldId: 'orders_region',
+                            tableName: 'orders',
+                        },
+                    }),
+                ],
+                metrics: [],
+                tableCalculations: [],
+            },
+        };
+        setSidebar({
+            editing: null,
+            editingRule: null,
+            hoveredFilterId: 'hovered',
+        });
+        const { rerender } = renderWithProviders(<TabCounts />);
+        expect(badgeText('tab-1')).toBe('1 of 3');
+        expect(badgeText('tab-2')).toBe('1 of 1');
+        expect(isBadgeBlue('tab-2')).toBe(true);
+
+        setSidebar({ editing: null, editingRule: null, hoveredFilterId: null });
+        rerender(<TabCounts />);
+        expect(badgeText('tab-1')).toBe('');
     });
 
     it('counts the filtered tiles out of every tile on each tab', async () => {

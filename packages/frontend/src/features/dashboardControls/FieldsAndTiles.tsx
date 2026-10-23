@@ -75,6 +75,9 @@ const AddFieldSearch: FC<AddFieldSearchProps> = ({
             <FilterFieldSelect
                 {...picker}
                 selectedField={undefined}
+                withLabel={false}
+                placeholder="Search fields"
+                withinPortal
                 onChange={onPick}
                 defaultOpened
                 popoverProps={{ onClose: () => onDismiss(false) }}
@@ -207,7 +210,7 @@ export const FieldsAndTiles: FC = () => {
         // As in the shipped "Add filter": columns only when no tile has fields
         const hasFields = starterFields.length > 0;
         return (
-            <Stack gap="xs" ref={starterRef}>
+            <Stack gap="xs" ref={starterRef} data-controls-start>
                 {hasFields ? (
                     <FilterFieldSelect
                         fields={starterFields}
@@ -216,6 +219,9 @@ export const FieldsAndTiles: FC = () => {
                         tabs={dashboardTabs}
                         activeTabUuid={activeTabUuid}
                         selectedField={undefined}
+                        withLabel={false}
+                        placeholder="Search fields"
+                        withinPortal
                         onChange={(field) => {
                             addFirstField(field);
                             // Naming it comes next
@@ -242,9 +248,9 @@ export const FieldsAndTiles: FC = () => {
                         }}
                     />
                 )}
-                <Text fz="xs" c="dimmed" className={classes.hint}>
+                <Text fz="xs" c="dimmed">
                     {hasFields
-                        ? 'Select the field to filter tiles by.'
+                        ? 'Select the field to filter tiles by, or pick one on a tile.'
                         : 'Select the column to filter tiles by.'}
                 </Text>
             </Stack>
@@ -256,16 +262,8 @@ export const FieldsAndTiles: FC = () => {
     const hasCandidates = candidates.length > 0;
 
     return (
-        <Stack gap="lg">
+        <Stack gap="sm">
             <Stack gap="xs" ref={rowsRef}>
-                <Stack gap={2}>
-                    <Text fz="sm" fw={600}>
-                        Tiles are filtered by
-                    </Text>
-                    <Text fz="xs" c="dimmed">
-                        Select a field to see and change its tiles.
-                    </Text>
-                </Stack>
                 {rowIds.map((fieldId, index) => {
                     const row = fieldTileActions.forField(fieldId);
                     return (
@@ -309,9 +307,10 @@ export const FieldsAndTiles: FC = () => {
                 >
                     <Button
                         ref={addButtonRef}
-                        variant="light"
+                        variant="subtle"
+                        color="gray"
                         size="xs"
-                        leftSection={<MantineIcon icon={IconPlus} />}
+                        leftSection={<MantineIcon icon={IconPlus} size={14} />}
                         // The press puts the open search away (focus leaves
                         // it), so the click that follows must not reopen it
                         onMouseDown={(event) => {
@@ -370,6 +369,9 @@ export const FieldsAndTiles: FC = () => {
                     />
                 )}
             </Stack>
+            <Text fz="xs" c="dimmed">
+                Change a tile's field on the tile itself.
+            </Text>
         </Stack>
     );
 };

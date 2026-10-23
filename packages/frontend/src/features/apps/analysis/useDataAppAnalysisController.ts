@@ -70,6 +70,7 @@ export const useDataAppAnalysisController = ({
     queries,
     availability,
     autoAnalyse = 'inherit',
+    instructions = null,
     onNeedsAgent,
     onSourcesExpired,
     openThread,
@@ -80,6 +81,8 @@ export const useDataAppAnalysisController = ({
     availability: DataAppAnalysisAvailability;
     /** The app's own choice; 'inherit' takes the org default. */
     autoAnalyse?: DataAppAutoAnalysis;
+    /** App-author guidance for the model, declared in app code. */
+    instructions?: string | null;
     /** Called when the app asks to investigate but no agent is picked yet. */
     onNeedsAgent: () => void;
     /** Reload the app so its queries re-run; see `useDataAppAnalysis`. */
@@ -107,6 +110,7 @@ export const useDataAppAnalysisController = ({
         mountedQueryUuids,
         enabled: availability.status === 'available',
         autoAnalyse: autoAnalyseResolved,
+        instructions,
         onSourcesExpired,
     });
 

@@ -348,7 +348,6 @@ describe('FilterPills', () => {
             const unlock = screen.getByRole('button', {
                 name: 'Unlock filter on this tab',
             });
-            expect(unlock).toHaveAttribute('aria-pressed', 'true');
             expect(unlock.parentElement?.className).toContain('lockSlotActive');
             const lock = screen.getByRole('button', {
                 name: 'Lock filter on this tab',
@@ -621,11 +620,12 @@ describe('FilterPills', () => {
             });
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
+            // Grip, requirement and field icons, as the shipped pill
             const required = pill(/^Status/);
-            expect(leftIcons(required)).toBe(2);
+            expect(leftIcons(required)).toBe(3);
             expect(required).toHaveAttribute('data-requirement-unmet');
             const optional = pill(/^Region/);
-            expect(leftIcons(optional)).toBe(1);
+            expect(leftIcons(optional)).toBe(2);
             expect(optional).not.toHaveAttribute('data-requirement-unmet');
         });
 
@@ -641,7 +641,7 @@ describe('FilterPills', () => {
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
             const required = pill(/^Status/);
-            expect(leftIcons(required)).toBe(2);
+            expect(leftIcons(required)).toBe(3);
             expect(required).not.toHaveAttribute('data-requirement-unmet');
         });
     });

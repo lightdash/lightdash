@@ -49,6 +49,9 @@ vi.mock('../MonacoEditor', () => ({
     useMonaco: () => null,
 }));
 
+// Real ECharts measures text via node-canvas; its cold font init times out CI.
+vi.mock('../EChartsReactWrapper', () => ({ default: () => null }));
+
 vi.mock('@shopify/react-web-worker', () => ({
     createWorkerFactory: () => () => ({}),
     useWorker: () => ({}),

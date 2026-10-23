@@ -1,9 +1,11 @@
+import { ParameterError } from '@lightdash/common';
 import {
     assertInferenceGeographyForRegion,
     isMultiCredentialAiProvider,
     parseCredentialConfig,
     resolveIsDefaultOnCreate,
     toApiCredential,
+    validateCredentialConfig,
     type AiProviderCredentialResolution,
 } from './AiOrganizationProviderCredentialModel';
 
@@ -61,6 +63,28 @@ describe('parseCredentialConfig', () => {
         expect(
             parseCredentialConfig({ ...config, inferenceGeography: 'mars' }),
         ).toBeNull();
+    });
+});
+
+describe('validateCredentialConfig', () => {
+    it('returns a complete config', () => {
+        expect(validateCredentialConfig(config)).toEqual(config);
+    });
+
+    // Request-boundary validation: bad input is the caller's 400, never a 500.
+    it('throws a ParameterError naming the field for an empty model list', () => {
+        expect(() =>
+            validateCredentialConfig({ ...config, allowedModels: [] }),
+        ).toThrow(ParameterError);
+        expect(() =>
+            validateCredentialConfig({ ...config, allowedModels: [] }),
+        ).toThrow(/allowedModels/);
+    });
+
+    it('throws a ParameterError for an empty key', () => {
+        expect(() =>
+            validateCredentialConfig({ ...config, apiKey: '' }),
+        ).toThrow(ParameterError);
     });
 });
 

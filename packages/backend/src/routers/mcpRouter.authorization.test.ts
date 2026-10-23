@@ -1,21 +1,27 @@
-import { AgentActorSurface } from '@lightdash/common';
+import { AgentActorSurface, assertUnreachable } from '@lightdash/common';
 import type { Account } from '@lightdash/common';
 import type { NextFunction, Request, Response } from 'express';
 import express from 'express';
 import { request as httpRequest, type Server, type ServerResponse } from 'http';
+import knex from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
 import type { AddressInfo } from 'net';
 import {
     fromApiKey,
     fromOauth,
     fromServiceAccount,
+    fromSession,
 } from '../auth/account/account';
 import { defaultSessionUser } from '../auth/account/account.mock';
 import { getOAuthScopeContext } from '../auth/oauthScopes/scopedAbility';
+import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import { AiOrganizationSettingsModel } from '../ee/models/AiOrganizationSettingsModel';
 import { McpService } from '../ee/services/McpService/McpService';
 import {
     agentExecutionContext,
     getContentWriteAgentIdentity,
 } from '../services/AiAccessService/agentExecutionContext';
+import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import mcpRouter, { extractMcpProjectUuid } from './mcpRouter';
 
 vi.mock('../auth/oauthScopes/scopedAbility', () => ({
@@ -58,7 +64,8 @@ vi.mock('../logging/logger', () => ({
 type TestAuthentication =
     | { type: 'oauth'; scopes: string[] }
     | { type: 'pat' }
-    | { type: 'service-account' };
+    | { type: 'service-account' }
+    | { type: 'session' };
 
 const createAccount = (authentication: TestAuthentication): Account => {
     const user = {
@@ -66,17 +73,31 @@ const createAccount = (authentication: TestAuthentication): Account => {
         userUuid: 'user-uuid',
         organizationUuid: 'organization-uuid',
     };
-    if (authentication.type === 'oauth')
-        return fromOauth(user, {
-            accessToken: 'test-token',
-            scope: authentication.scopes,
-            client: { id: 'authenticated-client' },
-        });
-    if (authentication.type === 'pat') return fromApiKey(user, 'test-token');
-    return fromServiceAccount(
-        { ...user, serviceAccount: { uuid: 'user-uuid', description: 'test' } },
-        'test-token',
-    );
+    switch (authentication.type) {
+        case 'oauth':
+            return fromOauth(user, {
+                accessToken: 'test-token',
+                scope: authentication.scopes,
+                client: { id: 'authenticated-client' },
+            });
+        case 'pat':
+            return fromApiKey(user, 'test-token');
+        case 'service-account':
+            return fromServiceAccount(
+                {
+                    ...user,
+                    serviceAccount: { uuid: 'user-uuid', description: 'test' },
+                },
+                'test-token',
+            );
+        case 'session':
+            return fromSession(user);
+        default:
+            return assertUnreachable(
+                authentication,
+                'Unknown test authentication',
+            );
+    }
 };
 
 const createMcpService = () =>
@@ -102,18 +123,22 @@ const createMcpService = () =>
 
 const servers: Server[] = [];
 
+type McpResponse = { body: string; status: number; sessionId?: string };
+
 const sendHttpRequest = ({
     method,
     path = '/api/v1/mcp',
     port,
     requestBody,
+    sessionId,
 }: {
     method: 'DELETE' | 'GET' | 'POST';
     path?: string;
     port: number;
     requestBody?: Record<string, unknown>;
+    sessionId?: string;
 }) =>
-    new Promise<{ body: string; status: number }>((resolve, reject) => {
+    new Promise<McpResponse>((resolve, reject) => {
         const request = httpRequest(
             {
                 headers: {
@@ -122,6 +147,7 @@ const sendHttpRequest = ({
                     'x-agent-uuid': 'spoofed-agent',
                     'x-client-id': 'spoofed-client',
                     'user-agent': 'spoofed-agent',
+                    ...(sessionId ? { 'mcp-session-id': sessionId } : {}),
                 },
                 hostname: '127.0.0.1',
                 method,
@@ -135,6 +161,12 @@ const sendHttpRequest = ({
                     resolve({
                         body: Buffer.concat(chunks).toString('utf8'),
                         status: response.statusCode ?? 0,
+                        ...(typeof response.headers['mcp-session-id'] ===
+                        'string'
+                            ? {
+                                  sessionId: response.headers['mcp-session-id'],
+                              }
+                            : {}),
                     }),
                 );
             },
@@ -183,14 +215,14 @@ const requestMcp = async ({
     const server = app.listen(0);
     servers.push(server);
     const address = server.address() as AddressInfo;
-    const response = await sendHttpRequest({
+    const { sessionId, ...response } = await sendHttpRequest({
         method,
         path,
         port: address.port,
         requestBody,
     });
 
-    return { response, mcpService };
+    return { response, mcpService, port: address.port, sessionId };
 };
 
 afterEach(async () => {
@@ -210,6 +242,157 @@ afterEach(async () => {
                 }),
         ),
     );
+});
+
+describe('MCP organization access', () => {
+    const authentications: TestAuthentication[] = [
+        { type: 'oauth', scopes: ['mcp:read'] },
+        { type: 'oauth', scopes: ['mcp:write'] },
+        { type: 'pat' },
+        { type: 'service-account' },
+        { type: 'session' },
+    ];
+    const cases = authentications.flatMap((authentication) =>
+        (['GET', 'POST', 'DELETE'] as const).flatMap((method) =>
+            ['/api/v1/mcp', `/api/v1/mcp/projects/${PROJECT_UUID}`].map(
+                (path) => ({
+                    authentication,
+                    method,
+                    path,
+                }),
+            ),
+        ),
+    );
+
+    it.each(cases)(
+        'rejects $method on $path for $authentication.type when the organization disables MCP',
+        async ({ authentication, method, path }) => {
+            transport.handleRequest.mockImplementation(
+                async (_request: unknown, response: ServerResponse) => {
+                    response.end();
+                },
+            );
+            const getSettings = vi.fn().mockResolvedValue(false);
+            const { response, mcpService } = await requestMcp({
+                account: createAccount(authentication),
+                method,
+                path,
+                requestBody:
+                    method === 'POST'
+                        ? {
+                              jsonrpc: '2.0',
+                              id: 1,
+                              method: 'tools/call',
+                              params: { name: 'get_context', arguments: {} },
+                          }
+                        : undefined,
+                configureService: (service) => {
+                    Object.assign(service, {
+                        lightdashConfig: { mcp: { enabled: true } },
+                        aiOrganizationSettingsService: {
+                            isMcpEnabled: getSettings,
+                        },
+                        isEnabled: McpService.prototype.isEnabled,
+                    });
+                },
+            });
+
+            expect(response).toEqual({
+                body: '{"error":"MCP is not enabled"}',
+                status: 403,
+            });
+            expect(getSettings).toHaveBeenCalledExactlyOnceWith(
+                'organization-uuid',
+            );
+            expect(mcpService.createServer).not.toHaveBeenCalled();
+            expect(transport.handleRequest).not.toHaveBeenCalled();
+        },
+    );
+
+    it('blocks an initialized client after saving organization settings and restores it without restart', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        const config = {
+            ...lightdashConfigMock,
+            mcp: { ...lightdashConfigMock.mcp, enabled: true },
+            previewFeatureFlags: { enabled: false },
+            enabledFeatureFlags: new Set<string>(),
+            disabledFeatureFlags: new Set<string>(),
+        };
+        const settings = new AiOrganizationSettingsModel({
+            database,
+            encryptionUtil: new EncryptionUtil({ lightdashConfig: config }),
+        });
+        tracker.on.select('ai_organization_settings').responseOnce([]);
+        tracker.on
+            .select('ai_organization_settings')
+            .responseOnce({ mcp_enabled: false });
+        tracker.on
+            .select('ai_organization_settings')
+            .responseOnce({ mcp_enabled: true });
+        transport.handleRequest.mockImplementation(
+            async (_request: unknown, response: ServerResponse) =>
+                response.end(),
+        );
+
+        try {
+            const {
+                response: initialized,
+                mcpService,
+                port,
+                sessionId,
+            } = await requestMcp({
+                account: createAccount({ type: 'pat' }),
+                method: 'POST',
+                requestBody: {
+                    jsonrpc: '2.0',
+                    id: 1,
+                    method: 'initialize',
+                    params: {
+                        protocolVersion: '2025-03-26',
+                        capabilities: {},
+                        clientInfo: { name: 'test-client', version: '1' },
+                    },
+                },
+                configureService: (service) =>
+                    Object.assign(service, {
+                        lightdashConfig: config,
+                        aiOrganizationSettingsService: {
+                            isMcpEnabled: async (organizationUuid: string) =>
+                                (await settings.findMcpEnabled(
+                                    organizationUuid,
+                                )) ?? true,
+                        },
+                        isEnabled: McpService.prototype.isEnabled,
+                    }),
+            });
+            expect(initialized.status).toBe(200);
+            expect(sessionId).toBeDefined();
+
+            const request = {
+                port,
+                method: 'POST' as const,
+                sessionId,
+                requestBody: {
+                    jsonrpc: '2.0',
+                    id: 2,
+                    method: 'tools/call',
+                    params: { name: 'get_context', arguments: {} },
+                },
+            };
+            expect(await sendHttpRequest(request)).toEqual({
+                body: '{"error":"MCP is not enabled"}',
+                status: 403,
+            });
+            expect(mcpService.createServer).toHaveBeenCalledOnce();
+            expect(transport.handleRequest).toHaveBeenCalledOnce();
+            expect((await sendHttpRequest(request)).status).toBe(200);
+            expect(mcpService.createServer).toHaveBeenCalledTimes(2);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
 });
 
 describe('MCP router OAuth scope authorization', () => {

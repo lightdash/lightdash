@@ -79,6 +79,9 @@ export type DataAppDetectResult = {
     dataAsOf: string | null;
 };
 
+/** App-author guidance is untrusted input to the model; keep it short. */
+export const DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS = 2000;
+
 export type DataAppDetectRequest = {
     sources: DataAppAnalysisSource[];
     instructions?: string;
