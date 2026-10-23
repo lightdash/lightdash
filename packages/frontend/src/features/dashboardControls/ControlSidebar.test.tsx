@@ -501,6 +501,24 @@ describe('ControlSidebar', () => {
         expect(close).not.toHaveBeenCalled();
     });
 
+    it('counts the filters in the header from 1, with no badge at 0', () => {
+        setSidebar({ editing: null, editingRule: null });
+        const { container, unmount } = renderWithProviders(
+            <ControlSidebar />,
+            filters([]),
+        );
+        expect(container.querySelector('.mantine-Badge-root')).toBeNull();
+        unmount();
+
+        const { container: withOne } = renderWithProviders(
+            <ControlSidebar />,
+            filters([makeRule({})]),
+        );
+        expect(withOne.querySelector('.mantine-Badge-root')).toHaveTextContent(
+            /^1 filters$/,
+        );
+    });
+
     it('shows no type icon in the head until the new filter has a field', () => {
         setSidebar({
             isPlaceholder: true,
@@ -682,7 +700,10 @@ describe('ControlSidebar', () => {
         const { close, discard, openNew } = setSidebar({
             editingRule: makeRule({ label: 'Order status' }),
         });
-        renderWithProviders(<ControlSidebar />);
+        renderWithProviders(
+            <ControlSidebar />,
+            filters([makeRule({ label: 'Order status' })]),
+        );
 
         expect(screen.getByRole('heading', { name: 'Filters' })).toBeVisible();
         // The count badge reads as words, not a bare number

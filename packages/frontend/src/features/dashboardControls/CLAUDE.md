@@ -134,8 +134,9 @@ In `FilterConfiguration/`:
   so a switch is announced, it wraps rather than truncating, and it holds no
   button: "Done" in the rail stays the one way out. The shipped divider and
   date zoom stay on the right as they are.
-- The rail's header shows the dashboard's filter count next to "Filters", a
-  default `Badge` whose text ends in a `VisuallyHidden` " filters". In view mode
+- The rail's header shows the count of the filters it lists next to
+  "Filters", a default `Badge` whose text ends in a `VisuallyHidden`
+  " filters", from 1; at 0 there is no badge. In view mode
   nothing is passed, so the bar is the shipped one. Separators, parameters, date zoom,
   the hide button, the compact drawer and the `data-tour-*` anchors are the
   shipped bar's own.

@@ -62,12 +62,14 @@ export const EditorShell: FC<Props> = ({
             >
                 <Group gap="xs" wrap="nowrap">
                     <Title order={5}>{getUiString('filters.rail.title')}</Title>
-                    <Badge size="sm">
-                        {filterCount}
-                        <VisuallyHidden>
-                            {` ${getUiString('filters.summary.filterPlural')}`}
-                        </VisuallyHidden>
-                    </Badge>
+                    {filterCount > 0 && (
+                        <Badge size="sm">
+                            {filterCount}
+                            <VisuallyHidden>
+                                {` ${getUiString('filters.summary.filterPlural')}`}
+                            </VisuallyHidden>
+                        </Badge>
+                    )}
                 </Group>
                 <Tooltip label={getUiString('filters.rail.close')}>
                     <ActionIcon
