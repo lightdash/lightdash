@@ -4,7 +4,10 @@ import {
     type AgentDeliveryGuard,
     type ParsedAgentWorkMarker,
 } from '../../../services/AgentPermissionService/agentWorkAuthority';
-import { type SlackArtifactRenderInput } from '../../database/entities/aiSlackArtifactDeliveries';
+import {
+    toSlackArtifactRenderInput,
+    type SlackArtifactRenderInput,
+} from '../../database/entities/aiSlackArtifactDeliveries';
 import {
     SLACK_ARTIFACT_DELIVERY_MAX_ATTEMPTS,
     type AiSlackArtifactDeliveryModel,
@@ -79,7 +82,9 @@ export const deliverSlackArtifactImages = async (
         let unavailable = false;
         for (const version of versions) {
             signal?.throwIfAborted();
-            const input = delivery.render_inputs[version];
+            const input = toSlackArtifactRenderInput(
+                delivery.render_inputs[version],
+            );
             // Authorization also applies to images persisted by an older job.
             // eslint-disable-next-line no-await-in-loop
             await runtime.authorize(input);
@@ -128,7 +133,9 @@ export const deliverSlackArtifactImages = async (
             const url = current.rendered_images[version];
             if (url) {
                 // eslint-disable-next-line no-await-in-loop
-                await currentRuntime.authorize(delivery.render_inputs[version]);
+                await currentRuntime.authorize(
+                    toSlackArtifactRenderInput(delivery.render_inputs[version]),
+                );
                 images[version] = {
                     url,
                     // eslint-disable-next-line no-await-in-loop

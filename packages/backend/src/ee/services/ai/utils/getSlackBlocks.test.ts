@@ -29,6 +29,7 @@ import {
     selectSlackAiAccessRefusal,
     splitMarkdownIntoMessages,
 } from './getSlackBlocks';
+import { getSlackArtifactCardVersions } from './slackArtifactImages';
 import { mockOrdersExplore } from './validationExplore.mock';
 
 const parseStoredChartConfig = (raw: unknown) => {
@@ -484,11 +485,11 @@ describe('Slack AI agent blocks', () => {
         expect(saved.metricQuery.filters.metrics).toHaveProperty('or');
     });
 
-    it('links a visualized composer version to the thread until chart images land', async () => {
+    it('links a visualized composer version to the thread, its chart card taking a delivered image', async () => {
         const composer = (
             versionUuid: string,
             title: string,
-            type: 'bar' | 'table',
+            type: 'bar' | 'table' | 'big_number',
         ) => ({
             artifactUuid: `artifact-${versionUuid}`,
             threadUuid: 'thread-1',
@@ -529,6 +530,7 @@ describe('Slack AI agent blocks', () => {
             [
                 composer('chart', 'Revenue by month', 'bar'),
                 composer('table', 'Top customers', 'table'),
+                composer('kpi', 'Total revenue', 'big_number'),
             ] as never,
             [],
         );
@@ -547,8 +549,15 @@ describe('Slack AI agent blocks', () => {
                         title: { text: 'Top customers' },
                         actions: [{ url: threadUrl }],
                     },
+                    {
+                        title: { text: 'Total revenue' },
+                        actions: [{ url: threadUrl }],
+                    },
                 ],
             },
+        ]);
+        expect(getSlackArtifactCardVersions(blocks as never)).toEqual([
+            'chart',
         ]);
     });
 

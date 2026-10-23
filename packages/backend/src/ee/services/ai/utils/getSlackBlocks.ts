@@ -14,6 +14,7 @@ import {
     getWebAiChartConfig,
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
+    isComposerSlackImageVizConfig,
     isToolEditDbtProjectResult,
     isToolSetupPreviewDeployResult,
     NotFoundError,
@@ -32,6 +33,7 @@ import {
     deduplicateSlackArtifacts,
     getLegacySlackArtifactImage,
 } from './slackArtifactIdentity';
+import { getSlackArtifactCardBlockId } from './slackArtifactImages';
 
 const isEligibleSlackAiAccessRefusal = (refusal: AiAccessRefusal): boolean =>
     (refusal.action === AiAccessRefusalAction.SIGN_IN &&
@@ -932,16 +934,19 @@ export async function getModernArtifactCardBlocks(
                 });
             }
 
-            // Composer charts post a link until Slack renders their images.
+            // Composer chart cards link to the thread; deferred delivery adds an image.
             if (
                 isAiComposerChartArtifactConfig(artifact.chartConfig) &&
                 artifact.chartConfig.schemaVersion === 2 &&
                 agentUuid
             ) {
-                const isTable =
-                    artifact.chartConfig.vizConfig?.type === 'table';
+                const { vizConfig } = artifact.chartConfig;
+                const isTable = vizConfig?.type === 'table';
                 return buildSlackCardBlock({
-                    blockId: `ai_agent_composer_card_${artifact.versionUuid}`,
+                    blockId:
+                        vizConfig && isComposerSlackImageVizConfig(vizConfig)
+                            ? getSlackArtifactCardBlockId(artifact.versionUuid)
+                            : `ai_agent_composer_card_${artifact.versionUuid}`,
                     title: getArtifactTitle(artifact),
                     subtitle: isTable ? 'Table' : 'Chart',
                     body:

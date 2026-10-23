@@ -2,9 +2,11 @@ import {
     AgentActorSurface,
     AiAccessRefusalReason,
     AiAccessRefusedError,
+    DimensionType,
     FeatureFlags,
     ForbiddenError,
     QueryHistoryStatus,
+    QuerySourceType,
     type AiAgent,
     type AiArtifact,
     type SessionUser,
@@ -13,7 +15,10 @@ import {
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { parseAgentWorkMarker } from '../../../services/AgentPermissionService/agentWorkAuthority';
-import { type SlackArtifactRenderInput } from '../../database/entities/aiSlackArtifactDeliveries';
+import {
+    type SlackComposerRenderInput,
+    type SlackRunQueryRenderInput,
+} from '../../database/entities/aiSlackArtifactDeliveries';
 import { resolveAiDecisionClient } from '../ai/decisions/AiDecisionClient';
 import { renderEcharts } from '../ai/utils/renderEcharts';
 import { getSlackArtifactCardBlockId } from '../ai/utils/slackArtifactImages';
@@ -162,12 +167,13 @@ describe('Slack image delivery scope', () => {
             )
             .mockResolvedValue({} as never);
         const input = {
+            source: 'runQuery',
             artifactUuid: 'artifact',
             versionUuid: 'version',
             queryUuid: 'execution',
             rowLimit: 1,
             queryTool: { queryConfig: { exploreName: 'orders' } },
-        } as SlackArtifactRenderInput;
+        } as SlackRunQueryRenderInput;
         return {
             service,
             loadRequest,
@@ -657,7 +663,7 @@ describe('Slack image delivery scope', () => {
             additionalSources: [
                 { id: 'customers', queryConfig: { exploreName: 'customers' } },
             ],
-        } as SlackArtifactRenderInput['queryTool']['mergeConfig'];
+        } as SlackRunQueryRenderInput['queryTool']['mergeConfig'];
         getExplore.mockImplementation(
             async (_user, _project, _tags, exploreName) => {
                 if (exploreName === 'customers')
@@ -677,6 +683,149 @@ describe('Slack image delivery scope', () => {
         expect(getAsyncQueryHistory).not.toHaveBeenCalled();
         expect(getRawAsyncQueryResults).not.toHaveBeenCalled();
     });
+
+    it('authorizes a composer chart per semantic node and draws it from the bound execution', async () => {
+        const {
+            service,
+            getArtifact,
+            getExplore,
+            getAsyncQueryHistory,
+            getRawAsyncQueryResults,
+            fileStorageClient,
+        } = setup();
+        getArtifact.mockResolvedValue({
+            artifactUuid: 'artifact',
+            versionUuid: 'version',
+            promptUuid: 'prompt',
+            threadUuid: 'thread',
+            title: 'Revenue by status',
+            description: null,
+            chartConfig: {
+                source: 'composer',
+                schemaVersion: 2,
+                queries: [
+                    {
+                        sourceType: QuerySourceType.SEMANTIC_LAYER,
+                        nodeId: 'orders',
+                        exploreName: 'orders',
+                        dimensions: ['orders_status'],
+                        metrics: ['orders_revenue'],
+                    },
+                    {
+                        sourceType: QuerySourceType.DUCKDB,
+                        nodeId: 'share',
+                        sql: 'SELECT * FROM orders',
+                        references: { orders: 'orders' },
+                    },
+                ],
+                terminalNodeId: 'share',
+                vizConfig: {
+                    type: 'bar',
+                    x: 'orders_status',
+                    y: ['orders_revenue'],
+                    groupBy: null,
+                    stack: null,
+                    horizontal: null,
+                    y2: null,
+                    labels: null,
+                },
+            },
+        } as unknown as AiArtifact);
+        getAsyncQueryHistory.mockResolvedValue({
+            columns: {
+                orders_status: {
+                    reference: 'orders_status',
+                    type: DimensionType.STRING,
+                },
+                orders_revenue: {
+                    reference: 'orders_revenue',
+                    type: DimensionType.NUMBER,
+                },
+            },
+        });
+        getRawAsyncQueryResults.mockResolvedValue({
+            rows: [{ orders_status: 'done', orders_revenue: 10 }],
+            truncated: false,
+        });
+        const input: SlackComposerRenderInput = {
+            source: 'composer',
+            artifactUuid: 'artifact',
+            versionUuid: 'version',
+            queryUuid: 'execution',
+            rowLimit: 1,
+        };
+        const runtime =
+            await service['prepareSlackArtifactImageDelivery']('prompt');
+
+        await runtime!.authorize(input);
+        const url = await runtime!.render(input);
+
+        expect(getExplore.mock.calls.map((call) => call[3])).toEqual([
+            'orders',
+        ]);
+        expect(getAsyncQueryHistory).toHaveBeenCalledWith(
+            expect.objectContaining({ queryUuid: 'execution' }),
+        );
+        expect(getRawAsyncQueryResults).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                queryUuid: 'execution',
+                maxRows: 1,
+                aiAccessOnly: true,
+            }),
+        );
+        expect(vi.mocked(renderEcharts)).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                series: [
+                    expect.objectContaining({
+                        type: 'bar',
+                        encode: {
+                            x: 'composer_result_orders_status',
+                            y: 'composer_result_orders_revenue',
+                        },
+                    }),
+                ],
+            }),
+        );
+        expect(fileStorageClient.uploadImage).toHaveBeenCalledOnce();
+        expect(url).toContain('/api/v1/slack/card-image/');
+
+        // More rows than the agent saw would draw an incomplete chart.
+        getRawAsyncQueryResults.mockResolvedValue({
+            rows: [{ orders_status: 'done', orders_revenue: 10 }],
+            truncated: true,
+        });
+        expect(await runtime!.render(input)).toBeNull();
+    });
+
+    it.each(['table', 'big_number'] as const)(
+        'refuses a composer %s image',
+        async (type) => {
+            const { service, getArtifact, getAsyncQueryHistory } = setup();
+            getArtifact.mockResolvedValue({
+                promptUuid: 'prompt',
+                threadUuid: 'thread',
+                chartConfig: {
+                    source: 'composer',
+                    schemaVersion: 2,
+                    queries: [],
+                    terminalNodeId: 'orders',
+                    vizConfig: { type },
+                },
+            } as unknown as AiArtifact);
+            const runtime =
+                await service['prepareSlackArtifactImageDelivery']('prompt');
+            await expect(
+                runtime!.authorize({
+                    source: 'composer',
+                    artifactUuid: 'artifact',
+                    versionUuid: 'version',
+                    queryUuid: 'execution',
+                    rowLimit: 1,
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(getAsyncQueryHistory).not.toHaveBeenCalled();
+        },
+    );
 
     it('finds only our bot’s exact artifact card, following cursors', async () => {
         const { service, replies } = setup();

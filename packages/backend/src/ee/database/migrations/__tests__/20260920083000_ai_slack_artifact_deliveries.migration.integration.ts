@@ -9,7 +9,7 @@ import {
 } from '../../../services/AiAgentService/SlackArtifactImageDelivery';
 import {
     type DbAiSlackArtifactDelivery,
-    type SlackArtifactRenderInput,
+    type SlackRunQueryRenderInput,
 } from '../../entities/aiSlackArtifactDeliveries';
 import { down, up } from '../20260920083000_add_ai_slack_artifact_deliveries';
 
@@ -18,7 +18,7 @@ describe('Slack artifact image outbox PostgreSQL integration', () => {
     let transaction: Knex.Transaction;
     let model: AiSlackArtifactDeliveryModel;
     let promptUuid: string;
-    let input: SlackArtifactRenderInput;
+    let input: SlackRunQueryRenderInput;
     const table = 'ai_slack_artifact_deliveries';
 
     beforeAll(() => {
@@ -60,6 +60,7 @@ describe('Slack artifact image outbox PostgreSQL integration', () => {
         model = new AiSlackArtifactDeliveryModel(transaction);
         promptUuid = randomUUID();
         input = {
+            source: 'runQuery',
             artifactUuid: randomUUID(),
             versionUuid: randomUUID(),
             queryUuid: randomUUID(),
@@ -67,7 +68,7 @@ describe('Slack artifact image outbox PostgreSQL integration', () => {
             queryTool: {
                 title: 'Orders',
                 description: 'Exact execution',
-            } as SlackArtifactRenderInput['queryTool'],
+            } as SlackRunQueryRenderInput['queryTool'],
         };
         await transaction<{ ai_prompt_uuid: string }>('ai_prompt').insert({
             ai_prompt_uuid: promptUuid,

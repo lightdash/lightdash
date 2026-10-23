@@ -2229,6 +2229,11 @@ export const getAgentTools = (
                 resolveCustomChartType: dependencies.resolveCustomChartType,
                 createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
                 updateProgress: dependencies.updateProgress,
+                deferSlackVisualization:
+                    args.execution.mode === 'standard'
+                        ? dependencies.deferSlackVisualization
+                        : undefined,
+                slackLinksOnly: args.slackLinksOnly,
             }),
         listWarehouseTables: () =>
             getListWarehouseTables({

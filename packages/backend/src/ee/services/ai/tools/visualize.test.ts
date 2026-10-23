@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import type {
     CreateOrUpdateArtifactFn,
+    DeferSlackVisualizationFn,
     ResolveCustomChartTypeFn,
     RunComposerQueriesFn,
 } from '../types/aiAgentDependencies';
@@ -124,11 +125,15 @@ const makeTool = ({
     rows = [],
     currentPrompt = prompt,
     resolveCustomChartType = resolveStatusRibbon,
+    deferSlackVisualization,
+    slackLinksOnly = false,
 }: {
     threadNodes?: ThreadComposerQueryNode[];
     rows?: Record<string, unknown>[];
     currentPrompt?: AiWebAppPrompt;
     resolveCustomChartType?: ResolveCustomChartTypeFn;
+    deferSlackVisualization?: DeferSlackVisualizationFn;
+    slackLinksOnly?: boolean;
 } = {}) => {
     const versions: Parameters<CreateOrUpdateArtifactFn>[0][] = [];
     const runComposerQueries = vi.fn(async () => makeRun(rows));
@@ -145,6 +150,8 @@ const makeTool = ({
             } as AiArtifact;
         },
         updateProgress: async () => {},
+        deferSlackVisualization,
+        slackLinksOnly,
     });
     const visualize = (args: Partial<ToolVisualizeArgs> = {}) =>
         tool.execute!(
@@ -331,6 +338,72 @@ describe('visualize', () => {
         expect(slack.runComposerQueries).not.toHaveBeenCalled();
         expect(webTable.metadata).toMatchObject({ queryUuid: null });
         expect(slackChart.metadata).toMatchObject({ queryUuid: null });
+    });
+
+    it('registers a Slack chart image drawn from the run of the node', async () => {
+        const deferSlackVisualization = vi.fn(async () => true);
+        const { visualize, runComposerQueries } = makeTool({
+            currentPrompt: slackPrompt,
+            rows: [{ orders_status: 'completed' }, { orders_status: 'placed' }],
+            deferSlackVisualization,
+        });
+
+        const output = await visualize();
+
+        expect(runComposerQueries).toHaveBeenCalledOnce();
+        expect(deferSlackVisualization).toHaveBeenCalledExactlyOnceWith({
+            source: 'composer',
+            artifactUuid: 'artifact-uuid',
+            versionUuid: 'version-1',
+            queryUuid: 'query-uuid',
+            rowLimit: 2,
+        });
+        expect(output.metadata).toMatchObject({ queryUuid: 'query-uuid' });
+    });
+
+    it('registers no Slack image for tables, big numbers, custom types, empty results or links-only orgs', async () => {
+        const deferSlackVisualization = vi.fn(async () => true);
+        const withRows = makeTool({
+            currentPrompt: slackPrompt,
+            rows: [{ orders_status: 'completed' }],
+            deferSlackVisualization,
+        });
+        const empty = makeTool({
+            currentPrompt: slackPrompt,
+            deferSlackVisualization,
+        });
+        const linksOnly = makeTool({
+            currentPrompt: slackPrompt,
+            rows: [{ orders_status: 'completed' }],
+            deferSlackVisualization,
+            slackLinksOnly: true,
+        });
+
+        await withRows.visualize({ vizConfig: tableConfig });
+        await withRows.visualize({
+            vizConfig: { ...tableConfig, type: 'big_number' },
+        });
+        await withRows.visualize({ vizConfig: customConfig });
+        await empty.visualize();
+        await linksOnly.visualize();
+
+        expect(deferSlackVisualization).not.toHaveBeenCalled();
+        expect(linksOnly.runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('keeps the Slack chart card when image registration fails', async () => {
+        const { visualize, versions } = makeTool({
+            currentPrompt: slackPrompt,
+            rows: [{ orders_status: 'completed' }],
+            deferSlackVisualization: async () => {
+                throw new Error('outbox unavailable');
+            },
+        });
+
+        const output = await visualize();
+
+        expect(output.metadata).toMatchObject({ status: 'success' });
+        expect(versions).toHaveLength(1);
     });
 
     it('pins the custom chart type version it resolved from the slug', async () => {

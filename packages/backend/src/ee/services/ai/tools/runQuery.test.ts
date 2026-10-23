@@ -2150,6 +2150,7 @@ describe('getRunQuery Slack links only', () => {
         );
         expect(deferSlackVisualization).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
+                source: 'runQuery',
                 artifactUuid: 'artifact-uuid',
                 versionUuid: 'version-uuid',
                 queryUuid: 'query-uuid',

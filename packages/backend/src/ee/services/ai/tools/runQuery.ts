@@ -402,6 +402,7 @@ const deferSlackChart = async ({
     }
     try {
         await deferSlackVisualization({
+            source: 'runQuery',
             artifactUuid: artifact.artifactUuid,
             versionUuid: artifact.versionUuid,
             queryUuid: queryResults.queryUuid,

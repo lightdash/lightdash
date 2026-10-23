@@ -113,6 +113,7 @@ import {
     getAiAgentSkillListingText,
     getAppDisplayName,
     getComposerChartStage,
+    getComposerSlackEchartsConfig,
     getDataAppVizChartFromArtifact,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
@@ -211,6 +212,7 @@ import {
     type AiWebAppThreadCreatedFrom,
     type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
+    type ComposerStoredChartVizConfig,
     type DataAppVizChart,
     type DuckdbSourceQuery,
     type ItemsMap,
@@ -252,6 +254,7 @@ import {
 } from 'ai';
 import { createCanvas, loadImage } from 'canvas';
 import { randomBytes, randomUUID } from 'crypto';
+import { type EChartsOption } from 'echarts';
 import { EventEmitter } from 'events';
 import fs from 'fs/promises';
 import _ from 'lodash';
@@ -375,6 +378,7 @@ import {
     type DbAiPromptTurnDecisionOutcome,
 } from '../../database/entities/ai';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
+import { toSlackArtifactRenderInput } from '../../database/entities/aiSlackArtifactDeliveries';
 import { threadComposerQueryScope } from '../../database/entities/composerQueryNodes';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import {
@@ -630,6 +634,10 @@ import {
 } from '../ai/utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../ai/utils/renderEcharts';
 import { getSlackArtifactCardVersions } from '../ai/utils/slackArtifactImages';
+import {
+    getSlackImageSource,
+    type SlackImageSource,
+} from '../ai/utils/slackArtifactImageSources';
 import { getSlackSelectedCardArtifacts } from '../ai/utils/slackChartSelection';
 import {
     getSlackTableBlocks,
@@ -2216,7 +2224,10 @@ export class AiAgentService extends BaseService {
         const client = await this.slackClient.getWebClient(
             prompt.organizationUuid,
         );
-        const artifacts = new Map<string, AiArtifact>();
+        const artifacts = new Map<
+            string,
+            { artifact: AiArtifact; source: SlackImageSource }
+        >();
         return {
             resultReader,
             findMessage: async (messageTs, versions) => {
@@ -2272,28 +2283,17 @@ export class AiAgentService extends BaseService {
                     input.artifactUuid,
                     input.versionUuid,
                 );
+                const source = getSlackImageSource(input, artifact.chartConfig);
                 if (
                     artifact.promptUuid !== promptUuid ||
                     artifact.threadUuid !== prompt.threadUuid ||
-                    !artifact.chartConfig ||
-                    !['semantic', 'merge', 'customChartType'].includes(
-                        artifact.chartConfig.source,
-                    )
+                    !source
                 )
                     throw new ForbiddenError(
                         'Slack image does not belong to this prompt',
                     );
-                const queries = input.queryTool.mergeConfig
-                    ? buildAiMergeSourceConfigs(input.queryTool).map(
-                          ({ queryConfig }) => queryConfig,
-                      )
-                    : [input.queryTool.queryConfig];
                 await Promise.all(
-                    [
-                        ...new Set(
-                            queries.map(({ exploreName }) => exploreName),
-                        ),
-                    ].map((exploreName) =>
+                    source.exploreNames.map((exploreName) =>
                         this.getExplore(
                             user,
                             prompt.projectUuid,
@@ -2308,15 +2308,41 @@ export class AiAgentService extends BaseService {
                     projectUuid: prompt.projectUuid,
                     queryUuid: input.queryUuid,
                 });
-                artifacts.set(input.versionUuid, artifact);
+                artifacts.set(input.versionUuid, { artifact, source });
             },
             render: async (input) => {
                 signal?.throwIfAborted();
-                const artifact = artifacts.get(input.versionUuid);
-                if (!artifact)
+                const authorized = artifacts.get(input.versionUuid);
+                if (!authorized)
                     throw new ForbiddenError(
                         'Slack image has not been authorized',
                     );
+                const { artifact, source } = authorized;
+                const uploadImage = (image: Buffer) =>
+                    this.uploadSlackAgentCardImage(
+                        {
+                            organizationUuid: prompt.organizationUuid,
+                            image,
+                        },
+                        ...(agentWork.status === 'valid'
+                            ? ([deliveryGuard] as const)
+                            : []),
+                    );
+                if (source.source === 'composer') {
+                    const options = await this.getSlackComposerChartOptions({
+                        user,
+                        reader: resultReader,
+                        projectUuid: prompt.projectUuid,
+                        queryUuid: input.queryUuid,
+                        rowLimit: input.rowLimit,
+                        artifact,
+                        vizConfig: source.vizConfig,
+                    });
+                    return options
+                        ? uploadImage(await renderEcharts(options))
+                        : null;
+                }
+                if (input.source !== 'runQuery') return null;
                 if (artifact.chartConfig?.source === 'customChartType') {
                     const { imageUrl } =
                         await this.unfurlService.exportAiAgentArtifact(
@@ -2354,16 +2380,7 @@ export class AiAgentService extends BaseService {
                     getPivotedResults,
                 });
                 if (!options) return null;
-                const image = await renderEcharts(options);
-                return this.uploadSlackAgentCardImage(
-                    {
-                        organizationUuid: prompt.organizationUuid,
-                        image,
-                    },
-                    ...(agentWork.status === 'valid'
-                        ? ([deliveryGuard] as const)
-                        : []),
-                );
+                return uploadImage(await renderEcharts(options));
             },
             isImageReachable: AiAgentService.isCardImageUrlReachable,
             updateMessage: async (message) => {
@@ -2377,6 +2394,65 @@ export class AiAgentService extends BaseService {
                 });
             },
         };
+    }
+
+    /** Null leaves the card's link: an incomplete result or a chart the result cannot draw. */
+    private async getSlackComposerChartOptions({
+        user,
+        reader,
+        projectUuid,
+        queryUuid,
+        rowLimit,
+        artifact,
+        vizConfig,
+    }: {
+        user: SessionUser;
+        reader: QueryResultReader;
+        projectUuid: string;
+        queryUuid: string;
+        rowLimit: number;
+        artifact: AiArtifact;
+        vizConfig: ComposerStoredChartVizConfig;
+    }): Promise<EChartsOption | null> {
+        const account = fromSession(user);
+        const history = await this.asyncQueryService.getAsyncQueryHistory({
+            account,
+            reader,
+            projectUuid,
+            queryUuid,
+        });
+        const results = await this.asyncQueryService.getRawAsyncQueryResults({
+            account,
+            reader,
+            projectUuid,
+            queryUuid,
+            aiAccessOnly: true,
+            maxRows: rowLimit,
+        });
+        if (
+            !history.columns ||
+            results.truncated ||
+            results.rows.length !== rowLimit
+        )
+            return null;
+        try {
+            return await getComposerSlackEchartsConfig({
+                columns: Object.values(history.columns),
+                rows: results.rows,
+                vizConfig,
+                metadata: {
+                    title: artifact.title ?? '',
+                    description: artifact.description ?? '',
+                },
+                getPivotedResults,
+            });
+        } catch (error) {
+            this.logger.warn('Composer Slack chart cannot be drawn', {
+                versionUuid: artifact.versionUuid,
+                error: getErrorMessage(error),
+            });
+            return null;
+        }
     }
 
     private async uploadSlackAgentCardImage(
@@ -9713,7 +9789,10 @@ export class AiAgentService extends BaseService {
         const delivery = await this.aiAgentModel.slackArtifactDeliveries.get(
             artifact.promptUuid,
         );
-        const input = delivery?.render_inputs[versionUuid];
+        const storedInput = delivery?.render_inputs[versionUuid];
+        const input = storedInput
+            ? toSlackArtifactRenderInput(storedInput)
+            : undefined;
         const prompt = await this.aiAgentModel.findSlackPrompt(
             artifact.promptUuid,
         );
@@ -9722,6 +9801,7 @@ export class AiAgentService extends BaseService {
             !delivery ||
             delivery.finished_at ||
             !input ||
+            input.source !== 'runQuery' ||
             input.queryUuid !== queryUuid ||
             input.artifactUuid !== artifactUuid ||
             input.versionUuid !== versionUuid ||
