@@ -66,7 +66,11 @@ export const EditorShell: FC<Props> = ({
                         <Badge size="sm">
                             {filterCount}
                             <VisuallyHidden>
-                                {` ${getUiString('filters.summary.filterPlural')}`}
+                                {` ${getUiString(
+                                    filterCount === 1
+                                        ? 'filters.summary.filterSingular'
+                                        : 'filters.summary.filterPlural',
+                                )}`}
                             </VisuallyHidden>
                         </Badge>
                     )}

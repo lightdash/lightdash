@@ -136,7 +136,8 @@ In `FilterConfiguration/`:
   date zoom stay on the right as they are.
 - The rail's header shows the count of the filters it lists next to
   "Filters", a default `Badge` whose text ends in a `VisuallyHidden`
-  " filters", from 1; at 0 there is no badge. In view mode
+  " filter" or " filters" (`filters.summary.filterSingular` /
+  `filterPlural`), from 1; at 0 there is no badge. In view mode
   nothing is passed, so the bar is the shipped one. Separators, parameters, date zoom,
   the hide button, the compact drawer and the `data-tour-*` anchors are the
   shipped bar's own.

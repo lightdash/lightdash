@@ -510,12 +510,21 @@ describe('ControlSidebar', () => {
         expect(container.querySelector('.mantine-Badge-root')).toBeNull();
         unmount();
 
-        const { container: withOne } = renderWithProviders(
+        const { container: withOne, unmount: unmountOne } = renderWithProviders(
             <ControlSidebar />,
             filters([makeRule({})]),
         );
         expect(withOne.querySelector('.mantine-Badge-root')).toHaveTextContent(
-            /^1 filters$/,
+            /^1 filter$/,
+        );
+        unmountOne();
+
+        const { container: withTwo } = renderWithProviders(
+            <ControlSidebar />,
+            filters([makeRule({}), makeRule({ id: 'filter-2' })]),
+        );
+        expect(withTwo.querySelector('.mantine-Badge-root')).toHaveTextContent(
+            /^2 filters$/,
         );
     });
 
@@ -710,7 +719,7 @@ describe('ControlSidebar', () => {
         expect(
             screen.getByRole('heading', { name: 'Filters' }).nextElementSibling
                 ?.textContent,
-        ).toMatch(/^\d+ filters$/);
+        ).toMatch(/^1 filter$/);
         fireEvent.click(screen.getByRole('button', { name: 'Done' }));
         expect(close).toHaveBeenCalledTimes(1);
 
