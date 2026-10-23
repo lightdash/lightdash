@@ -119,6 +119,8 @@ export type SemanticLayerSourceQuery = {
     dimensionOverrides?: DimensionOverrides;
     /** IANA timezone for time dimension bucketing, e.g. "America/New_York". */
     timezone?: string;
+    /** Parameter values for this query, layered over the submission's parameters. */
+    parameters?: ParametersValuesMap;
     /**
      * Pivots this node's result the way a pivoted chart does. Honoured by
      * semanticLayer, sql and duckdb nodes; external nodes refuse it.

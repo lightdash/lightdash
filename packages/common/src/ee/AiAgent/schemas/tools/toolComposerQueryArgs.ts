@@ -5,6 +5,7 @@ import {
     type MetricQueryRequest,
     type SortField,
 } from '../../../../types/metricQuery';
+import { type ParametersValuesMap } from '../../../../types/parameters';
 import {
     QuerySourceType,
     type DuckdbSourceQuery,
@@ -18,6 +19,10 @@ import assertUnreachable from '../../../../utils/assertUnreachable';
 import { filterExpressionsSchema } from '../filterExpressions/expressionSchemas';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
+import {
+    appliedParametersSchema,
+    parameterValueSchema,
+} from './toolRunQueryArgs';
 
 /** The composer query tool's name, and the name calls persisted before the rename carry. */
 export const COMPOSER_QUERY_TOOL_NAMES = [
@@ -165,6 +170,13 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             .nullable()
             .describe(
                 'Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
+            ),
+        parameters: z
+            .record(z.string(), parameterValueSchema)
+            .nullable()
+            .default(null)
+            .describe(
+                'Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.',
             ),
         limit: limitSchema,
     });
@@ -356,6 +368,10 @@ export const toolComposerQueryNodeToSourceQuery = (
             const filters: MetricQueryRequest['filters'] | undefined =
                 node.filters ?? undefined;
             const sorts: SortField[] | undefined = node.sorts ?? undefined;
+            const parameters: ParametersValuesMap | undefined =
+                node.parameters && Object.keys(node.parameters).length > 0
+                    ? node.parameters
+                    : undefined;
             return {
                 sourceType: node.sourceType,
                 nodeId: node.nodeId,
@@ -365,6 +381,7 @@ export const toolComposerQueryNodeToSourceQuery = (
                 metrics: node.metrics,
                 filters,
                 sorts,
+                parameters,
                 limit: node.limit,
             };
         }
@@ -473,6 +490,7 @@ export const parsePartialToolComposerQueriesArgs = (
                         metrics: asStringArray(node.metrics),
                         filters: null,
                         sorts: null,
+                        parameters: null,
                         limit: DEFAULT_COMPOSER_QUERY_LIMIT,
                     },
                 ];
@@ -558,6 +576,11 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
     columns: z
         .array(composerQueryColumnSchema)
         .describe('Terminal result columns, in order.'),
+    parameters: z
+        .array(appliedParametersSchema.extend({ nodeId: nodeIdSchema }))
+        .describe(
+            'The parameter state each semanticLayer node of the pipeline ran with; only nodes whose explore references parameters.',
+        ),
     preview: z
         .object({
             rows: z

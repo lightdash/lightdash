@@ -4399,6 +4399,43 @@
                                             "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                                             "type": "string"
                                         },
+                                        "parameters": {
+                                            "anyOf": [
+                                                {
+                                                    "additionalProperties": {
+                                                        "anyOf": [
+                                                            {
+                                                                "type": "string"
+                                                            },
+                                                            {
+                                                                "type": "number"
+                                                            },
+                                                            {
+                                                                "items": {
+                                                                    "type": "string"
+                                                                },
+                                                                "type": "array"
+                                                            },
+                                                            {
+                                                                "items": {
+                                                                    "type": "number"
+                                                                },
+                                                                "type": "array"
+                                                            }
+                                                        ]
+                                                    },
+                                                    "propertyNames": {
+                                                        "type": "string"
+                                                    },
+                                                    "type": "object"
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ],
+                                            "default": null,
+                                            "description": "Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {\"orders.metric\": \"active_users\"}). Set them whenever a selected field is marked \"requires parameters\" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct."
+                                        },
                                         "sorts": {
                                             "description": "Sorts by fields this node also selects in dimensions or metrics, e.g. [{\"fieldId\": \"orders_order_date\", \"descending\": true}].",
                                             "items": {
