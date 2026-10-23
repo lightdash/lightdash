@@ -4,6 +4,8 @@ import {
     ParameterError,
     toComposerChartArtifactVersion,
     visualizeToolDefinition,
+    type ComposerChartVizConfig,
+    type ComposerStoredChartVizConfig,
     type ThreadComposerQueryNode,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -16,6 +18,7 @@ import type {
     CreateOrUpdateArtifactFn,
     GetPromptFn,
     ListThreadComposerQueryNodesFn,
+    ResolveCustomChartTypeFn,
     RunComposerQueriesFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
@@ -29,6 +32,7 @@ type Dependencies = {
     getPrompt: GetPromptFn;
     listThreadComposerQueryNodes: ListThreadComposerQueryNodesFn;
     runComposerQueries: RunComposerQueriesFn;
+    resolveCustomChartType: ResolveCustomChartTypeFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     updateProgress: UpdateProgressFn;
 };
@@ -58,10 +62,32 @@ const unknownNodeMessage = (
               .map((node) => `${node.nodeId} ("${node.title ?? node.nodeId}")`)
               .join(', ')}.`;
 
+// A custom chart type pins the version resolved now, so later edits to the type leave this card as drawn.
+const toStoredVizConfig = async (
+    vizConfig: ComposerChartVizConfig,
+    resolveCustomChartType: ResolveCustomChartTypeFn,
+): Promise<ComposerStoredChartVizConfig> => {
+    if (vizConfig.type !== 'custom') return vizConfig;
+    const resolved = await resolveCustomChartType(
+        vizConfig.customChartTypeSlug,
+    );
+    if (!resolved) {
+        throw new ParameterError(
+            `Custom chart type "${vizConfig.customChartTypeSlug}" was not found in this project. Use the slug of one of the project's custom chart types, or a built-in type.`,
+        );
+    }
+    return {
+        ...vizConfig,
+        dataAppVizUuid: resolved.dataAppVizUuid,
+        dataAppVizVersion: resolved.dataAppVizVersion,
+    };
+};
+
 export const getVisualize = ({
     getPrompt,
     listThreadComposerQueryNodes,
     runComposerQueries,
+    resolveCustomChartType,
     createOrUpdateArtifact,
     updateProgress,
 }: Dependencies) =>
@@ -92,6 +118,11 @@ export const getVisualize = ({
                     threadNodes,
                 });
 
+                const storedVizConfig = await toStoredVizConfig(
+                    vizConfig,
+                    resolveCustomChartType,
+                );
+
                 await updateProgress('Visualizing result...');
                 const needsHints = composerChartQualityHintsNeedRows(vizConfig);
                 // Slack posts a table from this execution's rows.
@@ -118,7 +149,7 @@ export const getVisualize = ({
                         description,
                         queries,
                         terminalNodeId: nodeId,
-                        vizConfig,
+                        vizConfig: storedVizConfig,
                     }),
                 });
 

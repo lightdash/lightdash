@@ -2226,6 +2226,7 @@ export const getAgentTools = (
                 listThreadComposerQueryNodes:
                     dependencies.listThreadComposerQueryNodes,
                 runComposerQueries: queryDependencies.runComposerQueries,
+                resolveCustomChartType: dependencies.resolveCustomChartType,
                 createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
                 updateProgress: dependencies.updateProgress,
             }),
