@@ -119,6 +119,7 @@ import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useStableCallback } from '../hooks/useStableCallback';
 import useApp from '../providers/App/useApp';
 import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
+import DashboardAnalysisAdapterBridge from '../providers/Dashboard/DashboardAnalysisAdapterBridge';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import { DashboardChartEditContext } from '../providers/Dashboard/useDashboardChartEdit';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
@@ -1683,6 +1684,9 @@ const DashboardPage: FC = () => {
         >
             <SentryErrorBoundary fallback={() => <></>}>
                 <DashboardAiAgentContextBridge />
+            </SentryErrorBoundary>
+            <SentryErrorBoundary fallback={() => <></>}>
+                <DashboardAnalysisAdapterBridge />
             </SentryErrorBoundary>
             <Dashboard />
         </DashboardProvider>
