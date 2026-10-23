@@ -2829,6 +2829,23 @@ describe('ControlsSidebarProvider in view mode', () => {
         expect(latest.filters).toEqual(initialFilters);
     });
 
+    it('keeps every callback across a mode switch', () => {
+        const { result, rerender } = setup();
+        const callbacksOf = () =>
+            Object.entries(result.current).filter(
+                ([, value]) => typeof value === 'function',
+            );
+        const before = callbacksOf();
+        mockParams.current = { mode: 'edit' };
+        rerender();
+        mockParams.current = { mode: 'view' };
+        rerender();
+        callbacksOf().forEach(([name, callback], index) => {
+            expect([name, callback]).toEqual(before[index]);
+        });
+        expect(before.length).toBeGreaterThan(20);
+    });
+
     describe('a mode change closes the edit as Done does', () => {
         it('drops a new filter with no field, on the filters it started in', () => {
             const { result, rerender } = setup();

@@ -183,6 +183,7 @@ type Latest = {
     isViewer: boolean;
     // The page's mode, which a new edit starts in
     isPageViewer: boolean;
+    isEmbedded: boolean;
     haveFiltersChanged: boolean;
     filterableFieldsByTileUuid: DashboardContextType['filterableFieldsByTileUuid'];
     dashboardTiles: Dashboard['tiles'] | undefined;
@@ -372,6 +373,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         temporaryFilterLocks,
         isViewer: isEditViewer,
         isPageViewer: isViewer,
+        isEmbedded,
         haveFiltersChanged,
         filterableFieldsByTileUuid,
         dashboardTiles,
@@ -1022,13 +1024,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
 
     const isPlaceholder =
         state !== null && placeholder !== null && !isOtherModeEdit;
-    // The shipped bar's modes for ADD_FILTER_CLICKED, the edit's own
-    const trackingMode = !isEditViewer
-        ? 'edit'
-        : isEmbedded
-          ? 'embed'
-          : 'viewer';
-
     const newTileUuids = useMemo(() => {
         if (!savedTiles || !dashboardTiles) return [];
         const saved = new Set(savedTiles.map((tile) => tile.uuid));
@@ -1112,7 +1107,13 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             if (current.state.isNew) {
                 current.track({
                     name: EventName.ADD_FILTER_CLICKED,
-                    properties: { mode: trackingMode },
+                    properties: {
+                        mode: !current.isViewer
+                            ? 'edit'
+                            : current.isEmbedded
+                              ? 'embed'
+                              : 'viewer',
+                    },
                 });
             }
             if (isDefaultValueIncomplete(rule)) {
@@ -1133,7 +1134,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             writeFilters,
             settleFiltersChanged,
             rememberFocusReturn,
-            trackingMode,
         ],
     );
     const close = useCallback(() => closeEdited(false), [closeEdited]);

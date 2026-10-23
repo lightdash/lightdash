@@ -275,7 +275,8 @@ In `FilterConfiguration/`:
   the shipped `createDashboardFilterRuleFromSqlColumn`. Both are the
   sidebar's.
 - `ADD_FILTER_CLICKED` (`mode: 'edit'`, `'viewer'` or, in an embed,
-  `'embed'`: the shipped payloads) is tracked when
+  `'embed'`: the shipped payloads, read from `latest` so no callback changes
+  with the mode) is tracked when
   a new filter is kept: `close()` on a new control that has a field (Done,
   the X, its pill, or opening another control), and for a viewer a value. Opening a placeholder,
   picking a field, `discard()` and `removeFilter()` track nothing.
