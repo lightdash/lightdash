@@ -10,9 +10,11 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
+import { isIncompletePeriodEligible } from '@lightdash/visualization/editor';
 import {
     TextInput,
     ActionIcon,
+    Checkbox,
     CloseButton,
     Group,
     SegmentedControl,
@@ -261,6 +263,7 @@ export const Layout: FC<Props> = ({ items }) => {
         setRowLimit,
         columnLimit,
         setColumnLimit,
+        setShowIncompletePeriod,
     } = visualizationConfig.chartConfig;
 
     const handleColumnLimitChange = (value: string | number) => {
@@ -350,6 +353,16 @@ export const Layout: FC<Props> = ({ items }) => {
                                 />
                             }
                             hasGrouping
+                        />
+                    )}
+                    {isIncompletePeriodEligible(xAxisField) && (
+                        <Checkbox
+                            size="xs"
+                            label="Mark incomplete period"
+                            checked={!!dirtyLayout?.showIncompletePeriod}
+                            onChange={(e) =>
+                                setShowIncompletePeriod(e.currentTarget.checked)
+                            }
                         />
                     )}
                 </Config.Section>
