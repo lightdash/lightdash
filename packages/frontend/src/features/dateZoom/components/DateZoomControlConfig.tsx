@@ -1,8 +1,4 @@
 import {
-    getTileControl,
-    hasReservedParameterReference,
-    isDashboardChartTileType,
-    isStandardDateGranularity,
     type ChartZoomableField,
     type DateZoomConfig,
     type DateZoomControl,
@@ -33,15 +29,10 @@ import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import {
-    selectAvailableCustomGranularities,
-    selectChartZoomableFieldsByTileUuid,
     selectDashboardTabs,
-    selectDashboardTiles,
-    selectTileParameterReferences,
-    useDashboardDateZoomGranularities,
     useDashboardSelector,
 } from '../../dashboard/store';
-import { getGranularityLabel } from '../utils';
+import { useEligibleZoomTiles, useGranularityOptions } from '../hooks';
 import styles from './DateZoom.module.css';
 
 // The control config owns a draft of one control plus that control's slice of
@@ -73,24 +64,7 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
     onSave,
     popoverProps,
 }) => {
-    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
-    const chartZoomableFieldsByTileUuid = useDashboardSelector(
-        selectChartZoomableFieldsByTileUuid,
-    );
-    // Param-only tiles (custom SQL referencing `${ld.parameters.date_zoom}` but
-    // no re-grainable date field) are also affected by a control's grain.
-    const tileParameterReferences = useDashboardSelector(
-        selectTileParameterReferences,
-    );
-    // Custom granularities discovered across the dashboard's tiles (same source
-    // as the global picker). A control can zoom to these when available.
-    const availableCustomGranularities = useDashboardSelector(
-        selectAvailableCustomGranularities,
-    );
-    // The dashboard's enabled granularities (set in the default picker); every
-    // control offers only these.
-    const dateZoomGranularities = useDashboardDateZoomGranularities();
 
     const [selectedTab, setSelectedTab] = useState<ControlTab>(
         ControlTab.SETTINGS,
@@ -120,83 +94,8 @@ export const DateZoomControlConfig: FC<DateZoomControlConfigProps> = ({
         [draftTargets],
     );
 
-    // Only the dashboard's enabled granularities, grouped standard vs custom.
-    const granularityData = useMemo(() => {
-        const standardItems = dateZoomGranularities
-            .filter(isStandardDateGranularity)
-            .map((granularity) => ({
-                value: String(granularity),
-                label: getGranularityLabel(
-                    granularity,
-                    availableCustomGranularities,
-                ),
-            }));
-        const customItems = dateZoomGranularities
-            .filter((g) => !isStandardDateGranularity(g))
-            .sort((a, b) =>
-                getGranularityLabel(
-                    a,
-                    availableCustomGranularities,
-                ).localeCompare(
-                    getGranularityLabel(b, availableCustomGranularities),
-                ),
-            )
-            .map((key) => ({
-                value: key,
-                label: getGranularityLabel(key, availableCustomGranularities),
-            }));
-        if (customItems.length === 0) return standardItems;
-        if (standardItems.length === 0) return customItems;
-        return [
-            { group: 'Standard', items: standardItems },
-            { group: 'Custom', items: customItems },
-        ];
-    }, [dateZoomGranularities, availableCustomGranularities]);
-
-    // Chart tiles a control can touch: those that expose a zoomable date field
-    // (a date/timestamp dimension the chart queries) OR reference the reserved
-    // `date_zoom` parameter in custom SQL (param-only, no field to re-grain).
-    // Each carries the control it is currently attached to (for conflict display).
-    const eligibleTiles = useMemo(() => {
-        return (dashboardTiles ?? [])
-            .filter(isDashboardChartTileType)
-            .map((tile) => {
-                const zoomableFields =
-                    chartZoomableFieldsByTileUuid[tile.uuid] ?? [];
-                const isParamOnly =
-                    zoomableFields.length === 0 &&
-                    hasReservedParameterReference(
-                        tileParameterReferences?.[tile.uuid] ?? [],
-                    );
-                const otherControl = getTileControl(config, tile.uuid);
-                const conflictControl =
-                    otherControl && otherControl.uuid !== draft.uuid
-                        ? otherControl
-                        : undefined;
-                const label =
-                    (tile.properties.title?.length
-                        ? tile.properties.title
-                        : tile.properties.chartName) || 'Untitled chart';
-                return {
-                    tile,
-                    tabUuid: tile.tabUuid ?? undefined,
-                    zoomableFields,
-                    isParamOnly,
-                    conflictControl,
-                    label,
-                };
-            })
-            .filter(
-                ({ zoomableFields, isParamOnly }) =>
-                    zoomableFields.length > 0 || isParamOnly,
-            );
-    }, [
-        dashboardTiles,
-        chartZoomableFieldsByTileUuid,
-        tileParameterReferences,
-        config,
-        draft.uuid,
-    ]);
+    const granularityData = useGranularityOptions();
+    const eligibleTiles = useEligibleZoomTiles(config, draft.uuid);
 
     type EligibleTile = (typeof eligibleTiles)[number];
 
