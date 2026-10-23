@@ -94,3 +94,37 @@ test('evicts the oldest entry after 100 credential incarnations', async () => {
     await probe.check(keyfile, 'incarnation_0');
     expect(accessToken).toHaveBeenCalledTimes(102);
 });
+
+test('coalesces a new marked attempt but never reuses a healthy result after a current rejection', async () => {
+    const probe = new GoogleSignInProbe();
+    await probe.check(keyfile, 'incarnation_a');
+    const pending = Promise.withResolvers<never>();
+    accessToken.mockReturnValueOnce(pending.promise);
+    const first = probe.check(keyfile, 'incarnation_a', true);
+    const second = probe.check(keyfile, 'incarnation_a', true);
+    expect(accessToken).toHaveBeenCalledTimes(2);
+    pending.reject({
+        response: { status: 400, data: { error: 'invalid_grant' } },
+    });
+    const rejected = {
+        expired: true,
+        rejection: WarehouseSignInRejection.INVALID_GRANT,
+    };
+    expect(await first).toEqual(rejected);
+    expect(await second).toEqual(rejected);
+    expect(await probe.check(keyfile, 'incarnation_a', true)).toEqual(rejected);
+    expect(accessToken).toHaveBeenCalledTimes(2);
+});
+
+test('a healthy marked status is not cached across a later rejection on the same incarnation', async () => {
+    const probe = new GoogleSignInProbe();
+    await probe.check(keyfile, 'incarnation_a', true);
+    accessToken.mockRejectedValue({
+        response: { status: 400, data: { error: 'invalid_grant' } },
+    });
+    expect(await probe.check(keyfile, 'incarnation_a', true)).toEqual({
+        expired: true,
+        rejection: WarehouseSignInRejection.INVALID_GRANT,
+    });
+    expect(accessToken).toHaveBeenCalledTimes(2);
+});

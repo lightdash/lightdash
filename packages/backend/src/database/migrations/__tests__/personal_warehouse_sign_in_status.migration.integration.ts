@@ -1,5 +1,6 @@
 import {
     BigqueryAuthenticationType,
+    BigqueryTokenError,
     UserWarehouseCredentialPurpose,
     WarehouseSignInRejection,
     WarehouseTypes,
@@ -7,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import { WarehouseClientFactory } from '../../../services/WarehouseClientFactory/WarehouseClientFactory';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
@@ -254,3 +256,85 @@ test('reverses the migration after application rollback and preserves older cred
     expect((await f.model.getByUuid(f.uuid, true)).needsSignIn).toBeNull();
     expect(await f.model.getByUuid(f.uuid)).not.toHaveProperty('needsSignIn');
 });
+
+test.each(['personal_token_a', 'personal_token_b'])(
+    'refused ciphertext CAS prevents factory expiry delivery after reconnect with %s',
+    async (refreshToken) => {
+        const f = await fixture();
+        const factory = new WarehouseClientFactory({
+            lightdashConfig: lightdashConfigMock,
+            featureFlagModel: { get: async () => ({ enabled: true }) },
+            userWarehouseCredentialsModel: f.model,
+            logger: { warn: vi.fn() },
+        } as never);
+        const pending = Promise.withResolvers<never>();
+        const rejected = new BigqueryTokenError('query_failure_a', {
+            rejection: WarehouseSignInRejection.INVALID_GRANT,
+        });
+        const delivered = pending.promise.catch((error) =>
+            factory.attributeSharedSignInExpiry(
+                'project_a',
+                f.credentials,
+                error,
+                { snapshot: f.snapshot, organizationUuid: null },
+            ),
+        );
+        await f.model.update(
+            f.userUuid,
+            f.uuid,
+            {
+                ...f.data,
+                credentials: {
+                    ...f.credentials,
+                    keyfileContents: {
+                        ...f.credentials.keyfileContents,
+                        refresh_token: refreshToken,
+                    },
+                },
+            },
+            f.policy,
+            true,
+        );
+        pending.reject(rejected);
+        await expect(delivered).rejects.toBe(rejected);
+        expect(rejected.data).not.toHaveProperty('personalSignIn');
+        expect((await f.model.getByUuid(f.uuid, true)).needsSignIn).toBeNull();
+        const currentCredentials = {
+            ...f.credentials,
+            keyfileContents: {
+                ...f.credentials.keyfileContents,
+                refresh_token: refreshToken,
+            },
+        };
+        const current = (await f.model.getSignInSnapshot(
+            f.uuid,
+            currentCredentials,
+        ))!;
+        await expect(
+            f.model.markNeedsSignIn(
+                current,
+                WarehouseSignInRejection.INVALID_GRANT,
+            ),
+        ).resolves.toBe(true);
+        const marked = (await f.model.getByUuid(f.uuid, true)).needsSignIn;
+        await expect(
+            factory.attributeSharedSignInExpiry(
+                'project_a',
+                currentCredentials,
+                rejected,
+                { snapshot: current, organizationUuid: null },
+            ),
+        ).rejects.toMatchObject({
+            data: { personalSignIn: { userWarehouseCredentialsUuid: f.uuid } },
+        });
+        expect((await f.model.getByUuid(f.uuid, true)).needsSignIn).toEqual(
+            marked,
+        );
+        await expect(
+            f.model.markNeedsSignIn(
+                f.snapshot,
+                WarehouseSignInRejection.INVALID_GRANT,
+            ),
+        ).resolves.toBe(false);
+    },
+);

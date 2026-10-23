@@ -109,7 +109,7 @@ const setup = (
         },
         userWarehouseCredentialsModel: {
             getSignInSnapshot: vi.fn().mockResolvedValue(null),
-            markNeedsSignIn: vi.fn().mockResolvedValue(undefined),
+            markNeedsSignIn: vi.fn().mockResolvedValue(true),
             getByUuidWithSecrets: vi
                 .fn()
                 .mockResolvedValue({ credentials: current }),

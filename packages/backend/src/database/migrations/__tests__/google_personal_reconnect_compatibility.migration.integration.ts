@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     BigqueryAuthenticationType,
+    BigqueryTokenError,
     DatabricksAuthenticationType,
     DefaultSupportedDbtVersion,
     FeatureFlags,
@@ -29,6 +30,7 @@ import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionMod
 import { type ConnectionBinding } from '../../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { UserService } from '../../../services/UserService';
+import { WarehouseClientFactory } from '../../../services/WarehouseClientFactory/WarehouseClientFactory';
 import {
     createGoogleOAuthCompatibilityHarness as createHarness,
     googleOAuthCompatibilityConfig as lightdashConfig,
@@ -729,6 +731,7 @@ const connectionStatusFixture = async (strict = false, required = false) => {
         ...f,
         projectUuid,
         projectId,
+        userService: f.service,
         originalUuid: original.warehouse_connection_uuid,
         extraUuid: extra.warehouse_connection_uuid,
         projectModel,
@@ -1157,3 +1160,123 @@ test.each(['original-uuid', 'single-route'])(
         expect(resolved.userWarehouseCredentialsUuid === f.selected).toBe(true);
     },
 );
+
+const reconnectSelectedForStatus = async (
+    f: Awaited<ReturnType<typeof connectionStatusFixture>>,
+    token: string,
+) => {
+    const h = currentHarness({ ...f, service: f.userService });
+    const exchange = h.exchange.getMockImplementation()!;
+    h.exchange.mockImplementation((code, params, done) =>
+        exchange(code, params, (error, access, _refresh, extra) =>
+            done(error, access, token, extra),
+        ),
+    );
+    await h.invoke('/login/bigquery', {
+        isPopup: 'true',
+        reconnect: 'true',
+        personalCredentialUuid: f.selected,
+    });
+    expect(new URL((await h.callback()).location!).pathname).toBe(
+        '/auth/popup/success',
+    );
+};
+
+test.each(['token_a', 'token_new'])(
+    'an in-flight selected probe discards the old incarnation after persisted reconnect with %s',
+    async (token) => {
+        const f = await connectionStatusFixture();
+        const pending = Promise.withResolvers<never>();
+        const started = Promise.withResolvers<void>();
+        const access = vi
+            .spyOn(GoogleAuth.prototype, 'getAccessToken')
+            .mockImplementationOnce(() => {
+                started.resolve();
+                return pending.promise;
+            })
+            .mockResolvedValue('access_new');
+        const before = await f.credentials.getSignInSnapshot(
+            f.selected,
+            await f.service.resolveForTest(f.projectUuid, f.user.userUuid, {
+                kind: 'original',
+            }),
+        );
+        const checking = f.status();
+        await started.promise;
+        await reconnectSelectedForStatus(f, token);
+        pending.reject({
+            response: { status: 400, data: { error: 'invalid_grant' } },
+        });
+        const status = await checking;
+        expect(status?.personalSignIn?.expired).toBe(false);
+        expect(access).toHaveBeenCalledTimes(2);
+        expect(
+            (await f.credentials.getByUuid(f.selected, true)).needsSignIn,
+        ).toBeNull();
+        const current = await f.credentials.getSignInSnapshot(
+            f.selected,
+            await f.service.resolveForTest(f.projectUuid, f.user.userUuid, {
+                kind: 'original',
+            }),
+        );
+        expect(
+            current!.encryptedCredentials.equals(before!.encryptedCredentials),
+        ).toBe(false);
+    },
+);
+
+test('a current persisted query rejection bypasses a cached healthy preflight without accepting an obsolete rejection', async () => {
+    const f = await connectionStatusFixture();
+    const access = vi
+        .spyOn(GoogleAuth.prototype, 'getAccessToken')
+        .mockResolvedValue('access_a');
+    expect((await f.status())?.personalSignIn?.expired).toBe(false);
+    const selected = await f.service.resolveForTest(
+        f.projectUuid,
+        f.user.userUuid,
+        { kind: 'original' },
+    );
+    const snapshot = (await f.credentials.getSignInSnapshot(
+        f.selected,
+        selected,
+    ))!;
+    const factory = new WarehouseClientFactory({
+        lightdashConfig,
+        featureFlagModel: f.featureFlagModel,
+        userWarehouseCredentialsModel: f.credentials,
+        logger: { warn: vi.fn() },
+    } as never);
+    const rejection = new BigqueryTokenError('query_failure_a', {
+        rejection: WarehouseSignInRejection.INVALID_GRANT,
+    });
+    await expect(
+        factory.attributeSharedSignInExpiry(
+            f.projectUuid,
+            selected,
+            rejection,
+            { snapshot, organizationUuid: null },
+        ),
+    ).rejects.toMatchObject({
+        data: { personalSignIn: { userWarehouseCredentialsUuid: f.selected } },
+    });
+    access.mockRejectedValue({
+        response: { status: 400, data: { error: 'invalid_grant' } },
+    });
+    expect((await f.status())?.personalSignIn?.expired).toBe(true);
+    expect(access).toHaveBeenCalledTimes(2);
+    await reconnectSelectedForStatus(f, 'token_a');
+    await expect(
+        factory.attributeSharedSignInExpiry(
+            f.projectUuid,
+            selected,
+            rejection,
+            { snapshot, organizationUuid: null },
+        ),
+    ).rejects.toBe(rejection);
+    access.mockResolvedValue('access_new');
+    expect((await f.status())?.personalSignIn?.expired).toBe(false);
+    expect(access).toHaveBeenCalledTimes(3);
+    expect(
+        (await f.credentials.getByUuid(f.selected, true)).needsSignIn,
+    ).toBeNull();
+});

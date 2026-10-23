@@ -83,7 +83,7 @@ export const markPersonalSignInRejection = async (
         return false;
     }
     try {
-        await deps.userWarehouseCredentialsModel.markNeedsSignIn(
+        return await deps.userWarehouseCredentialsModel.markNeedsSignIn(
             signIn.snapshot,
             error.data.rejection,
         );

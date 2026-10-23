@@ -15,22 +15,43 @@ type Status = {
 export class GoogleSignInProbe {
     private readonly entries = new Map<
         string,
-        { until: number; result: Promise<Status> }
+        {
+            until: number;
+            result: Promise<Status>;
+            afterRejection: boolean;
+            status: Status | null;
+        }
     >();
 
     async check(
         keyfile: Record<string, string>,
         incarnation: Buffer | string,
+        afterRejection = false,
     ): Promise<Status> {
         const key = createHash('sha256')
             .update(incarnation)
             .update(JSON.stringify(keyfile))
             .digest('hex');
         const cached = this.entries.get(key);
-        if (cached && cached.until > Date.now()) return cached.result;
+        if (
+            cached &&
+            cached.until > Date.now() &&
+            (!afterRejection ||
+                (cached.afterRejection && cached.status?.expired !== false))
+        )
+            return cached.result;
         const result = this.probe(keyfile);
+        const entry = {
+            until: Date.now() + 60_000,
+            result,
+            afterRejection,
+            status: null as Status | null,
+        };
         this.entries.delete(key);
-        this.entries.set(key, { until: Date.now() + 60_000, result });
+        this.entries.set(key, entry);
+        void result.then((status) => {
+            entry.status = status;
+        });
         if (this.entries.size > 100)
             this.entries.delete(this.entries.keys().next().value!);
         return result;
