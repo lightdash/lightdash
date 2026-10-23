@@ -53,6 +53,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     runSql: 'run_sql',
     query: 'query',
     runComposerQueries: 'run_composer_queries',
+    visualize: 'visualize',
     listWarehouseTables: 'list_warehouse_tables',
     describeWarehouseTable: 'describe_warehouse_table',
     listKnowledgeDocuments: 'list_knowledge_documents',

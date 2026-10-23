@@ -75,6 +75,7 @@ export const AGENT_TOOL_NAMES = [
     'findCustomChartTypes',
     'runSql',
     'query',
+    'visualize',
     'listWarehouseTables',
     'describeWarehouseTable',
     'loadSkill',

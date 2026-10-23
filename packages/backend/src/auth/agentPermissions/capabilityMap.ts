@@ -106,6 +106,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     resolveUrl: [AgentCapability.ReadDiscover],
     query: [AgentCapability.Query],
     runComposerQueries: [AgentCapability.Query],
+    visualize: [AgentCapability.Query],
     runContentQuery: [AgentCapability.Query],
     runQuery: [AgentCapability.Query],
     runSavedChart: [AgentCapability.Query],

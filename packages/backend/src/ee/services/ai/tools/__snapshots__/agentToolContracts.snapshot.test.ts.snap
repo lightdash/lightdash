@@ -564,7 +564,7 @@ The user sees all of your text: your reasoning ("thinking"), your final response
 ## How to interpret requests
 
 - Treat a question about values in the data as a request to retrieve them, even when it is phrased as a question: "what is total revenue?" means run a query.
-- When the user asks for a table, present the result itself.
+- When the user asks for a table, visualize the result as a table.
 - To find existing dashboards, charts or Data Apps, use findContent and list the results as Markdown links named after each item (\`- [Name](url)\`). When nothing matches, offer to build a new chart from the available data.
 - For a dashboard request, plan a concise set of chart titles, build the dashboard with your dashboard tools, and mention any relevant existing dashboards found via findContent as an alternative. Keep the plan internal.
 - When a user is about to remove, rename or deduplicate a metric or dimension, or asks what uses a field or what a change would break, report the blast radius with analyzeFieldImpact before they make the change.
@@ -674,9 +674,10 @@ When string dimension metadata has \`caseSensitiveFilters\`, \`true\` means stri
 
 - Query each explore with one semanticLayer node, and combine explores that are not joined in the semantic layer with a duckdb node that joins their results.
 - Compute what a metric query cannot express in a duckdb node that reads the semanticLayer nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, period-over-period change, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals, reshaping, and a metric the explore lacks, derived from the metrics and dimensions it has.
-- Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result you present.
+- Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.
 - For a follow-up that changes an earlier result, change only what the user asked for, and claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.
-- Present the result your answer rests on; it is shown as a table. Present a second result only when it adds a distinct view, and present an earlier result again rather than rerunning it.
+- After query, call visualize on the node your answer rests on: with the chart type the user asked for; otherwise with a chart that fits the result (a line for a trend over time, a bar to compare categories), or a table when the user wants an interactive or downloadable table or the rows are too many for a Markdown table. Skip visualize when a sentence or a small Markdown table answers the question and the user asked for no chart.
+- Visualize a second node only when it adds a distinct view. To visualize an earlier result again, or as another chart, call visualize on its node rather than rerunning query.
 
 ## Field usage
 
@@ -21002,9 +21003,7 @@ Node kinds:
 
 A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.
 
-Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.
-
-Results stay hidden until you present one; each successful result says how.",
+Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -21413,7 +21412,7 @@ Results stay hidden until you present one; each successful result says how.",
               "type": "null",
             },
           ],
-          "description": "A short title for the result, used when it is presented.",
+          "description": "A short title for the result.",
         },
       },
       "required": [
@@ -21456,7 +21455,7 @@ Results stay hidden until you present one; each successful result says how.",
                           "type": "string",
                         },
                         "terminalNodeId": {
-                          "description": "The node a presentation shows.",
+                          "description": "Node whose rows are returned.",
                           "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                           "type": "string",
                         },
@@ -21720,7 +21719,7 @@ Results stay hidden until you present one; each successful result says how.",
                   "type": "integer",
                 },
                 "terminalNodeId": {
-                  "description": "Node whose rows are returned and which a presentation can show.",
+                  "description": "Node whose rows are returned.",
                   "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                   "type": "string",
                 },
@@ -21772,7 +21771,7 @@ Results stay hidden until you present one; each successful result says how.",
                           "type": "string",
                         },
                         "terminalNodeId": {
-                          "description": "The node a presentation shows.",
+                          "description": "Node whose rows are returned.",
                           "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
                           "type": "string",
                         },
@@ -21899,6 +21898,526 @@ Results stay hidden until you present one; each successful result says how.",
                         "error",
                         "rejected",
                         "timeout",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "error": {
+                  "description": "Why the tool call failed; the same message as \`result\`.",
+                  "type": "string",
+                },
+                "refusal": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "capability": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "code": {
+                          "const": "ai_access_refused",
+                          "type": "string",
+                        },
+                        "connectUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "message": {
+                          "type": "string",
+                        },
+                        "operation": {
+                          "type": "string",
+                        },
+                        "policyLayer": {
+                          "type": "string",
+                        },
+                        "policyVersion": {
+                          "type": "number",
+                        },
+                        "projectUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "reason": {
+                          "type": "string",
+                        },
+                        "settingsUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "reason",
+                        "message",
+                        "action",
+                        "settingsUrl",
+                        "connectUrl",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "error",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+      ],
+    },
+  },
+  {
+    "description": "Visualize a node's result for the user as a chart or table. Each call adds one card to the thread; a result stays hidden until it is visualized.
+
+nodeId names a node from a successful query call in this thread, in this turn or an earlier one, so a result can be visualized again with a different vizConfig without rerunning query. vizConfig references are that node's result columns, as listed in its query result.
+
+Pie and series-split charts return readability notes when they have many slices or series.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "definitions": {
+        "__schema6": {
+          "additionalProperties": false,
+          "properties": {
+            "x": {
+              "type": [
+                "string",
+                "null",
+              ],
+            },
+            "y": {
+              "type": [
+                "string",
+                "null",
+              ],
+            },
+            "y2": {
+              "type": [
+                "string",
+                "null",
+              ],
+            },
+          },
+          "required": [
+            "x",
+            "y",
+            "y2",
+          ],
+          "type": "object",
+        },
+      },
+      "properties": {
+        "description": {
+          "description": "One sentence on what the card shows, only when the title is not enough. Null otherwise.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "nodeId": {
+          "description": "The node to visualize, by node id.",
+          "type": "string",
+        },
+        "title": {
+          "description": "Card title a reader understands without seeing the query, e.g. "Revenue by month".",
+          "type": "string",
+        },
+        "vizConfig": {
+          "additionalProperties": false,
+          "properties": {
+            "groupBy": {
+              "description": "Columns that split y into one series per value. bar/line/area/scatter only. Must not include x.",
+              "items": {
+                "description": "A result column reference of the presented node",
+                "type": "string",
+              },
+              "type": [
+                "array",
+                "null",
+              ],
+            },
+            "horizontal": {
+              "description": "bar only: draw bars horizontally.",
+              "type": [
+                "boolean",
+                "null",
+              ],
+            },
+            "labels": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/__schema6",
+                },
+                {
+                  "type": "null",
+                },
+              ],
+              "description": "Axis titles. big_number uses labels.y as its label.",
+            },
+            "stack": {
+              "description": "bar: stack series on top of each other. area always stacks. Ignored elsewhere.",
+              "type": [
+                "boolean",
+                "null",
+              ],
+            },
+            "type": {
+              "description": "Chart type. area is a filled line.",
+              "enum": [
+                "table",
+                "big_number",
+                "bar",
+                "line",
+                "area",
+                "scatter",
+                "pie",
+                "funnel",
+              ],
+              "type": "string",
+            },
+            "x": {
+              "description": "Category or time column. bar/line/area/scatter/pie/funnel. null for table/big_number, or to use the first non-numeric column.",
+              "type": [
+                "string",
+                "null",
+              ],
+            },
+            "y": {
+              "description": "Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.",
+              "items": {
+                "description": "A result column reference of the presented node",
+                "type": "string",
+              },
+              "type": [
+                "array",
+                "null",
+              ],
+            },
+            "y2": {
+              "description": "Column on a secondary (right) y axis. bar/line/area (drawn as a line on area). Must not be in y.",
+              "type": [
+                "string",
+                "null",
+              ],
+            },
+          },
+          "required": [
+            "type",
+            "x",
+            "y",
+            "groupBy",
+            "stack",
+            "horizontal",
+            "y2",
+            "labels",
+          ],
+          "type": "object",
+        },
+      },
+      "required": [
+        "nodeId",
+        "title",
+        "description",
+        "vizConfig",
+      ],
+      "type": "object",
+    },
+    "name": "visualize",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "artifactUuid": {
+                          "type": "string",
+                        },
+                        "nodeId": {
+                          "type": "string",
+                        },
+                        "status": {
+                          "const": "success",
+                          "type": "string",
+                        },
+                        "versionUuid": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "nodeId",
+                        "artifactUuid",
+                        "versionUuid",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "status": {
+                          "const": "error",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                      ],
+                      "type": "object",
+                    },
+                  ],
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "status": {
+                      "enum": [
+                        "success",
+                      ],
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "status",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "result": {
+              "type": "string",
+            },
+            "structuredContent": {
+              "additionalProperties": false,
+              "properties": {
+                "hints": {
+                  "description": "Readability notes on the chart; empty when none.",
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+                "nodeId": {
+                  "description": "The node visualized.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "nodeId",
+                "hints",
+              ],
+              "type": "object",
+            },
+          },
+          "required": [
+            "result",
+            "metadata",
+            "structuredContent",
+          ],
+          "type": "object",
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "metadata": {
+              "allOf": [
+                {
+                  "oneOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "artifactUuid": {
+                          "type": "string",
+                        },
+                        "nodeId": {
+                          "type": "string",
+                        },
+                        "status": {
+                          "const": "success",
+                          "type": "string",
+                        },
+                        "versionUuid": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                        "nodeId",
+                        "artifactUuid",
+                        "versionUuid",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "status": {
+                          "const": "error",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "status",
+                      ],
+                      "type": "object",
+                    },
+                  ],
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "refusal": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "action": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "capability": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "code": {
+                          "const": "ai_access_refused",
+                          "type": "string",
+                        },
+                        "connectUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "message": {
+                          "type": "string",
+                        },
+                        "operation": {
+                          "type": "string",
+                        },
+                        "policyLayer": {
+                          "type": "string",
+                        },
+                        "policyVersion": {
+                          "type": "number",
+                        },
+                        "projectUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                        "reason": {
+                          "type": "string",
+                        },
+                        "settingsUrl": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
+                      },
+                      "required": [
+                        "code",
+                        "reason",
+                        "message",
+                        "action",
+                        "settingsUrl",
+                        "connectUrl",
+                      ],
+                      "type": "object",
+                    },
+                    "status": {
+                      "enum": [
+                        "error",
                       ],
                       "type": "string",
                     },
@@ -28069,6 +28588,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "runSql",
   "query",
   "runComposerQueries",
+  "visualize",
   "discoverFields",
   "grepFields",
   "getMetadata",

@@ -14,7 +14,7 @@ import {
 import assertUnreachable from '../../utils/assertUnreachable';
 import { stableJson } from '../../utils/stableJson';
 import { type AllVizChartConfig } from '../../visualizations/types';
-import { type ComposerStoredChartVizConfig } from './composerChartVizConfig';
+import { type ComposerStoredChartVizConfig } from './schemas/tools/composerChartVizConfigSchema';
 
 /**
  * A composer artifact version: a declarative pipeline, its terminal node and
@@ -47,7 +47,7 @@ export type AiComposerArtifactVersion = {
     artifactType: 'chart';
     title: string;
     description?: string;
-    vizConfig: AiComposerChartArtifactConfigV1;
+    vizConfig: AiComposerChartArtifactConfig;
 };
 
 export const toComposerArtifactVersion = ({
@@ -69,6 +69,31 @@ export const toComposerArtifactVersion = ({
     vizConfig: {
         source: 'composer',
         schemaVersion: 1,
+        queries,
+        terminalNodeId,
+        vizConfig,
+    },
+});
+
+export const toComposerChartArtifactVersion = ({
+    title,
+    description,
+    queries,
+    terminalNodeId,
+    vizConfig,
+}: {
+    title: string;
+    description: string | null;
+    queries: SourceQuery[];
+    terminalNodeId: QueryNodeId;
+    vizConfig: ComposerStoredChartVizConfig;
+}): AiComposerArtifactVersion => ({
+    artifactType: 'chart',
+    title,
+    ...(description ? { description } : {}),
+    vizConfig: {
+        source: 'composer',
+        schemaVersion: 2,
         queries,
         terminalNodeId,
         vizConfig,

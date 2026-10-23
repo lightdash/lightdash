@@ -4332,7 +4332,7 @@
                 "readOnlyHint": true,
                 "title": "Run composer queries"
             },
-            "description": "Run a pipeline: one or more nodes submitted together, where duckdb nodes join or transform other nodes' results. The terminal node's rows are returned to you.\n\nNode kinds:\n- \"semanticLayer\": a metric query against an explore. Result columns are the requested field ids.\n- \"sql\": raw SQL against the project warehouse; may need user approval.\n- \"external\": DuckDB SQL over uploaded or connected tables declared in \"tables\".\n- \"duckdb\": DuckDB SQL over other results declared in \"references\".\n\nA node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.\n\nReuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in \"references\" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.\n\nResults stay hidden until you present one; each successful result says how.",
+            "description": "Run a pipeline: one or more nodes submitted together, where duckdb nodes join or transform other nodes' results. The terminal node's rows are returned to you.\n\nNode kinds:\n- \"semanticLayer\": a metric query against an explore. Result columns are the requested field ids.\n- \"sql\": raw SQL against the project warehouse; may need user approval.\n- \"external\": DuckDB SQL over uploaded or connected tables declared in \"tables\".\n- \"duckdb\": DuckDB SQL over other results declared in \"references\".\n\nA node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.\n\nReuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in \"references\" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "properties": {
@@ -4647,7 +4647,7 @@
                         "type": "string"
                     },
                     "title": {
-                        "description": "A short title for the result, used when it is presented.",
+                        "description": "A short title for the result.",
                         "type": "string"
                     }
                 },

@@ -17,9 +17,18 @@ nodes as thread composer query nodes; it creates no artifact by itself.
 _Avoid_: multi-source query (the API layer under it), composed query, merge
 
 **Composer query tool**:
-The agent tool that submits a composer query, named `query`. Calls recorded
-before the rename carry `runComposerQueries` and still parse and render.
+The agent tool that submits a composer query, named `query`. Its result names
+the terminal node and tells the agent to visualize it. Calls recorded before
+the rename carry `runComposerQueries` and still parse and render.
 _Avoid_: runComposerQueries (the legacy name)
+
+**Visualize**:
+The agent tool that presents a node, named `visualize`: a node id from the
+thread composer query nodes, a title, a description and a viz config. Each
+call writes one composer artifact version; several calls in a turn show
+several cards. A pie or series split runs the node through the results cache
+to return readability hints.
+_Avoid_: present tool, show, render
 
 **Run**:
 One execution of a pipeline, producing a node result for every node. The
@@ -78,10 +87,11 @@ default, or chosen explicitly. Suffixed "result" in the pipeline panel.
 _Avoid_: output node, final node, sink (in user-facing copy)
 
 **Present**:
-The agent's act of making an artifact from a node: naming a terminal node of
-the current turn in its final answer so its result is shown to the user.
-Results the agent does not present stay exploration, visible only in the
-pipeline card. Web marks it `<show node>`, Slack `<slack-table queryUuid>`.
+The agent's act of making an artifact from a node so its result is shown to
+the user: a visualize call, on any node of the thread, from this turn or an
+earlier one. Results the agent does not present stay exploration, visible only
+in the pipeline card. Slack still presents with `<slack-table queryUuid>` in
+the final answer.
 _Avoid_: select (the Slack vocabulary), show, publish, render
 
 **Presented node**:

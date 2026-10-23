@@ -25,6 +25,7 @@ const DATA_ANSWER_TOOLS = new Set([
     ...REFERENCE_TOOLS,
     'runQuery',
     'query',
+    'visualize',
     'runSavedChart',
     'searchFieldValues',
 ]);
@@ -33,6 +34,7 @@ const CHART_TOOLS = new Set([
     ...REFERENCE_TOOLS,
     'generateVisualization',
     'query',
+    'visualize',
     'exportChartAsCode',
     'findCustomChartTypes',
     'getDashboardCharts',

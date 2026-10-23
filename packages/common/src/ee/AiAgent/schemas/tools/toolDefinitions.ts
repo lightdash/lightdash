@@ -382,6 +382,11 @@ import {
     toolUpdateUserNameArgsSchema,
     toolUpdateUserNameOutputSchema,
 } from './toolUpdateUserNameArgs';
+import {
+    TOOL_VISUALIZE_DESCRIPTION,
+    toolVisualizeArgsSchema,
+    toolVisualizeOutputSchema,
+} from './toolVisualizeArgs';
 
 const readOnlyAnnotations: McpToolAnnotations = {
     readOnlyHint: true,
@@ -765,6 +770,20 @@ export const runComposerQueriesToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolComposerQueriesArgsSchema,
     agent: { outputSchema: toolComposerQueriesOutputSchema },
+});
+
+export const visualizeToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'visualize',
+    typeof toolVisualizeArgsSchema,
+    typeof toolVisualizeArgsSchema,
+    typeof toolVisualizeOutputSchema
+> = defineTool({
+    name: 'visualize',
+    title: 'Visualize',
+    description: TOOL_VISUALIZE_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolVisualizeArgsSchema,
+    agent: { outputSchema: toolVisualizeOutputSchema },
 });
 
 export const getQueryResultToolDefinition: ToolDefinitionWithMcpOutput<
@@ -1952,6 +1971,7 @@ type AgentToolDefinitionsByName = {
     runSql: typeof runSqlToolDefinition;
     query: typeof queryToolDefinition;
     runComposerQueries: typeof runComposerQueriesToolDefinition;
+    visualize: typeof visualizeToolDefinition;
     discoverFields: typeof discoverFieldsToolDefinition;
     grepFields: typeof grepFieldsToolDefinition;
     getMetadata: typeof getMetadataToolDefinition;
@@ -2013,6 +2033,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     runSql: runSqlToolDefinition,
     query: queryToolDefinition,
     runComposerQueries: runComposerQueriesToolDefinition,
+    visualize: visualizeToolDefinition,
     discoverFields: discoverFieldsToolDefinition,
     grepFields: grepFieldsToolDefinition,
     getMetadata: getMetadataToolDefinition,
@@ -2079,6 +2100,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     runSqlToolDefinition,
     queryToolDefinition,
     runComposerQueriesToolDefinition,
+    visualizeToolDefinition,
     getQueryResultToolDefinition,
     renderChartToolDefinition,
     discoverFieldsToolDefinition,
