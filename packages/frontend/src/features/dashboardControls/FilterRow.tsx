@@ -3,9 +3,9 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Group, Stack, Text, Tooltip } from '@mantine/core';
+import { Group, Stack, Text, Tooltip, VisuallyHidden } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useId, type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../components/common/PolymorphicGroupButton';
@@ -70,6 +70,7 @@ export const FilterRow: FC<Props> = ({
     onUnhover,
 }) => {
     const getUiString = useUiStrings();
+    const descriptionId = useId();
     const sqlChartTilesMetadata = useDashboardSelector(
         selectSqlChartTilesMetadata,
     );
@@ -135,34 +136,46 @@ export const FilterRow: FC<Props> = ({
     );
 
     if (isReadOnly) {
-        // Hovering still shows its tiles
+        // Hovering still shows its tiles. A disabled button, named by its
+        // content and described by why it opens nothing
         return (
-            <Tooltip
-                label={readOnlyTooltip}
-                disabled={readOnlyTooltip === null}
-                fz="xs"
-                maw={300}
-                position="top-start"
-            >
-                <Group
-                    gap="xs"
-                    wrap="nowrap"
-                    align="flex-start"
-                    className={`${classes.row} ${classes.readOnlyRow}`}
-                    data-controls-row={rule.id}
-                    tabIndex={0}
-                    aria-disabled
-                    onMouseEnter={() => onHover(rule.id)}
-                    onMouseLeave={() => onUnhover(rule.id)}
-                    onFocus={(event) => {
-                        if (event.currentTarget.matches(':focus-visible'))
-                            onHover(rule.id);
-                    }}
-                    onBlur={() => onUnhover(rule.id)}
+            <>
+                <Tooltip
+                    label={readOnlyTooltip}
+                    disabled={readOnlyTooltip === null}
+                    fz="xs"
+                    maw={300}
+                    position="top-start"
                 >
-                    {content}
-                </Group>
-            </Tooltip>
+                    <Group
+                        gap="xs"
+                        wrap="nowrap"
+                        align="flex-start"
+                        className={`${classes.row} ${classes.readOnlyRow}`}
+                        data-controls-row={rule.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-disabled
+                        aria-describedby={
+                            readOnlyTooltip === null ? undefined : descriptionId
+                        }
+                        onMouseEnter={() => onHover(rule.id)}
+                        onMouseLeave={() => onUnhover(rule.id)}
+                        onFocus={(event) => {
+                            if (event.currentTarget.matches(':focus-visible'))
+                                onHover(rule.id);
+                        }}
+                        onBlur={() => onUnhover(rule.id)}
+                    >
+                        {content}
+                    </Group>
+                </Tooltip>
+                {readOnlyTooltip !== null && (
+                    <VisuallyHidden id={descriptionId}>
+                        {readOnlyTooltip}
+                    </VisuallyHidden>
+                )}
+            </>
         );
     }
 

@@ -466,8 +466,10 @@ In `FilterConfiguration/`:
 - For a viewer the rail lists only their own filters (the lock-safe
   temporary filters), and the header counts them; saved filters stay on the
   bar. An own row adds a dimmed "Added by you" line. A read-only row
-  (`isReadOnly`: a `Group`, not a button, that only hovers and takes focus,
-  `aria-disabled`) carries `readOnlyTooltip`.
+  (`isReadOnly`: a `Group`, not a `<button>`, that only hovers and takes
+  focus) is `role="button"` with `aria-disabled`, named by its content and
+  described (`aria-describedby`, a `VisuallyHidden` copy) by the
+  `readOnlyTooltip` it also shows on hover.
   An own filter opens as in edit mode with no label input (its name is a
   focusable heading, `tabIndex={-1}`, focused on mount as the label input
   is), discard and trash; `FilterSettings` gives it the value in view mode

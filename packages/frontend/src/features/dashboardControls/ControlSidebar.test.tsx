@@ -1006,6 +1006,12 @@ describe('ControlSidebar', () => {
                 '[data-controls-row="own"]',
             );
             expect(row).toHaveAttribute('tabindex', '0');
+            expect(row).toHaveAttribute('role', 'button');
+            expect(row).toHaveAttribute('aria-disabled', 'true');
+            expect(row).toHaveAccessibleName(/Added by you/);
+            expect(row).toHaveAccessibleDescription(
+                'Tried to reference field with unknown id: orders_gone',
+            );
             fireEvent.click(row as Element);
             expect(open).not.toHaveBeenCalled();
             fireEvent.mouseEnter(row as Element);
