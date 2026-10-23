@@ -2348,8 +2348,14 @@ describe('getRunQuery Slack links only', () => {
                 },
             } as ToolRunQueryArgs,
         });
+        expect(output.result).toContain(
+            "This execution's queryUuid is query-uuid",
+        );
         expect(output.result).not.toContain('<query-result');
-        expect(output.result).not.toContain('<artifact-chart');
+        expect(output.structuredContent).toMatchObject({
+            queryUuid: 'query-uuid',
+            chartVersionUuid: null,
+        });
     });
 
     it.each([
