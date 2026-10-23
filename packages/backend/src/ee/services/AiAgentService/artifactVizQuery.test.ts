@@ -125,6 +125,9 @@ const buildService = () => {
             getExplore: vi.fn().mockResolvedValue(validExplore),
         },
         featureFlagService,
+        orgAiCopilotConfigResolver: {
+            isCopilotAvailable: vi.fn().mockResolvedValue(true),
+        },
         analytics: { track: vi.fn() },
         lightdashConfig: { ai: { copilot: { maxQueryLimit: 5000 } } },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);

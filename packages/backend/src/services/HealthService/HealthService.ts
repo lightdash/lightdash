@@ -11,6 +11,7 @@ import { isAppRuntimeConfigured } from '../../config/appRuntimeAvailability';
 import { LightdashConfig } from '../../config/parseConfig';
 import { isSnowflakeAgentConfigured } from '../../config/snowflakeAgentConfiguration';
 import { isPreAggregatesEnabled } from '../../ee/preAggregates/isPreAggregatesEnabled';
+import { type OrgAiCopilotConfigResolver } from '../../ee/services/ai/OrgAiCopilotConfigResolver';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -32,6 +33,11 @@ type HealthServiceArguments = {
     featureFlagModel: FeatureFlagModel;
     readinessService?: Pick<ReadinessService, 'getReadiness'>;
     learnSandboxService: Pick<LearnSandboxService, 'isRuntimeAvailable'>;
+    // Called only under a valid licence: the resolver reads Enterprise models.
+    getAiCopilotConfigResolver: () => Pick<
+        OrgAiCopilotConfigResolver,
+        'isCopilotAvailable'
+    >;
 };
 
 export class HealthService extends BaseService {
@@ -54,6 +60,8 @@ export class HealthService extends BaseService {
         'isRuntimeAvailable'
     >;
 
+    private readonly getAiCopilotConfigResolver: HealthServiceArguments['getAiCopilotConfigResolver'];
+
     constructor({
         organizationModel,
         migrationModel,
@@ -63,6 +71,7 @@ export class HealthService extends BaseService {
         featureFlagModel,
         readinessService,
         learnSandboxService,
+        getAiCopilotConfigResolver,
     }: HealthServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -73,10 +82,20 @@ export class HealthService extends BaseService {
         this.featureFlagModel = featureFlagModel;
         this.readinessService = readinessService;
         this.learnSandboxService = learnSandboxService;
+        this.getAiCopilotConfigResolver = getAiCopilotConfigResolver;
     }
 
     private isEnterpriseEnabled(): boolean {
         return this.lightdashConfig.license.licenseKey !== undefined;
+    }
+
+    private async isAiCopilotAvailable(
+        user: SessionUser | undefined,
+    ): Promise<boolean> {
+        if (!this.licenseService.getLicenseStatus().valid) return false;
+        return this.getAiCopilotConfigResolver().isCopilotAvailable(
+            user?.organizationUuid,
+        );
     }
 
     // Instance key first; the org flag can only switch decisions off for a caller's org.
@@ -330,6 +349,7 @@ export class HealthService extends BaseService {
                 isAmbientAiEnabled:
                     !!this.lightdashConfig.ai.copilot.providers.anthropic
                         ?.apiKey,
+                isCopilotAvailable: await this.isAiCopilotAvailable(user),
                 threadDumpEnabled:
                     this.isEnterpriseEnabled() &&
                     this.lightdashConfig.ai.copilot.threadDumpEnabled,

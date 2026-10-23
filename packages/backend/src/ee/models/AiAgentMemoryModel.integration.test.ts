@@ -1,5 +1,4 @@
 import {
-    CommercialFeatureFlags,
     ProjectType,
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
@@ -13,18 +12,12 @@ import type { Knex } from 'knex';
 import { vi } from 'vitest';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { parseConfig } from '../../config/parseConfig';
-import {
-    FeatureFlagsTableName,
-    type DbFeatureFlag,
-    type FeatureFlagsTable,
-} from '../../database/entities/featureFlags';
 import { OrganizationTableName } from '../../database/entities/organizations';
 import {
     ProjectTableName,
     type DbProject,
 } from '../../database/entities/projects';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { getTestContext } from '../../vitest.setup.integration';
 import {
     AiAgentToolCallTableName,
@@ -53,20 +46,11 @@ import { CommercialFeatureFlagModel } from './CommercialFeatureFlagModel';
 describe('AiAgentMemoryModel integration', () => {
     let database: Knex;
     let model: AiAgentMemoryModel;
-    let featureFlagService: FeatureFlagService;
     let schedulerClient: CommercialSchedulerClient;
     let analytics: LightdashAnalytics;
-    const originalFlags = new Map<string, DbFeatureFlag | undefined>();
     const threadUuids = new Set<string>();
     const memoryUuids = new Set<string>();
     const consolidationRunUuids = new Set<string>();
-
-    const setFeatureFlag = async (flagId: string, enabled: boolean) => {
-        await database<FeatureFlagsTable>(FeatureFlagsTableName)
-            .insert({ flag_id: flagId, default_enabled: enabled })
-            .onConflict('flag_id')
-            .merge({ default_enabled: enabled });
-    };
 
     const setOrgMemoryEnabled = async (enabled: boolean) => {
         await database(OrganizationTableName)
@@ -90,10 +74,6 @@ describe('AiAgentMemoryModel integration', () => {
             database,
             lightdashConfig,
         });
-        featureFlagService = new FeatureFlagService({
-            lightdashConfig,
-            featureFlagModel,
-        });
         analytics = new LightdashAnalytics({
             lightdashConfig,
             writeKey: 'notrack',
@@ -109,20 +89,6 @@ describe('AiAgentMemoryModel integration', () => {
             featureFlagModel,
         });
         await schedulerClient.graphileUtils;
-        const flagIds = [CommercialFeatureFlags.AiCopilot];
-        const storedFlags = await Promise.all(
-            flagIds.map((flagId) =>
-                database<FeatureFlagsTable>(FeatureFlagsTableName)
-                    .where('flag_id', flagId)
-                    .first(),
-            ),
-        );
-        flagIds.forEach((flagId, index) => {
-            originalFlags.set(flagId, storedFlags[index]);
-        });
-        await Promise.all(
-            flagIds.map((flagId) => setFeatureFlag(flagId, true)),
-        );
         await setOrgMemoryEnabled(true);
     });
 
@@ -167,21 +133,6 @@ describe('AiAgentMemoryModel integration', () => {
     });
 
     afterAll(async () => {
-        await Promise.all(
-            [...originalFlags].map(([flagId, flag]) =>
-                flag
-                    ? database<FeatureFlagsTable>(FeatureFlagsTableName)
-                          .insert({
-                              flag_id: flag.flag_id,
-                              default_enabled: flag.default_enabled,
-                          })
-                          .onConflict('flag_id')
-                          .merge({ default_enabled: flag.default_enabled })
-                    : database<FeatureFlagsTable>(FeatureFlagsTableName)
-                          .where('flag_id', flagId)
-                          .delete(),
-            ),
-        );
         const graphileClient = await schedulerClient.graphileUtils;
         await graphileClient.release();
     });
@@ -287,8 +238,8 @@ describe('AiAgentMemoryModel integration', () => {
                 .app.getModels()
                 .getProjectContextModel(),
             userModel: { findSessionUserAndOrgByUuid: vi.fn() } as never,
-            featureFlagService,
             aiOrganizationSettingsService: {
+                isCopilotAvailable: async () => true,
                 isAiAgentMemoryEnabled: async ({ organizationUuid }) => {
                     const org = await database(OrganizationTableName)
                         .select('ai_agent_memory_enabled')

@@ -82,6 +82,9 @@ const buildService = ({
                         : true,
             })),
         },
+        orgAiCopilotConfigResolver: {
+            isCopilotAvailable: vi.fn().mockResolvedValue(true),
+        },
         aiOrganizationSettingsService: {
             isExplicitSlackChannelLinkingRequired: vi
                 .fn()

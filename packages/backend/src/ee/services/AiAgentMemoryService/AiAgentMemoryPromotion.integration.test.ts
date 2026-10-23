@@ -196,7 +196,6 @@ describe('AI agent memory promotion integration', () => {
             projectModel: app.getModels().getProjectModel(),
             projectContextModel: app.getModels().getProjectContextModel(),
             userModel: app.getModels().getUserModel(),
-            featureFlagService: services.getFeatureFlagService(),
             aiOrganizationSettingsService:
                 services.getAiOrganizationSettingsService<AiOrganizationSettingsService>(),
             schedulerClient: app

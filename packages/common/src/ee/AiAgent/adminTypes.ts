@@ -384,7 +384,6 @@ export type ComputedAiOrganizationSettings = {
     // Bedrock presets an admin can choose as allowed models.
     bedrockModelOptions: AiModelOption[];
     isCopilotEnabled: boolean;
-    isTrial: boolean;
     defaultAiAgentModelOptions: AiModelOption[];
     // Full option list an admin can pick from (ignores visibility restrictions); null for non-admins.
     // Optional to keep the response schema backwards-compatible for old clients.
@@ -686,7 +685,6 @@ export type ApiAiOrganizationSettingsResponse = ApiSuccess<
 
 export type AiOrganizationRuntimeSettings = {
     isCopilotEnabled: boolean;
-    isTrial: boolean;
     // Available to all members so client setup reflects organization consent.
     mcpEnabled?: boolean;
     aiAgentsVisible: boolean;

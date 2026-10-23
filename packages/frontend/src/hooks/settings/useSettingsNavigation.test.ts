@@ -31,7 +31,7 @@ const settingsContext = (
     isEmailWhitelabelEnabled: false,
     isScimTokenManagementEnabled: undefined,
     isServiceAccountsEnabled: false,
-    isAiCopilotEnabledOrTrial: true,
+    isAiCopilotEnabled: true,
     shouldShowAiAgentReviews: false,
     canManageOrgAiAgent: true,
     hasAnyAiAgentAccess: true,
@@ -103,11 +103,11 @@ describe('MCP settings navigation', () => {
     });
 
     it.each([
-        { isAiCopilotEnabledOrTrial: false },
+        { isAiCopilotEnabled: false },
         { hasAnyAiAgentAccess: false },
         { canManageOrgAiAgent: false, hasAnyAiAgentAccess: false },
         {
-            isAiCopilotEnabledOrTrial: false,
+            isAiCopilotEnabled: false,
             canManageOrgAiAgent: false,
             hasAnyAiAgentAccess: false,
         },

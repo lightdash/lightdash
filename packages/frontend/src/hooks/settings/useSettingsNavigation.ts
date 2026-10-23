@@ -91,7 +91,7 @@ export const useSettingsNavigation = (
         isAgentIdentityEnabled,
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
-        isAiCopilotEnabledOrTrial,
+        isAiCopilotEnabled,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
@@ -564,7 +564,7 @@ export const useSettingsNavigation = (
             });
         }
 
-        if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
+        if (isAiCopilotEnabled && hasAnyAiAgentAccess) {
             const aiChildren: SettingsNavigationItem[] = [];
             // General is org-wide config (router, org settings) — org admins only.
             if (canManageOrgAiAgent) {
@@ -627,7 +627,7 @@ export const useSettingsNavigation = (
 
             if (
                 canAccessDeepResearchSettings({
-                    isAiCopilotEnabledOrTrial,
+                    isAiCopilotEnabled,
                     canManageOrgAiAgent,
                     hasAnyAiAgentAccess,
                 })
@@ -716,7 +716,7 @@ export const useSettingsNavigation = (
                 exact: true,
             },
         ];
-        if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
+        if (isAiCopilotEnabled && hasAnyAiAgentAccess) {
             if (canManageOrgAiAgent) {
                 mcpChildren.push({
                     label: 'General',
@@ -898,7 +898,7 @@ export const useSettingsNavigation = (
                     : []),
                 // Only meaningful when the instance has AI agents at all —
                 // same gate as the org-level AI agents section.
-                ...(isAiCopilotEnabledOrTrial
+                ...(isAiCopilotEnabled
                     ? [
                           {
                               label: 'Agent data scope',
@@ -922,7 +922,7 @@ export const useSettingsNavigation = (
                 // list and the project selection require
                 // manage:OrganizationAiAgent, so a project admin without it
                 // would land on a page whose queries 403.
-                ...(isAiCopilotEnabledOrTrial && canManageOrgAiAgent
+                ...(isAiCopilotEnabled && canManageOrgAiAgent
                     ? [
                           {
                               label: 'AI region',
@@ -1345,7 +1345,7 @@ export const useSettingsNavigation = (
         isAgentIdentityEnabled,
         isScimEnabled,
         isServiceAccountsEnabled,
-        isAiCopilotEnabledOrTrial,
+        isAiCopilotEnabled,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,

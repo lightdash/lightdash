@@ -111,10 +111,9 @@ const ProjectSettings: FC<{
                 organizationUuid: user.data?.organizationUuid,
             }),
         ) ?? false;
-    const isAiCopilotEnabledOrTrial =
+    const isAiCopilotEnabled =
         aiOrganizationSettingsQuery.isSuccess &&
-        (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
-            aiOrganizationSettingsQuery.data.isTrial);
+        aiOrganizationSettingsQuery.data.isCopilotEnabled;
     const isPgWireEnabled = organization?.pgWire?.enabled ?? false;
     // Only relevant when the project's code lives in a Git provider, since the
     // section lists PRs opened against that repo.
@@ -393,7 +392,7 @@ const ProjectSettings: FC<{
             },
             // Only registered when the instance has AI agents at all — same
             // gate as the AI agents navigation section.
-            ...(isAiCopilotEnabledOrTrial
+            ...(isAiCopilotEnabled
                 ? [
                       {
                           path: `/agentDataScope`,
@@ -410,7 +409,7 @@ const ProjectSettings: FC<{
                       },
                   ]
                 : []),
-            ...(isAiCopilotEnabledOrTrial && canManageOrgAiAgent
+            ...(isAiCopilotEnabled && canManageOrgAiAgent
                 ? [
                       {
                           path: `/aiRegion`,
@@ -654,7 +653,7 @@ const ProjectSettings: FC<{
         project,
         canManageExternalSources,
         canViewContentReviewSettings,
-        isAiCopilotEnabledOrTrial,
+        isAiCopilotEnabled,
         canManageOrgAiAgent,
     ]);
     const routesElements = useRoutes(routes);

@@ -62,9 +62,6 @@ const AiSearchBoxInner: FC<Props> = ({
         redirectOnUnauthorized: false,
     });
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
-    const isTrial =
-        aiOrganizationSettingsQuery.isSuccess &&
-        aiOrganizationSettingsQuery.data.isTrial;
     const reviewsEnabled =
         aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;
     const {
@@ -106,8 +103,7 @@ const AiSearchBoxInner: FC<Props> = ({
 
     const noAgentsAvailable =
         !isLoadingAgents && (!agents || agents.length === 0);
-    const showAgentSetupPrompt =
-        canManageAgents && (isTrial || noAgentsAvailable);
+    const showAgentSetupPrompt = canManageAgents && noAgentsAvailable;
     const showFooter = canManageAgents || showReviewsPromo;
 
     const showAutoOption =
@@ -300,7 +296,7 @@ const AiSearchBoxInner: FC<Props> = ({
                     <Box bg="ldGray.0" px="md" py="5px">
                         <Group flex={1} justify="space-between">
                             <Group gap="xs">
-                                {showAgentSetupPrompt && noAgentsAvailable ? (
+                                {showAgentSetupPrompt && (
                                     <Button
                                         size="compact-xs"
                                         variant="subtle"
@@ -308,28 +304,12 @@ const AiSearchBoxInner: FC<Props> = ({
                                         component={Link}
                                         to="/ai-agents"
                                     >
-                                        <Group gap={2}>
-                                            {isTrial && (
-                                                <Text size="xs" c="ldGray.8">
-                                                    You are trialing the AI
-                                                    Agents feature.
-                                                </Text>
-                                            )}{' '}
-                                            <Text size="xs" fw={500}>
-                                                Set up your first agent to get
-                                                started
-                                            </Text>
-                                        </Group>
-                                    </Button>
-                                ) : showAgentSetupPrompt && isTrial ? (
-                                    <Group gap="xs">
-                                        <AiAgentIcon size={14} />
-                                        <Text size="xs" c="ldGray.8">
-                                            You are trialing the AI Agents
-                                            feature.
+                                        <Text size="xs" fw={500}>
+                                            Set up your first agent to get
+                                            started
                                         </Text>
-                                    </Group>
-                                ) : null}
+                                    </Button>
+                                )}
 
                                 {showReviewsPromo && (
                                     <Button

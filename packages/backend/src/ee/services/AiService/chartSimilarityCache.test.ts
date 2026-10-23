@@ -30,20 +30,20 @@ const input: ChartSimilarityInput = {
     candidates: [],
 };
 const setup = () => {
-    const featureFlagService = {
-        get: vi.fn().mockResolvedValue({ enabled: true }),
-    };
     const orgAiCopilotConfigResolver = {
         getCopilotConfig: vi.fn().mockResolvedValue({ providers: {} }),
         getAccessibleModelIds: vi.fn(),
         getDecisionClient: vi.fn().mockResolvedValue(undefined),
+        isCopilotAvailable: vi.fn().mockResolvedValue(true),
     };
     const service = new AiService({
         lightdashConfig: lightdashConfigMock,
-        featureFlagService,
+        featureFlagService: {
+            get: vi.fn().mockResolvedValue({ enabled: true }),
+        },
         orgAiCopilotConfigResolver,
     } as unknown as ConstructorParameters<typeof AiService>[0]);
-    return { service, featureFlagService, orgAiCopilotConfigResolver };
+    return { service, orgAiCopilotConfigResolver };
 };
 beforeEach(() =>
     vi.mocked(compareChartQueries).mockReset().mockResolvedValue([]),
@@ -115,8 +115,8 @@ it('allows retry after a failed call without retaining a rejected promise', asyn
 });
 
 it('enforces Ambient AI availability before calling the model', async () => {
-    const { service, featureFlagService } = setup();
-    featureFlagService.get.mockResolvedValue({ enabled: false });
+    const { service, orgAiCopilotConfigResolver } = setup();
+    orgAiCopilotConfigResolver.isCopilotAvailable.mockResolvedValue(false);
     await expect(service.compareCharts(user, 'project', input)).rejects.toThrow(
         'Ambient AI is not available',
     );
@@ -124,16 +124,18 @@ it('enforces Ambient AI availability before calling the model', async () => {
 });
 
 it('checks availability without running a comparison', async () => {
-    const { service, featureFlagService } = setup();
+    const { service, orgAiCopilotConfigResolver } = setup();
     expect(await service.isAmbientAiEnabled(user)).toBe(true);
-    featureFlagService.get.mockResolvedValue({ enabled: false });
+    orgAiCopilotConfigResolver.isCopilotAvailable.mockResolvedValue(false);
     expect(await service.isAmbientAiEnabled(user)).toBe(false);
     expect(compareChartQueries).not.toHaveBeenCalled();
 });
 
 it('treats configuration lookup failures as unavailable', async () => {
-    const { service, featureFlagService } = setup();
-    featureFlagService.get.mockRejectedValue(new Error('Unavailable'));
+    const { service, orgAiCopilotConfigResolver } = setup();
+    orgAiCopilotConfigResolver.isCopilotAvailable.mockRejectedValue(
+        new Error('Unavailable'),
+    );
     expect(await service.isAmbientAiEnabled(user)).toBe(false);
     expect(compareChartQueries).not.toHaveBeenCalled();
 });

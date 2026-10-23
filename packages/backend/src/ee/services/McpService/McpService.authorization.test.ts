@@ -35,28 +35,18 @@ const createService = ({
     mcpEnabled = true,
     organizationMcpEnabled = null,
     aiCopilotEnabled = false,
-    trialEligible = false,
 }: {
     mcpEnabled?: boolean;
     organizationMcpEnabled?: boolean | null;
     aiCopilotEnabled?: boolean;
-    trialEligible?: boolean;
 } = {}) =>
     Object.assign(Object.create(McpService.prototype), {
         lightdashConfig: { mcp: { enabled: mcpEnabled } },
-        featureFlagService: {
-            get: vi.fn(
-                async ({ featureFlagId }: { featureFlagId: string }) => ({
-                    id: featureFlagId,
-                    enabled: aiCopilotEnabled,
-                }),
-            ),
-        },
         aiOrganizationSettingsService: {
             isMcpEnabled: vi
                 .fn()
                 .mockResolvedValue(organizationMcpEnabled ?? true),
-            isEligibleForTrial: vi.fn().mockResolvedValue(trialEligible),
+            isCopilotAvailable: vi.fn().mockResolvedValue(aiCopilotEnabled),
         },
     }) as McpService;
 
@@ -76,11 +66,10 @@ const createAccount = ({
     }) as unknown as Account;
 
 describe('McpService organization MCP availability', () => {
-    it('checks the organization setting before instance, copilot and trial enablement', async () => {
+    it('checks the organization setting before instance and copilot enablement', async () => {
         const service = createService({
             organizationMcpEnabled: false,
             aiCopilotEnabled: true,
-            trialEligible: true,
         });
 
         await expect(service.isEnabled(defaultSessionUser)).resolves.toBe(
@@ -89,9 +78,8 @@ describe('McpService organization MCP availability', () => {
         expect(
             service['aiOrganizationSettingsService'].isMcpEnabled,
         ).toHaveBeenCalledExactlyOnceWith(defaultSessionUser.organizationUuid);
-        expect(service['featureFlagService'].get).not.toHaveBeenCalled();
         expect(
-            service['aiOrganizationSettingsService'].isEligibleForTrial,
+            service['aiOrganizationSettingsService'].isCopilotAvailable,
         ).not.toHaveBeenCalled();
     });
 
@@ -99,25 +87,16 @@ describe('McpService organization MCP availability', () => {
         {
             mcpEnabled: true,
             aiCopilotEnabled: false,
-            trialEligible: false,
             expected: true,
         },
         {
             mcpEnabled: false,
             aiCopilotEnabled: true,
-            trialEligible: false,
             expected: true,
         },
         {
             mcpEnabled: false,
             aiCopilotEnabled: false,
-            trialEligible: true,
-            expected: true,
-        },
-        {
-            mcpEnabled: false,
-            aiCopilotEnabled: false,
-            trialEligible: false,
             expected: false,
         },
     ])(

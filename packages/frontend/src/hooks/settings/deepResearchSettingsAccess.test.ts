@@ -7,7 +7,7 @@ const access = (
     > = {},
 ) =>
     canAccessDeepResearchSettings({
-        isAiCopilotEnabledOrTrial: true,
+        isAiCopilotEnabled: true,
         canManageOrgAiAgent: true,
         hasAnyAiAgentAccess: true,
         ...overrides,
@@ -19,7 +19,7 @@ describe('canAccessDeepResearchSettings', () => {
     });
 
     it.each([
-        'isAiCopilotEnabledOrTrial',
+        'isAiCopilotEnabled',
         'canManageOrgAiAgent',
         'hasAnyAiAgentAccess',
     ] as const)('denies access when %s is false', (gate) => {

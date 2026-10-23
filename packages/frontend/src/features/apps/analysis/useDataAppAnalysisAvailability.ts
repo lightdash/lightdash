@@ -58,7 +58,7 @@ export const useDataAppAnalysisAvailability =
         if (!analysisFlag.data?.enabled) {
             return { status: 'unavailable', reason: 'not_rolled_out' };
         }
-        if (!aiSettings?.isCopilotEnabled && !aiSettings?.isTrial) {
+        if (!aiSettings?.isCopilotEnabled) {
             return { status: 'unavailable', reason: 'copilot_off' };
         }
         if (!aiSettings.dataAppRuntimeAiEnabled) {

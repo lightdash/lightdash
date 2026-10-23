@@ -149,8 +149,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const aiAgentsEnabled =
         aiOrganizationSettingsQuery.isSuccess &&
         aiOrganizationSettingsQuery.data.aiAgentsVisible &&
-        (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
-            aiOrganizationSettingsQuery.data.isTrial);
+        aiOrganizationSettingsQuery.data.isCopilotEnabled;
     const { isLoading: isLoadingAgents, data: agents } = useProjectAiAgents({
         projectUuid,
         redirectOnUnauthorized: false,

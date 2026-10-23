@@ -82,7 +82,6 @@ import {
     assertUnreachable,
     buildAgentIdentityClaim,
     CatalogType,
-    CommercialFeatureFlags,
     ConflictError,
     ContentType,
     DATA_APP_VIZ_TEMPLATE,
@@ -2820,24 +2819,9 @@ export class AiAgentService extends BaseService {
             'userUuid' | 'organizationUuid' | 'organizationName'
         >,
     ) {
-        const aiCopilotFlag = await this.featureFlagService.get({
-            user,
-            featureFlagId: CommercialFeatureFlags.AiCopilot,
-        });
-
-        if (aiCopilotFlag.enabled) {
-            return true;
-        }
-        if (!user.organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-        const isEligibleForTrial =
-            await this.aiOrganizationSettingsService.isEligibleForTrial(
-                aiCopilotFlag.enabled,
-                user.organizationUuid,
-            );
-
-        return isEligibleForTrial;
+        return this.orgAiCopilotConfigResolver.isCopilotAvailable(
+            user.organizationUuid,
+        );
     }
 
     /**

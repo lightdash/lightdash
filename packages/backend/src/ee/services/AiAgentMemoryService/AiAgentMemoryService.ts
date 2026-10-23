@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT,
-    CommercialFeatureFlags,
     ConflictError,
     ForbiddenError,
     getAiProjectContextObjectKey,
@@ -61,7 +60,6 @@ import {
     type AiAgentMemoryDistillOutcome,
 } from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
-import { type FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import {
     type DbAiAgentMemory,
     type DbAiAgentMemoryConsolidationRun,
@@ -260,10 +258,11 @@ type Dependencies = {
     >;
     projectContextModel: Pick<ProjectContextModel, 'getDocument'>;
     userModel: Pick<UserModel, 'findSessionUserAndOrgByUuid'>;
-    featureFlagService: FeatureFlagService;
     aiOrganizationSettingsService: Pick<
         AiOrganizationSettingsService,
-        'isAiAgentMemoryEnabled' | 'isAiAgentReviewsEnabled'
+        | 'isAiAgentMemoryEnabled'
+        | 'isAiAgentReviewsEnabled'
+        | 'isCopilotAvailable'
     >;
     schedulerClient: MemorySchedulerClient;
     /** Runs consolidation without applying its proposed operations. */
@@ -292,8 +291,6 @@ export class AiAgentMemoryService extends BaseService {
     private readonly projectContextModel: Dependencies['projectContextModel'];
 
     private readonly userModel: Dependencies['userModel'];
-
-    private readonly featureFlagService: FeatureFlagService;
 
     private readonly aiOrganizationSettingsService: Dependencies['aiOrganizationSettingsService'];
 
@@ -324,7 +321,6 @@ export class AiAgentMemoryService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.projectContextModel = dependencies.projectContextModel;
         this.userModel = dependencies.userModel;
-        this.featureFlagService = dependencies.featureFlagService;
         this.aiOrganizationSettingsService =
             dependencies.aiOrganizationSettingsService;
         this.schedulerClient = dependencies.schedulerClient;
@@ -486,14 +482,13 @@ export class AiAgentMemoryService extends BaseService {
 
     private async isEnabled(organizationUuid: UUID): Promise<boolean> {
         const user = { userUuid: 'system', organizationUuid };
-        const [copilot, memoryEnabled] = await Promise.all([
-            this.featureFlagService.get({
-                user,
-                featureFlagId: CommercialFeatureFlags.AiCopilot,
-            }),
+        const [copilotAvailable, memoryEnabled] = await Promise.all([
+            this.aiOrganizationSettingsService.isCopilotAvailable(
+                organizationUuid,
+            ),
             this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(user),
         ]);
-        return copilot.enabled && memoryEnabled;
+        return copilotAvailable && memoryEnabled;
     }
 
     private async filterByEnabledOrganizations<
@@ -567,11 +562,11 @@ export class AiAgentMemoryService extends BaseService {
             throw new ForbiddenError('Cannot view project');
         }
 
-        const copilot = await this.featureFlagService.get({
-            user,
-            featureFlagId: CommercialFeatureFlags.AiCopilot,
-        });
-        if (!copilot.enabled) {
+        if (
+            !(await this.aiOrganizationSettingsService.isCopilotAvailable(
+                organizationUuid,
+            ))
+        ) {
             throw new NotFoundError(notFoundMessage);
         }
 

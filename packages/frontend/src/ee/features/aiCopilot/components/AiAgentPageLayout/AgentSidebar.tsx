@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
     Box,
     Button,
     Divider,
@@ -26,7 +25,6 @@ import {
     IconBrandSlack,
     IconChevronDown,
     IconHistory,
-    IconInfoCircle,
     IconPencil,
     IconPin,
     IconPinnedOff,
@@ -39,7 +37,6 @@ import MantineModal from '../../../../../components/common/MantineModal';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useCanManageAiAgentThread } from '../../hooks/useAiAgentPermission';
-import { useAiOrganizationSettings } from '../../hooks/useAiOrganizationSettings';
 import {
     useDeleteAiAgentThreadMutation,
     useInfiniteAiAgentThreads,
@@ -47,7 +44,6 @@ import {
     useRenameAiAgentThreadMutation,
 } from '../../hooks/useProjectAiAgents';
 import { AgentNamePill } from '../AgentNamePill';
-import { AiAgentIcon } from '../AiAgentIcon';
 import classes from './agentSidebar.module.css';
 
 type ThreadRenameInputProps = {
@@ -478,34 +474,6 @@ const ThreadList: FC<ThreadListProps> = ({
     );
 };
 
-const TrialAlert = () => (
-    <Alert
-        icon={<AiAgentIcon size={14} />}
-        variant="outline"
-        color="indigo.6"
-        bg="indigo.0"
-        fz="xs"
-        p="xs"
-        title={
-            <Text size="xs" fw={500}>
-                You're currently using AI agents in free trial mode
-            </Text>
-        }
-    >
-        <Button
-            size="compact-xs"
-            variant="light"
-            color="indigo"
-            leftSection={<MantineIcon icon={IconInfoCircle} size="sm" />}
-            component={Link}
-            to="https://docs.lightdash.com/guides/ai-agents"
-            target="_blank"
-        >
-            Learn more
-        </Button>
-    </Alert>
-);
-
 type AgentSidebarProps = {
     agent: AiAgent;
     projectUuid: string;
@@ -519,11 +487,6 @@ export const AgentSidebar: FC<AgentSidebarProps> = ({
     threadUuid,
     isAgentSidebarCollapsed,
 }) => {
-    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
-    const isTrial =
-        aiOrganizationSettingsQuery.isSuccess &&
-        aiOrganizationSettingsQuery.data.isTrial;
-
     return (
         <Stack
             gap="sm"
@@ -537,7 +500,6 @@ export const AgentSidebar: FC<AgentSidebarProps> = ({
                     agentUuid={agent.uuid}
                 />
             )}
-            {isTrial && !isAgentSidebarCollapsed && <TrialAlert />}
         </Stack>
     );
 };
@@ -553,11 +515,6 @@ export const AutoModeSidebar: FC<AutoModeSidebarProps> = ({
     threadUuid,
     isAgentSidebarCollapsed,
 }) => {
-    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
-    const isTrial =
-        aiOrganizationSettingsQuery.isSuccess &&
-        aiOrganizationSettingsQuery.data.isTrial;
-
     return (
         <Stack
             gap="sm"
@@ -571,8 +528,6 @@ export const AutoModeSidebar: FC<AutoModeSidebarProps> = ({
                     showAgentName
                 />
             )}
-
-            {isTrial && !isAgentSidebarCollapsed && <TrialAlert />}
         </Stack>
     );
 };

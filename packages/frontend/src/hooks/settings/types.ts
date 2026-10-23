@@ -78,7 +78,7 @@ export type SettingsContext = {
     isEmailWhitelabelEnabled: boolean;
     isScimTokenManagementEnabled: FeatureFlag | undefined;
     isServiceAccountsEnabled: boolean;
-    isAiCopilotEnabledOrTrial: boolean;
+    isAiCopilotEnabled: boolean;
     shouldShowAiAgentReviews: boolean;
     // Org-level AI settings access (router config, org settings, review queue).
     canManageOrgAiAgent: boolean;

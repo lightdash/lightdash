@@ -37,10 +37,9 @@ export const useSettingsContext = (): SettingsContext => {
     } = useServerFeatureFlag(FeatureFlags.AgentIdentity);
     const showMyAgentConnections = agentIdentityFlag?.enabled === true;
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
-    const isAiCopilotEnabledOrTrial =
+    const isAiCopilotEnabled =
         aiOrganizationSettingsQuery.isSuccess &&
-        (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
-            aiOrganizationSettingsQuery.data.isTrial);
+        aiOrganizationSettingsQuery.data.isCopilotEnabled;
 
     const shouldShowAiAgentReviews =
         aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;
@@ -234,7 +233,7 @@ export const useSettingsContext = (): SettingsContext => {
         isEmailWhitelabelEnabled,
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
-        isAiCopilotEnabledOrTrial,
+        isAiCopilotEnabled,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,

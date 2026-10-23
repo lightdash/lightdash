@@ -1,19 +1,9 @@
 import { type SlackSettings } from '@lightdash/common';
-import {
-    Badge,
-    Box,
-    Divider,
-    Group,
-    Stack,
-    Switch,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Box, Divider, Group, Stack, Switch, Text, Title } from '@mantine/core';
 import {
     IconApps,
     IconBrandSlack,
     IconLayoutDashboard,
-    IconSparkles,
     type Icon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -52,7 +42,6 @@ type AiSurfacesCardProps = {
     showDataAppRuntimeAi: boolean;
     slackInstallation: SlackSettings | undefined;
     slackAgentsEnabled: boolean;
-    isTrial: boolean;
     disabled: boolean;
     isUpdatingSlack: boolean;
     onUpdateAiAgentsVisible: (checked: boolean) => void;
@@ -64,7 +53,6 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
     showDataAppRuntimeAi,
     slackInstallation,
     slackAgentsEnabled,
-    isTrial,
     disabled,
     isUpdatingSlack,
     onUpdateAiAgentsVisible,
@@ -76,22 +64,7 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
         <SettingsCard>
             <Stack gap="md">
                 <Box>
-                    <Group gap="xs">
-                        <Title order={5}>Visibility</Title>
-                        {isTrial && (
-                            <Badge
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconSparkles}
-                                        size={12}
-                                    />
-                                }
-                                size="sm"
-                            >
-                                Free trial
-                            </Badge>
-                        )}
-                    </Group>
+                    <Title order={5}>Visibility</Title>
                     <Text c="dimmed" fz="xs">
                         Where agents can be reached. Per-agent access still
                         applies on every surface.

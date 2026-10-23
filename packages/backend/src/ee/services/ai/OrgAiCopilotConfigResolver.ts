@@ -12,6 +12,7 @@ import {
     AiCopilotConfigSchemaType,
     DEFAULT_BEDROCK_EMBEDDING_MODEL,
 } from '../../../config/aiConfigSchema';
+import { isAiCopilotAvailable } from '../../../config/aiCopilotAvailability';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
@@ -496,6 +497,29 @@ export class OrgAiCopilotConfigResolver {
         });
         if (!orgKeys) return managed;
         return overlayOrgProviderApiKeys(base, orgKeys);
+    }
+
+    /**
+     * Whether AI copilot is available to an organization. This resolver is
+     * only constructed under a valid Enterprise licence (`ee/index.ts`).
+     */
+    async isCopilotAvailable(
+        organizationUuid: string | null | undefined,
+    ): Promise<boolean> {
+        const instanceConfig = this.lightdashConfig.ai.copilot;
+        if (!instanceConfig.enabled) return false;
+        try {
+            const config =
+                await this.getCopilotConfigForDisplay(organizationUuid);
+            return isAiCopilotAvailable({ licenseValid: true, config });
+        } catch {
+            // A misconfigured org key fails its prompts with a clear error; it
+            // must not hide the settings that fix it.
+            return isAiCopilotAvailable({
+                licenseValid: true,
+                config: instanceConfig,
+            });
+        }
     }
 
     /**

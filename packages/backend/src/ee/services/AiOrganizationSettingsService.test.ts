@@ -137,7 +137,6 @@ describe('validateDataAppAnalysisLimits', () => {
 describe('findBaseUrlRemovalsBlockedByInstanceGateway', () => {
     const { providers } = aiCopilotConfigSchema.parse({
         enabled: true,
-        requiresFeatureFlag: false,
         telemetryEnabled: false,
         threadDumpEnabled: false,
         debugLoggingEnabled: false,
@@ -405,6 +404,7 @@ describe('upsertSettings model validation', () => {
     const ANTHROPIC_ONLY_CONFIG = {
         ai: {
             copilot: {
+                enabled: true,
                 defaultProvider: 'anthropic',
                 providers: { anthropic: { modelName: 'claude-sonnet-5' } },
             },
@@ -450,6 +450,7 @@ describe('upsertSettings model validation', () => {
             },
             lightdashConfig: ANTHROPIC_ONLY_CONFIG,
             orgAiCopilotConfigResolver: {
+                isCopilotAvailable: async () => true,
                 // Writing modelVisibility is gated on the BYO-keys flag.
                 isEnabled: async () => true,
                 getOrgModelOverrides: async () => ({
@@ -951,8 +952,12 @@ describe('converting a legacy Bedrock configuration', () => {
             commercialFeatureFlagModel: {
                 get: async () => ({ enabled: true }),
             },
-            lightdashConfig: { ai: { copilot: { providers: {} } } },
-            orgAiCopilotConfigResolver: {},
+            lightdashConfig: {
+                ai: { copilot: { enabled: true, providers: {} } },
+            },
+            orgAiCopilotConfigResolver: {
+                isCopilotAvailable: async () => true,
+            },
         } as never);
         (
             service as unknown as { createAuditedAbility: () => unknown }
@@ -1028,8 +1033,12 @@ describe('pinning a project to a credential', () => {
             commercialFeatureFlagModel: {
                 get: async () => ({ enabled: true }),
             },
-            lightdashConfig: { ai: { copilot: { providers: {} } } },
-            orgAiCopilotConfigResolver: {},
+            lightdashConfig: {
+                ai: { copilot: { enabled: true, providers: {} } },
+            },
+            orgAiCopilotConfigResolver: {
+                isCopilotAvailable: async () => true,
+            },
         } as never);
         (
             service as unknown as { createAuditedAbility: () => unknown }
@@ -1139,8 +1148,12 @@ describe('credential writes while custom providers are disabled', () => {
             commercialFeatureFlagModel: {
                 get: async () => ({ enabled: true }),
             },
-            lightdashConfig: { ai: { copilot: { providers: {} } } },
-            orgAiCopilotConfigResolver: {},
+            lightdashConfig: {
+                ai: { copilot: { enabled: true, providers: {} } },
+            },
+            orgAiCopilotConfigResolver: {
+                isCopilotAvailable: async () => true,
+            },
         } as never);
         (
             service as unknown as { createAuditedAbility: () => unknown }
@@ -1245,8 +1258,12 @@ describe('validating an agent credential pin', () => {
             featureFlagModel: {
                 get: async () => ({ enabled: customProvidersEnabled }),
             },
-            lightdashConfig: { ai: { copilot: { providers: {} } } },
-            orgAiCopilotConfigResolver: {},
+            lightdashConfig: {
+                ai: { copilot: { enabled: true, providers: {} } },
+            },
+            orgAiCopilotConfigResolver: {
+                isCopilotAvailable: async () => true,
+            },
         } as never);
 
     // A pin saved while the flag is off would be inert at best and rerouted
@@ -1399,8 +1416,12 @@ describe('legacy Bedrock adoption', () => {
             commercialFeatureFlagModel: {
                 get: async () => ({ enabled: true }),
             },
-            lightdashConfig: { ai: { copilot: { providers: {} } } },
-            orgAiCopilotConfigResolver: {},
+            lightdashConfig: {
+                ai: { copilot: { enabled: true, providers: {} } },
+            },
+            orgAiCopilotConfigResolver: {
+                isCopilotAvailable: async () => true,
+            },
         } as never);
         (
             service as unknown as { createAuditedAbility: () => unknown }

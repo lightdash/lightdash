@@ -130,6 +130,10 @@
         "ai-agent-thread-binding-chart": {
             "reason": "AI agent thread responses (thread create, get and list, thread share clone, and the SDK binding type) can now return binding as { type: 'chart', chartUuid } as well as { type: 'dashboard', dashboardUuid }. Only threads created with the new chart binding return it; existing threads and dashboard-bound threads are unchanged. API clients and SDK hosts that read binding.dashboardUuid must check binding.type first. During a rolling update an old UI pod cannot render the header of a chart-bound thread until refresh.",
             "requiredStop": false
+        },
+        "ai-copilot-flag-and-trial-removed": {
+            "reason": "AI copilot is no longer a feature flag. GET /api/v1/aiAgents/settings and GET /api/v1/aiAgents/admin/settings no longer return isTrial, the ai-copilot flag id is gone from CommercialFeatureFlags, and GET /api/v2/feature-flag/ai-copilot no longer reports copilot availability (GET /api/v1/health returns ai.isCopilotAvailable instead). isCopilotEnabled keeps its meaning and is true wherever copilot is available, so API clients that read isTrial as a fallback should read isCopilotEnabled alone. During a rolling update an old UI pod reads isTrial as missing, which it already treats as false.",
+            "requiredStop": false
         }
     }
 }

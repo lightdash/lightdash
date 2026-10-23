@@ -2,12 +2,12 @@ import { type SettingsContext } from './types';
 
 type DeepResearchSettingsAccess = Pick<
     SettingsContext,
-    'isAiCopilotEnabledOrTrial' | 'canManageOrgAiAgent' | 'hasAnyAiAgentAccess'
+    'isAiCopilotEnabled' | 'canManageOrgAiAgent' | 'hasAnyAiAgentAccess'
 >;
 
 export const canAccessDeepResearchSettings = ({
-    isAiCopilotEnabledOrTrial,
+    isAiCopilotEnabled,
     canManageOrgAiAgent,
     hasAnyAiAgentAccess,
 }: DeepResearchSettingsAccess) =>
-    isAiCopilotEnabledOrTrial && canManageOrgAiAgent && hasAnyAiAgentAccess;
+    isAiCopilotEnabled && canManageOrgAiAgent && hasAnyAiAgentAccess;

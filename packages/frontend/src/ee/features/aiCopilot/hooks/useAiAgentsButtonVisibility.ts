@@ -1,6 +1,4 @@
-import { CommercialFeatureFlags } from '@lightdash/common';
 import { useActiveProject } from '../../../../hooks/useActiveProject';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
 import { useAiAgentPermission } from './useAiAgentPermission';
 import { useAiOrganizationSettings } from './useAiOrganizationSettings';
@@ -22,8 +20,7 @@ export const useAiAgentButtonVisibility = () => {
             enabled:
                 aiOrganizationSettingsQuery.isSuccess &&
                 !!aiOrganizationSettingsQuery.data?.aiAgentsVisible &&
-                (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
-                    aiOrganizationSettingsQuery.data.isTrial),
+                aiOrganizationSettingsQuery.data.isCopilotEnabled,
         },
         redirectOnUnauthorized: false,
     });
@@ -37,18 +34,11 @@ export const useAiAgentButtonVisibility = () => {
         projectUuid,
     });
 
-    // The flag is always off without a registered user, so skip the request.
-    const aiCopilotFlagQuery = useServerFeatureFlag(
-        CommercialFeatureFlags.AiCopilot,
-        { enabled: !!appQuery.user.data },
-    );
-
     if (
         agentsQuery.isLoading ||
         aiOrganizationSettingsQuery.isLoading ||
         appQuery.user.isLoading ||
-        appQuery.health.isLoading ||
-        aiCopilotFlagQuery.isInitialLoading
+        appQuery.health.isLoading
     ) {
         return false;
     }
@@ -56,16 +46,14 @@ export const useAiAgentButtonVisibility = () => {
     const hasAgents = agentsQuery.data && agentsQuery.data.length > 0;
     const canViewButton = (canViewAiAgents && hasAgents) || canManageAiAgents;
     const isAiAgentEnabled = aiOrganizationSettingsQuery.data?.aiAgentsVisible;
-    const isAiCopilotEnabledOrTrial =
-        aiCopilotFlagQuery.data?.enabled ||
-        aiOrganizationSettingsQuery.data?.isTrial;
+    const isAiCopilotEnabled = appQuery.health.data?.ai.isCopilotAvailable;
 
     if (
         !canViewButton ||
         !canViewAiAgents ||
         !isAiAgentEnabled ||
         !projectUuid ||
-        !isAiCopilotEnabledOrTrial
+        !isAiCopilotEnabled
     ) {
         return false;
     }

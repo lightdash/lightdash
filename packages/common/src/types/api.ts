@@ -863,6 +863,7 @@ export type HealthState = {
         analyticsProjectUuid?: string;
         analyticsDashboardUuid?: string;
         isAmbientAiEnabled: boolean;
+        isCopilotAvailable: boolean;
         threadDumpEnabled: boolean;
         fastDecisionsEnabled: boolean;
     };

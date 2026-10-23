@@ -5,7 +5,6 @@ import {
     AiOrganizationRuntimeSettings,
     AiOrganizationSettings,
     BYO_AI_PROVIDERS,
-    CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     FeatureFlags,
@@ -246,9 +245,6 @@ export class AiOrganizationSettingsService extends BaseService {
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
-    // Date when trial feature was enabled for new organizations
-    private static readonly TRIAL_START_DATE = new Date('2025-10-13T00:00:00Z');
-
     constructor(dependencies: AiOrganizationSettingsServiceDependencies) {
         super();
         this.aiOrganizationSettingsModel =
@@ -290,43 +286,25 @@ export class AiOrganizationSettingsService extends BaseService {
         );
     }
 
-    private async getIsCopilotEnabled(
-        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<boolean> {
-        const isCopilotEnabled = await this.commercialFeatureFlagModel.get({
-            user,
-            featureFlagId: CommercialFeatureFlags.AiCopilot,
-        });
-        return isCopilotEnabled.enabled;
-    }
-
-    private async getAiAvailability(
-        user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'>,
-        organizationUuid: string,
-    ): Promise<{ isCopilotEnabled: boolean; isTrial: boolean }> {
-        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
-        const isTrial = await this.isEligibleForTrial(
-            isCopilotEnabled,
+    async isCopilotAvailable(organizationUuid: string): Promise<boolean> {
+        return this.orgAiCopilotConfigResolver.isCopilotAvailable(
             organizationUuid,
         );
-        return { isCopilotEnabled, isTrial };
     }
 
     private async checkAiSettingsAccess(
         user: SessionUser,
         organizationUuid: string,
-    ): Promise<{ isCopilotEnabled: boolean; isTrial: boolean }> {
+    ): Promise<{ isCopilotEnabled: boolean }> {
         this.checkManageAiAgentAccess(user);
-        const availability = await this.getAiAvailability(
-            user,
-            organizationUuid,
-        );
-        if (!availability.isCopilotEnabled && !availability.isTrial) {
+        const isCopilotEnabled =
+            await this.isCopilotAvailable(organizationUuid);
+        if (!isCopilotEnabled) {
             throw new ForbiddenError(
                 'AI agent settings are not available for this organization',
             );
         }
-        return availability;
+        return { isCopilotEnabled };
     }
 
     private async getModelOptionLists(organizationUuid: string): Promise<{
@@ -363,37 +341,6 @@ export class AiOrganizationSettingsService extends BaseService {
                 defaultModel,
             ),
         };
-    }
-
-    /**
-     * Check if the organization qualifies for AI trial
-     * Organization was created on or after TRIAL_START_DATE
-     */
-    async isEligibleForTrial(
-        isCopilotEnabled: boolean,
-        organizationUuid: string,
-    ): Promise<boolean> {
-        if (isCopilotEnabled) {
-            return false;
-        }
-
-        if (!this.lightdashConfig.ai.copilot.enabled) {
-            return false;
-        }
-
-        try {
-            const org = await this.organizationModel.get(organizationUuid);
-            if (!org || !org.createdAt) {
-                return false;
-            }
-            const orgCreatedAt = new Date(org.createdAt);
-
-            return (
-                orgCreatedAt >= AiOrganizationSettingsService.TRIAL_START_DATE
-            );
-        } catch (error) {
-            return false;
-        }
     }
 
     /**
@@ -435,10 +382,10 @@ export class AiOrganizationSettingsService extends BaseService {
 
     private async resolveSettings(
         user: SessionUser,
-        availability: { isCopilotEnabled: boolean; isTrial: boolean },
+        availability: { isCopilotEnabled: boolean },
     ): Promise<AiOrganizationSettings & ComputedAiOrganizationSettings> {
         const organizationUuid = user.organizationUuid!;
-        const { isCopilotEnabled, isTrial } = availability;
+        const { isCopilotEnabled } = availability;
 
         const [settings, aiAgentMemoryEnabled] = await Promise.all([
             this.aiOrganizationSettingsModel.findByOrganizationUuid(
@@ -515,7 +462,6 @@ export class AiOrganizationSettingsService extends BaseService {
                 configurableModelOptions: configurableOptions,
                 bedrockModelOptions,
                 aiAgentReviewsPausedByByok,
-                isTrial,
             };
         }
 
@@ -528,7 +474,6 @@ export class AiOrganizationSettingsService extends BaseService {
             // Likewise: stored Data App settings are inert without a BYO key,
             // so the picker must not filter on them when the backend won't.
             dataAppModelVisibility: effectiveDataAppModelVisibility,
-            isTrial,
             isCopilotEnabled,
             defaultAiAgentModelOptions: effectiveOptions,
             configurableModelOptions: configurableOptions,
@@ -558,11 +503,10 @@ export class AiOrganizationSettingsService extends BaseService {
         if (!organizationUuid) {
             throw new ForbiddenError('User must belong to an organization');
         }
-        const availability = await this.getAiAvailability(
-            user,
-            organizationUuid,
-        );
-        if (!availability.isCopilotEnabled && !availability.isTrial) {
+        const availability = {
+            isCopilotEnabled: await this.isCopilotAvailable(organizationUuid),
+        };
+        if (!availability.isCopilotEnabled) {
             const dataAppModelVisibility =
                 await this.orgAiCopilotConfigResolver.getDataAppModelVisibility(
                     organizationUuid,
@@ -801,10 +745,9 @@ export class AiOrganizationSettingsService extends BaseService {
             aiSettingsUpdate.providerApiKeys !== undefined ||
             aiSettingsUpdate.modelVisibility !== undefined
         ) {
-            // BYO keys and model visibility require AI copilot (env/ai-copilot
-            // flag) to be enabled for this org.
-            const copilotEnabled = await this.getIsCopilotEnabled(user);
-            if (!copilotEnabled) {
+            // Gated on the instance switch, not on availability: an org's own
+            // key can be what configures its model.
+            if (!this.lightdashConfig.ai.copilot.enabled) {
                 throw new ForbiddenError(
                     'AI copilot is not enabled for this organization',
                 );

@@ -94,27 +94,26 @@ const AgentsWelcome = () => {
     });
     const aiOrganizationSettingsQuery = useAiOrganizationSettings();
 
-    const isAiCopilotEnabledOrTrial =
+    const isAiCopilotEnabled =
         aiOrganizationSettingsQuery.isSuccess &&
-        (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
-            aiOrganizationSettingsQuery.data.isTrial);
+        aiOrganizationSettingsQuery.data.isCopilotEnabled;
 
     const agentsQuery = useProjectAiAgents({
         projectUuid,
         redirectOnUnauthorized: true,
         options: {
-            enabled: isAiCopilotEnabledOrTrial,
+            enabled: isAiCopilotEnabled,
         },
     });
     const userAgentPreferencesQuery = useGetUserAgentPreferences(projectUuid, {
-        enabled: isAiCopilotEnabledOrTrial,
+        enabled: isAiCopilotEnabled,
     });
     const aiRouterConfigQuery = useAiRouterConfig();
 
     if (aiOrganizationSettingsQuery.isLoading) {
         return <AiPageLoading />;
     }
-    if (!isAiCopilotEnabledOrTrial) {
+    if (!isAiCopilotEnabled) {
         return <Navigate to="/" replace />;
     }
 
