@@ -356,6 +356,32 @@ describe('ControlsSidebarProvider', () => {
             expect(result.current.isRailOpen).toBe(true);
         });
 
+        it('removing the last filter closes the rail, as Done does', () => {
+            saved.filters = {
+                ...initialFilters,
+                dimensions: [rule('a', ['1'])],
+            };
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.removeFilter());
+            expect(latest.filters.dimensions).toEqual([]);
+            expect(result.current.isRailOpen).toBe(false);
+        });
+
+        it.each(['discard', 'collapse'] as const)(
+            'a new filter left by %s with no other filter closes the rail',
+            (way) => {
+                saved.filters = { ...initialFilters, dimensions: [] };
+                const { result } = setup();
+                act(() => result.current.openNew());
+                if (way === 'discard')
+                    act(() => result.current.addFirstField(statusField));
+                act(() => result.current[way]());
+                expect(latest.filters.dimensions).toEqual([]);
+                expect(result.current.isRailOpen).toBe(false);
+            },
+        );
+
         it('discarding a new filter keeps the rail open', () => {
             const { result } = setup();
             act(() => result.current.openNew());
@@ -2688,8 +2714,44 @@ describe('ControlsSidebarProvider in view mode', () => {
         act(() => result.current.discard());
         expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
         expect(latest.changed).toBe(false);
-        expect(result.current.isRailOpen).toBe(true);
+        // Their own filters are the rail's rows: none are left
+        expect(result.current.isRailOpen).toBe(false);
         expect(mockTrack).not.toHaveBeenCalled();
+    });
+
+    const seedOwn = (rules: DashboardFilterRule[]) =>
+        act(() => {
+            currentStore.dispatch(
+                dashboardFiltersActions.setTemporaryFilters({
+                    ...NO_TEMPORARY_FILTERS,
+                    dimensions: rules,
+                }),
+            );
+        });
+
+    it('discarding a new filter keeps the rail open on their other filters', () => {
+        const { result } = setup();
+        seedOwn([rule('own', ['x'])]);
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+        act(() => result.current.discard());
+        expect(latest.temporaryFilters.dimensions.map((r) => r.id)).toEqual([
+            'own',
+        ]);
+        expect(result.current.isRailOpen).toBe(true);
+    });
+
+    it('removing their last filter closes the rail; with another left it stays', () => {
+        const { result } = setup();
+        seedOwn([rule('one', ['x']), rule('two', ['y'])]);
+        act(() => result.current.open('one'));
+        act(() => result.current.removeFilter());
+        expect(result.current.isRailOpen).toBe(true);
+
+        act(() => result.current.open('two'));
+        act(() => result.current.removeFilter());
+        expect(latest.temporaryFilters.dimensions).toEqual([]);
+        expect(result.current.isRailOpen).toBe(false);
     });
 
     it("edits, puts back and removes a viewer's own filter", () => {

@@ -329,7 +329,11 @@ In `FilterConfiguration/`:
   filter tracked) but leaves the rail open with every filter a row. So do
   `removeFilter()` and `discard()`: the rail stays on the rows that are left,
   and only `close()` (Done, the X, Escape, the header's Save) closes it,
-  expanded filter or not. With nothing expanded the rail lists rows with
+  expanded filter or not. The one exception: when none are left (the last
+  filter removed, or a new one dropped with no other filter), these close
+  the rail as `close()` would, focus going to the bar's "Add" (`endEdit`).
+  The rows are the dashboard's filters in edit mode and the viewer's own
+  for a viewer. With nothing expanded the rail lists rows with
   "Add filter" and "Done" in the footer, the tiles have no overlay or veil,
   the header is not locked, and the tab badges are gone. Leaving edit mode
   closes both. Internally `closeEdited`, `discardEdited` and `removeEdited`
@@ -397,7 +401,8 @@ In `FilterConfiguration/`:
   once the rail has left the page (so do Done, the X, Escape and the header's
   Save, which all go through it): to the control's pill when it is still
   there and not disabled (a fields refetch disables it), else to "Add".
-  `collapse()`, `discard()` and `removeFilter()` keep the rail, so focus goes
+  `collapse()`, `discard()` and `removeFilter()` keep the rail (unless it
+  would have no rows), so focus goes
   to the filter's row (`data-controls-row`, set by `FilterRow`) once the edit
   has ended, else the next row, else the row before, else the rail's "Add"
   (the bar's is hidden then). The provider finds

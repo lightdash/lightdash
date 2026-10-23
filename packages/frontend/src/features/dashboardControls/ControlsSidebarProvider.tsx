@@ -936,6 +936,25 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [writeFilters, writeFiltersChanged],
     );
 
+    // keepRail: the rail stays on its rows, but one left with none closes as
+    // Done does, focus going back to the bar's "Add"
+    const endEdit = useCallback(
+        (keepRail: boolean) => {
+            const { dashboardFilters: filters } = latest.current;
+            if (
+                keepRail &&
+                filters.dimensions.length + filters.metrics.length > 0
+            ) {
+                resetEdit();
+                return;
+            }
+            if (keepRail)
+                focusReturn.current = { filterIds: [], inRail: false };
+            reset();
+        },
+        [reset, resetEdit],
+    );
+
     // The edited rule goes and the editor's writes to other rules are undone;
     // what was written from outside the editor stays, and keeps it changed
     // keepRail: the rail stays open on its rows, else it closes too
@@ -953,18 +972,11 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 ),
             );
             settleFiltersChanged(snapshot);
-            if (keepRail) resetEdit();
-            else reset();
+            endEdit(keepRail);
         },
-        [
-            writeFilters,
-            settleFiltersChanged,
-            reset,
-            resetEdit,
-            rememberFocusReturn,
-        ],
+        [writeFilters, settleFiltersChanged, endEdit, rememberFocusReturn],
     );
-    // The rail stays open on the rows that are left
+    // The rail stays open on the rows that are left, if any
     const removeFilter = useCallback(() => removeEdited(true), [removeEdited]);
 
     // The edited rule goes back to its snapshot, or out when it was new, and
@@ -987,16 +999,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 ),
             );
             settleFiltersChanged(snapshot);
-            if (keepRail) resetEdit();
-            else reset();
+            endEdit(keepRail);
         },
-        [
-            writeFilters,
-            settleFiltersChanged,
-            reset,
-            resetEdit,
-            rememberFocusReturn,
-        ],
+        [writeFilters, settleFiltersChanged, endEdit, rememberFocusReturn],
     );
     const discard = useCallback(() => discardEdited(true), [discardEdited]);
 
