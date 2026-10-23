@@ -13,6 +13,11 @@ vi.mock('../../../../providers/Embed/useIsEmbedded', () => ({
     default: () => true,
 }));
 
+const navigation = vi.hoisted(() => ({ disabled: false }));
+vi.mock('../../hooks/useIsAiAgentNavigationDisabled', () => ({
+    useIsAiAgentNavigationDisabled: () => navigation.disabled,
+}));
+
 const THREAD_PATH = '/embed/project-1/ai-agents/agent-1/threads/thread-1';
 const DASHBOARD_PATH =
     '/embed/project-1/ai-agents/agent-1/dashboards/dashboard-1';
@@ -76,7 +81,10 @@ const renderEmbedLink = (
 };
 
 describe('content links inside an embedded AI agent', () => {
-    beforeEach(() => store.dispatch(clearPreview()));
+    beforeEach(() => {
+        store.dispatch(clearPreview());
+        navigation.disabled = false;
+    });
 
     it('opens a dashboard on the embed route and remembers the conversation', async () => {
         const router = renderEmbedLink('dashboard-link', {
@@ -124,6 +132,34 @@ describe('content links inside an embedded AI agent', () => {
     ] satisfies [ContentType, Record<string, unknown>][])(
         'renders %s as a static reference',
         (contentType, props) => {
+            renderEmbedLink(contentType, props);
+
+            expect(screen.getByText('Reference')).toBeInTheDocument();
+            expect(screen.queryByRole('link')).not.toBeInTheDocument();
+            expect(screen.queryByRole('button')).not.toBeInTheDocument();
+        },
+    );
+
+    it.each([
+        [
+            'dashboard-link',
+            {
+                href: '/projects/project-1/dashboards/dashboard-1/view',
+                'data-dashboard-uuid': 'dashboard-1',
+            },
+        ],
+        [
+            'chart-link',
+            {
+                href: '/projects/project-1/saved/chart-1/view',
+                'data-chart-uuid': 'chart-1',
+                'data-chart-source': 'saved-chart',
+            },
+        ],
+    ] satisfies [ContentType, Record<string, unknown>][])(
+        'renders %s as a static reference when navigation is disabled',
+        (contentType, props) => {
+            navigation.disabled = true;
             renderEmbedLink(contentType, props);
 
             expect(screen.getByText('Reference')).toBeInTheDocument();

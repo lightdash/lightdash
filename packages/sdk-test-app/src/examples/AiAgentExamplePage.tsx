@@ -326,6 +326,7 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
     const defaultThreadUuid = aiAgentEmbedConfig.threadUuid ?? '';
     const [latestThreadUuid, setLatestThreadUuid] = useState('');
     const [renderMode, setRenderMode] = useState<AiAgentRenderMode>('iframe');
+    const [disableNavigation, setDisableNavigation] = useState(false);
     const [resumeThreadUuid, setResumeThreadUuid] = useState(defaultThreadUuid);
     const [threadSetupDraft, setThreadSetupDraft] =
         useState<AiAgentThreadSetup>(EMPTY_THREAD_SETUP);
@@ -449,6 +450,27 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                     </label>
                                 ))}
                             </div>
+                        </div>
+                        <div style={{ marginBottom: 16 }}>
+                            <label
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    fontSize: 14,
+                                }}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={disableNavigation}
+                                    onChange={(event) =>
+                                        setDisableNavigation(
+                                            event.target.checked,
+                                        )
+                                    }
+                                />
+                                Disable navigation
+                            </label>
                         </div>
                         <div style={{ marginBottom: 16 }}>
                             <label style={panelLabelStyle}>
@@ -632,6 +654,7 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                     }
                                     onThreadChange={handleThreadChange}
                                     renderMode={renderMode}
+                                    disableNavigation={disableNavigation}
                                     binding={getThreadBinding(threadSetup)}
                                     threadContext={
                                         threadSetup.threadContext.trim() ||

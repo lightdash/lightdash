@@ -99,6 +99,8 @@ export interface EmbedContext {
     onAiAgentThreadChange?: (change: EmbedAiAgentThreadChange) => void;
     // Binding and context for threads the embedded agent starts
     aiAgentThreadSetup: EmbedAiAgentThreadSetup | null;
+    // Keeps the embedded agent on its thread: content links render static
+    aiAgentNavigationDisabled: boolean;
 }
 
 export type EmbedAiAgentThreadChange = {

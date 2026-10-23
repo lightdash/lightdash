@@ -10,6 +10,7 @@ import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
+import { useIsAiAgentNavigationDisabled } from '../../hooks/useIsAiAgentNavigationDisabled';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import { PinnedReviewContextGroup } from '../PinnedContextCard/PinnedReviewEntityCard';
 import { isReviewEntityItem } from '../PinnedContextCard/reviewEntityItem';
@@ -55,6 +56,7 @@ export const UserBubble: FC<Props> = ({
     const agentUuid = agentUuidProp ?? paramsAgentUuid;
     const openChartEditor = useAiThreadChartEdit();
     const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
+    const navigationDisabled = useIsAiAgentNavigationDisabled();
     const timeAgo = useTimeAgo(message.createdAt);
     const name = getVisibleUserName(message.user.name);
     const app = useApp();
@@ -177,15 +179,17 @@ export const UserBubble: FC<Props> = ({
                             // every other reference is static there.
                             const embedDashboardUuid =
                                 openEmbedDashboard &&
+                                !navigationDisabled &&
                                 segment.item.type === 'dashboard'
                                     ? segment.item.dashboardUuid
                                     : null;
-                            const href = openEmbedDashboard
-                                ? null
-                                : getPromptContextItemHref(
-                                      segment.item,
-                                      projectUuid,
-                                  );
+                            const href =
+                                openEmbedDashboard || navigationDisabled
+                                    ? null
+                                    : getPromptContextItemHref(
+                                          segment.item,
+                                          projectUuid,
+                                      );
                             // Chart references open the in-place editor when
                             // the host provides one; the href keeps modified
                             // clicks (new tab) working.

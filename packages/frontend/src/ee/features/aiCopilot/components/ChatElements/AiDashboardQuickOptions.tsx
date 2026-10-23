@@ -15,6 +15,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useContentAuthoringEnabled } from '../../../../../hooks/useContentAuthoringEnabled';
 import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
+import { useIsAiAgentNavigationDisabled } from '../../hooks/useIsAiAgentNavigationDisabled';
 import { AiDashboardSaveModal } from './AiDashboardSaveModal';
 
 type Props = {
@@ -32,6 +33,7 @@ export const AiDashboardQuickOptions: FC<Props> = ({
 }) => {
     const authoringEnabled = useContentAuthoringEnabled();
     const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
+    const navigationDisabled = useIsAiAgentNavigationDisabled();
     const [isModalOpen, setIsModalOpen] = useState(false);
     // The save modal only lists spaces the user can write to, so without one
     // the option opens an empty space picker.
@@ -58,6 +60,10 @@ export const AiDashboardQuickOptions: FC<Props> = ({
 
     // Nothing to view and nothing to save leaves an empty dropdown.
     if (!savedDashboardUuid && (!canSaveDashboard || !authoringEnabled)) {
+        return null;
+    }
+    // Viewing the saved dashboard is the only action once it exists.
+    if (savedDashboardUuid && navigationDisabled) {
         return null;
     }
 
