@@ -5207,23 +5207,36 @@ export class AsyncQueryService extends ProjectService {
                             'lightdash.isPivoted': !!pivotConfiguration,
                         },
                     },
-                    () =>
-                        AsyncQueryService.runQueryAndTransformRows({
-                            warehouseClient: client,
-                            query,
-                            queryTags: warehouseQueryTags,
-                            write: resultsStream
-                                ? (rows) => {
-                                      hasWrittenRows = true;
-                                      return resultsStream.write(rows);
-                                  }
-                                : undefined,
-                            pivotConfiguration,
-                            itemsMap: fieldsMap,
-                            usedParameters,
-                            dataTimezone: resolvedDataTimezone,
-                            displayTimezone,
-                        }),
+                    async (span) => {
+                        const results =
+                            await AsyncQueryService.runQueryAndTransformRows({
+                                warehouseClient: client,
+                                query,
+                                queryTags: warehouseQueryTags,
+                                write: resultsStream
+                                    ? (rows) => {
+                                          hasWrittenRows = true;
+                                          return resultsStream.write(rows);
+                                      }
+                                    : undefined,
+                                pivotConfiguration,
+                                itemsMap: fieldsMap,
+                                usedParameters,
+                                dataTimezone: resolvedDataTimezone,
+                                displayTimezone,
+                            });
+                        Object.entries(
+                            results.warehouseResults.phaseTimings,
+                        ).forEach(([phase, durationMs]) => {
+                            if (durationMs !== undefined) {
+                                span.setAttribute(
+                                    `lightdash.phase.${phase}Ms`,
+                                    Math.round(durationMs),
+                                );
+                            }
+                        });
+                        return results;
+                    },
                 );
             const completeQuery = async (
                 queryResults: Awaited<ReturnType<typeof runWarehouseQuery>>,

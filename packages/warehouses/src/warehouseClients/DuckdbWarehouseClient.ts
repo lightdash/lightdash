@@ -148,6 +148,8 @@ export type DuckdbQueryProfileMetrics = {
     cpuMs: number;
     waitMs: number;
     readParquetMs: number | null;
+    /** Time in read_json scans, the format query results are stored in. */
+    readJsonMs: number | null;
     bytesRead: number | null;
     rowsReturned: number | null;
     rowsScanned: number | null;
@@ -2137,6 +2139,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     /** Ephemeral DuckDB instance with resource limits (e.g. parquet conversion). */
     private async withIsolatedSession<T>(
         callback: (db: DuckdbConnection) => Promise<T>,
+        onPhaseTiming?: (
+            phase: WarehouseQueryPhase,
+            durationMs: number,
+        ) => void,
     ): Promise<T> {
         const sessionStart = performance.now();
 
@@ -2147,6 +2153,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         const connectStart = performance.now();
         const connection = await instance.connect();
         const connectMs = performance.now() - connectStart;
+        onPhaseTiming?.('connect', instanceCreateMs + connectMs);
 
         const tempDir = await fs.mkdtemp(
             path.join(os.tmpdir(), 'duckdb-temp-'),
@@ -2156,6 +2163,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             const bootstrapStart = performance.now();
             await this.bootstrapIsolatedSession(connection, tempDir);
             const bootstrapMs = performance.now() - bootstrapStart;
+            onPhaseTiming?.('session', bootstrapMs);
 
             const queryStart = performance.now();
             const result = await callback(connection);
@@ -2376,7 +2384,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             }
 
             if (this.hasResourceLimits()) {
-                return await this.withIsolatedSession(callback);
+                return await this.withIsolatedSession(callback, onPhaseTiming);
             }
 
             if (this.instanceCacheKey) {
@@ -2684,6 +2692,16 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                           0,
                       )
                     : null;
+            const readJsonOperators = operators.filter((op) =>
+                op.name.startsWith('READ_JSON'),
+            );
+            const readJsonMs =
+                readJsonOperators.length > 0
+                    ? readJsonOperators.reduce(
+                          (sum, op) => sum + op.timingMs,
+                          0,
+                      )
+                    : null;
             const rowsScanned =
                 readParquetOperators.length > 0
                     ? readParquetOperators.reduce((sum, op) => sum + op.rows, 0)
@@ -2708,6 +2726,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     cpuMs,
                     waitMs,
                     readParquetMs,
+                    readJsonMs,
                     bytesRead,
                     rowsScanned,
                     rowsReturned,
@@ -2720,6 +2739,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 cpuMs,
                 waitMs,
                 readParquetMs,
+                readJsonMs,
                 bytesRead,
                 rowsReturned,
                 rowsScanned,
