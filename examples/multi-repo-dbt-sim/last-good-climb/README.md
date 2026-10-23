@@ -117,6 +117,61 @@ Model 'model.proj_beta.beta_report' (models/beta_report.sql) depends on a node n
 
 No manifest was written into the empty store. Neither withheld parse exited 0.
 
+## Scale
+
+The sibling runner measures last-good artefact size, climb RSS, and a
+no-store baseline. It does not change the two-project proof above. That
+proof still injects `access: public` models only.
+
+```bash
+examples/multi-repo-dbt-sim/run-last-good-scale
+```
+
+That default measures the large-org `healthy` profile (19 sources). The
+recorded run used the same venv and both fixtures:
+
+```bash
+examples/multi-repo-dbt-sim/run-last-good-scale --fixture both
+```
+
+It writes `examples/multi-repo-dbt-sim/reports/last-good-scale.json`.
+Top-level fields are the large-org case. `fixtures` lists every measured
+case. `--fixture full` measures only the 22-source generator.
+
+RSS uses `/usr/bin/time -v`. The field is `Maximum resident set size
+(kbytes)`, multiplied by 1024. `peak_rss_bytes` is the climb `dbt parse`.
+`injector_peak_rss_bytes` is a separate Python process that loads the other
+manifests and writes the external-node payload. `baseline.peak_rss_bytes`
+is the highest per-source stubbed parse. Each timed command is one process.
+The large-org profile's compile concurrency is 4; this probe does not
+reproduce that. It also does not start the loopback Git server, so
+`checkout_bytes` is the materialized project tree (`target/`, `logs/`,
+`dbt_packages/`, and `.git` excluded), not pack transfer or a disk eviction.
+
+The timed climb passes `public_only=False` and injects every real model
+from every other source. It does not apply the ref filter. These fixtures
+set `access: public` on every model, so the public-only count matches the
+injected count. `ref_filtered_*` is the smaller payload that filter would
+keep. The withheld parse injects nothing, must exit non-zero with
+`which was not found`, and must not create a manifest.
+
+On the recorded run, dbt-core was 1.12.0, dbt-postgres resolved to 1.10.2,
+dbt-loom was absent, and Python was 3.12.3.
+
+| Fixture | Sources | Models | Artefact bytes | Climb RSS bytes | Climb seconds | Baseline checkout bytes | Baseline parse seconds | Baseline peak RSS bytes |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| large-org healthy | 19 | 49 | 10321806 | 133746688 | 2.531 | 125473 | 48.593 | 133328896 |
+| full | 22 | 3000 | 24698216 | 178040832 | 4.343 | 4509327 | 72.026 | 188760064 |
+
+The full fixture has 3001 manifest model nodes. The extra node is the
+versioned `rate` model. Large-org injected 44 nodes (12117 bytes) into
+`proj_core`. Full injected 2901 nodes (862923 bytes) into `growth`. The
+ref filter would have kept 2 nodes in each case (630 and 525 bytes). Those
+filtered payloads were not the timed parses. Injector RSS was 21372928
+bytes (0.083 seconds) and 54591488 bytes (0.207 seconds). Withheld parses
+exited 2: 2.423 seconds and 130777088 bytes, then 2.848 seconds and
+133656576 bytes. Per-source sizes are in the JSON.
+
 ## Out of scope
 
 Server explores are not created here. The manifest bindings are the compile

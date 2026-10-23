@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 FIXTURE = Path(__file__).resolve().parent
@@ -31,6 +32,7 @@ REF = re.compile(
 )
 CYCLE_TEXT = "Found a cycle"
 UNRESOLVED_TEXT = "which was not found"
+GNU_TIME_RSS = re.compile(r"Maximum resident set size \(kbytes\): (\d+)")
 
 
 def cold_start_warning(consumer, upstreams):
@@ -127,13 +129,13 @@ def find_cycle(edges):
     return next((found for node in edges if (found := visit(node))), None)
 
 
-def external_nodes(manifest):
+def external_nodes(manifest, *, public_only=True):
     models = [
         node
         for node in manifest["nodes"].values()
         if node.get("resource_type") == "model"
         and (node.get("path") or node.get("original_file_path"))
-        and node.get("access") == "public"
+        and (not public_only or node.get("access") == "public")
     ]
     model_ids = {node["unique_id"] for node in models}
     return [
@@ -211,7 +213,18 @@ def dbt_environment(external_nodes_path=None):
     return env
 
 
-def run_parse(dbt, project_dir, target, external_nodes_path=None):
+def run_parse(
+    dbt,
+    project_dir,
+    target,
+    external_nodes_path=None,
+    *,
+    profiles_dir=None,
+    profile="last_good_climb",
+    variables=None,
+    timeout=180,
+    gnu_time=False,
+):
     logs = target.parent / f"{target.name}-logs"
     if target.exists():
         shutil.rmtree(target)
@@ -226,9 +239,9 @@ def run_parse(dbt, project_dir, target, external_nodes_path=None):
         "--project-dir",
         str(project_dir),
         "--profiles-dir",
-        str(PROFILES),
+        str(profiles_dir or PROFILES),
         "--profile",
-        "last_good_climb",
+        profile,
         "--target",
         "dev",
         "--target-path",
@@ -236,27 +249,50 @@ def run_parse(dbt, project_dir, target, external_nodes_path=None):
         "--log-path",
         str(logs),
     ]
+    if variables is not None:
+        command.extend(["--vars", variables])
+    timing_path = target.parent / f"{target.name}.time"
+    if gnu_time:
+        if timing_path.exists():
+            timing_path.unlink()
+        command = ["/usr/bin/time", "-v", "-o", str(timing_path), *command]
+    started = time.perf_counter()
     completed = subprocess.run(
         command,
         cwd=project_dir,
         env=dbt_environment(external_nodes_path),
         text=True,
         capture_output=True,
-        timeout=180,
+        timeout=timeout,
         check=False,
     )
+    elapsed = time.perf_counter() - started
     output = f"{completed.stdout}\n{completed.stderr}"
     manifest = None
     manifest_file = target / "manifest.json"
     if manifest_file.is_file() and completed.returncode == 0:
         manifest = json.loads(manifest_file.read_text())
-    return {
+    result = {
         "returncode": completed.returncode,
         "output": output,
         "manifest": manifest,
         "cycle_error": CYCLE_TEXT in output,
         "unresolved": UNRESOLVED_TEXT in output,
+        "parse_seconds": round(elapsed, 3),
     }
+    if gnu_time:
+        timing = timing_path.read_text(encoding="utf-8")
+        match = GNU_TIME_RSS.search(timing)
+        if match is None:
+            raise RuntimeError("GNU time did not report maximum resident set size")
+        result["peak_rss_bytes"] = int(match.group(1)) * 1024
+        result["rss_measurement"] = {
+            "tool": "/usr/bin/time -v",
+            "field": "Maximum resident set size (kbytes)",
+            "bytes": "reported kilobytes * 1024",
+            "scope": "the timed dbt parse process",
+        }
+    return result
 
 
 def publish_manifest(target, store, project):
@@ -265,13 +301,15 @@ def publish_manifest(target, store, project):
     shutil.copyfile(target / "manifest.json", destination)
 
 
-def injection_for(store, upstreams):
+def injection_for(store, upstreams, *, public_only=True):
     nodes = []
     for upstream in upstreams:
         path = manifest_path(store, upstream)
         if not path.is_file():
             raise FileNotFoundError(path)
-        nodes.extend(external_nodes(json.loads(path.read_text())))
+        nodes.extend(
+            external_nodes(json.loads(path.read_text()), public_only=public_only)
+        )
     return nodes
 
 

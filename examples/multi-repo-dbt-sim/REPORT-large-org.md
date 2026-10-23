@@ -388,6 +388,21 @@ manifests used to climb a consumer refresh are a different proof: see
 [last-good-climb/README.md](last-good-climb/README.md). Run 7b's `.v2`
 binding is not that proof.
 
+A later harness-only probe measured last-good artefact bytes and climb RSS
+on this same `healthy` profile, plus the full 22-source generator. It did
+not refresh a server project. The recorded command is
+`examples/multi-repo-dbt-sim/run-last-good-scale --fixture both`. RSS is
+`/usr/bin/time -v` maximum resident set size in kilobytes, times 1024, for
+one process at a time. The timed climb injects every real model from every
+other source. On `healthy` that was 19 sources, 49 models, 10321806 artefact
+bytes, climb RSS 133746688 bytes, and climb parse 2.531 seconds. The serial
+stubbed parse of the same checkouts took 48.593 seconds, with peak RSS
+133328896 bytes and 125473 checkout bytes. The full fixture was 22 sources,
+3000 logical models, 24698216 artefact bytes, climb RSS 178040832 bytes, and
+4.343 seconds, against a 72.026 second serial baseline whose peak RSS was
+188760064 bytes. Per-source figures and the fields that were not measured
+are in [reports/last-good-scale.json](reports/last-good-scale.json).
+
 The disk budget derives a limit of eleven, but chosen concurrency is four
 and the pool resident capacity is four. The 19-source profiles use small
 repositories; they do not fill the disk with 3 GiB of model files. The source

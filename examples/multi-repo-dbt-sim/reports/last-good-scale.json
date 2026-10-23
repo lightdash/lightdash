@@ -1,0 +1,1196 @@
+{
+  "command": "examples/multi-repo-dbt-sim/run-last-good-scale --fixture both",
+  "rss_measurement": {
+    "tool": "/usr/bin/time -v",
+    "field": "Maximum resident set size (kbytes)",
+    "bytes": "reported kilobytes * 1024",
+    "scope": "peak_rss_bytes is the climb dbt parse. injector_peak_rss_bytes is a separate Python process that loads the other manifests and writes the external-node payload. baseline.peak_rss_bytes is the highest of the per-source stubbed parses. Each timed command is one process."
+  },
+  "injection_policy": "all-real-models",
+  "injection_policy_note": "The two-project present/withheld proof injects access=public models. This scale parse injects every real model from every other source and does not apply the ref filter. ref_filtered_* is the smaller payload that filter would keep; it was not the timed parse.",
+  "not_measured": [
+    "Git pack transfer and the product disk-eviction counters. This probe does not start the loopback Git server or the source-fetch pool. checkout_bytes is the materialized project tree.",
+    "Concurrent parse RSS. The large-org profile compiles with concurrency 4. These parses are serial, so peak_rss_bytes is one dbt process."
+  ],
+  "toolchain": {
+    "requirements": [
+      "dbt-core==1.12.0",
+      "dbt-postgres~=1.10.0"
+    ],
+    "packages": {
+      "dbt-core": "1.12.0",
+      "dbt-postgres": "1.10.2"
+    },
+    "dbt_loom_installed": false,
+    "python": "3.12.3"
+  },
+  "fixture": "large-org",
+  "source_count": 19,
+  "models": 49,
+  "manifest_model_nodes": 49,
+  "artefact_bytes_per_source": [
+    {
+      "source": "analyst_hub",
+      "bytes": 541132,
+      "models": 2
+    },
+    {
+      "source": "proj_a",
+      "bytes": 548984,
+      "models": 4
+    },
+    {
+      "source": "proj_b",
+      "bytes": 549034,
+      "models": 4
+    },
+    {
+      "source": "proj_bank",
+      "bytes": 536749,
+      "models": 1
+    },
+    {
+      "source": "proj_bank_reporting",
+      "bytes": 537235,
+      "models": 1
+    },
+    {
+      "source": "proj_c",
+      "bytes": 544792,
+      "models": 3
+    },
+    {
+      "source": "proj_core",
+      "bytes": 553540,
+      "models": 5
+    },
+    {
+      "source": "proj_core_copy",
+      "bytes": 537009,
+      "models": 1
+    },
+    {
+      "source": "proj_d",
+      "bytes": 544894,
+      "models": 3
+    },
+    {
+      "source": "proj_e",
+      "bytes": 544874,
+      "models": 3
+    },
+    {
+      "source": "proj_f",
+      "bytes": 544870,
+      "models": 3
+    },
+    {
+      "source": "proj_g",
+      "bytes": 544871,
+      "models": 3
+    },
+    {
+      "source": "proj_growth",
+      "bytes": 549258,
+      "models": 4
+    },
+    {
+      "source": "proj_h",
+      "bytes": 544864,
+      "models": 3
+    },
+    {
+      "source": "proj_i",
+      "bytes": 544856,
+      "models": 3
+    },
+    {
+      "source": "proj_j",
+      "bytes": 540847,
+      "models": 2
+    },
+    {
+      "source": "proj_k",
+      "bytes": 540854,
+      "models": 2
+    },
+    {
+      "source": "proj_l",
+      "bytes": 536569,
+      "models": 1
+    },
+    {
+      "source": "proj_m",
+      "bytes": 536574,
+      "models": 1
+    }
+  ],
+  "artefact_bytes_total": 10321806,
+  "consumer": "proj_core",
+  "injected_node_count": 44,
+  "injected_payload_bytes": 12117,
+  "public_injected_node_count": 44,
+  "ref_filtered_node_count": 2,
+  "ref_filtered_payload_bytes": 630,
+  "peak_rss_bytes": 133746688,
+  "parse_seconds": 2.531,
+  "climb": {
+    "dbt_peak_rss_bytes": 133746688,
+    "parse_seconds": 2.531,
+    "returncode": 0,
+    "cycle_error": false,
+    "injector_peak_rss_bytes": 21372928,
+    "injector_seconds": 0.083,
+    "rss_measurement": {
+      "tool": "/usr/bin/time -v",
+      "field": "Maximum resident set size (kbytes)",
+      "bytes": "reported kilobytes * 1024",
+      "scope": "peak_rss_bytes is the climb dbt parse. injector_peak_rss_bytes is a separate Python process that loads the other manifests and writes the external-node payload. baseline.peak_rss_bytes is the highest of the per-source stubbed parses. Each timed command is one process."
+    }
+  },
+  "baseline": {
+    "kind": "serial dbt parse of every checkout with cross-repo refs stubbed; no last-good injection",
+    "checkout_bytes_per_source": [
+      {
+        "source": "analyst_hub",
+        "bytes": 5292
+      },
+      {
+        "source": "proj_a",
+        "bytes": 8871
+      },
+      {
+        "source": "proj_b",
+        "bytes": 8967
+      },
+      {
+        "source": "proj_bank",
+        "bytes": 3801
+      },
+      {
+        "source": "proj_bank_reporting",
+        "bytes": 3911
+      },
+      {
+        "source": "proj_c",
+        "bytes": 7406
+      },
+      {
+        "source": "proj_core",
+        "bytes": 11125
+      },
+      {
+        "source": "proj_core_copy",
+        "bytes": 3856
+      },
+      {
+        "source": "proj_d",
+        "bytes": 7414
+      },
+      {
+        "source": "proj_e",
+        "bytes": 7416
+      },
+      {
+        "source": "proj_f",
+        "bytes": 7415
+      },
+      {
+        "source": "proj_g",
+        "bytes": 7416
+      },
+      {
+        "source": "proj_growth",
+        "bytes": 9735
+      },
+      {
+        "source": "proj_h",
+        "bytes": 7416
+      },
+      {
+        "source": "proj_i",
+        "bytes": 7416
+      },
+      {
+        "source": "proj_j",
+        "bytes": 5241
+      },
+      {
+        "source": "proj_k",
+        "bytes": 5239
+      },
+      {
+        "source": "proj_l",
+        "bytes": 3769
+      },
+      {
+        "source": "proj_m",
+        "bytes": 3767
+      }
+    ],
+    "checkout_bytes_total": 125473,
+    "parse_seconds": 48.593,
+    "peak_rss_bytes": 133328896,
+    "sources": [
+      {
+        "source": "analyst_hub",
+        "checkout_bytes": 5292,
+        "artefact_bytes": 541132,
+        "parse_seconds": 2.576,
+        "peak_rss_bytes": 132833280,
+        "returncode": 0
+      },
+      {
+        "source": "proj_a",
+        "checkout_bytes": 8871,
+        "artefact_bytes": 548984,
+        "parse_seconds": 2.561,
+        "peak_rss_bytes": 133136384,
+        "returncode": 0
+      },
+      {
+        "source": "proj_b",
+        "checkout_bytes": 8967,
+        "artefact_bytes": 549034,
+        "parse_seconds": 2.583,
+        "peak_rss_bytes": 133287936,
+        "returncode": 0
+      },
+      {
+        "source": "proj_bank",
+        "checkout_bytes": 3801,
+        "artefact_bytes": 536749,
+        "parse_seconds": 2.675,
+        "peak_rss_bytes": 132972544,
+        "returncode": 0
+      },
+      {
+        "source": "proj_bank_reporting",
+        "checkout_bytes": 3911,
+        "artefact_bytes": 537235,
+        "parse_seconds": 2.516,
+        "peak_rss_bytes": 132943872,
+        "returncode": 0
+      },
+      {
+        "source": "proj_c",
+        "checkout_bytes": 7406,
+        "artefact_bytes": 544792,
+        "parse_seconds": 2.545,
+        "peak_rss_bytes": 133328896,
+        "returncode": 0
+      },
+      {
+        "source": "proj_core",
+        "checkout_bytes": 11125,
+        "artefact_bytes": 553540,
+        "parse_seconds": 2.716,
+        "peak_rss_bytes": 133242880,
+        "returncode": 0
+      },
+      {
+        "source": "proj_core_copy",
+        "checkout_bytes": 3856,
+        "artefact_bytes": 537009,
+        "parse_seconds": 2.522,
+        "peak_rss_bytes": 132907008,
+        "returncode": 0
+      },
+      {
+        "source": "proj_d",
+        "checkout_bytes": 7414,
+        "artefact_bytes": 544894,
+        "parse_seconds": 2.564,
+        "peak_rss_bytes": 133111808,
+        "returncode": 0
+      },
+      {
+        "source": "proj_e",
+        "checkout_bytes": 7416,
+        "artefact_bytes": 544874,
+        "parse_seconds": 2.536,
+        "peak_rss_bytes": 133169152,
+        "returncode": 0
+      },
+      {
+        "source": "proj_f",
+        "checkout_bytes": 7415,
+        "artefact_bytes": 544870,
+        "parse_seconds": 2.513,
+        "peak_rss_bytes": 133279744,
+        "returncode": 0
+      },
+      {
+        "source": "proj_g",
+        "checkout_bytes": 7416,
+        "artefact_bytes": 544871,
+        "parse_seconds": 2.578,
+        "peak_rss_bytes": 133177344,
+        "returncode": 0
+      },
+      {
+        "source": "proj_growth",
+        "checkout_bytes": 9735,
+        "artefact_bytes": 549258,
+        "parse_seconds": 2.608,
+        "peak_rss_bytes": 133189632,
+        "returncode": 0
+      },
+      {
+        "source": "proj_h",
+        "checkout_bytes": 7416,
+        "artefact_bytes": 544864,
+        "parse_seconds": 2.541,
+        "peak_rss_bytes": 133267456,
+        "returncode": 0
+      },
+      {
+        "source": "proj_i",
+        "checkout_bytes": 7416,
+        "artefact_bytes": 544856,
+        "parse_seconds": 2.512,
+        "peak_rss_bytes": 133246976,
+        "returncode": 0
+      },
+      {
+        "source": "proj_j",
+        "checkout_bytes": 5241,
+        "artefact_bytes": 540847,
+        "parse_seconds": 2.506,
+        "peak_rss_bytes": 132743168,
+        "returncode": 0
+      },
+      {
+        "source": "proj_k",
+        "checkout_bytes": 5239,
+        "artefact_bytes": 540854,
+        "parse_seconds": 2.496,
+        "peak_rss_bytes": 132972544,
+        "returncode": 0
+      },
+      {
+        "source": "proj_l",
+        "checkout_bytes": 3769,
+        "artefact_bytes": 536569,
+        "parse_seconds": 2.559,
+        "peak_rss_bytes": 132767744,
+        "returncode": 0
+      },
+      {
+        "source": "proj_m",
+        "checkout_bytes": 3767,
+        "artefact_bytes": 536574,
+        "parse_seconds": 2.486,
+        "peak_rss_bytes": 132919296,
+        "returncode": 0
+      }
+    ]
+  },
+  "withheld": {
+    "returncode": 2,
+    "unresolved": true,
+    "invented_manifests": [],
+    "parse_seconds": 2.423,
+    "peak_rss_bytes": 130777088,
+    "warning": "Cold start: dbt source \"proj_core\" cannot refresh because last-good manifests are not seeded for upstreams: analyst_hub, proj_a, proj_b, proj_bank, proj_bank_reporting, proj_c, proj_core_copy, proj_d, proj_e, proj_f, proj_g, proj_growth, proj_h, proj_i, proj_j, proj_k, proj_l, proj_m. Seed each upstream with a successful compile or deploy. No manifest was invented."
+  },
+  "fixtures": [
+    {
+      "fixture": "large-org",
+      "source_count": 19,
+      "models": 49,
+      "manifest_model_nodes": 49,
+      "artefact_bytes_per_source": [
+        {
+          "source": "analyst_hub",
+          "bytes": 541132,
+          "models": 2
+        },
+        {
+          "source": "proj_a",
+          "bytes": 548984,
+          "models": 4
+        },
+        {
+          "source": "proj_b",
+          "bytes": 549034,
+          "models": 4
+        },
+        {
+          "source": "proj_bank",
+          "bytes": 536749,
+          "models": 1
+        },
+        {
+          "source": "proj_bank_reporting",
+          "bytes": 537235,
+          "models": 1
+        },
+        {
+          "source": "proj_c",
+          "bytes": 544792,
+          "models": 3
+        },
+        {
+          "source": "proj_core",
+          "bytes": 553540,
+          "models": 5
+        },
+        {
+          "source": "proj_core_copy",
+          "bytes": 537009,
+          "models": 1
+        },
+        {
+          "source": "proj_d",
+          "bytes": 544894,
+          "models": 3
+        },
+        {
+          "source": "proj_e",
+          "bytes": 544874,
+          "models": 3
+        },
+        {
+          "source": "proj_f",
+          "bytes": 544870,
+          "models": 3
+        },
+        {
+          "source": "proj_g",
+          "bytes": 544871,
+          "models": 3
+        },
+        {
+          "source": "proj_growth",
+          "bytes": 549258,
+          "models": 4
+        },
+        {
+          "source": "proj_h",
+          "bytes": 544864,
+          "models": 3
+        },
+        {
+          "source": "proj_i",
+          "bytes": 544856,
+          "models": 3
+        },
+        {
+          "source": "proj_j",
+          "bytes": 540847,
+          "models": 2
+        },
+        {
+          "source": "proj_k",
+          "bytes": 540854,
+          "models": 2
+        },
+        {
+          "source": "proj_l",
+          "bytes": 536569,
+          "models": 1
+        },
+        {
+          "source": "proj_m",
+          "bytes": 536574,
+          "models": 1
+        }
+      ],
+      "artefact_bytes_total": 10321806,
+      "injection_policy": "all-real-models",
+      "consumer": "proj_core",
+      "injected_node_count": 44,
+      "injected_payload_bytes": 12117,
+      "public_injected_node_count": 44,
+      "ref_filtered_node_count": 2,
+      "ref_filtered_payload_bytes": 630,
+      "peak_rss_bytes": 133746688,
+      "parse_seconds": 2.531,
+      "climb": {
+        "dbt_peak_rss_bytes": 133746688,
+        "parse_seconds": 2.531,
+        "returncode": 0,
+        "cycle_error": false,
+        "injector_peak_rss_bytes": 21372928,
+        "injector_seconds": 0.083,
+        "rss_measurement": {
+          "tool": "/usr/bin/time -v",
+          "field": "Maximum resident set size (kbytes)",
+          "bytes": "reported kilobytes * 1024",
+          "scope": "peak_rss_bytes is the climb dbt parse. injector_peak_rss_bytes is a separate Python process that loads the other manifests and writes the external-node payload. baseline.peak_rss_bytes is the highest of the per-source stubbed parses. Each timed command is one process."
+        }
+      },
+      "baseline": {
+        "kind": "serial dbt parse of every checkout with cross-repo refs stubbed; no last-good injection",
+        "checkout_bytes_per_source": [
+          {
+            "source": "analyst_hub",
+            "bytes": 5292
+          },
+          {
+            "source": "proj_a",
+            "bytes": 8871
+          },
+          {
+            "source": "proj_b",
+            "bytes": 8967
+          },
+          {
+            "source": "proj_bank",
+            "bytes": 3801
+          },
+          {
+            "source": "proj_bank_reporting",
+            "bytes": 3911
+          },
+          {
+            "source": "proj_c",
+            "bytes": 7406
+          },
+          {
+            "source": "proj_core",
+            "bytes": 11125
+          },
+          {
+            "source": "proj_core_copy",
+            "bytes": 3856
+          },
+          {
+            "source": "proj_d",
+            "bytes": 7414
+          },
+          {
+            "source": "proj_e",
+            "bytes": 7416
+          },
+          {
+            "source": "proj_f",
+            "bytes": 7415
+          },
+          {
+            "source": "proj_g",
+            "bytes": 7416
+          },
+          {
+            "source": "proj_growth",
+            "bytes": 9735
+          },
+          {
+            "source": "proj_h",
+            "bytes": 7416
+          },
+          {
+            "source": "proj_i",
+            "bytes": 7416
+          },
+          {
+            "source": "proj_j",
+            "bytes": 5241
+          },
+          {
+            "source": "proj_k",
+            "bytes": 5239
+          },
+          {
+            "source": "proj_l",
+            "bytes": 3769
+          },
+          {
+            "source": "proj_m",
+            "bytes": 3767
+          }
+        ],
+        "checkout_bytes_total": 125473,
+        "parse_seconds": 48.593,
+        "peak_rss_bytes": 133328896,
+        "sources": [
+          {
+            "source": "analyst_hub",
+            "checkout_bytes": 5292,
+            "artefact_bytes": 541132,
+            "parse_seconds": 2.576,
+            "peak_rss_bytes": 132833280,
+            "returncode": 0
+          },
+          {
+            "source": "proj_a",
+            "checkout_bytes": 8871,
+            "artefact_bytes": 548984,
+            "parse_seconds": 2.561,
+            "peak_rss_bytes": 133136384,
+            "returncode": 0
+          },
+          {
+            "source": "proj_b",
+            "checkout_bytes": 8967,
+            "artefact_bytes": 549034,
+            "parse_seconds": 2.583,
+            "peak_rss_bytes": 133287936,
+            "returncode": 0
+          },
+          {
+            "source": "proj_bank",
+            "checkout_bytes": 3801,
+            "artefact_bytes": 536749,
+            "parse_seconds": 2.675,
+            "peak_rss_bytes": 132972544,
+            "returncode": 0
+          },
+          {
+            "source": "proj_bank_reporting",
+            "checkout_bytes": 3911,
+            "artefact_bytes": 537235,
+            "parse_seconds": 2.516,
+            "peak_rss_bytes": 132943872,
+            "returncode": 0
+          },
+          {
+            "source": "proj_c",
+            "checkout_bytes": 7406,
+            "artefact_bytes": 544792,
+            "parse_seconds": 2.545,
+            "peak_rss_bytes": 133328896,
+            "returncode": 0
+          },
+          {
+            "source": "proj_core",
+            "checkout_bytes": 11125,
+            "artefact_bytes": 553540,
+            "parse_seconds": 2.716,
+            "peak_rss_bytes": 133242880,
+            "returncode": 0
+          },
+          {
+            "source": "proj_core_copy",
+            "checkout_bytes": 3856,
+            "artefact_bytes": 537009,
+            "parse_seconds": 2.522,
+            "peak_rss_bytes": 132907008,
+            "returncode": 0
+          },
+          {
+            "source": "proj_d",
+            "checkout_bytes": 7414,
+            "artefact_bytes": 544894,
+            "parse_seconds": 2.564,
+            "peak_rss_bytes": 133111808,
+            "returncode": 0
+          },
+          {
+            "source": "proj_e",
+            "checkout_bytes": 7416,
+            "artefact_bytes": 544874,
+            "parse_seconds": 2.536,
+            "peak_rss_bytes": 133169152,
+            "returncode": 0
+          },
+          {
+            "source": "proj_f",
+            "checkout_bytes": 7415,
+            "artefact_bytes": 544870,
+            "parse_seconds": 2.513,
+            "peak_rss_bytes": 133279744,
+            "returncode": 0
+          },
+          {
+            "source": "proj_g",
+            "checkout_bytes": 7416,
+            "artefact_bytes": 544871,
+            "parse_seconds": 2.578,
+            "peak_rss_bytes": 133177344,
+            "returncode": 0
+          },
+          {
+            "source": "proj_growth",
+            "checkout_bytes": 9735,
+            "artefact_bytes": 549258,
+            "parse_seconds": 2.608,
+            "peak_rss_bytes": 133189632,
+            "returncode": 0
+          },
+          {
+            "source": "proj_h",
+            "checkout_bytes": 7416,
+            "artefact_bytes": 544864,
+            "parse_seconds": 2.541,
+            "peak_rss_bytes": 133267456,
+            "returncode": 0
+          },
+          {
+            "source": "proj_i",
+            "checkout_bytes": 7416,
+            "artefact_bytes": 544856,
+            "parse_seconds": 2.512,
+            "peak_rss_bytes": 133246976,
+            "returncode": 0
+          },
+          {
+            "source": "proj_j",
+            "checkout_bytes": 5241,
+            "artefact_bytes": 540847,
+            "parse_seconds": 2.506,
+            "peak_rss_bytes": 132743168,
+            "returncode": 0
+          },
+          {
+            "source": "proj_k",
+            "checkout_bytes": 5239,
+            "artefact_bytes": 540854,
+            "parse_seconds": 2.496,
+            "peak_rss_bytes": 132972544,
+            "returncode": 0
+          },
+          {
+            "source": "proj_l",
+            "checkout_bytes": 3769,
+            "artefact_bytes": 536569,
+            "parse_seconds": 2.559,
+            "peak_rss_bytes": 132767744,
+            "returncode": 0
+          },
+          {
+            "source": "proj_m",
+            "checkout_bytes": 3767,
+            "artefact_bytes": 536574,
+            "parse_seconds": 2.486,
+            "peak_rss_bytes": 132919296,
+            "returncode": 0
+          }
+        ]
+      },
+      "withheld": {
+        "returncode": 2,
+        "unresolved": true,
+        "invented_manifests": [],
+        "parse_seconds": 2.423,
+        "peak_rss_bytes": 130777088,
+        "warning": "Cold start: dbt source \"proj_core\" cannot refresh because last-good manifests are not seeded for upstreams: analyst_hub, proj_a, proj_b, proj_bank, proj_bank_reporting, proj_c, proj_core_copy, proj_d, proj_e, proj_f, proj_g, proj_growth, proj_h, proj_i, proj_j, proj_k, proj_l, proj_m. Seed each upstream with a successful compile or deploy. No manifest was invented."
+      }
+    },
+    {
+      "fixture": "full",
+      "source_count": 22,
+      "models": 3000,
+      "manifest_model_nodes": 3001,
+      "artefact_bytes_per_source": [
+        {
+          "source": "accounts",
+          "bytes": 640890,
+          "models": 25
+        },
+        {
+          "source": "billing",
+          "bytes": 640150,
+          "models": 25
+        },
+        {
+          "source": "catalog",
+          "bytes": 640158,
+          "models": 25
+        },
+        {
+          "source": "compliance",
+          "bytes": 642387,
+          "models": 25
+        },
+        {
+          "source": "contracts",
+          "bytes": 641651,
+          "models": 25
+        },
+        {
+          "source": "delivery",
+          "bytes": 640895,
+          "models": 25
+        },
+        {
+          "source": "finance",
+          "bytes": 960930,
+          "models": 100
+        },
+        {
+          "source": "fulfilment",
+          "bytes": 642392,
+          "models": 25
+        },
+        {
+          "source": "growth",
+          "bytes": 958383,
+          "models": 100
+        },
+        {
+          "source": "inventory",
+          "bytes": 641637,
+          "models": 25
+        },
+        {
+          "source": "loyalty",
+          "bytes": 640154,
+          "models": 25
+        },
+        {
+          "source": "marketing",
+          "bytes": 966576,
+          "models": 100
+        },
+        {
+          "source": "merchants",
+          "bytes": 4460891,
+          "models": 900
+        },
+        {
+          "source": "payments",
+          "bytes": 6139139,
+          "models": 1300
+        },
+        {
+          "source": "pricing",
+          "bytes": 640155,
+          "models": 25
+        },
+        {
+          "source": "products",
+          "bytes": 640887,
+          "models": 25
+        },
+        {
+          "source": "regions",
+          "bytes": 640143,
+          "models": 25
+        },
+        {
+          "source": "retention",
+          "bytes": 641657,
+          "models": 25
+        },
+        {
+          "source": "risk",
+          "bytes": 953478,
+          "models": 100
+        },
+        {
+          "source": "subscriptions",
+          "bytes": 644628,
+          "models": 25
+        },
+        {
+          "source": "support",
+          "bytes": 640140,
+          "models": 25
+        },
+        {
+          "source": "treasury",
+          "bytes": 640895,
+          "models": 25
+        }
+      ],
+      "artefact_bytes_total": 24698216,
+      "injection_policy": "all-real-models",
+      "consumer": "growth",
+      "injected_node_count": 2901,
+      "injected_payload_bytes": 862923,
+      "public_injected_node_count": 2901,
+      "ref_filtered_node_count": 2,
+      "ref_filtered_payload_bytes": 525,
+      "peak_rss_bytes": 178040832,
+      "parse_seconds": 4.343,
+      "climb": {
+        "dbt_peak_rss_bytes": 178040832,
+        "parse_seconds": 4.343,
+        "returncode": 0,
+        "cycle_error": false,
+        "injector_peak_rss_bytes": 54591488,
+        "injector_seconds": 0.207,
+        "rss_measurement": {
+          "tool": "/usr/bin/time -v",
+          "field": "Maximum resident set size (kbytes)",
+          "bytes": "reported kilobytes * 1024",
+          "scope": "peak_rss_bytes is the climb dbt parse. injector_peak_rss_bytes is a separate Python process that loads the other manifests and writes the external-node payload. baseline.peak_rss_bytes is the highest of the per-source stubbed parses. Each timed command is one process."
+        }
+      },
+      "baseline": {
+        "kind": "serial dbt parse of every checkout with cross-repo refs stubbed; no last-good injection",
+        "checkout_bytes_per_source": [
+          {
+            "source": "accounts",
+            "bytes": 38663
+          },
+          {
+            "source": "billing",
+            "bytes": 38607
+          },
+          {
+            "source": "catalog",
+            "bytes": 38605
+          },
+          {
+            "source": "compliance",
+            "bytes": 38782
+          },
+          {
+            "source": "contracts",
+            "bytes": 38726
+          },
+          {
+            "source": "delivery",
+            "bytes": 38664
+          },
+          {
+            "source": "finance",
+            "bytes": 153400
+          },
+          {
+            "source": "fulfilment",
+            "bytes": 38781
+          },
+          {
+            "source": "growth",
+            "bytes": 158894
+          },
+          {
+            "source": "inventory",
+            "bytes": 38727
+          },
+          {
+            "source": "loyalty",
+            "bytes": 38608
+          },
+          {
+            "source": "marketing",
+            "bytes": 149528
+          },
+          {
+            "source": "merchants",
+            "bytes": 1325773
+          },
+          {
+            "source": "payments",
+            "bytes": 1948066
+          },
+          {
+            "source": "pricing",
+            "bytes": 38607
+          },
+          {
+            "source": "products",
+            "bytes": 38667
+          },
+          {
+            "source": "regions",
+            "bytes": 38608
+          },
+          {
+            "source": "retention",
+            "bytes": 38721
+          },
+          {
+            "source": "risk",
+            "bytes": 154667
+          },
+          {
+            "source": "subscriptions",
+            "bytes": 38960
+          },
+          {
+            "source": "support",
+            "bytes": 38606
+          },
+          {
+            "source": "treasury",
+            "bytes": 38667
+          }
+        ],
+        "checkout_bytes_total": 4509327,
+        "parse_seconds": 72.026,
+        "peak_rss_bytes": 188760064,
+        "sources": [
+          {
+            "source": "accounts",
+            "checkout_bytes": 38663,
+            "artefact_bytes": 640890,
+            "parse_seconds": 2.635,
+            "peak_rss_bytes": 133955584,
+            "returncode": 0
+          },
+          {
+            "source": "billing",
+            "checkout_bytes": 38607,
+            "artefact_bytes": 640150,
+            "parse_seconds": 2.637,
+            "peak_rss_bytes": 133951488,
+            "returncode": 0
+          },
+          {
+            "source": "catalog",
+            "checkout_bytes": 38605,
+            "artefact_bytes": 640158,
+            "parse_seconds": 2.689,
+            "peak_rss_bytes": 133849088,
+            "returncode": 0
+          },
+          {
+            "source": "compliance",
+            "checkout_bytes": 38782,
+            "artefact_bytes": 642387,
+            "parse_seconds": 2.649,
+            "peak_rss_bytes": 133595136,
+            "returncode": 0
+          },
+          {
+            "source": "contracts",
+            "checkout_bytes": 38726,
+            "artefact_bytes": 641651,
+            "parse_seconds": 2.913,
+            "peak_rss_bytes": 133419008,
+            "returncode": 0
+          },
+          {
+            "source": "delivery",
+            "checkout_bytes": 38664,
+            "artefact_bytes": 640895,
+            "parse_seconds": 2.667,
+            "peak_rss_bytes": 133951488,
+            "returncode": 0
+          },
+          {
+            "source": "finance",
+            "checkout_bytes": 153400,
+            "artefact_bytes": 960930,
+            "parse_seconds": 3.033,
+            "peak_rss_bytes": 135794688,
+            "returncode": 0
+          },
+          {
+            "source": "fulfilment",
+            "checkout_bytes": 38781,
+            "artefact_bytes": 642392,
+            "parse_seconds": 2.699,
+            "peak_rss_bytes": 133718016,
+            "returncode": 0
+          },
+          {
+            "source": "growth",
+            "checkout_bytes": 158894,
+            "artefact_bytes": 958383,
+            "parse_seconds": 3.12,
+            "peak_rss_bytes": 135573504,
+            "returncode": 0
+          },
+          {
+            "source": "inventory",
+            "checkout_bytes": 38727,
+            "artefact_bytes": 641637,
+            "parse_seconds": 2.697,
+            "peak_rss_bytes": 133570560,
+            "returncode": 0
+          },
+          {
+            "source": "loyalty",
+            "checkout_bytes": 38608,
+            "artefact_bytes": 640154,
+            "parse_seconds": 2.726,
+            "peak_rss_bytes": 134021120,
+            "returncode": 0
+          },
+          {
+            "source": "marketing",
+            "checkout_bytes": 149528,
+            "artefact_bytes": 966576,
+            "parse_seconds": 3.058,
+            "peak_rss_bytes": 135786496,
+            "returncode": 0
+          },
+          {
+            "source": "merchants",
+            "checkout_bytes": 1325773,
+            "artefact_bytes": 4460891,
+            "parse_seconds": 7.175,
+            "peak_rss_bytes": 172560384,
+            "returncode": 0
+          },
+          {
+            "source": "payments",
+            "checkout_bytes": 1948066,
+            "artefact_bytes": 6139139,
+            "parse_seconds": 9.6,
+            "peak_rss_bytes": 188760064,
+            "returncode": 0
+          },
+          {
+            "source": "pricing",
+            "checkout_bytes": 38607,
+            "artefact_bytes": 640155,
+            "parse_seconds": 2.653,
+            "peak_rss_bytes": 133881856,
+            "returncode": 0
+          },
+          {
+            "source": "products",
+            "checkout_bytes": 38667,
+            "artefact_bytes": 640887,
+            "parse_seconds": 2.728,
+            "peak_rss_bytes": 134205440,
+            "returncode": 0
+          },
+          {
+            "source": "regions",
+            "checkout_bytes": 38608,
+            "artefact_bytes": 640143,
+            "parse_seconds": 2.598,
+            "peak_rss_bytes": 133980160,
+            "returncode": 0
+          },
+          {
+            "source": "retention",
+            "checkout_bytes": 38721,
+            "artefact_bytes": 641657,
+            "parse_seconds": 2.654,
+            "peak_rss_bytes": 133464064,
+            "returncode": 0
+          },
+          {
+            "source": "risk",
+            "checkout_bytes": 154667,
+            "artefact_bytes": 953478,
+            "parse_seconds": 3.03,
+            "peak_rss_bytes": 135880704,
+            "returncode": 0
+          },
+          {
+            "source": "subscriptions",
+            "checkout_bytes": 38960,
+            "artefact_bytes": 644628,
+            "parse_seconds": 2.667,
+            "peak_rss_bytes": 133648384,
+            "returncode": 0
+          },
+          {
+            "source": "support",
+            "checkout_bytes": 38606,
+            "artefact_bytes": 640140,
+            "parse_seconds": 2.719,
+            "peak_rss_bytes": 134037504,
+            "returncode": 0
+          },
+          {
+            "source": "treasury",
+            "checkout_bytes": 38667,
+            "artefact_bytes": 640895,
+            "parse_seconds": 2.679,
+            "peak_rss_bytes": 133955584,
+            "returncode": 0
+          }
+        ]
+      },
+      "withheld": {
+        "returncode": 2,
+        "unresolved": true,
+        "invented_manifests": [],
+        "parse_seconds": 2.848,
+        "peak_rss_bytes": 133656576,
+        "warning": "Cold start: dbt source \"growth\" cannot refresh because last-good manifests are not seeded for upstreams: accounts, billing, catalog, compliance, contracts, delivery, finance, fulfilment, inventory, loyalty, marketing, merchants, payments, pricing, products, regions, retention, risk, subscriptions, support, treasury. Seed each upstream with a successful compile or deploy. No manifest was invented."
+      }
+    }
+  ]
+}

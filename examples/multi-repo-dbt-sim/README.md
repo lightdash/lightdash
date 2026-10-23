@@ -232,6 +232,20 @@ projects twice: once with those manifests injected, and once with an empty
 store. The contract, withhold rule, and expected errors are in
 [last-good-climb/README.md](last-good-climb/README.md).
 
+The scale probe reuses that venv and the large-org / full generators. It
+injects every real model from the other sources, records GNU time RSS, and
+compares that climb with a serial stubbed parse of every checkout:
+
+```bash
+examples/multi-repo-dbt-sim/run-last-good-scale --fixture both
+```
+
+The default command omits `--fixture both` and measures large-org `healthy`
+only. Results are written to
+[reports/last-good-scale.json](reports/last-good-scale.json). The measurement
+method and the numbers from the recorded run are in
+[last-good-climb/README.md](last-good-climb/README.md).
+
 ## Checks and cleanup
 
 ```bash
