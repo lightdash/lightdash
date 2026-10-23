@@ -14,8 +14,8 @@ const project = vi.hoisted(() => ({
     data: undefined as { schedulerTimezone: string } | undefined,
 }));
 
-vi.mock('../../../../../hooks/useActiveProject', () => ({
-    useActiveProjectUuid: vi.fn(() => ({ activeProjectUuid: 'project-uuid' })),
+vi.mock('../../../../../hooks/useProjectUuid', () => ({
+    useProjectUuid: vi.fn(() => 'project-uuid'),
 }));
 
 vi.mock('../../../../../hooks/useProject', () => ({
