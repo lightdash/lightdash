@@ -168,7 +168,21 @@ http = "http://localhost:8080/api/v1/health"
 paints = { url = "http://localhost:3000/login", within = "10s", selector = "#root > *" }
 
 [warm]
-routes = ["/", "/login"]
+# The pages the E2E suites open first, so a fork's dev server has their
+# chunks compiled before Cypress's ten-second expectations (the seed
+# project's uuid is fixed by the seed).
+routes = [
+  "/", "/login",
+  "/projects/3675b69e-8324-4110-bdca-059031aa8da3/home",
+  "/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards",
+  "/projects/3675b69e-8324-4110-bdca-059031aa8da3/spaces",
+  "/projects/3675b69e-8324-4110-bdca-059031aa8da3/tables",
+  "/projects/3675b69e-8324-4110-bdca-059031aa8da3/sql-runner",
+  "/generalSettings",
+  "/generalSettings/userManagement",
+  "/generalSettings/userAttributes",
+  "/generalSettings/projectManagement",
+]
 
 # The cache-tier ladder (cache-tiers.md), deepest first; first match wins.
 [[tier]]
@@ -261,6 +275,16 @@ port = 443
 [[egress.allow]]
 host = "www.googleapis.com"
 port = 443
+
+# Certificate revocation checks the Snowflake driver makes (fail-open when
+# refused, but each refusal waits out a timeout first).
+[[egress.allow]]
+host = "ocsp.snowflakecomputing.com"
+port = 80
+
+[[egress.allow]]
+host = "ocsp.digicert.com"
+port = 80
 
 # Staging warehouses, by secret (see [secrets]).
 [[egress.allow]]
