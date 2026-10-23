@@ -239,6 +239,25 @@ describe('getSlackTablePreviews', () => {
         expect(preview).not.toHaveProperty('queryResults');
     });
 
+    it('posts a lone semantic node visualized as a table, authorized against its explore', async () => {
+        const input = {
+            ...setup(),
+            ...visualizeCall('table'),
+            artifacts: [artifact('composer-version', 'table')],
+        };
+
+        expect(await getSlackTablePreviews(input)).toEqual([
+            expect.objectContaining({
+                status: 'ready',
+                title: 'Saved presentation',
+            }),
+        ]);
+        expect(input.authorize).toHaveBeenCalledWith({
+            queryUuid: 'query-composer',
+            exploreNames: ['orders'],
+        });
+    });
+
     it('posts no table for a visualized composer chart', async () => {
         expect(
             await getSlackTablePreviews({
