@@ -1,10 +1,17 @@
 import {
+    ConflictError,
     NotFoundError,
     SingleConnectionProjectError,
     type DbtSourceBindings,
     type WarehouseCatalog,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { DatabaseError } from 'pg';
+import { getPeerDbtSourcesEnabled } from '../../utils/peerDbtSourcesOperation';
+import {
+    PeerDbtSourcesModel,
+    type DbPeerDbtSource,
+} from '../PeerDbtSourcesModel';
 
 const WAREHOUSE_CONNECTIONS_TABLE = 'warehouse_connections';
 const MANIFESTS_TABLE = 'warehouse_connection_manifests';
@@ -91,6 +98,7 @@ export class WarehouseConnectionCompileModel {
         const [connections, sources] = await Promise.all([
             this.getCompileConnections(projectUuid),
             this.database<DbDbtSourceBinding>(DBT_SOURCES_TABLE)
+                .where('role', 'extra')
                 .select('project_dbt_source_uuid', 'warehouse_connection_uuid')
                 .where('project_uuid', projectUuid)
                 .orderBy('precedence'),
@@ -194,43 +202,100 @@ export class WarehouseConnectionCompileModel {
         projectDbtSourceUuid: string,
         warehouseConnectionUuid: string | null,
     ): Promise<void> {
-        await this.database.transaction(async (trx) => {
-            const project = await trx('projects')
-                .select<{ connection_mode: string }[]>('connection_mode')
-                .where('project_uuid', projectUuid)
-                .forUpdate()
-                .first();
-            if (!project) {
-                throw new NotFoundError(
-                    `Cannot find project with id: ${projectUuid}`,
-                );
-            }
-            if (project.connection_mode !== 'multi') {
-                throw new SingleConnectionProjectError();
-            }
-            const binding =
-                warehouseConnectionUuid === null ||
-                (
-                    await this.assertConnectionInProject(
+        await this.database
+            .transaction(async (trx) => {
+                await trx.raw("SET LOCAL lock_timeout = '2s'");
+                const project = await trx('projects')
+                    .select<{ connection_mode: string }[]>('connection_mode')
+                    .where('project_uuid', projectUuid)
+                    .forUpdate()
+                    .first();
+                if (!project) {
+                    throw new NotFoundError(
+                        `Cannot find project with id: ${projectUuid}`,
+                    );
+                }
+                if (project.connection_mode !== 'multi') {
+                    throw new SingleConnectionProjectError();
+                }
+                const binding =
+                    warehouseConnectionUuid === null ||
+                    (
+                        await this.assertConnectionInProject(
+                            trx,
+                            projectUuid,
+                            warehouseConnectionUuid,
+                        )
+                    ).isOriginal
+                        ? null
+                        : warehouseConnectionUuid;
+                if (getPeerDbtSourcesEnabled())
+                    await PeerDbtSourcesModel.assertBindingIsUnique(
                         trx,
                         projectUuid,
-                        warehouseConnectionUuid,
+                        projectDbtSourceUuid,
+                        binding,
+                    );
+                const updated = await trx<DbDbtSourceBinding>(DBT_SOURCES_TABLE)
+                    .where('role', 'extra')
+                    .where('project_uuid', projectUuid)
+                    .where('project_dbt_source_uuid', projectDbtSourceUuid)
+                    .update({
+                        warehouse_connection_uuid: binding,
+                        updated_at: new Date(),
+                    });
+                if (updated === 0) {
+                    throw new NotFoundError(
+                        `Cannot find dbt source with id: ${projectDbtSourceUuid}`,
+                    );
+                }
+            })
+            .catch(async (error: unknown) => {
+                if (
+                    !(error instanceof DatabaseError) ||
+                    error.code !== '23505' ||
+                    error.constraint !==
+                        'project_dbt_sources_peer_name_connection_unique'
+                )
+                    throw error;
+                const source = await this.database<DbPeerDbtSource>(
+                    'project_dbt_sources',
+                )
+                    .where('role', 'extra')
+                    .where({
+                        project_uuid: projectUuid,
+                        project_dbt_source_uuid: projectDbtSourceUuid,
+                    })
+                    .first();
+                const connection = warehouseConnectionUuid
+                    ? await this.database('warehouse_connections')
+                          .where(
+                              'warehouse_connection_uuid',
+                              warehouseConnectionUuid,
+                          )
+                          .first()
+                    : null;
+                const conflict = await this.database<DbPeerDbtSource>(
+                    'project_dbt_sources',
+                )
+                    .where('role', 'extra')
+                    .where({
+                        project_uuid: projectUuid,
+                        dbt_project_name: source?.dbt_project_name,
+                    })
+                    .whereNot('project_dbt_source_uuid', projectDbtSourceUuid)
+                    .whereRaw(
+                        'warehouse_connection_uuid IS NOT DISTINCT FROM ?::uuid',
+                        [
+                            connection?.is_original
+                                ? null
+                                : warehouseConnectionUuid,
+                        ],
                     )
-                ).isOriginal
-                    ? null
-                    : warehouseConnectionUuid;
-            const updated = await trx<DbDbtSourceBinding>(DBT_SOURCES_TABLE)
-                .where('project_uuid', projectUuid)
-                .where('project_dbt_source_uuid', projectDbtSourceUuid)
-                .update({
-                    warehouse_connection_uuid: binding,
-                    updated_at: new Date(),
-                });
-            if (updated === 0) {
-                throw new NotFoundError(
-                    `Cannot find dbt source with id: ${projectDbtSourceUuid}`,
+                    .first();
+                throw new ConflictError(
+                    `Source "${conflict?.name ?? 'another source'}" already provides dbt project "${source?.dbt_project_name}" on this connection. Rename or rebind one source.`,
                 );
-            }
-        });
+            });
     }
 }

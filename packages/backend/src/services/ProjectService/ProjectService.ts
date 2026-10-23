@@ -484,6 +484,11 @@ import {
 import { pickEmbedProject } from '../../utils/embedProject';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { ExploreCompilationSummary } from '../../utils/ExploreCompilationSummary';
+import {
+    getPeerDbtSourcesEnabled,
+    hasPeerDbtSourcesOperation,
+    withPeerDbtSourcesOperation,
+} from '../../utils/peerDbtSourcesOperation';
 import { createComposeMergeQueryBuilder } from '../../utils/QueryBuilder/composeMergeSql';
 import { applyMergeTerminalWrapper } from '../../utils/QueryBuilder/MergeQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
@@ -4176,7 +4181,7 @@ export class ProjectService
         args: SaveCompiledExploresArgs & {
             explores: (Explore | ExploreError)[];
         },
-    ) {
+    ): Promise<string> {
         return this.saveExploresToCacheAndIndexCatalogWithRefreshCheck(
             args,
             true,
@@ -4338,215 +4343,226 @@ export class ProjectService
             hasAdditionalDbtSources === true
                 ? await this.projectModel.getSummary(args.projectUuid)
                 : null;
-        const previewResolution =
-            deployProject?.type === ProjectType.PREVIEW &&
-            args.dbtModelNames === undefined
-                ? await resolveCliPreviewDeploy(
-                      {
-                          projectModel: this.projectModel,
-                          projectDbtSourcesModel: this.projectDbtSourcesModel,
-                          dbtSourceRefCatalogModel:
-                              this.dbtSourceRefCatalogModel,
-                      },
-                      {
-                          projectUuid: args.projectUuid,
-                          upstreamProjectUuid:
-                              deployProject.upstreamProjectUuid,
-                          explores: args.explores,
-                          sourceUuid: cliDeploy.sourceUuid,
-                      },
-                  )
-                : null;
-        const previewSources = previewResolution?.sourcesByPackage ?? null;
-        const sourceSelection =
-            hasAdditionalDbtSources === true && previewSources === null
-                ? await inferCliDeploySource(
-                      {
-                          projectModel: this.projectModel,
-                          projectDbtSourcesModel: this.projectDbtSourcesModel,
-                          dbtSourceRefCatalogModel:
-                              this.dbtSourceRefCatalogModel,
-                          warehouseConnectionModel:
-                              this.warehouseConnectionModel,
-                      },
-                      {
-                          projectUuid: args.projectUuid,
-                          explores: args.explores,
-                          dbtModelNames: args.dbtModelNames,
-                          cliDeploy,
-                      },
-                  )
-                : null;
-        if (
-            connectionRoute !== 'multi' &&
-            hasAdditionalDbtSources !== true &&
-            !(await this.projectModel.hasExploreNameAllocations(
-                args.projectUuid,
-            ))
-        ) {
-            return this.saveExploresToCacheAndIndexCatalogWithRefreshCheck(
-                deploy,
-                false,
-                hasAdditionalDbtSources,
-            );
-        }
-        if (args.complete !== true) {
-            throw new ParameterError(
-                'A deploy to a project with multiple connections must send every explore of its dbt source',
-            );
-        }
-        const previewSourceUuids = previewResolution?.sourceUuids ?? [];
-        if (
-            previewSources &&
-            previewSourceUuids.length > 1 &&
-            cliDeploy.sourceUuid === null &&
-            cliDeploy.target !== null
-        ) {
-            const targets = await Promise.allSettled(
-                previewSourceUuids.map((sourceUuid) =>
-                    resolveCliDeploySource(
-                        {
-                            projectModel: this.projectModel,
-                            projectDbtSourcesModel: this.projectDbtSourcesModel,
-                            warehouseConnectionModel:
-                                this.warehouseConnectionModel,
-                        },
-                        args.projectUuid,
-                        { ...cliDeploy, sourceUuid },
-                    ),
-                ),
-            );
-            if (!targets.some((target) => target.status === 'fulfilled')) {
-                const failed = targets.find(
-                    (target) => target.status === 'rejected',
+        const save = async () => {
+            const previewResolution =
+                deployProject?.type === ProjectType.PREVIEW &&
+                args.dbtModelNames === undefined
+                    ? await resolveCliPreviewDeploy(
+                          {
+                              projectModel: this.projectModel,
+                              projectDbtSourcesModel:
+                                  this.projectDbtSourcesModel,
+                              dbtSourceRefCatalogModel:
+                                  this.dbtSourceRefCatalogModel,
+                          },
+                          {
+                              projectUuid: args.projectUuid,
+                              upstreamProjectUuid:
+                                  deployProject.upstreamProjectUuid,
+                              explores: args.explores,
+                              sourceUuid: cliDeploy.sourceUuid,
+                          },
+                      )
+                    : null;
+            const previewSources = previewResolution?.sourcesByPackage ?? null;
+            const sourceSelection =
+                hasAdditionalDbtSources === true && previewSources === null
+                    ? await inferCliDeploySource(
+                          {
+                              projectModel: this.projectModel,
+                              projectDbtSourcesModel:
+                                  this.projectDbtSourcesModel,
+                              dbtSourceRefCatalogModel:
+                                  this.dbtSourceRefCatalogModel,
+                              warehouseConnectionModel:
+                                  this.warehouseConnectionModel,
+                          },
+                          {
+                              projectUuid: args.projectUuid,
+                              explores: args.explores,
+                              dbtModelNames: args.dbtModelNames,
+                              cliDeploy,
+                          },
+                      )
+                    : null;
+            if (
+                connectionRoute !== 'multi' &&
+                hasAdditionalDbtSources !== true &&
+                !(await this.projectModel.hasExploreNameAllocations(
+                    args.projectUuid,
+                ))
+            ) {
+                return this.saveExploresToCacheAndIndexCatalogWithRefreshCheck(
+                    deploy,
+                    false,
+                    hasAdditionalDbtSources,
                 );
-                if (failed?.status === 'rejected') throw failed.reason;
             }
-        }
-        let selection = cliDeploy;
-        if (sourceSelection)
-            selection = {
-                ...cliDeploy,
-                sourceUuid: sourceSelection.sourceUuid,
-            };
-        else if (
-            previewSources &&
-            cliDeploy.sourceUuid === null &&
-            previewSourceUuids.length === 1
-        ) {
-            selection = { ...cliDeploy, sourceUuid: previewSourceUuids[0] };
-        }
-        const projectDbtSourceUuid =
-            previewSources &&
-            previewSourceUuids.length > 1 &&
-            cliDeploy.sourceUuid === null
-                ? null
-                : await resolveCliDeploySource(
-                      {
-                          projectModel: this.projectModel,
-                          projectDbtSourcesModel: this.projectDbtSourcesModel,
-                          warehouseConnectionModel:
-                              this.warehouseConnectionModel,
-                      },
-                      args.projectUuid,
-                      selection,
-                  );
-        const { explores: uploadedExplores, ...metadata } = deploy;
-        const uploadedExploreCount = uploadedExplores.length;
-        const explores = sourceSelection?.explores ?? uploadedExplores;
-        const sourceDeploy = previewSources
-            ? await this.multiConnectionCompiler.preparePreviewDeploy({
-                  projectUuid: args.projectUuid,
-                  explores: explores.map(withoutClientBindings),
-                  sourcesByPackage: previewSources,
-                  sourceAliases: previewResolution!.sourceAliases,
-              })
-            : await this.multiConnectionCompiler.prepareSourceDeploy({
-                  projectUuid: args.projectUuid,
-                  projectDbtSourceUuid,
-                  explores: explores.map(withoutClientBindings),
-              });
-        if (sourceDeploy.naming) {
-            const { onPublished } = sourceDeploy.naming;
-            sourceDeploy.naming.onPublished = (published) => {
-                onPublished?.(published);
-                uploadedExplores.splice(
-                    0,
-                    uploadedExplores.length,
-                    ...published,
+            if (args.complete !== true) {
+                throw new ParameterError(
+                    'A deploy to a project with multiple connections must send every explore of its dbt source',
                 );
-                if (explores !== uploadedExplores)
-                    explores.splice(0, explores.length, ...published);
-            };
-        }
-        const result = await this.saveExploresAndIndexCatalog({
-            ...metadata,
-            connectionWarnings: sourceDeploy.naming?.warnings ?? [],
-            readSavedExploreNames: true,
-            saveExplores: async (summary) => {
-                let writeChecks = this.getConnectionStagedWriteChecks(
-                    args.projectUuid,
+            }
+            const previewSourceUuids = previewResolution?.sourceUuids ?? [];
+            if (
+                previewSources &&
+                previewSourceUuids.length > 1 &&
+                cliDeploy.sourceUuid === null &&
+                cliDeploy.target !== null
+            ) {
+                const targets = await Promise.allSettled(
+                    previewSourceUuids.map((sourceUuid) =>
+                        resolveCliDeploySource(
+                            {
+                                projectModel: this.projectModel,
+                                projectDbtSourcesModel:
+                                    this.projectDbtSourcesModel,
+                                warehouseConnectionModel:
+                                    this.warehouseConnectionModel,
+                            },
+                            args.projectUuid,
+                            { ...cliDeploy, sourceUuid },
+                        ),
+                    ),
                 );
-                if (sourceSelection || previewSources) {
-                    const [checkWrite] = writeChecks;
-                    writeChecks = [
-                        async (trx, saveUuid) => {
-                            await checkWrite?.(trx, saveUuid);
-                            await this.projectModel.assertSourceDeployOwnership(
-                                args.projectUuid,
-                                sourceSelection?.sourceUuid ?? null,
-                                saveUuid,
-                                trx,
-                                previewResolution === null &&
-                                    cliDeploy.sourceUuid !== null,
-                                previewResolution ?? undefined,
-                            );
-                        },
-                    ];
+                if (!targets.some((target) => target.status === 'fulfilled')) {
+                    const failed = targets.find(
+                        (target) => target.status === 'rejected',
+                    );
+                    if (failed?.status === 'rejected') throw failed.reason;
                 }
-                const saved = await this.multiConnectionCompiler.save(
-                    args.projectUuid,
-                    sourceDeploy,
-                    ...writeChecks,
-                );
-                explores.forEach((explore) => summary.add(explore));
-                return saved;
-            },
-        });
-        if (previewSources) {
-            this.logger.info('cli.deploy.preview_sources_inferred', {
-                projectUuid: args.projectUuid,
-                dbtSourceUuids: previewSourceUuids,
-                method: 'preview_package_match',
-                uploadedExploreCount,
-            });
-        }
-        if (sourceSelection) {
-            this.logger.info(
-                sourceSelection.method === 'explicit'
-                    ? 'cli.deploy.source_selected'
-                    : 'cli.deploy.source_inferred',
-                {
-                    projectUuid: args.projectUuid,
-                    dbtSourceUuid: sourceSelection.sourceUuid,
-                    method: sourceSelection.method,
-                    uploadedExploreCount,
-                    droppedExploreCount: sourceSelection.droppedExploreCount,
+            }
+            let selection = cliDeploy;
+            if (sourceSelection)
+                selection = {
+                    ...cliDeploy,
+                    sourceUuid: sourceSelection.sourceUuid,
+                };
+            else if (
+                previewSources &&
+                cliDeploy.sourceUuid === null &&
+                previewSourceUuids.length === 1
+            ) {
+                selection = { ...cliDeploy, sourceUuid: previewSourceUuids[0] };
+            }
+            const projectDbtSourceUuid =
+                previewSources &&
+                previewSourceUuids.length > 1 &&
+                cliDeploy.sourceUuid === null
+                    ? null
+                    : await resolveCliDeploySource(
+                          {
+                              projectModel: this.projectModel,
+                              projectDbtSourcesModel:
+                                  this.projectDbtSourcesModel,
+                              warehouseConnectionModel:
+                                  this.warehouseConnectionModel,
+                          },
+                          args.projectUuid,
+                          selection,
+                      );
+            const { explores: uploadedExplores, ...metadata } = deploy;
+            const uploadedExploreCount = uploadedExplores.length;
+            const explores = sourceSelection?.explores ?? uploadedExplores;
+            const sourceDeploy = previewSources
+                ? await this.multiConnectionCompiler.preparePreviewDeploy({
+                      projectUuid: args.projectUuid,
+                      explores: explores.map(withoutClientBindings),
+                      sourcesByPackage: previewSources,
+                      sourceAliases: previewResolution!.sourceAliases,
+                  })
+                : await this.multiConnectionCompiler.prepareSourceDeploy({
+                      projectUuid: args.projectUuid,
+                      projectDbtSourceUuid,
+                      explores: explores.map(withoutClientBindings),
+                  });
+            if (sourceDeploy.naming) {
+                const { onPublished } = sourceDeploy.naming;
+                sourceDeploy.naming.onPublished = (published) => {
+                    onPublished?.(published);
+                    uploadedExplores.splice(
+                        0,
+                        uploadedExplores.length,
+                        ...published,
+                    );
+                    if (explores !== uploadedExplores)
+                        explores.splice(0, explores.length, ...published);
+                };
+            }
+            const result = await this.saveExploresAndIndexCatalog({
+                ...metadata,
+                connectionWarnings: sourceDeploy.naming?.warnings ?? [],
+                readSavedExploreNames: true,
+                saveExplores: async (summary) => {
+                    let writeChecks = this.getConnectionStagedWriteChecks(
+                        args.projectUuid,
+                    );
+                    if (sourceSelection || previewSources) {
+                        const [checkWrite] = writeChecks;
+                        writeChecks = [
+                            async (trx, saveUuid) => {
+                                await checkWrite?.(trx, saveUuid);
+                                await this.projectModel.assertSourceDeployOwnership(
+                                    args.projectUuid,
+                                    sourceSelection?.sourceUuid ?? null,
+                                    saveUuid,
+                                    trx,
+                                    previewResolution === null &&
+                                        cliDeploy.sourceUuid !== null,
+                                    previewResolution ?? undefined,
+                                );
+                            },
+                        ];
+                    }
+                    const saved = await this.multiConnectionCompiler.save(
+                        args.projectUuid,
+                        sourceDeploy,
+                        ...writeChecks,
+                    );
+                    explores.forEach((explore) => summary.add(explore));
+                    return saved;
                 },
-            );
-            if (sourceSelection.droppedExploreCount > 0) {
-                this.logger.warn(
-                    'CLI deploy dropped explores from other dbt sources',
+            });
+            if (previewSources) {
+                this.logger.info('cli.deploy.preview_sources_inferred', {
+                    projectUuid: args.projectUuid,
+                    dbtSourceUuids: previewSourceUuids,
+                    method: 'preview_package_match',
+                    uploadedExploreCount,
+                });
+            }
+            if (sourceSelection) {
+                this.logger.info(
+                    sourceSelection.method === 'explicit'
+                        ? 'cli.deploy.source_selected'
+                        : 'cli.deploy.source_inferred',
                     {
                         projectUuid: args.projectUuid,
                         dbtSourceUuid: sourceSelection.sourceUuid,
+                        method: sourceSelection.method,
+                        uploadedExploreCount,
                         droppedExploreCount:
                             sourceSelection.droppedExploreCount,
                     },
                 );
+                if (sourceSelection.droppedExploreCount > 0) {
+                    this.logger.warn(
+                        'CLI deploy dropped explores from other dbt sources',
+                        {
+                            projectUuid: args.projectUuid,
+                            dbtSourceUuid: sourceSelection.sourceUuid,
+                            droppedExploreCount:
+                                sourceSelection.droppedExploreCount,
+                        },
+                    );
+                }
             }
-        }
-        return result.indexCatalogJobUuid;
+            return result.indexCatalogJobUuid;
+        };
+        if (hasPeerDbtSourcesOperation()) return save();
+        return deployProject
+            ? this.withPeerOperation(deployProject.organizationUuid, save)
+            : withPeerDbtSourcesOperation(false, save);
     }
 
     private async saveExploresKeepingExtraConnections(
@@ -5248,267 +5264,313 @@ export class ProjectService
             data,
         );
 
-        const newProjectData = data;
-        ProjectService.validateDbtEnvironmentVariables(
-            newProjectData.dbtConnection,
-        );
-        newProjectData.dbtConnection =
-            await this.resolveGithubInstallationForSave(
+        return this.withPeerOperation(user.organizationUuid, async () => {
+            const newProjectData = data;
+            ProjectService.validateDbtEnvironmentVariables(
                 newProjectData.dbtConnection,
+            );
+            newProjectData.dbtConnection =
+                await this.resolveGithubInstallationForSave(
+                    newProjectData.dbtConnection,
+                    user.organizationUuid,
+                );
+
+            // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
+            if (
+                newProjectData.type === ProjectType.PREVIEW &&
+                newProjectData.upstreamProjectUuid
+            ) {
+                const upstreamProject = data.upstreamProjectUuid
+                    ? await this.projectModel.get(data.upstreamProjectUuid)
+                    : undefined;
+                newProjectData.organizationWarehouseCredentialsUuid =
+                    upstreamProject?.organizationWarehouseCredentialsUuid;
+            }
+            if (
+                newProjectData.type === ProjectType.PREVIEW &&
+                data.copyWarehouseConnectionFromUpstreamProject &&
+                data.upstreamProjectUuid
+            ) {
+                newProjectData.warehouseConnection =
+                    await this.projectModel.getWarehouseCredentialsForBinding(
+                        data.upstreamProjectUuid,
+                        { kind: 'original' },
+                    );
+            } else if (
+                newProjectData.type === ProjectType.PREVIEW &&
+                data.upstreamProjectUuid &&
+                data.warehouseConnection &&
+                !data.copyWarehouseConnectionFromUpstreamProject
+            ) {
+                // When creating a preview from CLI with credentials, merge with upstream credentials
+                // to preserve advanced settings like requireUserCredentials
+                const upstreamCredentials =
+                    await this.projectModel.getWarehouseCredentialsForBinding(
+                        data.upstreamProjectUuid,
+                        { kind: 'original' },
+                    );
+                if (upstreamCredentials) {
+                    newProjectData.warehouseConnection =
+                        mergeWarehouseCredentials(
+                            upstreamCredentials,
+                            data.warehouseConnection,
+                        );
+                }
+            }
+
+            // Re-check after the copy/merge above: the guard at the top only saw
+            // the credentials the caller sent, and a preview can inherit embedded
+            // ones from its upstream project without ever naming them.
+            ProjectService.assertEmbeddedCredentialsAreInternal(
+                newProjectData.warehouseConnection,
+                internalProvisioning,
+            );
+            await this.assertAwsWebIdentityAudienceBelongsTo(
+                newProjectData.warehouseConnection,
                 user.organizationUuid,
             );
 
-        // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
-        if (
-            newProjectData.type === ProjectType.PREVIEW &&
-            newProjectData.upstreamProjectUuid
-        ) {
-            const upstreamProject = data.upstreamProjectUuid
-                ? await this.projectModel.get(data.upstreamProjectUuid)
-                : undefined;
-            newProjectData.organizationWarehouseCredentialsUuid =
-                upstreamProject?.organizationWarehouseCredentialsUuid;
-        }
-        if (
-            newProjectData.type === ProjectType.PREVIEW &&
-            data.copyWarehouseConnectionFromUpstreamProject &&
-            data.upstreamProjectUuid
-        ) {
-            newProjectData.warehouseConnection =
-                await this.projectModel.getWarehouseCredentialsForBinding(
-                    data.upstreamProjectUuid,
-                    { kind: 'original' },
+            const createProject: CreateProjectOptionalCredentials =
+                hasWarehouseCredentials(newProjectData)
+                    ? await this._resolveWarehouseClientCredentials(
+                          newProjectData,
+                          user.userUuid,
+                          user.organizationUuid,
+                      )
+                    : newProjectData;
+
+            const projectUuid =
+                await this.projectModel.createWithOptionalCredentials(
+                    user.userUuid,
+                    user.organizationUuid,
+                    createProject,
+                    internalProvisioning?.source === 'analytics'
+                        ? null
+                        : await this.getPreviewExpiresAt(
+                              createProject.type,
+                              createProject.upstreamProjectUuid,
+                              createProject.expiresInHours,
+                          ),
+                    internalProvisioning?.source,
                 );
-        } else if (
-            newProjectData.type === ProjectType.PREVIEW &&
-            data.upstreamProjectUuid &&
-            data.warehouseConnection &&
-            !data.copyWarehouseConnectionFromUpstreamProject
-        ) {
-            // When creating a preview from CLI with credentials, merge with upstream credentials
-            // to preserve advanced settings like requireUserCredentials
-            const upstreamCredentials =
-                await this.projectModel.getWarehouseCredentialsForBinding(
-                    data.upstreamProjectUuid,
-                    { kind: 'original' },
-                );
-            if (upstreamCredentials) {
-                newProjectData.warehouseConnection = mergeWarehouseCredentials(
-                    upstreamCredentials,
-                    data.warehouseConnection,
-                );
+
+            if (
+                createProject.type === ProjectType.PREVIEW &&
+                createProject.upstreamProjectUuid
+            ) {
+                const connectionMap =
+                    await this.copyConnectionsFromMultiUpstream(
+                        createProject.upstreamProjectUuid,
+                        projectUuid,
+                    );
+                await this.copyPreviewDbtSources({
+                    upstreamProjectUuid: createProject.upstreamProjectUuid,
+                    previewProjectUuid: projectUuid,
+                    warehouseConnectionUuidMap:
+                        connectionMap?.uuids ?? new Map(),
+                });
+                if (
+                    createProject.warehouseConnection &&
+                    !createProject.organizationWarehouseCredentialsUuid
+                ) {
+                    await this.recordPreviewCredentialOwnership({
+                        previewProjectUuid: projectUuid,
+                        upstreamProjectUuid: createProject.upstreamProjectUuid,
+                        previewCredentials: createProject.warehouseConnection,
+                    });
+                }
             }
-        }
 
-        // Re-check after the copy/merge above: the guard at the top only saw
-        // the credentials the caller sent, and a preview can inherit embedded
-        // ones from its upstream project without ever naming them.
-        ProjectService.assertEmbeddedCredentialsAreInternal(
-            newProjectData.warehouseConnection,
-            internalProvisioning,
-        );
-        await this.assertAwsWebIdentityAudienceBelongsTo(
-            newProjectData.warehouseConnection,
-            user.organizationUuid,
-        );
+            const onboardingFlow = await this.getOnboardingFlow(user);
+            // Do not give this user admin permissions on this new project,
+            // as it could be an interactive viewer creating a preview
+            // and we don't want to allow users to acces sql runner or leak admin data
+            this.analytics.track({
+                event: 'project.created',
+                userId: user.userUuid,
+                properties: ProjectService.getAnalyticProperties(
+                    createProject,
+                    projectUuid,
+                    user,
+                    method,
+                    onboardingFlow,
+                ),
+            });
 
-        const createProject: CreateProjectOptionalCredentials =
-            hasWarehouseCredentials(newProjectData)
-                ? await this._resolveWarehouseClientCredentials(
-                      newProjectData,
-                      user.userUuid,
-                      user.organizationUuid,
-                  )
-                : newProjectData;
-
-        const projectUuid =
-            await this.projectModel.createWithOptionalCredentials(
-                user.userUuid,
-                user.organizationUuid,
-                createProject,
-                internalProvisioning?.source === 'analytics'
-                    ? null
-                    : await this.getPreviewExpiresAt(
-                          createProject.type,
-                          createProject.upstreamProjectUuid,
-                          createProject.expiresInHours,
-                      ),
+            await this.runPostProjectCreationProvisioning(
+                user,
+                projectUuid,
+                createProject.type,
                 internalProvisioning?.source,
             );
 
-        if (
-            createProject.type === ProjectType.PREVIEW &&
-            createProject.upstreamProjectUuid
-        ) {
-            const connectionMap = await this.copyConnectionsFromMultiUpstream(
-                createProject.upstreamProjectUuid,
-                projectUuid,
-            );
-            await this.copyPreviewDbtSources({
-                upstreamProjectUuid: createProject.upstreamProjectUuid,
-                previewProjectUuid: projectUuid,
-                warehouseConnectionUuidMap: connectionMap?.uuids ?? new Map(),
-            });
+            // For preview projects: if the upstream requires user warehouse credentials
+            // and the request includes CLI-obtained tokens, create user warehouse
+            // credentials so the user doesn't have to re-authenticate in the UI
             if (
-                createProject.warehouseConnection &&
-                !createProject.organizationWarehouseCredentialsUuid
+                createProject.type === ProjectType.PREVIEW &&
+                createProject.warehouseConnection?.requireUserCredentials
             ) {
-                await this.recordPreviewCredentialOwnership({
-                    previewProjectUuid: projectUuid,
-                    upstreamProjectUuid: createProject.upstreamProjectUuid,
-                    previewCredentials: createProject.warehouseConnection,
-                });
-            }
-        }
-
-        const onboardingFlow = await this.getOnboardingFlow(user);
-        // Do not give this user admin permissions on this new project,
-        // as it could be an interactive viewer creating a preview
-        // and we don't want to allow users to acces sql runner or leak admin data
-        this.analytics.track({
-            event: 'project.created',
-            userId: user.userUuid,
-            properties: ProjectService.getAnalyticProperties(
-                createProject,
-                projectUuid,
-                user,
-                method,
-                onboardingFlow,
-            ),
-        });
-
-        await this.runPostProjectCreationProvisioning(
-            user,
-            projectUuid,
-            createProject.type,
-            internalProvisioning?.source,
-        );
-
-        // For preview projects: if the upstream requires user warehouse credentials
-        // and the request includes CLI-obtained tokens, create user warehouse
-        // credentials so the user doesn't have to re-authenticate in the UI
-        if (
-            createProject.type === ProjectType.PREVIEW &&
-            createProject.warehouseConnection?.requireUserCredentials
-        ) {
-            try {
-                const { warehouseConnection } = createProject;
-                const warehouseType = warehouseConnection.type;
-                switch (warehouseType) {
-                    case WarehouseTypes.DATABRICKS: {
-                        if (!warehouseConnection.refreshToken) break;
-                        const policy = await resolvePersonalCredentialPolicy(
-                            this.featureFlagModel,
-                            {
-                                organizationUuid: user.organizationUuid,
-                                userUuid: user.userUuid,
-                            },
-                        );
-                        const userWarehouseCredentialsUuid =
-                            await this.userWarehouseCredentialsModel.create(
-                                user.userUuid,
-                                {
-                                    name: `Databricks (${warehouseConnection.serverHostName || createProject.name})`,
-                                    credentials: {
-                                        type: WarehouseTypes.DATABRICKS,
-                                        authenticationType:
-                                            DatabricksAuthenticationType.OAUTH_U2M,
-                                        refreshToken:
-                                            warehouseConnection.refreshToken,
-                                        oauthClientId:
-                                            warehouseConnection.oauthClientId,
-                                        ...(policy.strictPersonalOverlay
-                                            ? {
-                                                  serverHostName:
-                                                      warehouseConnection.serverHostName,
-                                              }
-                                            : {}),
-                                    },
-                                },
-                                policy,
-                                projectUuid,
-                            );
-                        await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
-                            user.userUuid,
-                            projectUuid,
-                            userWarehouseCredentialsUuid,
-                        );
-                        this.logger.info(
-                            `Created user warehouse credentials for Databricks on project ${projectUuid}`,
-                        );
-                        break;
-                    }
-                    case WarehouseTypes.BIGQUERY:
-                    case WarehouseTypes.SNOWFLAKE:
-                    case WarehouseTypes.POSTGRES:
-                    case WarehouseTypes.REDSHIFT:
-                    case WarehouseTypes.TRINO:
-                    case WarehouseTypes.CLICKHOUSE:
-                    case WarehouseTypes.ATHENA:
-                    case WarehouseTypes.DUCKDB:
-                        break;
-                    default:
-                        assertUnreachable(
-                            warehouseType,
-                            `Unknown warehouse type for user credentials`,
-                        );
-                }
-            } catch (e) {
-                this.logger.error(
-                    `Failed to create user warehouse credentials: ${e instanceof Error ? e.message : String(e)}`,
-                );
-            }
-        }
-
-        let hasContentCopy = false;
-        let contentCopyJobUuid: string | undefined;
-        let accessCopyError: string | undefined;
-        let contentCopyError: string | undefined;
-
-        if (data.type === ProjectType.PREVIEW && data.upstreamProjectUuid) {
-            try {
-                await this.copyUserAccessOnPreview(
-                    data.upstreamProjectUuid,
-                    projectUuid,
-                );
-            } catch (e) {
-                Sentry.captureException(e);
-                accessCopyError = getErrorMessage(e);
-                this.logger.error(
-                    `Unable to copy access on preview from ${data.upstreamProjectUuid} to ${projectUuid}`,
-                    {
-                        error: accessCopyError,
-                        stack: e instanceof Error ? e.stack : undefined,
-                        errorData:
-                            e instanceof LightdashError ? e.data : undefined,
-                    },
-                );
-            }
-
-            if ((data.copyContent ?? true) && previewCopy.mode === 'async') {
-                if (accessCopyError) {
-                    await this.throwIfPreviewCopyFailed({
-                        project: await this.projectModel.get(projectUuid),
-                        hasContentCopy: false,
-                        accessCopyError,
-                    });
-                }
-            } else if (data.copyContent ?? true) {
                 try {
-                    await this.copyContentOnPreview(
+                    const { warehouseConnection } = createProject;
+                    const warehouseType = warehouseConnection.type;
+                    switch (warehouseType) {
+                        case WarehouseTypes.DATABRICKS: {
+                            if (!warehouseConnection.refreshToken) break;
+                            const policy =
+                                await resolvePersonalCredentialPolicy(
+                                    this.featureFlagModel,
+                                    {
+                                        organizationUuid: user.organizationUuid,
+                                        userUuid: user.userUuid,
+                                    },
+                                );
+                            const userWarehouseCredentialsUuid =
+                                await this.userWarehouseCredentialsModel.create(
+                                    user.userUuid,
+                                    {
+                                        name: `Databricks (${warehouseConnection.serverHostName || createProject.name})`,
+                                        credentials: {
+                                            type: WarehouseTypes.DATABRICKS,
+                                            authenticationType:
+                                                DatabricksAuthenticationType.OAUTH_U2M,
+                                            refreshToken:
+                                                warehouseConnection.refreshToken,
+                                            oauthClientId:
+                                                warehouseConnection.oauthClientId,
+                                            ...(policy.strictPersonalOverlay
+                                                ? {
+                                                      serverHostName:
+                                                          warehouseConnection.serverHostName,
+                                                  }
+                                                : {}),
+                                        },
+                                    },
+                                    policy,
+                                    projectUuid,
+                                );
+                            await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
+                                user.userUuid,
+                                projectUuid,
+                                userWarehouseCredentialsUuid,
+                            );
+                            this.logger.info(
+                                `Created user warehouse credentials for Databricks on project ${projectUuid}`,
+                            );
+                            break;
+                        }
+                        case WarehouseTypes.BIGQUERY:
+                        case WarehouseTypes.SNOWFLAKE:
+                        case WarehouseTypes.POSTGRES:
+                        case WarehouseTypes.REDSHIFT:
+                        case WarehouseTypes.TRINO:
+                        case WarehouseTypes.CLICKHOUSE:
+                        case WarehouseTypes.ATHENA:
+                        case WarehouseTypes.DUCKDB:
+                            break;
+                        default:
+                            assertUnreachable(
+                                warehouseType,
+                                `Unknown warehouse type for user credentials`,
+                            );
+                    }
+                } catch (e) {
+                    this.logger.error(
+                        `Failed to create user warehouse credentials: ${e instanceof Error ? e.message : String(e)}`,
+                    );
+                }
+            }
+
+            let hasContentCopy = false;
+            let contentCopyJobUuid: string | undefined;
+            let accessCopyError: string | undefined;
+            let contentCopyError: string | undefined;
+
+            if (data.type === ProjectType.PREVIEW && data.upstreamProjectUuid) {
+                try {
+                    await this.copyUserAccessOnPreview(
                         data.upstreamProjectUuid,
                         projectUuid,
-                        user,
                     );
-
-                    hasContentCopy = true;
                 } catch (e) {
                     Sentry.captureException(e);
-                    contentCopyError = getErrorMessage(e);
+                    accessCopyError = getErrorMessage(e);
                     this.logger.error(
-                        `Unable to copy content on preview from ${data.upstreamProjectUuid} to ${projectUuid}`,
+                        `Unable to copy access on preview from ${data.upstreamProjectUuid} to ${projectUuid}`,
                         {
-                            error: contentCopyError,
+                            error: accessCopyError,
+                            stack: e instanceof Error ? e.stack : undefined,
+                            errorData:
+                                e instanceof LightdashError
+                                    ? e.data
+                                    : undefined,
+                        },
+                    );
+                }
+
+                if (
+                    (data.copyContent ?? true) &&
+                    previewCopy.mode === 'async'
+                ) {
+                    if (accessCopyError) {
+                        await this.throwIfPreviewCopyFailed({
+                            project: await this.projectModel.get(projectUuid),
+                            hasContentCopy: false,
+                            accessCopyError,
+                        });
+                    }
+                } else if (data.copyContent ?? true) {
+                    try {
+                        await this.copyContentOnPreview(
+                            data.upstreamProjectUuid,
+                            projectUuid,
+                            user,
+                        );
+
+                        hasContentCopy = true;
+                    } catch (e) {
+                        Sentry.captureException(e);
+                        contentCopyError = getErrorMessage(e);
+                        this.logger.error(
+                            `Unable to copy content on preview from ${data.upstreamProjectUuid} to ${projectUuid}`,
+                            {
+                                error: contentCopyError,
+                                stack: e instanceof Error ? e.stack : undefined,
+                                errorData:
+                                    e instanceof LightdashError
+                                        ? e.data
+                                        : undefined,
+                            },
+                        );
+                    }
+                }
+            }
+
+            if (
+                data.tableConfiguration ===
+                    CreateProjectTableConfiguration.PROD &&
+                data.upstreamProjectUuid
+            ) {
+                try {
+                    const prodTablesConfiguration =
+                        await this.projectModel.getTablesConfiguration(
+                            data.upstreamProjectUuid,
+                        );
+                    this.logger.info(
+                        `Copying table configuration to preview project ${projectUuid} from prod: ${JSON.stringify(
+                            data.upstreamProjectUuid,
+                        )}`,
+                    );
+                    await this.projectModel.updateTablesConfiguration(
+                        projectUuid,
+                        prodTablesConfiguration,
+                    );
+                } catch (e) {
+                    Sentry.captureException(e);
+                    this.logger.error(
+                        `Unable to copy table configuration on preview ${e}`,
+                        {
+                            error: e instanceof Error ? e.message : String(e),
                             stack: e instanceof Error ? e.stack : undefined,
                             errorData:
                                 e instanceof LightdashError
@@ -5518,100 +5580,71 @@ export class ProjectService
                     );
                 }
             }
-        }
 
-        if (
-            data.tableConfiguration === CreateProjectTableConfiguration.PROD &&
-            data.upstreamProjectUuid
-        ) {
-            try {
-                const prodTablesConfiguration =
-                    await this.projectModel.getTablesConfiguration(
-                        data.upstreamProjectUuid,
-                    );
-                this.logger.info(
-                    `Copying table configuration to preview project ${projectUuid} from prod: ${JSON.stringify(
-                        data.upstreamProjectUuid,
-                    )}`,
-                );
-                await this.projectModel.updateTablesConfiguration(
+            const project = await this.projectModel.get(projectUuid);
+
+            if (
+                data.type === ProjectType.PREVIEW &&
+                data.upstreamProjectUuid &&
+                (data.copyContent ?? true) &&
+                previewCopy.mode === 'async'
+            ) {
+                contentCopyJobUuid = uuidv4();
+                const payload: CopyPreviewContentPayload = {
+                    jobUuid: contentCopyJobUuid,
                     projectUuid,
-                    prodTablesConfiguration,
-                );
-            } catch (e) {
-                Sentry.captureException(e);
-                this.logger.error(
-                    `Unable to copy table configuration on preview ${e}`,
-                    {
-                        error: e instanceof Error ? e.message : String(e),
-                        stack: e instanceof Error ? e.stack : undefined,
-                        errorData:
-                            e instanceof LightdashError ? e.data : undefined,
-                    },
-                );
-            }
-        }
-
-        const project = await this.projectModel.get(projectUuid);
-
-        if (
-            data.type === ProjectType.PREVIEW &&
-            data.upstreamProjectUuid &&
-            (data.copyContent ?? true) &&
-            previewCopy.mode === 'async'
-        ) {
-            contentCopyJobUuid = uuidv4();
-            const payload: CopyPreviewContentPayload = {
-                jobUuid: contentCopyJobUuid,
-                projectUuid,
-                upstreamProjectUuid: data.upstreamProjectUuid,
-                organizationUuid: user.organizationUuid,
-                userUuid: user.userUuid,
-                requestMethod: method,
-                compile: previewCopy.compile,
-            };
-            try {
-                await this.jobModel.create(
-                    {
-                        jobUuid: contentCopyJobUuid,
-                        jobType: JobType.CREATE_PROJECT,
-                        jobStatus: JobStatusType.STARTED,
-                        userUuid: user.userUuid,
-                        // Keep the status readable after a failed preview is deleted.
-                        projectUuid: undefined,
-                        steps: [
-                            { stepType: JobStepType.COPYING_PREVIEW_CONTENT },
-                        ],
-                    },
-                    true,
-                );
-                if (payload.compile) {
+                    upstreamProjectUuid: data.upstreamProjectUuid,
+                    organizationUuid: user.organizationUuid,
+                    userUuid: user.userUuid,
+                    requestMethod: method,
+                    compile: previewCopy.compile,
+                };
+                try {
                     await this.jobModel.create(
                         {
-                            jobUuid: payload.compile.jobUuid,
-                            jobType: JobType.COMPILE_PROJECT,
+                            jobUuid: contentCopyJobUuid,
+                            jobType: JobType.CREATE_PROJECT,
                             jobStatus: JobStatusType.STARTED,
                             userUuid: user.userUuid,
-                            projectUuid,
-                            steps: [{ stepType: JobStepType.COMPILING }],
+                            // Keep the status readable after a failed preview is deleted.
+                            projectUuid: undefined,
+                            steps: [
+                                {
+                                    stepType:
+                                        JobStepType.COPYING_PREVIEW_CONTENT,
+                                },
+                            ],
                         },
                         true,
                     );
+                    if (payload.compile) {
+                        await this.jobModel.create(
+                            {
+                                jobUuid: payload.compile.jobUuid,
+                                jobType: JobType.COMPILE_PROJECT,
+                                jobStatus: JobStatusType.STARTED,
+                                userUuid: user.userUuid,
+                                projectUuid,
+                                steps: [{ stepType: JobStepType.COMPILING }],
+                            },
+                            true,
+                        );
+                    }
+                    await this.schedulerClient.copyPreviewContent(payload);
+                } catch (error) {
+                    await this.failPreviewContentCopy(payload, error);
+                    throw error;
                 }
-                await this.schedulerClient.copyPreviewContent(payload);
-            } catch (error) {
-                await this.failPreviewContentCopy(payload, error);
-                throw error;
             }
-        }
 
-        return {
-            hasContentCopy,
-            project,
-            accessCopyError,
-            contentCopyError,
-            ...(contentCopyJobUuid ? { contentCopyJobUuid } : {}),
-        };
+            return {
+                hasContentCopy,
+                project,
+                accessCopyError,
+                contentCopyError,
+                ...(contentCopyJobUuid ? { contentCopyJobUuid } : {}),
+            };
+        });
     }
 
     async scheduleCreate(
@@ -5829,231 +5862,250 @@ export class ProjectService
                 user.organizationUuid,
             );
 
-            await this.jobModel.update(jobUuid, {
-                jobStatus: JobStatusType.RUNNING,
-            });
-            const { adapter, lease } = await this.jobModel.tryJobStep(
-                jobUuid,
-                JobStepType.TESTING_ADAPTOR,
+            return await this.withPeerOperation(
+                user.organizationUuid,
                 async () => {
-                    const tested = await this.testProjectAdapter(
-                        {
-                            ...createProject,
-                            warehouseConnection: {
-                                kind: 'submitted_resolved',
-                                credentials: createProject.warehouseConnection,
-                            },
-                        },
-                        user,
-                        'project_create',
-                        method,
-                        null,
-                        null,
-                    );
-                    cleanup.adapter = tested.adapter;
-                    cleanup.lease = tested.lease;
-                    return tested;
-                },
-            );
-
-            const { explores, lightdashProjectConfig, projectContext } =
-                createProject.dbtConnection.type === DbtProjectType.NONE
-                    ? await (async () => {
-                          try {
-                              return {
-                                  explores: [],
-                                  lightdashProjectConfig:
-                                      await adapter.getLightdashProjectConfig(
-                                          undefined,
-                                      ),
-                                  projectContext: [],
-                              };
-                          } finally {
-                              cleanup.started = true;
-                              try {
-                                  await adapter.destroy();
-                              } finally {
-                                  await lease.release();
-                              }
-                          }
-                      })()
-                    : await this.jobModel.tryJobStep(
-                          jobUuid,
-                          JobStepType.COMPILING,
-                          async () => {
-                              try {
-                                  // There's no project yet, so we don't track
-                                  const trackingParams = undefined;
-
-                                  const compiledExplores =
-                                      await adapter.compileAllExplores(
-                                          trackingParams,
-                                          false, // loadSources
-                                          true, // allowPartialCompilation
-                                      );
-                                  const compiledProjectConfig =
-                                      await adapter.getLightdashProjectConfig(
-                                          trackingParams,
-                                      );
-                                  const compiledProjectContext =
-                                      await this.getProjectContextFromAdapter({
-                                          adapter,
-                                          user,
-                                          organizationUuid:
-                                              user.organizationUuid,
-                                      });
-
-                                  return {
-                                      explores: compiledExplores,
-                                      lightdashProjectConfig:
-                                          compiledProjectConfig,
-                                      projectContext: compiledProjectContext,
-                                  };
-                              } finally {
-                                  cleanup.started = true;
-                                  try {
-                                      await adapter.destroy();
-                                  } finally {
-                                      await lease.release();
-                                  }
-                              }
-                          },
-                      );
-
-            const { projectUuid, connectionMap } =
-                await this.jobModel.tryJobStep(
-                    jobUuid,
-                    JobStepType.CREATING_PROJECT,
-                    async () => {
-                        const newProjectUuid = await this.projectModel.create(
-                            user.userUuid,
-                            user.organizationUuid,
-                            createProject,
-                            await this.getPreviewExpiresAt(
-                                createProject.type,
-                                createProject.upstreamProjectUuid,
-                                createProject.expiresInHours,
-                            ),
-                        );
-                        const newConnectionMap =
-                            createProject.upstreamProjectUuid
-                                ? await this.copyConnectionsFromMultiUpstream(
-                                      createProject.upstreamProjectUuid,
-                                      newProjectUuid,
-                                  )
-                                : null;
-                        if (
-                            createProject.upstreamProjectUuid &&
-                            newConnectionMap
-                        ) {
-                            await this.copyPreviewDbtSources({
-                                upstreamProjectUuid:
-                                    createProject.upstreamProjectUuid,
-                                previewProjectUuid: newProjectUuid,
-                                warehouseConnectionUuidMap:
-                                    newConnectionMap.uuids,
-                            });
-                        }
-                        // Give admin user permissions to user who created this project even if he is an admin
-                        if (user.email) {
-                            await this.projectModel.createProjectAccess(
-                                newProjectUuid,
-                                user.email,
-                                ProjectMemberRole.ADMIN,
-                            );
-                        }
-
-                        await this.replaceYamlTagsWithoutPermissionCheck(
-                            user,
-                            user.organizationUuid,
-                            newProjectUuid,
-                            // Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
-                            Object.entries(
-                                lightdashProjectConfig.spotlight?.categories ||
-                                    {},
-                            ).map(([key, category]) => ({
-                                yamlReference: key,
-                                name: category.label,
-                                color: category.color ?? 'gray',
-                            })),
-                        );
-                        if (lightdashProjectConfig.parameters !== undefined) {
-                            await this.replaceProjectParameters({
+                    await this.jobModel.update(jobUuid, {
+                        jobStatus: JobStatusType.RUNNING,
+                    });
+                    const { adapter, lease } = await this.jobModel.tryJobStep(
+                        jobUuid,
+                        JobStepType.TESTING_ADAPTOR,
+                        async () => {
+                            const tested = await this.testProjectAdapter(
+                                {
+                                    ...createProject,
+                                    warehouseConnection: {
+                                        kind: 'submitted_resolved',
+                                        credentials:
+                                            createProject.warehouseConnection,
+                                    },
+                                },
                                 user,
-                                projectUuid: newProjectUuid,
-                                parameters: lightdashProjectConfig.parameters,
-                            });
-                        }
-                        await this.projectModel.setTableGroups(
-                            newProjectUuid,
-                            lightdashProjectConfig.table_groups,
-                        );
-                        // Mirrors CLI deploy semantics: only overwrite stored
-                        // defaults when the config file defines them
-                        if (lightdashProjectConfig.defaults) {
-                            await this.projectModel.updateProjectDefaults(
-                                newProjectUuid,
-                                lightdashProjectConfig.defaults,
+                                'project_create',
+                                method,
+                                null,
+                                null,
                             );
-                        }
-                        await this.replaceProjectContext(
-                            newProjectUuid,
-                            projectContext,
+                            cleanup.adapter = tested.adapter;
+                            cleanup.lease = tested.lease;
+                            return tested;
+                        },
+                    );
+
+                    const { explores, lightdashProjectConfig, projectContext } =
+                        createProject.dbtConnection.type === DbtProjectType.NONE
+                            ? await (async () => {
+                                  try {
+                                      return {
+                                          explores: [],
+                                          lightdashProjectConfig:
+                                              await adapter.getLightdashProjectConfig(
+                                                  undefined,
+                                              ),
+                                          projectContext: [],
+                                      };
+                                  } finally {
+                                      cleanup.started = true;
+                                      try {
+                                          await adapter.destroy();
+                                      } finally {
+                                          await lease.release();
+                                      }
+                                  }
+                              })()
+                            : await this.jobModel.tryJobStep(
+                                  jobUuid,
+                                  JobStepType.COMPILING,
+                                  async () => {
+                                      try {
+                                          // There's no project yet, so we don't track
+                                          const trackingParams = undefined;
+
+                                          const compiledExplores =
+                                              await adapter.compileAllExplores(
+                                                  trackingParams,
+                                                  false, // loadSources
+                                                  true, // allowPartialCompilation
+                                              );
+                                          const compiledProjectConfig =
+                                              await adapter.getLightdashProjectConfig(
+                                                  trackingParams,
+                                              );
+                                          const compiledProjectContext =
+                                              await this.getProjectContextFromAdapter(
+                                                  {
+                                                      adapter,
+                                                      user,
+                                                      organizationUuid:
+                                                          user.organizationUuid,
+                                                  },
+                                              );
+
+                                          return {
+                                              explores: compiledExplores,
+                                              lightdashProjectConfig:
+                                                  compiledProjectConfig,
+                                              projectContext:
+                                                  compiledProjectContext,
+                                          };
+                                      } finally {
+                                          cleanup.started = true;
+                                          try {
+                                              await adapter.destroy();
+                                          } finally {
+                                              await lease.release();
+                                          }
+                                      }
+                                  },
+                              );
+
+                    const { projectUuid, connectionMap } =
+                        await this.jobModel.tryJobStep(
+                            jobUuid,
+                            JobStepType.CREATING_PROJECT,
+                            async () => {
+                                const newProjectUuid =
+                                    await this.projectModel.create(
+                                        user.userUuid,
+                                        user.organizationUuid,
+                                        createProject,
+                                        await this.getPreviewExpiresAt(
+                                            createProject.type,
+                                            createProject.upstreamProjectUuid,
+                                            createProject.expiresInHours,
+                                        ),
+                                    );
+                                const newConnectionMap =
+                                    createProject.upstreamProjectUuid
+                                        ? await this.copyConnectionsFromMultiUpstream(
+                                              createProject.upstreamProjectUuid,
+                                              newProjectUuid,
+                                          )
+                                        : null;
+                                if (
+                                    createProject.upstreamProjectUuid &&
+                                    newConnectionMap
+                                ) {
+                                    await this.copyPreviewDbtSources({
+                                        upstreamProjectUuid:
+                                            createProject.upstreamProjectUuid,
+                                        previewProjectUuid: newProjectUuid,
+                                        warehouseConnectionUuidMap:
+                                            newConnectionMap.uuids,
+                                    });
+                                }
+                                // Give admin user permissions to user who created this project even if he is an admin
+                                if (user.email) {
+                                    await this.projectModel.createProjectAccess(
+                                        newProjectUuid,
+                                        user.email,
+                                        ProjectMemberRole.ADMIN,
+                                    );
+                                }
+
+                                await this.replaceYamlTagsWithoutPermissionCheck(
+                                    user,
+                                    user.organizationUuid,
+                                    newProjectUuid,
+                                    // Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
+                                    Object.entries(
+                                        lightdashProjectConfig.spotlight
+                                            ?.categories || {},
+                                    ).map(([key, category]) => ({
+                                        yamlReference: key,
+                                        name: category.label,
+                                        color: category.color ?? 'gray',
+                                    })),
+                                );
+                                if (
+                                    lightdashProjectConfig.parameters !==
+                                    undefined
+                                ) {
+                                    await this.replaceProjectParameters({
+                                        user,
+                                        projectUuid: newProjectUuid,
+                                        parameters:
+                                            lightdashProjectConfig.parameters,
+                                    });
+                                }
+                                await this.projectModel.setTableGroups(
+                                    newProjectUuid,
+                                    lightdashProjectConfig.table_groups,
+                                );
+                                // Mirrors CLI deploy semantics: only overwrite stored
+                                // defaults when the config file defines them
+                                if (lightdashProjectConfig.defaults) {
+                                    await this.projectModel.updateProjectDefaults(
+                                        newProjectUuid,
+                                        lightdashProjectConfig.defaults,
+                                    );
+                                }
+                                await this.replaceProjectContext(
+                                    newProjectUuid,
+                                    projectContext,
+                                );
+                                if (
+                                    explores.length > 0 &&
+                                    newConnectionMap === null
+                                ) {
+                                    await this.saveExploresToCacheAndIndexCatalog(
+                                        {
+                                            userUuid: user.userUuid,
+                                            projectUuid: newProjectUuid,
+                                            explores,
+                                            compilationSource: 'create_project',
+                                            jobUuid,
+                                            requestMethod: method,
+                                            projectConfigDefaults:
+                                                lightdashProjectConfig.defaults,
+                                            complete: true,
+                                        },
+                                    );
+                                }
+                                return {
+                                    projectUuid: newProjectUuid,
+                                    connectionMap: newConnectionMap,
+                                };
+                            },
                         );
-                        if (explores.length > 0 && newConnectionMap === null) {
-                            await this.saveExploresToCacheAndIndexCatalog({
-                                userUuid: user.userUuid,
-                                projectUuid: newProjectUuid,
-                                explores,
-                                compilationSource: 'create_project',
-                                jobUuid,
-                                requestMethod: method,
-                                projectConfigDefaults:
-                                    lightdashProjectConfig.defaults,
-                                complete: true,
-                            });
-                        }
-                        return {
-                            projectUuid: newProjectUuid,
-                            connectionMap: newConnectionMap,
-                        };
-                    },
-                );
 
-            await this.jobModel.update(jobUuid, {
-                jobStatus: JobStatusType.DONE,
-                jobResults: {
-                    projectUuid,
+                    await this.jobModel.update(jobUuid, {
+                        jobStatus: JobStatusType.DONE,
+                        jobResults: {
+                            projectUuid,
+                        },
+                    });
+                    if (connectionMap) {
+                        await this.scheduleCompileProject(
+                            user,
+                            projectUuid,
+                            method,
+                            true,
+                        );
+                    }
+                    const onboardingFlow = await this.getOnboardingFlow(user);
+                    this.analytics.track({
+                        event: 'project.created',
+                        userId: user.userUuid,
+                        properties: ProjectService.getAnalyticProperties(
+                            createProject,
+                            projectUuid,
+                            user,
+                            method,
+                            onboardingFlow,
+                        ),
+                    });
+
+                    await this.runPostProjectCreationProvisioning(
+                        user,
+                        projectUuid,
+                        createProject.type,
+                    );
+
+                    return { projectUuid };
                 },
-            });
-            if (connectionMap) {
-                await this.scheduleCompileProject(
-                    user,
-                    projectUuid,
-                    method,
-                    true,
-                );
-            }
-            const onboardingFlow = await this.getOnboardingFlow(user);
-            this.analytics.track({
-                event: 'project.created',
-                userId: user.userUuid,
-                properties: ProjectService.getAnalyticProperties(
-                    createProject,
-                    projectUuid,
-                    user,
-                    method,
-                    onboardingFlow,
-                ),
-            });
-
-            await this.runPostProjectCreationProvisioning(
-                user,
-                projectUuid,
-                createProject.type,
             );
-
-            return { projectUuid };
         } catch (error) {
             await this._markJobAsFailed(jobUuid);
             if (!(error instanceof LightdashError)) {
@@ -6097,6 +6149,18 @@ export class ProjectService
         dbtModelNames?: string[],
         cliDeploy: CliDeploySelection = NO_CLI_DEPLOY_SELECTION,
     ): Promise<ApiDeployExploresResults> {
+        if (!hasPeerDbtSourcesOperation() && isUserWithOrg(user))
+            return this.withPeerOperation(user.organizationUuid, () =>
+                this.setExplores(
+                    user,
+                    projectUuid,
+                    explores,
+                    cliVersion,
+                    complete,
+                    dbtModelNames,
+                    cliDeploy,
+                ),
+            );
         const deployAnalytics = {
             userUuid: user.userUuid,
             projectUuid,
@@ -6912,7 +6976,7 @@ export class ProjectService
         method: RequestMethod,
         jobUuid: string,
         compilationSource: CompilationSource = 'refresh_dbt',
-    ) {
+    ): Promise<void> {
         const totalStartTime = performance.now();
 
         if (!isUserWithOrg(user)) {
@@ -6982,290 +7046,319 @@ export class ProjectService
             }
 
             const storedCredentials = updatedProject.warehouseConnection;
-            await this.jobModel.update(job.jobUuid, {
-                jobStatus: JobStatusType.RUNNING,
-            });
-            await this.armCrossSourceCompile(projectUuid, user);
-            timings.testAdapter.start = performance.now();
-            const {
-                adapter: primaryAdapter,
-                lease,
-                warehouseCredentials,
-                cachedWarehouse,
-                dbtVersionOption,
-                dbtPartialParse,
-                dbtTargetPolicy,
-            } = await this.jobModel.tryJobStep(
-                job.jobUuid,
-                JobStepType.TESTING_ADAPTOR,
+            return await this.withPeerOperation(
+                updatedProject.organizationUuid,
                 async () => {
-                    const tested = await this.testProjectAdapter(
-                        {
-                            ...updatedProject,
-                            warehouseConnection: {
-                                kind: 'stored',
-                                projectUuid,
-                                credentials: storedCredentials,
-                            },
-                        },
-                        user,
-                        'project_update',
-                        method,
-                        projectUuid,
-                        updatedProject.organizationUuid,
-                    );
-                    cleanup.adapter = tested.adapter;
-                    cleanup.lease = tested.lease;
-                    return tested;
-                },
-            );
-            timings.testAdapter.end = performance.now();
-            // Source git clones built only to read manifests for the merge.
-            const manifestFetchAdapters: ProjectAdapter[] = [];
-            if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
-                const compileResult = await this.jobModel.tryJobStep(
-                    job.jobUuid,
-                    JobStepType.COMPILING,
-                    async () => {
-                        // Merge additional dbt sources (flag-gated, N=0
-                        // short-circuit) so "Test & deploy" yields the same
-                        // combined explore set as "Refresh dbt".
-                        let compileAdapter = primaryAdapter;
-                        let stagedMergedManifest: Buffer | undefined;
-                        let connectionWarnings: string[] | undefined;
-                        let failedDbtSourceUuids: string[] | undefined;
-                        let exploreNaming: ExploreNaming | undefined;
-                        let multiConnection: MultiConnectionCompilation | null =
-                            null;
-                        try {
-                            const trackingParams = {
-                                projectUuid,
-                                organizationUuid: user.organizationUuid,
-                                userUuid: user.userUuid,
-                                jobUuid: job.jobUuid,
-                            };
-                            const primary = {
-                                adapter: primaryAdapter,
-                                connection: lease,
-                                warehouseCredentials,
-                                cachedWarehouse,
-                                dbtVersionOption,
-                                dbtPartialParse,
-                                dbtTargetPolicy,
-                            };
-                            if (
-                                (await this.projectModel.getConnectionRoute(
-                                    projectUuid,
-                                    { kind: 'original' },
-                                )) === 'multi'
-                            ) {
-                                multiConnection =
-                                    await this.compileMultiConnectionProject({
+                    await this.jobModel.update(job.jobUuid, {
+                        jobStatus: JobStatusType.RUNNING,
+                    });
+                    await this.armCrossSourceCompile(projectUuid, user);
+                    timings.testAdapter.start = performance.now();
+                    const {
+                        adapter: primaryAdapter,
+                        lease,
+                        warehouseCredentials,
+                        cachedWarehouse,
+                        dbtVersionOption,
+                        dbtPartialParse,
+                        dbtTargetPolicy,
+                    } = await this.jobModel.tryJobStep(
+                        job.jobUuid,
+                        JobStepType.TESTING_ADAPTOR,
+                        async () => {
+                            const tested = await this.testProjectAdapter(
+                                {
+                                    ...updatedProject,
+                                    warehouseConnection: {
+                                        kind: 'stored',
                                         projectUuid,
-                                        jobUuid: job.jobUuid,
+                                        credentials: storedCredentials,
+                                    },
+                                },
+                                user,
+                                'project_update',
+                                method,
+                                projectUuid,
+                                updatedProject.organizationUuid,
+                            );
+                            cleanup.adapter = tested.adapter;
+                            cleanup.lease = tested.lease;
+                            return tested;
+                        },
+                    );
+                    timings.testAdapter.end = performance.now();
+                    // Source git clones built only to read manifests for the merge.
+                    const manifestFetchAdapters: ProjectAdapter[] = [];
+                    if (
+                        updatedProject.dbtConnection.type !==
+                        DbtProjectType.NONE
+                    ) {
+                        const compileResult = await this.jobModel.tryJobStep(
+                            job.jobUuid,
+                            JobStepType.COMPILING,
+                            async () => {
+                                // Merge additional dbt sources (flag-gated, N=0
+                                // short-circuit) so "Test & deploy" yields the same
+                                // combined explore set as "Refresh dbt".
+                                let compileAdapter = primaryAdapter;
+                                let stagedMergedManifest: Buffer | undefined;
+                                let connectionWarnings: string[] | undefined;
+                                let failedDbtSourceUuids: string[] | undefined;
+                                let exploreNaming: ExploreNaming | undefined;
+                                let multiConnection: MultiConnectionCompilation | null =
+                                    null;
+                                try {
+                                    const trackingParams = {
+                                        projectUuid,
                                         organizationUuid: user.organizationUuid,
                                         userUuid: user.userUuid,
-                                        primary,
-                                        manifestFetchAdapters,
-                                        trackingParams,
-                                    });
-                                manifestFetchAdapters.push(primaryAdapter);
-                                compileAdapter =
-                                    multiConnection.originalAdapter;
-                            } else {
-                                ({
-                                    adapter: compileAdapter,
-                                    stagedMergedManifest,
-                                    connectionWarnings,
-                                    failedDbtSourceUuids,
-                                    exploreNaming,
-                                } = await this.resolveCompileAdapter({
-                                    projectUuid,
-                                    jobUuid: job.jobUuid,
-                                    organizationUuid: user.organizationUuid,
-                                    userUuid: user.userUuid,
-                                    primary,
-                                    manifestFetchAdapters,
-                                }));
-                            }
-                            timings.compileExplores.start = performance.now();
-                            const exploreStream =
-                                multiConnection?.exploreStream ??
-                                (await compileAdapter.prepareExploreStream(
-                                    trackingParams,
-                                    false, // loadSources
-                                    true, // allowPartialCompilation
-                                    exploreNaming !== undefined,
-                                ));
-                            timings.compileExplores.end = performance.now();
-                            timings.getConfig.start = performance.now();
-                            const lightdashProjectConfig =
-                                await compileAdapter.getLightdashProjectConfig(
-                                    trackingParams,
-                                );
-                            const projectContext =
-                                await this.getProjectContextFromAdapter({
-                                    adapter: compileAdapter,
-                                    user,
-                                    organizationUuid: user.organizationUuid,
-                                });
-                            timings.getConfig.end = performance.now();
-
-                            throwIfCompileAborted();
-                            timings.yaml.start = performance.now();
-                            await this.replaceYamlTagsWithoutPermissionCheck(
-                                user,
-                                user.organizationUuid,
-                                projectUuid,
-                                // TODO: Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
-                                Object.entries(
-                                    lightdashProjectConfig.spotlight
-                                        ?.categories || {},
-                                ).map(([key, category]) => ({
-                                    yamlReference: key,
-                                    name: category.label,
-                                    color: category.color ?? 'gray',
-                                })),
-                            );
-                            timings.yaml.end = performance.now();
-                            timings.parameters.start = performance.now();
-                            if (
-                                lightdashProjectConfig.parameters !== undefined
-                            ) {
-                                await this.replaceProjectParameters({
-                                    user,
-                                    projectUuid,
-                                    parameters:
-                                        lightdashProjectConfig.parameters,
-                                });
-                            }
-                            await this.projectModel.setTableGroups(
-                                projectUuid,
-                                lightdashProjectConfig.table_groups,
-                            );
-                            // Mirrors CLI deploy semantics: only overwrite
-                            // stored defaults when the config file defines them
-                            if (lightdashProjectConfig.defaults) {
-                                await this.projectModel.updateProjectDefaults(
-                                    projectUuid,
-                                    lightdashProjectConfig.defaults,
-                                );
-                            }
-                            await this.replaceProjectContext(
-                                projectUuid,
-                                projectContext,
-                            );
-                            timings.parameters.end = performance.now();
-                            timings.cacheExplores.start = performance.now();
-                            const result =
-                                await this.saveExploreStreamToCacheAndIndexCatalog(
-                                    {
-                                        userUuid: user.userUuid,
-                                        projectUuid,
-                                        exploreStream,
-                                        multiConnection,
-                                        connectionWarnings,
-                                        failedDbtSourceUuids,
-                                        exploreNaming,
-                                        compilationSource,
                                         jobUuid: job.jobUuid,
-                                        requestMethod: method,
-                                        projectConfigDefaults:
-                                            lightdashProjectConfig.defaults,
-                                    },
-                                );
-                            await this.persistMergedManifest(
-                                projectUuid,
-                                stagedMergedManifest,
-                            );
-                            timings.cacheExplores.end = performance.now();
+                                    };
+                                    const primary = {
+                                        adapter: primaryAdapter,
+                                        connection: lease,
+                                        warehouseCredentials,
+                                        cachedWarehouse,
+                                        dbtVersionOption,
+                                        dbtPartialParse,
+                                        dbtTargetPolicy,
+                                    };
+                                    if (
+                                        (await this.projectModel.getConnectionRoute(
+                                            projectUuid,
+                                            { kind: 'original' },
+                                        )) === 'multi'
+                                    ) {
+                                        multiConnection =
+                                            await this.compileMultiConnectionProject(
+                                                {
+                                                    projectUuid,
+                                                    jobUuid: job.jobUuid,
+                                                    organizationUuid:
+                                                        user.organizationUuid,
+                                                    userUuid: user.userUuid,
+                                                    primary,
+                                                    manifestFetchAdapters,
+                                                    trackingParams,
+                                                },
+                                            );
+                                        manifestFetchAdapters.push(
+                                            primaryAdapter,
+                                        );
+                                        compileAdapter =
+                                            multiConnection.originalAdapter;
+                                    } else {
+                                        ({
+                                            adapter: compileAdapter,
+                                            stagedMergedManifest,
+                                            connectionWarnings,
+                                            failedDbtSourceUuids,
+                                            exploreNaming,
+                                        } = await this.resolveCompileAdapter({
+                                            projectUuid,
+                                            jobUuid: job.jobUuid,
+                                            organizationUuid:
+                                                user.organizationUuid,
+                                            userUuid: user.userUuid,
+                                            primary,
+                                            manifestFetchAdapters,
+                                        }));
+                                    }
+                                    timings.compileExplores.start =
+                                        performance.now();
+                                    const exploreStream =
+                                        multiConnection?.exploreStream ??
+                                        (await compileAdapter.prepareExploreStream(
+                                            trackingParams,
+                                            false, // loadSources
+                                            true, // allowPartialCompilation
+                                            exploreNaming !== undefined,
+                                        ));
+                                    timings.compileExplores.end =
+                                        performance.now();
+                                    timings.getConfig.start = performance.now();
+                                    const lightdashProjectConfig =
+                                        await compileAdapter.getLightdashProjectConfig(
+                                            trackingParams,
+                                        );
+                                    const projectContext =
+                                        await this.getProjectContextFromAdapter(
+                                            {
+                                                adapter: compileAdapter,
+                                                user,
+                                                organizationUuid:
+                                                    user.organizationUuid,
+                                            },
+                                        );
+                                    timings.getConfig.end = performance.now();
 
-                            return result;
+                                    throwIfCompileAborted();
+                                    timings.yaml.start = performance.now();
+                                    await this.replaceYamlTagsWithoutPermissionCheck(
+                                        user,
+                                        user.organizationUuid,
+                                        projectUuid,
+                                        // TODO: Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
+                                        Object.entries(
+                                            lightdashProjectConfig.spotlight
+                                                ?.categories || {},
+                                        ).map(([key, category]) => ({
+                                            yamlReference: key,
+                                            name: category.label,
+                                            color: category.color ?? 'gray',
+                                        })),
+                                    );
+                                    timings.yaml.end = performance.now();
+                                    timings.parameters.start =
+                                        performance.now();
+                                    if (
+                                        lightdashProjectConfig.parameters !==
+                                        undefined
+                                    ) {
+                                        await this.replaceProjectParameters({
+                                            user,
+                                            projectUuid,
+                                            parameters:
+                                                lightdashProjectConfig.parameters,
+                                        });
+                                    }
+                                    await this.projectModel.setTableGroups(
+                                        projectUuid,
+                                        lightdashProjectConfig.table_groups,
+                                    );
+                                    // Mirrors CLI deploy semantics: only overwrite
+                                    // stored defaults when the config file defines them
+                                    if (lightdashProjectConfig.defaults) {
+                                        await this.projectModel.updateProjectDefaults(
+                                            projectUuid,
+                                            lightdashProjectConfig.defaults,
+                                        );
+                                    }
+                                    await this.replaceProjectContext(
+                                        projectUuid,
+                                        projectContext,
+                                    );
+                                    timings.parameters.end = performance.now();
+                                    timings.cacheExplores.start =
+                                        performance.now();
+                                    const result =
+                                        await this.saveExploreStreamToCacheAndIndexCatalog(
+                                            {
+                                                userUuid: user.userUuid,
+                                                projectUuid,
+                                                exploreStream,
+                                                multiConnection,
+                                                connectionWarnings,
+                                                failedDbtSourceUuids,
+                                                exploreNaming,
+                                                compilationSource,
+                                                jobUuid: job.jobUuid,
+                                                requestMethod: method,
+                                                projectConfigDefaults:
+                                                    lightdashProjectConfig.defaults,
+                                            },
+                                        );
+                                    await this.persistMergedManifest(
+                                        projectUuid,
+                                        stagedMergedManifest,
+                                    );
+                                    timings.cacheExplores.end =
+                                        performance.now();
+
+                                    return result;
+                                } finally {
+                                    cleanup.started = true;
+                                    try {
+                                        await compileAdapter.destroy();
+                                    } finally {
+                                        await lease.release();
+                                    }
+                                    // Clean up the per-source git clones used only to
+                                    // read manifests for the merge.
+                                    await Promise.all(
+                                        manifestFetchAdapters.map(
+                                            (manifestAdapter) =>
+                                                manifestAdapter
+                                                    .destroy()
+                                                    .catch((destroyError) => {
+                                                        this.logger.warn(
+                                                            'Failed to destroy a dbt source adapter after manifest merge',
+                                                            {
+                                                                error: destroyError,
+                                                            },
+                                                        );
+                                                    }),
+                                        ),
+                                    );
+                                }
+                            },
+                        );
+                        await this.jobModel.update(job.jobUuid, {
+                            jobStatus: JobStatusType.DONE,
+                            jobResults: compileResult,
+                        });
+                        disarmCompileShutdown();
+                    } else {
+                        try {
+                            await this.jobModel.update(job.jobUuid, {
+                                jobStatus: JobStatusType.DONE,
+                                jobResults: { projectUuid },
+                            });
                         } finally {
                             cleanup.started = true;
                             try {
-                                await compileAdapter.destroy();
+                                await primaryAdapter.destroy();
                             } finally {
                                 await lease.release();
                             }
-                            // Clean up the per-source git clones used only to
-                            // read manifests for the merge.
-                            await Promise.all(
-                                manifestFetchAdapters.map((manifestAdapter) =>
-                                    manifestAdapter
-                                        .destroy()
-                                        .catch((destroyError) => {
-                                            this.logger.warn(
-                                                'Failed to destroy a dbt source adapter after manifest merge',
-                                                { error: destroyError },
-                                            );
-                                        }),
-                                ),
-                            );
                         }
-                    },
-                );
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.DONE,
-                    jobResults: compileResult,
-                });
-                disarmCompileShutdown();
-            } else {
-                try {
-                    await this.jobModel.update(job.jobUuid, {
-                        jobStatus: JobStatusType.DONE,
-                        jobResults: { projectUuid },
-                    });
-                } finally {
-                    cleanup.started = true;
-                    try {
-                        await primaryAdapter.destroy();
-                    } finally {
-                        await lease.release();
                     }
-                }
-            }
-            const projectWithWarehouse = {
-                ...updatedProject,
-                warehouseConnection: updatedProject.warehouseConnection,
-            };
-            const onboardingFlow = await this.getOnboardingFlow(user);
-            this.analytics.track({
-                event: 'project.updated',
-                userId: user.userUuid,
-                properties: ProjectService.getAnalyticProperties(
-                    projectWithWarehouse,
-                    projectUuid,
-                    user,
-                    method,
-                    onboardingFlow,
-                ),
-            });
-            const totalTime = performance.now() - totalStartTime;
-            const durationTestAdapter =
-                timings.testAdapter.end - timings.testAdapter.start;
-            const durationCompileExplores =
-                timings.compileExplores.end - timings.compileExplores.start;
-            const durationGetConfig =
-                timings.getConfig.end - timings.getConfig.start;
-            const durationYaml = timings.yaml.end - timings.yaml.start;
-            const durationParameters =
-                timings.parameters.end - timings.parameters.start;
-            const durationCacheExplores =
-                timings.cacheExplores.end - timings.cacheExplores.start;
+                    const projectWithWarehouse = {
+                        ...updatedProject,
+                        warehouseConnection: storedCredentials,
+                    };
+                    const onboardingFlow = await this.getOnboardingFlow(user);
+                    this.analytics.track({
+                        event: 'project.updated',
+                        userId: user.userUuid,
+                        properties: ProjectService.getAnalyticProperties(
+                            projectWithWarehouse,
+                            projectUuid,
+                            user,
+                            method,
+                            onboardingFlow,
+                        ),
+                    });
+                    const totalTime = performance.now() - totalStartTime;
+                    const durationTestAdapter =
+                        timings.testAdapter.end - timings.testAdapter.start;
+                    const durationCompileExplores =
+                        timings.compileExplores.end -
+                        timings.compileExplores.start;
+                    const durationGetConfig =
+                        timings.getConfig.end - timings.getConfig.start;
+                    const durationYaml = timings.yaml.end - timings.yaml.start;
+                    const durationParameters =
+                        timings.parameters.end - timings.parameters.start;
+                    const durationCacheExplores =
+                        timings.cacheExplores.end - timings.cacheExplores.start;
 
-            this.logger.info(
-                `testAndCompileProject completed in ${totalTime.toFixed(2)}ms`,
-                {
-                    totalTimeMs: totalTime,
-                    sections: {
-                        testAdapterMs: durationTestAdapter.toFixed(2),
-                        compileExploresMs: durationCompileExplores.toFixed(2),
-                        getConfigMs: durationGetConfig.toFixed(2),
-                        yamlMs: durationYaml.toFixed(2),
-                        parametersMs: durationParameters.toFixed(2),
-                        cacheExploresMs: durationCacheExplores.toFixed(2),
-                    },
+                    this.logger.info(
+                        `testAndCompileProject completed in ${totalTime.toFixed(2)}ms`,
+                        {
+                            totalTimeMs: totalTime,
+                            sections: {
+                                testAdapterMs: durationTestAdapter.toFixed(2),
+                                compileExploresMs:
+                                    durationCompileExplores.toFixed(2),
+                                getConfigMs: durationGetConfig.toFixed(2),
+                                yamlMs: durationYaml.toFixed(2),
+                                parametersMs: durationParameters.toFixed(2),
+                                cacheExploresMs:
+                                    durationCacheExplores.toFixed(2),
+                            },
+                        },
+                    );
                 },
             );
         } catch (error) {
@@ -8672,6 +8765,18 @@ export class ProjectService
         );
     }
 
+    private async withPeerOperation<T>(
+        organizationUuid: string,
+        callback: () => Promise<T>,
+    ): Promise<T> {
+        if (hasPeerDbtSourcesOperation()) return callback();
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.PeerDbtSources,
+        });
+        return withPeerDbtSourcesOperation(enabled, callback);
+    }
+
     private async armCrossSourceCompile(
         projectUuid: string,
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
@@ -8958,6 +9063,16 @@ export class ProjectService
                                         await primary.adapter.getDbtManifest(
                                             options,
                                         );
+                                    if (
+                                        getPeerDbtSourcesEnabled() &&
+                                        result.manifest.metadata.project_name
+                                    )
+                                        await this.projectDbtSourcesModel.peers?.learnProjectName(
+                                            projectUuid,
+                                            identity.dbtSourceUuid,
+                                            result.manifest.metadata
+                                                .project_name,
+                                        );
                                     if (!crossSourceRefsEnabled)
                                         await primary.adapter.releaseDisk({
                                             keepProject: true,
@@ -9072,6 +9187,17 @@ export class ProjectService
                                         validateDbtSourceManifest(
                                             result.manifest,
                                         );
+                                        if (
+                                            getPeerDbtSourcesEnabled() &&
+                                            result.manifest.metadata
+                                                .project_name
+                                        )
+                                            await this.projectDbtSourcesModel.peers?.learnProjectName(
+                                                projectUuid,
+                                                source.projectDbtSourceUuid,
+                                                result.manifest.metadata
+                                                    .project_name,
+                                            );
                                         if (!crossSourceRefsEnabled)
                                             await sourceAdapter.releaseDisk();
                                         return result;
@@ -14201,7 +14327,7 @@ export class ProjectService
         requestMethod: RequestMethod,
         jobUuid: string,
         afterCompile?: { stepType: JobStepType; run: () => Promise<void> },
-    ) {
+    ): Promise<void> {
         if (agentExecutionContext.getStore()?.agentConnectionExecution) {
             try {
                 await this.assertConnectionPreAggregateRefresh(projectUuid);
@@ -14238,178 +14364,123 @@ export class ProjectService
             throw new ForbiddenError();
         }
 
-        const job: CreateJob = {
-            jobUuid,
-            jobType: JobType.COMPILE_PROJECT,
-            jobStatus: JobStatusType.STARTED,
-            userUuid: user.userUuid,
-            projectUuid,
-            steps: [{ stepType: JobStepType.COMPILING }],
-        };
+        return this.withPeerOperation(organizationUuid, async () => {
+            const job: CreateJob = {
+                jobUuid,
+                jobType: JobType.COMPILE_PROJECT,
+                jobStatus: JobStatusType.STARTED,
+                userUuid: user.userUuid,
+                projectUuid,
+                steps: [{ stepType: JobStepType.COMPILING }],
+            };
 
-        let connectionFailure: unknown = null;
-        const onLockFailed = async () => {
-            connectionFailure = new ForbiddenError(
-                'The project compilation did not run',
-            );
-            const holder = await this.projectModel
-                .getProjectLockHolder(projectUuid)
-                .catch(() => null);
-            const heldFor = holder
-                ? ` The compile holding it started ${Math.round(
-                      holder.heldForSeconds / 60,
-                  )} minutes ago.`
-                : '';
-            this.logger.warn(
-                `dbt.compile.lockBlocked projectUuid=${projectUuid} jobUuid=${
-                    job.jobUuid
-                } lockHeldForSeconds=${holder?.heldForSeconds ?? 'unknown'}`,
-                {
-                    event: 'dbt.compile.lockBlocked',
-                    projectUuid,
-                    jobUuid: job.jobUuid,
-                    lockHeldForSeconds: holder?.heldForSeconds ?? null,
-                    lockHolderBackendPid: holder?.backendPid ?? null,
-                    lockHolderApplicationName: holder?.applicationName ?? null,
-                },
-            );
-            await this.jobModel.updateJobStep(
-                job.jobUuid,
-                JobStepStatusType.ERROR,
-                JobStepType.COMPILING,
-                `Compilation is already in progress for this project.${heldFor}`,
-            );
-        };
-
-        const timings = {
-            yaml: { start: 0, end: 0 },
-            parameters: { start: 0, end: 0 },
-            cacheExplores: { start: 0, end: 0 },
-        };
-
-        let compileFailed = false;
-        // Called from both catches. The inner one marks the job ERROR and does not rethrow, so
-        // a failure inside the compiling step never reaches the outer catch, and that is the
-        // common case: a bad dbt connection, a dbt error, a warehouse error, a merge failure.
-        const recordCompileFailure = (e: unknown) => {
-            compileFailed = true;
-            connectionFailure = e;
-            if (!(e instanceof LightdashError)) {
-                Sentry.captureException(e);
-            }
-            // The default log format renders the message only and drops metadata, so the
-            // decisive numbers ride in the message too. Typed fields stay for json format.
-            this.logger.error(
-                `dbt.compile.failed projectUuid=${projectUuid} jobUuid=${
-                    job.jobUuid
-                } elapsedMs=${Math.round(
-                    performance.now() - totalStartTime,
-                )} error=${getErrorMessage(e)}`,
-                {
-                    event: 'dbt.compile.failed',
-                    projectUuid,
-                    jobUuid: job.jobUuid,
-                    organizationUuid,
-                    error: getErrorMessage(e),
-                    stack: e instanceof Error ? e.stack : undefined,
-                    elapsedMs: performance.now() - totalStartTime,
-                    sections: {
-                        yamlMs: timings.yaml.end - timings.yaml.start,
-                        parametersMs:
-                            timings.parameters.end - timings.parameters.start,
-                        cacheExploresMs:
-                            timings.cacheExplores.end -
-                            timings.cacheExplores.start,
+            let connectionFailure: unknown = null;
+            const onLockFailed = async () => {
+                connectionFailure = new ForbiddenError(
+                    'The project compilation did not run',
+                );
+                const holder = await this.projectModel
+                    .getProjectLockHolder(projectUuid)
+                    .catch(() => null);
+                const heldFor = holder
+                    ? ` The compile holding it started ${Math.round(
+                          holder.heldForSeconds / 60,
+                      )} minutes ago.`
+                    : '';
+                this.logger.warn(
+                    `dbt.compile.lockBlocked projectUuid=${projectUuid} jobUuid=${
+                        job.jobUuid
+                    } lockHeldForSeconds=${holder?.heldForSeconds ?? 'unknown'}`,
+                    {
+                        event: 'dbt.compile.lockBlocked',
+                        projectUuid,
+                        jobUuid: job.jobUuid,
+                        lockHeldForSeconds: holder?.heldForSeconds ?? null,
+                        lockHolderBackendPid: holder?.backendPid ?? null,
+                        lockHolderApplicationName:
+                            holder?.applicationName ?? null,
                     },
-                },
-            );
-        };
-
-        const onLockAcquired = async () => {
-            try {
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.RUNNING,
-                });
-                const compileResult = await this.jobModel.tryJobStep(
+                );
+                await this.jobModel.updateJobStep(
                     job.jobUuid,
+                    JobStepStatusType.ERROR,
                     JobStepType.COMPILING,
-                    async () =>
-                        this.refreshTablesAndProjectConfig(
-                            user,
-                            projectUuid,
-                            requestMethod,
-                            job.jobUuid,
-                            async ({
-                                exploreStream,
-                                lightdashProjectConfig,
-                                projectContext,
-                                stagedMergedManifest,
-                                connectionWarnings,
-                                failedDbtSourceUuids,
-                                exploreNaming,
-                                onCompiled,
-                                multiConnection,
-                            }) => {
-                                throwIfCompileAborted();
-                                timings.yaml.start = performance.now();
-                                if (
-                                    agentExecutionContext.getStore()
-                                        ?.agentConnectionExecution
-                                )
-                                    await this.assertAgentConnectionEffect(
-                                        projectUuid,
-                                        'compileProject',
-                                    );
-                                await this.replaceYamlTagsWithoutPermissionCheck(
-                                    user,
-                                    organizationUuid,
-                                    projectUuid,
-                                    // TODO: Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
-                                    Object.entries(
-                                        lightdashProjectConfig.spotlight
-                                            ?.categories || {},
-                                    ).map(([key, category]) => ({
-                                        yamlReference: key,
-                                        name: category.label,
-                                        color: category.color ?? 'gray',
-                                    })),
-                                );
-                                timings.yaml.end = performance.now();
-                                timings.parameters.start = performance.now();
-                                if (
-                                    agentExecutionContext.getStore()
-                                        ?.agentConnectionExecution
-                                )
-                                    await this.assertAgentConnectionEffect(
-                                        projectUuid,
-                                        'compileProject',
-                                    );
-                                if (
-                                    lightdashProjectConfig.parameters !==
-                                    undefined
-                                ) {
-                                    await this.replaceProjectParameters({
-                                        user,
-                                        projectUuid,
-                                        parameters:
-                                            lightdashProjectConfig.parameters,
-                                    });
-                                }
-                                if (
-                                    agentExecutionContext.getStore()
-                                        ?.agentConnectionExecution
-                                )
-                                    await this.assertAgentConnectionEffect(
-                                        projectUuid,
-                                        'compileProject',
-                                    );
-                                await this.projectModel.setTableGroups(
-                                    projectUuid,
-                                    lightdashProjectConfig.table_groups,
-                                );
-                                // Mirrors CLI deploy semantics: only overwrite stored
-                                // defaults when the config file defines them
-                                if (lightdashProjectConfig.defaults) {
+                    `Compilation is already in progress for this project.${heldFor}`,
+                );
+            };
+
+            const timings = {
+                yaml: { start: 0, end: 0 },
+                parameters: { start: 0, end: 0 },
+                cacheExplores: { start: 0, end: 0 },
+            };
+
+            let compileFailed = false;
+            // Called from both catches. The inner one marks the job ERROR and does not rethrow, so
+            // a failure inside the compiling step never reaches the outer catch, and that is the
+            // common case: a bad dbt connection, a dbt error, a warehouse error, a merge failure.
+            const recordCompileFailure = (e: unknown) => {
+                compileFailed = true;
+                connectionFailure = e;
+                if (!(e instanceof LightdashError)) {
+                    Sentry.captureException(e);
+                }
+                // The default log format renders the message only and drops metadata, so the
+                // decisive numbers ride in the message too. Typed fields stay for json format.
+                this.logger.error(
+                    `dbt.compile.failed projectUuid=${projectUuid} jobUuid=${
+                        job.jobUuid
+                    } elapsedMs=${Math.round(
+                        performance.now() - totalStartTime,
+                    )} error=${getErrorMessage(e)}`,
+                    {
+                        event: 'dbt.compile.failed',
+                        projectUuid,
+                        jobUuid: job.jobUuid,
+                        organizationUuid,
+                        error: getErrorMessage(e),
+                        stack: e instanceof Error ? e.stack : undefined,
+                        elapsedMs: performance.now() - totalStartTime,
+                        sections: {
+                            yamlMs: timings.yaml.end - timings.yaml.start,
+                            parametersMs:
+                                timings.parameters.end -
+                                timings.parameters.start,
+                            cacheExploresMs:
+                                timings.cacheExplores.end -
+                                timings.cacheExplores.start,
+                        },
+                    },
+                );
+            };
+
+            const onLockAcquired = async () => {
+                try {
+                    await this.jobModel.update(job.jobUuid, {
+                        jobStatus: JobStatusType.RUNNING,
+                    });
+                    const compileResult = await this.jobModel.tryJobStep(
+                        job.jobUuid,
+                        JobStepType.COMPILING,
+                        async () =>
+                            this.refreshTablesAndProjectConfig(
+                                user,
+                                projectUuid,
+                                requestMethod,
+                                job.jobUuid,
+                                async ({
+                                    exploreStream,
+                                    lightdashProjectConfig,
+                                    projectContext,
+                                    stagedMergedManifest,
+                                    connectionWarnings,
+                                    failedDbtSourceUuids,
+                                    exploreNaming,
+                                    onCompiled,
+                                    multiConnection,
+                                }) => {
+                                    throwIfCompileAborted();
+                                    timings.yaml.start = performance.now();
                                     if (
                                         agentExecutionContext.getStore()
                                             ?.agentConnectionExecution
@@ -14418,143 +14489,213 @@ export class ProjectService
                                             projectUuid,
                                             'compileProject',
                                         );
-                                    await this.projectModel.updateProjectDefaults(
+                                    await this.replaceYamlTagsWithoutPermissionCheck(
+                                        user,
+                                        organizationUuid,
                                         projectUuid,
-                                        lightdashProjectConfig.defaults,
+                                        // TODO: Create util to generate categories from lightdashProjectConfig - this is used as well in deploy.ts
+                                        Object.entries(
+                                            lightdashProjectConfig.spotlight
+                                                ?.categories || {},
+                                        ).map(([key, category]) => ({
+                                            yamlReference: key,
+                                            name: category.label,
+                                            color: category.color ?? 'gray',
+                                        })),
                                     );
-                                }
-                                if (
-                                    agentExecutionContext.getStore()
-                                        ?.agentConnectionExecution
-                                )
-                                    await this.assertAgentConnectionEffect(
-                                        projectUuid,
-                                        'compileProject',
-                                    );
-                                await this.replaceProjectContext(
-                                    projectUuid,
-                                    projectContext,
-                                );
-                                timings.parameters.end = performance.now();
-                                timings.cacheExplores.start = performance.now();
-                                const result =
-                                    await this.saveExploreStreamToCacheAndIndexCatalog(
-                                        {
-                                            userUuid: user.userUuid,
+                                    timings.yaml.end = performance.now();
+                                    timings.parameters.start =
+                                        performance.now();
+                                    if (
+                                        agentExecutionContext.getStore()
+                                            ?.agentConnectionExecution
+                                    )
+                                        await this.assertAgentConnectionEffect(
                                             projectUuid,
-                                            exploreStream,
-                                            onCompiled,
-                                            multiConnection,
-                                            connectionWarnings,
-                                            failedDbtSourceUuids,
-                                            exploreNaming,
-                                            compilationSource: 'refresh_dbt',
-                                            jobUuid: job.jobUuid,
-                                            requestMethod,
-                                            projectConfigDefaults:
-                                                lightdashProjectConfig.defaults,
-                                        },
-                                    );
-                                if (
-                                    agentExecutionContext.getStore()
-                                        ?.agentConnectionExecution
-                                )
-                                    await this.assertAgentConnectionEffect(
+                                            'compileProject',
+                                        );
+                                    if (
+                                        lightdashProjectConfig.parameters !==
+                                        undefined
+                                    ) {
+                                        await this.replaceProjectParameters({
+                                            user,
+                                            projectUuid,
+                                            parameters:
+                                                lightdashProjectConfig.parameters,
+                                        });
+                                    }
+                                    if (
+                                        agentExecutionContext.getStore()
+                                            ?.agentConnectionExecution
+                                    )
+                                        await this.assertAgentConnectionEffect(
+                                            projectUuid,
+                                            'compileProject',
+                                        );
+                                    await this.projectModel.setTableGroups(
                                         projectUuid,
-                                        'compileProject',
+                                        lightdashProjectConfig.table_groups,
                                     );
-                                if (
-                                    !multiConnection &&
-                                    stagedMergedManifest === undefined &&
-                                    agentExecutionContext.getStore()
-                                        ?.agentConnectionExecution
-                                ) {
-                                    await this.deleteMergedManifestBestEffort(
+                                    // Mirrors CLI deploy semantics: only overwrite stored
+                                    // defaults when the config file defines them
+                                    if (lightdashProjectConfig.defaults) {
+                                        if (
+                                            agentExecutionContext.getStore()
+                                                ?.agentConnectionExecution
+                                        )
+                                            await this.assertAgentConnectionEffect(
+                                                projectUuid,
+                                                'compileProject',
+                                            );
+                                        await this.projectModel.updateProjectDefaults(
+                                            projectUuid,
+                                            lightdashProjectConfig.defaults,
+                                        );
+                                    }
+                                    if (
+                                        agentExecutionContext.getStore()
+                                            ?.agentConnectionExecution
+                                    )
+                                        await this.assertAgentConnectionEffect(
+                                            projectUuid,
+                                            'compileProject',
+                                        );
+                                    await this.replaceProjectContext(
                                         projectUuid,
-                                        true,
+                                        projectContext,
                                     );
-                                }
-                                await this.persistMergedManifest(
-                                    projectUuid,
-                                    stagedMergedManifest,
-                                );
-                                timings.cacheExplores.end = performance.now();
+                                    timings.parameters.end = performance.now();
+                                    timings.cacheExplores.start =
+                                        performance.now();
+                                    const result =
+                                        await this.saveExploreStreamToCacheAndIndexCatalog(
+                                            {
+                                                userUuid: user.userUuid,
+                                                projectUuid,
+                                                exploreStream,
+                                                onCompiled,
+                                                multiConnection,
+                                                connectionWarnings,
+                                                failedDbtSourceUuids,
+                                                exploreNaming,
+                                                compilationSource:
+                                                    'refresh_dbt',
+                                                jobUuid: job.jobUuid,
+                                                requestMethod,
+                                                projectConfigDefaults:
+                                                    lightdashProjectConfig.defaults,
+                                            },
+                                        );
+                                    if (
+                                        agentExecutionContext.getStore()
+                                            ?.agentConnectionExecution
+                                    )
+                                        await this.assertAgentConnectionEffect(
+                                            projectUuid,
+                                            'compileProject',
+                                        );
+                                    if (
+                                        !multiConnection &&
+                                        stagedMergedManifest === undefined &&
+                                        agentExecutionContext.getStore()
+                                            ?.agentConnectionExecution
+                                    ) {
+                                        await this.deleteMergedManifestBestEffort(
+                                            projectUuid,
+                                            true,
+                                        );
+                                    }
+                                    await this.persistMergedManifest(
+                                        projectUuid,
+                                        stagedMergedManifest,
+                                    );
+                                    timings.cacheExplores.end =
+                                        performance.now();
 
-                                return result;
-                            },
-                        ),
-                );
+                                    return result;
+                                },
+                            ),
+                    );
 
-                if (afterCompile) {
-                    await this.jobModel.tryJobStep(
-                        job.jobUuid,
-                        afterCompile.stepType,
-                        afterCompile.run,
-                    );
-                }
+                    if (afterCompile) {
+                        await this.jobModel.tryJobStep(
+                            job.jobUuid,
+                            afterCompile.stepType,
+                            afterCompile.run,
+                        );
+                    }
 
-                if (agentExecutionContext.getStore()?.agentConnectionExecution)
-                    await this.assertAgentConnectionEffect(
-                        projectUuid,
-                        'compileProject',
-                    );
-                await this.jobModel.update(job.jobUuid, {
-                    jobStatus: JobStatusType.DONE,
-                    jobResults: compileResult,
-                });
-                disarmCompileShutdown();
-            } catch (e) {
-                recordCompileFailure(e);
-                if (e instanceof CompileInterruptedError) {
-                    await this._markInterruptedCompileAsFailed(
-                        job.jobUuid,
-                        e.message,
-                    );
-                } else {
+                    if (
+                        agentExecutionContext.getStore()
+                            ?.agentConnectionExecution
+                    )
+                        await this.assertAgentConnectionEffect(
+                            projectUuid,
+                            'compileProject',
+                        );
                     await this.jobModel.update(job.jobUuid, {
-                        jobStatus: JobStatusType.ERROR,
+                        jobStatus: JobStatusType.DONE,
+                        jobResults: compileResult,
                     });
+                    disarmCompileShutdown();
+                } catch (e) {
+                    recordCompileFailure(e);
+                    if (e instanceof CompileInterruptedError) {
+                        await this._markInterruptedCompileAsFailed(
+                            job.jobUuid,
+                            e.message,
+                        );
+                    } else {
+                        await this.jobModel.update(job.jobUuid, {
+                            jobStatus: JobStatusType.ERROR,
+                        });
+                    }
+                } finally {
+                    disarmCompileShutdown();
                 }
-            } finally {
-                disarmCompileShutdown();
-            }
-        };
-        await this.projectModel
-            .tryAcquireProjectLock(projectUuid, onLockAcquired, onLockFailed)
-            .catch(recordCompileFailure);
-        const totalTime = performance.now() - totalStartTime;
-        const durationYaml = timings.yaml.end - timings.yaml.start;
-        const durationParameters =
-            timings.parameters.end - timings.parameters.start;
-        const durationCacheExplores =
-            timings.cacheExplores.end - timings.cacheExplores.start;
+            };
+            await this.projectModel
+                .tryAcquireProjectLock(
+                    projectUuid,
+                    onLockAcquired,
+                    onLockFailed,
+                )
+                .catch(recordCompileFailure);
+            const totalTime = performance.now() - totalStartTime;
+            const durationYaml = timings.yaml.end - timings.yaml.start;
+            const durationParameters =
+                timings.parameters.end - timings.parameters.start;
+            const durationCacheExplores =
+                timings.cacheExplores.end - timings.cacheExplores.start;
 
-        this.logger.info(
-            `compileProject ${
-                compileFailed ? 'failed after' : 'completed in'
-            } ${totalTime.toFixed(2)}ms projectUuid=${projectUuid} jobUuid=${
-                job.jobUuid
-            }`,
-            {
-                event: compileFailed
-                    ? 'dbt.compile.end.failed'
-                    : 'dbt.compile.end.ok',
-                projectUuid,
-                jobUuid: job.jobUuid,
-                totalTimeMs: totalTime,
-                sections: {
-                    yamlMs: durationYaml.toFixed(2),
-                    parametersMs: durationParameters.toFixed(2),
-                    cacheExploresMs: durationCacheExplores.toFixed(2),
+            this.logger.info(
+                `compileProject ${
+                    compileFailed ? 'failed after' : 'completed in'
+                } ${totalTime.toFixed(2)}ms projectUuid=${projectUuid} jobUuid=${
+                    job.jobUuid
+                }`,
+                {
+                    event: compileFailed
+                        ? 'dbt.compile.end.failed'
+                        : 'dbt.compile.end.ok',
+                    projectUuid,
+                    jobUuid: job.jobUuid,
+                    totalTimeMs: totalTime,
+                    sections: {
+                        yamlMs: durationYaml.toFixed(2),
+                        parametersMs: durationParameters.toFixed(2),
+                        cacheExploresMs: durationCacheExplores.toFixed(2),
+                    },
                 },
-            },
-        );
-        if (
-            connectionFailure instanceof CompileInterruptedError ||
-            (connectionFailure !== null &&
-                agentExecutionContext.getStore()?.agentConnectionExecution)
-        )
-            throw connectionFailure;
+            );
+            if (
+                connectionFailure instanceof CompileInterruptedError ||
+                (connectionFailure !== null &&
+                    agentExecutionContext.getStore()?.agentConnectionExecution)
+            )
+                throw connectionFailure;
+        });
     }
 
     private async getExploreSummaries(

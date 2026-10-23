@@ -491,3 +491,20 @@ An existing extra cannot change its type with either flag value; add a new
 connection instead. It does not remove
 saved connections or change query execution. Mixed-type extras keep their own
 user-credential requirement; same-type extras still inherit the original's.
+
+## Peer dbt sources
+
+`peer-dbt-sources` is off by default on Cloud, self-hosted deployments, and
+preview environments. It
+enables peer identity, repository sharing, and peer settings. Resolve it for the
+resource's organization through `FeatureFlagModel`, including background
+compiles. Personal overrides are not supported for this organization feature.
+Console changes apply on the next backend request and frontend flag refetch.
+Generic ENV overrides apply deployment-wide and require a process restart.
+The schema is additive; disabled requests keep the existing response shapes.
+
+When enabled, project deletion holds the affected project and repository rows
+through cleanup. This prevents a shared source from being added while its owner
+is deleted. Playground and training deletion use the same guard. Content batches
+keep their own short transactions. Disabled deletion keeps its existing order
+and does not use the peer deletion transaction.

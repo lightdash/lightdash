@@ -71,6 +71,7 @@ import {
     type DbtManifestFetchOptions,
     type TrackingParams,
 } from '../../types';
+import { getPeerDbtSourcesEnabled } from '../../utils/peerDbtSourcesOperation';
 import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { projectMergedManifest } from '../ProjectService/projectMergedManifest';
 import { type ConnectionContext } from '../WarehouseClientFactory/ConnectionContext';
@@ -253,6 +254,19 @@ export class MultiConnectionCompiler {
             args.warehouseConnectionCompileModel;
     }
 
+    private async learnProjectName(
+        projectUuid: string,
+        sourceUuid: string,
+        name: string,
+    ): Promise<void> {
+        if (!getPeerDbtSourcesEnabled()) return;
+        await this.projectDbtSourcesModel.peers?.learnProjectName(
+            projectUuid,
+            sourceUuid,
+            name,
+        );
+    }
+
     async planGroups(
         projectUuid: string,
         includeUnboundSources: boolean,
@@ -297,6 +311,10 @@ export class MultiConnectionCompiler {
                 connectionName: string;
             }[];
         } = {},
+        learnProjectName?: (
+            sourceUuid: string,
+            projectName: string,
+        ) => Promise<void>,
     ): Promise<SourceManifest[]> {
         const activeFetches = new Set<Promise<CrossSourceFetchResult>>();
         const releaseFailed = async (error: unknown): Promise<never> => {
@@ -376,6 +394,11 @@ export class MultiConnectionCompiler {
                         options,
                     );
                     validateDbtSourceManifest(result.manifest);
+                    if (result.manifest.metadata.project_name)
+                        await learnProjectName?.(
+                            source.projectDbtSourceUuid,
+                            result.manifest.metadata.project_name,
+                        );
                     if (!enabled)
                         await resolutionOptions.releaseSourceDisk?.(source);
                     return result;
@@ -597,6 +620,12 @@ export class MultiConnectionCompiler {
                         prepareSourceManifest,
                         warnings,
                         resolutionOptions,
+                        (sourceUuid, name) =>
+                            this.learnProjectName(
+                                projectUuid,
+                                sourceUuid,
+                                name,
+                            ),
                     );
                 if (sourceManifests.length === 0) return null;
                 const { manifest, selectedModelIds } =
@@ -1099,7 +1128,15 @@ export class MultiConnectionCompiler {
                         },
                         fetch: async (options) => {
                             try {
-                                return await primary.fetchManifest(options);
+                                const result =
+                                    await primary.fetchManifest(options);
+                                if (result.manifest.metadata.project_name)
+                                    await this.learnProjectName(
+                                        projectUuid,
+                                        identity.dbtSourceUuid,
+                                        result.manifest.metadata.project_name,
+                                    );
+                                return result;
                             } catch (error) {
                                 throw withCrossSourceRefsHint(
                                     error,
@@ -1111,6 +1148,8 @@ export class MultiConnectionCompiler {
                     preparedSourceManifest,
                     warnings,
                     resolutionOptions(originalPlan),
+                    (sourceUuid, name) =>
+                        this.learnProjectName(projectUuid, sourceUuid, name),
                 );
             compileSignal?.throwIfAborted();
             const originalMerged = mergeCompileGroupManifests(originalSources);

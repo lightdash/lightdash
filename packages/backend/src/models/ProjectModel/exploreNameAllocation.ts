@@ -87,6 +87,7 @@ export const allocateStagedExploreNames = async (
         .first();
     const primaryUuid = project?.dbt_source_uuid ?? projectUuid;
     const sources = await trx('project_dbt_sources')
+        .where('role', 'extra')
         .select('project_dbt_source_uuid', 'name')
         .where('project_uuid', projectUuid);
     const sourceNames = new Map([

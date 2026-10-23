@@ -1115,3 +1115,68 @@ describe('ai decisions default-on org switch', () => {
         ).toBe(false);
     });
 });
+
+describe('peer dbt sources organization scope', () => {
+    it.each([true, false])(
+        'uses the organization value %s for interactive and background calls',
+        async (enabled) => {
+            const model = buildModel(
+                {
+                    previewFeatureFlags: {
+                        ...lightdashConfigMock.previewFeatureFlags,
+                        enabled: false,
+                    },
+                },
+                buildFakeDatabase({
+                    flag: {
+                        flag_id: FeatureFlags.PeerDbtSources,
+                        default_enabled: false,
+                    },
+                    userOverride: {
+                        user_uuid: VALID_USER_UUID,
+                        enabled: !enabled,
+                    },
+                    orgOverride: {
+                        organization_uuid: dbUser.organizationUuid,
+                        enabled,
+                    },
+                }),
+            );
+            const interactive = await model.get({
+                featureFlagId: FeatureFlags.PeerDbtSources,
+                user: dbUser,
+            });
+            const background = await model.get({
+                featureFlagId: FeatureFlags.PeerDbtSources,
+                user: { organizationUuid: dbUser.organizationUuid },
+            });
+            expect(interactive.enabled).toBe(enabled);
+            expect(background).toEqual(interactive);
+        },
+    );
+
+    it.each([true, false])(
+        'defaults off on Cloud with preview defaults %s and no stored value or ENV enable',
+        async (previewEnabled) => {
+            const model = buildModel(
+                {
+                    mode: LightdashMode.CLOUD_BETA,
+                    previewFeatureFlags: {
+                        ...lightdashConfigMock.previewFeatureFlags,
+                        enabled: previewEnabled,
+                    },
+                },
+                buildFakeDatabase({}),
+            );
+            await expect(
+                model.get({
+                    featureFlagId: FeatureFlags.PeerDbtSources,
+                    user: dbUser,
+                }),
+            ).resolves.toEqual({
+                id: FeatureFlags.PeerDbtSources,
+                enabled: false,
+            });
+        },
+    );
+});

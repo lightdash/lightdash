@@ -2,11 +2,13 @@ import {
     AlreadyExistsError,
     CreateProjectDbtSource,
     DbtProjectConfig,
+    ForbiddenError,
     NotFoundError,
     ParameterError,
     ProjectDbtSource,
     UnexpectedServerError,
     UpdateProjectDbtSource,
+    type DbtRepositorySummary,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
@@ -15,9 +17,19 @@ import {
     ProjectDbtSourcesTableName,
 } from '../database/entities/projectDbtSources';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
+import { getPeerDbtSourcesEnabled } from '../utils/peerDbtSourcesOperation';
+import {
+    PeerDbtSourcesModel,
+    type DbPeerDbtSource,
+} from './PeerDbtSourcesModel';
 import { normalizeStoredDbtConnection } from './ProjectModel/normalizeStoredDbtConnection';
 
 const PG_UNIQUE_VIOLATION = '23505';
+
+export type ApiProjectDbtSource = ProjectDbtSource & {
+    sharedRepository?: DbtRepositorySummary;
+    sanitizeRepository?: boolean;
+};
 
 export type BoundProjectDbtSource = ProjectDbtSource & {
     warehouseConnectionUuid: string | null;
@@ -30,6 +42,7 @@ type DbBoundProjectDbtSource = DbProjectDbtSource & {
 type ProjectDbtSourcesModelArguments = {
     database: Knex;
     encryptionUtil: EncryptionUtil;
+    peerDbtSourcesEnabled?: boolean;
 };
 
 /**
@@ -41,13 +54,22 @@ type ProjectDbtSourcesModelArguments = {
  * project with no rows runs the single-source path unchanged (N=0 short-circuit).
  */
 export class ProjectDbtSourcesModel {
+    readonly peers: PeerDbtSourcesModel;
     private readonly database: Knex;
 
     private readonly encryptionUtil: EncryptionUtil;
 
+    private readonly peerDbtSourcesEnabled: boolean | undefined;
+
     constructor(args: ProjectDbtSourcesModelArguments) {
         this.database = args.database;
         this.encryptionUtil = args.encryptionUtil;
+        this.peerDbtSourcesEnabled = args.peerDbtSourcesEnabled;
+        this.peers = new PeerDbtSourcesModel(args);
+    }
+
+    private get peersEnabled(): boolean {
+        return this.peerDbtSourcesEnabled ?? getPeerDbtSourcesEnabled();
     }
 
     /**
@@ -114,6 +136,66 @@ export class ProjectDbtSourcesModel {
         };
     }
 
+    private async refreshEnabledRows(
+        projectUuid: string,
+        rows: DbProjectDbtSource[],
+    ): Promise<DbPeerDbtSource[]> {
+        await this.peers.ensureRepositories(projectUuid);
+        return this.database<DbPeerDbtSource>(ProjectDbtSourcesTableName)
+            .where('project_uuid', projectUuid)
+            .where('role', 'extra')
+            .whereIn(
+                'project_dbt_source_uuid',
+                rows.map((row) => row.project_dbt_source_uuid),
+            )
+            .orderBy('precedence', 'asc')
+            .orderBy('name', 'asc');
+    }
+
+    private convertEnabledRow(row: DbPeerDbtSource): ProjectDbtSource {
+        if (row.repository_fill_state === 'cannot_decrypt')
+            return {
+                ...this.convertRow({ ...row, dbt_connection: null }),
+                hasCredentialError: true,
+            };
+        return this.convertRow(row);
+    }
+
+    private async convertEnabledRows(
+        projectUuid: string,
+        rows: DbPeerDbtSource[],
+    ): Promise<ProjectDbtSource[]> {
+        return Promise.all(
+            rows.map(async (row) => {
+                const source = this.convertEnabledRow(row);
+                if (!row.dbt_connection && row.dbt_repository_uuid) {
+                    try {
+                        return {
+                            ...source,
+                            dbtConnection: await this.peers.resolveConnection(
+                                projectUuid,
+                                row.dbt_repository_uuid,
+                            ),
+                        };
+                    } catch {
+                        return { ...source, hasCredentialError: true };
+                    }
+                }
+                return source;
+            }),
+        );
+    }
+
+    private async convertRows(
+        projectUuid: string,
+        rows: DbProjectDbtSource[],
+    ): Promise<ProjectDbtSource[]> {
+        return this.convertEnabledRows(
+            projectUuid,
+            await this.refreshEnabledRows(projectUuid, rows),
+        );
+    }
+
     /**
      * All additional sources for a project, ordered by precedence then name
      * (the same order the merge fold uses). Empty when the project has none.
@@ -121,27 +203,96 @@ export class ProjectDbtSourcesModel {
     async getSources(projectUuid: string): Promise<ProjectDbtSource[]> {
         const rows = await this.database(ProjectDbtSourcesTableName)
             .where('project_uuid', projectUuid)
+            .where('role', 'extra')
             .orderBy('precedence', 'asc')
             .orderBy('name', 'asc');
-        return rows.map((row) => this.convertRow(row));
+        if (rows.length === 0 || !this.peersEnabled)
+            return rows.map((row) => this.convertRow(row));
+        return this.convertRows(projectUuid, rows);
     }
 
     /**
      * Whether the project has any additional sources. Drives the N=0
      * short-circuit without decrypting connections.
      */
+    async getSourcesForApi(
+        projectUuid: string,
+    ): Promise<ApiProjectDbtSource[]> {
+        const rows = await this.database<DbPeerDbtSource>(
+            ProjectDbtSourcesTableName,
+        )
+            .where('project_uuid', projectUuid)
+            .where('role', 'extra')
+            .orderBy('precedence', 'asc')
+            .orderBy('name', 'asc');
+        if (rows.length === 0 || !this.peersEnabled)
+            return rows.map((row) => this.convertRow(row));
+        const currentRows = await this.refreshEnabledRows(projectUuid, rows);
+        const settings = await this.peers.getSettings(projectUuid);
+        return currentRows.map((row) => {
+            const source = {
+                ...this.convertEnabledRow(row),
+                sanitizeRepository: true,
+            };
+            if (row.dbt_connection === null && row.dbt_repository_uuid) {
+                const repository = settings.get(
+                    row.project_dbt_source_uuid,
+                )?.repository;
+                return repository
+                    ? { ...source, sharedRepository: repository }
+                    : { ...source, hasCredentialError: true };
+            }
+            return source;
+        });
+    }
+
     async hasSources(projectUuid: string): Promise<boolean> {
         const row = await this.database(ProjectDbtSourcesTableName)
             .where('project_uuid', projectUuid)
+            .where('role', 'extra')
             .first();
         return row !== undefined;
+    }
+
+    private async inTransaction<T>(
+        action: (model: ProjectDbtSourcesModel) => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction((database) =>
+            action(
+                new ProjectDbtSourcesModel({
+                    database,
+                    encryptionUtil: this.encryptionUtil,
+                    peerDbtSourcesEnabled: this.peerDbtSourcesEnabled,
+                }),
+            ),
+        );
+    }
+
+    private async lockCopyProjects(
+        sourceProjectUuid: string,
+        targetProjectUuid: string,
+    ): Promise<void> {
+        await this.database.raw("SET LOCAL lock_timeout = '2s'");
+        await this.database('projects')
+            .whereIn('project_uuid', [sourceProjectUuid, targetProjectUuid])
+            .orderBy('project_uuid')
+            .forUpdate();
     }
 
     async copySources(
         sourceProjectUuid: string,
         targetProjectUuid: string,
     ): Promise<void> {
-        const sources = await this.database(ProjectDbtSourcesTableName)
+        const { peersEnabled } = this;
+        if (peersEnabled && !this.database.isTransaction)
+            return this.inTransaction((model) =>
+                model.copySources(sourceProjectUuid, targetProjectUuid),
+            );
+        if (peersEnabled)
+            await this.lockCopyProjects(sourceProjectUuid, targetProjectUuid);
+        const sources = await this.database<DbPeerDbtSource>(
+            ProjectDbtSourcesTableName,
+        )
             .select(
                 'name',
                 'is_primary',
@@ -151,11 +302,28 @@ export class ProjectDbtSourcesModel {
                 'warehouse_database',
                 'warehouse_schema',
             )
-            .where('project_uuid', sourceProjectUuid);
+            .select(
+                peersEnabled
+                    ? [
+                          'dbt_repository_uuid',
+                          'dbt_project_name',
+                          'dbt_project_name_conflict',
+                          'membership_role',
+                          'refresh_policy',
+                      ]
+                    : [],
+            )
+            .where('project_uuid', sourceProjectUuid)
+            .where('role', 'extra');
 
         if (sources.length === 0) {
             return;
         }
+        if (peersEnabled)
+            await this.peers.assertRepositoriesCanBeCopied(
+                targetProjectUuid,
+                sources,
+            );
 
         await this.database(ProjectDbtSourcesTableName).insert(
             sources.map((source) => ({
@@ -167,20 +335,71 @@ export class ProjectDbtSourcesModel {
                 dbt_connection: source.dbt_connection,
                 warehouse_database: source.warehouse_database,
                 warehouse_schema: source.warehouse_schema,
+                ...(peersEnabled
+                    ? ProjectDbtSourcesModel.peerCopyFields(source)
+                    : {}),
             })),
         );
+    }
+
+    private static peerCopyFields(
+        source: Pick<
+            DbPeerDbtSource,
+            | 'dbt_repository_uuid'
+            | 'dbt_project_name'
+            | 'dbt_project_name_conflict'
+            | 'membership_role'
+            | 'refresh_policy'
+        >,
+    ) {
+        return {
+            dbt_repository_uuid: source.dbt_repository_uuid,
+            dbt_project_name: source.dbt_project_name,
+            dbt_project_name_conflict: source.dbt_project_name_conflict,
+            membership_role: source.membership_role,
+            refresh_policy: source.refresh_policy,
+        };
     }
 
     async getSource(projectDbtSourceUuid: string): Promise<ProjectDbtSource> {
         const row = await this.database(ProjectDbtSourcesTableName)
             .where('project_dbt_source_uuid', projectDbtSourceUuid)
+            .where('role', 'extra')
             .first();
         if (!row) {
             throw new NotFoundError(
                 `Cannot find dbt source with id: ${projectDbtSourceUuid}`,
             );
         }
-        return this.convertRow(row);
+        if (!this.peersEnabled) return this.convertRow(row);
+        const [current] = await this.convertRows(row.project_uuid, [row]);
+        if (!current)
+            throw new NotFoundError(
+                `Cannot find dbt source with id: ${projectDbtSourceUuid}`,
+            );
+        return current;
+    }
+
+    async getSourceForApi(
+        projectDbtSourceUuid: string,
+    ): Promise<ProjectDbtSource> {
+        const row = await this.database(ProjectDbtSourcesTableName)
+            .where('project_dbt_source_uuid', projectDbtSourceUuid)
+            .where('role', 'extra')
+            .first();
+        if (!row)
+            throw new NotFoundError(
+                `Cannot find dbt source with id: ${projectDbtSourceUuid}`,
+            );
+        if (!this.peersEnabled) return this.convertRow(row);
+        const [current] = await this.refreshEnabledRows(row.project_uuid, [
+            row,
+        ]);
+        if (!current)
+            throw new NotFoundError(
+                `Cannot find dbt source with id: ${projectDbtSourceUuid}`,
+            );
+        return this.convertEnabledRow(current);
     }
 
     async createSource(
@@ -188,6 +407,21 @@ export class ProjectDbtSourcesModel {
         data: CreateProjectDbtSource,
     ): Promise<ProjectDbtSource> {
         try {
+            if (this.peersEnabled) {
+                if (!this.database.isTransaction)
+                    return await this.inTransaction((model) =>
+                        model.createSource(projectUuid, data),
+                    );
+                await this.database.raw("SET LOCAL lock_timeout = '2s'");
+                await this.database('projects')
+                    .where('project_uuid', projectUuid)
+                    .forUpdate()
+                    .first();
+                await this.peers.initializeProjectNames(projectUuid);
+                return this.convertRow(
+                    await this.peers.createSource(projectUuid, data),
+                );
+            }
             const [row] = await this.database(ProjectDbtSourcesTableName)
                 .insert({
                     project_uuid: projectUuid,
@@ -218,10 +452,42 @@ export class ProjectDbtSourcesModel {
         projectDbtSourceUuid: string,
         data: UpdateProjectDbtSource,
     ): Promise<ProjectDbtSource> {
+        const stored = await this.getSourceForApi(projectDbtSourceUuid);
+        const { peersEnabled } = this;
+        if (peersEnabled && !this.database.isTransaction)
+            return this.inTransaction((model) =>
+                model.updateSource(projectDbtSourceUuid, data),
+            );
+        if (peersEnabled) {
+            await this.database.raw("SET LOCAL lock_timeout = '2s'");
+            await this.database('projects')
+                .where('project_uuid', stored.projectUuid)
+                .forUpdate()
+                .first();
+            await this.peers.initializeProjectNames(stored.projectUuid);
+        }
+        if (peersEnabled && data.dbtConnection !== undefined) {
+            const existing = await this.getSource(projectDbtSourceUuid);
+            if (
+                await this.peers.isSharedConsumer(
+                    existing.projectUuid,
+                    projectDbtSourceUuid,
+                )
+            )
+                throw new ForbiddenError(
+                    'Edit shared repository credentials in the owning project',
+                );
+            await this.peers.assertConnectionChange(
+                existing.projectUuid,
+                projectDbtSourceUuid,
+                data.dbtConnection,
+            );
+        }
         let row: DbProjectDbtSource | undefined;
         try {
             [row] = await this.database(ProjectDbtSourcesTableName)
                 .where('project_dbt_source_uuid', projectDbtSourceUuid)
+                .where('role', 'extra')
                 .update({
                     ...(data.name !== undefined ? { name: data.name } : {}),
                     ...(data.precedence !== undefined
@@ -234,6 +500,8 @@ export class ProjectDbtSourcesModel {
                               dbt_connection: this.encryptConnection(
                                   data.dbtConnection,
                               ),
+                              repository_fill_state: 'pending',
+                              repository_fill_attempted_at: null,
                           }
                         : {}),
                     ...(data.warehouseLocation !== undefined
@@ -263,6 +531,12 @@ export class ProjectDbtSourcesModel {
                 `Cannot find dbt source with id: ${projectDbtSourceUuid}`,
             );
         }
+        if (peersEnabled && data.dbtConnection !== undefined)
+            await this.peers.registerSource(
+                row.project_uuid,
+                row.project_dbt_source_uuid,
+                data.dbtConnection,
+            );
         return this.convertRow(row);
     }
 
@@ -273,23 +547,39 @@ export class ProjectDbtSourcesModel {
                 'Cannot delete the primary dbt source of a project',
             );
         }
+        if (this.peersEnabled)
+            return this.peers.deleteSource(
+                source.projectUuid,
+                projectDbtSourceUuid,
+            );
         await this.database(ProjectDbtSourcesTableName)
             .where('project_dbt_source_uuid', projectDbtSourceUuid)
+            .where('role', 'extra')
             .delete();
     }
 
     async getSourcesWithBindings(
         projectUuid: string,
     ): Promise<BoundProjectDbtSource[]> {
-        const rows = await this.database<DbBoundProjectDbtSource>(
-            ProjectDbtSourcesTableName,
-        )
-            .where('project_uuid', projectUuid)
-            .orderBy('precedence', 'asc')
-            .orderBy('name', 'asc');
-        return rows.map((row) => ({
-            ...this.convertRow(row),
-            warehouseConnectionUuid: row.warehouse_connection_uuid,
+        let rows: DbBoundProjectDbtSource[] =
+            await this.database<DbBoundProjectDbtSource>(
+                ProjectDbtSourcesTableName,
+            )
+                .where('project_uuid', projectUuid)
+                .where('role', 'extra')
+                .orderBy('precedence', 'asc')
+                .orderBy('name', 'asc');
+        if (rows.length > 0 && this.peersEnabled)
+            rows = await this.refreshEnabledRows(projectUuid, rows);
+        const sources = this.peersEnabled
+            ? await this.convertEnabledRows(
+                  projectUuid,
+                  rows as DbPeerDbtSource[],
+              )
+            : rows.map((row) => this.convertRow(row));
+        return sources.map((source, index) => ({
+            ...source,
+            warehouseConnectionUuid: rows[index].warehouse_connection_uuid,
         }));
     }
 
@@ -298,7 +588,18 @@ export class ProjectDbtSourcesModel {
         targetProjectUuid: string,
         warehouseConnectionUuidMap: ReadonlyMap<string, string>,
     ): Promise<void> {
-        const sources = await this.database<DbBoundProjectDbtSource>(
+        const { peersEnabled } = this;
+        if (peersEnabled && !this.database.isTransaction)
+            return this.inTransaction((model) =>
+                model.copySourcesWithConnectionMap(
+                    sourceProjectUuid,
+                    targetProjectUuid,
+                    warehouseConnectionUuidMap,
+                ),
+            );
+        if (peersEnabled)
+            await this.lockCopyProjects(sourceProjectUuid, targetProjectUuid);
+        const sources = await this.database<DbPeerDbtSource>(
             ProjectDbtSourcesTableName,
         )
             .select(
@@ -311,10 +612,27 @@ export class ProjectDbtSourcesModel {
                 'warehouse_schema',
                 'warehouse_connection_uuid',
             )
-            .where('project_uuid', sourceProjectUuid);
+            .select(
+                peersEnabled
+                    ? [
+                          'dbt_repository_uuid',
+                          'dbt_project_name',
+                          'dbt_project_name_conflict',
+                          'membership_role',
+                          'refresh_policy',
+                      ]
+                    : [],
+            )
+            .where('project_uuid', sourceProjectUuid)
+            .where('role', 'extra');
         if (sources.length === 0) {
             return;
         }
+        if (peersEnabled)
+            await this.peers.assertRepositoriesCanBeCopied(
+                targetProjectUuid,
+                sources,
+            );
         const rows = sources.map((source) => {
             const warehouseConnectionUuid =
                 source.warehouse_connection_uuid === null
@@ -337,6 +655,9 @@ export class ProjectDbtSourcesModel {
                 warehouse_database: source.warehouse_database,
                 warehouse_schema: source.warehouse_schema,
                 warehouse_connection_uuid: warehouseConnectionUuid,
+                ...(peersEnabled
+                    ? ProjectDbtSourcesModel.peerCopyFields(source)
+                    : {}),
             };
         });
         await this.database<DbBoundProjectDbtSource>(

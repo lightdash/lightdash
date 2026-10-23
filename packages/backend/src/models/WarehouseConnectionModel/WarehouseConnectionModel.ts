@@ -589,6 +589,7 @@ export class WarehouseConnectionModel {
                     .orderBy('name')
                     .pluck('name'),
                 this.database('project_dbt_sources')
+                    .where('role', 'extra')
                     .where('warehouse_connection_uuid', warehouseConnectionUuid)
                     .orderBy('name')
                     .pluck('name'),

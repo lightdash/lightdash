@@ -325,6 +325,7 @@ export type ProjectModelArguments = {
     lightdashConfig: LightdashConfig;
     encryptionUtil: EncryptionUtil;
     googleIdentityTokenSource?: GoogleIdentityTokenSource;
+    featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
@@ -581,10 +582,12 @@ export class ProjectModel {
         this.connectionRouter = new WarehouseConnectionRouter({
             database: args.database,
         });
-        const featureFlagModel = new FeatureFlagModel({
-            database: args.database,
-            lightdashConfig: args.lightdashConfig,
-        });
+        const featureFlagModel =
+            args.featureFlagModel ??
+            new FeatureFlagModel({
+                database: args.database,
+                lightdashConfig: args.lightdashConfig,
+            });
         this.awsWebIdentity = new AwsWebIdentityResolver({
             isEnabledFor: async (organizationUuid) =>
                 (
@@ -3794,6 +3797,7 @@ export class ProjectModel {
                 .where('project_uuid', projectUuid)
                 .first(),
             database(ProjectDbtSourcesTableName)
+                .where('role', 'extra')
                 .select('project_dbt_source_uuid')
                 .where('project_uuid', projectUuid),
             database(DbtSourceRefCatalogsTableName)
@@ -4236,6 +4240,7 @@ export class ProjectModel {
                 .select('dbt_source_name', 'dbt_source_uuid')
                 .where('project_uuid', projectUuid);
             const extraSources = await trx(ProjectDbtSourcesTableName)
+                .where('role', 'extra')
                 .select('name', 'project_dbt_source_uuid')
                 .where('project_uuid', projectUuid)
                 .orderBy('precedence', 'asc')
@@ -5908,6 +5913,7 @@ export class ProjectModel {
             return null;
         }
         const source = await this.database('project_dbt_sources')
+            .where('role', 'extra')
             .select<{ warehouse_connection_uuid: string | null }>(
                 'warehouse_connection_uuid',
             )

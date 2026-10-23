@@ -99,7 +99,14 @@ export class FeatureFlagModel {
         args: FeatureFlagLogicArgs,
         options: FeatureFlagQueryOptions = {},
     ): Promise<FeatureFlag> {
-        const result = await this.resolve(args, options);
+        const scopedArgs =
+            args.featureFlagId === FeatureFlags.PeerDbtSources && args.user
+                ? {
+                      ...args,
+                      user: { organizationUuid: args.user.organizationUuid },
+                  }
+                : args;
+        const result = await this.resolve(scopedArgs, options);
 
         if (options.recordCheck !== false) {
             try {
