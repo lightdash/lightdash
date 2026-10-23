@@ -389,13 +389,6 @@ export enum FeatureFlags {
      */
     AiAgentBattleMode = 'ai-agent-battle-mode',
     /**
-     * Organization-scoped: whether the instance decision provider (Jev) may
-     * run for an organization. On by default wherever a decision key is set,
-     * so a deployment can store a default of off and opt organizations back
-     * in through Console. Never turns decisions on without a key.
-     */
-    AiDecisions = 'ai-decisions',
-    /**
      * Organization-scoped: keep dbt's partial_parse.msgpack from a compile on
      * the worker and seed the next compile of the same project and dbt source
      * with it, so `dbt ls` re-parses only changed files. dbt checks file

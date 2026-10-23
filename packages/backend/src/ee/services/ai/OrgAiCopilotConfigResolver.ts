@@ -780,9 +780,8 @@ export class OrgAiCopilotConfigResolver {
 
     /**
      * The instance decision client for an organization, or undefined when
-     * decisions must not run for it: no instance key, the org brings its own
-     * provider keys, or the AiDecisions flag is off for it. The one gate every
-     * decision call site goes through.
+     * decisions must not run for it: no instance key, or the org brings its
+     * own provider keys. The one gate every decision call site goes through.
      */
     async getDecisionClient(
         organizationUuid: string | null | undefined,
@@ -795,11 +794,7 @@ export class OrgAiCopilotConfigResolver {
         if (await this.isOrgOnOwnProviderKeys(organizationUuid, projectUuid)) {
             return undefined;
         }
-        const { enabled } = await this.featureFlagModel.get({
-            user: organizationUuid ? { organizationUuid } : undefined,
-            featureFlagId: FeatureFlags.AiDecisions,
-        });
-        return enabled ? client : undefined;
+        return client;
     }
 
     /**

@@ -17,6 +17,7 @@ import { McpContextModel } from '../models/McpContextModel';
 import { registerPreAggregateStream } from '../nats/natsConfig';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { DeployService } from '../services/DeployService';
+import { HealthService } from '../services/HealthService/HealthService';
 import { InstanceConfigurationService } from '../services/InstanceConfigurationService/InstanceConfigurationService';
 import { JiraAppService } from '../services/JiraAppService/JiraAppService';
 import { LinearAppService } from '../services/LinearAppService/LinearAppService';
@@ -1186,6 +1187,39 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectService: repository.getProjectService(),
                     lightdashConfig: context.lightdashConfig,
                 }),
+            healthService: ({
+                models,
+                context,
+                repository,
+                readinessService,
+            }) => {
+                const orgAiCopilotConfigResolver =
+                    new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        featureFlagModel: models.getFeatureFlagModel(),
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        aiOrganizationProviderCredentialModel:
+                            models.getAiOrganizationProviderCredentialModel(),
+                        aiModelCatalog,
+                    });
+                return new HealthService({
+                    lightdashConfig: context.lightdashConfig,
+                    licenseService: repository.getLicenseService(),
+                    organizationModel: models.getOrganizationModel(),
+                    migrationModel: models.getMigrationModel(),
+                    organizationSettingsModel:
+                        models.getOrganizationSettingsModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    readinessService,
+                    learnSandboxService: repository.getLearnSandboxService(),
+                    isOrgOnOwnAiProviderKeys: (organizationUuid) =>
+                        orgAiCopilotConfigResolver.isOrgOnOwnProviderKeys(
+                            organizationUuid,
+                            null,
+                        ),
+                });
+            },
             organizationService: ({ models, context, repository }) =>
                 new OrganizationService({
                     lightdashConfig: context.lightdashConfig,

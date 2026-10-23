@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     MissingConfigError,
     type AiOrganizationSettings,
     type AiOrgModelVisibility,
@@ -395,7 +394,6 @@ const resolutionFor = (
 describe('OrgAiCopilotConfigResolver', () => {
     type ResolverOptions = {
         customProvidersEnabled?: boolean;
-        aiDecisionsEnabled?: boolean;
         decisionKey?: string | null;
         orgKeys?: AiOrgProviderApiKeys | null;
         defaultCredential?: DecryptedAiProviderCredential | null;
@@ -425,7 +423,6 @@ describe('OrgAiCopilotConfigResolver', () => {
         accessibleModelIds = null,
         instanceConfig = baseConfig,
         customProvidersEnabled = true,
-        aiDecisionsEnabled = true,
         decisionKey = null,
     }: ResolverOptions = {}) =>
         new OrgAiCopilotConfigResolver({
@@ -442,10 +439,7 @@ describe('OrgAiCopilotConfigResolver', () => {
             featureFlagModel: {
                 get: vi.fn(async ({ featureFlagId }) => ({
                     id: featureFlagId,
-                    enabled:
-                        featureFlagId === FeatureFlags.AiDecisions
-                            ? aiDecisionsEnabled
-                            : customProvidersEnabled,
+                    enabled: customProvidersEnabled,
                 })),
             } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
@@ -1024,17 +1018,7 @@ describe('OrgAiCopilotConfigResolver', () => {
             ).toBeUndefined();
         });
 
-        it('is undefined when the org flag is off', async () => {
-            expect(
-                await makeResolver({
-                    orgKeys: null,
-                    decisionKey: 'test',
-                    aiDecisionsEnabled: false,
-                }).getDecisionClient('org-uuid', null),
-            ).toBeUndefined();
-        });
-
-        it('returns the client on instance keys with the flag on', async () => {
+        it('returns the client on instance keys', async () => {
             expect(
                 await makeResolver({
                     orgKeys: null,

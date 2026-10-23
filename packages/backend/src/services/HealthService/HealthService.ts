@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     HealthState,
     LightdashInstallType,
     LightdashMode,
@@ -32,6 +31,11 @@ type HealthServiceArguments = {
     featureFlagModel: FeatureFlagModel;
     readinessService?: Pick<ReadinessService, 'getReadiness'>;
     learnSandboxService: Pick<LearnSandboxService, 'isRuntimeAvailable'>;
+    /**
+     * Whether an org brings its own AI provider keys. Wired by the enterprise
+     * build; without it no org has its own keys.
+     */
+    isOrgOnOwnAiProviderKeys?: (organizationUuid: string) => Promise<boolean>;
 };
 
 export class HealthService extends BaseService {
@@ -54,6 +58,10 @@ export class HealthService extends BaseService {
         'isRuntimeAvailable'
     >;
 
+    private readonly isOrgOnOwnAiProviderKeys?: (
+        organizationUuid: string,
+    ) => Promise<boolean>;
+
     constructor({
         organizationModel,
         migrationModel,
@@ -63,6 +71,7 @@ export class HealthService extends BaseService {
         featureFlagModel,
         readinessService,
         learnSandboxService,
+        isOrgOnOwnAiProviderKeys,
     }: HealthServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -73,23 +82,33 @@ export class HealthService extends BaseService {
         this.featureFlagModel = featureFlagModel;
         this.readinessService = readinessService;
         this.learnSandboxService = learnSandboxService;
+        this.isOrgOnOwnAiProviderKeys = isOrgOnOwnAiProviderKeys;
     }
 
     private isEnterpriseEnabled(): boolean {
         return this.lightdashConfig.license.licenseKey !== undefined;
     }
 
-    // Instance key first; the org flag can only switch decisions off for a caller's org.
+    // Same rule as OrgAiCopilotConfigResolver.getDecisionClient: an instance
+    // key, and the caller's org not on its own provider keys.
     private async isAiDecisionsEnabled(
         user: SessionUser | undefined,
     ): Promise<boolean> {
         if (!this.lightdashConfig.ai.decisions.apiKey) return false;
-        if (!user?.organizationUuid) return true;
-        const { enabled } = await this.featureFlagModel.get({
-            user: { organizationUuid: user.organizationUuid },
-            featureFlagId: FeatureFlags.AiDecisions,
-        });
-        return enabled;
+        if (!user?.organizationUuid || !this.isOrgOnOwnAiProviderKeys) {
+            return true;
+        }
+        try {
+            return !(await this.isOrgOnOwnAiProviderKeys(
+                user.organizationUuid,
+            ));
+        } catch (error) {
+            // An unreadable org credential fails closed; health must still load.
+            this.logger.warn(
+                `Could not resolve AI provider keys for organization ${user.organizationUuid}: ${error}`,
+            );
+            return false;
+        }
     }
 
     async getHealthState(
