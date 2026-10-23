@@ -4131,6 +4131,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                showIncompletePeriod: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
             },
             validators: {},
         },
@@ -31555,6 +31562,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'union',
             subSchemas: [
+                { dataType: 'enum', enums: ['query'] },
                 { dataType: 'enum', enums: ['generateDashboard'] },
                 { dataType: 'enum', enums: ['generateVisualization'] },
                 { dataType: 'enum', enums: ['runSql'] },
@@ -42212,11 +42220,51 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiAgentComposerArtifactChartStage: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        queryUuid: { dataType: 'string', required: true },
+                        status: {
+                            dataType: 'enum',
+                            enums: ['ok'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        message: { dataType: 'string', required: true },
+                        status: {
+                            dataType: 'enum',
+                            enums: ['error'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiAiAgentComposerArtifactVizQuery: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                chartStage: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ApiAiAgentComposerArtifactChartStage' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 metadata: { ref: 'AiVizMetadata', required: true },
                 nodeQueryUuids: {
                     ref: 'Record_QueryNodeId.string_',
@@ -49314,6 +49362,7 @@ const models: TsoaRoute.Models = {
                 aiAgentReviewsEnabled: { dataType: 'boolean', required: true },
                 aiAgentMemoryEnabled: { dataType: 'boolean', required: true },
                 aiAgentsVisible: { dataType: 'boolean', required: true },
+                mcpEnabled: { dataType: 'boolean' },
                 isTrial: { dataType: 'boolean', required: true },
                 isCopilotEnabled: { dataType: 'boolean', required: true },
             },
@@ -55091,6 +55140,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'boolean',
                     required: true,
                 },
+                mcpEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: {
                     dataType: 'boolean',
                     required: true,
@@ -55345,6 +55395,7 @@ const models: TsoaRoute.Models = {
                 dataAppRuntimeAiEnabled: { dataType: 'boolean' },
                 mcpAgentsEnabled: { dataType: 'boolean' },
                 mcpContentWritesEnabled: { dataType: 'boolean' },
+                mcpEnabled: { dataType: 'boolean' },
                 deepResearchRawSqlEnabled: { dataType: 'boolean' },
                 deepResearchLimits: { ref: 'AiDeepResearchLimits' },
                 aiAgentReviewsEnabled: { dataType: 'boolean' },
@@ -75178,6 +75229,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 pivotConfiguration: { ref: 'PivotConfiguration' },
+                parameters: { ref: 'ParametersValuesMap' },
                 timezone: { dataType: 'string' },
                 dimensionOverrides: { ref: 'DimensionOverrides' },
                 metricOverrides: { ref: 'MetricOverrides' },

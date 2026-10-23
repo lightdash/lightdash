@@ -4033,6 +4033,10 @@
                     "categoryColorOverrides": {
                         "$ref": "#/components/schemas/Record_string.string_",
                         "description": "Per-category color overrides (maps category value to hex color)"
+                    },
+                    "showIncompletePeriod": {
+                        "type": "boolean",
+                        "description": "If true, marks the unfinished current period (for example, this week) with a dashed line segment and hatched bars."
                     }
                 },
                 "type": "object",
@@ -33118,6 +33122,7 @@
             "Exclude_ToolName.never_": {
                 "type": "string",
                 "enum": [
+                    "query",
                     "generateDashboard",
                     "generateVisualization",
                     "runSql",
@@ -37303,8 +37308,49 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
+            "ApiAiAgentComposerArtifactChartStage": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "queryUuid": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["ok"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["queryUuid", "status"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "message": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["error"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["message", "status"],
+                        "type": "object"
+                    }
+                ]
+            },
             "ApiAiAgentComposerArtifactVizQuery": {
                 "properties": {
+                    "chartStage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiAiAgentComposerArtifactChartStage"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "v2 series split only: the pivot stage run over the terminal node; null without one."
+                    },
                     "metadata": {
                         "$ref": "#/components/schemas/AiVizMetadata"
                     },
@@ -37321,6 +37367,7 @@
                     }
                 },
                 "required": [
+                    "chartStage",
                     "metadata",
                     "nodeQueryUuids",
                     "terminalNodeId",
@@ -44317,6 +44364,9 @@
                     "aiAgentsVisible": {
                         "type": "boolean"
                     },
+                    "mcpEnabled": {
+                        "type": "boolean"
+                    },
                     "isTrial": {
                         "type": "boolean"
                     },
@@ -49765,6 +49815,9 @@
                     "mcpContentWritesEnabled": {
                         "type": "boolean"
                     },
+                    "mcpEnabled": {
+                        "type": "boolean"
+                    },
                     "deepResearchRawSqlEnabled": {
                         "type": "boolean"
                     },
@@ -50029,6 +50082,9 @@
                         "type": "boolean"
                     },
                     "mcpContentWritesEnabled": {
+                        "type": "boolean"
+                    },
+                    "mcpEnabled": {
                         "type": "boolean"
                     },
                     "deepResearchRawSqlEnabled": {
@@ -69915,6 +69971,10 @@
                         "$ref": "#/components/schemas/PivotConfiguration",
                         "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
                     },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for this query, layered over the submission's parameters."
+                    },
                     "timezone": {
                         "type": "string",
                         "description": "IANA timezone for time dimension bucketing, e.g. \"America/New_York\"."
@@ -73772,7 +73832,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.31.1",
+        "version": "3.37.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
