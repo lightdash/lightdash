@@ -227,9 +227,10 @@ examples/multi-repo-dbt-sim/run-last-good
 ```
 
 This creates a private dbt-core 1.12.0 venv with no dbt-loom, seeds
-last-good manifests from `last-good-climb/seed`, then parses the disk
-projects twice: once with those manifests injected, and once with an empty
-store. The contract, withhold rule, and expected errors are in
+last-good manifests from `last-good-climb/seed` with `dbt parse`, then
+runs `dbt ls --output json --output-keys unique_id` on the disk projects
+twice: once with those manifests injected, and once with an empty store.
+The contract, withhold rule, and expected errors are in
 [last-good-climb/README.md](last-good-climb/README.md).
 
 The scale probe reuses that venv and the large-org / full generators. It

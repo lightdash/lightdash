@@ -391,7 +391,9 @@ binding is not that proof.
 A later harness-only probe measured last-good artefact bytes and climb RSS
 on this same `healthy` profile, plus the full 22-source generator. It did
 not refresh a server project. The recorded command is
-`examples/multi-repo-dbt-sim/run-last-good-scale --fixture both`. RSS is
+`examples/multi-repo-dbt-sim/run-last-good-scale --fixture both`, and the
+timed climb in that file is `dbt parse`. The present and withheld refresh
+proof now runs `dbt ls`; those scale numbers were not re-measured. RSS is
 `/usr/bin/time -v` maximum resident set size in kilobytes, times 1024, for
 one process at a time. The timed climb injects models, seeds, and
 snapshots with `access: public`. Fixture seeds have no access and there

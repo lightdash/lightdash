@@ -263,12 +263,7 @@ def write_injection(store, upstreams, nodes_path):
         raise RuntimeError("Non-public node injected")
     injected_ids = set()
     for node in nodes:
-        version = node.get("version")
-        suffix = "" if version is None else f".v{version}"
-        resource_type = node.get("resource_type") or "model"
-        injected_ids.add(
-            f"{resource_type}.{node['package_name']}.{node['name']}{suffix}"
-        )
+        injected_ids.add(climb.canonical_injected_id(node))
     for node in nodes:
         if any(
             dependency not in injected_ids for dependency in node["depends_on_nodes"]

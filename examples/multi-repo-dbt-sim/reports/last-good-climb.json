@@ -30,6 +30,16 @@
       ]
     }
   },
+  "seed_command": [
+    "parse"
+  ],
+  "refresh_command": [
+    "ls",
+    "--output",
+    "json",
+    "--output-keys",
+    "unique_id"
+  ],
   "seeded_manifests": {
     "proj_alpha": {
       "latest_version": null,
@@ -47,6 +57,13 @@
     }
   },
   "present": {
+    "command": [
+      "ls",
+      "--output",
+      "json",
+      "--output-keys",
+      "unique_id"
+    ],
     "success": true,
     "store_unchanged": true,
     "projects": {
@@ -98,7 +115,34 @@
       }
     }
   },
+  "refresh_command_fidelity": {
+    "ls": {
+      "command": [
+        "ls",
+        "--output",
+        "json",
+        "--output-keys",
+        "unique_id"
+      ],
+      "returncode": 2,
+      "cycle_error": true
+    },
+    "parse": {
+      "command": [
+        "parse"
+      ],
+      "returncode": 0,
+      "cycle_error": false
+    }
+  },
   "withheld": {
+    "command": [
+      "ls",
+      "--output",
+      "json",
+      "--output-keys",
+      "unique_id"
+    ],
     "success": false,
     "partial_success": false,
     "invented_manifests": [],

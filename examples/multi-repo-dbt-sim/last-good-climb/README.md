@@ -6,8 +6,11 @@ it is not the last-good explore catalogue kept after a failed source. No
 product store, seed API, or stitcher change is included.
 
 Names and SQL are synthetic. `dbt-core` is pinned to 1.12.0. The private venv
-does not install dbt-loom. `dbt parse` is the refresh-shaped compile: it is
-the command the server runs, and it does not query a warehouse.
+does not install dbt-loom. A refresh runs
+`dbt ls --output json --output-keys unique_id`, the server command. That
+command builds the graph, so an injected cycle is reported. `dbt parse` is
+kept for seeding a last-good manifest, which is the Test & deploy command.
+Neither command queries a warehouse.
 
 ## Graph
 
@@ -32,9 +35,10 @@ stored manifest would bind v2. This harness must not do that.
 ## Inputs
 
 A last-good manifest is `manifest.json` produced by `dbt parse` of `seed/`.
-The runner writes them under `.work/last-good-climb/last-good/<project>/`.
-The product would store that same manifest after a successful compile or
-deploy. This runner only keeps files in the ignored work directory.
+That is the Test & deploy compile, not the refresh. The runner writes them
+under `.work/last-good-climb/last-good/<project>/`. The product would store
+that same manifest after a successful compile or deploy. This runner only
+keeps files in the ignored work directory.
 
 Injection uses the external-node plugin already used by server refresh. The
 harness copy lives next to this fixture so the proof venv can import it.
@@ -62,19 +66,21 @@ python3 -m unittest examples/multi-repo-dbt-sim/tests/test_last_good_climb.py
 
 Upstream last-good manifests are present. For each disk project the runner
 injects public models, seeds, and snapshots from the other project's stored
-manifest, then runs `dbt parse`. Seeds and snapshots take `config.access`
-when the node itself has no access. `depends_on` edges are kept only when
-the target is also injected. This fixture's cross-project nodes are public
-models, so the bindings below are unchanged.
+manifest, then runs `dbt ls --output json --output-keys unique_id`. Seeds
+and snapshots take `config.access` when the node itself has no access.
+`depends_on` edges are kept only when the target is also injected. Two
+upstreams that both carry the same public installed-package id are rejected
+before dbt runs. This fixture's cross-project nodes are public models, so
+the bindings below are unchanged.
 
 Pass:
 
-- both parses exit 0
+- both `dbt ls` runs exit 0
 - no `Found a cycle` error
 - the real-node graph and the graph including injected nodes are acyclic
 - `model.proj_alpha.alpha_report` depends on `model.proj_beta.measure.v3`
 - `model.proj_beta.beta_report` depends on `model.proj_alpha.alpha_base`
-- the stored manifests are not replaced by a parse of `disk/`
+- the stored manifests are not replaced by a refresh of `disk/`
 
 ## Withheld
 
@@ -83,15 +89,15 @@ The withheld store is an empty directory. The runner does not copy
 does not write a placeholder manifest.
 
 For each consumer it prints one cold-start warning and then runs today's
-parse with no injected nodes:
+refresh with no injected nodes:
 
 ```text
 Cold start: dbt source "proj_alpha" cannot refresh because last-good manifests are not seeded for upstreams: proj_beta. Seed each upstream with a successful compile or deploy. No manifest was invented.
 ```
 
-`proj_beta` names `proj_alpha` in the same sentence. The dbt parse fails
+`proj_beta` names `proj_alpha` in the same sentence. The `dbt ls` fails
 with `which was not found` for `measure` or `alpha_base`. The harness
-rejects the run if either parse exits 0. That is the unresolved compile
+rejects the run if either refresh exits 0. That is the unresolved compile
 failure, not a silent bind to `measure.v2`.
 
 To withhold by hand, point a last-good directory at a folder that has no
@@ -105,29 +111,62 @@ in `target/`, does not count as seeded.
 and no dbt-loom. Python was 3.12.3. The adapter patch is the resolver result
 for `dbt-postgres~=1.10.0`, the same range as the production image.
 
-Present parses exited 0 with no cycle error. `alpha_report` depended on
+Present refreshes used `dbt ls --output json --output-keys unique_id` and
+exited 0 with no cycle error. `alpha_report` depended on
 `model.proj_beta.measure.v3` even though `disk/` declares latest version 2.
 `beta_report` depended on `model.proj_alpha.alpha_base`. The stored manifests
-were unchanged after those parses.
+were unchanged after those refreshes. Seeding those manifests still used
+`dbt parse`.
 
-Withheld parses exited 2. The warnings named `proj_beta` for `proj_alpha` and
-`proj_alpha` for `proj_beta`. dbt reported:
+The same run injected a two-node cycle and compiled a leaf that references
+one side. `dbt ls` exited 2 with `Found a cycle`. `dbt parse` of that same
+payload exited 0 and did not report a cycle.
+
+Withheld refreshes exited 2. The warnings named `proj_beta` for `proj_alpha`
+and `proj_alpha` for `proj_beta`. dbt reported:
 
 ```text
 Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found
 Model 'model.proj_beta.beta_report' (models/beta_report.sql) depends on a node named 'alpha_base' in package or project 'proj_alpha' which was not found
 ```
 
-No manifest was written into the empty store. Neither withheld parse exited 0.
+No manifest was written into the empty store. Neither withheld refresh exited 0.
+
+## Recorded divergences
+
+These are harness notes. They are not product changes.
+
+- Public-only versus loom ambiguity. A one-argument ref to a name that is
+  public in one upstream and protected in another binds the public node
+  here. dbt-loom injects the protected node as well, and dbt then reports
+  that the name exists in multiple packages. Mesh-style injection only
+  shares `access: public`.
+- Package filter. The climb has no `included_packages` or
+  `excluded_packages`. A public model from an installed package is injected
+  with the provider that carries it. Product package scoping is out of
+  scope for this harness.
+- Last-good cycle lag. `depends_on` keeps an edge only when the target is
+  in the injection set, so a back edge to a consumer node is dropped before
+  dbt runs. `dbt ls` therefore does not report that cross-source cycle.
+  The product resolver checks the unfiltered catalogue graph and reports
+  it. This harness does not copy that check. A cycle whose two ends are
+  both injected is a different case: `dbt ls` reports `Found a cycle` and
+  `dbt parse` does not. The runner checks that pair.
+- Duplicate shared-package ids are not a divergence. `injection_for`
+  raises before dbt when two upstreams emit the same public id. The plugin
+  no longer hashes a `lightdash_placeholder` identifier.
 
 ## Scale
 
 The sibling runner measures last-good artefact size, climb RSS, and a
 no-store baseline. Both this proof and the scale probe inject only real
-models whose `access` is `public`. Protected and private models are
-omitted, including when `access` is unset. That is the dbt Mesh /
-dbt-loom share surface. The climb does not inject every real model and
-then filter by ref.
+models, seeds, and snapshots whose resolved access is `public`. Protected
+and private nodes are omitted, including when `access` is unset. That is
+the dbt Mesh / dbt-loom share surface. The climb does not inject every
+real model and then filter by ref. The recorded scale timings below are
+still `dbt parse`. The refresh proof above is `dbt ls`. The scale probe
+was not re-run for that command change, so its table is the earlier
+public-only measurement.
 
 ```bash
 examples/multi-repo-dbt-sim/run-last-good-scale
@@ -145,7 +184,8 @@ Top-level fields are the large-org case. `fixtures` lists every measured
 case. `--fixture full` measures only the 22-source generator.
 
 RSS uses `/usr/bin/time -v`. The field is `Maximum resident set size
-(kbytes)`, multiplied by 1024. `peak_rss_bytes` is the climb `dbt parse`.
+(kbytes)`, multiplied by 1024. `peak_rss_bytes` is the recorded climb
+`dbt parse`, not the refresh `dbt ls`.
 `injector_peak_rss_bytes` is a separate Python process that loads the other
 manifests and writes the external-node payload. `baseline.peak_rss_bytes`
 is the highest per-source stubbed parse. Each timed command is one process.
@@ -160,9 +200,11 @@ other source. It does not apply the ref filter. These fixtures set
 no snapshots, so seeds and snapshots stay out of the inject surface. The
 omitted non-public model count is 0 and the injected node count matches
 the earlier public-only run. The recorded scale numbers below were not
-re-run for this inject-surface change. `ref_filtered_*` is the smaller payload that a
-ref filter would keep. The withheld parse injects nothing, must exit
-non-zero with `which was not found`, and must not create a manifest.
+re-run when the inject surface grew, and they were not re-run when the
+refresh proof moved to `dbt ls`. `ref_filtered_*` is the smaller payload
+that a ref filter would keep. The withheld scale command is still
+`dbt parse`. It injects nothing, must exit non-zero with
+`which was not found`, and must not create a manifest.
 
 On the recorded public-only run, dbt-core was 1.12.0, dbt-postgres resolved
 to 1.10.2, dbt-loom was absent, and Python was 3.12.3.

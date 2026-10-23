@@ -1,4 +1,3 @@
-import hashlib
 import json
 import os
 from dataclasses import dataclass
@@ -40,20 +39,7 @@ class LightdashExternalNodes(dbtPlugin):
                     resource_type=raw.get("resource_type") or "model",
                     name=raw["name"],
                     package_name=raw["package_name"],
-                    identifier=(
-                        "lightdash_"
-                        + hashlib.sha256(
-                            json.dumps(
-                                [
-                                    raw["package_name"],
-                                    raw["name"],
-                                    raw.get("version"),
-                                ]
-                            ).encode()
-                        ).hexdigest()
-                        if raw["schema"] == "lightdash_placeholder"
-                        else raw["identifier"]
-                    ),
+                    identifier=raw["identifier"],
                     schema=raw["schema"],
                     database=raw.get("database"),
                     relation_name=raw.get("relation_name"),

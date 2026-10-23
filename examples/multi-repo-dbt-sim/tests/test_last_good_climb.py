@@ -1,3 +1,4 @@
+import json
 import sys
 import tempfile
 import unittest
@@ -77,9 +78,140 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
         self.assertIn("dbt-core==1.12.0", requirements)
         self.assertNotIn("dbt-loom", requirements)
         self.assertNotIn("loom", plugin.lower())
+        self.assertNotIn("lightdash_placeholder", plugin)
+        self.assertNotIn("hashlib", plugin)
+        self.assertIn('identifier=raw["identifier"]', plugin)
         self.assertTrue(
             (FIXTURE / "dbt_lightdash_external_nodes.py").name.startswith("dbt_")
         )
+
+    def test_refresh_command_is_server_ls_and_seed_stays_parse(self):
+        self.assertEqual(
+            climb.REFRESH_COMMAND,
+            ("ls", "--output", "json", "--output-keys", "unique_id"),
+        )
+        self.assertEqual(climb.MANIFEST_COMMAND, ("parse",))
+        refresh = climb.dbt_argv(
+            "dbt",
+            climb.DISK / "proj_alpha",
+            Path("/tmp/last-good-target"),
+            command=climb.REFRESH_COMMAND,
+        )
+        self.assertEqual(
+            refresh[:8],
+            [
+                "dbt",
+                "--no-use-colors",
+                "--no-partial-parse",
+                "ls",
+                "--output",
+                "json",
+                "--output-keys",
+                "unique_id",
+            ],
+        )
+        seed = climb.dbt_argv(
+            "dbt",
+            climb.SEED / "proj_alpha",
+            Path("/tmp/last-good-target"),
+            command=climb.MANIFEST_COMMAND,
+        )
+        self.assertEqual(seed[3], "parse")
+        self.assertNotIn("--output-keys", seed)
+
+    def test_duplicate_shared_package_id_fails_before_dbt(self):
+        def model(package, name, version=None):
+            suffix = "" if version is None else f".v{version}"
+            return {
+                "resource_type": "model",
+                "path": f"{name}.sql",
+                "original_file_path": f"models/{name}.sql",
+                "access": "public",
+                "name": name,
+                "package_name": package,
+                "unique_id": f"model.{package}.{name}{suffix}",
+                "alias": name,
+                "schema": "analytics",
+                "database": None,
+                "relation_name": None,
+                "version": version,
+                "latest_version": version,
+                "depends_on": {"nodes": []},
+            }
+
+        def seed(name):
+            node = model("shared_pkg", name)
+            node["resource_type"] = "seed"
+            node["unique_id"] = f"seed.shared_pkg.{name}"
+            return node
+
+        with tempfile.TemporaryDirectory() as directory:
+            store = Path(directory)
+
+            def publish(project, nodes):
+                path = store / project / "manifest.json"
+                path.parent.mkdir(exist_ok=True)
+                path.write_text(json.dumps({"nodes": nodes}), encoding="utf-8")
+
+            shared = model("shared_pkg", "shared_model")
+            publish(
+                "proj_a",
+                {
+                    "model.proj_a.local": model("proj_a", "local"),
+                    shared["unique_id"]: shared,
+                },
+            )
+            publish(
+                "proj_b",
+                {
+                    "model.proj_b.local": model("proj_b", "local"),
+                    shared["unique_id"]: shared,
+                },
+            )
+            with self.assertRaises(climb.DuplicateInjectedIdError) as caught:
+                climb.injection_for(store, ["proj_a", "proj_b"])
+            self.assertEqual(
+                str(caught.exception),
+                'External model "model.shared_pkg.shared_model" is provided by '
+                'several dbt sources: "proj_a", "proj_b". Connect only one '
+                "source for this model.",
+            )
+            versioned = model("shared_pkg", "shared_model", 3)
+            publish("proj_a", {versioned["unique_id"]: versioned})
+            publish("proj_b", {versioned["unique_id"]: versioned})
+            with self.assertRaises(climb.DuplicateInjectedIdError) as versioned_hit:
+                climb.injection_for(store, ["proj_a", "proj_b"])
+            self.assertIn(
+                "model.shared_pkg.shared_model.v3", str(versioned_hit.exception)
+            )
+            lookup = seed("lookup")
+            publish("proj_a", {lookup["unique_id"]: lookup})
+            publish("proj_b", {lookup["unique_id"]: lookup})
+            with self.assertRaises(climb.DuplicateInjectedIdError) as seed_hit:
+                climb.injection_for(store, ["proj_a", "proj_b"])
+            self.assertIn("seed.shared_pkg.lookup", str(seed_hit.exception))
+            older = model("shared_pkg", "shared_model", 2)
+            newer = model("shared_pkg", "shared_model", 3)
+            publish("proj_a", {older["unique_id"]: older})
+            publish("proj_b", {newer["unique_id"]: newer})
+            injected = climb.injection_for(store, ["proj_a", "proj_b"])
+            self.assertEqual(
+                sorted(node["version"] for node in injected),
+                [2, 3],
+            )
+            publish(
+                "proj_a",
+                {"model.proj_a.orders": model("proj_a", "orders")},
+            )
+            publish(
+                "proj_b",
+                {"model.proj_b.orders": model("proj_b", "orders")},
+            )
+            distinct = climb.injection_for(store, ["proj_a", "proj_b"])
+            self.assertEqual(
+                sorted(climb.canonical_injected_id(node) for node in distinct),
+                ["model.proj_a.orders", "model.proj_b.orders"],
+            )
 
 
 if __name__ == "__main__":

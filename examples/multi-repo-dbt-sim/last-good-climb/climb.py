@@ -130,6 +130,13 @@ def find_cycle(edges):
 
 
 INJECTED_RESOURCE_TYPES = ("model", "seed", "snapshot")
+# Server refresh: DbtCliClient.getDbtManifest. Test & deploy uses `dbt parse`.
+REFRESH_COMMAND = ("ls", "--output", "json", "--output-keys", "unique_id")
+MANIFEST_COMMAND = ("parse",)
+
+
+class DuplicateInjectedIdError(RuntimeError):
+    """Two upstreams would hand dbt the same injected unique id."""
 
 
 def resolved_access(node):
@@ -177,6 +184,13 @@ def _public_payloads(nodes):
             payload["resource_type"] = node["resource_type"]
         payloads.append(payload)
     return payloads
+
+
+def canonical_injected_id(payload):
+    version = payload.get("version")
+    suffix = "" if version is None else f".v{version}"
+    resource_type = payload.get("resource_type") or "model"
+    return f"{resource_type}.{payload['package_name']}.{payload['name']}{suffix}"
 
 
 def _restrict_depends_on(payloads):
@@ -253,29 +267,22 @@ def dbt_environment(external_nodes_path=None):
     return env
 
 
-def run_parse(
+def dbt_argv(
     dbt,
     project_dir,
     target,
-    external_nodes_path=None,
     *,
     profiles_dir=None,
     profile="last_good_climb",
     variables=None,
-    timeout=180,
-    gnu_time=False,
+    command=MANIFEST_COMMAND,
 ):
-    logs = target.parent / f"{target.name}-logs"
-    if target.exists():
-        shutil.rmtree(target)
-    if logs.exists():
-        shutil.rmtree(logs)
-    target.mkdir(parents=True)
-    command = [
+    logs = Path(target).parent / f"{Path(target).name}-logs"
+    return [
         dbt,
         "--no-use-colors",
         "--no-partial-parse",
-        "parse",
+        *tuple(command),
         "--project-dir",
         str(project_dir),
         "--profiles-dir",
@@ -288,17 +295,46 @@ def run_parse(
         str(target),
         "--log-path",
         str(logs),
+        *(["--vars", variables] if variables is not None else []),
     ]
-    if variables is not None:
-        command.extend(["--vars", variables])
+
+
+def run_parse(
+    dbt,
+    project_dir,
+    target,
+    external_nodes_path=None,
+    *,
+    profiles_dir=None,
+    profile="last_good_climb",
+    variables=None,
+    timeout=180,
+    gnu_time=False,
+    command=MANIFEST_COMMAND,
+):
+    logs = target.parent / f"{target.name}-logs"
+    if target.exists():
+        shutil.rmtree(target)
+    if logs.exists():
+        shutil.rmtree(logs)
+    target.mkdir(parents=True)
+    argv = dbt_argv(
+        dbt,
+        project_dir,
+        target,
+        profiles_dir=profiles_dir,
+        profile=profile,
+        variables=variables,
+        command=command,
+    )
     timing_path = target.parent / f"{target.name}.time"
     if gnu_time:
         if timing_path.exists():
             timing_path.unlink()
-        command = ["/usr/bin/time", "-v", "-o", str(timing_path), *command]
+        argv = ["/usr/bin/time", "-v", "-o", str(timing_path), *argv]
     started = time.perf_counter()
     completed = subprocess.run(
-        command,
+        argv,
         cwd=project_dir,
         env=dbt_environment(external_nodes_path),
         text=True,
@@ -319,6 +355,7 @@ def run_parse(
         "cycle_error": CYCLE_TEXT in output,
         "unresolved": UNRESOLVED_TEXT in output,
         "parse_seconds": round(elapsed, 3),
+        "command": list(command),
     }
     if gnu_time:
         timing = timing_path.read_text(encoding="utf-8")
@@ -330,7 +367,7 @@ def run_parse(
             "tool": "/usr/bin/time -v",
             "field": "Maximum resident set size (kbytes)",
             "bytes": "reported kilobytes * 1024",
-            "scope": "the timed dbt parse process",
+            "scope": f"the timed dbt {next(iter(command))} process",
         }
     return result
 
@@ -343,13 +380,26 @@ def publish_manifest(target, store, project):
 
 def injection_for(store, upstreams):
     payloads = []
+    owners = {}
     for upstream in upstreams:
         path = manifest_path(store, upstream)
         if not path.is_file():
             raise FileNotFoundError(path)
-        payloads.extend(
-            _public_payloads(json.loads(path.read_text())["nodes"].values())
-        )
+        for payload in _public_payloads(json.loads(path.read_text())["nodes"].values()):
+            node_id = canonical_injected_id(payload)
+            previous = owners.get(node_id)
+            if previous is not None and previous != upstream:
+                raise DuplicateInjectedIdError(
+                    f'External model "{node_id}" is provided by several dbt '
+                    f'sources: "{previous}", "{upstream}". Connect only one '
+                    "source for this model."
+                )
+            if previous == upstream:
+                payloads = [
+                    item for item in payloads if canonical_injected_id(item) != node_id
+                ]
+            owners[node_id] = upstream
+            payloads.append(payload)
     return _restrict_depends_on(payloads)
 
 
@@ -390,7 +440,15 @@ def present_case(dbt, work, store):
         nodes_path.parent.mkdir(parents=True, exist_ok=True)
         nodes = injection_for(store, UPSTREAMS[project])
         nodes_path.write_text(json.dumps(nodes))
-        parsed = run_parse(dbt, DISK / project, work / "present" / project, nodes_path)
+        parsed = run_parse(
+            dbt,
+            DISK / project,
+            work / "present" / project,
+            nodes_path,
+            command=REFRESH_COMMAND,
+        )
+        if parsed["command"] != list(REFRESH_COMMAND):
+            raise RuntimeError("present refresh did not run dbt ls")
         if parsed["manifest"] is None:
             raise RuntimeError(parsed["output"])
         bindings = {
@@ -421,6 +479,7 @@ def present_case(dbt, work, store):
             ),
         }
     return {
+        "command": list(REFRESH_COMMAND),
         "success": all(
             row["returncode"] == 0
             and not row["cycle_error"]
@@ -450,7 +509,14 @@ def withheld_case(dbt, work, store):
             raise RuntimeError(
                 f"Withheld store unexpectedly contained manifests for {project}"
             )
-        parsed = run_parse(dbt, DISK / project, work / "withheld" / project)
+        parsed = run_parse(
+            dbt,
+            DISK / project,
+            work / "withheld" / project,
+            command=REFRESH_COMMAND,
+        )
+        if parsed["command"] != list(REFRESH_COMMAND):
+            raise RuntimeError("withheld refresh did not run dbt ls")
         excerpt = [
             line
             for line in parsed["output"].splitlines()
@@ -464,6 +530,7 @@ def withheld_case(dbt, work, store):
             "error_excerpt": excerpt,
         }
     return {
+        "command": list(REFRESH_COMMAND),
         "success": False,
         "partial_success": False,
         "invented_manifests": manifest_files(empty),
@@ -509,12 +576,108 @@ def toolchain(dbt):
     }
 
 
-def assert_contract(present, withheld, pins):
+def cyclic_injection():
+    def node(name, dependency):
+        return {
+            "name": name,
+            "package_name": "proj_cycle",
+            "identifier": name,
+            "schema": "analytics",
+            "database": "sim",
+            "relation_name": f'"sim"."analytics"."{name}"',
+            "version": None,
+            "latest_version": None,
+            "access": "public",
+            "depends_on_nodes": [dependency],
+        }
+
+    return [
+        node("left", "model.proj_cycle.right"),
+        node("right", "model.proj_cycle.left"),
+    ]
+
+
+def write_leaf_project(root):
+    project = Path(root) / "proj_leaf"
+    (project / "models").mkdir(parents=True, exist_ok=True)
+    (project / "dbt_project.yml").write_text(
+        "name: proj_leaf\n"
+        "version: '1.0.0'\n"
+        "config-version: 2\n"
+        "profile: last_good_climb\n"
+        "model-paths: [models]\n"
+        "models:\n"
+        "    proj_leaf:\n"
+        "        +materialized: view\n"
+        "        +schema: proj_leaf\n",
+        encoding="utf-8",
+    )
+    (project / "models" / "leaf.sql").write_text(
+        "select * from {{ ref('proj_cycle', 'left') }}\n",
+        encoding="utf-8",
+    )
+    (project / "models" / "schema.yml").write_text(
+        "version: 2\nmodels:\n    - name: leaf\n      access: public\n",
+        encoding="utf-8",
+    )
+    return project
+
+
+def refresh_cycle_probe(dbt, work):
+    """An injected cycle must be visible to refresh (`dbt ls`) and not to parse."""
+    project = write_leaf_project(work / "command-fidelity")
+    nodes = work / "command-fidelity" / "nodes.json"
+    nodes.write_text(json.dumps(cyclic_injection()), encoding="utf-8")
+    listed = run_parse(
+        dbt,
+        project,
+        work / "command-fidelity" / "ls",
+        nodes,
+        command=REFRESH_COMMAND,
+    )
+    parsed = run_parse(
+        dbt,
+        project,
+        work / "command-fidelity" / "parse",
+        nodes,
+        command=MANIFEST_COMMAND,
+    )
+    return {
+        "ls": {
+            "command": listed["command"],
+            "returncode": listed["returncode"],
+            "cycle_error": listed["cycle_error"],
+        },
+        "parse": {
+            "command": parsed["command"],
+            "returncode": parsed["returncode"],
+            "cycle_error": parsed["cycle_error"],
+        },
+    }
+
+
+def assert_contract(present, withheld, fidelity, pins):
     errors = []
     if pins["packages"].get("dbt-core") != "1.12.0":
         errors.append("dbt-core is not pinned to 1.12.0")
     if pins["dbt_loom_installed"]:
         errors.append("dbt-loom is installed on the server-shaped path")
+    if present.get("command") != list(REFRESH_COMMAND):
+        errors.append("present climb did not use dbt ls")
+    if withheld.get("command") != list(REFRESH_COMMAND):
+        errors.append("withheld climb did not use dbt ls")
+    if (
+        fidelity["ls"]["command"] != list(REFRESH_COMMAND)
+        or fidelity["ls"]["returncode"] == 0
+        or not fidelity["ls"]["cycle_error"]
+    ):
+        errors.append("dbt ls did not report an injected cycle")
+    if (
+        fidelity["parse"]["command"] != list(MANIFEST_COMMAND)
+        or fidelity["parse"]["returncode"] != 0
+        or fidelity["parse"]["cycle_error"]
+    ):
+        errors.append("dbt parse did not accept the injected cycle")
     measure = [
         node
         for node in present["projects"]["proj_alpha"]["injected"]
@@ -578,7 +741,8 @@ def main():
     }
     present = present_case(args.dbt, args.work, store)
     withheld = withheld_case(args.dbt, args.work, store)
-    errors = assert_contract(present, withheld, pins)
+    fidelity = refresh_cycle_probe(args.dbt, args.work)
+    errors = assert_contract(present, withheld, fidelity, pins)
     report = relative_output(
         {
             "case": "last-good-manifest-climb",
@@ -586,8 +750,11 @@ def main():
             "disk_latest_version": DISK_LATEST,
             "seed_latest_version": SEED_LATEST,
             "expected_bindings": BINDINGS,
+            "seed_command": list(MANIFEST_COMMAND),
+            "refresh_command": list(REFRESH_COMMAND),
             "seeded_manifests": seeded,
             "present": present,
+            "refresh_command_fidelity": fidelity,
             "withheld": {
                 key: value for key, value in withheld.items() if key != "projects"
             }
@@ -621,5 +788,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except subprocess.TimeoutExpired:
-        print("dbt parse timed out", file=sys.stderr)
+        print("dbt command timed out", file=sys.stderr)
         raise SystemExit(1) from None
