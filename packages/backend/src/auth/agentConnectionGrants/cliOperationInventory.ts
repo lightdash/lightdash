@@ -369,7 +369,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             ],
         ),
         allowed(
-            'handlers/deploy.ts:559',
+            'handlers/deploy.ts:558',
             'PUT',
             '`/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${deployDestinationQuery(options)}`',
             ['ExploreController.SetExplores'],
