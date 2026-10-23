@@ -18,9 +18,8 @@ import classes from './FilterPills.module.css';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
-// An editor's pill, a viewer's pill on a saved filter (its value only) or on
-// a filter of their own (outline, with an X)
-export type FilterPillKind = 'editor' | 'viewerSaved' | 'viewerOwn';
+// An editor's pill, or a viewer's on a filter of their own (outline, with an X)
+export type FilterPillKind = 'editor' | 'viewerOwn';
 
 type Props = {
     kind: FilterPillKind;
@@ -118,7 +117,7 @@ export const FilterPill: FC<Props> = memo(
                         }}
                         readOnlyLockLabel={null}
                         onRemove={
-                            isSidebarOpen || kind === 'viewerSaved'
+                            isSidebarOpen
                                 ? null
                                 : (e) => {
                                       e.stopPropagation();

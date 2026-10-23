@@ -1,7 +1,6 @@
 import { DndContext, DragOverlay, type DragEndEvent } from '@dnd-kit/core';
 import {
     getDashboardFilterField,
-    isFilterLockedOnTab,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
@@ -18,7 +17,6 @@ import {
     useDashboardSelector,
     useDashboardTemporaryFilters,
 } from '../dashboard/store';
-import Filter from '../dashboardFilters/ActiveFilters/Filter';
 import { moveFilterRule } from '../dashboardFilters/ActiveFilters/filterOrder';
 import { FilterPillSkeletons } from '../dashboardFilters/ActiveFilters/FilterPillSkeletons';
 import { UnresolvedFilter } from '../dashboardFilters/ActiveFilters/UnresolvedFilter';
@@ -30,20 +28,25 @@ import { FilterPill, type FilterPillKind } from './FilterPill';
 import { isPlaceholderRule } from './sidebarState';
 import { TemporaryFilterPills } from './TemporaryFilterPills';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { ViewerSavedPills } from './ViewerSavedPills';
 
 type Props = {
     activeTabUuid: string | undefined;
     /** An embed's class contract hook on each pill (default none). */
     triggerClassName?: string;
+    /** An embed's class contract hook on a saved pill's popover (default none). */
+    dropdownClassName?: string;
 };
 
 type FilterPillGroup = 'dimensions' | 'metrics';
 
 const GROUPS: FilterPillGroup[] = ['dimensions', 'metrics'];
 
-const noop = () => {};
-
-export const FilterPills: FC<Props> = ({ activeTabUuid, triggerClassName }) => {
+export const FilterPills: FC<Props> = ({
+    activeTabUuid,
+    triggerClassName,
+    dropdownClassName,
+}) => {
     const editingFilterId = useControlsSidebarSelector(
         (c) => c.editing?.filterId ?? null,
     );
@@ -126,26 +129,6 @@ export const FilterPills: FC<Props> = ({ activeTabUuid, triggerClassName }) => {
                 />
             );
         }
-        if (
-            kind === 'viewerSaved' &&
-            isFilterLockedOnTab(filter, activeTabUuid, hasTabs)
-        ) {
-            // The shipped read-only pill: no editor, the lock and its tooltip
-            return (
-                <Filter
-                    isEditMode={false}
-                    {...getOrphanedState(filter, appliesToTabs)}
-                    field={field}
-                    filterRule={filter}
-                    openPopoverId={undefined}
-                    onPopoverOpen={noop}
-                    onPopoverClose={noop}
-                    onUpdate={noop}
-                    onRemove={noop}
-                    triggerClassName={triggerClassName}
-                />
-            );
-        }
         return (
             <FilterPill
                 kind={kind}
@@ -169,43 +152,52 @@ export const FilterPills: FC<Props> = ({ activeTabUuid, triggerClassName }) => {
 
     return (
         <>
-            {GROUPS.map((group) => {
-                const orderedKeys = dashboardFilters[group].map(
-                    (rule) => rule.id,
-                );
-                return (
-                    <DndContext
-                        key={group}
-                        sensors={dragSensors}
-                        onDragEnd={(event) => handleDragEnd(group, event)}
-                    >
-                        {dashboardFilters[group].map((filter) => {
-                            const pill = renderPill(
-                                filter,
-                                group,
-                                isViewer ? 'viewerSaved' : 'editor',
-                            );
-                            return (
-                                pill && (
-                                    <DroppableArea
-                                        key={filter.id}
-                                        id={filter.id}
-                                        orderedKeys={orderedKeys}
-                                    >
-                                        <DraggableItem
+            {/* A viewer's saved filters keep the shipped pills and popover */}
+            {isViewer ? (
+                <ViewerSavedPills
+                    activeTabUuid={activeTabUuid}
+                    triggerClassName={triggerClassName}
+                    dropdownClassName={dropdownClassName}
+                />
+            ) : (
+                GROUPS.map((group) => {
+                    const orderedKeys = dashboardFilters[group].map(
+                        (rule) => rule.id,
+                    );
+                    return (
+                        <DndContext
+                            key={group}
+                            sensors={dragSensors}
+                            onDragEnd={(event) => handleDragEnd(group, event)}
+                        >
+                            {dashboardFilters[group].map((filter) => {
+                                const pill = renderPill(
+                                    filter,
+                                    group,
+                                    'editor',
+                                );
+                                return (
+                                    pill && (
+                                        <DroppableArea
+                                            key={filter.id}
                                             id={filter.id}
-                                            disabled={isSidebarOpen || isViewer}
+                                            orderedKeys={orderedKeys}
                                         >
-                                            {pill}
-                                        </DraggableItem>
-                                    </DroppableArea>
-                                )
-                            );
-                        })}
-                        <DragOverlay />
-                    </DndContext>
-                );
-            })}
+                                            <DraggableItem
+                                                id={filter.id}
+                                                disabled={isSidebarOpen}
+                                            >
+                                                {pill}
+                                            </DraggableItem>
+                                        </DroppableArea>
+                                    )
+                                );
+                            })}
+                            <DragOverlay />
+                        </DndContext>
+                    );
+                })
+            )}
             {/* A viewer's own filters open in the rail too; in edit mode
                 they keep the shipped popover */}
             {isViewer ? (

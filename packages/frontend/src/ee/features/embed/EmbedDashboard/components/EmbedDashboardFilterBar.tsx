@@ -64,6 +64,9 @@ const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
             <FilterPills
                 activeTabUuid={activeTabUuid}
                 triggerClassName={embedContractClass('ld-dashboard-filter')}
+                dropdownClassName={embedContractClass(
+                    'ld-dashboard-filter-dropdown',
+                )}
             />
         </>
     );

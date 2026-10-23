@@ -849,20 +849,46 @@ describe('FilterPills', () => {
             });
         });
 
-        it('opens a saved pill in the rail, with no X, lock or grip', async () => {
+        it('opens a saved pill in the shipped popover, never the rail', async () => {
             const user = userEvent.setup();
-            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+            renderWithProviders(
+                <FilterPills
+                    activeTabUuid={undefined}
+                    dropdownClassName="ld-dashboard-filter-dropdown"
+                />,
+            );
 
             await user.click(pill(/^Status/));
-            expect(open).toHaveBeenCalledWith('saved');
+            expect(open).not.toHaveBeenCalled();
+            const dialog = await screen.findByRole('dialog');
+            expect(dialog).toHaveClass('ld-dashboard-filter-dropdown');
+            expect(
+                screen.queryByRole('button', { name: /ock filter/ }),
+            ).not.toBeInTheDocument();
             expect(
                 within(pill(/^Status/)).queryByRole('button', {
                     name: 'Remove filter',
                 }),
             ).toBeNull();
-            expect(
-                screen.queryByRole('button', { name: /ock filter/ }),
-            ).not.toBeInTheDocument();
+        });
+
+        it("applies a saved pill's value as the shipped view-mode write", async () => {
+            const user = userEvent.setup();
+            const updateDimensionDashboardFilter = vi.fn();
+            setContext({ updateDimensionDashboardFilter });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.click(pill(/^Status/));
+            await user.click(
+                await screen.findByRole('button', { name: 'Apply' }),
+            );
+            // The dashboard keeps it as a `filters` URL override
+            expect(updateDimensionDashboardFilter).toHaveBeenCalledWith(
+                expect.objectContaining({ id: 'saved', values: ['done'] }),
+                0,
+                false,
+                false,
+            );
         });
 
         it('opens their own pill in the rail and removes it from its X', async () => {

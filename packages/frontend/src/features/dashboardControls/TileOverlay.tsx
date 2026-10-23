@@ -370,21 +370,14 @@ const TileOverlay = memo<TileOverlayProps>(
 
 // Mounted while a control is edited, so what it remembers ends with the editor
 export const TileOverlays: FC = () => {
-    // A viewer changing a saved filter's value changes none of its tiles
-    const isEditing = useControlsSidebarSelector(
-        (c) => c.editingRule !== null && !c.isSavedValue,
-    );
+    const isEditing = useControlsSidebarSelector((c) => c.editingRule !== null);
     return isEditing ? <EditedTileOverlays /> : <HoveredFilterReach />;
 };
 
 // Nothing is edited: the tiles on this tab that the hovered rail row's filter
-// is on get the active field's ring, with no veil, card or lock. So do the
-// tiles of a saved filter a viewer is changing the value of
+// is on get the active field's ring, with no veil, card or lock
 const HoveredFilterReach: FC = () => {
-    const savedValueRule = useControlsSidebarSelector((c) =>
-        c.isSavedValue ? c.editingRule : null,
-    );
-    const hoveredRule = useHoveredFilterRule() ?? savedValueRule;
+    const hoveredRule = useHoveredFilterRule();
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const activeTab = useDashboardSelector(selectActiveTab);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);

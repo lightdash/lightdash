@@ -43,8 +43,18 @@ vi.mock('../../../../../features/dashboardControls/AddControl', () => ({
     ),
 }));
 vi.mock('../../../../../features/dashboardControls/FilterPills', () => ({
-    FilterPills: ({ triggerClassName }: { triggerClassName?: string }) => (
-        <div data-testid="rail-pills" className={triggerClassName} />
+    FilterPills: ({
+        triggerClassName,
+        dropdownClassName,
+    }: {
+        triggerClassName?: string;
+        dropdownClassName?: string;
+    }) => (
+        <div
+            data-testid="rail-pills"
+            className={triggerClassName}
+            data-dropdown-class={dropdownClassName}
+        />
     ),
 }));
 vi.mock('../../../../../features/dashboardControls/EditingStrip', () => ({
@@ -126,6 +136,11 @@ describe('EmbedDashboardFilterBar', () => {
         );
         expect(screen.getByTestId('rail-pills')).toHaveClass(
             'ld-dashboard-filter',
+        );
+        // A saved pill's shipped popover carries the dropdown class
+        expect(screen.getByTestId('rail-pills')).toHaveAttribute(
+            'data-dropdown-class',
+            'ld-dashboard-filter-dropdown',
         );
         expect(
             screen.queryByRole('button', { name: 'Reset' }),

@@ -182,10 +182,18 @@ In `FilterConfiguration/`:
   sidebar in edit mode.
 - For a viewer (`isViewer`) `FilterPills` renders no grip, lock toggle or
   drag, and the shipped `FilterPillSkeletons` (moved out of
-  `ActiveFilters/index.tsx`) in place of every pill while the filters load. A saved pill (`FilterPill` `kind="viewerSaved"`) opens the rail on
-  its value and has no X; a saved filter locked on this tab is the shipped
-  `Filter` pill as it is in view mode: read-only lock, its tooltip, no
-  editor. The viewer's own filters (the lock-safe temporary filters, as the
+  `ActiveFilters/index.tsx`) in place of every pill while the filters load.
+  The saved filters are the shipped view mode, never the rail:
+  `ViewerSavedPills` renders the shipped `Filter` (or `UnresolvedFilter`)
+  per saved rule with `isEditMode={false}`, inside the shipped
+  `FiltersProvider`, as `ActiveFilters` does: its popover is a draft with
+  Apply (`update*DashboardFilter(rule, index, false, false)`, which keeps
+  the `filters` URL override), Escape or a click outside cancels, the
+  required guard, the field description and "Reset to original value"; a
+  pill locked on this tab is read-only with its tooltip. An embed passes
+  `dropdownClassName` (`ld-dashboard-filter-dropdown`) for its popover, as
+  the shipped embed bar does. The start of week is the project's, none in
+  an embed (`useFiltersStartOfWeek`). The viewer's own filters (the lock-safe temporary filters, as the
   shipped pills list them) follow as outline pills (`kind="viewerOwn"`) that
   open the rail, with an X that is `removeFilterById`.
 
@@ -238,18 +246,15 @@ In `FilterConfiguration/`:
   calls in one event (`updateFilter` with a label, then `close`) agree. A new
   callback reads `latest.current`, never render state, and writes through the
   helpers.
-- `open(id)` snapshots the dashboard filters and edits a saved filter control.
+- `open(id)` snapshots the dashboard filters and edits a saved filter
+  control. For a viewer it opens only their own filters; a saved id does
+  nothing.
 - Outside edit mode the editor is a viewer's (`isViewer`): everything below
   writes the dashboard's temporary filters (`setDashboardTemporaryFilters`,
   the raw set), never the saved ones, so the URL's `tempFilters` carries a
   viewer's filter with its tile picks. New rules are made with `isTemporary`
   and through the view-mode disabled rule (`getFilterRuleWithDisabledState(
-  rule, false)`): no value reads "any value". `open(id)` on a saved filter
-  edits its value only (`isSavedValue`): `updateFilter` is the shipped
-  `update*DashboardFilter(rule, index, false, false)`, which keeps the
-  `filters` URL override and drops it once the value is the saved one again;
-  `discard()`, `removeFilter()` and the snapshot do nothing for it, and
-  `close()` and `collapse()` only end the edit. The "other" filters that
+  rule, false)`): no value reads "any value". The "other" filters that
   `haveFiltersChanged` is lowered against are the saved ones then.
 - The mode is the route's, or the provider's `isEditMode` input where no
   route says it (an embed passes its own). An edit belongs to the mode it
@@ -442,23 +447,19 @@ In `FilterConfiguration/`:
   1px under the footer's top border (`.body`'s `margin-bottom: -1px`), so
   the last row's border and the footer's read as one line whether the list
   scrolls or not.
-- For a viewer the rail lists the saved filters, then their own (the
-  lock-safe temporary filters), and the header count is both. An own row
-  adds a dimmed "Added by you" line. A saved filter locked on this tab is a
-  read-only row (`isReadOnly`: a `Group`, not a button, that only hovers
-  and takes focus, `aria-disabled`), with `filters.rail.lockedByEditor` as
-  its tooltip, the shipped read-only pill's wording.
+- For a viewer the rail lists only their own filters (the lock-safe
+  temporary filters), and the header counts them; saved filters stay on the
+  bar. An own row adds a dimmed "Added by you" line. A read-only row
+  (`isReadOnly`: a `Group`, not a button, that only hovers and takes focus,
+  `aria-disabled`) carries `readOnlyTooltip`.
   An own filter opens as in edit mode with no label input (its name is a
   focusable heading, `tabIndex={-1}`, focused on mount as the label input
   is), discard and trash; `FilterSettings` gives it the value in view mode
   (`FilterValueSettings isEditMode={false}`: no default switch, the shipped
   "clear to any value" X, and the shipped "Value" label while it is new,
   `isCreatingNew`), the line "Added by you · only in this view and
-  its link" and "Tiles", never "Rules". A saved filter (`isSavedValue`) opens
-  with its value only, and the head offers the shipped "Reset to original
-  value" (`IconRotate2`, the shipped labels) while the value differs from
-  the saved dashboard's (`hasSavedFilterValueChanged`), which writes the
-  shipped revert. The footer's default-value status is edit mode's only.
+  its link" and "Tiles", never "Rules". The footer's default-value status
+  is edit mode's only.
 - `ControlSidebar` lists every dashboard filter, dimensions then metrics, as
   a closed `FilterRow` (a `PolymorphicGroupButton`: type icon, name, one
   line: the pill's value, then the shipped lock wording on this tab
@@ -931,9 +932,6 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
     over the other SQL chart tiles that have the column.
   - The card gets it as two strings (`followUpLabel`, `followUpName`, null
     on every other tile) and one stable `onFollowUp`, so the memo holds.
-- While a viewer changes a saved filter's value, the tiles it is on get the
-  hovered row's `.reach` ring (`HoveredFilterReach`), no veil or card, and
-  the tab badges show nothing for it; the field bar never shows.
 - `TileOverlays` portals a veil and a "This tile is filtered on" card into each
   `[data-tile-uuid]` grid item on the active tab; `TabCounts` portals an
   "x of N" badge into each tab node. Both resolve targets with

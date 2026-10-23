@@ -8,9 +8,7 @@ import { IconChevronRight } from '@tabler/icons-react';
 import { useMemo, type FC, type ReactNode } from 'react';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../components/common/MantineIcon';
-import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
@@ -44,6 +42,7 @@ import {
     useControlsSidebarSelector,
     type ControlsSidebarSection,
 } from './useControlsSidebar';
+import { useFiltersStartOfWeek } from './useFiltersStartOfWeek';
 import { ViewerControls } from './ViewerControls';
 
 // What "Rules" holds, in words: the lock and the requirement
@@ -145,9 +144,7 @@ export const FilterSettings: FC<Props> = ({
     tilesSummary,
 }) => {
     const projectUuid = useProjectUuid();
-    // An embed has no project request, so no start of week, as its shipped bar
-    const isEmbedded = useIsEmbedded();
-    const project = useProject(isEmbedded ? undefined : projectUuid);
+    const startOfWeek = useFiltersStartOfWeek(projectUuid);
     const allFilters = useDashboardAllFilters();
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
@@ -179,7 +176,6 @@ export const FilterSettings: FC<Props> = ({
     );
     const activeSection = useControlsSidebarSelector((c) => c.activeSection);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
-    const isSavedValue = useControlsSidebarSelector((c) => c.isSavedValue);
     const isNew = useControlsSidebarSelector((c) => c.isNew);
     const getUiString = useUiStrings();
     const contractClasses = useRailContractClasses();
@@ -217,9 +213,7 @@ export const FilterSettings: FC<Props> = ({
         <FiltersProvider
             projectUuid={projectUuid}
             itemsMap={allFilterableFieldsMap}
-            startOfWeek={
-                project.data?.warehouseConnection?.startOfWeek ?? undefined
-            }
+            startOfWeek={startOfWeek}
             dashboardFilters={allFilters}
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
@@ -236,44 +230,41 @@ export const FilterSettings: FC<Props> = ({
                     onChange={onChange}
                 />
             </DropdownClass>
-            {/* A viewer changes a saved filter's value, nothing else */}
-            {isViewer && !isSavedValue && (
+            {isViewer && (
                 <Text fz="xs" c="dimmed">
                     {getUiString('filters.rail.addedByYouNote')}
                 </Text>
             )}
-            {!isSavedValue && (
-                <Box className={classes.disclosures}>
+            <Box className={classes.disclosures}>
+                <Disclosure
+                    section="tiles"
+                    label={getUiString('filters.rail.tiles')}
+                    summary={tilesSummary}
+                    isOpen={activeSection === 'tiles'}
+                    onToggle={toggleSection}
+                >
+                    {tiles}
+                </Disclosure>
+                {/* Locks and requirements are the dashboard's, never a viewer's */}
+                {!isViewer && (
                     <Disclosure
-                        section="tiles"
-                        label={getUiString('filters.rail.tiles')}
-                        summary={tilesSummary}
-                        isOpen={activeSection === 'tiles'}
+                        section="rules"
+                        label="Rules"
+                        summary={rulesSummary}
+                        isOpen={activeSection === 'rules'}
                         onToggle={toggleSection}
                     >
-                        {tiles}
+                        <ViewerControls
+                            rule={rule}
+                            filterType={filterType}
+                            field={field}
+                            onChange={onChange}
+                            onChangeOthers={updateOtherFilters}
+                            onEditRules={handleEditRules}
+                        />
                     </Disclosure>
-                    {/* Locks and requirements are the dashboard's, never a viewer's */}
-                    {!isViewer && (
-                        <Disclosure
-                            section="rules"
-                            label="Rules"
-                            summary={rulesSummary}
-                            isOpen={activeSection === 'rules'}
-                            onToggle={toggleSection}
-                        >
-                            <ViewerControls
-                                rule={rule}
-                                filterType={filterType}
-                                field={field}
-                                onChange={onChange}
-                                onChangeOthers={updateOtherFilters}
-                                onEditRules={handleEditRules}
-                            />
-                        </Disclosure>
-                    )}
-                </Box>
-            )}
+                )}
+            </Box>
         </FiltersProvider>
     );
 };

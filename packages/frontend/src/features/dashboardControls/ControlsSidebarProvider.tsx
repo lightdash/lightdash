@@ -142,9 +142,6 @@ type SidebarState = {
     // The mode the edit was started in: it keeps writing that mode's filters
     // until the mode change has closed it
     isViewer: boolean;
-    // A viewer changing a saved filter's value: the rule is the dashboard's,
-    // written as the shipped popover writes it, never kept in the snapshot
-    isSavedValue: boolean;
     snapshot: ControlsSidebarSnapshot;
     // Where the control sat before its last field was removed, else null
     emptiedAt: {
@@ -179,7 +176,6 @@ type Latest = {
     // The other set, which shipped code writes: the temporary filters in edit
     // mode, the saved ones in view mode
     otherFilters: DashboardFilters;
-    savedFilters: DashboardFilters;
     // The edit's mode, else the page's
     isViewer: boolean;
     // The page's mode, which a new edit starts in
@@ -190,8 +186,6 @@ type Latest = {
     highlightedFieldId: string | null;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
-    updateDimensionDashboardFilter: DashboardContextType['updateDimensionDashboardFilter'];
-    updateMetricDashboardFilter: DashboardContextType['updateMetricDashboardFilter'];
     track: TrackingContextType['track'];
     undo: ApplyUndo | null;
     waiting: Waiting | null;
@@ -230,13 +224,11 @@ const getEditingRule = ({
     state,
     placeholder,
     dashboardFilters,
-    savedFilters,
 }: Pick<
     Latest,
-    'state' | 'placeholder' | 'dashboardFilters' | 'savedFilters'
+    'state' | 'placeholder' | 'dashboardFilters'
 >): DashboardFilterRule | null => {
     if (state === null) return null;
-    if (state.isSavedValue) return findFilterRule(savedFilters, state.filterId);
     return placeholder ?? findFilterRule(dashboardFilters, state.filterId);
 };
 
@@ -318,12 +310,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const setTemporaryFilters = useDashboardContext(
         (c) => c.setDashboardTemporaryFilters,
     );
-    const updateDimensionDashboardFilter = useDashboardContext(
-        (c) => c.updateDimensionDashboardFilter,
-    );
-    const updateMetricDashboardFilter = useDashboardContext(
-        (c) => c.updateMetricDashboardFilter,
-    );
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
     const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const setHaveFiltersChanged = useDashboardContext(
@@ -377,7 +363,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         placeholder,
         dashboardFilters,
         otherFilters,
-        savedFilters,
         isViewer: isEditViewer,
         isPageViewer: isViewer,
         haveFiltersChanged,
@@ -386,8 +371,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         highlightedFieldId,
         setDashboardFilters,
         setHaveFiltersChanged,
-        updateDimensionDashboardFilter,
-        updateMetricDashboardFilter,
         track,
         undo,
         waiting,
@@ -536,17 +519,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             focusReturn.current = { filterIds: [], inRail };
             return;
         }
-        // The rail's rows: a viewer's saved filters come before their own
-        const ids = [
-            ...(latest.current.isViewer
-                ? [
-                      ...latest.current.savedFilters.dimensions,
-                      ...latest.current.savedFilters.metrics,
-                  ]
-                : []),
-            ...filters.dimensions,
-            ...filters.metrics,
-        ].map((filter) => filter.id);
+        const ids = [...filters.dimensions, ...filters.metrics].map(
+            (filter) => filter.id,
+        );
         const index = ids.indexOf(filterId);
         focusReturn.current = {
             filterIds:
@@ -567,6 +542,12 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         (filterId: string) => {
             const current = latest.current;
             if (current.state?.filterId === filterId) return;
+            // A viewer edits only their own filters; saved ones keep the bar's popover
+            if (
+                current.isPageViewer &&
+                findFilterRule(current.dashboardFilters, filterId) === null
+            )
+                return;
             writeUndo(null);
             focusReturn.current = null;
             ownRaise.current = null;
@@ -581,10 +562,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 filterId,
                 isNew: false,
                 isViewer: current.isPageViewer,
-                // A viewer's own filters are the ones the editor writes
-                isSavedValue:
-                    current.isPageViewer &&
-                    findFilterRule(current.dashboardFilters, filterId) === null,
                 emptiedAt: null,
                 snapshot: {
                     dashboardFilters: current.dashboardFilters,
@@ -613,7 +590,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             filterId: rule.id,
             isNew: true,
             isViewer: current.isPageViewer,
-            isSavedValue: false,
             emptiedAt: null,
             snapshot: {
                 dashboardFilters: current.dashboardFilters,
@@ -729,34 +705,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 current.placeholder.id === next.id
             ) {
                 writePlaceholder(next);
-                return;
-            }
-            // A viewer's change to a saved filter is the shipped popover's
-            // write, so the URL keeps it as an override of the saved value
-            if (
-                current.state?.isSavedValue &&
-                current.state.filterId === next.id
-            ) {
-                const isMetricRule = current.savedFilters.metrics.some(
-                    (rule) => rule.id === next.id,
-                );
-                const group = isMetricRule ? 'metrics' : 'dimensions';
-                const index = current.savedFilters[group].findIndex(
-                    (rule) => rule.id === next.id,
-                );
-                if (index === -1) return;
-                current.savedFilters = replaceFilterRule(
-                    current.savedFilters,
-                    next,
-                );
-                (isMetricRule
-                    ? current.updateMetricDashboardFilter
-                    : current.updateDimensionDashboardFilter)(
-                    next,
-                    index,
-                    false,
-                    false,
-                );
                 return;
             }
             const tiles = current.dashboardTiles;
@@ -994,7 +942,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const removeEdited = useCallback(
         (keepRail: boolean) => {
             const { state: editingState } = latest.current;
-            if (editingState === null || editingState.isSavedValue) return;
+            if (editingState === null) return;
             rememberFocusReturn(keepRail);
             const { snapshot, filterId, touchedFilterIds } = editingState;
             writeFilters((filters) =>
@@ -1024,7 +972,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const discardEdited = useCallback(
         (keepRail: boolean) => {
             const { state: editingState } = latest.current;
-            if (editingState === null || editingState.isSavedValue) return;
+            if (editingState === null) return;
             rememberFocusReturn(keepRail);
             const { snapshot, filterId, touchedFilterIds } = editingState;
             writeFilters((filters) =>
@@ -1087,9 +1035,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                       state,
                       placeholder,
                       dashboardFilters,
-                      savedFilters,
                   }),
-        [isOtherModeEdit, state, placeholder, dashboardFilters, savedFilters],
+        [isOtherModeEdit, state, placeholder, dashboardFilters],
     );
 
     const waitingFieldIds = useMemo(() => {
@@ -1114,13 +1061,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     focusReturn.current = { filterIds: [], inRail: false };
                     reset();
                 }
-                return;
-            }
-            if (current.state.isSavedValue) {
-                // Each change was written as it was made
-                rememberFocusReturn(keepRail);
-                if (keepRail) resetEdit();
-                else reset();
                 return;
             }
             const { snapshot } = current.state;
@@ -1278,7 +1218,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             editing,
             isViewer,
             canAddFilters,
-            isSavedValue: state?.isSavedValue ?? false,
             isNew: state?.isNew ?? false,
             emptiedFieldLabel: state?.emptiedAt?.fieldLabel ?? null,
             isPlaceholder,
@@ -1320,7 +1259,6 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             collapse,
             isDirty:
                 state !== null &&
-                !state.isSavedValue &&
                 (isPlaceholder ||
                     isFilterRuleDirty(
                         state.snapshot.dashboardFilters,

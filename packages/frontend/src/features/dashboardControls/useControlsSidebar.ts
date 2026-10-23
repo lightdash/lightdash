@@ -28,13 +28,11 @@ export type ControlsSidebarContextValue = {
     editing: { filterId: string } | null;
     /**
      * Outside edit mode: the editor writes the viewer's own temporary
-     * filters, and a saved filter only changes its value.
+     * filters only; saved filters keep the bar's shipped popover.
      */
     isViewer: boolean;
     /** False in an embed whose viewers may not add filters: no "Add filter". */
     canAddFilters: boolean;
-    /** A viewer is changing a saved filter's value: no tiles, no remove. */
-    isSavedValue: boolean;
     /** The edited control was started with Add in this sidebar session. */
     isNew: boolean;
     /** The edited control has no mapping yet, so it cannot be kept. */

@@ -31,7 +31,6 @@ import {
     selectDashboardFilters,
     selectHaveFiltersChanged,
     selectRawTemporaryFilters,
-    selectSavedFilterOverrides,
     useDashboardSelector,
     type DashboardStore,
 } from '../dashboard/store';
@@ -2654,7 +2653,6 @@ describe('ControlsSidebarProvider in view mode', () => {
         // No value yet: "any value", as the shipped popover writes it
         expect(added.disabled).toBe(true);
         expect(result.current.editingRule?.id).toBe(added.id);
-        expect(result.current.isSavedValue).toBe(false);
 
         act(() => result.current.updateFilter(withValue(added)));
         act(() => result.current.close());
@@ -2706,7 +2704,6 @@ describe('ControlsSidebarProvider in view mode', () => {
             );
         });
         act(() => result.current.open('own'));
-        expect(result.current.isSavedValue).toBe(false);
         act(() => result.current.updateFilter(rule('own', ['y'])));
         expect(latest.temporaryFilters.dimensions[0].values).toEqual(['y']);
         expect(result.current.isDirty).toBe(true);
@@ -2735,38 +2732,12 @@ describe('ControlsSidebarProvider in view mode', () => {
         expect(latest.filters).toEqual(initialFilters);
     });
 
-    it("changes only a saved filter's value, kept as a URL override", () => {
+    it("never opens a saved filter: it keeps the bar's popover", () => {
         const { result } = setup();
         act(() => result.current.open('a'));
-        expect(result.current.isSavedValue).toBe(true);
-        expect(result.current.editingRule?.id).toBe('a');
-        expect(result.current.isSidebarOpen).toBe(true);
-
-        act(() => result.current.updateFilter(rule('a', ['9'])));
-        expect(latest.filters.dimensions[0].values).toEqual(['9']);
-        expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
-        expect(
-            selectSavedFilterOverrides(currentStore.getState()).dimensions.map(
-                (override) => override.id,
-            ),
-        ).toEqual(['a']);
-        expect(result.current.isDirty).toBe(false);
-
-        // Nothing to discard or remove on a saved filter
-        act(() => result.current.discard());
-        act(() => result.current.removeFilter());
-        expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['a', 'b']);
-        expect(result.current.isSidebarOpen).toBe(true);
-
-        // Back to the saved value: the override goes
-        act(() => result.current.updateFilter(rule('a', ['1'])));
-        expect(
-            selectSavedFilterOverrides(currentStore.getState()).dimensions,
-        ).toEqual([]);
-
-        act(() => result.current.close());
         expect(result.current.isRailOpen).toBe(false);
-        expect(mockTrack).not.toHaveBeenCalled();
+        expect(result.current.editing).toBeNull();
+        expect(latest.filters).toEqual(initialFilters);
     });
 
     describe('a mode change closes the edit as Done does', () => {

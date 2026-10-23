@@ -24,10 +24,7 @@ const getTabSelector = (tabUuid: string) =>
 
 export const TabCounts: FC = () => {
     const getUiString = useUiStrings();
-    // A saved filter a viewer changes the value of keeps its tiles: no counts
-    const editedRule = useControlsSidebarSelector((c) =>
-        c.isSavedValue ? null : c.editingRule,
-    );
+    const editedRule = useControlsSidebarSelector((c) => c.editingRule);
     const isEditedPlaceholder = useControlsSidebarSelector(
         (c) => c.isPlaceholder,
     );

@@ -463,7 +463,6 @@
         "filters.rail.fieldTilesTooltip.plural": "{table} · {applied} / {total} ფილა",
         "filters.rail.sqlColumn": "SQL სვეტი",
         "filters.rail.thisFilter": "ეს ფილტრი",
-        "filters.rail.lockedByEditor": "დაბლოკილია დაფის რედაქტორის მიერ. შესაცვლელად გადადით რედაქტირების რეჟიმზე.",
         "filters.rail.unknownField": "მოხდა უცნობი id-ის მქონე ველზე მითითება: {field}",
         "filters.rail.tabCountTooltip.singular": "ამ ჩანართის {total} ფილიდან {applied} გაფილტრულია: {subject}",
         "filters.rail.tabCountTooltip.plural": "ამ ჩანართის {total} ფილიდან {applied} გაფილტრულია: {subject}",

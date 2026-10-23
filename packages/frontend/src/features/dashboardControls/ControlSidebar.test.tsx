@@ -106,7 +106,6 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         editing: { filterId: 'filter-1' },
         isViewer: false,
         canAddFilters: true,
-        isSavedValue: false,
         isNew: true,
         isPlaceholder: false,
         editingRule: makeRule({}),
@@ -905,7 +904,7 @@ describe('ControlSidebar', () => {
         const saved = makeRule({ id: 'saved', label: 'Order status' });
         const own = makeRule({ id: 'own', label: undefined });
 
-        it('lists the saved filters, then their own, marked "Added by you"', () => {
+        it('lists only their own filters, marked "Added by you"', () => {
             setSidebar({ isViewer: true, editing: null, editingRule: null });
             renderWithProviders(
                 <ControlSidebar />,
@@ -915,31 +914,9 @@ describe('ControlSidebar', () => {
             const rows = screen
                 .getAllByRole('button', { expanded: false })
                 .filter((row) => row.hasAttribute('data-controls-row'));
-            expect(rows.map((row) => row.dataset.controlsRow)).toEqual([
-                'saved',
-                'own',
-            ]);
-            expect(rows[1]).toHaveTextContent('Added by you');
-            expect(rows[0]).not.toHaveTextContent('Added by you');
-            expect(screen.getByText('2')).toBeInTheDocument();
-        });
-
-        it('leaves a locked saved filter a row that opens nothing', () => {
-            const open = vi.fn();
-            setSidebar({
-                isViewer: true,
-                editing: null,
-                editingRule: null,
-                open,
-            });
-            const { container } = renderWithProviders(
-                <ControlSidebar />,
-                filters([{ ...saved, lockedTabUuids: ['dashboard-1'] }]),
-            );
-            const row = container.querySelector('[data-controls-row="saved"]');
-            expect(row?.tagName).not.toBe('BUTTON');
-            fireEvent.click(row as Element);
-            expect(open).not.toHaveBeenCalled();
+            expect(rows.map((row) => row.dataset.controlsRow)).toEqual(['own']);
+            expect(rows[0]).toHaveTextContent('Added by you');
+            expect(screen.getByText('1')).toBeInTheDocument();
         });
 
         it('carries the class an embed gives the rail', () => {
@@ -960,24 +937,6 @@ describe('ControlSidebar', () => {
             ).toHaveClass('ld-dashboard-filter-rail');
         });
 
-        it('lets the locked row take focus and says why it is locked', async () => {
-            setSidebar({ isViewer: true, editing: null, editingRule: null });
-            const { container } = renderWithProviders(
-                <ControlSidebar />,
-                filters([{ ...saved, lockedTabUuids: ['dashboard-1'] }]),
-            );
-            const row = container.querySelector<HTMLElement>(
-                '[data-controls-row="saved"]',
-            );
-            expect(row).toHaveAttribute('tabindex', '0');
-            fireEvent.mouseEnter(row as Element);
-            expect(
-                await screen.findByText(
-                    DEFAULT_UI_STRINGS['filters.rail.lockedByEditor'],
-                ),
-            ).toBeInTheDocument();
-        });
-
         it('says which field a row cannot resolve, as the invalid pill', async () => {
             const open = vi.fn();
             setSidebar({
@@ -988,15 +947,16 @@ describe('ControlSidebar', () => {
             });
             const { container } = renderWithProviders(
                 <ControlSidebar />,
+                filters([]),
                 filters([
                     {
-                        ...saved,
+                        ...own,
                         target: { fieldId: 'orders_gone', tableName: 'orders' },
                     },
                 ]),
             );
             const row = container.querySelector<HTMLElement>(
-                '[data-controls-row="saved"]',
+                '[data-controls-row="own"]',
             );
             expect(row).toHaveAttribute('tabindex', '0');
             fireEvent.click(row as Element);
@@ -1027,61 +987,6 @@ describe('ControlSidebar', () => {
             expect(
                 screen.getByRole('button', { name: 'Remove filter' }),
             ).toBeInTheDocument();
-        });
-
-        it('changes a saved value with a reset to the saved one, and no remove', async () => {
-            const updateFilter = vi.fn();
-            const changed = { ...saved, values: ['open'] };
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboard: { filters: filters([saved]) },
-            };
-            setSidebar({
-                isViewer: true,
-                isSavedValue: true,
-                isNew: false,
-                isDirty: false,
-                editing: { filterId: 'saved' },
-                editingRule: changed,
-                updateFilter,
-            });
-            renderWithProviders(<ControlSidebar />, filters([changed]));
-
-            expect(
-                screen.queryByRole('button', { name: 'Remove filter' }),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: /^Discard/ }),
-            ).not.toBeInTheDocument();
-            await userEvent.click(
-                screen.getByRole('button', {
-                    name: 'Reset filter to original value',
-                }),
-            );
-            expect(updateFilter).toHaveBeenCalledWith(
-                expect.objectContaining({ id: 'saved', values: ['done'] }),
-            );
-        });
-
-        it('has no reset while the saved value is unchanged', () => {
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboard: { filters: filters([saved]) },
-            };
-            setSidebar({
-                isViewer: true,
-                isSavedValue: true,
-                isNew: false,
-                isDirty: false,
-                editing: { filterId: 'saved' },
-                editingRule: saved,
-            });
-            renderWithProviders(<ControlSidebar />, filters([saved]));
-            expect(
-                screen.queryByRole('button', {
-                    name: 'Reset filter to original value',
-                }),
-            ).not.toBeInTheDocument();
         });
     });
 });

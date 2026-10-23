@@ -101,7 +101,7 @@ const mockSection = vi.hoisted(() => ({
     current: null as 'tiles' | 'rules' | null,
 }));
 const mockViewer = vi.hoisted(() => ({
-    current: { isViewer: false, isSavedValue: false },
+    current: { isViewer: false },
 }));
 const otherRules = vi.hoisted(
     () => [{ id: 'filter-2' }] as DashboardFilterRule[],
@@ -183,7 +183,7 @@ describe('FilterSettings', () => {
         updateOtherFilters.mockClear();
         setActiveSection.mockClear();
         mockSection.current = 'rules';
-        mockViewer.current = { isViewer: false, isSavedValue: false };
+        mockViewer.current = { isViewer: false };
         mockTileStatus.current = { sqlChartTilesMetadata: {} };
         mockDashboardContext.current = {
             allFilterableFieldsMap: {},
@@ -385,7 +385,7 @@ describe('FilterSettings', () => {
 
     it("gives a viewer's own filter the value and Tiles, never Rules", () => {
         mockSection.current = null;
-        mockViewer.current = { isViewer: true, isSavedValue: false };
+        mockViewer.current = { isViewer: true };
         renderSettings(
             rule({ fieldId: 'orders_amount', tableName: 'orders' }),
             amount,
@@ -398,19 +398,5 @@ describe('FilterSettings', () => {
         expect(
             screen.queryByRole('button', { name: /^Rules/ }),
         ).not.toBeInTheDocument();
-    });
-
-    it('gives a saved filter a viewer changes only its value', () => {
-        mockSection.current = null;
-        mockViewer.current = { isViewer: true, isSavedValue: true };
-        renderSettings(
-            rule({ fieldId: 'orders_amount', tableName: 'orders' }),
-            amount,
-        );
-        expect(screen.getByTestId('value-settings')).toBeVisible();
-        expect(
-            screen.queryByRole('button', { name: /^Tiles/ }),
-        ).not.toBeInTheDocument();
-        expect(screen.queryByText(/Added by you/)).not.toBeInTheDocument();
     });
 });

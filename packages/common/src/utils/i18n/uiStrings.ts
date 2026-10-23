@@ -414,8 +414,6 @@ export const DEFAULT_UI_STRINGS = {
         '{table} · {applied} of {total} tiles',
     'filters.rail.sqlColumn': 'SQL column',
     'filters.rail.thisFilter': 'this filter',
-    'filters.rail.lockedByEditor':
-        'Locked by the dashboard editor. Switch to edit mode to change it.',
     'filters.rail.unknownField':
         'Tried to reference field with unknown id: {field}',
     'filters.rail.tabCountTooltip.singular':
