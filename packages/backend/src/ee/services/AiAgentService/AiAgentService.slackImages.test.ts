@@ -590,7 +590,7 @@ describe('Slack image delivery scope', () => {
         } = setup();
         const runtime =
             await service['prepareSlackArtifactImageDelivery']('prompt');
-        await runtime!.authorize(input);
+        await expect(runtime!.authorize(input)).resolves.toBe(true);
         expect(getArtifact).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: 'user' }),
             'project',
@@ -757,7 +757,7 @@ describe('Slack image delivery scope', () => {
         const runtime =
             await service['prepareSlackArtifactImageDelivery']('prompt');
 
-        await runtime!.authorize(input);
+        await expect(runtime!.authorize(input)).resolves.toBe(true);
         const url = await runtime!.render(input);
 
         expect(getExplore.mock.calls.map((call) => call[3])).toEqual([
@@ -795,6 +795,24 @@ describe('Slack image delivery scope', () => {
             truncated: true,
         });
         expect(await runtime!.render(input)).toBeNull();
+    });
+
+    it('marks a composer input on a classic semantic version unavailable without reading results', async () => {
+        const { service, getExplore, getAsyncQueryHistory } = setup();
+        const runtime =
+            await service['prepareSlackArtifactImageDelivery']('prompt');
+
+        await expect(
+            runtime!.authorize({
+                source: 'composer',
+                artifactUuid: 'artifact',
+                versionUuid: 'version',
+                queryUuid: 'execution',
+                rowLimit: 1,
+            }),
+        ).resolves.toBe(false);
+        expect(getExplore).not.toHaveBeenCalled();
+        expect(getAsyncQueryHistory).not.toHaveBeenCalled();
     });
 
     it.each(['table', 'big_number'] as const)(
