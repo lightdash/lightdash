@@ -383,7 +383,10 @@ The initial compile can publish healthy sources on main when a missing or
 unreadable source fails. These fresh-project variants do not test carrying
 last-good explores from an earlier successful refresh. The original fixture
 has a separate last-good scenario. Combined failures mask later triggers,
-so isolated variants are needed to attribute each diagnostic.
+so isolated variants are needed to attribute each diagnostic. Last-good
+manifests used to climb a consumer refresh are a different proof: see
+[last-good-climb/README.md](last-good-climb/README.md). Run 7b's `.v2`
+binding is not that proof.
 
 The disk budget derives a limit of eleven, but chosen concurrency is four
 and the pool resident capacity is four. The 19-source profiles use small

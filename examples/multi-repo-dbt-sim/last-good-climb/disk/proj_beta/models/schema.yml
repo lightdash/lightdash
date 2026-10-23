@@ -1,0 +1,12 @@
+version: 2
+models:
+    - name: beta_base
+      access: public
+    - name: beta_report
+      access: public
+    - name: measure
+      access: public
+      latest_version: 2
+      versions:
+          - v: 2
+          - v: 3

@@ -1,0 +1,4 @@
+version: 2
+models:
+    - name: alpha_base
+      access: public

@@ -1,0 +1,138 @@
+{
+  "case": "last-good-manifest-climb",
+  "toolchain": {
+    "requirements": [
+      "dbt-core==1.12.0",
+      "dbt-postgres~=1.10.0"
+    ],
+    "packages": {
+      "dbt-core": "1.12.0",
+      "dbt-postgres": "1.10.2"
+    },
+    "dbt_loom_installed": false,
+    "python": "3.12.3"
+  },
+  "disk_latest_version": {
+    "measure": 2
+  },
+  "seed_latest_version": {
+    "measure": 3
+  },
+  "expected_bindings": {
+    "proj_alpha": {
+      "alpha_report": [
+        "model.proj_beta.measure.v3"
+      ]
+    },
+    "proj_beta": {
+      "beta_report": [
+        "model.proj_alpha.alpha_base"
+      ]
+    }
+  },
+  "seeded_manifests": {
+    "proj_alpha": {
+      "latest_version": null,
+      "nodes": [
+        "model.proj_alpha.alpha_base"
+      ]
+    },
+    "proj_beta": {
+      "latest_version": 3,
+      "nodes": [
+        "model.proj_beta.beta_base",
+        "model.proj_beta.beta_report",
+        "model.proj_beta.measure.v3"
+      ]
+    }
+  },
+  "present": {
+    "success": true,
+    "store_unchanged": true,
+    "projects": {
+      "proj_alpha": {
+        "returncode": 0,
+        "cycle_error": false,
+        "bindings": {
+          "alpha_report": [
+            "model.proj_beta.measure.v3"
+          ]
+        },
+        "injected": [
+          {
+            "package_name": "proj_beta",
+            "name": "beta_base",
+            "version": null,
+            "latest_version": null
+          },
+          {
+            "package_name": "proj_beta",
+            "name": "beta_report",
+            "version": null,
+            "latest_version": null
+          },
+          {
+            "package_name": "proj_beta",
+            "name": "measure",
+            "version": 3,
+            "latest_version": 3
+          }
+        ]
+      },
+      "proj_beta": {
+        "returncode": 0,
+        "cycle_error": false,
+        "bindings": {
+          "beta_report": [
+            "model.proj_alpha.alpha_base"
+          ]
+        },
+        "injected": [
+          {
+            "package_name": "proj_alpha",
+            "name": "alpha_base",
+            "version": null,
+            "latest_version": null
+          }
+        ]
+      }
+    }
+  },
+  "withheld": {
+    "success": false,
+    "partial_success": false,
+    "invented_manifests": [],
+    "warnings": [
+      "Cold start: dbt source \"proj_alpha\" cannot refresh because last-good manifests are not seeded for upstreams: proj_beta. Seed each upstream with a successful compile or deploy. No manifest was invented.",
+      "Cold start: dbt source \"proj_beta\" cannot refresh because last-good manifests are not seeded for upstreams: proj_alpha. Seed each upstream with a successful compile or deploy. No manifest was invented."
+    ],
+    "unseeded_upstreams": [
+      "proj_alpha",
+      "proj_beta"
+    ],
+    "withheld_store_unchanged": true,
+    "seeded_store_unchanged": true,
+    "passed": true,
+    "projects": {
+      "proj_alpha": {
+        "returncode": 2,
+        "unresolved": true,
+        "cycle_error": false,
+        "success": false,
+        "error_excerpt": [
+          "  Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found"
+        ]
+      },
+      "proj_beta": {
+        "returncode": 2,
+        "unresolved": true,
+        "cycle_error": false,
+        "success": false,
+        "error_excerpt": [
+          "  Model 'model.proj_beta.beta_report' (models/beta_report.sql) depends on a node named 'alpha_base' in package or project 'proj_alpha' which was not found"
+        ]
+      }
+    }
+  },
+  "errors": []
+}

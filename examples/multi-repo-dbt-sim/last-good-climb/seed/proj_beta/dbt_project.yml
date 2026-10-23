@@ -1,0 +1,9 @@
+name: proj_beta
+version: '1.0.0'
+config-version: 2
+profile: last_good_climb
+model-paths: [models]
+models:
+    proj_beta:
+        +materialized: view
+        +schema: proj_beta

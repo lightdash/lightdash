@@ -16,6 +16,13 @@ binding, and an unpushed local integration of the cycle draft with main.
 The image-faithful comparisons record the shipped core pin and absence of
 server-side dbt-loom separately from the publication parser.
 
+The [last-good manifest climb](last-good-climb/README.md) is a separate
+proof. It climbs stored manifests for a two-project ring and a `.v3` hop
+whose latest file on disk is acyclic v2. It does not recompile that disk
+version, and it does not install dbt-loom. Run 7b remains the ambiguous
+version-binding probe. Fresh-project rows in the large-org report still do
+not establish last-good carry-forward.
+
 The small fixture has six hand-written repos: payments, merchants, finance,
 risk, growth and marketing. They have 19 logical models and 20 model nodes.
 The full fixture has 22 repos, 3,000 logical models and 3,001 model nodes.
@@ -212,6 +219,18 @@ internal cause by itself. Upstream explore loss is also the existing full
 CLI deploy replacement behaviour tracked by #31326. The warning's claim that
 the model is unavailable is misleading in the connected case, where that
 model was already a registered and deployed explore.
+
+## Last-good manifest climb
+
+```bash
+examples/multi-repo-dbt-sim/run-last-good
+```
+
+This creates a private dbt-core 1.12.0 venv with no dbt-loom, seeds
+last-good manifests from `last-good-climb/seed`, then parses the disk
+projects twice: once with those manifests injected, and once with an empty
+store. The contract, withhold rule, and expected errors are in
+[last-good-climb/README.md](last-good-climb/README.md).
 
 ## Checks and cleanup
 
