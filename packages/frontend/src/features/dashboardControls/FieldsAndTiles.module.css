@@ -8,7 +8,8 @@
     display: flex;
     align-items: center;
     gap: var(--mantine-spacing-xs);
-    margin: 0 calc(-1 * var(--mantine-spacing-xs));
+    /* Its border too: the icon and the remove button line up with the inputs */
+    margin-inline: calc(-1 * var(--mantine-spacing-xs) - 1px);
     padding: calc(var(--mantine-spacing-xs) / 2) var(--mantine-spacing-xs);
     border: 1px solid transparent;
     border-radius: var(--mantine-radius-sm);

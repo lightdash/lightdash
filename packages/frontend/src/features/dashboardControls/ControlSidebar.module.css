@@ -6,6 +6,8 @@
     --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
     --controls-duration-arrive: 0.28s;
     --controls-duration-hover: 0.12s;
+    /* ActionIcon sm: row actions sit in one column, flush with the inputs */
+    --controls-action-size: rem(24px);
     --controls-rail-offset: calc(
         var(--controls-rail-top, var(--dashboard-header-height)) +
             var(--mantine-spacing-xs)
@@ -98,7 +100,9 @@
 
 .rowIcon {
     flex: 0 0 auto;
-    margin-top: 3px;
+    /* Even, so it centres on the name's first line both in a row aligned to
+       the top and in the head aligned to the centre */
+    margin-block: 3px;
 }
 
 .required {
@@ -116,8 +120,8 @@
 }
 
 .editedHead {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0
-        var(--mantine-spacing-md);
+    padding-block: var(--mantine-spacing-xs) 0;
+    padding-inline: var(--mantine-spacing-md);
     /* A click on it collapses the filter */
     cursor: pointer;
 }
@@ -125,6 +129,18 @@
 .editedBody {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-md)
         var(--mantine-spacing-md);
+}
+
+/* The shipped clear X sits beside the value input, so the operator select
+   above it ends where the value input does. Both are direct children of the
+   form (`FilterValueSettings`); a date's own selects are nested deeper */
+.valueForm:has(
+        > :global(.mantine-Group-root) > :global(.mantine-ActionIcon-root)
+    )
+    > :global(.mantine-Select-root) {
+    margin-inline-end: calc(
+        var(--controls-action-size) + var(--mantine-spacing-xs)
+    );
 }
 
 .nameInput {
@@ -161,8 +177,12 @@
     gap: var(--mantine-spacing-xs);
     width: 100%;
     min-height: 40px;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm)
-        var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    /* The chevron is centred on the row actions' column */
+    padding-block: var(--mantine-spacing-xs);
+    padding-inline: var(--mantine-spacing-md)
+        calc(
+            var(--mantine-spacing-md) + (var(--controls-action-size) - 14px) / 2
+        );
     transition: background-color var(--controls-duration-hover)
         var(--controls-ease);
 }

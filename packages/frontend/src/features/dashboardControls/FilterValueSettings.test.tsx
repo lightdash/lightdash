@@ -8,6 +8,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
+import classes from './ControlSidebar.module.css';
 import { FilterValueSettings } from './FilterValueSettings';
 
 // Stands in for the value input, with one way to empty it
@@ -501,5 +502,36 @@ describe('FilterValueSettings', () => {
                 }),
             );
         });
+    });
+
+    // The rail's `.valueForm` rule narrows the operator select by this shape
+    it("puts a viewer's clear X and the operator select directly in the form", async () => {
+        const { container } = renderWithProviders(
+            <FilterValueSettings
+                isEditMode={false}
+                isCreatingNew={false}
+                filterType={FilterType.STRING}
+                field={null}
+                filterRule={makeRule({ values: ['done'] })}
+                onChange={vi.fn()}
+            />,
+            {
+                user: {
+                    abilityRules: [{ action: 'manage', subject: 'Explore' }],
+                },
+            },
+        );
+        const form = container.querySelector(`.${classes.valueForm}`);
+        expect(form).not.toBeNull();
+        await waitFor(() =>
+            expect(
+                form?.querySelector(
+                    ':scope > .mantine-Group-root > .mantine-ActionIcon-root .tabler-icon-x',
+                ),
+            ).not.toBeNull(),
+        );
+        expect(
+            form?.querySelectorAll(':scope > .mantine-Select-root'),
+        ).toHaveLength(1);
     });
 });

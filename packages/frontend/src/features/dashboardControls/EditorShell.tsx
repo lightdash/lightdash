@@ -55,8 +55,7 @@ export const EditorShell: FC<Props> = ({
             <Group
                 justify="space-between"
                 wrap="nowrap"
-                pl="md"
-                pr="xs"
+                px="md"
                 py="xs"
                 className={classes.header}
             >
@@ -77,6 +76,7 @@ export const EditorShell: FC<Props> = ({
                 </Group>
                 <Tooltip label={getUiString('filters.rail.close')}>
                     <ActionIcon
+                        size="sm"
                         variant="subtle"
                         color="gray"
                         aria-label={getUiString('filters.rail.close')}
