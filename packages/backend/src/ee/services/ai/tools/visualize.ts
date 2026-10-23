@@ -207,15 +207,20 @@ export const getVisualize = ({
 
                 await updateProgress('Visualizing result...');
                 const needsHints = composerChartQualityHintsNeedRows(vizConfig);
-                // Slack posts a table, or a chart image, from this execution's rows.
+                // Slack posts a table, a big number or a chart image from this execution's rows.
                 const slackImage =
                     isSlackPrompt(prompt) &&
                     !slackLinksOnly &&
                     !!deferSlackVisualization &&
                     isComposerSlackImageVizConfig(storedVizConfig);
+                const slackBigNumber =
+                    isSlackPrompt(prompt) &&
+                    !slackLinksOnly &&
+                    vizConfig.type === 'big_number';
                 const needsRows =
                     (isSlackPrompt(prompt) && vizConfig.type === 'table') ||
-                    slackImage;
+                    slackImage ||
+                    slackBigNumber;
                 // Usually a results cache hit; a failed run only drops hints and Slack results.
                 const run =
                     needsHints || needsRows

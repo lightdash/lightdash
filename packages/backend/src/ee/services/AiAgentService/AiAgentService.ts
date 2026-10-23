@@ -638,6 +638,7 @@ import {
     getSlackImageSource,
     type SlackImageSource,
 } from '../ai/utils/slackArtifactImageSources';
+import { getSlackBigNumbers } from '../ai/utils/slackBigNumbers';
 import { getSlackSelectedCardArtifacts } from '../ai/utils/slackChartSelection';
 import {
     getSlackTableBlocks,
@@ -18215,6 +18216,39 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 agentUuid: agent?.uuid ?? null,
             }),
         };
+        const authorizeSlackResults = async ({
+            queryUuid,
+            exploreNames,
+        }: {
+            queryUuid: string;
+            exploreNames: string[];
+        }) => {
+            const history = await this.asyncQueryService.getAsyncQueryHistory({
+                account: fromSession(user),
+                reader: slackResultReader,
+                projectUuid: slackPrompt.projectUuid,
+                queryUuid,
+            });
+            if (
+                history.status !== QueryHistoryStatus.READY ||
+                (history.resultsExpiresAt &&
+                    history.resultsExpiresAt < new Date())
+            ) {
+                throw new UnexpectedServerError(
+                    'Query results are no longer available',
+                );
+            }
+            await Promise.all(
+                exploreNames.map((exploreName) =>
+                    this.getExplore(
+                        user,
+                        slackPrompt.projectUuid,
+                        agent?.tags ?? null,
+                        exploreName,
+                    ),
+                ),
+            );
+        };
         const tablePreviews = await getSlackTablePreviews({
             enableDataAccess: agent?.enableDataAccess === true,
             slackLinksOnly: slackSettings?.aiLinksOnly === true,
@@ -18224,34 +18258,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
             artifacts: artifactVersions,
             url: this.getAgentThreadUrl(slackPrompt, agent?.uuid),
             runtimeResults: runtimeTableResults,
-            authorize: async ({ queryUuid, exploreNames }) => {
-                const history =
-                    await this.asyncQueryService.getAsyncQueryHistory({
-                        account: fromSession(user),
-                        reader: slackResultReader,
-                        projectUuid: slackPrompt.projectUuid,
-                        queryUuid,
-                    });
-                if (
-                    history.status !== QueryHistoryStatus.READY ||
-                    (history.resultsExpiresAt &&
-                        history.resultsExpiresAt < new Date())
-                ) {
-                    throw new UnexpectedServerError(
-                        'Query results are no longer available',
-                    );
-                }
-                await Promise.all(
-                    exploreNames.map((exploreName) =>
-                        this.getExplore(
-                            user,
-                            slackPrompt.projectUuid,
-                            agent?.tags ?? null,
-                            exploreName,
-                        ),
-                    ),
-                );
-            },
+            authorize: authorizeSlackResults,
             getResults: ({ queryUuid, maxRows }) =>
                 this.asyncQueryService.getRawAsyncQueryResults({
                     account: fromSession(user),
@@ -18268,6 +18275,41 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 }),
         });
         const tableBlocks = getSlackTableBlocks(tablePreviews);
+        const bigNumbers = await getSlackBigNumbers({
+            enableDataAccess: agent?.enableDataAccess === true,
+            slackLinksOnly: slackSettings?.aiLinksOnly === true,
+            toolResults,
+            artifacts: artifactVersions,
+            authorize: authorizeSlackResults,
+            getResult: async ({ queryUuid }) => {
+                const account = fromSession(user);
+                const history =
+                    await this.asyncQueryService.getAsyncQueryHistory({
+                        account,
+                        reader: slackResultReader,
+                        projectUuid: slackPrompt.projectUuid,
+                        queryUuid,
+                    });
+                const { rows } =
+                    await this.asyncQueryService.getRawAsyncQueryResults({
+                        account,
+                        reader: slackResultReader,
+                        projectUuid: slackPrompt.projectUuid,
+                        queryUuid,
+                        aiAccessOnly: true,
+                        maxRows: 1,
+                    });
+                return {
+                    columns: Object.values(history.columns ?? {}),
+                    rows,
+                };
+            },
+            onLoadError: (versionUuid) =>
+                Logger.warn('Could not load Slack big number', {
+                    promptUuid: slackPrompt.promptUuid,
+                    versionUuid,
+                }),
+        });
         // Selecting no table must also omit its artifact card. Links-only and
         // data-access-disabled agents keep their existing link presentation.
         const canShowInlineTables =
@@ -18303,6 +18345,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     dataAppVizVersion,
                 ),
             !!(await this.getDecisionClient(user, slackPrompt.projectUuid)),
+            bigNumbers,
         );
         const sqlArtifactBlocks = await getSqlArtifactCardBlocks(
             slackPrompt.promptUuid,
