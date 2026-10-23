@@ -10,6 +10,7 @@ import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 import { elementRefChipLabel } from '../../../../../features/apps/utils/elementRefs';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
+import { useIsAiAgentNavigationDisabled } from '../../hooks/useIsAiAgentNavigationDisabled';
 import { ContentReferenceLink } from '../ChatElements/ContentReferenceLink';
 import {
     getDataAppContextItemLabel,
@@ -155,7 +156,16 @@ const PinnedDashboardCard: FC<{
     projectUuid: string;
 }> = ({ item, projectUuid }) => {
     const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
+    const navigationDisabled = useIsAiAgentNavigationDisabled();
     const label = item.displayName ?? 'Dashboard';
+
+    if (navigationDisabled) {
+        return (
+            <ContentReferenceLink kind="dashboard" showArrow={false}>
+                {label}
+            </ContentReferenceLink>
+        );
+    }
 
     if (openEmbedDashboard) {
         return (

@@ -97,7 +97,7 @@ const setup = (blocks: SlackArtifactDeliveryMessage['blocks']) => {
             .mockImplementation(async () => message),
         authorize: vi
             .fn<SlackArtifactDeliveryRuntime['authorize']>()
-            .mockResolvedValue(undefined),
+            .mockResolvedValue(true),
         render: vi
             .fn<SlackArtifactDeliveryRuntime['render']>()
             .mockResolvedValue('https://lightdash.test/image/selected'),
@@ -205,6 +205,30 @@ describe('Slack artifact image selection', () => {
 
         expect(harness.runtime.render).toHaveBeenCalledExactlyOnceWith(
             harness.selected,
+        );
+    });
+
+    it('delivers the other images when one version cannot render its input', async () => {
+        const harness = setup(
+            ['selected', 'diagnostic'].map((version) => ({
+                type: 'card',
+                block_id: getSlackArtifactCardBlockId(version),
+            })),
+        );
+        harness.runtime.authorize.mockImplementation(
+            async (input) => input.versionUuid !== 'diagnostic',
+        );
+
+        await deliverSlackArtifactImages(harness);
+
+        expect(harness.runtime.render).toHaveBeenCalledExactlyOnceWith(
+            harness.selected,
+        );
+        expect(harness.runtime.updateMessage).toHaveBeenCalledOnce();
+        expect(harness.model.finish).toHaveBeenCalledExactlyOnceWith(
+            harness.promptUuid,
+            'unavailable',
+            1,
         );
     });
 

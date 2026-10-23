@@ -1,11 +1,18 @@
 import {
+    assertUnreachable,
     buildComposerArtifactPipeline,
     isComposerSlackImageVizConfig,
     isSlackPrompt,
     ParameterError,
+    parsePersistedRunQueryPayload,
+    QuerySourceType,
     toComposerChartArtifactVersion,
+    toComposerSemanticArtifactVersion,
     visualizeToolDefinition,
+    type AiComposerArtifactVersion,
+    type AiComposerSemanticArtifactVersion,
     type ComposerChartVizConfig,
+    type ComposerPipelineNode,
     type ComposerStoredChartVizConfig,
     type ThreadComposerQueryNode,
 } from '@lightdash/common';
@@ -40,6 +47,7 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
     deferSlackVisualization?: DeferSlackVisualizationFn;
     slackLinksOnly: boolean;
+    maxQueryLimit: number;
 };
 
 type VisualizeOutput =
@@ -88,6 +96,72 @@ const toStoredVizConfig = async (
     };
 };
 
+const toPresentedArtifactVersion = ({
+    title,
+    description,
+    queries,
+    terminalNodeId,
+    vizConfig,
+    maxQueryLimit,
+}: {
+    title: string;
+    description: string | null;
+    queries: ComposerPipelineNode[];
+    terminalNodeId: string;
+    vizConfig: ComposerStoredChartVizConfig;
+    maxQueryLimit: number;
+}): AiComposerArtifactVersion | AiComposerSemanticArtifactVersion => {
+    const [node, ...rest] = queries;
+    const semantic =
+        rest.length === 0 && node.sourceType === QuerySourceType.SEMANTIC_LAYER
+            ? toComposerSemanticArtifactVersion({
+                  title,
+                  description,
+                  node,
+                  vizConfig,
+                  maxQueryLimit,
+              })
+            : null;
+    return (
+        semantic ??
+        toComposerChartArtifactVersion({
+            title,
+            description,
+            queries,
+            terminalNodeId,
+            vizConfig,
+        })
+    );
+};
+
+type SlackRenderInput = Parameters<DeferSlackVisualizationFn>[0];
+
+// Classic versions draw through the runQuery Slack path, composer versions through their own.
+const toSlackRenderInput = (
+    {
+        vizConfig,
+    }: AiComposerArtifactVersion | AiComposerSemanticArtifactVersion,
+    execution: Omit<
+        Extract<SlackRenderInput, { source: 'composer' }>,
+        'source'
+    >,
+): SlackRenderInput | null => {
+    switch (vizConfig.source) {
+        case 'composer':
+            return { source: 'composer', ...execution };
+        case 'semantic': {
+            const queryTool = parsePersistedRunQueryPayload(vizConfig.config);
+            return queryTool
+                ? { source: 'runQuery', ...execution, queryTool }
+                : null;
+        }
+        case 'customChartType':
+            return null;
+        default:
+            return assertUnreachable(vizConfig, 'Unknown artifact source');
+    }
+};
+
 export const getVisualize = ({
     getPrompt,
     listThreadComposerQueryNodes,
@@ -97,6 +171,7 @@ export const getVisualize = ({
     updateProgress,
     deferSlackVisualization,
     slackLinksOnly,
+    maxQueryLimit,
 }: Dependencies) =>
     tool({
         description: toolDefinition.description,
@@ -154,29 +229,34 @@ export const getVisualize = ({
                         ? composerChartQualityHints(vizConfig, run.terminal)
                         : [];
 
+                const version = toPresentedArtifactVersion({
+                    title,
+                    description,
+                    queries,
+                    terminalNodeId: nodeId,
+                    vizConfig: storedVizConfig,
+                    maxQueryLimit,
+                });
                 const artifact = await createOrUpdateArtifact({
                     threadUuid,
                     promptUuid,
-                    ...toComposerChartArtifactVersion({
-                        title,
-                        description,
-                        queries,
-                        terminalNodeId: nodeId,
-                        vizConfig: storedVizConfig,
-                    }),
+                    ...version,
                 });
 
-                if (slackImage && run && run.terminal.rows.length > 0) {
+                const slackRenderInput =
+                    slackImage && run && run.terminal.rows.length > 0
+                        ? toSlackRenderInput(version, {
+                              artifactUuid: artifact.artifactUuid,
+                              versionUuid: artifact.versionUuid,
+                              queryUuid: run.terminal.queryUuid,
+                              rowLimit: run.terminal.rows.length,
+                          })
+                        : null;
+                if (slackRenderInput && deferSlackVisualization) {
                     // The answer keeps its link card if the image cannot be registered.
-                    await deferSlackVisualization({
-                        source: 'composer',
-                        artifactUuid: artifact.artifactUuid,
-                        versionUuid: artifact.versionUuid,
-                        queryUuid: run.terminal.queryUuid,
-                        rowLimit: run.terminal.rows.length,
-                    }).catch(() =>
+                    await deferSlackVisualization(slackRenderInput).catch(() =>
                         Logger.warn(
-                            '[AiAgent] Deferred Slack composer image unavailable; retaining the chart link.',
+                            '[AiAgent] Deferred Slack image unavailable; retaining the chart link.',
                         ),
                     );
                 }

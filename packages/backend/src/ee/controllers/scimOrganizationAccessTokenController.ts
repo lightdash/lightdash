@@ -32,6 +32,7 @@ import {
     unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import { assertScimEnabled } from '../scim/scimFeatureFlag';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 
 const SCIM_SCOPES = [ServiceAccountScope.SCIM_MANAGE];
@@ -54,6 +55,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ServiceAccount[] }> {
         assertRegisteredAccount(req.account);
+        await this.assertScimEnabled(req.account.organization.organizationUuid);
         const results = await this.getServiceAccountService().list(
             toSessionUser(req.account),
             SCIM_SCOPES,
@@ -81,6 +83,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         @Body() body: ApiCreateScimServiceAccountRequest, // Service account request without scopes
     ): Promise<{ status: 'ok'; results: ServiceAccount }> {
         assertRegisteredAccount(req.account);
+        await this.assertScimEnabled(req.account.organization.organizationUuid);
         const token = await this.getServiceAccountService().create({
             user: toSessionUser(req.account),
             tokenDetails: {
@@ -114,6 +117,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         @Path() tokenUuid: string,
     ): Promise<{ status: 'ok'; results: undefined }> {
         assertRegisteredAccount(req.account);
+        await this.assertScimEnabled(req.account.organization.organizationUuid);
         await this.getServiceAccountService().delete({
             user: toSessionUser(req.account),
             tokenUuid,
@@ -141,6 +145,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ServiceAccount }> {
         assertRegisteredAccount(req.account);
+        await this.assertScimEnabled(req.account.organization.organizationUuid);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -175,6 +180,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         results: ServiceAccountWithToken;
     }> {
         assertRegisteredAccount(req.account);
+        await this.assertScimEnabled(req.account.organization.organizationUuid);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -185,6 +191,13 @@ export class ScimOrganizationAccessTokenController extends BaseController {
                 prefix: AuthTokenPrefix.SCIM,
             }),
         };
+    }
+
+    protected async assertScimEnabled(organizationUuid: string | undefined) {
+        await assertScimEnabled(
+            this.services.getFeatureFlagService(),
+            organizationUuid,
+        );
     }
 
     // Convenience method to access the getServiceAccountService

@@ -14,8 +14,10 @@ import {
 import { IconX } from '@tabler/icons-react';
 import { useRef, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { AddControl } from './AddControl';
 import classes from './ControlSidebar.module.css';
+import { useRailContractClasses } from './railContractClasses';
 import { useRailTop } from './useRailTop';
 
 type Props = {
@@ -38,8 +40,18 @@ export const EditorShell: FC<Props> = ({
 }) => {
     const ref = useRef<HTMLDivElement>(null);
     useRailTop(ref);
+    const getUiString = useUiStrings();
+    const contractClasses = useRailContractClasses();
     return (
-        <Paper ref={ref} className={classes.root} data-controls-editor>
+        <Paper
+            ref={ref}
+            className={
+                contractClasses
+                    ? `${contractClasses.rail} ${classes.root}`
+                    : classes.root
+            }
+            data-controls-editor
+        >
             <Group
                 justify="space-between"
                 wrap="nowrap"
@@ -49,17 +61,25 @@ export const EditorShell: FC<Props> = ({
                 className={classes.header}
             >
                 <Group gap="xs" wrap="nowrap">
-                    <Title order={5}>Filters</Title>
-                    <Badge size="sm">
-                        {filterCount}
-                        <VisuallyHidden> filters</VisuallyHidden>
-                    </Badge>
+                    <Title order={5}>{getUiString('filters.rail.title')}</Title>
+                    {filterCount > 0 && (
+                        <Badge size="sm">
+                            {filterCount}
+                            <VisuallyHidden>
+                                {` ${getUiString(
+                                    filterCount === 1
+                                        ? 'filters.summary.filterSingular'
+                                        : 'filters.summary.filterPlural',
+                                )}`}
+                            </VisuallyHidden>
+                        </Badge>
+                    )}
                 </Group>
-                <Tooltip label="Close">
+                <Tooltip label={getUiString('filters.rail.close')}>
                     <ActionIcon
                         variant="subtle"
                         color="gray"
-                        aria-label="Close"
+                        aria-label={getUiString('filters.rail.close')}
                         onClick={onClose}
                     >
                         <MantineIcon icon={IconX} />
@@ -98,18 +118,18 @@ export const EditorShell: FC<Props> = ({
                                 flex="0 0 auto"
                                 onClick={onCancel}
                             >
-                                Cancel
+                                {getUiString('filters.actions.cancel')}
                             </Button>
                         </>
                     ) : (
                         <>
-                            <AddControl isVisibilityToggleHidden />
+                            <AddControl placement="rail" />
                             <Button
                                 size="xs"
                                 className={classes.done}
                                 onClick={onClose}
                             >
-                                Done
+                                {getUiString('filters.rail.done')}
                             </Button>
                         </>
                     )}

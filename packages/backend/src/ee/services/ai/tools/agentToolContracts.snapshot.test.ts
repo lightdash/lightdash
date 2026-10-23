@@ -252,6 +252,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             createOrUpdateArtifact: noop,
             updateProgress: noopAsync,
             slackLinksOnly: false,
+            maxQueryLimit: 500,
         }),
         searchFieldValues: getSearchFieldValues({
             searchFieldValues: noop,

@@ -116,7 +116,12 @@ export const AiChartQuickOptions = ({
     const { track } = useTracking();
     const { user } = useApp();
     const ability = useAbilityContext();
-    const { content, embedWriteContext, embedToken } = useEmbed();
+    const {
+        content,
+        embedWriteContext,
+        embedToken,
+        aiAgentNavigationDisabled,
+    } = useEmbed();
     const isEmbed = useIsEmbedded();
     const getBackUrl = useChatBackUrl();
     const optionsAnchorId = `chart-options-${artifactData?.artifactUuid ?? message.uuid}`;
@@ -506,7 +511,7 @@ export const AiChartQuickOptions = ({
     // artifacts only offer the explore action in the full app.
     const hasExploreAction = merge
         ? !isEmbed && !!canonicalMerge
-        : !isEmbed || canExploreFromEmbed;
+        : !isEmbed || (canExploreFromEmbed && !aiAgentNavigationDisabled);
     const hasSqlActions = !!compiledSql;
     const hasQuickActions =
         canDownloadResults ||

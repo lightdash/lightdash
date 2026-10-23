@@ -375,7 +375,7 @@ describe('dismissing in the controls editor', () => {
             expect(row('a')).toHaveFocus();
         });
 
-        it('after a remove goes to the next row, else the one before, else "Add"', () => {
+        it('after a remove goes to the next row; the last one closes the rail, focus on "Add"', () => {
             act(() => value().removeFilter());
             expect(value().isRailOpen).toBe(true);
             expect(screen.queryByText('Row a')).not.toBeInTheDocument();
@@ -383,7 +383,7 @@ describe('dismissing in the controls editor', () => {
 
             fireEvent.click(row('b'));
             act(() => value().removeFilter());
-            expect(value().isRailOpen).toBe(true);
+            expect(value().isRailOpen).toBe(false);
             expect(addButton()).toHaveFocus();
         });
 

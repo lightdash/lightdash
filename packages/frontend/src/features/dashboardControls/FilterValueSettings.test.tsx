@@ -1,9 +1,10 @@
 import {
+    DEFAULT_UI_STRINGS,
     FilterOperator,
     FilterType,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
@@ -55,6 +56,8 @@ const renderSettings = (
     const onChange = vi.fn();
     renderWithProviders(
         <FilterValueSettings
+            isEditMode
+            isCreatingNew={false}
             filterType={filterType}
             field={null}
             filterRule={rule}
@@ -65,6 +68,58 @@ const renderSettings = (
 };
 
 describe('FilterValueSettings', () => {
+    it("clears a viewer's value to any value with the shipped X", async () => {
+        const onChange = vi.fn();
+        const { container } = renderWithProviders(
+            <FilterValueSettings
+                isEditMode={false}
+                isCreatingNew={false}
+                filterType={FilterType.STRING}
+                field={null}
+                filterRule={makeRule({ values: ['done'] })}
+                onChange={onChange}
+            />,
+            {
+                user: {
+                    abilityRules: [{ action: 'manage', subject: 'Explore' }],
+                },
+            },
+        );
+        const clear = await waitFor(() => {
+            const icon = container.querySelector('.tabler-icon-x');
+            if (!icon) throw new Error('no clear X yet');
+            return icon.closest('button') as HTMLButtonElement;
+        });
+        fireEvent.click(clear);
+        expect(onChange).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'filter-1', values: [] }),
+        );
+    });
+
+    it.each([
+        [true, true],
+        [false, false],
+    ])(
+        'labels a viewer\'s new filter "Value", as the shipped form (new: %s)',
+        (isCreatingNew, hasLabel) => {
+            renderWithProviders(
+                <FilterValueSettings
+                    isEditMode={false}
+                    isCreatingNew={isCreatingNew}
+                    filterType={FilterType.STRING}
+                    field={null}
+                    filterRule={makeRule({})}
+                    onChange={vi.fn()}
+                />,
+            );
+            expect(
+                screen.queryAllByText(
+                    DEFAULT_UI_STRINGS['filters.config.valueLabel'],
+                ),
+            ).toHaveLength(hasLabel ? 1 : 0);
+        },
+    );
+
     it('leaves out the label input and the Required card of the shipped form', () => {
         renderSettings(makeRule({ values: ['done'] }));
 

@@ -1,5 +1,6 @@
 import {
     DashboardTileTypes,
+    DEFAULT_UI_STRINGS,
     type DashboardFilters,
     type DashboardFilterRule,
     type DashboardTab,
@@ -17,6 +18,7 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { ControlSidebar } from './ControlSidebar';
+import { RailContractClasses } from './railContractClasses';
 import { type ControlsSidebarContextValue } from './useControlsSidebar';
 import { LABEL_COMMIT_DELAY } from './useLabelDraft';
 
@@ -61,6 +63,9 @@ vi.mock('./FilterSettings', () => ({
         tilesSummary: string;
     }) => (
         <div data-testid="filter-settings">
+            <div data-controls-value>
+                <input aria-label="Operator" />
+            </div>
             {field ? `Settings for ${field.label}` : 'Settings with no field'}
             <span data-testid="tiles-summary">{tilesSummary}</span>
         </div>
@@ -102,6 +107,8 @@ const makeRule = (
 const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
     const value: ControlsSidebarContextValue = {
         editing: { filterId: 'filter-1' },
+        isViewer: false,
+        canAddFilters: true,
         isNew: true,
         isPlaceholder: false,
         editingRule: makeRule({}),
@@ -156,9 +163,13 @@ const renderWithProviders = (
         metrics: [],
         tableCalculations: [],
     },
+    dashboardTemporaryFilters?: DashboardFilters,
 ) => {
     const store = seedDashboardEditState(
-        createDashboardTestStore({ dashboardFilters }),
+        createDashboardTestStore({
+            dashboardFilters,
+            dashboardTemporaryFilters,
+        }),
         mockDashboardContext.current as DashboardEditTestValues,
     );
     const wrap = (node: ReactElement) => (
@@ -192,6 +203,7 @@ describe('ControlSidebar', () => {
                 tile('c', undefined),
             ],
             dashboardTabs: [],
+            hiddenFilterableFieldIds: new Set<string>(),
             filterableFieldsByTileUuid: {
                 a: [field],
                 b: [field, { ...field, name: 'region', label: 'Region' }],
@@ -269,6 +281,37 @@ describe('ControlSidebar', () => {
             expect(row).not.toHaveTextContent('done');
         });
 
+        it('reads a group member as met while its alternative has a value', () => {
+            setSidebar({ isNew: false });
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([
+                    makeRule({ requiredGroupId: 'group-1' }),
+                    other({ requiredGroupId: 'group-1', values: [] }),
+                ]),
+            );
+
+            const row = screen.getByRole('button', { name: /Order status/ });
+            expect(row).toHaveTextContent(/· Required$/);
+            expect(row).not.toHaveTextContent(/set a value/);
+        });
+
+        it('gives an unmet group member the group wording', () => {
+            setSidebar({ isNew: false });
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([
+                    makeRule({ requiredGroupId: 'group-1', values: [] }),
+                    other({ requiredGroupId: 'group-1', values: [] }),
+                ]),
+            );
+
+            const row = screen.getByRole('button', { name: /Order status/ });
+            expect(row).toHaveTextContent(
+                DEFAULT_UI_STRINGS['filters.required.setValueGroupTooltip'],
+            );
+        });
+
         it('opens the filter of a row on click', () => {
             const { open } = setSidebar({ isNew: false });
             renderWithProviders(
@@ -282,9 +325,9 @@ describe('ControlSidebar', () => {
             expect(open).toHaveBeenCalledWith('filter-2');
         });
 
-        it('disables a row whose field cannot be resolved', () => {
-            setSidebar({ isNew: false });
-            renderWithProviders(
+        it('leaves a row whose field cannot be resolved one that opens nothing', () => {
+            const { open } = setSidebar({ isNew: false });
+            const { container } = renderWithProviders(
                 <ControlSidebar />,
                 filters([
                     makeRule({}),
@@ -294,9 +337,13 @@ describe('ControlSidebar', () => {
                 ]),
             );
 
-            expect(
-                screen.getByRole('button', { name: /Order status/ }),
-            ).toBeDisabled();
+            const row = container.querySelector(
+                '[data-controls-row="filter-2"]',
+            );
+            expect(row?.tagName).not.toBe('BUTTON');
+            expect(row).toHaveAttribute('aria-disabled', 'true');
+            fireEvent.click(row as Element);
+            expect(open).not.toHaveBeenCalled();
         });
     });
 
@@ -455,6 +502,50 @@ describe('ControlSidebar', () => {
         expect(discard).toHaveBeenCalledTimes(1);
         expect(openNew).not.toHaveBeenCalled();
         expect(close).not.toHaveBeenCalled();
+    });
+
+    it('counts the filters in the header from 1, with no badge at 0', () => {
+        setSidebar({ editing: null, editingRule: null });
+        const { container, unmount } = renderWithProviders(
+            <ControlSidebar />,
+            filters([]),
+        );
+        expect(container.querySelector('.mantine-Badge-root')).toBeNull();
+        unmount();
+
+        const { container: withOne, unmount: unmountOne } = renderWithProviders(
+            <ControlSidebar />,
+            filters([makeRule({})]),
+        );
+        expect(withOne.querySelector('.mantine-Badge-root')).toHaveTextContent(
+            /^1 filter$/,
+        );
+        unmountOne();
+
+        const { container: withTwo } = renderWithProviders(
+            <ControlSidebar />,
+            filters([makeRule({}), makeRule({ id: 'filter-2' })]),
+        );
+        expect(withTwo.querySelector('.mantine-Badge-root')).toHaveTextContent(
+            /^2 filters$/,
+        );
+    });
+
+    it('shows no type icon in the head until the new filter has a field', () => {
+        setSidebar({
+            isPlaceholder: true,
+            editingRule: makeRule({
+                target: { fieldId: '', tableName: '' },
+            }),
+        });
+        const { container, rerender } = renderWithProviders(<ControlSidebar />);
+        const headIcon = () =>
+            container.querySelector('[class*="editedHead"] [class*="rowIcon"]');
+        expect(headIcon()).toBeNull();
+
+        setSidebar({ isPlaceholder: false, editingRule: makeRule({}) });
+        rerender(<ControlSidebar />);
+        expect(headIcon()).not.toBeNull();
     });
 
     it('keeps the name of an existing control left with no field', () => {
@@ -621,14 +712,17 @@ describe('ControlSidebar', () => {
         const { close, discard, openNew } = setSidebar({
             editingRule: makeRule({ label: 'Order status' }),
         });
-        renderWithProviders(<ControlSidebar />);
+        renderWithProviders(
+            <ControlSidebar />,
+            filters([makeRule({ label: 'Order status' })]),
+        );
 
         expect(screen.getByRole('heading', { name: 'Filters' })).toBeVisible();
         // The count badge reads as words, not a bare number
         expect(
             screen.getByRole('heading', { name: 'Filters' }).nextElementSibling
                 ?.textContent,
-        ).toMatch(/^\d+ filters$/);
+        ).toMatch(/^1 filter$/);
         fireEvent.click(screen.getByRole('button', { name: 'Done' }));
         expect(close).toHaveBeenCalledTimes(1);
 
@@ -853,6 +947,142 @@ describe('ControlSidebar', () => {
             unmount();
             vi.advanceTimersByTime(LABEL_COMMIT_DELAY * 2);
             expect(updateFilter).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('for a viewer', () => {
+        const saved = makeRule({ id: 'saved', label: 'Order status' });
+        const own = makeRule({ id: 'own', label: undefined });
+
+        it('lists only their own filters, marked "Added by you"', () => {
+            setSidebar({ isViewer: true, editing: null, editingRule: null });
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([saved]),
+                filters([own]),
+            );
+            const rows = screen
+                .getAllByRole('button', { expanded: false })
+                .filter((row) => row.hasAttribute('data-controls-row'));
+            expect(rows.map((row) => row.dataset.controlsRow)).toEqual(['own']);
+            expect(rows[0]).toHaveTextContent('Added by you');
+            expect(screen.getByText('1')).toBeInTheDocument();
+        });
+
+        it('carries the class an embed gives the rail', () => {
+            setSidebar({ isViewer: true, editing: null, editingRule: null });
+            const { container } = renderWithProviders(
+                <RailContractClasses.Provider
+                    value={{
+                        rail: 'ld-dashboard-filter-rail',
+                        addFilterDropdown: 'add-list',
+                        filterDropdown: 'value-list',
+                    }}
+                >
+                    <ControlSidebar />
+                </RailContractClasses.Provider>,
+            );
+            expect(
+                container.querySelector('[data-controls-editor]'),
+            ).toHaveClass('ld-dashboard-filter-rail');
+        });
+
+        it('says which field a row cannot resolve, as the invalid pill', async () => {
+            const open = vi.fn();
+            setSidebar({
+                isViewer: true,
+                editing: null,
+                editingRule: null,
+                open,
+            });
+            const { container } = renderWithProviders(
+                <ControlSidebar />,
+                filters([]),
+                filters([
+                    {
+                        ...own,
+                        target: { fieldId: 'orders_gone', tableName: 'orders' },
+                    },
+                ]),
+            );
+            const row = container.querySelector<HTMLElement>(
+                '[data-controls-row="own"]',
+            );
+            expect(row).toHaveAttribute('tabindex', '0');
+            expect(row).toHaveAttribute('role', 'button');
+            expect(row).toHaveAttribute('aria-disabled', 'true');
+            expect(row).toHaveAccessibleName(/Added by you/);
+            expect(row).toHaveAccessibleDescription(
+                'Tried to reference field with unknown id: orders_gone',
+            );
+            fireEvent.click(row as Element);
+            expect(open).not.toHaveBeenCalled();
+            fireEvent.mouseEnter(row as Element);
+            expect(
+                await screen.findByText(
+                    'Tried to reference field with unknown id: orders_gone',
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it('sends focus to the value once a new filter gets a field', () => {
+            setSidebar({
+                isViewer: true,
+                isNew: true,
+                isPlaceholder: true,
+                editing: { filterId: 'own' },
+                editingRule: {
+                    ...own,
+                    target: { fieldId: '', tableName: '' },
+                },
+            });
+            const { rerender } = renderWithProviders(<ControlSidebar />);
+            setSidebar({
+                isViewer: true,
+                isNew: true,
+                isPlaceholder: false,
+                editing: { filterId: 'own' },
+                editingRule: own,
+            });
+            rerender(<ControlSidebar />);
+            expect(screen.getByLabelText('Operator')).toHaveFocus();
+        });
+
+        it('focuses the name of an own filter it opens', () => {
+            setSidebar({
+                isViewer: true,
+                isNew: false,
+                editing: { filterId: 'own' },
+                editingRule: own,
+            });
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([]),
+                filters([own]),
+            );
+            expect(document.activeElement).toHaveAttribute(
+                'data-controls-label',
+            );
+        });
+
+        it('edits their own filter with no label input, and can remove it', () => {
+            setSidebar({
+                isViewer: true,
+                isNew: false,
+                editing: { filterId: 'own' },
+                editingRule: own,
+            });
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([saved]),
+                filters([own]),
+            );
+            expect(
+                screen.queryByRole('textbox', { name: 'Filter label' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Remove filter' }),
+            ).toBeInTheDocument();
         });
     });
 });

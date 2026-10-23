@@ -2283,15 +2283,15 @@ export class AiAgentService extends BaseService {
                     input.artifactUuid,
                     input.versionUuid,
                 );
-                const source = getSlackImageSource(input, artifact.chartConfig);
                 if (
                     artifact.promptUuid !== promptUuid ||
-                    artifact.threadUuid !== prompt.threadUuid ||
-                    !source
+                    artifact.threadUuid !== prompt.threadUuid
                 )
                     throw new ForbiddenError(
                         'Slack image does not belong to this prompt',
                     );
+                const source = getSlackImageSource(input, artifact.chartConfig);
+                if (!source) return false;
                 await Promise.all(
                     source.exploreNames.map((exploreName) =>
                         this.getExplore(
@@ -2309,6 +2309,7 @@ export class AiAgentService extends BaseService {
                     queryUuid: input.queryUuid,
                 });
                 artifacts.set(input.versionUuid, { artifact, source });
+                return true;
             },
             render: async (input) => {
                 signal?.throwIfAborted();

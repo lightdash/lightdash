@@ -1,8 +1,4 @@
-import {
-    CommercialFeatureFlags,
-    LightdashInstallType,
-    LightdashMode,
-} from '@lightdash/common';
+import { LightdashInstallType, LightdashMode } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import {
@@ -277,26 +273,35 @@ describe('health', () => {
                 .hasPlaygroundProjects,
         ).toBe(true);
     });
-    it('reports pre-aggregates per organization when the caller has one', async () => {
-        vi.mocked(featureFlagModelMock.get).mockResolvedValueOnce({
-            id: CommercialFeatureFlags.PreAggregates,
-            enabled: true,
-        });
+    it.each([true, false])(
+        'reports the instance config for pre-aggregates to every caller: %s',
+        async (enabled) => {
+            const service = new HealthService({
+                organizationModel:
+                    organizationModel as unknown as OrganizationModel,
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    preAggregates: {
+                        ...lightdashConfigMock.preAggregates,
+                        enabled,
+                    },
+                },
+                licenseService,
+                migrationModel: migrationModel as unknown as MigrationModel,
+                organizationSettingsModel:
+                    organizationSettingsModel as unknown as OrganizationSettingsModel,
+                featureFlagModel: featureFlagModelMock,
+                learnSandboxService: learnSandboxServiceMock,
+            });
 
-        expect(
-            (await healthService.getHealthState(userMock)).preAggregates,
-        ).toEqual({ enabled: true });
-        expect(featureFlagModelMock.get).toHaveBeenCalledWith({
-            user: { organizationUuid: userMock.organizationUuid },
-            featureFlagId: CommercialFeatureFlags.PreAggregates,
-        });
-    });
-
-    it('reports the instance config for pre-aggregates to anonymous callers', async () => {
-        expect(
-            (await healthService.getHealthState(undefined)).preAggregates,
-        ).toEqual({ enabled: lightdashConfigMock.preAggregates.enabled });
-    });
+            expect(
+                (await service.getHealthState(userMock)).preAggregates,
+            ).toEqual({ enabled });
+            expect(
+                (await service.getHealthState(undefined)).preAggregates,
+            ).toEqual({ enabled });
+        },
+    );
 
     it('returns the enterprise license validation result', async () => {
         expect((await healthService.getHealthState(undefined)).license).toEqual(

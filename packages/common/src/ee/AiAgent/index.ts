@@ -54,6 +54,7 @@ export * from './constants';
 export * from './coder';
 export * from './composerArtifact';
 export * from './composerChartVizConfig';
+export * from './composerSemanticArtifact';
 export * from './composerViz';
 export * from './composerVizPanel';
 export * from './dashboardContext';

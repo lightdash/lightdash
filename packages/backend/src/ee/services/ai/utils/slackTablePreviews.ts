@@ -35,48 +35,57 @@ const tableCallArgsSchema = z.object({
         .nullish(),
 });
 
-/** A composer version visualized as a table, with the semantic explores its pipeline reads. */
-const getComposerTable = (
+const getExploreNames = (args: z.infer<typeof tableCallArgsSchema>) => [
+    ...new Set([
+        args.queryConfig.exploreName,
+        ...(args.mergeConfig?.additionalSources.map(
+            (source) => source.queryConfig.exploreName,
+        ) ?? []),
+    ]),
+];
+
+/** A version saved as a table, with the semantic explores its query reads. */
+const getTableArtifact = (
     artifact: AiArtifact | undefined,
 ): { title: string | null; exploreNames: string[] } | null => {
     const chartConfig = artifact?.chartConfig;
+    if (!artifact || !chartConfig || isAiSqlChartArtifactConfig(chartConfig)) {
+        return null;
+    }
+    const title = artifact.title || null;
+    if (isAiComposerChartArtifactConfig(chartConfig)) {
+        if (
+            chartConfig.schemaVersion !== 2 ||
+            chartConfig.vizConfig?.type !== 'table'
+        ) {
+            return null;
+        }
+        return {
+            title,
+            exploreNames: [
+                ...new Set(
+                    chartConfig.queries.flatMap((node) =>
+                        node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                            ? [node.exploreName]
+                            : [],
+                    ),
+                ),
+            ],
+        };
+    }
+    const args = tableCallArgsSchema.safeParse(chartConfig.config);
     if (
-        !artifact ||
-        !isAiComposerChartArtifactConfig(chartConfig) ||
-        chartConfig.schemaVersion !== 2 ||
-        chartConfig.vizConfig?.type !== 'table'
+        !args.success ||
+        (args.data.chartConfig &&
+            args.data.chartConfig.defaultVizType !== 'table')
     ) {
         return null;
     }
-    return {
-        title: artifact.title || null,
-        exploreNames: [
-            ...new Set(
-                chartConfig.queries.flatMap((node) =>
-                    node.sourceType === QuerySourceType.SEMANTIC_LAYER
-                        ? [node.exploreName]
-                        : [],
-                ),
-            ),
-        ],
-    };
+    return { title, exploreNames: getExploreNames(args.data) };
 };
 
-export const isSlackTableArtifact = (artifact: AiArtifact): boolean => {
-    const { chartConfig } = artifact;
-    if (isAiComposerChartArtifactConfig(chartConfig)) {
-        return getComposerTable(artifact) !== null;
-    }
-    if (!chartConfig || isAiSqlChartArtifactConfig(chartConfig)) {
-        return false;
-    }
-    const args = tableCallArgsSchema.safeParse(chartConfig.config);
-    return (
-        args.success &&
-        (!args.data.chartConfig ||
-            args.data.chartConfig.defaultVizType === 'table')
-    );
-};
+export const isSlackTableArtifact = (artifact: AiArtifact): boolean =>
+    getTableArtifact(artifact) !== null;
 
 export const getSlackTablePreviews = async ({
     enableDataAccess,
@@ -147,7 +156,7 @@ export const getSlackTablePreviews = async ({
             resultsByCall.get(call.tool_call_id)?.metadata,
         );
         if (!metadata) return [];
-        const table = getComposerTable(
+        const table = getTableArtifact(
             artifactsByVersion.get(metadata.versionUuid),
         );
         if (!table) return [];
@@ -195,14 +204,7 @@ export const getSlackTablePreviews = async ({
             {
                 call,
                 title: artifact?.title || args.data.title || null,
-                exploreNames: [
-                    ...new Set([
-                        args.data.queryConfig.exploreName,
-                        ...(args.data.mergeConfig?.additionalSources.map(
-                            (source) => source.queryConfig.exploreName,
-                        ) ?? []),
-                    ]),
-                ],
+                exploreNames: getExploreNames(args.data),
                 metadata: metadata.data,
                 artifact,
             },

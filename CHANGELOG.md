@@ -1,3 +1,45 @@
+## [3.44.1](https://github.com/lightdash/lightdash/compare/3.44.0...3.44.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* gate SCIM token management and provisioning on scim-token-management flag ([#31474](https://github.com/lightdash/lightdash/issues/31474)) ([380e2c9](https://github.com/lightdash/lightdash/commit/380e2c9a59d786df164cdee849e93e49a38363fb))
+
+# [3.44.0](https://github.com/lightdash/lightdash/compare/3.43.0...3.44.0) (2026-10-23)
+
+
+### Features
+
+* **dashboards:** open the filter rail for dashboard viewers ([#31466](https://github.com/lightdash/lightdash/issues/31466)) ([ea5e1f3](https://github.com/lightdash/lightdash/commit/ea5e1f3c94e9bc1670bcccc2f75b77b5202582d7))
+
+# [3.43.0](https://github.com/lightdash/lightdash/compare/3.42.2...3.43.0) (2026-10-23)
+
+
+### Features
+
+* **ai:** lone semantic node presents as a classic semantic artifact ([#31464](https://github.com/lightdash/lightdash/issues/31464)) ([93cfa2f](https://github.com/lightdash/lightdash/commit/93cfa2fae645d849d150769b1c5197167a6e83a3))
+
+## [3.42.2](https://github.com/lightdash/lightdash/compare/3.42.1...3.42.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* wait for guided tour highlights in detour test ([#31478](https://github.com/lightdash/lightdash/issues/31478)) ([8289598](https://github.com/lightdash/lightdash/commit/82895986fa442bae705fedcb02d0c2348ca6aefe))
+
+## [3.42.1](https://github.com/lightdash/lightdash/compare/3.42.0...3.42.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* reject leading spaces in connection form fields ([#31459](https://github.com/lightdash/lightdash/issues/31459)) ([8bb17de](https://github.com/lightdash/lightdash/commit/8bb17de139f6ebdcef59a90fa0b1f1b97d33ec98))
+
+# [3.42.0](https://github.com/lightdash/lightdash/compare/3.41.1...3.42.0) (2026-10-23)
+
+
+### Features
+
+* **sdk:** add disableNavigation option to the AI agent ([#31472](https://github.com/lightdash/lightdash/issues/31472)) ([358ee23](https://github.com/lightdash/lightdash/commit/358ee239f9f83c0eeecb0671e9eb65821fb62cf9))
+
 ## [3.41.1](https://github.com/lightdash/lightdash/compare/3.41.0...3.41.1) (2026-10-23)
 
 
