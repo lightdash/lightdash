@@ -73,7 +73,7 @@ const toStoredVizConfig = async (
     );
     if (!resolved) {
         throw new ParameterError(
-            `Custom chart type "${vizConfig.customChartTypeSlug}" does not exist in this project. Use the slug of one of the project's custom chart types, or a built-in type.`,
+            `Custom chart type "${vizConfig.customChartTypeSlug}" was not found in this project. Use the slug of one of the project's custom chart types, or a built-in type.`,
         );
     }
     return {

@@ -360,7 +360,7 @@ describe('visualize', () => {
 
         expect(output.metadata.status).toBe('error');
         expect(output.result).toContain(
-            'Custom chart type "sankey" does not exist in this project',
+            'Custom chart type "sankey" was not found in this project',
         );
         expect(versions).toEqual([]);
     });
