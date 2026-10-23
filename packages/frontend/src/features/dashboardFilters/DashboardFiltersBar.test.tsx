@@ -1,6 +1,6 @@
 import { type ParameterDefinitions } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { type ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type DashboardContextType } from '../../providers/Dashboard/types';
@@ -14,6 +14,7 @@ const definitions: ParameterDefinitions = {
 };
 
 const context = vi.hoisted(() => ({ current: {} as DashboardContextType }));
+const compact = vi.hoisted(() => ({ current: false }));
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: (selector: (value: DashboardContextType) => unknown) =>
@@ -23,7 +24,7 @@ vi.mock('../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
 }));
 vi.mock('../../components/common/Page/useCompactContentHeader', () => ({
-    useCompactContentHeader: () => false,
+    useCompactContentHeader: () => compact.current,
 }));
 vi.mock('../../ee/providers/Embed/useUiStrings', () => ({
     useUiStrings: () => (key: string) => key,
@@ -64,22 +65,25 @@ const parameterButtons = (name: RegExp | string) =>
         .filter((element) => element.tagName === 'BUTTON');
 
 const renderBar = (overrides: Partial<typeof props> = {}) =>
-    render(
-        <DashboardStoreTestProvider
-            store={createDashboardTestStore({
-                parameterDefinitions: definitions,
-                parameterValues: props.parameterValues,
-                pinnedParameters: props.pinnedParameters,
-            })}
-        >
-            <MantineProvider>
-                <DashboardFiltersBar {...props} {...overrides} />
-            </MantineProvider>
-        </DashboardStoreTestProvider>,
-    );
+    render(barElement(overrides));
+
+const barElement = (overrides: Partial<typeof props> = {}) => (
+    <DashboardStoreTestProvider
+        store={createDashboardTestStore({
+            parameterDefinitions: definitions,
+            parameterValues: props.parameterValues,
+            pinnedParameters: props.pinnedParameters,
+        })}
+    >
+        <MantineProvider>
+            <DashboardFiltersBar {...props} {...overrides} />
+        </MantineProvider>
+    </DashboardStoreTestProvider>
+);
 
 describe('DashboardFiltersBar legacy pinned parameters', () => {
     beforeEach(() => {
+        compact.current = false;
         context.current = {
             isAddFilterDisabled: false,
             dashboard: { projectUuid: 'project-uuid' },
@@ -121,5 +125,42 @@ describe('DashboardFiltersBar legacy pinned parameters', () => {
         expect(
             screen.queryByRole('button', { name: /^Currency|^Metric/ }),
         ).not.toBeInTheDocument();
+    });
+});
+
+describe('DashboardFiltersBar isCompactDrawerSuppressed', () => {
+    beforeEach(() => {
+        compact.current = true;
+        context.current = {
+            isAddFilterDisabled: false,
+            dashboard: { projectUuid: 'project-uuid' },
+            setParameter: vi.fn(),
+            toggleParameterPin: vi.fn(),
+            setPinnedParameters: vi.fn(),
+            setIsDateZoomDisabled: vi.fn(),
+        } as unknown as DashboardContextType;
+    });
+
+    const drawerButton = () =>
+        screen.queryByRole('button', { name: 'filters.panel.title' });
+
+    it('keeps the drawer button on a narrow screen by default', () => {
+        renderBar();
+
+        expect(drawerButton()).toBeInTheDocument();
+        expect(parameterButtons('Currency is usd')).toHaveLength(0);
+    });
+
+    it('renders the bar in place and closes the drawer when suppressed', () => {
+        const { rerender } = renderBar();
+        fireEvent.click(drawerButton()!);
+        expect(drawerButton()).toHaveAttribute('aria-expanded', 'true');
+
+        rerender(barElement({ isCompactDrawerSuppressed: true }));
+        expect(drawerButton()).not.toBeInTheDocument();
+        expect(parameterButtons('Currency is usd')).toHaveLength(1);
+
+        rerender(barElement());
+        expect(drawerButton()).toHaveAttribute('aria-expanded', 'false');
     });
 });

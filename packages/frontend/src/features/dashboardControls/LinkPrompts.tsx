@@ -10,6 +10,7 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams } from 'react-router';
 import FieldSelect from '../../components/common/FieldSelect';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectDashboardFilters,
@@ -101,7 +102,11 @@ const LinkCard: FC<CardProps> = ({
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
     const dismissLink = useControlsSidebarSelector((c) => c.dismissLink);
     const [picks, setPicks] = useState<Picks>({});
-    const tileTitle = getTileTitle(tile, 'this tile');
+    const getUiString = useUiStrings();
+    const tileTitle = getTileTitle(
+        tile,
+        getUiString('filters.tileCard.thisTile'),
+    );
     const getFilterLabel = (rule: DashboardFilterRule) =>
         rule.label ?? getLabel(rule.target.fieldId);
 

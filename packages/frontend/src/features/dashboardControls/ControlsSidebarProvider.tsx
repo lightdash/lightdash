@@ -297,7 +297,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     isEditMode: isEditModeInput,
     children,
 }) => {
-    // The dashboard's own Save or Cancel ends the edit; nothing is restored.
+    // A mode change closes the edit as Done does; in the app the header guard
+    // closes it before the dashboard's own Save or Cancel.
     // Outside edit mode the editor is a viewer's: it writes temporary filters
     const { mode } = useParams<{ mode?: string }>();
     const isEditMode = isEditModeInput ?? mode === 'edit';
