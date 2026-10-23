@@ -17,11 +17,17 @@ type Props = {
     placement: 'bar' | 'rail';
     /** An embed's class contract hook on the trigger (default none). */
     triggerClassName?: string;
+    /** The viewer bar's tooltip (default: the shipped app wording). */
+    unsavedFiltersTooltip?: string;
 };
 
 // The shipped "Add filter". Its popover is never given an id to open on, so a
 // click only calls `onPopoverOpen`, which opens a new control
-export const AddControl: FC<Props> = ({ placement, triggerClassName }) => {
+export const AddControl: FC<Props> = ({
+    placement,
+    triggerClassName,
+    unsavedFiltersTooltip,
+}) => {
     const openNew = useControlsSidebarSelector((c) => c.openNew);
     const canAddFilters = useControlsSidebarSelector((c) => c.canAddFilters);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
@@ -38,6 +44,7 @@ export const AddControl: FC<Props> = ({ placement, triggerClassName }) => {
             isEditMode={!isBarOfViewer}
             isVisibilityToggleHidden={placement === 'rail'}
             triggerClassName={triggerClassName}
+            unsavedFiltersTooltip={unsavedFiltersTooltip}
             activeTabUuid={undefined}
             openPopoverId={undefined}
             onPopoverOpen={() => openNew()}

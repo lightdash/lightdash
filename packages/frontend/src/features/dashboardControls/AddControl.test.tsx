@@ -161,6 +161,19 @@ describe('AddControl', () => {
             expect(mockSidebar.current.openNew).toHaveBeenCalledTimes(1);
         });
 
+        it('shows the tooltip it is given, as an embed passes it', async () => {
+            renderWithProviders(
+                <AddControl
+                    placement="bar"
+                    unsavedFiltersTooltip="Filters you add reset on reload"
+                />,
+            );
+            fireEvent.mouseEnter(add());
+            expect(
+                await screen.findByText('Filters you add reset on reload'),
+            ).toBeInTheDocument();
+        });
+
         it('is in the rail footer too', () => {
             renderWithProviders(<AddControl placement="rail" />);
             expect(add()).toBeEnabled();

@@ -1,4 +1,5 @@
 import {
+    DEFAULT_UI_STRINGS,
     FilterInteractivityValues,
     FilterOperator,
     type Dashboard,
@@ -25,8 +26,18 @@ vi.mock('../../../../../features/dashboardControls/useControlsSidebar', () => ({
     ) => selector(mockSidebar.current),
 }));
 vi.mock('../../../../../features/dashboardControls/AddControl', () => ({
-    AddControl: ({ triggerClassName }: { triggerClassName?: string }) => (
-        <button type="button" className={triggerClassName}>
+    AddControl: ({
+        triggerClassName,
+        unsavedFiltersTooltip,
+    }: {
+        triggerClassName?: string;
+        unsavedFiltersTooltip?: string;
+    }) => (
+        <button
+            type="button"
+            className={triggerClassName}
+            data-tooltip={unsavedFiltersTooltip}
+        >
             Rail add
         </button>
     ),
@@ -106,6 +117,12 @@ describe('EmbedDashboardFilterBar', () => {
         expect(screen.queryByTestId('shipped-filters')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Rail add' })).toHaveClass(
             'ld-dashboard-add-filter',
+        );
+        expect(
+            screen.getByRole('button', { name: 'Rail add' }),
+        ).toHaveAttribute(
+            'data-tooltip',
+            DEFAULT_UI_STRINGS['filters.unsavedFiltersTooltip'],
         );
         expect(screen.getByTestId('rail-pills')).toHaveClass(
             'ld-dashboard-filter',

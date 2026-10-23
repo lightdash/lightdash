@@ -49,12 +49,16 @@ const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
 }) => {
     const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    const getUiString = useUiStrings();
     if (isRailOpen) return <EditingStrip />;
     return (
         <>
             <AddControl
                 placement="bar"
                 triggerClassName={embedContractClass('ld-dashboard-add-filter')}
+                unsavedFiltersTooltip={getUiString(
+                    'filters.unsavedFiltersTooltip',
+                )}
             />
             {!canAddFilters && <EmbedResetFiltersButton />}
             <FilterPills
