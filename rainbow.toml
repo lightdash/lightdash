@@ -20,6 +20,7 @@ restart_on_inject = true           # re-exec on fork to read the injected SITE_U
 name = "snowflake-ai-stub"
 command = "PORT=3900 node packages/api-tests/stub/snowflake-ai-stub.mjs"
 port = 3900
+restart_on_inject = true           # re-exec with the fork's injected env, as the dev service does
 
 # Anyone with the URL can open an environment of this repo.
 [access]
