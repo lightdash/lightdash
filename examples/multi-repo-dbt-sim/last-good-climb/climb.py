@@ -129,13 +129,13 @@ def find_cycle(edges):
     return next((found for node in edges if (found := visit(node))), None)
 
 
-def external_nodes(manifest, *, public_only=True):
+def external_nodes(manifest):
     models = [
         node
         for node in manifest["nodes"].values()
         if node.get("resource_type") == "model"
         and (node.get("path") or node.get("original_file_path"))
-        and (not public_only or node.get("access") == "public")
+        and node.get("access") == "public"
     ]
     model_ids = {node["unique_id"] for node in models}
     return [
@@ -301,15 +301,13 @@ def publish_manifest(target, store, project):
     shutil.copyfile(target / "manifest.json", destination)
 
 
-def injection_for(store, upstreams, *, public_only=True):
+def injection_for(store, upstreams):
     nodes = []
     for upstream in upstreams:
         path = manifest_path(store, upstream)
         if not path.is_file():
             raise FileNotFoundError(path)
-        nodes.extend(
-            external_nodes(json.loads(path.read_text()), public_only=public_only)
-        )
+        nodes.extend(external_nodes(json.loads(path.read_text())))
     return nodes
 
 

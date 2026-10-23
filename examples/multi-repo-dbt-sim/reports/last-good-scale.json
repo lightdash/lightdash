@@ -6,8 +6,52 @@
     "bytes": "reported kilobytes * 1024",
     "scope": "peak_rss_bytes is the climb dbt parse. injector_peak_rss_bytes is a separate Python process that loads the other manifests and writes the external-node payload. baseline.peak_rss_bytes is the highest of the per-source stubbed parses. Each timed command is one process."
   },
-  "injection_policy": "all-real-models",
-  "injection_policy_note": "The two-project present/withheld proof injects access=public models. This scale parse injects every real model from every other source and does not apply the ref filter. ref_filtered_* is the smaller payload that filter would keep; it was not the timed parse.",
+  "injection_policy": "access-public",
+  "injection_policy_note": "Injected nodes are real models with access public. Protected and private models are omitted, including when access is unset. This is the dbt Mesh and dbt-loom share surface. The climb does not inject every real model and then filter by ref. ref_filtered_* is recorded and was not applied to the timed parse.",
+  "previous_inject_all": {
+    "injection_policy": "all-real-models",
+    "note": "Headline figures from the prior scale run on this branch, which injected every real model. These fixtures marked every model access public, so the injected node count matched the public count.",
+    "fixtures": [
+      {
+        "fixture": "large-org",
+        "source_count": 19,
+        "models": 49,
+        "manifest_model_nodes": 49,
+        "artefact_bytes_total": 10321806,
+        "injected_node_count": 44,
+        "injected_payload_bytes": 12117,
+        "public_injected_node_count": 44,
+        "peak_rss_bytes": 133746688,
+        "parse_seconds": 2.531,
+        "injector_peak_rss_bytes": 21372928,
+        "injector_seconds": 0.083,
+        "baseline_checkout_bytes": 125473,
+        "baseline_parse_seconds": 48.593,
+        "baseline_peak_rss_bytes": 133328896,
+        "withheld_parse_seconds": 2.423,
+        "withheld_peak_rss_bytes": 130777088
+      },
+      {
+        "fixture": "full",
+        "source_count": 22,
+        "models": 3000,
+        "manifest_model_nodes": 3001,
+        "artefact_bytes_total": 24698216,
+        "injected_node_count": 2901,
+        "injected_payload_bytes": 862923,
+        "public_injected_node_count": 2901,
+        "peak_rss_bytes": 178040832,
+        "parse_seconds": 4.343,
+        "injector_peak_rss_bytes": 54591488,
+        "injector_seconds": 0.207,
+        "baseline_checkout_bytes": 4509327,
+        "baseline_parse_seconds": 72.026,
+        "baseline_peak_rss_bytes": 188760064,
+        "withheld_parse_seconds": 2.848,
+        "withheld_peak_rss_bytes": 133656576
+      }
+    ]
+  },
   "not_measured": [
     "Git pack transfer and the product disk-eviction counters. This probe does not start the loopback Git server or the source-fetch pool. checkout_bytes is the materialized project tree.",
     "Concurrent parse RSS. The large-org profile compiles with concurrency 4. These parses are serial, so peak_rss_bytes is one dbt process."
@@ -31,116 +75,117 @@
   "artefact_bytes_per_source": [
     {
       "source": "analyst_hub",
-      "bytes": 541132,
+      "bytes": 541104,
       "models": 2
     },
     {
       "source": "proj_a",
-      "bytes": 548984,
+      "bytes": 548986,
       "models": 4
     },
     {
       "source": "proj_b",
-      "bytes": 549034,
+      "bytes": 549038,
       "models": 4
     },
     {
       "source": "proj_bank",
-      "bytes": 536749,
+      "bytes": 536717,
       "models": 1
     },
     {
       "source": "proj_bank_reporting",
-      "bytes": 537235,
+      "bytes": 537233,
       "models": 1
     },
     {
       "source": "proj_c",
-      "bytes": 544792,
+      "bytes": 544785,
       "models": 3
     },
     {
       "source": "proj_core",
-      "bytes": 553540,
+      "bytes": 553554,
       "models": 5
     },
     {
       "source": "proj_core_copy",
-      "bytes": 537009,
+      "bytes": 537001,
       "models": 1
     },
     {
       "source": "proj_d",
-      "bytes": 544894,
+      "bytes": 544892,
       "models": 3
     },
     {
       "source": "proj_e",
-      "bytes": 544874,
-      "models": 3
-    },
-    {
-      "source": "proj_f",
       "bytes": 544870,
       "models": 3
     },
     {
+      "source": "proj_f",
+      "bytes": 544852,
+      "models": 3
+    },
+    {
       "source": "proj_g",
-      "bytes": 544871,
+      "bytes": 544852,
       "models": 3
     },
     {
       "source": "proj_growth",
-      "bytes": 549258,
+      "bytes": 549238,
       "models": 4
     },
     {
       "source": "proj_h",
-      "bytes": 544864,
+      "bytes": 544880,
       "models": 3
     },
     {
       "source": "proj_i",
-      "bytes": 544856,
+      "bytes": 544884,
       "models": 3
     },
     {
       "source": "proj_j",
-      "bytes": 540847,
+      "bytes": 540858,
       "models": 2
     },
     {
       "source": "proj_k",
-      "bytes": 540854,
+      "bytes": 540839,
       "models": 2
     },
     {
       "source": "proj_l",
-      "bytes": 536569,
+      "bytes": 536573,
       "models": 1
     },
     {
       "source": "proj_m",
-      "bytes": 536574,
+      "bytes": 536564,
       "models": 1
     }
   ],
-  "artefact_bytes_total": 10321806,
+  "artefact_bytes_total": 10321720,
   "consumer": "proj_core",
   "injected_node_count": 44,
   "injected_payload_bytes": 12117,
   "public_injected_node_count": 44,
+  "non_public_models_omitted": 0,
   "ref_filtered_node_count": 2,
   "ref_filtered_payload_bytes": 630,
-  "peak_rss_bytes": 133746688,
-  "parse_seconds": 2.531,
+  "peak_rss_bytes": 133611520,
+  "parse_seconds": 2.53,
   "climb": {
-    "dbt_peak_rss_bytes": 133746688,
-    "parse_seconds": 2.531,
+    "dbt_peak_rss_bytes": 133611520,
+    "parse_seconds": 2.53,
     "returncode": 0,
     "cycle_error": false,
-    "injector_peak_rss_bytes": 21372928,
-    "injector_seconds": 0.083,
+    "injector_peak_rss_bytes": 24023040,
+    "injector_seconds": 0.086,
     "rss_measurement": {
       "tool": "/usr/bin/time -v",
       "field": "Maximum resident set size (kbytes)",
@@ -229,159 +274,159 @@
       }
     ],
     "checkout_bytes_total": 125473,
-    "parse_seconds": 48.593,
-    "peak_rss_bytes": 133328896,
+    "parse_seconds": 48.577,
+    "peak_rss_bytes": 133357568,
     "sources": [
       {
         "source": "analyst_hub",
         "checkout_bytes": 5292,
-        "artefact_bytes": 541132,
-        "parse_seconds": 2.576,
-        "peak_rss_bytes": 132833280,
+        "artefact_bytes": 541104,
+        "parse_seconds": 2.538,
+        "peak_rss_bytes": 132710400,
         "returncode": 0
       },
       {
         "source": "proj_a",
         "checkout_bytes": 8871,
-        "artefact_bytes": 548984,
-        "parse_seconds": 2.561,
-        "peak_rss_bytes": 133136384,
+        "artefact_bytes": 548986,
+        "parse_seconds": 2.622,
+        "peak_rss_bytes": 133226496,
         "returncode": 0
       },
       {
         "source": "proj_b",
         "checkout_bytes": 8967,
-        "artefact_bytes": 549034,
-        "parse_seconds": 2.583,
-        "peak_rss_bytes": 133287936,
+        "artefact_bytes": 549038,
+        "parse_seconds": 2.564,
+        "peak_rss_bytes": 133357568,
         "returncode": 0
       },
       {
         "source": "proj_bank",
         "checkout_bytes": 3801,
-        "artefact_bytes": 536749,
-        "parse_seconds": 2.675,
-        "peak_rss_bytes": 132972544,
+        "artefact_bytes": 536717,
+        "parse_seconds": 2.546,
+        "peak_rss_bytes": 132513792,
         "returncode": 0
       },
       {
         "source": "proj_bank_reporting",
         "checkout_bytes": 3911,
-        "artefact_bytes": 537235,
-        "parse_seconds": 2.516,
-        "peak_rss_bytes": 132943872,
+        "artefact_bytes": 537233,
+        "parse_seconds": 2.601,
+        "peak_rss_bytes": 132861952,
         "returncode": 0
       },
       {
         "source": "proj_c",
         "checkout_bytes": 7406,
-        "artefact_bytes": 544792,
-        "parse_seconds": 2.545,
-        "peak_rss_bytes": 133328896,
+        "artefact_bytes": 544785,
+        "parse_seconds": 2.525,
+        "peak_rss_bytes": 133210112,
         "returncode": 0
       },
       {
         "source": "proj_core",
         "checkout_bytes": 11125,
-        "artefact_bytes": 553540,
-        "parse_seconds": 2.716,
-        "peak_rss_bytes": 133242880,
+        "artefact_bytes": 553554,
+        "parse_seconds": 2.616,
+        "peak_rss_bytes": 133103616,
         "returncode": 0
       },
       {
         "source": "proj_core_copy",
         "checkout_bytes": 3856,
-        "artefact_bytes": 537009,
-        "parse_seconds": 2.522,
-        "peak_rss_bytes": 132907008,
+        "artefact_bytes": 537001,
+        "parse_seconds": 2.521,
+        "peak_rss_bytes": 132845568,
         "returncode": 0
       },
       {
         "source": "proj_d",
         "checkout_bytes": 7414,
-        "artefact_bytes": 544894,
-        "parse_seconds": 2.564,
-        "peak_rss_bytes": 133111808,
+        "artefact_bytes": 544892,
+        "parse_seconds": 2.523,
+        "peak_rss_bytes": 133160960,
         "returncode": 0
       },
       {
         "source": "proj_e",
         "checkout_bytes": 7416,
-        "artefact_bytes": 544874,
-        "parse_seconds": 2.536,
-        "peak_rss_bytes": 133169152,
+        "artefact_bytes": 544870,
+        "parse_seconds": 2.5,
+        "peak_rss_bytes": 133189632,
         "returncode": 0
       },
       {
         "source": "proj_f",
         "checkout_bytes": 7415,
-        "artefact_bytes": 544870,
-        "parse_seconds": 2.513,
-        "peak_rss_bytes": 133279744,
+        "artefact_bytes": 544852,
+        "parse_seconds": 2.523,
+        "peak_rss_bytes": 133259264,
         "returncode": 0
       },
       {
         "source": "proj_g",
         "checkout_bytes": 7416,
-        "artefact_bytes": 544871,
-        "parse_seconds": 2.578,
-        "peak_rss_bytes": 133177344,
+        "artefact_bytes": 544852,
+        "parse_seconds": 2.607,
+        "peak_rss_bytes": 133197824,
         "returncode": 0
       },
       {
         "source": "proj_growth",
         "checkout_bytes": 9735,
-        "artefact_bytes": 549258,
-        "parse_seconds": 2.608,
-        "peak_rss_bytes": 133189632,
+        "artefact_bytes": 549238,
+        "parse_seconds": 2.673,
+        "peak_rss_bytes": 133234688,
         "returncode": 0
       },
       {
         "source": "proj_h",
         "checkout_bytes": 7416,
-        "artefact_bytes": 544864,
-        "parse_seconds": 2.541,
-        "peak_rss_bytes": 133267456,
+        "artefact_bytes": 544880,
+        "parse_seconds": 2.591,
+        "peak_rss_bytes": 133246976,
         "returncode": 0
       },
       {
         "source": "proj_i",
         "checkout_bytes": 7416,
-        "artefact_bytes": 544856,
-        "parse_seconds": 2.512,
-        "peak_rss_bytes": 133246976,
+        "artefact_bytes": 544884,
+        "parse_seconds": 2.527,
+        "peak_rss_bytes": 132997120,
         "returncode": 0
       },
       {
         "source": "proj_j",
         "checkout_bytes": 5241,
-        "artefact_bytes": 540847,
-        "parse_seconds": 2.506,
-        "peak_rss_bytes": 132743168,
+        "artefact_bytes": 540858,
+        "parse_seconds": 2.465,
+        "peak_rss_bytes": 132870144,
         "returncode": 0
       },
       {
         "source": "proj_k",
         "checkout_bytes": 5239,
-        "artefact_bytes": 540854,
-        "parse_seconds": 2.496,
-        "peak_rss_bytes": 132972544,
+        "artefact_bytes": 540839,
+        "parse_seconds": 2.615,
+        "peak_rss_bytes": 133103616,
         "returncode": 0
       },
       {
         "source": "proj_l",
         "checkout_bytes": 3769,
-        "artefact_bytes": 536569,
-        "parse_seconds": 2.559,
-        "peak_rss_bytes": 132767744,
+        "artefact_bytes": 536573,
+        "parse_seconds": 2.489,
+        "peak_rss_bytes": 133013504,
         "returncode": 0
       },
       {
         "source": "proj_m",
         "checkout_bytes": 3767,
-        "artefact_bytes": 536574,
-        "parse_seconds": 2.486,
-        "peak_rss_bytes": 132919296,
+        "artefact_bytes": 536564,
+        "parse_seconds": 2.531,
+        "peak_rss_bytes": 132825088,
         "returncode": 0
       }
     ]
@@ -390,8 +435,8 @@
     "returncode": 2,
     "unresolved": true,
     "invented_manifests": [],
-    "parse_seconds": 2.423,
-    "peak_rss_bytes": 130777088,
+    "parse_seconds": 2.414,
+    "peak_rss_bytes": 130748416,
     "warning": "Cold start: dbt source \"proj_core\" cannot refresh because last-good manifests are not seeded for upstreams: analyst_hub, proj_a, proj_b, proj_bank, proj_bank_reporting, proj_c, proj_core_copy, proj_d, proj_e, proj_f, proj_g, proj_growth, proj_h, proj_i, proj_j, proj_k, proj_l, proj_m. Seed each upstream with a successful compile or deploy. No manifest was invented."
   },
   "fixtures": [
@@ -403,117 +448,118 @@
       "artefact_bytes_per_source": [
         {
           "source": "analyst_hub",
-          "bytes": 541132,
+          "bytes": 541104,
           "models": 2
         },
         {
           "source": "proj_a",
-          "bytes": 548984,
+          "bytes": 548986,
           "models": 4
         },
         {
           "source": "proj_b",
-          "bytes": 549034,
+          "bytes": 549038,
           "models": 4
         },
         {
           "source": "proj_bank",
-          "bytes": 536749,
+          "bytes": 536717,
           "models": 1
         },
         {
           "source": "proj_bank_reporting",
-          "bytes": 537235,
+          "bytes": 537233,
           "models": 1
         },
         {
           "source": "proj_c",
-          "bytes": 544792,
+          "bytes": 544785,
           "models": 3
         },
         {
           "source": "proj_core",
-          "bytes": 553540,
+          "bytes": 553554,
           "models": 5
         },
         {
           "source": "proj_core_copy",
-          "bytes": 537009,
+          "bytes": 537001,
           "models": 1
         },
         {
           "source": "proj_d",
-          "bytes": 544894,
+          "bytes": 544892,
           "models": 3
         },
         {
           "source": "proj_e",
-          "bytes": 544874,
-          "models": 3
-        },
-        {
-          "source": "proj_f",
           "bytes": 544870,
           "models": 3
         },
         {
+          "source": "proj_f",
+          "bytes": 544852,
+          "models": 3
+        },
+        {
           "source": "proj_g",
-          "bytes": 544871,
+          "bytes": 544852,
           "models": 3
         },
         {
           "source": "proj_growth",
-          "bytes": 549258,
+          "bytes": 549238,
           "models": 4
         },
         {
           "source": "proj_h",
-          "bytes": 544864,
+          "bytes": 544880,
           "models": 3
         },
         {
           "source": "proj_i",
-          "bytes": 544856,
+          "bytes": 544884,
           "models": 3
         },
         {
           "source": "proj_j",
-          "bytes": 540847,
+          "bytes": 540858,
           "models": 2
         },
         {
           "source": "proj_k",
-          "bytes": 540854,
+          "bytes": 540839,
           "models": 2
         },
         {
           "source": "proj_l",
-          "bytes": 536569,
+          "bytes": 536573,
           "models": 1
         },
         {
           "source": "proj_m",
-          "bytes": 536574,
+          "bytes": 536564,
           "models": 1
         }
       ],
-      "artefact_bytes_total": 10321806,
-      "injection_policy": "all-real-models",
+      "artefact_bytes_total": 10321720,
+      "injection_policy": "access-public",
       "consumer": "proj_core",
       "injected_node_count": 44,
       "injected_payload_bytes": 12117,
       "public_injected_node_count": 44,
+      "non_public_models_omitted": 0,
       "ref_filtered_node_count": 2,
       "ref_filtered_payload_bytes": 630,
-      "peak_rss_bytes": 133746688,
-      "parse_seconds": 2.531,
+      "peak_rss_bytes": 133611520,
+      "parse_seconds": 2.53,
       "climb": {
-        "dbt_peak_rss_bytes": 133746688,
-        "parse_seconds": 2.531,
+        "dbt_peak_rss_bytes": 133611520,
+        "parse_seconds": 2.53,
         "returncode": 0,
         "cycle_error": false,
-        "injector_peak_rss_bytes": 21372928,
-        "injector_seconds": 0.083,
+        "injector_peak_rss_bytes": 24023040,
+        "injector_seconds": 0.086,
         "rss_measurement": {
           "tool": "/usr/bin/time -v",
           "field": "Maximum resident set size (kbytes)",
@@ -602,159 +648,159 @@
           }
         ],
         "checkout_bytes_total": 125473,
-        "parse_seconds": 48.593,
-        "peak_rss_bytes": 133328896,
+        "parse_seconds": 48.577,
+        "peak_rss_bytes": 133357568,
         "sources": [
           {
             "source": "analyst_hub",
             "checkout_bytes": 5292,
-            "artefact_bytes": 541132,
-            "parse_seconds": 2.576,
-            "peak_rss_bytes": 132833280,
+            "artefact_bytes": 541104,
+            "parse_seconds": 2.538,
+            "peak_rss_bytes": 132710400,
             "returncode": 0
           },
           {
             "source": "proj_a",
             "checkout_bytes": 8871,
-            "artefact_bytes": 548984,
-            "parse_seconds": 2.561,
-            "peak_rss_bytes": 133136384,
+            "artefact_bytes": 548986,
+            "parse_seconds": 2.622,
+            "peak_rss_bytes": 133226496,
             "returncode": 0
           },
           {
             "source": "proj_b",
             "checkout_bytes": 8967,
-            "artefact_bytes": 549034,
-            "parse_seconds": 2.583,
-            "peak_rss_bytes": 133287936,
+            "artefact_bytes": 549038,
+            "parse_seconds": 2.564,
+            "peak_rss_bytes": 133357568,
             "returncode": 0
           },
           {
             "source": "proj_bank",
             "checkout_bytes": 3801,
-            "artefact_bytes": 536749,
-            "parse_seconds": 2.675,
-            "peak_rss_bytes": 132972544,
+            "artefact_bytes": 536717,
+            "parse_seconds": 2.546,
+            "peak_rss_bytes": 132513792,
             "returncode": 0
           },
           {
             "source": "proj_bank_reporting",
             "checkout_bytes": 3911,
-            "artefact_bytes": 537235,
-            "parse_seconds": 2.516,
-            "peak_rss_bytes": 132943872,
+            "artefact_bytes": 537233,
+            "parse_seconds": 2.601,
+            "peak_rss_bytes": 132861952,
             "returncode": 0
           },
           {
             "source": "proj_c",
             "checkout_bytes": 7406,
-            "artefact_bytes": 544792,
-            "parse_seconds": 2.545,
-            "peak_rss_bytes": 133328896,
+            "artefact_bytes": 544785,
+            "parse_seconds": 2.525,
+            "peak_rss_bytes": 133210112,
             "returncode": 0
           },
           {
             "source": "proj_core",
             "checkout_bytes": 11125,
-            "artefact_bytes": 553540,
-            "parse_seconds": 2.716,
-            "peak_rss_bytes": 133242880,
+            "artefact_bytes": 553554,
+            "parse_seconds": 2.616,
+            "peak_rss_bytes": 133103616,
             "returncode": 0
           },
           {
             "source": "proj_core_copy",
             "checkout_bytes": 3856,
-            "artefact_bytes": 537009,
-            "parse_seconds": 2.522,
-            "peak_rss_bytes": 132907008,
+            "artefact_bytes": 537001,
+            "parse_seconds": 2.521,
+            "peak_rss_bytes": 132845568,
             "returncode": 0
           },
           {
             "source": "proj_d",
             "checkout_bytes": 7414,
-            "artefact_bytes": 544894,
-            "parse_seconds": 2.564,
-            "peak_rss_bytes": 133111808,
+            "artefact_bytes": 544892,
+            "parse_seconds": 2.523,
+            "peak_rss_bytes": 133160960,
             "returncode": 0
           },
           {
             "source": "proj_e",
             "checkout_bytes": 7416,
-            "artefact_bytes": 544874,
-            "parse_seconds": 2.536,
-            "peak_rss_bytes": 133169152,
+            "artefact_bytes": 544870,
+            "parse_seconds": 2.5,
+            "peak_rss_bytes": 133189632,
             "returncode": 0
           },
           {
             "source": "proj_f",
             "checkout_bytes": 7415,
-            "artefact_bytes": 544870,
-            "parse_seconds": 2.513,
-            "peak_rss_bytes": 133279744,
+            "artefact_bytes": 544852,
+            "parse_seconds": 2.523,
+            "peak_rss_bytes": 133259264,
             "returncode": 0
           },
           {
             "source": "proj_g",
             "checkout_bytes": 7416,
-            "artefact_bytes": 544871,
-            "parse_seconds": 2.578,
-            "peak_rss_bytes": 133177344,
+            "artefact_bytes": 544852,
+            "parse_seconds": 2.607,
+            "peak_rss_bytes": 133197824,
             "returncode": 0
           },
           {
             "source": "proj_growth",
             "checkout_bytes": 9735,
-            "artefact_bytes": 549258,
-            "parse_seconds": 2.608,
-            "peak_rss_bytes": 133189632,
+            "artefact_bytes": 549238,
+            "parse_seconds": 2.673,
+            "peak_rss_bytes": 133234688,
             "returncode": 0
           },
           {
             "source": "proj_h",
             "checkout_bytes": 7416,
-            "artefact_bytes": 544864,
-            "parse_seconds": 2.541,
-            "peak_rss_bytes": 133267456,
+            "artefact_bytes": 544880,
+            "parse_seconds": 2.591,
+            "peak_rss_bytes": 133246976,
             "returncode": 0
           },
           {
             "source": "proj_i",
             "checkout_bytes": 7416,
-            "artefact_bytes": 544856,
-            "parse_seconds": 2.512,
-            "peak_rss_bytes": 133246976,
+            "artefact_bytes": 544884,
+            "parse_seconds": 2.527,
+            "peak_rss_bytes": 132997120,
             "returncode": 0
           },
           {
             "source": "proj_j",
             "checkout_bytes": 5241,
-            "artefact_bytes": 540847,
-            "parse_seconds": 2.506,
-            "peak_rss_bytes": 132743168,
+            "artefact_bytes": 540858,
+            "parse_seconds": 2.465,
+            "peak_rss_bytes": 132870144,
             "returncode": 0
           },
           {
             "source": "proj_k",
             "checkout_bytes": 5239,
-            "artefact_bytes": 540854,
-            "parse_seconds": 2.496,
-            "peak_rss_bytes": 132972544,
+            "artefact_bytes": 540839,
+            "parse_seconds": 2.615,
+            "peak_rss_bytes": 133103616,
             "returncode": 0
           },
           {
             "source": "proj_l",
             "checkout_bytes": 3769,
-            "artefact_bytes": 536569,
-            "parse_seconds": 2.559,
-            "peak_rss_bytes": 132767744,
+            "artefact_bytes": 536573,
+            "parse_seconds": 2.489,
+            "peak_rss_bytes": 133013504,
             "returncode": 0
           },
           {
             "source": "proj_m",
             "checkout_bytes": 3767,
-            "artefact_bytes": 536574,
-            "parse_seconds": 2.486,
-            "peak_rss_bytes": 132919296,
+            "artefact_bytes": 536564,
+            "parse_seconds": 2.531,
+            "peak_rss_bytes": 132825088,
             "returncode": 0
           }
         ]
@@ -763,8 +809,8 @@
         "returncode": 2,
         "unresolved": true,
         "invented_manifests": [],
-        "parse_seconds": 2.423,
-        "peak_rss_bytes": 130777088,
+        "parse_seconds": 2.414,
+        "peak_rss_bytes": 130748416,
         "warning": "Cold start: dbt source \"proj_core\" cannot refresh because last-good manifests are not seeded for upstreams: analyst_hub, proj_a, proj_b, proj_bank, proj_bank_reporting, proj_c, proj_core_copy, proj_d, proj_e, proj_f, proj_g, proj_growth, proj_h, proj_i, proj_j, proj_k, proj_l, proj_m. Seed each upstream with a successful compile or deploy. No manifest was invented."
       }
     },
@@ -776,132 +822,133 @@
       "artefact_bytes_per_source": [
         {
           "source": "accounts",
-          "bytes": 640890,
+          "bytes": 640891,
           "models": 25
         },
         {
           "source": "billing",
-          "bytes": 640150,
+          "bytes": 640141,
           "models": 25
         },
         {
           "source": "catalog",
-          "bytes": 640158,
+          "bytes": 640159,
           "models": 25
         },
         {
           "source": "compliance",
-          "bytes": 642387,
+          "bytes": 642395,
           "models": 25
         },
         {
           "source": "contracts",
-          "bytes": 641651,
+          "bytes": 641649,
           "models": 25
         },
         {
           "source": "delivery",
-          "bytes": 640895,
+          "bytes": 640886,
           "models": 25
         },
         {
           "source": "finance",
-          "bytes": 960930,
+          "bytes": 960960,
           "models": 100
         },
         {
           "source": "fulfilment",
-          "bytes": 642392,
+          "bytes": 642403,
           "models": 25
         },
         {
           "source": "growth",
-          "bytes": 958383,
+          "bytes": 958379,
           "models": 100
         },
         {
           "source": "inventory",
-          "bytes": 641637,
+          "bytes": 641650,
           "models": 25
         },
         {
           "source": "loyalty",
-          "bytes": 640154,
+          "bytes": 640137,
           "models": 25
         },
         {
           "source": "marketing",
-          "bytes": 966576,
+          "bytes": 966571,
           "models": 100
         },
         {
           "source": "merchants",
-          "bytes": 4460891,
+          "bytes": 4460932,
           "models": 900
         },
         {
           "source": "payments",
-          "bytes": 6139139,
+          "bytes": 6139104,
           "models": 1300
         },
         {
           "source": "pricing",
-          "bytes": 640155,
+          "bytes": 640136,
           "models": 25
         },
         {
           "source": "products",
-          "bytes": 640887,
+          "bytes": 640902,
           "models": 25
         },
         {
           "source": "regions",
-          "bytes": 640143,
+          "bytes": 640158,
           "models": 25
         },
         {
           "source": "retention",
-          "bytes": 641657,
+          "bytes": 641638,
           "models": 25
         },
         {
           "source": "risk",
-          "bytes": 953478,
+          "bytes": 953501,
           "models": 100
         },
         {
           "source": "subscriptions",
-          "bytes": 644628,
+          "bytes": 644630,
           "models": 25
         },
         {
           "source": "support",
-          "bytes": 640140,
+          "bytes": 640150,
           "models": 25
         },
         {
           "source": "treasury",
-          "bytes": 640895,
+          "bytes": 640909,
           "models": 25
         }
       ],
-      "artefact_bytes_total": 24698216,
-      "injection_policy": "all-real-models",
+      "artefact_bytes_total": 24698281,
+      "injection_policy": "access-public",
       "consumer": "growth",
       "injected_node_count": 2901,
       "injected_payload_bytes": 862923,
       "public_injected_node_count": 2901,
+      "non_public_models_omitted": 0,
       "ref_filtered_node_count": 2,
       "ref_filtered_payload_bytes": 525,
-      "peak_rss_bytes": 178040832,
-      "parse_seconds": 4.343,
+      "peak_rss_bytes": 178114560,
+      "parse_seconds": 4.224,
       "climb": {
-        "dbt_peak_rss_bytes": 178040832,
-        "parse_seconds": 4.343,
+        "dbt_peak_rss_bytes": 178114560,
+        "parse_seconds": 4.224,
         "returncode": 0,
         "cycle_error": false,
-        "injector_peak_rss_bytes": 54591488,
-        "injector_seconds": 0.207,
+        "injector_peak_rss_bytes": 72302592,
+        "injector_seconds": 0.211,
         "rss_measurement": {
           "tool": "/usr/bin/time -v",
           "field": "Maximum resident set size (kbytes)",
@@ -1002,183 +1049,183 @@
           }
         ],
         "checkout_bytes_total": 4509327,
-        "parse_seconds": 72.026,
-        "peak_rss_bytes": 188760064,
+        "parse_seconds": 70.394,
+        "peak_rss_bytes": 188633088,
         "sources": [
           {
             "source": "accounts",
             "checkout_bytes": 38663,
-            "artefact_bytes": 640890,
-            "parse_seconds": 2.635,
-            "peak_rss_bytes": 133955584,
+            "artefact_bytes": 640891,
+            "parse_seconds": 2.577,
+            "peak_rss_bytes": 134049792,
             "returncode": 0
           },
           {
             "source": "billing",
             "checkout_bytes": 38607,
-            "artefact_bytes": 640150,
-            "parse_seconds": 2.637,
-            "peak_rss_bytes": 133951488,
+            "artefact_bytes": 640141,
+            "parse_seconds": 2.614,
+            "peak_rss_bytes": 134184960,
             "returncode": 0
           },
           {
             "source": "catalog",
             "checkout_bytes": 38605,
-            "artefact_bytes": 640158,
-            "parse_seconds": 2.689,
-            "peak_rss_bytes": 133849088,
+            "artefact_bytes": 640159,
+            "parse_seconds": 2.594,
+            "peak_rss_bytes": 133799936,
             "returncode": 0
           },
           {
             "source": "compliance",
             "checkout_bytes": 38782,
-            "artefact_bytes": 642387,
-            "parse_seconds": 2.649,
-            "peak_rss_bytes": 133595136,
+            "artefact_bytes": 642395,
+            "parse_seconds": 2.58,
+            "peak_rss_bytes": 133615616,
             "returncode": 0
           },
           {
             "source": "contracts",
             "checkout_bytes": 38726,
-            "artefact_bytes": 641651,
-            "parse_seconds": 2.913,
-            "peak_rss_bytes": 133419008,
+            "artefact_bytes": 641649,
+            "parse_seconds": 2.554,
+            "peak_rss_bytes": 133615616,
             "returncode": 0
           },
           {
             "source": "delivery",
             "checkout_bytes": 38664,
-            "artefact_bytes": 640895,
-            "parse_seconds": 2.667,
-            "peak_rss_bytes": 133951488,
+            "artefact_bytes": 640886,
+            "parse_seconds": 2.678,
+            "peak_rss_bytes": 133955584,
             "returncode": 0
           },
           {
             "source": "finance",
             "checkout_bytes": 153400,
-            "artefact_bytes": 960930,
-            "parse_seconds": 3.033,
-            "peak_rss_bytes": 135794688,
+            "artefact_bytes": 960960,
+            "parse_seconds": 3.055,
+            "peak_rss_bytes": 135933952,
             "returncode": 0
           },
           {
             "source": "fulfilment",
             "checkout_bytes": 38781,
-            "artefact_bytes": 642392,
-            "parse_seconds": 2.699,
-            "peak_rss_bytes": 133718016,
+            "artefact_bytes": 642403,
+            "parse_seconds": 2.585,
+            "peak_rss_bytes": 133693440,
             "returncode": 0
           },
           {
             "source": "growth",
             "checkout_bytes": 158894,
-            "artefact_bytes": 958383,
-            "parse_seconds": 3.12,
-            "peak_rss_bytes": 135573504,
+            "artefact_bytes": 958379,
+            "parse_seconds": 3.003,
+            "peak_rss_bytes": 135778304,
             "returncode": 0
           },
           {
             "source": "inventory",
             "checkout_bytes": 38727,
-            "artefact_bytes": 641637,
-            "parse_seconds": 2.697,
-            "peak_rss_bytes": 133570560,
+            "artefact_bytes": 641650,
+            "parse_seconds": 2.618,
+            "peak_rss_bytes": 133267456,
             "returncode": 0
           },
           {
             "source": "loyalty",
             "checkout_bytes": 38608,
-            "artefact_bytes": 640154,
-            "parse_seconds": 2.726,
-            "peak_rss_bytes": 134021120,
+            "artefact_bytes": 640137,
+            "parse_seconds": 2.655,
+            "peak_rss_bytes": 134230016,
             "returncode": 0
           },
           {
             "source": "marketing",
             "checkout_bytes": 149528,
-            "artefact_bytes": 966576,
-            "parse_seconds": 3.058,
-            "peak_rss_bytes": 135786496,
+            "artefact_bytes": 966571,
+            "parse_seconds": 3.041,
+            "peak_rss_bytes": 136159232,
             "returncode": 0
           },
           {
             "source": "merchants",
             "checkout_bytes": 1325773,
-            "artefact_bytes": 4460891,
-            "parse_seconds": 7.175,
-            "peak_rss_bytes": 172560384,
+            "artefact_bytes": 4460932,
+            "parse_seconds": 7.003,
+            "peak_rss_bytes": 172417024,
             "returncode": 0
           },
           {
             "source": "payments",
             "checkout_bytes": 1948066,
-            "artefact_bytes": 6139139,
-            "parse_seconds": 9.6,
-            "peak_rss_bytes": 188760064,
+            "artefact_bytes": 6139104,
+            "parse_seconds": 9.329,
+            "peak_rss_bytes": 188633088,
             "returncode": 0
           },
           {
             "source": "pricing",
             "checkout_bytes": 38607,
-            "artefact_bytes": 640155,
-            "parse_seconds": 2.653,
-            "peak_rss_bytes": 133881856,
+            "artefact_bytes": 640136,
+            "parse_seconds": 2.659,
+            "peak_rss_bytes": 134111232,
             "returncode": 0
           },
           {
             "source": "products",
             "checkout_bytes": 38667,
-            "artefact_bytes": 640887,
-            "parse_seconds": 2.728,
-            "peak_rss_bytes": 134205440,
+            "artefact_bytes": 640902,
+            "parse_seconds": 2.592,
+            "peak_rss_bytes": 133931008,
             "returncode": 0
           },
           {
             "source": "regions",
             "checkout_bytes": 38608,
-            "artefact_bytes": 640143,
-            "parse_seconds": 2.598,
-            "peak_rss_bytes": 133980160,
+            "artefact_bytes": 640158,
+            "parse_seconds": 2.597,
+            "peak_rss_bytes": 133992448,
             "returncode": 0
           },
           {
             "source": "retention",
             "checkout_bytes": 38721,
-            "artefact_bytes": 641657,
-            "parse_seconds": 2.654,
-            "peak_rss_bytes": 133464064,
+            "artefact_bytes": 641638,
+            "parse_seconds": 2.603,
+            "peak_rss_bytes": 133681152,
             "returncode": 0
           },
           {
             "source": "risk",
             "checkout_bytes": 154667,
-            "artefact_bytes": 953478,
-            "parse_seconds": 3.03,
-            "peak_rss_bytes": 135880704,
+            "artefact_bytes": 953501,
+            "parse_seconds": 3.051,
+            "peak_rss_bytes": 135802880,
             "returncode": 0
           },
           {
             "source": "subscriptions",
             "checkout_bytes": 38960,
-            "artefact_bytes": 644628,
-            "parse_seconds": 2.667,
-            "peak_rss_bytes": 133648384,
+            "artefact_bytes": 644630,
+            "parse_seconds": 2.772,
+            "peak_rss_bytes": 133533696,
             "returncode": 0
           },
           {
             "source": "support",
             "checkout_bytes": 38606,
-            "artefact_bytes": 640140,
-            "parse_seconds": 2.719,
-            "peak_rss_bytes": 134037504,
+            "artefact_bytes": 640150,
+            "parse_seconds": 2.631,
+            "peak_rss_bytes": 134258688,
             "returncode": 0
           },
           {
             "source": "treasury",
             "checkout_bytes": 38667,
-            "artefact_bytes": 640895,
-            "parse_seconds": 2.679,
-            "peak_rss_bytes": 133955584,
+            "artefact_bytes": 640909,
+            "parse_seconds": 2.603,
+            "peak_rss_bytes": 133976064,
             "returncode": 0
           }
         ]
@@ -1187,8 +1234,8 @@
         "returncode": 2,
         "unresolved": true,
         "invented_manifests": [],
-        "parse_seconds": 2.848,
-        "peak_rss_bytes": 133656576,
+        "parse_seconds": 2.762,
+        "peak_rss_bytes": 133718016,
         "warning": "Cold start: dbt source \"growth\" cannot refresh because last-good manifests are not seeded for upstreams: accounts, billing, catalog, compliance, contracts, delivery, finance, fulfilment, inventory, loyalty, marketing, merchants, payments, pricing, products, regions, retention, risk, subscriptions, support, treasury. Seed each upstream with a successful compile or deploy. No manifest was invented."
       }
     }

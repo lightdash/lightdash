@@ -120,8 +120,11 @@ No manifest was written into the empty store. Neither withheld parse exited 0.
 ## Scale
 
 The sibling runner measures last-good artefact size, climb RSS, and a
-no-store baseline. It does not change the two-project proof above. That
-proof still injects `access: public` models only.
+no-store baseline. Both this proof and the scale probe inject only real
+models whose `access` is `public`. Protected and private models are
+omitted, including when `access` is unset. That is the dbt Mesh /
+dbt-loom share surface. The climb does not inject every real model and
+then filter by ref.
 
 ```bash
 examples/multi-repo-dbt-sim/run-last-good-scale
@@ -148,29 +151,37 @@ reproduce that. It also does not start the loopback Git server, so
 `checkout_bytes` is the materialized project tree (`target/`, `logs/`,
 `dbt_packages/`, and `.git` excluded), not pack transfer or a disk eviction.
 
-The timed climb passes `public_only=False` and injects every real model
-from every other source. It does not apply the ref filter. These fixtures
-set `access: public` on every model, so the public-only count matches the
-injected count. `ref_filtered_*` is the smaller payload that filter would
-keep. The withheld parse injects nothing, must exit non-zero with
-`which was not found`, and must not create a manifest.
+The timed climb injects public models from every other source. It does
+not apply the ref filter. These fixtures set `access: public` on every
+model, so the omitted non-public count is 0 and the injected count matches
+the earlier inject-all run. `ref_filtered_*` is the smaller payload that a
+ref filter would keep. The withheld parse injects nothing, must exit
+non-zero with `which was not found`, and must not create a manifest.
 
-On the recorded run, dbt-core was 1.12.0, dbt-postgres resolved to 1.10.2,
-dbt-loom was absent, and Python was 3.12.3.
+On the recorded public-only run, dbt-core was 1.12.0, dbt-postgres resolved
+to 1.10.2, dbt-loom was absent, and Python was 3.12.3.
 
 | Fixture | Sources | Models | Artefact bytes | Climb RSS bytes | Climb seconds | Baseline checkout bytes | Baseline parse seconds | Baseline peak RSS bytes |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| large-org healthy | 19 | 49 | 10321806 | 133746688 | 2.531 | 125473 | 48.593 | 133328896 |
-| full | 22 | 3000 | 24698216 | 178040832 | 4.343 | 4509327 | 72.026 | 188760064 |
+| large-org healthy | 19 | 49 | 10321720 | 133611520 | 2.53 | 125473 | 48.577 | 133357568 |
+| full | 22 | 3000 | 24698281 | 178114560 | 4.224 | 4509327 | 70.394 | 188633088 |
 
 The full fixture has 3001 manifest model nodes. The extra node is the
-versioned `rate` model. Large-org injected 44 nodes (12117 bytes) into
-`proj_core`. Full injected 2901 nodes (862923 bytes) into `growth`. The
-ref filter would have kept 2 nodes in each case (630 and 525 bytes). Those
-filtered payloads were not the timed parses. Injector RSS was 21372928
-bytes (0.083 seconds) and 54591488 bytes (0.207 seconds). Withheld parses
-exited 2: 2.423 seconds and 130777088 bytes, then 2.848 seconds and
-133656576 bytes. Per-source sizes are in the JSON.
+versioned `rate` model. Large-org injected 44 public nodes (12117 bytes)
+into `proj_core` and omitted 0 non-public models. Full injected 2901
+public nodes (862923 bytes) into `growth` and omitted 0. The ref filter
+would have kept 2 nodes in each case (630 and 525 bytes). Those filtered
+payloads were not the timed parses. Injector RSS was 24023040 bytes
+(0.086 seconds) and 72302592 bytes (0.211 seconds). Withheld parses exited
+2: 2.414 seconds and 130748416 bytes, then 2.762 seconds and 133718016
+bytes.
+
+The prior inject-all run, kept under `previous_inject_all` in the JSON,
+injected the same 44 and 2901 nodes and the same 12117 and 862923 payload
+bytes. Artefact totals moved by 86 and 65 bytes. Climb RSS moved from
+133746688 to 133611520 bytes and from 178040832 to 178114560 bytes. Climb
+time moved from 2.531 to 2.53 seconds and from 4.343 to 4.224 seconds.
+Checkout bytes were unchanged. Per-source sizes are in the JSON.
 
 ## Out of scope
 
