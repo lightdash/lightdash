@@ -435,6 +435,7 @@
         "filters.rail.close": "დახურვა",
         "filters.rail.done": "მზადაა",
         "filters.rail.editingFilters": "ფილტრების რედაქტირება",
+        "filters.rail.editingControls": "მართვის ელემენტების რედაქტირება",
         "filters.rail.newFilter": "ახალი ფილტრი",
         "filters.rail.filterName": "ფილტრის სახელი",
         "filters.rail.discardFilter": "ფილტრის გაუქმება",

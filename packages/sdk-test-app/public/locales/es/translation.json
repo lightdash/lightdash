@@ -435,6 +435,7 @@
         "filters.rail.close": "Cerrar",
         "filters.rail.done": "Listo",
         "filters.rail.editingFilters": "Editando filtros",
+        "filters.rail.editingControls": "Editando controles",
         "filters.rail.newFilter": "Nuevo filtro",
         "filters.rail.filterName": "Nombre del filtro",
         "filters.rail.discardFilter": "Descartar filtro",

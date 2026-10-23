@@ -8,16 +8,25 @@ import {
     selectActiveTabUuid,
     selectDashboardTabs,
     selectDashboardTiles,
+    useDashboardDateZoomConfig,
     useDashboardSelector,
 } from '../dashboard/store';
 import { useFilterableItemsMap } from '../dashboardFilters/FilterRequirements/useFilterableItemsMap';
-import { getTabCounts, getTabCountsForField, isSqlColumnRow } from './peers';
+import { useEligibleZoomTiles } from '../dateZoom/hooks';
+import {
+    getEffectiveTabUuid,
+    getTabCounts,
+    getTabCountsForField,
+    isSqlColumnRow,
+} from './peers';
 import classes from './TabCounts.module.css';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { toDashboardFilterableField } from './useFilterRuleField';
 import { useHoveredFilterRule } from './useHoveredFilterRule';
+import { useHoveredZoomUuid } from './useHoveredZoomUuid';
 import { usePortalTargets } from './usePortalTargets';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
+import { findZoomControl } from './zoomState';
 
 // Mantine renders each tab with id "<tabsId>-tab-<value>"; value is the tab uuid
 const getTabSelector = (tabUuid: string) =>
@@ -39,7 +48,86 @@ const scrollTabIntoList = (tab: Element) => {
     }
 };
 
+// A date zoom's badges: of the tiles on each tab a zoom can reach, the ones
+// in it. A hovered zoom row is blue, as a hovered filter row is
+const ZoomTabCounts: FC<{ controlUuid: string; isHovered: boolean }> = ({
+    controlUuid,
+    isHovered,
+}) => {
+    const getUiString = useUiStrings();
+    const config = useDashboardDateZoomConfig();
+    const eligibleTiles = useEligibleZoomTiles(config, controlUuid);
+    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
+    const tabUuids = useMemo(
+        () => dashboardTabs.map((tab) => tab.uuid),
+        [dashboardTabs],
+    );
+    const targets = usePortalTargets(
+        tabUuids,
+        getTabSelector,
+        dashboardTabs.length > 0,
+        false,
+    );
+    const name = findZoomControl(config, controlUuid)?.name ?? '';
+    return (
+        <>
+            {dashboardTabs.map((tab) => {
+                const element = targets[tab.uuid];
+                const onTab = eligibleTiles.filter(
+                    ({ tile }) =>
+                        getEffectiveTabUuid(tile, dashboardTabs) === tab.uuid,
+                );
+                if (!element || onTab.length === 0) return null;
+                const applied = onTab.filter(
+                    ({ tile }) =>
+                        config.tileTargets[tile.uuid]?.controlUuid ===
+                        controlUuid,
+                ).length;
+                const isReached = applied > 0;
+                return createPortal(
+                    <Tooltip
+                        fz="xs"
+                        label={`${applied} of ${onTab.length} ${
+                            onTab.length === 1 ? 'tile' : 'tiles'
+                        } on this tab ${applied === 1 ? 'uses' : 'use'} ${name}`}
+                    >
+                        <Badge
+                            size="xs"
+                            variant={isReached ? 'light' : 'transparent'}
+                            color={isReached && isHovered ? 'blue' : 'gray'}
+                            data-reached={isReached}
+                            data-field-active={isHovered}
+                            className={classes.count}
+                        >
+                            {interpolateUiString(
+                                getUiString('filters.rail.countOf'),
+                                { applied, total: onTab.length },
+                            )}
+                        </Badge>
+                    </Tooltip>,
+                    element,
+                    tab.uuid,
+                );
+            })}
+        </>
+    );
+};
+
+// A hovered row wins over the edited control, as for filters
 export const TabCounts: FC = () => {
+    const hoveredZoomUuid = useHoveredZoomUuid();
+    const isFilterHovered = useHoveredFilterRule() !== null;
+    const editedZoomUuid = useControlsSidebarSelector(
+        (c) => c.editingZoom?.uuid ?? null,
+    );
+    if (hoveredZoomUuid !== null)
+        return <ZoomTabCounts controlUuid={hoveredZoomUuid} isHovered />;
+    if (editedZoomUuid !== null && !isFilterHovered)
+        return <ZoomTabCounts controlUuid={editedZoomUuid} isHovered={false} />;
+    return <FilterTabCounts />;
+};
+
+const FilterTabCounts: FC = () => {
     const getUiString = useUiStrings();
     const editedRule = useControlsSidebarSelector((c) => c.editingRule);
     const isEditedPlaceholder = useControlsSidebarSelector(

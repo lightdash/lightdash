@@ -239,3 +239,10 @@
         transition: none;
     }
 }
+
+.removalWarning {
+    padding: var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-yellow-light);
+    color: var(--mantine-color-yellow-text);
+}

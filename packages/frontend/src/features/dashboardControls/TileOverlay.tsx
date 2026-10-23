@@ -32,6 +32,7 @@ import {
     selectActiveTab,
     selectDashboardTabs,
     selectDashboardTiles,
+    useDashboardDateZoomConfig,
     useDashboardSelector,
 } from '../dashboard/store';
 import { DropdownClass } from './DropdownClass';
@@ -71,10 +72,12 @@ import {
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFieldTileActions, type TileScope } from './useFieldTileActions';
 import { useHoveredFilterRule } from './useHoveredFilterRule';
+import { useHoveredZoomUuid } from './useHoveredZoomUuid';
 import { focusLabelInput } from './useLabelDraft';
 import { usePortalTargets } from './usePortalTargets';
 import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
+import { ZoomTileOverlays } from './ZoomTileOverlays';
 
 const NO_COLUMNS: SqlColumn[] = [];
 const NO_FIELD_IDS: string[] = [];
@@ -373,11 +376,20 @@ const TileOverlay = memo<TileOverlayProps>(
 // Mounted while a control is edited, so what it remembers ends with the editor
 export const TileOverlays: FC = () => {
     const isEditing = useControlsSidebarSelector((c) => c.editingRule !== null);
+    const isZoomEditing = useControlsSidebarSelector(
+        (c) => c.editingZoom !== null,
+    );
     const contractClasses = useRailContractClasses();
     // The tile cards' lists, as an embed's stylesheet targets them
     return (
         <DropdownClass className={contractClasses?.filterDropdown ?? null}>
-            {isEditing ? <EditedTileOverlays /> : <HoveredFilterReach />}
+            {isZoomEditing ? (
+                <ZoomTileOverlays />
+            ) : isEditing ? (
+                <EditedTileOverlays />
+            ) : (
+                <HoveredFilterReach />
+            )}
         </DropdownClass>
     );
 };
@@ -386,6 +398,9 @@ export const TileOverlays: FC = () => {
 // is on get the active field's ring, with no veil, card or lock
 const HoveredFilterReach: FC = () => {
     const hoveredRule = useHoveredFilterRule();
+    // A zoom row reaches the tiles in that zoom
+    const hoveredZoomUuid = useHoveredZoomUuid();
+    const dateZoomConfig = useDashboardDateZoomConfig();
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const activeTab = useDashboardSelector(selectActiveTab);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
@@ -394,7 +409,8 @@ const HoveredFilterReach: FC = () => {
     );
     const sqlColumnsByTile = useSqlColumnsByTile(hoveredRule);
     const tileUuids = useMemo(() => {
-        if (hoveredRule === null) return NO_FIELD_IDS;
+        if (hoveredRule === null && hoveredZoomUuid === null)
+            return NO_FIELD_IDS;
         const all = dashboardTiles ?? [];
         const tiles =
             activeTab && dashboardTabs.length > 0
@@ -402,16 +418,21 @@ const HoveredFilterReach: FC = () => {
                 : all;
         return tiles
             .filter((tile) =>
-                isTileOnFilter(
-                    hoveredRule,
-                    tile,
-                    fieldsByTile,
-                    sqlColumnsByTile,
-                ),
+                hoveredRule === null
+                    ? dateZoomConfig.tileTargets[tile.uuid]?.controlUuid ===
+                      hoveredZoomUuid
+                    : isTileOnFilter(
+                          hoveredRule,
+                          tile,
+                          fieldsByTile,
+                          sqlColumnsByTile,
+                      ),
             )
             .map((tile) => tile.uuid);
     }, [
         hoveredRule,
+        hoveredZoomUuid,
+        dateZoomConfig,
         dashboardTiles,
         activeTab,
         dashboardTabs,

@@ -1088,6 +1088,37 @@ pills.
   date zoom" (the shipped dashed `addControl` look, edit mode only) beside
   "Add filter". While the edited zoom has no tiles it has the status "Select
   a tile to keep this zoom" and "Cancel" (`discard`).
+- "Tiles" ends with "Add every tile on this tab" ("Add every tile" without
+  tabs; subtle, disabled when there is none): every tile of the tab in view
+  a zoom can reach and no zoom has yet joins this one, a chart on its first
+  date field, a param-only tile on the parameter (`addZoomTiles`).
+- Tile cards: `TileOverlays` mounts `ZoomTileOverlays` while a zoom is
+  edited. Every tile on the tab gets an overlay (the siblings are locked as
+  for a filter); the kind comes from `useEligibleZoomTiles`, as the shipped
+  popover reads it. A chart tile with zoomable fields: "This tile is zoomed
+  on" / "This tile is not zoomed" and a clearable `LazySelect` of its own
+  date fields ("Stop zooming this tile" clears). A param-only tile
+  (`${ld.parameters.date_zoom}`, no field): the data app tiles' `Switch`,
+  "Zoom this tile", writing a target with a null field. A tile in another
+  zoom: read-only, "Uses <name>", its field ("Parameter" for a param-only
+  one) and that zoom's grain, and a subtle "Move here" that changes only
+  the zoom it is in (`setZoomTileField`); when it is that zoom's last tile
+  the card says "<name> will be removed on save", as the save prunes it.
+  Any other tile (markdown, loom, heading, SQL chart, data app): the veil,
+  "No date field to zoom". Looks: in the zoom `filtered`, could be
+  `available`, in another zoom none; a hovered zoom row turns its tiles
+  `mapped` and the rest none. The cards are memoised like the filter cards
+  and read no context.
+- Hover: a zoom row's uuid in `hoveredFilterId` is read by
+  `useHoveredZoomUuid` (null on the edited zoom). With nothing edited
+  `HoveredFilterReach` rings that zoom's tiles on the tab.
+- `EditingStrip`: "Editing date zoom", a divider, the zoom's name and " · N
+  tiles" over every tab.
+- `TabCounts`: a hovered zoom row (blue), else the edited zoom (grey, as no
+  field is active), counts per tab the tiles in the zoom out of the tiles a
+  zoom can reach there (`ZoomTabCounts`); a hovered filter row still wins
+  over an edited zoom. A tab with none gets no badge. The tooltip is
+  literal: "x of N tiles on this tab use <name>".
 
 ## Motion
 

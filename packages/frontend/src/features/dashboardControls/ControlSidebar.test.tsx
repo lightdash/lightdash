@@ -1240,5 +1240,62 @@ describe('ControlSidebar', () => {
             fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
             expect(discard).toHaveBeenCalledTimes(1);
         });
+        it('lists its tiles and adds every tile on the tab that no zoom has', () => {
+            const titled = (uuid: string) =>
+                ({
+                    uuid,
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { title: `Title ${uuid}` },
+                }) as DashboardTile;
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardTiles: [titled('a'), titled('b'), titled('c')],
+            };
+            const { updateDateZoomConfig } = setSidebar({
+                editing: { kind: 'dateZoom', controlUuid: 'z1' },
+                editingRule: null,
+                editingZoom: zoomConfig.controls[0],
+                activeSection: 'tiles',
+                isNew: false,
+            });
+            const DATE = {
+                fieldId: 'orders_date',
+                label: 'Order date',
+                tableName: 'orders',
+            };
+            const store = seedDashboardEditState(
+                createDashboardTestStore({
+                    chartZoomableFieldsByTileUuid: {
+                        a: [{ ...DATE, fieldId: FIELD_ID, label: 'Status' }],
+                        c: [DATE],
+                    },
+                    tileParameterReferences: { b: ['date_zoom'] },
+                }),
+                mockDashboardContext.current as DashboardEditTestValues,
+            );
+            renderWithAppProviders(
+                <DashboardStoreTestProvider store={store}>
+                    <ControlSidebar />
+                </DashboardStoreTestProvider>,
+            );
+            expect(screen.getByText('Title a')).toBeVisible();
+            expect(screen.getByText('Parameter')).toBeVisible();
+            expect(screen.queryByText('Title c')).not.toBeInTheDocument();
+
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Add every tile' }),
+            );
+            expect(updateDateZoomConfig).toHaveBeenCalledWith({
+                ...zoomConfig,
+                tileTargets: {
+                    ...zoomConfig.tileTargets,
+                    c: {
+                        controlUuid: 'z1',
+                        fieldId: 'orders_date',
+                        tableName: 'orders',
+                    },
+                },
+            });
+        });
     });
 });

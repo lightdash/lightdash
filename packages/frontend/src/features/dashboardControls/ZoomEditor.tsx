@@ -2,6 +2,7 @@ import { type DateZoomControl } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
+    Button,
     Group,
     Select,
     Stack,
@@ -12,13 +13,15 @@ import {
 import {
     IconArrowBackUp,
     IconChevronDown,
+    IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { type FC } from 'react';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import {
+    selectActiveTab,
     selectDashboardTabs,
     useDashboardDateZoomConfig,
     useDashboardSelector,
@@ -31,22 +34,48 @@ import { getEffectiveTabUuid } from './peers';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFocusLabelOnMount, useLabelDraft } from './useLabelDraft';
 import { ZoomTypeIcon } from './ZoomRow';
-import { DEFAULT_ZOOM_NAME, replaceZoomControl } from './zoomState';
+import {
+    addZoomTiles,
+    DEFAULT_ZOOM_NAME,
+    replaceZoomControl,
+} from './zoomState';
 
 type Props = {
     control: DateZoomControl;
-    /** Under "Tiles", after the zoom's own tiles. */
-    tilesActions?: ReactNode;
 };
 
-// The zoom's tiles, each with the field it is zoomed on. Changed on the tiles
-const ZoomTiles: FC<{ control: DateZoomControl; actions: ReactNode }> = ({
-    control,
-    actions,
-}) => {
+// The zoom's tiles, each with the field it is zoomed on. Changed on the tiles,
+// or all at once for the tab in view
+const ZoomTiles: FC<{ control: DateZoomControl }> = ({ control }) => {
     const config = useDashboardDateZoomConfig();
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
+    const activeTab = useDashboardSelector(selectActiveTab);
+    const updateDateZoomConfig = useControlsSidebarSelector(
+        (c) => c.updateDateZoomConfig,
+    );
     const eligibleTiles = useEligibleZoomTiles(config, control.uuid);
+    // Tiles of the tab in view that no zoom has yet: a chart on its first
+    // date field, a param-only tile on the parameter
+    const addable = eligibleTiles.filter(
+        ({ tile }) =>
+            config.tileTargets[tile.uuid] === undefined &&
+            (dashboardTabs.length === 0 ||
+                getEffectiveTabUuid(tile, dashboardTabs) === activeTab?.uuid),
+    );
+    const addAll = () =>
+        updateDateZoomConfig(
+            addZoomTiles(
+                config,
+                control.uuid,
+                addable.map(({ tile, zoomableFields }) => ({
+                    tileUuid: tile.uuid,
+                    field: {
+                        fieldId: zoomableFields[0]?.fieldId ?? null,
+                        tableName: zoomableFields[0]?.tableName ?? null,
+                    },
+                })),
+            ),
+        );
     const tiles = eligibleTiles.filter(
         ({ tile }) =>
             config.tileTargets[tile.uuid]?.controlUuid === control.uuid,
@@ -87,13 +116,23 @@ const ZoomTiles: FC<{ control: DateZoomControl; actions: ReactNode }> = ({
                     ? 'No tiles yet. Pick a date field on a tile, or switch a parameter tile on.'
                     : "Change a tile's date field on the tile itself."}
             </Text>
-            {actions}
+            <Button
+                variant="subtle"
+                size="xs"
+                leftSection={<MantineIcon icon={IconPlus} />}
+                disabled={addable.length === 0}
+                onClick={addAll}
+            >
+                {dashboardTabs.length > 0
+                    ? 'Add every tile on this tab'
+                    : 'Add every tile'}
+            </Button>
         </Stack>
     );
 };
 
 // Mounted with the zoom's uuid as key, as a filter's editor is
-export const ZoomEditor: FC<Props> = ({ control, tilesActions = null }) => {
+export const ZoomEditor: FC<Props> = ({ control }) => {
     const getUiString = useUiStrings();
     const isNew = useControlsSidebarSelector((c) => c.isNew);
     const isDirty = useControlsSidebarSelector((c) => c.isDirty);
@@ -234,7 +273,7 @@ export const ZoomEditor: FC<Props> = ({ control, tilesActions = null }) => {
                             )
                         }
                     >
-                        <ZoomTiles control={control} actions={tilesActions} />
+                        <ZoomTiles control={control} />
                     </Disclosure>
                 </Box>
             </Stack>

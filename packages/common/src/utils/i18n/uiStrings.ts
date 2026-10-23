@@ -381,6 +381,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.rail.close': 'Close',
     'filters.rail.done': 'Done',
     'filters.rail.editingFilters': 'Editing filters',
+    'filters.rail.editingControls': 'Editing controls',
     'filters.rail.newFilter': 'New filter',
     'filters.rail.filterName': 'Filter name',
     'filters.rail.discardFilter': 'Discard filter',
