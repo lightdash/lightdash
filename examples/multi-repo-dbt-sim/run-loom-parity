@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+fixture_root=$(cd -- "$(dirname -- "$0")" && pwd)
+venvs="$fixture_root/.work/venvs"
+mkdir -p "$venvs"
+
+make_venv() {
+  local venv="$1" requirements="$2"
+  if [[ -x "$venv/bin/dbt" ]]; then
+    return
+  fi
+  if command -v uv >/dev/null 2>&1; then
+    uv venv --python 3.12 "$venv"
+    if command -v sfw >/dev/null 2>&1; then
+      sfw uv pip install --python "$venv/bin/python" -r "$requirements"
+    else
+      uv pip install --python "$venv/bin/python" -r "$requirements"
+    fi
+  else
+    python3.12 -m venv "$venv"
+    if command -v sfw >/dev/null 2>&1; then
+      sfw "$venv/bin/pip" install -r "$requirements"
+    else
+      "$venv/bin/pip" install -r "$requirements"
+    fi
+  fi
+}
+
+make_venv "$venvs/dbt1120" "$fixture_root/last-good-climb/requirements.txt"
+make_venv "$venvs/dbt1120-loom" "$fixture_root/loom-parity/requirements-loom.txt"
+
+if "$venvs/dbt1120/bin/python" -c "import dbt_loom" 2>/dev/null; then
+  echo "dbt-loom is installed in the server-shaped venv" >&2
+  exit 1
+fi
+
+cd "$fixture_root/loom-parity"
+python="$venvs/dbt1120/bin/python"
+combo_start="${LOOM_PARITY_COMBO_START:-42}"
+combo_cases="${LOOM_PARITY_COMBO_CASES:-40}"
+
+uptime
+FUZZ_DBT_COMMAND=ls "$python" -u seed_cases.py
+"$python" -u loader_probe.py
+"$python" -u select_probe.py
+"$python" -u combo.py "$combo_start" "$combo_cases"
