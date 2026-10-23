@@ -1,5 +1,6 @@
 import {
     buildComposerArtifactPipeline,
+    isComposerSlackImageVizConfig,
     isSlackPrompt,
     ParameterError,
     toComposerChartArtifactVersion,
@@ -9,6 +10,7 @@ import {
     type ThreadComposerQueryNode,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import Logger from '../../../../logging/logger';
 import {
     composerChartQualityHints,
     composerChartQualityHintsNeedRows,
@@ -16,6 +18,7 @@ import {
 } from '../decisions/chartQuality';
 import type {
     CreateOrUpdateArtifactFn,
+    DeferSlackVisualizationFn,
     GetPromptFn,
     ListThreadComposerQueryNodesFn,
     ResolveCustomChartTypeFn,
@@ -35,6 +38,7 @@ type Dependencies = {
     resolveCustomChartType: ResolveCustomChartTypeFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     updateProgress: UpdateProgressFn;
+    deferSlackVisualization?: DeferSlackVisualizationFn;
 };
 
 type VisualizeOutput =
@@ -90,6 +94,7 @@ export const getVisualize = ({
     resolveCustomChartType,
     createOrUpdateArtifact,
     updateProgress,
+    deferSlackVisualization,
 }: Dependencies) =>
     tool({
         description: toolDefinition.description,
@@ -125,10 +130,15 @@ export const getVisualize = ({
 
                 await updateProgress('Visualizing result...');
                 const needsHints = composerChartQualityHintsNeedRows(vizConfig);
-                // Slack posts a table from this execution's rows.
+                // Slack posts a table, or a chart image, from this execution's rows.
+                const slackImage =
+                    isSlackPrompt(prompt) &&
+                    !!deferSlackVisualization &&
+                    isComposerSlackImageVizConfig(storedVizConfig);
                 const needsRows =
-                    isSlackPrompt(prompt) && vizConfig.type === 'table';
-                // Usually a results cache hit; a failed run only drops hints and the Slack table.
+                    (isSlackPrompt(prompt) && vizConfig.type === 'table') ||
+                    slackImage;
+                // Usually a results cache hit; a failed run only drops hints and Slack results.
                 const run =
                     needsHints || needsRows
                         ? await runComposerQueries({
@@ -152,6 +162,21 @@ export const getVisualize = ({
                         vizConfig: storedVizConfig,
                     }),
                 });
+
+                if (slackImage && run && run.terminal.rows.length > 0) {
+                    // The answer keeps its link card if the image cannot be registered.
+                    await deferSlackVisualization({
+                        source: 'composer',
+                        artifactUuid: artifact.artifactUuid,
+                        versionUuid: artifact.versionUuid,
+                        queryUuid: run.terminal.queryUuid,
+                        rowLimit: run.terminal.rows.length,
+                    }).catch(() =>
+                        Logger.warn(
+                            '[AiAgent] Deferred Slack composer image unavailable; retaining the chart link.',
+                        ),
+                    );
+                }
 
                 return {
                     result: [

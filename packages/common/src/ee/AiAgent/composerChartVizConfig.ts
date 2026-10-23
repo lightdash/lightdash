@@ -34,8 +34,11 @@ import {
     type ComposerBuiltinChartVizConfig,
     type ComposerStoredChartVizConfig,
     type ComposerStoredCustomChartVizConfig,
+    type ToolRunQueryArgsTransformed,
     type ToolRunQueryBuiltinChartConfig,
 } from './schemas';
+
+type RawResultRow = Record<string, unknown>;
 
 /** Synthetic explore of a composer node result; its fields are the result columns. */
 export const COMPOSER_RESULT_TABLE_NAME = 'composer_result';
@@ -173,6 +176,19 @@ const toQuery = (
 type CartesianVizType = 'bar' | 'line' | 'area' | 'scatter';
 type RunQueryBuilderVizType = CartesianVizType | 'pie' | 'funnel';
 
+/** Builtin types Slack posts as a chart image; tables, big numbers and custom types are not images. */
+export const isComposerSlackImageVizConfig = (
+    vizConfig: ComposerStoredChartVizConfig,
+): vizConfig is ComposerBuiltinChartVizConfig & {
+    type: RunQueryBuilderVizType;
+} =>
+    vizConfig.type === 'bar' ||
+    vizConfig.type === 'line' ||
+    vizConfig.type === 'area' ||
+    vizConfig.type === 'scatter' ||
+    vizConfig.type === 'pie' ||
+    vizConfig.type === 'funnel';
+
 const isCartesianVizType = (
     type: RunQueryBuilderVizType,
 ): type is CartesianVizType =>
@@ -256,12 +272,12 @@ const withUnstackedSecondaryArea = (chartConfig: ChartConfig): ChartConfig => {
     };
 };
 
-const getRunQueryBuilderChart = (
+/** The runQuery tool query and chart config a builtin composer chart maps onto. */
+const getRunQueryBuilderInput = (
     columns: ComposerColumns,
     vizConfig: ComposerBuiltinChartVizConfig,
     type: RunQueryBuilderVizType,
-    metadata: { title: string; description: string },
-): ComposerRunQueryChart => {
+) => {
     const isCartesian = isCartesianVizType(type);
     const groupBy = isCartesian ? (vizConfig.groupBy ?? []) : [];
     const x =
@@ -282,7 +298,33 @@ const getRunQueryBuilderChart = (
     const metrics = unique([...y, ...(y2 ? [y2] : [])]);
     const { metricQuery, fields } = toQuery(columns, dimensions, metrics);
     const fieldIdOf = getComposerResultFieldId;
+    const chartConfig: ToolRunQueryBuiltinChartConfig = {
+        defaultVizType: toRunQueryVizType(type, vizConfig.horizontal),
+        xAxisDimension: x ? fieldIdOf(x) : null,
+        yAxisMetrics: y.map(fieldIdOf),
+        groupBy: groupBy.length > 0 ? groupBy.map(fieldIdOf) : null,
+        xAxisType: x && isTimeType(columns.get(x).type) ? 'time' : 'category',
+        stackBars: type === 'bar' ? vizConfig.stack : null,
+        lineType: type === 'area' ? 'area' : null,
+        xAxisLabel: vizConfig.labels?.x ?? '',
+        yAxisLabel: vizConfig.labels?.y ?? '',
+        secondaryYAxisMetric: y2 ? fieldIdOf(y2) : null,
+        secondaryYAxisLabel: vizConfig.labels?.y2 ?? null,
+    };
+    return { metricQuery, fields, chartConfig };
+};
 
+const getRunQueryBuilderChart = (
+    columns: ComposerColumns,
+    vizConfig: ComposerBuiltinChartVizConfig,
+    type: RunQueryBuilderVizType,
+    metadata: { title: string; description: string },
+): ComposerRunQueryChart => {
+    const { metricQuery, fields, chartConfig } = getRunQueryBuilderInput(
+        columns,
+        vizConfig,
+        type,
+    );
     const builtChartConfig = getRunQueryChartConfig({
         queryTool: {
             ...metadata,
@@ -290,33 +332,19 @@ const getRunQueryBuilderChart = (
                 dimensions: metricQuery.dimensions,
                 metrics: metricQuery.metrics,
             },
-            chartConfig: {
-                defaultVizType: toRunQueryVizType(type, vizConfig.horizontal),
-                xAxisDimension: x ? fieldIdOf(x) : null,
-                yAxisMetrics: y.map(fieldIdOf),
-                groupBy: groupBy.length > 0 ? groupBy.map(fieldIdOf) : null,
-                xAxisType:
-                    x && isTimeType(columns.get(x).type) ? 'time' : 'category',
-                stackBars: type === 'bar' ? vizConfig.stack : null,
-                lineType: type === 'area' ? 'area' : null,
-                xAxisLabel: vizConfig.labels?.x ?? '',
-                yAxisLabel: vizConfig.labels?.y ?? '',
-                secondaryYAxisMetric: y2 ? fieldIdOf(y2) : null,
-                secondaryYAxisLabel: vizConfig.labels?.y2 ?? null,
-            },
+            chartConfig,
         },
         metricQuery,
         fieldsMap: fields,
     });
-    const chartConfig =
-        type === 'area' && y2
-            ? withUnstackedSecondaryArea(builtChartConfig)
-            : builtChartConfig;
     return {
         metricQuery,
         fields,
-        chartConfig,
-        pivotColumns: groupBy.map(fieldIdOf),
+        chartConfig:
+            type === 'area' && chartConfig.secondaryYAxisMetric
+                ? withUnstackedSecondaryArea(builtChartConfig)
+                : builtChartConfig,
+        pivotColumns: chartConfig.groupBy ?? [],
     };
 };
 
@@ -426,22 +454,70 @@ export const getComposerRunQueryChart = ({
 };
 
 /** Row keys renamed to field ids, keeping only the chart's fields: builders treat any extra key as data (funnel labels). */
-export const toComposerResultRows = (
-    chart: ComposerRunQueryChart,
-    rows: ResultRow[],
-): ResultRow[] => {
+export const toComposerResultRows = <Row extends ResultRow | RawResultRow>(
+    chart: Pick<ComposerRunQueryChart, 'metricQuery' | 'fields'>,
+    rows: Row[],
+): Row[] => {
     const fieldIds = [
         ...chart.metricQuery.dimensions,
         ...chart.metricQuery.metrics,
     ];
-    return rows.map((row) =>
-        Object.fromEntries(
-            fieldIds.map((fieldId) => [
-                fieldId,
-                row[chart.fields[fieldId].name],
-            ]),
-        ),
+    return rows.map(
+        (row) =>
+            Object.fromEntries(
+                fieldIds.map((fieldId) => [
+                    fieldId,
+                    row[chart.fields[fieldId].name],
+                ]),
+            ) as Row,
     );
+};
+
+/**
+ * A builtin composer chart as runQuery tool args over the chart's fields only,
+ * for the Slack image builders; null for types Slack posts as a link or table.
+ */
+export const getComposerSlackRunQueryChart = ({
+    columns: resultColumns,
+    rows,
+    vizConfig,
+    metadata,
+}: {
+    columns: ResultColumn[];
+    rows: RawResultRow[];
+    vizConfig: ComposerStoredChartVizConfig;
+    metadata: { title: string; description: string };
+}): {
+    tool: ToolRunQueryArgsTransformed;
+    rows: RawResultRow[];
+    fields: ItemsMap;
+} | null => {
+    if (!isComposerSlackImageVizConfig(vizConfig)) return null;
+    const { metricQuery, fields, chartConfig } = getRunQueryBuilderInput(
+        new ComposerColumns(resultColumns),
+        vizConfig,
+        vizConfig.type,
+    );
+    return {
+        tool: {
+            ...metadata,
+            queryConfig: {
+                exploreName: COMPOSER_RESULT_TABLE_NAME,
+                dimensions: metricQuery.dimensions,
+                metrics: metricQuery.metrics,
+                sorts: [],
+                limit: null,
+                parameters: null,
+                customMetrics: null,
+                tableCalculations: null,
+                filters: {},
+            },
+            chartConfig,
+            mergeConfig: null,
+        },
+        rows: toComposerResultRows({ metricQuery, fields }, rows),
+        fields,
+    };
 };
 
 /** References of a series split, from the viz config alone; null without one. */

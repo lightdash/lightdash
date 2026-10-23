@@ -32,6 +32,7 @@ import {
     deduplicateSlackArtifacts,
     getLegacySlackArtifactImage,
 } from './slackArtifactIdentity';
+import { getSlackArtifactCardBlockId } from './slackArtifactImages';
 
 const isEligibleSlackAiAccessRefusal = (refusal: AiAccessRefusal): boolean =>
     (refusal.action === AiAccessRefusalAction.SIGN_IN &&
@@ -932,7 +933,7 @@ export async function getModernArtifactCardBlocks(
                 });
             }
 
-            // Composer charts post a link until Slack renders their images.
+            // Composer chart cards link to the thread; deferred delivery adds an image.
             if (
                 isAiComposerChartArtifactConfig(artifact.chartConfig) &&
                 artifact.chartConfig.schemaVersion === 2 &&
@@ -941,7 +942,9 @@ export async function getModernArtifactCardBlocks(
                 const isTable =
                     artifact.chartConfig.vizConfig?.type === 'table';
                 return buildSlackCardBlock({
-                    blockId: `ai_agent_composer_card_${artifact.versionUuid}`,
+                    blockId: isTable
+                        ? `ai_agent_composer_card_${artifact.versionUuid}`
+                        : getSlackArtifactCardBlockId(artifact.versionUuid),
                     title: getArtifactTitle(artifact),
                     subtitle: isTable ? 'Table' : 'Chart',
                     body:
