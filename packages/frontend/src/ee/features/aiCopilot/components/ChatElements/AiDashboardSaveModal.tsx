@@ -27,6 +27,7 @@ import { useSpaceManagement } from '../../../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../../../hooks/useSpaces';
 import useApp from '../../../../../providers/App/useApp';
 import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
+import { useIsAiAgentNavigationDisabled } from '../../hooks/useIsAiAgentNavigationDisabled';
 import {
     getAiAgentDashboardChartVizQueryKey,
     useUpdateArtifactVersion,
@@ -69,6 +70,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
     const { user } = useApp();
     const navigate = useNavigate();
     const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
+    const navigationDisabled = useIsAiAgentNavigationDisabled();
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
 
@@ -261,15 +263,17 @@ export const AiDashboardSaveModal: FC<Props> = ({
 
                 showToastSuccess({
                     title: 'Dashboard created successfully!',
-                    action: {
-                        children: 'Open dashboard',
-                        onClick: () =>
-                            openEmbedDashboard
-                                ? openEmbedDashboard(dashboard.uuid, null)
-                                : navigate(
-                                      `/projects/${projectUuid}/dashboards/${dashboard.uuid}`,
-                                  ),
-                    },
+                    action: navigationDisabled
+                        ? undefined
+                        : {
+                              children: 'Open dashboard',
+                              onClick: () =>
+                                  openEmbedDashboard
+                                      ? openEmbedDashboard(dashboard.uuid, null)
+                                      : navigate(
+                                            `/projects/${projectUuid}/dashboards/${dashboard.uuid}`,
+                                        ),
+                          },
                 });
 
                 onSuccess?.(dashboard);
@@ -290,6 +294,7 @@ export const AiDashboardSaveModal: FC<Props> = ({
             spaceManagement,
             navigate,
             openEmbedDashboard,
+            navigationDisabled,
             projectUuid,
             onSuccess,
             showToastSuccess,

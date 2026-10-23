@@ -82,6 +82,7 @@ const embed: EmbedContext = {
     backgroundColor: null,
     timezone: null,
     aiAgentThreadSetup: null,
+    aiAgentNavigationDisabled: false,
 };
 
 describe('EmbedExplore', () => {
