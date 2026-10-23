@@ -35,7 +35,6 @@ import {
 } from './AiAccessService/AiAccessService';
 import { SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
 import { AiServiceAccountService } from './AiServiceAccountService/AiServiceAccountService';
-import { AnalyticsProjectService } from './AnalyticsProjectService/AnalyticsProjectService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { ComposeEngineClient } from './AsyncQueryService/ComposeEngineClient';
@@ -173,7 +172,6 @@ interface ServiceManifest {
     agentConnectionService: AgentConnectionService;
     aiServiceAccountService: AiServiceAccountService;
     projectService: ProjectService;
-    analyticsProjectService: AnalyticsProjectService;
     promptService: PromptService;
     savedChartService: SavedChartService;
     schedulerService: SchedulerService;
@@ -213,6 +211,7 @@ interface ServiceManifest {
     projectCompileLogService: ProjectCompileLogService;
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
+    analyticsProjectService: unknown;
     aiWritebackService: unknown;
     aiDeepResearchService: unknown;
     aiAgentMemoryService: unknown;
@@ -976,24 +975,10 @@ export class ServiceRepository
         );
     }
 
-    public getAnalyticsProjectService(): AnalyticsProjectService {
-        return this.getService(
-            'analyticsProjectService',
-            () =>
-                new AnalyticsProjectService({
-                    lightdashConfig: this.context.lightdashConfig,
-                    schedulerClient: this.clients.getSchedulerClient(),
-                    coderService: this.getCoderService(),
-                    contentVerificationModel:
-                        this.models.getContentVerificationModel(),
-                    dashboardModel: this.models.getDashboardModel(),
-                    savedChartModel: this.models.getSavedChartModel(),
-                    projectModel: this.models.getProjectModel(),
-                    projectService: this.getProjectService(),
-                    userModel: this.models.getUserModel(),
-                    spaceModel: this.models.getSpaceModel(),
-                }),
-        );
+    public getAnalyticsProjectService<
+        AnalyticsProjectServiceImplT,
+    >(): AnalyticsProjectServiceImplT {
+        return this.getService('analyticsProjectService');
     }
 
     public getAiServiceAccountService(): AiServiceAccountService {

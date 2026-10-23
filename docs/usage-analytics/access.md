@@ -9,7 +9,9 @@ controls the older Project settings usage reports.
 
 Organization admins retain access by default. Other users and service accounts
 need an explicit custom-role grant, plus the normal project/content permissions.
-The organization's `analytics-project` feature flag must also be enabled.
+The deployment must have a validated commercial license, and the organization's
+`analytics-project` feature flag must also be enabled. Database and environment
+overrides cannot enable Analytics without that registration.
 
 An organization administrator can:
 

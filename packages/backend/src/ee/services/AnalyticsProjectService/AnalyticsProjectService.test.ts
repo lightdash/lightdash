@@ -4,16 +4,16 @@ import {
     ForbiddenError,
     NotFoundError,
 } from '@lightdash/common';
-import { UsageHistoryBackfill } from '../../analytics/eventStream/UsageHistoryBackfill';
+import { UsageHistoryBackfill } from '../../../analytics/eventStream/UsageHistoryBackfill';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
-} from '../../analytics/systemExplores/sampleContent';
-import * as analyticsExplores from '../ProjectService/analyticsProject/createAnalyticsExplores';
+} from '../../../analytics/systemExplores/sampleContent';
+import * as analyticsExplores from '../../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import {
     user as baseUser,
     defaultProject,
-} from '../ProjectService/ProjectService.mock';
+} from '../../../services/ProjectService/ProjectService.mock';
 import { AnalyticsProjectService } from './AnalyticsProjectService';
 
 describe('AnalyticsProjectService', () => {
