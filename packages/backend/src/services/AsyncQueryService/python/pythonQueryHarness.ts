@@ -69,6 +69,13 @@ const pythonResultMetaSchema = z.object({
         .min(1),
     rowCount: z.number().int().nonnegative(),
     truncated: z.boolean(),
+    timings: z.object({
+        importMs: z.number().nonnegative(),
+        loadInputsMs: z.number().nonnegative(),
+        loadCodeMs: z.number().nonnegative(),
+        runMs: z.number().nonnegative(),
+        writeOutputMs: z.number().nonnegative(),
+    }),
 });
 
 export type PythonResultMeta = z.infer<typeof pythonResultMetaSchema>;
@@ -243,6 +250,10 @@ export const resultColumnsToPythonInput = (
  * trust boundary.
  */
 export const PYTHON_RUNNER_SOURCE = `
+import time
+
+STARTED = time.perf_counter()
+
 import importlib.util
 import json
 import math
@@ -252,6 +263,8 @@ import traceback
 
 import numpy as np
 import pandas as pd
+
+TIMINGS = {"importMs": (time.perf_counter() - STARTED) * 1000}
 
 WORK = "${PYTHON_WORK_DIR}"
 IN_DIR = f"{WORK}/in"
@@ -317,12 +330,19 @@ def to_json_value(value, kind):
     return value
 
 
+def timed(name, started):
+    TIMINGS[name] = (time.perf_counter() - started) * 1000
+
+
 def main():
+    started = time.perf_counter()
     with open(f"{IN_DIR}/meta.json", encoding="utf-8") as handle:
         meta = json.load(handle)
 
     inputs = {name: load_input(name, spec) for name, spec in meta["inputs"].items()}
+    timed("loadInputsMs", started)
 
+    started = time.perf_counter()
     spec = importlib.util.spec_from_file_location("user_main", f"{WORK}/main.py")
     module = importlib.util.module_from_spec(spec)
     try:
@@ -334,10 +354,16 @@ def main():
     if not callable(run):
         fail("Python code must define run(inputs, params)")
 
+    timed("loadCodeMs", started)
+
+    started = time.perf_counter()
     try:
         result = run(inputs, meta.get("params", {}))
     except Exception:
         fail("run() raised:\\n" + traceback.format_exc())
+    timed("runMs", started)
+
+    started = time.perf_counter()
 
     if not isinstance(result, pd.DataFrame):
         fail(f"run() must return a pandas DataFrame, got {type(result).__name__}")
@@ -364,6 +390,7 @@ def main():
         for record in records:
             row = {name: to_json_value(record[name], kinds[name]) for name in names}
             handle.write(json.dumps(row, allow_nan=False) + "\\n")
+    timed("writeOutputMs", started)
 
     with open(f"{OUT_DIR}/meta.json", "w", encoding="utf-8") as handle:
         json.dump(
@@ -371,6 +398,7 @@ def main():
                 "columns": [{"name": name, "type": kinds[name]} for name in names],
                 "rowCount": len(records),
                 "truncated": truncated,
+                "timings": TIMINGS,
             },
             handle,
         )

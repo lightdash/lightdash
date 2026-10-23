@@ -82,6 +82,13 @@ describe.skipIf(!hasPythonDependencies)(
                     columns: [{ name: 'flag', type: 'boolean' }],
                     rowCount: values.length,
                     truncated: false,
+                    timings: {
+                        importMs: expect.any(Number),
+                        loadInputsMs: expect.any(Number),
+                        loadCodeMs: expect.any(Number),
+                        runMs: expect.any(Number),
+                        writeOutputMs: expect.any(Number),
+                    },
                 });
                 expect(
                     validatePythonResultRows(
@@ -96,6 +103,14 @@ describe.skipIf(!hasPythonDependencies)(
         });
     },
 );
+
+const timings = {
+    importMs: 120,
+    loadInputsMs: 3,
+    loadCodeMs: 1,
+    runMs: 5,
+    writeOutputMs: 2,
+};
 
 describe('validatePythonCode', () => {
     it('accepts code that defines run()', () => {
@@ -131,6 +146,7 @@ describe('parsePythonResultMeta', () => {
                     ],
                     rowCount: 2,
                     truncated: false,
+                    timings,
                 }),
             ),
         ).toEqual({
@@ -140,6 +156,7 @@ describe('parsePythonResultMeta', () => {
             ],
             rowCount: 2,
             truncated: false,
+            timings,
         });
     });
 
@@ -156,6 +173,7 @@ describe('parsePythonResultMeta', () => {
                     columns: [{ name: 'a', type: 'blob' }],
                     rowCount: 0,
                     truncated: false,
+                    timings,
                 }),
             ),
         ).toThrow(/invalid/);
@@ -168,6 +186,7 @@ describe('parsePythonResultMeta', () => {
                     columns: [{ name: 'my col', type: 'string' }],
                     rowCount: 0,
                     truncated: false,
+                    timings,
                 }),
             ),
         ).toThrow(/invalid/);
@@ -183,6 +202,7 @@ describe('parsePythonResultMeta', () => {
                     ],
                     rowCount: 0,
                     truncated: false,
+                    timings,
                 }),
             ),
         ).toThrow(/duplicate/);
@@ -198,6 +218,7 @@ describe('validatePythonResultRows', () => {
             ],
             rowCount: 2,
             truncated: false,
+            timings,
         }),
     );
 
@@ -257,6 +278,7 @@ describe('column mapping', () => {
             ],
             rowCount: 0,
             truncated: false,
+            timings,
         }),
     );
 
