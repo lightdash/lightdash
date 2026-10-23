@@ -14,6 +14,7 @@ import {
     AuthorizationError,
     AzureAdSsoConfig,
     BigqueryAuthenticationType,
+    CommercialFeatureFlags,
     CompleteUserArgs,
     CreateInviteLink,
     CreatePasswordResetLink,
@@ -2405,16 +2406,23 @@ export class UserService extends BaseService {
     private async getAccountForSessionUser(
         sessionUser: SessionUser,
     ): Promise<RegisteredAccount> {
-        if (!this.lightdashConfig.serviceAccount.enabled) {
-            return AccountFactory.fromSession(sessionUser);
-        }
-
         const serviceAccount =
             await this.userModel.findServiceAccountByUserUuid(
                 sessionUser.userUuid,
             );
 
-        if (serviceAccount) {
+        // Billing flag, resolved for the service account's org so that
+        // DB-enabled orgs (Cloud) get the same attribution as env-enabled
+        // instances (self-host).
+        if (
+            serviceAccount &&
+            (
+                await this.featureFlagModel.get({
+                    user: { organizationUuid: serviceAccount.organizationUuid },
+                    featureFlagId: CommercialFeatureFlags.ServiceAccounts,
+                })
+            ).enabled
+        ) {
             return AccountFactory.fromServiceAccount(
                 {
                     ...sessionUser,

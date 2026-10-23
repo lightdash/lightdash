@@ -32,11 +32,13 @@ import {
     type LearnProgress,
     type RegisteredAccount,
 } from '@lightdash/common';
+import knex from 'knex';
+import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
 import { createOAuthScopedAbility } from '../auth/oauthScopes/scopedAbility';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
-import { LightdashConfig } from '../config/parseConfig';
+import { LightdashConfig, parseConfig } from '../config/parseConfig';
 import * as winston from '../logging/winston';
 import { AgentCapabilityPolicyModel } from '../models/AgentCapabilityPolicyModel';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
@@ -795,12 +797,7 @@ describe('UserService', () => {
         });
 
         test('should return a service account when the user backs a service account', async () => {
-            const service = createUserService({
-                ...lightdashConfigMock,
-                serviceAccount: {
-                    enabled: true,
-                },
-            });
+            const service = createUserService(lightdashConfigMock);
             (
                 userModel.findServiceAccountByUserUuid as import('vitest').Mock
             ).mockResolvedValueOnce({
@@ -822,6 +819,123 @@ describe('UserService', () => {
         });
     });
 
+    describe('service-accounts flag resolution for service-account users', () => {
+        const flagDatabase = knex({ client: MockClient, dialect: 'pg' });
+        let tracker: Tracker;
+
+        beforeAll(() => {
+            tracker = getTracker();
+        });
+
+        afterEach(() => {
+            tracker.reset();
+        });
+
+        // Instance config built the same way the server does, from env vars.
+        const configFromEnv = (env: Record<string, string>) => {
+            const previousEnv = process.env;
+            process.env = {
+                LIGHTDASH_SECRET: 'not very secret',
+                S3_ENDPOINT: 'mock_endpoint',
+                S3_BUCKET: 'mock_bucket',
+                S3_REGION: 'mock_region',
+                ...env,
+            };
+            try {
+                const { enabledFeatureFlags, disabledFeatureFlags } =
+                    parseConfig();
+                return {
+                    ...lightdashConfigMock,
+                    enabledFeatureFlags,
+                    disabledFeatureFlags,
+                };
+            } finally {
+                process.env = previousEnv;
+            }
+        };
+
+        const mockOrgOverride = (enabled: boolean) => {
+            tracker.on.select('feature_flags').response({
+                flag_id: CommercialFeatureFlags.ServiceAccounts,
+                default_enabled: false,
+            });
+            tracker.on.select('feature_flag_overrides').response({
+                flag_id: CommercialFeatureFlags.ServiceAccounts,
+                organization_uuid: organisation.organizationUuid,
+                user_uuid: null,
+                enabled,
+            });
+        };
+
+        const getAccountForServiceAccountUser = (config: LightdashConfig) => {
+            (
+                userModel.findServiceAccountByUserUuid as import('vitest').Mock
+            ).mockResolvedValueOnce({
+                uuid: 'service-account-uuid',
+                description: 'CI preview',
+                scopes: ['system:developer'],
+                organizationUuid: organisation.organizationUuid,
+            });
+            return createUserService(config, {
+                featureFlagModel: new FeatureFlagModel({
+                    database: flagDatabase,
+                    lightdashConfig: config,
+                }),
+            }).getAccountByUserUuid('userUuid');
+        };
+
+        test.each([
+            [
+                'DB organization override',
+                () => {
+                    mockOrgOverride(true);
+                    return lightdashConfigMock;
+                },
+            ],
+            [
+                'LIGHTDASH_ENABLE_FEATURE_FLAGS',
+                () =>
+                    configFromEnv({
+                        LIGHTDASH_ENABLE_FEATURE_FLAGS: 'service-accounts',
+                    }),
+            ],
+            [
+                'legacy SERVICE_ACCOUNT_ENABLED',
+                () => configFromEnv({ SERVICE_ACCOUNT_ENABLED: 'true' }),
+            ],
+        ])(
+            'returns a service account when enabled through %s',
+            async (_label, setup) => {
+                const account = await getAccountForServiceAccountUser(setup());
+
+                expect(account.isServiceAccount()).toBe(true);
+                expect(account.authentication).toMatchObject({
+                    type: 'service-account',
+                    serviceAccountUuid: 'service-account-uuid',
+                });
+            },
+        );
+
+        test.each([
+            ['no flag row', () => lightdashConfigMock],
+            [
+                'DB organization override off',
+                () => {
+                    mockOrgOverride(false);
+                    return lightdashConfigMock;
+                },
+            ],
+        ])(
+            'returns a session account when disabled (%s)',
+            async (_label, setup) => {
+                const account = await getAccountForServiceAccountUser(setup());
+
+                expect(account.isServiceAccount()).toBe(false);
+                expect(account.isSessionUser()).toBe(true);
+            },
+        );
+    });
+
     describe('getAccountByUserUuidAndOrg', () => {
         test('should preserve the requested organization for normal users', async () => {
             const account = await userService.getAccountByUserUuidAndOrg(
@@ -838,12 +952,7 @@ describe('UserService', () => {
         });
 
         test('should preserve service-account authentication', async () => {
-            const service = createUserService({
-                ...lightdashConfigMock,
-                serviceAccount: {
-                    enabled: true,
-                },
-            });
+            const service = createUserService(lightdashConfigMock);
             (
                 userModel.findServiceAccountByUserUuid as import('vitest').Mock
             ).mockResolvedValueOnce({

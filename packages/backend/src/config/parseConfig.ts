@@ -1877,6 +1877,8 @@ export type LightdashConfig = {
             enablePostMessage: boolean;
         };
     };
+    // Legacy SERVICE_ACCOUNT_ENABLED input. It reaches the flag through
+    // LEGACY_ENABLE_ENV_VARS; gate on CommercialFeatureFlags.ServiceAccounts.
     serviceAccount: {
         enabled: boolean;
     };
@@ -3022,9 +3024,8 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // endpoint) and EmbedService (allowAll config). Keep the config field, but
     // translate the env var to the unified allowlist for the flag system.
     ['EMBEDDING_ENABLED', 'embedding'],
-    // SERVICE_ACCOUNT_ENABLED is also read by HealthService (exposed via the
-    // health endpoint). Keep the config field, but translate the env var to
-    // the unified allowlist for the flag system.
+    // Legacy self-host switch for the service-accounts billing flag. Gate on
+    // the flag, never on config.serviceAccount.enabled.
     ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
     ['SCIM_ENABLED', 'scim-token-management'],
     // ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED is also read by HealthService

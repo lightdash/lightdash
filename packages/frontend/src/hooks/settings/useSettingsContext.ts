@@ -48,8 +48,8 @@ export const useSettingsContext = (): SettingsContext => {
     const { data: serviceAccountsFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.ServiceAccounts,
     );
-    const isServiceAccountFeatureFlagEnabled =
-        serviceAccountsFlag?.enabled ?? false;
+    // Billing flag; self-host turns it on through env vars, which feed the flag.
+    const isServiceAccountsEnabled = serviceAccountsFlag?.enabled ?? false;
 
     const {
         health: {
@@ -208,10 +208,6 @@ export const useSettingsContext = (): SettingsContext => {
 
     const isGroupManagementEnabled =
         userGroupsFeatureFlagQuery.data?.enabled ?? false;
-
-    // This allows us to enable service accounts in the UI for on-premise installations
-    const isServiceAccountsEnabled =
-        health?.isServiceAccountEnabled || isServiceAccountFeatureFlagEnabled;
 
     const isAgentIdentityEnabled = agentIdentityFlag?.enabled ?? false;
 

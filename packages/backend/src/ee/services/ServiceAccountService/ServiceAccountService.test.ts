@@ -86,7 +86,11 @@ const buildMocks = (): Mocks => ({
         }),
     } as AnyType,
     analytics: { track: vi.fn() } as AnyType,
-    commercialFeatureFlagModel: {} as AnyType,
+    commercialFeatureFlagModel: {
+        get: vi
+            .fn()
+            .mockResolvedValue({ id: 'service-accounts', enabled: true }),
+    } as AnyType,
     lightdashConfig: { license: { licenseKey: 'test' } } as AnyType,
 });
 

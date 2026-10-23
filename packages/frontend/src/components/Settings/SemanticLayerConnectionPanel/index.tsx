@@ -192,7 +192,7 @@ const TokenAddedCard: FC<{
 };
 
 const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
-    const { health, user } = useApp();
+    const { user } = useApp();
     const { data: organization } = useOrganization();
     const { data: project } = useProject(projectUuid);
     const { data: settings, isLoading: isSettingsLoading } =
@@ -217,9 +217,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
     const { data: serviceAccountsFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.ServiceAccounts,
     );
-    const isServiceAccountsEnabled =
-        (health.data?.isServiceAccountEnabled ?? false) ||
-        (serviceAccountsFlag?.enabled ?? false);
+    const isServiceAccountsEnabled = serviceAccountsFlag?.enabled ?? false;
 
     // The plaintext token is only returned once, when a service account is
     // generated on the spot. `manualToken` holds a token the user pasted;
