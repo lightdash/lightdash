@@ -67,8 +67,8 @@ NODE_ENV = "development"
 # already set in the environment, so this value reaches the backend.
 LIGHTDASH_MODE = "pr"
 LIGHTDASH_LOG_LEVEL = "info"
-SECURE_COOKIES = "false"
-TRUST_PROXY = "false"
+SECURE_COOKIES = "true"            # as the Okteto preview: served over https behind an ingress that
+TRUST_PROXY = "true"               # sets X-Forwarded-Proto (ingress.go SetXForwarded); iframe embedding needs it
 SCHEDULER_ENABLED = "true"
 ALLOW_MULTIPLE_ORGS = "true"
 HEADLESS = "true"
