@@ -5,21 +5,23 @@
     --controls-duration-state: 0.15s;
 
     flex-shrink: 0;
-    margin-left: var(--mantine-spacing-xs);
+    margin-inline-start: var(--mantine-spacing-xs);
     text-transform: none;
     font-variant-numeric: tabular-nums;
     animation: fadeIn var(--controls-duration-state) var(--controls-ease);
 }
 
 /* A tab with a count keeps its natural width, so the strip scrolls instead of
-   squeezing the name */
+   squeezing the name. In the app the tab sits in a draggable wrapper */
 [role='tablist'] > :has(> [role='tab'] > .count) {
     flex-shrink: 0;
 }
 
-/* Over the shipped tab's inline max-width (a share of the viewport), which
-   leaves a narrow screen one letter of the name beside the count */
+/* An embed's tab has no wrapper. The max-width overrides the shipped tab's
+   inline one (a share of the viewport), which leaves a narrow screen one
+   letter of the name beside the count */
 [role='tab']:has(> .count) {
+    flex-shrink: 0;
     max-width: none !important;
 }
 
