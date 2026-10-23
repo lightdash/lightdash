@@ -2621,6 +2621,13 @@ describe('ControlsSidebarProvider', () => {
     });
 });
 
+// What the value input writes once a viewer picks a value
+const withValue = (filterRule: DashboardFilterRule): DashboardFilterRule => ({
+    ...filterRule,
+    values: ['done'],
+    disabled: false,
+});
+
 describe('ControlsSidebarProvider in view mode', () => {
     beforeEach(() => {
         saved.filters = initialFilters;
@@ -2649,6 +2656,7 @@ describe('ControlsSidebarProvider in view mode', () => {
         expect(result.current.editingRule?.id).toBe(added.id);
         expect(result.current.isSavedValue).toBe(false);
 
+        act(() => result.current.updateFilter(withValue(added)));
         act(() => result.current.close());
         expect(latest.temporaryFilters.dimensions).toHaveLength(1);
         expect(mockTrack).toHaveBeenCalledWith({
@@ -2656,6 +2664,22 @@ describe('ControlsSidebarProvider in view mode', () => {
             properties: { mode: 'viewer' },
         });
     });
+
+    it.each(['close', 'collapse'] as const)(
+        "drops a viewer's new filter left with no value on %s, as the shipped Apply",
+        (way) => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+            expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+
+            act(() => result.current[way]());
+            expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
+            expect(latest.changed).toBe(false);
+            expect(result.current.editing).toBeNull();
+            expect(mockTrack).not.toHaveBeenCalled();
+        },
+    );
 
     it("discarding a viewer's new filter leaves nothing behind", () => {
         const { result } = setup();
@@ -2762,10 +2786,26 @@ describe('ControlsSidebarProvider in view mode', () => {
             expect(result.current.isRailOpen).toBe(false);
         });
 
-        it('keeps and tracks a new viewer filter with a field, as temporary', () => {
+        it('drops a new viewer filter with no value', () => {
             const { result, rerender } = setup();
             act(() => result.current.openNew());
             act(() => result.current.addFirstField(statusField));
+            mockParams.current = { mode: 'edit' };
+            rerender();
+            expect(result.current.isRailOpen).toBe(false);
+            expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
+            expect(mockTrack).not.toHaveBeenCalled();
+        });
+
+        it('keeps and tracks a new viewer filter with a value, as temporary', () => {
+            const { result, rerender } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+            act(() =>
+                result.current.updateFilter(
+                    withValue(latest.temporaryFilters.dimensions[0]),
+                ),
+            );
             mockParams.current = { mode: 'edit' };
             rerender();
             expect(result.current.isRailOpen).toBe(false);
@@ -2805,6 +2845,11 @@ describe('ControlsSidebarProvider in view mode', () => {
             expect(result.current.isViewer).toBe(true);
             act(() => result.current.openNew());
             act(() => result.current.addFirstField(statusField));
+            act(() =>
+                result.current.updateFilter(
+                    withValue(latest.temporaryFilters.dimensions[0]),
+                ),
+            );
 
             providerMode.isEditMode = true;
             rerender();

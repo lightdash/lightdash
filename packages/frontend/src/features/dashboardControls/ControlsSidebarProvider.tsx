@@ -43,6 +43,7 @@ import {
 } from '../dashboard/store';
 import {
     getFilterRuleWithDisabledState,
+    hasFilterValueSet,
     isLockedRequiredMissingValue,
 } from '../dashboardFilters/FilterConfiguration/utils';
 import { getLinkKey } from './linkCandidates';
@@ -1135,6 +1136,15 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 // An existing control left with no field goes as "Remove filter"
                 if (!current.state.isNew) removeEdited(keepRail);
                 else discardEdited(keepRail);
+                return;
+            }
+            // As the shipped Apply: a viewer's new filter needs a value to stay
+            if (
+                current.state.isNew &&
+                current.state.isViewer &&
+                !hasFilterValueSet(rule)
+            ) {
+                discardEdited(keepRail);
                 return;
             }
             rememberFocusReturn(keepRail);

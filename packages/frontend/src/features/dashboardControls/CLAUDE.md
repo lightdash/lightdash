@@ -270,7 +270,7 @@ In `FilterConfiguration/`:
 - `ADD_FILTER_CLICKED` (`mode: 'edit'`, `'viewer'` or, in an embed,
   `'embed'`: the shipped payloads) is tracked when
   a new filter is kept: `close()` on a new control that has a field (Done,
-  the X, its pill, or opening another control). Opening a placeholder,
+  the X, its pill, or opening another control), and for a viewer a value. Opening a placeholder,
   picking a field, `discard()` and `removeFilter()` track nothing.
 - `addFirstFieldOnTile(field, tileUuid)` is the tile cards': the same
   control, label carried over, on that tile only. Every other tile the filter
@@ -332,7 +332,10 @@ In `FilterConfiguration/`:
 - `close()` keeps the edits: they already live in the dashboard draft. A
   control that cannot be kept (`canKeepFilterRule`: no field) is dropped
   instead: a new one by `discard()`, an existing one as `removeFilter()`
-  does. It turns off a default value that was switched on but left empty.
+  does. A viewer's new filter with no value (`hasFilterValueSet`, the
+  shipped Apply's reading) is dropped by `discard()` too, untracked, on every
+  way out (`close()`, `collapse()`, opening another, the mode change); while
+  it is open it is written as "any value". It turns off a default value that was switched on but left empty.
 - A label is optional. A filter with none shows its field's name, as the
   shipped bar does.
 - `discard()` and `removeFilter()` undo what the editor wrote and nothing
