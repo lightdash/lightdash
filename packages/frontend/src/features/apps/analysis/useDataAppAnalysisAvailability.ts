@@ -50,8 +50,7 @@ const ROLLOUT_FLAG: Record<AnalysisTarget, FeatureFlags> = {
  * (org setting) and AI entitlement are shared across targets; the rollout
  * flag is per target.
  */
-// Exported once the dashboard surface registers (GLITCH-954).
-const useAnalysisAvailability = (
+export const useAnalysisAvailability = (
     target: AnalysisTarget,
 ): DataAppAnalysisAvailability => {
     const rolloutFlag = useServerFeatureFlag(ROLLOUT_FLAG[target]);
