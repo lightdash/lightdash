@@ -1,12 +1,17 @@
-import { type SqlChart } from '@lightdash/common';
+import { PersonSignInProvider, type SqlChart } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import {
+    activateWarehouseSignInPreflight,
     WarehouseSignInPreflight,
     WarehouseSignInPreflightContext,
 } from '../../../components/NavBar/warehouseSignInPreflight';
+import {
+    completeSharedSignInRestoration,
+    activateSharedSignInRestoration,
+} from '../../../hooks/sharedSignInQueryRecovery';
 import {
     getDashboardSqlChartPivotChartData,
     getSqlChartPivotChartData,
@@ -149,6 +154,7 @@ it.each([null, 'connection_extra'])(
             true,
             false,
         );
+        const deactivate = activateWarehouseSignInPreflight(preflight);
         const client = new QueryClient({
             defaultOptions: { queries: { retry: false } },
         });
@@ -187,6 +193,34 @@ it.each([null, 'connection_extra'])(
         await waitFor(() =>
             expect(getSqlChartPivotChartData).toHaveBeenCalledOnce(),
         );
+        await act(async () =>
+            preflight.settle(binding, preflight.checks.get(key)!.generation, {
+                personalSelection: { warehouseConnectionUuid: binding },
+                provider: PersonSignInProvider.GOOGLE,
+                subject: null,
+                subjectBasis: null,
+                expired: false,
+                canReconnect: false,
+                personalSignIn: {
+                    provider: PersonSignInProvider.GOOGLE,
+                    projectUuid,
+                    userWarehouseCredentialsUuid: 'credential_a',
+                    expired: true,
+                    canReconnect: true,
+                },
+            }),
+        );
+        await act(async () => {
+            const receipt = await completeSharedSignInRestoration(
+                client,
+                preflight.target!,
+            );
+            activateSharedSignInRestoration(receipt);
+        });
+        await waitFor(() =>
+            expect(getSqlChartPivotChartData).toHaveBeenCalledTimes(2),
+        );
+        expect(fetchSavedSqlChart).toHaveBeenCalledOnce();
         const generation = preflight.checks.get(key)!.generation;
         const refreshed = Promise.withResolvers<SqlChart>();
         vi.mocked(fetchSavedSqlChart).mockReturnValue(refreshed.promise);
@@ -198,6 +232,7 @@ it.each([null, 'connection_extra'])(
         );
         expect(preflight.checks.get(key)?.generation).toBe(generation);
         expect(preflight.ready(binding)).toBe(true);
+        deactivate();
         client.clear();
     },
 );

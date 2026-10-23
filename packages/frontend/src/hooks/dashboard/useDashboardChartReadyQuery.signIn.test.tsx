@@ -12,6 +12,7 @@ import { useEffect, type PropsWithChildren } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { type LightdashApi } from '../../api';
 import {
+    activateWarehouseSignInPreflight,
     WarehouseSignInPreflight,
     WarehouseSignInPreflightContext,
 } from '../../components/NavBar/warehouseSignInPreflight';
@@ -20,6 +21,10 @@ import DashboardProvider from '../../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { mockSavedChartResponse } from '../../testing/savedChartResponse.mock';
+import {
+    completeSharedSignInRestoration,
+    activateSharedSignInRestoration,
+} from '../sharedSignInQueryRecovery';
 import { useDashboardChartReadyQuery } from './useDashboardChartReadyQuery';
 
 vi.mock('../../api');
@@ -106,6 +111,7 @@ test('mounted mixed-connection metric tiles discover their own bindings before w
         true,
         false,
     );
+    const deactivate = activateWarehouseSignInPreflight(preflight);
     const client = new QueryClient({
         defaultOptions: { queries: { retry: false, staleTime: Infinity } },
     });
@@ -229,5 +235,28 @@ test('mounted mixed-connection metric tiles discover their own bindings before w
     await waitFor(() => expect(warehouseCalls()).toHaveLength(2));
     expect(preflight.target).toBe(target);
     expect(preflight.modalOpen).toBe(false);
+    const metadataCalls = mockedLightdashApi.mock.calls.filter(
+        ([request]) => !request.url.includes('/query/'),
+    ).length;
+    act(() => {
+        preflight.modalOpen = true;
+        preflight.notify();
+    });
+    let receipt: Awaited<ReturnType<typeof completeSharedSignInRestoration>> =
+        null;
+    await act(async () => {
+        receipt = await completeSharedSignInRestoration(client, target);
+    });
+    await waitFor(() => expect(warehouseCalls()).toHaveLength(3));
+    act(() => {
+        activateSharedSignInRestoration(receipt);
+    });
+    await waitFor(() => expect(warehouseCalls()).toHaveLength(4));
+    expect(
+        mockedLightdashApi.mock.calls.filter(
+            ([request]) => !request.url.includes('/query/'),
+        ).length,
+    ).toBe(metadataCalls);
+    deactivate();
     client.clear();
 });

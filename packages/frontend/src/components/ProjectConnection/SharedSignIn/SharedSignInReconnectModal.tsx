@@ -5,7 +5,6 @@ import {
 import { Alert, Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { useGoogleLoginPopup } from '../../../hooks/gdrive/useGdrive';
-import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
 import { useReconnectSharedSignIn } from '../../../hooks/useReconnectSharedSignIn';
 import {
@@ -19,8 +18,7 @@ export const SharedSignInReconnectModal: FC<{
     personalSignIn?: PersonalSignInExpiry;
     target?: WarehouseSignInTarget;
     onClose: () => void;
-    onRestored: () => void;
-}> = ({ projectUuid, personalSignIn, target, onClose, onRestored }) => {
+}> = ({ projectUuid, personalSignIn, target, onClose }) => {
     const { data: project } = useProject(projectUuid);
     const reconnect = useReconnectSharedSignIn(
         projectUuid,
@@ -37,18 +35,11 @@ export const SharedSignInReconnectModal: FC<{
     const isCurrent = () =>
         mounted.current && (!target || isWarehouseSignInTargetCurrent(target));
     const [error, setError] = useState<string | null>(null);
-    const { showToastSuccess } = useToaster();
     const popup = useGoogleLoginPopup(
         'bigquery',
         () => {
             if (!isCurrent()) return;
             reconnect.mutate(undefined, {
-                onSuccess: () => {
-                    if (!isCurrent()) return;
-                    onClose();
-                    onRestored();
-                    showToastSuccess({ title: 'Connection restored' });
-                },
                 onError: (apiError) => {
                     if (isCurrent()) setError(apiError.error.message);
                 },

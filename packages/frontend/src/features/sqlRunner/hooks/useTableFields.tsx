@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import Fuse from 'fuse.js';
 import isEmpty from 'lodash/isEmpty';
 import { type LightdashApi } from '../../../api';
+import { useWarehouseCatalogueRecovery } from '../../../hooks/sharedSignInQueryRecovery';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export type GetTableFieldsParams = {
@@ -53,20 +54,24 @@ export const useTableFields = ({
     schema,
 }: GetTableFieldsParams) => {
     const lightdashApi = useLightdashApi();
+    const { canFetch, run } = useWarehouseCatalogueRecovery();
+    const queryKey = ['sqlRunner', 'tables', tableName, projectUuid, schema];
     return useQuery<
         WarehouseTableSchema,
         ApiError,
         Array<WarehouseTableField> | undefined
     >({
-        queryKey: ['sqlRunner', 'tables', tableName, projectUuid, schema],
+        queryKey,
         queryFn: () =>
-            fetchTableFields(lightdashApi, {
-                projectUuid,
-                tableName,
-                schema,
-            }),
+            run(queryKey, projectUuid, null, () =>
+                fetchTableFields(lightdashApi, {
+                    projectUuid,
+                    tableName,
+                    schema,
+                }),
+            ),
         retry: false,
-        enabled: !!tableName,
+        enabled: !!tableName && canFetch(queryKey, projectUuid, null),
         select(data) {
             if (!data || isEmpty(data)) return;
 

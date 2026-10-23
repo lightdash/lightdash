@@ -19,9 +19,11 @@ export type WarehouseSignInCheck = {
     priority: number;
     started: boolean;
     forceRefresh: boolean;
+    requestVersion: number;
     settled: boolean;
     blocked: boolean;
     status: SharedSignInStatus | null;
+    retiredExpiry: string | null;
 };
 export type WarehouseSignInExecutionIdentity = WarehouseSignInIdentity & {
     binding: WarehouseSignInBinding;
@@ -133,6 +135,22 @@ export class WarehouseSignInStatusCache {
     }
 }
 
+const signInStatusIdentity = (status: SharedSignInStatus) =>
+    JSON.stringify(
+        status.personalSignIn
+            ? [
+                  'personal',
+                  status.personalSignIn.provider,
+                  status.personalSignIn.userWarehouseCredentialsUuid,
+              ]
+            : [
+                  'shared',
+                  status.provider,
+                  status.subject?.userUuid,
+                  status.subjectBasis,
+              ],
+    );
+
 export class WarehouseSignInPreflight {
     readonly checks = new Map<string, WarehouseSignInCheck>();
     private readonly sources = new Map<
@@ -143,6 +161,7 @@ export class WarehouseSignInPreflight {
     private revision = 0;
     private generation = 0;
     private lastPreferredBinding: WarehouseSignInBinding | undefined;
+    recoveryGeneration = 0;
     automaticOpened = false;
     target: WarehouseSignInTarget | null = null;
     modalOpen = false;
@@ -184,10 +203,12 @@ export class WarehouseSignInPreflight {
                 generation: ++this.generation,
                 priority,
                 forceRefresh,
+                requestVersion: 0,
                 started: false,
                 settled: false,
                 blocked: false,
                 status: null,
+                retiredExpiry: null,
             });
         else check.priority = Math.max(check.priority, priority);
         if (priority > 0) this.lastPreferredBinding = binding;
@@ -251,11 +272,36 @@ export class WarehouseSignInPreflight {
             this.target = null;
             this.modalOpen = false;
         }
+        if (status && !status.statusUnknown && !expired)
+            check.retiredExpiry = null;
         check.status = status;
         check.settled = true;
         check.blocked = !!(status?.personalSignIn?.expired ?? status?.expired);
         this.notify();
         return true;
+    }
+    settleRejection(
+        execution: WarehouseSignInExecutionIdentity & {
+            recoveryGeneration: number;
+        },
+        status: SharedSignInStatus,
+    ) {
+        if (
+            !this.isCurrent(execution) ||
+            execution.recoveryGeneration !== this.recoveryGeneration ||
+            !this.hasPreferredBinding(execution.binding) ||
+            this.checks.get(warehouseSignInBindingKey(execution.binding))
+                ?.retiredExpiry === signInStatusIdentity(status) ||
+            this.target
+        )
+            return false;
+        if (
+            !(status.personalSignIn?.expired ?? status.expired) ||
+            status.statusUnknown
+        )
+            return false;
+        this.present(execution.binding, execution.generation, status);
+        return this.settle(execution.binding, execution.generation, status);
     }
     arbitrate() {
         if (
@@ -282,35 +328,46 @@ export class WarehouseSignInPreflight {
                     this.hasPreferredBinding(check.binding),
             )
             .sort((a, b) => b.priority - a.priority)[0];
-        if (expired?.status && !this.automaticOpened) {
-            this.target = {
-                ...this.identity,
-                binding: expired.binding,
-                generation: expired.generation,
-                status: expired.status,
-            };
-            this.modalOpen =
-                (expired.status.personalSignIn?.canReconnect ??
-                    expired.status.canReconnect) &&
-                (!!expired.status.personalSignIn ||
-                    !this.statusCache.openedSharedProjects.has(
-                        this.identity.projectUuid,
-                    ));
-            if (!expired.status.personalSignIn && this.modalOpen) {
-                this.statusCache.openedSharedProjects.add(
-                    this.identity.projectUuid,
-                );
-                if (this.statusCache.openedSharedProjects.size > 100)
-                    this.statusCache.openedSharedProjects.delete(
-                        this.statusCache.openedSharedProjects.values().next()
-                            .value!,
-                    );
-            }
-            this.automaticOpened = true;
-        }
+        const target =
+            expired?.status && !this.automaticOpened
+                ? this.present(
+                      expired.binding,
+                      expired.generation,
+                      expired.status,
+                  )
+                : null;
         for (const check of this.checks.values())
-            check.blocked =
-                this.modalOpen && check.binding === this.target?.binding;
+            check.blocked = this.modalOpen && check.binding === target?.binding;
+    }
+    private present(
+        binding: WarehouseSignInBinding,
+        generation: number,
+        status: SharedSignInStatus,
+    ) {
+        this.target = {
+            ...this.identity,
+            binding,
+            generation,
+            status,
+        };
+        this.modalOpen =
+            (status.personalSignIn?.canReconnect ?? status.canReconnect) &&
+            (!!status.personalSignIn ||
+                !this.statusCache.openedSharedProjects.has(
+                    this.identity.projectUuid,
+                ));
+        if (!status.personalSignIn && this.modalOpen) {
+            this.statusCache.openedSharedProjects.add(
+                this.identity.projectUuid,
+            );
+            if (this.statusCache.openedSharedProjects.size > 100)
+                this.statusCache.openedSharedProjects.delete(
+                    this.statusCache.openedSharedProjects.values().next()
+                        .value!,
+                );
+        }
+        this.automaticOpened = true;
+        return this.target;
     }
     dismiss(target: WarehouseSignInTarget) {
         if (this.target !== target || !this.isCurrent(target)) return;
@@ -327,7 +384,19 @@ export class WarehouseSignInPreflight {
             target.binding,
             !target.status.personalSignIn,
         );
+        for (const sibling of this.checks.values()) {
+            if (sibling === check) sibling.retiredExpiry = null;
+            else if (
+                sibling.status &&
+                !sibling.status.statusUnknown &&
+                (sibling.status.personalSignIn?.expired ??
+                    sibling.status.expired)
+            )
+                sibling.retiredExpiry = signInStatusIdentity(sibling.status);
+        }
+        check.requestVersion += 1;
         check.status = null;
+        check.settled = true;
         check.blocked = false;
         this.target = null;
         this.modalOpen = false;
@@ -352,6 +421,7 @@ export class WarehouseSignInPreflight {
     }
 }
 
+export const WarehouseSignInCataloguePendingContext = createContext(false);
 export const WarehouseSignInPreflightContext =
     createContext<WarehouseSignInPreflight | null>(null);
 const noSubscribe = () => () => {};
@@ -393,6 +463,7 @@ export const useWarehouseSignInExecution = (
 };
 
 let activeStore: WarehouseSignInPreflight | null = null;
+export const getActiveWarehouseSignInPreflight = () => activeStore;
 export const activateWarehouseSignInPreflight = (
     store: WarehouseSignInPreflight,
 ) => {

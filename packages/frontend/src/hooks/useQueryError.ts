@@ -1,7 +1,16 @@
-import { InvalidUser, PaginationError, type ApiError } from '@lightdash/common';
+import {
+    getWarehouseSignInErrorType,
+    InvalidUser,
+    PaginationError,
+    type ApiError,
+} from '@lightdash/common';
 import { captureException } from '@sentry/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+    getSharedSignInFailureScope,
+    isCurrentSharedSignInQueryScope,
+} from './sharedSignInQueryRecovery';
 import useToaster from './toaster/useToaster';
 
 type opts = {
@@ -25,6 +34,9 @@ const useQueryError = ({
             const { error } = errorResponse || {};
 
             if (error) {
+                const execution = getSharedSignInFailureScope(error);
+                if (execution && !isCurrentSharedSignInQueryScope(execution))
+                    return;
                 const { statusCode } = error;
                 if (statusCode === 403) {
                     // Forbidden error
@@ -40,7 +52,13 @@ const useQueryError = ({
                         });
                     }
                 } else if (statusCode === 401) {
-                    await queryClient.invalidateQueries(['health']);
+                    if (
+                        error.data?.personalSignIn ||
+                        error.data?.sharedSignIn ||
+                        getWarehouseSignInErrorType(error.message)
+                    )
+                        addToastError({ apiError: error, projectUuid });
+                    else await queryClient.invalidateQueries(['health']);
                 } else if (
                     statusCode === 422 &&
                     error.name !== PaginationError.name

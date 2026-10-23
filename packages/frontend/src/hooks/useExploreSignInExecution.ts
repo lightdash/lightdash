@@ -4,7 +4,7 @@ import {
 } from '../components/NavBar/warehouseSignInPreflight';
 import { useExploreByProjectUuid } from './useExplore';
 
-export const useExploreSignInExecution = (
+export const useExploreSignInExecutionContext = (
     projectUuid: string | undefined,
     tableId: string | undefined,
     candidate: boolean,
@@ -15,9 +15,19 @@ export const useExploreSignInExecution = (
         refetchOnMount: false,
         refetchOnWindowFocus: false,
     });
-    return useWarehouseSignInExecution(
+    const ready = useWarehouseSignInExecution(
         projectUuid,
         explore?.warehouseConnection?.warehouseConnectionUuid,
         candidate,
     );
+    return {
+        ready,
+        binding: explore?.warehouseConnection?.warehouseConnectionUuid,
+    };
 };
+
+export const useExploreSignInExecution = (
+    projectUuid: string | undefined,
+    tableId: string | undefined,
+    candidate: boolean,
+) => useExploreSignInExecutionContext(projectUuid, tableId, candidate).ready;

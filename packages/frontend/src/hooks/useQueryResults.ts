@@ -2,8 +2,6 @@ import {
     assertUnreachable,
     DEFAULT_RESULTS_PAGE_SIZE,
     DownloadFileType,
-    isBigqueryTokenErrorMessage,
-    isPreviewWarehouseSignInExpiredMessage,
     LightdashCustomSqlProvenanceChartUuidHeader,
     MAX_SAFE_INTEGER,
     ParameterError,
@@ -29,11 +27,27 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type LightdashApi } from '../api';
+import {
+    getAsyncQueryError,
+    getSqlQueryError,
+} from '../features/queryRunner/asyncQueryError';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { convertDateFilters } from '../utils/dateFilter';
-import { useExploreSignInExecution } from './useExploreSignInExecution';
+import {
+    beginSharedSignInQuery,
+    rememberSharedSignInQuery,
+    getSharedSignInPollScope,
+    trackSharedSignInPoll,
+    getSharedSignInFailureScope,
+    isCurrentSharedSignInQueryScope,
+    useSharedSignInQueryRecovery,
+} from './sharedSignInQueryRecovery';
+import { useExploreSignInExecutionContext } from './useExploreSignInExecution';
 import useQueryError from './useQueryError';
+import { reportSharedSignInQueryFailure } from './useReconnectSharedSignIn';
+
+export { getAsyncQueryError } from '../features/queryRunner/asyncQueryError';
 
 export type QueryResultsProps = {
     projectUuid: string;
@@ -60,44 +74,6 @@ export type ReadyQueryResultsPageWithClientFetchTimeMs =
     ReadyQueryResultsPage & {
         clientFetchTimeMs: number;
     };
-
-const isRedshiftIamTokenErrorMessage = (message: string): boolean => {
-    const normalizedMessage = message.toLowerCase();
-    return (
-        normalizedMessage.includes('redshift iam') &&
-        normalizedMessage.includes('expired')
-    );
-};
-
-const getAsyncQueryErrorType = (
-    message: string,
-): Pick<ApiError['error'], 'name' | 'statusCode'> => {
-    if (isRedshiftIamTokenErrorMessage(message)) {
-        return { name: 'RedshiftIamTokenError', statusCode: 401 };
-    }
-    if (isPreviewWarehouseSignInExpiredMessage(message)) {
-        return { name: 'PreviewWarehouseSignInExpiredError', statusCode: 401 };
-    }
-    if (isBigqueryTokenErrorMessage(message)) {
-        return { name: 'BigqueryTokenError', statusCode: 401 };
-    }
-    return { name: 'Error', statusCode: 500 };
-};
-
-export const getAsyncQueryError = (message: string | null): ApiError => {
-    const errorMessage = message || 'Query failed';
-    const { name, statusCode } = getAsyncQueryErrorType(errorMessage);
-
-    return {
-        status: 'error',
-        error: {
-            name,
-            statusCode,
-            message: errorMessage,
-            data: {},
-        },
-    };
-};
 
 const executeAsyncMetricQuery = async (
     lightdashApi: LightdashApi,
@@ -258,7 +234,7 @@ export const executeQueryAndWaitForResults = async (
         results.status === QueryHistoryStatus.ERROR ||
         results.status === QueryHistoryStatus.EXPIRED
     ) {
-        throw new Error(results.error || 'Error executing SQL query');
+        throw getSqlQueryError(results.error);
     }
 
     if (results.status !== QueryHistoryStatus.READY) {
@@ -287,35 +263,66 @@ export const useGetReadyQueryResults = (
         return missingRequiredParameters.length === 0;
     }, [data, missingRequiredParameters]);
 
-    const signInReady = useExploreSignInExecution(
+    const { ready: signInReady, binding } = useExploreSignInExecutionContext(
         data?.projectUuid,
         data?.tableId,
         isEnabled,
     );
+    const queryClient = useQueryClient();
+    const queryKey = ['create-query', data, missingRequiredParameters];
     const result = useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
         enabled: isEnabled && signInReady,
-        queryKey: ['create-query', data, missingRequiredParameters],
+        queryKey,
         keepPreviousData: true, // needed to keep the last metric query which could break cartesian chart config
         staleTime: Infinity,
         refetchOnWindowFocus: false,
         refetchOnMount: false,
-        queryFn: ({ signal }) => {
-            return executeAsyncQuery(
-                lightdashApi,
-                data
-                    ? {
-                          ...data,
-                          pivotResults: data.pivotResults ?? true,
-                      }
-                    : null,
-                signal,
+        queryFn: async ({ signal }) => {
+            const execution = beginSharedSignInQuery(
+                queryClient,
+                queryKey,
+                data?.projectUuid ?? '',
+                binding,
             );
+            try {
+                const response = await executeAsyncQuery(
+                    lightdashApi,
+                    data
+                        ? {
+                              ...data,
+                              pivotResults: data.pivotResults ?? true,
+                          }
+                        : null,
+                    signal,
+                );
+                rememberSharedSignInQuery(execution, response.queryUuid);
+                return response;
+            } catch (error) {
+                if (data)
+                    reportSharedSignInQueryFailure(
+                        data.projectUuid,
+                        error,
+                        execution,
+                    );
+                throw error;
+            }
         },
+    });
+    useSharedSignInQueryRecovery({
+        queryKey,
+        projectUuid: data?.projectUuid,
+        binding,
+        candidate: isEnabled,
+        ready: signInReady,
+        refetch: result.refetch,
     });
 
     // On Error
     useEffect(() => {
         if (result.error) {
+            const execution = getSharedSignInFailureScope(result.error.error);
+            if (execution && !isCurrentSharedSignInQueryScope(execution))
+                return;
             setErrorResponse(result.error);
         }
     }, [result.error, setErrorResponse]);
@@ -484,7 +491,12 @@ export const useInfiniteQueryResults = (
             fetchArgs,
             ...(resultsUrl === null ? [] : [resultsUrl]),
         ],
-        queryFn: async () => {
+        queryFn: async ({ queryKey }) => {
+            const execution = getSharedSignInPollScope(
+                fetchArgs.projectUuid!,
+                fetchArgs.queryUuid!,
+            );
+            trackSharedSignInPoll(queryClient, queryKey, execution);
             const startTime = performance.now();
             const results = await getResultsPage(
                 lightdashApi,
@@ -503,7 +515,13 @@ export const useInfiniteQueryResults = (
                 case QueryHistoryStatus.ERROR:
                 case QueryHistoryStatus.EXPIRED: {
                     backoffRef.current = getInitialBackoffMs();
-                    throw getAsyncQueryError(results.error);
+                    const error = getAsyncQueryError(results.error);
+                    reportSharedSignInQueryFailure(
+                        fetchArgs.projectUuid!,
+                        error,
+                        execution,
+                    );
+                    throw error;
                 }
                 case QueryHistoryStatus.CANCELLED: {
                     backoffRef.current = getInitialBackoffMs();
@@ -559,9 +577,12 @@ export const useInfiniteQueryResults = (
     // On error
     useEffect(() => {
         if (nextPage.error) {
+            const execution = getSharedSignInFailureScope(nextPage.error.error);
+            if (execution && !isCurrentSharedSignInQueryScope(execution))
+                return;
             setErrorResponse(nextPage.error);
         }
-    }, [nextPage.error, setErrorResponse]);
+    }, [nextPage.error, setErrorResponse, projectUuid, queryUuid]);
 
     useEffect(() => {
         const pageData = nextPage.data;

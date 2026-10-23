@@ -282,3 +282,87 @@ test('an explicit new selection can recover after a repair without opening a que
     expect(store.target?.binding).toBe('connection_b');
     expect(store.modalOpen).toBe(true);
 });
+
+test('a fresh rejected binding wins over an older expired sibling after repair', () => {
+    const store = create();
+    store.register('earlier_sibling', 'connection_b', 0);
+    store.register('repaired_root', 'connection_a', 0);
+    const earlier = store.checks.get('connection_b')!;
+    const current = store.checks.get('connection_a')!;
+    store.settle(
+        'connection_b',
+        earlier.generation,
+        personal('connection_b', false),
+    );
+    store.settle(
+        'connection_a',
+        current.generation,
+        personal('connection_a', true),
+    );
+    const first = store.target!;
+    store.settle(
+        'connection_b',
+        earlier.generation,
+        personal('connection_b', true),
+    );
+    store.recoveryGeneration += 1;
+    store.restored(first);
+    expect(store.target).toBeNull();
+    store.settleRejection(
+        {
+            ...identity,
+            binding: 'connection_a',
+            generation: current.generation,
+            recoveryGeneration: store.recoveryGeneration,
+        },
+        personal('connection_a', true),
+    );
+    expect(store.target?.binding).toBe('connection_a');
+    expect(store.modalOpen).toBe(true);
+});
+
+test.each(['healthy', 'selection'] as const)(
+    'a retired sibling can establish a new episode after observed %s',
+    (kind) => {
+        const store = create();
+        store.register('repaired', 'connection_a', 0);
+        store.register('sibling', 'connection_b', 0);
+        const a = store.checks.get('connection_a')!;
+        const b = store.checks.get('connection_b')!;
+        store.settle(
+            'connection_a',
+            a.generation,
+            personal('connection_a', true),
+        );
+        store.settle(
+            'connection_b',
+            b.generation,
+            personal('connection_b', true),
+        );
+        store.recoveryGeneration += 1;
+        store.restored(store.target!);
+        const execution = {
+            ...identity,
+            binding: 'connection_b',
+            generation: b.generation,
+            recoveryGeneration: store.recoveryGeneration,
+        };
+        expect(
+            store.settleRejection(execution, personal('connection_b', true)),
+        ).toBe(false);
+        expect(store.target).toBeNull();
+        const next = personal('connection_b', true);
+        if (kind === 'healthy')
+            store.settle(
+                'connection_b',
+                b.generation,
+                personal('connection_b', false),
+            );
+        else
+            next.personalSignIn!.userWarehouseCredentialsUuid =
+                'credential_new';
+        expect(store.settleRejection(execution, next)).toBe(true);
+        expect(store.target?.binding).toBe('connection_b');
+        expect(store.modalOpen).toBe(true);
+    },
+);

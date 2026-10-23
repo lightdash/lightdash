@@ -17,6 +17,11 @@ import {
 } from '../../../components/DataViz/store/selectors';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { isWarehouseSignInExecutionReady } from '../../../components/NavBar/warehouseSignInPreflight';
+import {
+    captureSharedSignInQueryScope,
+    isCurrentSharedSignInQueryScope,
+    rememberSharedSignInFailure,
+} from '../../../hooks/sharedSignInQueryRecovery';
 import { reportSharedSignInQueryFailure } from '../../../hooks/useReconnectSharedSignIn';
 import {
     cancelAsyncQuery,
@@ -24,6 +29,7 @@ import {
 } from '../../queryRunner/executeQuery';
 import { type ResultsAndColumns } from '../hooks/useSqlQueryRun';
 import {
+    selectConnectionUuid,
     selectConnectionRequest,
     selectSqlRunnerResultsRunner,
 } from './sqlRunnerSlice';
@@ -51,7 +57,7 @@ export const runSqlQuery = createAsyncThunk<
     'sqlRunner/runSqlQuery',
     async (
         { sql, limit, projectUuid, parameterValues },
-        { rejectWithValue, getState, signal },
+        { rejectWithValue, getState, signal, requestId },
     ) => {
         const connectionRoute = (getState() as RootState).sqlRunner
             .connectionRoute ?? { route: 'pending' };
@@ -76,6 +82,10 @@ export const runSqlQuery = createAsyncThunk<
             });
         }
         const warehouseConnectionUuid = connection?.warehouseConnectionUuid;
+        const scope = captureSharedSignInQueryScope(
+            projectUuid,
+            warehouseConnectionUuid ?? null,
+        );
         try {
             // SQL Runner is edit-only — always skip cache, matching explore edit mode.
             const results = await executeSqlQuery(
@@ -103,8 +113,13 @@ export const runSqlQuery = createAsyncThunk<
             return { ...results, warehouseConnectionUuid };
         } catch (error) {
             if (isAbortError(error)) throw error;
-            reportSharedSignInQueryFailure(projectUuid, error);
+            const current =
+                (getState() as RootState).sqlRunner.executionRequestId ===
+                requestId;
+            if (current)
+                reportSharedSignInQueryFailure(projectUuid, error, scope);
             if (isApiError(error)) {
+                if (current) rememberSharedSignInFailure(error.error, scope);
                 return rejectWithValue(error.error);
             }
             return rejectWithValue({
@@ -135,9 +150,15 @@ export const runSqlQuery = createAsyncThunk<
  * @param forceRefresh - If true, invalidates the cache before fetching
  * @returns The chart data - this includes the table data, chart file url, and a function to get the chart spec
  */
-export const prepareAndFetchChartData = createAsyncThunk(
+export const prepareAndFetchChartData = createAsyncThunk.withTypes<{
+    rejectValue: ApiErrorDetail;
+    rejectedMeta: { executionIntent: number };
+}>()(
     'cartesianChartBaseConfig/prepareAndFetchChartData',
-    async (opts: { forceRefresh?: boolean } | undefined, { getState }) => {
+    async (
+        opts: { forceRefresh?: boolean } | undefined,
+        { getState, rejectWithValue, requestId },
+    ) => {
         const state = getState() as RootState;
         const { forceRefresh = false } = opts ?? {};
 
@@ -171,12 +192,55 @@ export const prepareAndFetchChartData = createAsyncThunk(
             selectedChartType ?? ChartKind.VERTICAL_BAR,
         );
 
-        const chartData = await vizDataModel.getPivotedChartData({
-            limit,
-            sql,
-            sortBy: [],
-            filters: [],
-        });
+        const scope = captureSharedSignInQueryScope(
+            state.sqlRunner.projectUuid,
+            selectConnectionUuid(state) ?? null,
+        );
+        let chartData;
+        try {
+            chartData = await vizDataModel.getPivotedChartData({
+                limit,
+                sql,
+                sortBy: [],
+                filters: [],
+            });
+        } catch (error) {
+            if (
+                isApiError(error) &&
+                (getState() as RootState).sqlRunner.executionIntent ===
+                    state.sqlRunner.executionIntent &&
+                (getState() as RootState).sqlRunner.sql ===
+                    state.sqlRunner.sql &&
+                (getState() as RootState).sqlRunner.limit ===
+                    state.sqlRunner.limit &&
+                (getState() as RootState).sqlRunner.parameterValues ===
+                    state.sqlRunner.parameterValues &&
+                selectCompleteConfigByKind(
+                    getState() as RootState,
+                    selectedChartType,
+                ) === currentVizConfig &&
+                (getState() as RootState).sqlRunner.pivotRequestId ===
+                    requestId &&
+                (getState() as RootState).sqlRunner.executionRequestId ===
+                    state.sqlRunner.executionRequestId &&
+                (!scope || isCurrentSharedSignInQueryScope(scope)) &&
+                (getState() as RootState).sqlRunner.projectUuid ===
+                    state.sqlRunner.projectUuid &&
+                selectConnectionUuid(getState() as RootState) ===
+                    selectConnectionUuid(state)
+            ) {
+                rememberSharedSignInFailure(error.error, scope);
+                reportSharedSignInQueryFailure(
+                    state.sqlRunner.projectUuid,
+                    error,
+                    scope,
+                );
+                return rejectWithValue(error.error, {
+                    executionIntent: state.sqlRunner.executionIntent,
+                });
+            }
+            throw error;
+        }
 
         const getChartSpec = (orgColors?: string[]) => {
             const currentState = getState() as RootState;

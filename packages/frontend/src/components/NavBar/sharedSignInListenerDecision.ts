@@ -1,7 +1,15 @@
 export const queryBelongsToProject = (
     key: readonly unknown[] | undefined,
     projectUuid: string,
-): boolean => key?.includes(projectUuid) ?? false;
+): boolean =>
+    key?.some(
+        (part) =>
+            part === projectUuid ||
+            (typeof part === 'object' &&
+                part !== null &&
+                'projectUuid' in part &&
+                part.projectUuid === projectUuid),
+    ) ?? false;
 
 export const scheduleSharedSignInCooldownCheck = (
     lastCheck: number,

@@ -1,10 +1,12 @@
 import {
+    isApiError,
     type ApiError,
     type ApiSuccessEmpty,
     type SharedSignInStatus,
     type PersonalSignInExpiry,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { type LightdashApi } from '../api';
 import {
     isWarehouseSignInTargetCurrent,
@@ -12,30 +14,28 @@ import {
     type WarehouseSignInTarget,
 } from '../components/NavBar/warehouseSignInPreflight';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
+import {
+    type captureSharedSignInQueryScope,
+    isCurrentSharedSignInQueryScope,
+    completeSharedSignInRestoration,
+    rememberSharedSignInFailure,
+} from './sharedSignInQueryRecovery';
+import { isAcceptedSharedSignInRestoration } from './sharedSignInQueryRecovery';
+import useToaster from './toaster/useToaster';
 
 export const SHARED_SIGN_IN_RECONNECTED = 'shared-sign-in-reconnected';
 export const SHARED_SIGN_IN_QUERY_FAILED = 'shared-sign-in-query-failed';
 
-export type PersonalSignInRestoration = Omit<
-    WarehouseSignInTarget,
-    'status'
-> & { personalSignIn: PersonalSignInExpiry };
-const restoredEventDetail = (
-    projectUuid: string,
-    target: WarehouseSignInTarget | undefined,
-): string | PersonalSignInRestoration => {
-    if (!target?.status.personalSignIn) return projectUuid;
-    const { status, ...identity } = target;
-    return { ...identity, personalSignIn: status.personalSignIn! };
-};
-
 export const reportSharedSignInQueryFailure = (
     projectUuid: string,
     error: unknown,
+    execution: ReturnType<typeof captureSharedSignInQueryScope> = null,
 ) => {
+    if (isApiError(error)) rememberSharedSignInFailure(error.error, execution);
+    if (execution && !isCurrentSharedSignInQueryScope(execution)) return;
     window.dispatchEvent(
         new CustomEvent(SHARED_SIGN_IN_QUERY_FAILED, {
-            detail: { projectUuid, error },
+            detail: { projectUuid, error, execution },
         }),
     );
 };
@@ -56,7 +56,15 @@ export const useReconnectSharedSignIn = (
     personal?: PersonalSignInExpiry,
     target?: WarehouseSignInTarget,
 ) => {
+    const mounted = useRef(true);
+    useEffect(() => {
+        mounted.current = true;
+        return () => {
+            mounted.current = false;
+        };
+    }, []);
     const lightdashApi = useLightdashApi();
+    const { showToastSuccess } = useToaster();
     const queryClient = useQueryClient();
     return useMutation<ApiSuccessEmpty, ApiError>({
         mutationFn: async () => {
@@ -102,17 +110,26 @@ export const useReconnectSharedSignIn = (
             });
         },
         onSuccess: async () => {
-            if (target && !isWarehouseSignInTargetCurrent(target)) return;
-            queryClient.removeQueries({
-                queryKey: ['shared-sign-in-status', projectUuid],
-            });
-            await queryClient.invalidateQueries();
-            if (target && !isWarehouseSignInTargetCurrent(target)) return;
-            window.dispatchEvent(
-                new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
-                    detail: restoredEventDetail(projectUuid, target),
-                }),
+            if (
+                !mounted.current ||
+                !target ||
+                !isWarehouseSignInTargetCurrent(target)
+            )
+                return;
+            const receipt = await completeSharedSignInRestoration(
+                queryClient,
+                target,
+                () => mounted.current,
             );
+            if (receipt && isAcceptedSharedSignInRestoration(receipt)) {
+                window.dispatchEvent(
+                    new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
+                        detail: receipt,
+                    }),
+                );
+                if (isAcceptedSharedSignInRestoration(receipt))
+                    showToastSuccess({ title: 'Connection restored' });
+            }
         },
     });
 };

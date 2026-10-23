@@ -1,5 +1,6 @@
 import {
     ChartKind,
+    deepEqual,
     getFirstIndexColumns,
     getParameterReferences,
     isVizBigNumberConfig,
@@ -46,12 +47,14 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
     useCallback,
     useEffect,
+    useEffectEvent,
     useMemo,
     useRef,
     useState,
     type FC,
     type ReactNode,
 } from 'react';
+import { useStore } from 'react-redux';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../components/common/ResizableSplitter';
@@ -74,6 +77,12 @@ import { QueryCostConfirmModal } from '../../../components/QueryCostEstimate/Que
 import { QueryCostEstimateBadge } from '../../../components/QueryCostEstimate/QueryCostEstimateBadge';
 import RunSqlQueryButton from '../../../components/SqlRunner/RunSqlQueryButton';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import {
+    canReplayRestoredSql,
+    isCurrentSharedSignInQueryScope,
+    captureSharedSignInQueryScope,
+    isWarehouseSignInQueryErrorDetail,
+} from '../../../hooks/sharedSignInQueryRecovery';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
     fetchSqlQueryCostEstimate,
@@ -87,6 +96,7 @@ import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useRunQueryOnLoad } from '../hooks/useRunQueryOnLoad';
 import { useSqlRunnerSignInReady } from '../hooks/useSqlRunnerSignInReady';
+import { type RootState } from '../store';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { startAppListening } from '../store/listenerMiddleware';
 import { addAutomaticPivotFailureListener } from '../store/sqlRunnerListeners';
@@ -243,6 +253,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     // State we need from redux
     const savedSqlChart = useAppSelector(selectSavedSqlChart);
     const projectUuid = useAppSelector(selectProjectUuid);
+    const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
     const sql = useAppSelector(selectSql);
     const queryUuid = useAppSelector(selectQueryUuid);
     const selectedChartType = useAppSelector(selectActiveChartType);
@@ -264,28 +275,31 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     );
     // So we can dispatch to redux
     const dispatch = useAppDispatch();
+    const reduxStore = useStore<RootState>();
     // The in-flight SQL run, so Cancel can abort it
     const runPromiseRef = useRef<{ abort: () => void } | null>(null);
     const lastFailedRun = useRef<
-        | { kind: 'sql'; args: Parameters<typeof runSqlQuery>[0] }
-        | { kind: 'visualization'; projectUuid: string }
+        | {
+              kind: 'sql';
+              args: Parameters<typeof runSqlQuery>[0];
+              connectionUuid: typeof warehouseConnectionUuid;
+              scope: ReturnType<typeof captureSharedSignInQueryScope>;
+              requestId: string;
+          }
+        | {
+              kind: 'visualization';
+              executionIntent: number;
+              projectUuid: string;
+              sql: string;
+              limit: typeof limit;
+              parameterValues: typeof parameterValues;
+              config: typeof currentVizConfig;
+              connectionUuid: typeof warehouseConnectionUuid;
+              scope: ReturnType<typeof captureSharedSignInQueryScope>;
+              requestId: string;
+          }
         | null
     >(null);
-
-    useEffect(
-        () =>
-            addAutomaticPivotFailureListener(
-                startAppListening,
-                projectUuid,
-                () => {
-                    lastFailedRun.current = {
-                        kind: 'visualization',
-                        projectUuid,
-                    };
-                },
-            ),
-        [projectUuid],
-    );
 
     // Resolved palette from the org → project → space → dashboard cascade.
     // Falls back to org-level colors for brand-new (unsaved) SQL charts where
@@ -330,6 +344,60 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
         selectCompleteConfigByKind(state, selectedChartType),
     );
 
+    const executionIntent = useAppSelector(
+        (state) => state.sqlRunner.executionIntent,
+    );
+    const runSequence = useRef(0);
+    const latestExecutionRequestId = useAppSelector(
+        (state) => state.sqlRunner.executionRequestId,
+    );
+    const latestPivotRequestId = useAppSelector(
+        (state) => state.sqlRunner.pivotRequestId,
+    );
+    useEffect(
+        () => () => {
+            runSequence.current += 1;
+            lastFailedRun.current = null;
+        },
+        [
+            projectUuid,
+            warehouseConnectionUuid,
+            sql,
+            limit,
+            parameterValues,
+            currentVizConfig,
+        ],
+    );
+    useEffect(
+        () =>
+            addAutomaticPivotFailureListener(
+                startAppListening,
+                projectUuid,
+                (scope, requestId, originatingIntent) => {
+                    lastFailedRun.current = {
+                        kind: 'visualization',
+                        executionIntent: originatingIntent,
+                        projectUuid,
+                        connectionUuid: warehouseConnectionUuid,
+                        scope,
+                        requestId,
+                        sql,
+                        limit,
+                        parameterValues,
+                        config: currentVizConfig,
+                    };
+                },
+            ),
+        [
+            projectUuid,
+            warehouseConnectionUuid,
+            sql,
+            limit,
+            parameterValues,
+            currentVizConfig,
+        ],
+    );
+
     const hideResultsPanel = useMemo(
         () =>
             activeEditorTab === EditorTabs.VISUALIZATION &&
@@ -340,7 +408,6 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     const queryResults = useAppSelector(selectSqlQueryResults);
     const hasQueryResults = useMemo(() => !!queryResults, [queryResults]);
 
-    const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
     const signInReady = useSqlRunnerSignInReady();
     const queryClient = useQueryClient();
     const costEstimateSettings = useQueryCostEstimateSettings(projectUuid);
@@ -369,6 +436,40 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
         signInReady && costEstimateSettings !== null,
     );
 
+    const runSqlAndRememberFailure = useCallback(
+        async (
+            args: Parameters<typeof runSqlQuery>[0],
+            scope: ReturnType<typeof captureSharedSignInQueryScope>,
+            sequence: number,
+        ) => {
+            const connectionUuid = warehouseConnectionUuid;
+            const promise = dispatch(runSqlQuery(args));
+            runPromiseRef.current = promise;
+            const result = await promise;
+            if (runPromiseRef.current === promise) runPromiseRef.current = null;
+            if (
+                sequence !== runSequence.current ||
+                (scope && !isCurrentSharedSignInQueryScope(scope))
+            )
+                return result;
+            lastFailedRun.current =
+                runSqlQuery.rejected.match(result) &&
+                !result.meta.aborted &&
+                result.payload &&
+                isWarehouseSignInQueryErrorDetail(result.payload)
+                    ? {
+                          kind: 'sql',
+                          args,
+                          connectionUuid,
+                          scope,
+                          requestId: result.meta.requestId,
+                      }
+                    : null;
+            return result;
+        },
+        [dispatch, warehouseConnectionUuid],
+    );
+
     const executeRunQuery = useCallback(
         async (sqlToUse: string) => {
             if (
@@ -381,6 +482,13 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                 )
             )
                 return;
+            const scope = captureSharedSignInQueryScope(
+                projectUuid,
+                warehouseConnectionUuid ?? null,
+            );
+            const connectionUuid = warehouseConnectionUuid;
+            lastFailedRun.current = null;
+            const sequence = ++runSequence.current;
 
             if (
                 activeEditorTab === EditorTabs.VISUALIZATION &&
@@ -390,11 +498,30 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                 const result = await dispatch(
                     prepareAndFetchChartData({ forceRefresh: true }),
                 );
-                lastFailedRun.current = prepareAndFetchChartData.rejected.match(
-                    result,
+                if (
+                    sequence !== runSequence.current ||
+                    result.meta.requestId !==
+                        reduxStore.getState().sqlRunner.pivotRequestId ||
+                    (scope && !isCurrentSharedSignInQueryScope(scope))
                 )
-                    ? { kind: 'visualization', projectUuid }
-                    : null;
+                    return;
+                lastFailedRun.current =
+                    prepareAndFetchChartData.rejected.match(result) &&
+                    result.payload &&
+                    isWarehouseSignInQueryErrorDetail(result.payload)
+                        ? {
+                              kind: 'visualization',
+                              executionIntent: result.meta.executionIntent!,
+                              requestId: result.meta.requestId,
+                              sql: sqlToUse,
+                              limit,
+                              parameterValues,
+                              config: currentVizConfig,
+                              projectUuid,
+                              connectionUuid,
+                              scope,
+                          }
+                        : null;
             } else {
                 const args = {
                     sql: sqlToUse,
@@ -402,14 +529,11 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                     projectUuid,
                     parameterValues,
                 };
-                const promise = dispatch(runSqlQuery(args));
-                runPromiseRef.current = promise;
-                const result = await promise;
-                runPromiseRef.current = null;
-                lastFailedRun.current =
-                    runSqlQuery.rejected.match(result) && !result.meta.aborted
-                        ? { kind: 'sql', args }
-                        : null;
+                const result = await runSqlAndRememberFailure(
+                    args,
+                    scope,
+                    sequence,
+                );
 
                 // If we're on viz tab, also fetch chart data after SQL completes
                 if (
@@ -419,9 +543,30 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                     const vizResult = await dispatch(
                         prepareAndFetchChartData({ forceRefresh: true }),
                     );
+                    if (
+                        sequence !== runSequence.current ||
+                        vizResult.meta.requestId !==
+                            reduxStore.getState().sqlRunner.pivotRequestId ||
+                        (scope && !isCurrentSharedSignInQueryScope(scope))
+                    )
+                        return;
                     lastFailedRun.current =
-                        prepareAndFetchChartData.rejected.match(vizResult)
-                            ? { kind: 'visualization', projectUuid }
+                        prepareAndFetchChartData.rejected.match(vizResult) &&
+                        vizResult.payload &&
+                        isWarehouseSignInQueryErrorDetail(vizResult.payload)
+                            ? {
+                                  kind: 'visualization',
+                                  executionIntent:
+                                      vizResult.meta.executionIntent!,
+                                  requestId: vizResult.meta.requestId,
+                                  sql: sqlToUse,
+                                  limit,
+                                  parameterValues,
+                                  config: currentVizConfig,
+                                  projectUuid,
+                                  connectionUuid,
+                                  scope,
+                              }
                             : null;
                 }
             }
@@ -435,6 +580,9 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
             limit,
             parameterValues,
             hasQueryResults,
+            currentVizConfig,
+            runSqlAndRememberFailure,
+            reduxStore,
         ],
     );
 
@@ -505,36 +653,65 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
         ],
     );
 
+    const retryFailedRun = useEffectEvent((event: Event) => {
+        const failedRun = lastFailedRun.current;
+        if (
+            !(event instanceof CustomEvent) ||
+            !failedRun ||
+            failedRun.connectionUuid !== warehouseConnectionUuid ||
+            !canReplayRestoredSql(failedRun.scope, event.detail) ||
+            !isWarehouseSignInExecutionReady(
+                projectUuid,
+                warehouseConnectionUuid ?? null,
+            ) ||
+            (failedRun.kind === 'sql'
+                ? failedRun.requestId !== latestExecutionRequestId
+                : failedRun.executionIntent !== executionIntent ||
+                  failedRun.requestId !== latestPivotRequestId ||
+                  failedRun.sql !== sql ||
+                  failedRun.limit !== limit ||
+                  !deepEqual(failedRun.parameterValues, parameterValues) ||
+                  failedRun.config !== currentVizConfig) ||
+            (failedRun.kind === 'sql' &&
+                (failedRun.args.sql !== sql ||
+                    failedRun.args.limit !== limit ||
+                    !deepEqual(
+                        failedRun.args.parameterValues,
+                        parameterValues,
+                    ))) ||
+            (failedRun.kind === 'sql'
+                ? failedRun.args.projectUuid !== projectUuid
+                : failedRun.projectUuid !== projectUuid)
+        )
+            return;
+        lastFailedRun.current = null;
+        if (failedRun.kind === 'sql') {
+            void runSqlAndRememberFailure(
+                failedRun.args,
+                captureSharedSignInQueryScope(
+                    projectUuid,
+                    warehouseConnectionUuid ?? null,
+                ),
+                ++runSequence.current,
+            );
+        } else {
+            void dispatch(prepareAndFetchChartData({ forceRefresh: true }));
+        }
+    });
     useEffect(() => {
-        const retryFailedRun = (event: Event) => {
-            const failedRun = lastFailedRun.current;
-            if (
-                !(event instanceof CustomEvent) ||
-                event.detail !== projectUuid ||
-                !failedRun ||
-                (failedRun.kind === 'sql'
-                    ? failedRun.args.projectUuid !== projectUuid
-                    : failedRun.projectUuid !== projectUuid)
-            )
-                return;
-            lastFailedRun.current = null;
-            if (failedRun.kind === 'sql') {
-                void dispatch(runSqlQuery(failedRun.args));
-            } else {
-                void dispatch(prepareAndFetchChartData({ forceRefresh: true }));
-            }
-        };
         window.addEventListener(SHARED_SIGN_IN_RECONNECTED, retryFailedRun);
         return () =>
             window.removeEventListener(
                 SHARED_SIGN_IN_RECONNECTED,
                 retryFailedRun,
             );
-    }, [dispatch, projectUuid]);
+    }, []);
 
     useQueryErrorToast(queryError, queryErrorProjectUuid);
 
     const handleCancelQuery = useCallback(() => {
+        runSequence.current += 1;
+        lastFailedRun.current = null;
         runPromiseRef.current?.abort();
     }, []);
     const handleRevealError = useCallback(

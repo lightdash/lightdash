@@ -33,12 +33,14 @@ import {
     ForbiddenError,
     getAgentClientLabel,
     getAiExecutionCredentialUuid,
+    getExpiredPersonalSignInMessage,
     getFilterRulesFromGroup,
     getIntrinsicUserAttributeRegex,
     getParsedReference,
     getReferencedDimension,
     getReferencedMetric,
     getUserAttributeRegex,
+    getWarehouseSignInErrorType,
     isMergeMetricSource,
     lightdashVariablePattern,
     MergeJoinType,
@@ -71,6 +73,7 @@ import {
     VizIndexType,
     WarehouseClient,
     WarehouseQueryError,
+    WarehouseSignInRejection,
     WarehouseTypes,
     type AgentIdentityClaim,
     type AuthType,
@@ -8542,6 +8545,43 @@ describe('AsyncQueryService', () => {
             expect(mockStrategy.recordExecutionFallback).not.toHaveBeenCalled();
         });
 
+        test('keeps a personal sign-in failure classified when pre-aggregate fallback is disabled', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            projectModel.findProjectDefaults.mockResolvedValueOnce({
+                pre_aggregate_execution_fallback: false,
+            });
+            const personal = {
+                projectUuid,
+                provider: PersonSignInProvider.GOOGLE,
+                userWarehouseCredentialsUuid: 'personal-credential',
+            };
+            const message = getExpiredPersonalSignInMessage(personal);
+            const run = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockRejectedValueOnce(
+                    new BigqueryTokenError(message, {
+                        personalSignIn: personal,
+                    }),
+                );
+            await service.runAsyncPreAggregateQuery({
+                ...buildArgs(),
+                queryUuid: 'personal-query',
+                preAggregateExecution: 'project_warehouse',
+            });
+            expect(run).toHaveBeenCalledOnce();
+            expect(
+                service.queryHistoryModel.updateStatusToError,
+            ).toHaveBeenCalledWith(
+                'personal-query',
+                projectUuid,
+                message,
+                expect.anything(),
+            );
+            expect(getWarehouseSignInErrorType(message)).toMatchObject({
+                scope: 'personal',
+            });
+        });
+
         test('errors instead of falling back when the project disables execution fallback', async () => {
             const mockStrategy = makeMockStrategy({
                 resolved: true,
@@ -11410,6 +11450,14 @@ describe('AsyncQueryService', () => {
 
     describe('runAsyncWarehouseQuery preview sign-in retry', () => {
         const upstreamProjectUuid = 'upstream-project-uuid';
+        const originalSshTunnel = vi
+            .mocked(warehouses.SshTunnel)
+            .getMockImplementation()!;
+        afterEach(() =>
+            vi
+                .mocked(warehouses.SshTunnel)
+                .mockImplementation(originalSshTunnel),
+        );
         const bigquerySso = (
             refreshToken: string,
         ): CreateBigqueryCredentials => ({
@@ -11446,7 +11494,7 @@ describe('AsyncQueryService', () => {
                               subjectBasis: SignInSubjectBasis.RECORDED,
                           },
                       }
-                    : undefined,
+                    : { rejection: WarehouseSignInRejection.INVALID_GRANT },
             );
 
         const stored = new Map<string, CreateWarehouseCredentials>();
@@ -11466,12 +11514,24 @@ describe('AsyncQueryService', () => {
             userWarehouseCredentials,
             sharedSignIn = false,
             queryContext = QueryExecutionContext.EXPLORE,
+            strict = false,
+            expiryEnabled = false,
+            required = false,
+            optional = true,
+            projectCredentials,
+            actualAcquisition = false,
         }: {
             syncEnabled?: boolean;
             isPreviewProject?: boolean;
             projectType?: ProjectType;
             sharedSignIn?: boolean;
             queryContext?: QueryExecutionContext;
+            strict?: boolean;
+            expiryEnabled?: boolean;
+            required?: boolean;
+            optional?: boolean;
+            projectCredentials?: CreateWarehouseCredentials;
+            actualAcquisition?: boolean;
             userWarehouseCredentials?: {
                 uuid: string;
                 credentials: CreateWarehouseCredentials;
@@ -11480,9 +11540,29 @@ describe('AsyncQueryService', () => {
             if (userWarehouseCredentials) {
                 stored.set(projectUuid, {
                     ...bigquerySso('token-project'),
-                    allowUserCredentials: true,
+                    allowUserCredentials: optional,
+                    requireUserCredentials: required,
                 });
             }
+            if (projectCredentials) stored.set(projectUuid, projectCredentials);
+            const createClient = (
+                credentials: CreateWarehouseCredentials,
+            ): WarehouseClient => {
+                const token = refreshTokenOf(credentials) ?? 'none';
+                return {
+                    ...warehouseClientMock,
+                    credentials,
+                    executeAsyncQuery: async (args, callback) => {
+                        executeAttempts.push(token);
+                        if (rejectedByWarehouse.has(token))
+                            throw tokenError(sharedSignIn);
+                        return warehouseClientMock.executeAsyncQuery(
+                            args,
+                            callback,
+                        );
+                    },
+                };
+            };
             const model = {
                 ...projectModel,
                 ...singleRouteProjectModelMethods,
@@ -11509,6 +11589,16 @@ describe('AsyncQueryService', () => {
                           },
                 ),
                 getPreviewOwnsCredentials: vi.fn(async () => null),
+                getWarehouseClientFromCredentials: vi.fn(createClient),
+                getSharedSignInSubjectForToken: vi.fn(async () =>
+                    expiryEnabled
+                        ? {
+                              provider: PersonSignInProvider.GOOGLE,
+                              subject: null,
+                              basis: null,
+                          }
+                        : null,
+                ),
                 updateWarehouseCredentialsIf: vi.fn(
                     async (
                         uuid: string,
@@ -11523,13 +11613,29 @@ describe('AsyncQueryService', () => {
                     },
                 ),
             };
+            const personalModel = {
+                getSignInSnapshot: vi.fn(
+                    async (
+                        uuid: string,
+                        credentials: CreateWarehouseCredentials,
+                    ) => ({
+                        uuid,
+                        userUuid: sessionAccount.user.id,
+                        encryptedCredentials: Buffer.from(
+                            'personal-incarnation',
+                        ),
+                        refreshToken: refreshTokenOf(credentials),
+                    }),
+                ),
+                markNeedsSignIn: vi.fn(async () => true),
+                findForProjectWithSecrets: vi.fn(
+                    async () => userWarehouseCredentials,
+                ),
+            };
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 projectModel: model as unknown as ProjectModel,
-                userWarehouseCredentialsModel: {
-                    findForProjectWithSecrets: vi.fn(
-                        async () => userWarehouseCredentials,
-                    ),
-                } as unknown as UserWarehouseCredentialsModel,
+                userWarehouseCredentialsModel:
+                    personalModel as unknown as UserWarehouseCredentialsModel,
                 featureFlagModel: {
                     get: vi.fn(
                         async ({
@@ -11539,9 +11645,14 @@ describe('AsyncQueryService', () => {
                         }) => ({
                             id: featureFlagId,
                             enabled:
-                                featureFlagId ===
+                                (featureFlagId ===
                                     FeatureFlags.PreviewSsoCredentialSync &&
-                                syncEnabled,
+                                    syncEnabled) ||
+                                (featureFlagId === FeatureFlags.AgentIdentity &&
+                                    strict) ||
+                                (featureFlagId ===
+                                    FeatureFlags.SharedSignInExpiryMessage &&
+                                    expiryEnabled),
                         }),
                     ),
                 } as unknown as FeatureFlagModel,
@@ -11550,34 +11661,36 @@ describe('AsyncQueryService', () => {
                 checkGoogleRefreshToken: cachedCheck,
                 recheckGoogleRefreshToken: recheck,
             });
-            vi.spyOn(
-                service.warehouseClientFactory,
-                'acquireUnscoped',
-            ).mockImplementation(async (_uuid, credentials) => {
-                const token = refreshTokenOf(credentials) ?? 'none';
-                return {
-                    warehouseClient: {
-                        ...warehouseClientMock,
-                        credentials,
-                        executeAsyncQuery: async (args, callback) => {
-                            executeAttempts.push(token);
-                            if (rejectedByWarehouse.has(token)) {
-                                throw tokenError(sharedSignIn);
-                            }
-                            return warehouseClientMock.executeAsyncQuery(
-                                args,
-                                callback,
-                            );
-                        },
+            if (actualAcquisition) {
+                vi.mocked(warehouses.SshTunnel).mockImplementation(
+                    function makeTunnel(this: object, credentials) {
+                        return Object.assign(this, {
+                            connect: vi.fn(async () => credentials),
+                            overrideCredentials: credentials,
+                            disconnect: vi.fn(async () => {
+                                tunnelDisconnects.push(
+                                    refreshTokenOf(credentials) ?? 'none',
+                                );
+                            }),
+                        }) as unknown as SshTunnel<CreateWarehouseCredentials>;
                     },
+                );
+            } else {
+                vi.spyOn(
+                    service.warehouseClientFactory,
+                    'acquireUnscoped',
+                ).mockImplementation(async (_uuid, credentials) => ({
+                    warehouseClient: createClient(credentials),
                     sshTunnel: {
                         disconnect: vi.fn(async () => {
-                            tunnelDisconnects.push(token);
+                            tunnelDisconnects.push(
+                                refreshTokenOf(credentials) ?? 'none',
+                            );
                         }),
                     } as unknown as SshTunnel<CreateWarehouseCredentials>,
                     tunnelConnectMs: null,
-                };
-            });
+                }));
+            }
             const run = () =>
                 service.runAsyncWarehouseQuery({
                     userUuid: sessionAccount.user.id,
@@ -11601,7 +11714,7 @@ describe('AsyncQueryService', () => {
                     queryCreatedAt: new Date(),
                     displayTimezone: null,
                 });
-            return { service, model, run };
+            return { service, model, run, personalModel };
         };
 
         const readyUpdates = (service: AsyncQueryService) =>
@@ -11812,6 +11925,204 @@ describe('AsyncQueryService', () => {
             expect(recordedErrors(service)).toEqual([
                 expect.stringContaining('personal settings'),
             ]);
+        });
+
+        test.each(
+            [false, true].flatMap((strict) =>
+                [
+                    {
+                        name: 'required',
+                        required: true,
+                        optional: false,
+                        own: true,
+                        selected: 'own-token',
+                    },
+                    {
+                        name: 'optional own',
+                        required: false,
+                        optional: true,
+                        own: true,
+                        selected: 'own-token',
+                    },
+                    {
+                        name: 'optional none',
+                        required: false,
+                        optional: true,
+                        own: false,
+                        selected: 'project-token',
+                    },
+                    {
+                        name: 'project only',
+                        required: false,
+                        optional: false,
+                        own: true,
+                        selected: 'project-token',
+                    },
+                ].map((policy) => ({ ...policy, strict })),
+            ),
+        )(
+            'runs $name credential selection end to end with strict overlay $strict',
+            async ({ strict, required, optional, own, selected }) => {
+                rejectedByWarehouse.clear();
+                rejectedByGoogle.clear();
+                rejectedByWarehouse.add(selected);
+                const { service, model, run, personalModel } = setup({
+                    strict,
+                    actualAcquisition: true,
+                    expiryEnabled: true,
+                    required,
+                    optional,
+                    projectCredentials: {
+                        ...bigquerySso('project-token'),
+                        requireUserCredentials: required,
+                        allowUserCredentials: optional,
+                    },
+                    userWarehouseCredentials: own
+                        ? {
+                              uuid: 'personal-credential',
+                              credentials: bigquerySso('own-token'),
+                          }
+                        : undefined,
+                });
+                await run();
+                expect(executeAttempts).toEqual([selected]);
+                expect(
+                    model.updateWarehouseCredentialsIf,
+                ).not.toHaveBeenCalled();
+                expect(recheck).toHaveBeenCalledTimes(
+                    selected === 'own-token' ? 0 : 1,
+                );
+                expect(readyUpdates(service)).toHaveLength(0);
+                if (selected === 'own-token') {
+                    expect(recordedErrors(service)).toEqual([
+                        getExpiredPersonalSignInMessage({
+                            provider: PersonSignInProvider.GOOGLE,
+                        }),
+                    ]);
+                    expect(
+                        getWarehouseSignInErrorType(recordedErrors(service)[0]),
+                    ).toMatchObject({ scope: 'personal' });
+                    expect(
+                        personalModel.markNeedsSignIn,
+                    ).toHaveBeenCalledOnce();
+                } else {
+                    expect(
+                        getWarehouseSignInErrorType(recordedErrors(service)[0]),
+                    ).toMatchObject({ scope: 'shared' });
+                    expect(
+                        personalModel.markNeedsSignIn,
+                    ).not.toHaveBeenCalled();
+                }
+            },
+        );
+
+        test.each([false, true])(
+            'valid own credentials ignore an expired project token with strict overlay %s',
+            async (strict) => {
+                const { service, model, run, personalModel } = setup({
+                    strict,
+                    actualAcquisition: true,
+                    expiryEnabled: true,
+                    projectCredentials: {
+                        ...bigquerySso('project-token'),
+                        allowUserCredentials: true,
+                    },
+                    userWarehouseCredentials: {
+                        uuid: 'personal-credential',
+                        credentials: bigquerySso('valid-own'),
+                    },
+                });
+                rejectedByWarehouse.add('project-token');
+                rejectedByGoogle.add('project-token');
+                await run();
+                expect(executeAttempts).toEqual(['valid-own']);
+                expect(recordedErrors(service)).toEqual([]);
+                expect(readyUpdates(service)).toHaveLength(1);
+                expect(
+                    model.updateWarehouseCredentialsIf,
+                ).not.toHaveBeenCalled();
+                expect(personalModel.markNeedsSignIn).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each([false, true])(
+            'missing required credentials keep the required credential error with strict overlay %s',
+            async (strict) => {
+                const { service, model, run, personalModel } = setup({
+                    strict,
+                    actualAcquisition: true,
+                    expiryEnabled: true,
+                    projectCredentials: {
+                        ...bigquerySso('project-token'),
+                        requireUserCredentials: true,
+                    },
+                });
+                await run();
+                expect(executeAttempts).toEqual([]);
+                expect(recordedErrors(service)).toHaveLength(1);
+                expect(
+                    getWarehouseSignInErrorType(recordedErrors(service)[0]),
+                ).toBeNull();
+                expect(recordedErrors(service)[0]).toBe(
+                    "You don't have warehouse credentials set up for this project. Add them under 'User settings' → 'My warehouse connections', or refresh the page to sign in again.",
+                );
+                expect(personalModel.getSignInSnapshot).not.toHaveBeenCalled();
+                expect(personalModel.markNeedsSignIn).not.toHaveBeenCalled();
+                expect(
+                    model.updateWarehouseCredentialsIf,
+                ).not.toHaveBeenCalled();
+                expect(recheck).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each([false, true])(
+            'ignores a broken unselected own credential on a project-only connection with strict overlay %s',
+            async (strict) => {
+                const { service, run, personalModel } = setup({
+                    strict,
+                    actualAcquisition: true,
+                    expiryEnabled: true,
+                    projectCredentials: {
+                        ...bigquerySso('valid-project'),
+                        requireUserCredentials: false,
+                        allowUserCredentials: false,
+                    },
+                    userWarehouseCredentials: {
+                        uuid: 'personal-credential',
+                        credentials: bigquerySso('broken-own'),
+                    },
+                });
+                rejectedByWarehouse.add('broken-own');
+                rejectedByGoogle.add('broken-own');
+                await run();
+                expect(executeAttempts).toEqual(['valid-project']);
+                expect(recordedErrors(service)).toEqual([]);
+                expect(readyUpdates(service)).toHaveLength(1);
+                expect(personalModel.getSignInSnapshot).not.toHaveBeenCalled();
+                expect(personalModel.markNeedsSignIn).not.toHaveBeenCalled();
+            },
+        );
+        test('personal provenance in an attributed error blocks preview project repair', async () => {
+            const { service, model } = setup();
+            const error = new BigqueryTokenError('personal token rejected', {
+                personalSignIn: {
+                    projectUuid,
+                    provider: PersonSignInProvider.GOOGLE,
+                    userWarehouseCredentialsUuid: 'personal-credential',
+                },
+            });
+            await expect(
+                service['repairPreviewSignInAfterQueryError']({
+                    error,
+                    projectUuid,
+                    organizationUuid:
+                        sessionAccount.organization.organizationUuid!,
+                    isPreviewProject: true,
+                    rejectedCredentials: bigquerySso('token-a'),
+                }),
+            ).resolves.toBe(false);
+            expect(model.updateWarehouseCredentialsIf).not.toHaveBeenCalled();
+            expect(recheck).not.toHaveBeenCalled();
         });
     });
 

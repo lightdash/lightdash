@@ -14,6 +14,7 @@ import {
     activateWarehouseSignInPreflight,
     WarehouseSignInPreflight,
     WarehouseSignInPreflightContext,
+    WarehouseSignInCataloguePendingContext,
     WarehouseSignInStatusCache,
 } from './warehouseSignInPreflight';
 
@@ -54,7 +55,14 @@ export const SharedSignInQueryBoundary: FC<PropsWithChildren> = ({
     );
     return (
         <WarehouseSignInPreflightContext.Provider value={store}>
-            {children}
+            <WarehouseSignInCataloguePendingContext.Provider
+                value={
+                    isWarehouseQueryPage(pathname) &&
+                    (loading || (enabled && !store))
+                }
+            >
+                {children}
+            </WarehouseSignInCataloguePendingContext.Provider>
         </WarehouseSignInPreflightContext.Provider>
     );
 };

@@ -21,6 +21,7 @@ const EXCLUDED_KEYS_FROM_SHARE_STATE = [
     'editorHighlightError',
     'fetchResultsOnLoad',
     'connectionRoute',
+    'executionIntent',
 ] as const;
 
 type ExcludedKeysFromShareState =

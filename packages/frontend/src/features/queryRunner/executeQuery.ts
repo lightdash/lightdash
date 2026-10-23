@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { type LightdashApi } from '../../api';
 import type { ResultsAndColumns } from '../sqlRunner/hooks/useSqlQueryRun';
+import { getSqlQueryError } from './asyncQueryError';
 
 const throwIfAborted = (signal: AbortSignal | undefined) => {
     if (signal?.aborted) {
@@ -111,7 +112,7 @@ export const executeSqlQuery = async (
         query.status === QueryHistoryStatus.ERROR ||
         query.status === QueryHistoryStatus.EXPIRED
     ) {
-        throw new Error(query.error || 'Error executing SQL query');
+        throw getSqlQueryError(query.error);
     }
 
     if (query.status !== QueryHistoryStatus.READY) {
@@ -154,7 +155,7 @@ export const readPivotQueryResults = async (
         query.status === QueryHistoryStatus.ERROR ||
         query.status === QueryHistoryStatus.EXPIRED
     ) {
-        throw new Error(query.error || 'Error executing SQL query');
+        throw getSqlQueryError(query.error);
     }
 
     if (query.status !== QueryHistoryStatus.READY) {

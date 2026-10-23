@@ -19,7 +19,7 @@ test('reports a failed visualization run with its project', async () => {
     );
     expect(listener).toHaveBeenCalledWith(
         expect.objectContaining({
-            detail: { projectUuid: 'project-a', error },
+            detail: { projectUuid: 'project-a', error, execution: null },
         }),
     );
     window.removeEventListener(SHARED_SIGN_IN_QUERY_FAILED, listener);

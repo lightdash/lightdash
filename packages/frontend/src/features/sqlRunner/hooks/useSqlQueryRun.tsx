@@ -7,6 +7,12 @@ import {
 } from '@lightdash/common';
 import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
+import {
+    captureSharedSignInQueryScope,
+    canReplayRestoredSql,
+    isCurrentSharedSignInQueryScope,
+    isWarehouseSignInQueryError,
+} from '../../../hooks/sharedSignInQueryRecovery';
 import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
 import { reportSharedSignInQueryFailure } from '../../../hooks/useReconnectSharedSignIn';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
@@ -42,32 +48,76 @@ export const useSqlQueryRun = (
 ) => {
     const lightdashApi = useLightdashApi();
     const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
-    const lastFailedRun = useRef<UseSqlQueryRunParams | null>(null);
+    const editorSql = useAppSelector((state) => state.sqlRunner.sql);
+    const editorLimit = useAppSelector((state) => state.sqlRunner.limit);
+    const editorParameters = useAppSelector(
+        (state) => state.sqlRunner.parameterValues,
+    );
+    const lastFailedRun = useRef<{
+        variables: UseSqlQueryRunParams;
+        projectUuid: string;
+        warehouseConnectionUuid: string | null | undefined;
+        scope: ReturnType<typeof captureSharedSignInQueryScope>;
+    } | null>(null);
+    const sequence = useRef(0);
+    useEffect(
+        () => () => {
+            sequence.current += 1;
+            lastFailedRun.current = null;
+        },
+        [
+            projectUuid,
+            warehouseConnectionUuid,
+            editorSql,
+            editorLimit,
+            editorParameters,
+        ],
+    );
     const mutation = useMutation<
         ResultsAndColumns | undefined,
         ApiError,
         UseSqlQueryRunParams
     >(
-        async ({ sql, limit, parameterValues }) =>
-            executeSqlQuery(
-                lightdashApi,
+        async (variables) => {
+            const request = ++sequence.current;
+            const scope = captureSharedSignInQueryScope(
                 projectUuid,
-                sql,
-                limit,
-                parameterValues,
-                undefined,
-                warehouseConnectionUuid,
-            ),
+                warehouseConnectionUuid ?? null,
+            );
+            lastFailedRun.current = null;
+            try {
+                return await executeSqlQuery(
+                    lightdashApi,
+                    projectUuid,
+                    variables.sql,
+                    variables.limit,
+                    variables.parameterValues,
+                    undefined,
+                    warehouseConnectionUuid,
+                );
+            } catch (error) {
+                if (
+                    request === sequence.current &&
+                    isCurrentSharedSignInQueryScope(scope) &&
+                    isWarehouseSignInQueryError(error)
+                )
+                    lastFailedRun.current = {
+                        variables,
+                        projectUuid,
+                        warehouseConnectionUuid,
+                        scope,
+                    };
+                reportSharedSignInQueryFailure(projectUuid, error, scope);
+                throw error;
+            }
+        },
         {
             mutationKey: ['sqlRunner', 'run'],
             ...useMutationOptions,
             onError: (error, variables, context) => {
-                lastFailedRun.current = variables;
-                reportSharedSignInQueryFailure(projectUuid, error);
                 useMutationOptions?.onError?.(error, variables, context);
             },
             onSuccess: (data, variables, context) => {
-                lastFailedRun.current = null;
                 useMutationOptions?.onSuccess?.(data, variables, context);
             },
         },
@@ -77,10 +127,14 @@ export const useSqlQueryRun = (
         const retryFailedRun = (event: Event) => {
             if (
                 event instanceof CustomEvent &&
-                event.detail === projectUuid &&
-                lastFailedRun.current
+                lastFailedRun.current?.projectUuid === projectUuid &&
+                lastFailedRun.current.warehouseConnectionUuid ===
+                    warehouseConnectionUuid &&
+                canReplayRestoredSql(lastFailedRun.current.scope, event.detail)
             ) {
-                mutate(lastFailedRun.current);
+                const failed = lastFailedRun.current;
+                lastFailedRun.current = null;
+                mutate(failed.variables);
             }
         };
         window.addEventListener(SHARED_SIGN_IN_RECONNECTED, retryFailedRun);
@@ -89,6 +143,6 @@ export const useSqlQueryRun = (
                 SHARED_SIGN_IN_RECONNECTED,
                 retryFailedRun,
             );
-    }, [mutate, projectUuid]);
+    }, [mutate, projectUuid, warehouseConnectionUuid]);
     return mutation;
 };

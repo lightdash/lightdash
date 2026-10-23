@@ -76,7 +76,6 @@ export const SharedSignInExpiryListener: FC = () => {
             projectUuid={target.projectUuid}
             personalSignIn={target.status.personalSignIn}
             target={target}
-            onRestored={() => store.restored(target)}
             onClose={() => store.dismiss(target)}
         />
     ) : null;

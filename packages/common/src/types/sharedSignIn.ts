@@ -170,3 +170,85 @@ export const getExpiredSharedSignInMessage = (
             );
     }
 };
+
+export const getWarehouseSignInErrorType = (
+    message: string,
+): {
+    name:
+        | 'BigqueryTokenError'
+        | 'SnowflakeTokenError'
+        | 'DatabricksTokenError'
+        | 'WarehouseSignInExpiredError';
+    scope: 'personal' | 'shared';
+    provider: PersonSignInProvider | null;
+} | null => {
+    const names = {
+        [PersonSignInProvider.GOOGLE]: 'BigqueryTokenError',
+        [PersonSignInProvider.SNOWFLAKE]: 'SnowflakeTokenError',
+        [PersonSignInProvider.DATABRICKS]: 'DatabricksTokenError',
+    } as const;
+    for (const provider of Object.values(PersonSignInProvider)) {
+        if (message === getExpiredPersonalSignInMessage({ provider }))
+            return { name: names[provider], scope: 'personal', provider };
+        const subjectUserUuid = 'subject';
+        const base = { provider, subjectUserUuid, subjectName: null };
+        if (
+            message ===
+                getExpiredSharedSignInMessage(
+                    { ...base, subjectBasis: null },
+                    null,
+                ) ||
+            [
+                SignInSubjectBasis.RECORDED,
+                SignInSubjectBasis.PROJECT_CREATOR,
+            ].some(
+                (subjectBasis) =>
+                    message ===
+                    getExpiredSharedSignInMessage(
+                        { ...base, subjectBasis },
+                        subjectUserUuid,
+                    ),
+            )
+        )
+            return {
+                name: 'WarehouseSignInExpiredError',
+                scope: 'shared',
+                provider,
+            };
+        const templates = [
+            {
+                subjectBasis: SignInSubjectBasis.RECORDED,
+                prefix: "This project's connection uses ",
+                separator: "'s sign-in, which has expired. Ask ",
+            },
+            {
+                subjectBasis: SignInSubjectBasis.PROJECT_CREATOR,
+                prefix: `This project's ${PERSON_SIGN_IN_LABELS[provider]} sign-in has expired. `,
+                separator:
+                    ' created this project. Ask them or a project admin to reconnect it in Project settings → Connection settings.',
+            },
+        ];
+        for (const { subjectBasis, prefix, separator } of templates) {
+            const end = message.indexOf(separator, prefix.length);
+            if (message.startsWith(prefix) && end > prefix.length) {
+                const subjectName = message.slice(prefix.length, end);
+                if (
+                    message ===
+                    getExpiredSharedSignInMessage(
+                        { ...base, subjectName, subjectBasis },
+                        'viewer',
+                    )
+                )
+                    return {
+                        name: 'WarehouseSignInExpiredError',
+                        scope: 'shared',
+                        provider:
+                            subjectBasis === SignInSubjectBasis.RECORDED
+                                ? null
+                                : provider,
+                    };
+            }
+        }
+    }
+    return null;
+};

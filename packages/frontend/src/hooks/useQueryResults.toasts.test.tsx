@@ -1,4 +1,5 @@
 import {
+    BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     getExpiredPersonalSignInMessage,
     getExpiredSharedSignInMessage,
     PersonSignInProvider,
@@ -233,8 +234,16 @@ describe.each(hooks)(
                     const signInError: ApiError = {
                         status: 'error',
                         error: {
-                            name: 'Error',
-                            statusCode: 500,
+                            name:
+                                name === 'infinite results' &&
+                                kind === 'personal'
+                                    ? 'BigqueryTokenError'
+                                    : 'Error',
+                            statusCode:
+                                name === 'infinite results' &&
+                                kind === 'personal'
+                                    ? 401
+                                    : 500,
                             message,
                             data: {},
                         },
@@ -347,4 +356,83 @@ it('suppresses matching forbidden result errors for the active project', async (
         await result.current.refetchRows();
     });
     await waitFor(() => expect(notifications.show).toHaveBeenCalledTimes(1));
+});
+
+it.each([
+    'both flags off',
+    'reconnect off',
+    'expiry off',
+    'unscoped',
+    'represented shared',
+    'session',
+])(
+    'retains main raw and session 401 notification behavior with %s',
+    async (kind) => {
+        if (kind === 'represented shared')
+            setSharedSignInToastSuppression('project-a', sharedStatus, 'owner');
+        const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+        if (kind === 'unscoped' || kind === 'session') {
+            const { result } = renderHook(() => useQueryError(), {
+                wrapper: Wrapper,
+            });
+            act(() =>
+                result.current({
+                    status: 'error',
+                    error: {
+                        name:
+                            kind === 'session'
+                                ? 'UnauthorizedError'
+                                : 'BigqueryTokenError',
+                        statusCode: 401,
+                        message:
+                            kind === 'session'
+                                ? 'Session ended'
+                                : BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
+                        data: {},
+                    },
+                }),
+            );
+        } else {
+            vi.mocked(sharedLightdashApi).mockResolvedValue({
+                queryUuid: 'query-a',
+                status: QueryHistoryStatus.ERROR,
+                error: BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
+                erroredAt: new Date(),
+            });
+            const { result } = renderHook(
+                () => useInfiniteQueryResults('project-a', 'query-a'),
+                { wrapper: Wrapper },
+            );
+            await waitFor(() =>
+                expect(result.current.error?.error.name).toBe(
+                    'BigqueryTokenError',
+                ),
+            );
+        }
+        await waitFor(() =>
+            expect(invalidate).toHaveBeenCalledWith(['health']),
+        );
+        expect(notifications.show).not.toHaveBeenCalled();
+        expect(notifications.update).not.toHaveBeenCalled();
+    },
+);
+it('does not invalidate health for controlled personal expiry from query history', async () => {
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    vi.mocked(sharedLightdashApi).mockResolvedValue({
+        queryUuid: 'query-a',
+        status: QueryHistoryStatus.ERROR,
+        error: getExpiredPersonalSignInMessage({
+            provider: PersonSignInProvider.GOOGLE,
+        }),
+        erroredAt: new Date(),
+    });
+    const { result } = renderHook(
+        () => useInfiniteQueryResults('project-a', 'query-a'),
+        { wrapper: Wrapper },
+    );
+    await waitFor(() =>
+        expect(result.current.error?.error.name).toBe('BigqueryTokenError'),
+    );
+    await waitFor(() => expect(notifications.show).toHaveBeenCalledOnce());
+    expect(invalidate).not.toHaveBeenCalled();
 });

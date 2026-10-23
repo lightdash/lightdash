@@ -1,4 +1,11 @@
-import { QueryHistoryStatus } from '@lightdash/common';
+import {
+    BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
+    getPreviewWarehouseSignInExpiredMessage,
+    getExpiredPersonalSignInMessage,
+    getExpiredSharedSignInMessage,
+    PersonSignInProvider,
+    QueryHistoryStatus,
+} from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sharedLightdashApi } from '../../api';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
@@ -168,3 +175,89 @@ describe('executeQuery', () => {
         expect(firstCall.body).not.toContain('invalidateCache');
     });
 });
+
+it.each(
+    [false, true].flatMap((pivot) =>
+        Object.values(PersonSignInProvider).flatMap((provider) =>
+            [
+                {
+                    scope: 'personal',
+                    message: getExpiredPersonalSignInMessage({ provider }),
+                },
+                {
+                    scope: 'shared',
+                    message: getExpiredSharedSignInMessage(
+                        {
+                            provider,
+                            subjectUserUuid: null,
+                            subjectName: null,
+                            subjectBasis: null,
+                        },
+                        null,
+                    ),
+                },
+            ].map((entry) => ({ ...entry, provider, pivot })),
+        ),
+    ),
+)(
+    'reconstructs stored $scope $provider errors with pivot=$pivot',
+    async ({ pivot, message }) => {
+        vi.mocked(sharedLightdashApi)
+            .mockResolvedValueOnce({ queryUuid: 'query_a' } as never)
+            .mockResolvedValueOnce({
+                queryUuid: 'query_a',
+                status: QueryHistoryStatus.ERROR,
+                error: message,
+            } as never);
+        const run = pivot
+            ? executeSqlPivotQuery(sharedLightdashApi, 'project_a', {
+                  sql: 'select 1',
+                  pivotConfiguration: {
+                      indexColumn: undefined,
+                      valuesColumns: [],
+                      groupByColumns: undefined,
+                      sortBy: undefined,
+                  },
+              })
+            : executeSqlQuery(sharedLightdashApi, 'project_a', 'select 1');
+        await expect(run).rejects.toMatchObject({
+            status: 'error',
+            error: { statusCode: 401, message },
+        });
+    },
+);
+
+it.each(
+    [false, true].flatMap((pivot) =>
+        [
+            'Permission denied: invalid_grant Google token expired',
+            BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
+            getPreviewWarehouseSignInExpiredMessage('Upstream project'),
+            'Redshift IAM credentials expired',
+        ].map((message) => ({ pivot, message })),
+    ),
+)(
+    'keeps ordinary SQL Error semantics with pivot=$pivot for $message',
+    async ({ pivot, message }) => {
+        vi.mocked(sharedLightdashApi)
+            .mockResolvedValueOnce({ queryUuid: 'query_a' } as never)
+            .mockResolvedValueOnce({
+                queryUuid: 'query_a',
+                status: QueryHistoryStatus.ERROR,
+                error: message,
+            } as never);
+        const run = pivot
+            ? executeSqlPivotQuery(sharedLightdashApi, 'project_a', {
+                  sql: 'select 1',
+                  pivotConfiguration: {
+                      indexColumn: undefined,
+                      valuesColumns: [],
+                      groupByColumns: undefined,
+                      sortBy: undefined,
+                  },
+              })
+            : executeSqlQuery(sharedLightdashApi, 'project_a', 'select 1');
+        await expect(run).rejects.toBeInstanceOf(Error);
+        await expect(run).rejects.toThrow(message);
+    },
+);

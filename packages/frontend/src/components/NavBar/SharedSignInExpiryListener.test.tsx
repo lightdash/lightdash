@@ -1,21 +1,64 @@
 import {
     BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     FeatureFlags,
+    UserWarehouseCredentialPurpose,
+    WarehouseTypes,
+    getExpiredPersonalSignInMessage,
+    QueryHistoryStatus,
     PersonSignInProvider,
     SignInSubjectBasis,
     type SharedSignInStatus,
+    type ApiErrorDetail,
 } from '@lightdash/common';
 import { Button, MantineProvider, Text } from '@mantine/core';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+    QueryClient,
+    QueryClientProvider,
+    QueryObserver,
+} from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useEffect } from 'react';
+import { StrictMode, useEffect } from 'react';
+import { Provider } from 'react-redux';
 import { MemoryRouter, useNavigate } from 'react-router';
+import { useMultipleTableFields } from '../../features/sqlRunner/hooks/useMultipleTableFields';
+import { useTableFields } from '../../features/sqlRunner/hooks/useTableFields';
+import { useTables } from '../../features/sqlRunner/hooks/useTables';
+import { SqlRunnerConnectionScope } from '../../features/sqlRunner/multiConnection/components/SqlRunnerConnectionScope';
+import {
+    useConnectionDatabases,
+    useConnectionTableFields,
+    useSqlRunnerConnections,
+    useTableUnits,
+} from '../../features/sqlRunner/multiConnection/hooks/useConnectionCatalog';
+import { tableUnitId } from '../../features/sqlRunner/multiConnection/utils/warehouseTreeRows';
+import { store as sqlStore } from '../../features/sqlRunner/store';
+import {
+    resetState,
+    setProjectUuid,
+} from '../../features/sqlRunner/store/sqlRunnerSlice';
+import {
+    completeSharedSignInRestoration,
+    canReplayRestoredSql,
+    captureSharedSignInQueryScope,
+    getSharedSignInQueryScope,
+} from '../../hooks/sharedSignInQueryRecovery';
 import { shouldSuppressSharedSignInToast } from '../../hooks/toaster/sharedSignInToastSuppression';
+import type * as ActiveProjectHooks from '../../hooks/useActiveProject';
+import {
+    useGetReadyQueryResults,
+    useInfiniteQueryResults,
+} from '../../hooks/useQueryResults';
 import {
     SHARED_SIGN_IN_QUERY_FAILED,
     SHARED_SIGN_IN_RECONNECTED,
 } from '../../hooks/useReconnectSharedSignIn';
+import { reportSharedSignInQueryFailure } from '../../hooks/useReconnectSharedSignIn';
+import type * as FlagHooks from '../../hooks/useServerOrClientFeatureFlag';
+import AppProvider from '../../providers/App/AppProvider';
+import type * as AppHooks from '../../providers/App/useApp';
+import { NavBarPortalContext } from './NavBarPortalContext';
+import ProjectCredentialsSwitcher from './ProjectCredentialsSwitcher';
 import { SharedSignInExpiryListener } from './SharedSignInExpiryListener';
 import { SharedSignInQueryBoundary } from './SharedSignInQueryBoundary';
 import { WarehouseSignInBanner } from './WarehouseSignInBanner';
@@ -23,11 +66,20 @@ import {
     setWarehouseSignInBannerVisibility,
     useWarehouseSignInBanner,
 } from './warehouseSignInBannerState';
-import { useWarehouseSignInExecution } from './warehouseSignInPreflight';
+import {
+    getActiveWarehouseSignInPreflight,
+    useWarehouseSignInExecution,
+} from './warehouseSignInPreflight';
 
 const state = vi.hoisted(() => ({
+    legacySwitcher: null as null | 'single' | 'multi',
+    requiredCredentials: true,
+    allowCredentials: false,
+    legacyWarehouse: 'bigquery' as WarehouseTypes,
+    realApp: false,
     userUuid: 'user_a' as string | null,
     projectUuid: 'project_a',
+    projectLoading: false,
     higherPriority: false,
     reconnect: true,
     expiry: true,
@@ -40,38 +92,112 @@ const state = vi.hoisted(() => ({
     binding: null as string | null | undefined,
     deferPopup: false,
     popupCallback: null as (() => void) | null,
+    realQueries: false,
+    boundRoots: null as string[] | null,
+    catalogue: false,
+    pageSourceMounted: true,
+    realCatalogueScope: false,
+    catalogueExtra: false,
+    catalogueFields: false,
+    catalogueMounted: true,
+    catalogueEnabled: true,
+    catalogueConnection: 'connection_a',
+    catalogueProject: 'project_a',
+    showRemoved: true,
+    deliberateDisabled: true,
+    toastError: vi.fn(),
 }));
-vi.mock('../../providers/App/useApp', () => ({
-    default: () => ({
-        user: {
-            data: state.userUuid ? { userUuid: state.userUuid } : undefined,
-        },
+vi.mock('../../providers/App/useApp', async (importOriginal) => {
+    const actual = await importOriginal<typeof AppHooks>();
+    return {
+        default: () =>
+            state.realApp
+                ? actual.default()
+                : {
+                      user: {
+                          data: state.userUuid
+                              ? { userUuid: state.userUuid }
+                              : undefined,
+                      },
+                  },
+    };
+});
+vi.mock('../../hooks/user/useAccount', () => ({
+    useAccount: () => ({ data: { isRegisteredUser: () => true } }),
+}));
+vi.mock('../../hooks/useActiveProject', async (importOriginal) => ({
+    ...(await importOriginal<typeof ActiveProjectHooks>()),
+    useActiveProjectUuid: () => ({
+        activeProjectUuid: state.projectLoading ? undefined : state.projectUuid,
     }),
-}));
-vi.mock('../../hooks/useActiveProject', () => ({
-    useActiveProjectUuid: () => ({ activeProjectUuid: state.projectUuid }),
 }));
 vi.mock('../../providers/LightdashApi/useLightdashApi', () => ({
     useLightdashApi: () => state.api,
 }));
-vi.mock('../../hooks/useProject', () => ({
-    useProject: () => ({ data: { name: 'Project A' } }),
-}));
-vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: (flag: FeatureFlags) => ({
-        isLoading: false,
+vi.mock('../../hooks/useExplore', () => ({
+    useExploreByProjectUuid: (tableId: string) => ({
         data: {
-            enabled:
-                flag === FeatureFlags.SharedSignInReconnect
-                    ? state.reconnect
-                    : state.expiry,
+            warehouseConnection: {
+                warehouseConnectionUuid: state.boundRoots
+                    ? tableId === 'original'
+                        ? null
+                        : `connection_${tableId}`
+                    : state.binding,
+            },
         },
     }),
 }));
+vi.mock('../../hooks/useProject', () => ({
+    useProject: () => ({
+        data: {
+            name: 'Project A',
+            ...(state.legacySwitcher
+                ? {
+                      projectUuid: state.projectUuid,
+                      connectionRoute: state.legacySwitcher,
+                      warehouseConnection: {
+                          type: state.legacyWarehouse,
+                          requireUserCredentials: state.requiredCredentials,
+                          allowUserCredentials: state.allowCredentials,
+                      },
+                  }
+                : {}),
+        },
+    }),
+}));
+vi.mock('../../hooks/useServerOrClientFeatureFlag', async (importOriginal) => {
+    const actual = await importOriginal<typeof FlagHooks>();
+    return {
+        useServerFeatureFlag: (flag: FeatureFlags) =>
+            state.realApp
+                ? actual.useServerFeatureFlag(flag)
+                : {
+                      isLoading: false,
+                      data: {
+                          enabled:
+                              flag === FeatureFlags.SharedSignInReconnect
+                                  ? state.reconnect
+                                  : state.expiry,
+                      },
+                  },
+    };
+});
 vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({
         showToastWarning: state.warning,
         showToastSuccess: state.success,
+        addToastError: (options: {
+            apiError: typeof personalError;
+            projectUuid?: string;
+        }) => {
+            if (
+                !shouldSuppressSharedSignInToast(
+                    options.apiError,
+                    options.projectUuid,
+                )
+            )
+                state.toastError(options);
+        },
     }),
 }));
 vi.mock('../../hooks/gdrive/useGdrive', () => ({
@@ -146,6 +272,133 @@ const PageQuery = () => {
     }, []);
     return <Text>Query page</Text>;
 };
+const RealRoot = ({
+    name,
+    disabled = false,
+    projectUuid = 'project_a',
+    tableId = 'table_a',
+}: {
+    tableId?: string;
+    name: string;
+    disabled?: boolean;
+    projectUuid?: string;
+}) => {
+    const result = useGetReadyQueryResults(
+        { projectUuid, tableId, chartUuid: name },
+        disabled ? ['required'] : [],
+    );
+    useInfiniteQueryResults(projectUuid, result.data?.queryUuid);
+    return null;
+};
+const CatalogueRoot = () => {
+    const tables = useTables({ projectUuid: state.projectUuid });
+    useTableFields({
+        projectUuid: state.projectUuid,
+        tableName: 'healthy_table',
+        schema: 'schema_a',
+        search: undefined,
+    });
+    return (
+        <Text>
+            {tables.data
+                ? JSON.stringify(tables.data)
+                : 'Catalogue unavailable'}
+        </Text>
+    );
+};
+const CatalogueFields = () => {
+    const single = useTableFields({
+        projectUuid: 'project_a',
+        tableName: 'table_a',
+        schema: 'schema_a',
+        search: undefined,
+    });
+    const multiple = useMultipleTableFields([
+        { projectUuid: 'project_a', tableName: 'table_a', schema: 'schema_a' },
+        { projectUuid: 'project_a', tableName: 'table_b', schema: 'schema_a' },
+    ]);
+    return <Text>{JSON.stringify([single.data, multiple.data])}</Text>;
+};
+const CatalogueExtra = () => {
+    const connections = useSqlRunnerConnections('project_a', true);
+    return connections.data ? <CatalogueExtraQueries /> : null;
+};
+const CatalogueExtraQueries = () => {
+    const connection = state.catalogueConnection;
+    const databases = useConnectionDatabases({
+        projectUuid: 'project_a',
+        connectionIds: [connection, 'connection_other'],
+        enabledConnectionIds: new Set([connection, 'connection_other']),
+    });
+    const units = ['database_a', 'database_healthy', 'database_disabled'].map(
+        (database) => ({
+            connectionId: connection,
+            warehouseConnectionUuid: connection,
+            database,
+        }),
+    );
+    const tables = useTableUnits({
+        projectUuid: 'project_a',
+        units,
+        enabledUnitIds: new Set(
+            units
+                .filter(
+                    (unit) =>
+                        unit.database !== 'database_disabled' ||
+                        state.catalogueEnabled,
+                )
+                .map(tableUnitId),
+        ),
+    });
+    const fields = useConnectionTableFields({
+        projectUuid: 'project_a',
+        identity: {
+            connectionId: connection,
+            database: 'database_a',
+            schema: 'schema_a',
+            table: 'table_a',
+        },
+    });
+    useMultipleTableFields([
+        {
+            projectUuid: 'project_a',
+            schema: 'schema_a',
+            tableName: 'table_b',
+            connection: { connectionId: connection, database: 'database_a' },
+        },
+    ]);
+    return (
+        <Text>
+            {JSON.stringify([
+                databases.listings.get(connection),
+                tables.loadedCatalogs,
+                fields.data,
+            ])}
+        </Text>
+    );
+};
+const CatalogueOtherProject = () => {
+    useTables({ projectUuid: state.catalogueProject });
+    return null;
+};
+const RealRoots = () => (
+    <>
+        {[
+            'failed_a',
+            'failed_b',
+            'failed_c',
+            'healthy',
+            'inflight',
+            'pending_poll',
+        ].map((name) => (
+            <RealRoot key={name} name={name} />
+        ))}
+        <RealRoot name="healthy" />
+        {state.showRemoved && <RealRoot name="removed" />}
+        <RealRoot name="other_project" projectUuid="project_b" />
+        <RealRoot name="disabled" disabled={state.deliberateDisabled} />
+    </>
+);
 const Harness = () => {
     const banner = useWarehouseSignInBanner();
     const navigate = useNavigate();
@@ -156,6 +409,11 @@ const Harness = () => {
     return (
         <SharedSignInQueryBoundary>
             <SharedSignInExpiryListener />
+            {state.legacySwitcher && (
+                <NavBarPortalContext.Provider value="">
+                    <ProjectCredentialsSwitcher />
+                </NavBarPortalContext.Provider>
+            )}
             {banner && !state.higherPriority && (
                 <WarehouseSignInBanner
                     status={banner.status}
@@ -171,7 +429,40 @@ const Harness = () => {
             >
                 Query route
             </Button>
-            <PageQuery />
+            {state.boundRoots ? (
+                state.boundRoots.map((name) => (
+                    <RealRoot key={name} name={name} tableId={name} />
+                ))
+            ) : state.pageSourceMounted && !state.realCatalogueScope ? (
+                <PageQuery />
+            ) : null}
+            {state.realQueries && <RealRoots />}
+            {state.catalogue && (
+                <>
+                    {state.catalogueMounted &&
+                        (state.realCatalogueScope ? (
+                            <Provider store={sqlStore}>
+                                <SqlRunnerConnectionScope
+                                    isEditingSavedChart={false}
+                                >
+                                    <CatalogueRoot />
+                                </SqlRunnerConnectionScope>
+                            </Provider>
+                        ) : (
+                            <CatalogueRoot />
+                        ))}
+                    {state.pageSourceMounted && !state.realCatalogueScope && (
+                        <RealRoot name="catalogue_data" />
+                    )}
+                </>
+            )}
+            {state.catalogueFields && state.catalogueMounted && (
+                <CatalogueFields />
+            )}
+            {state.catalogueExtra && <CatalogueExtra />}
+            {state.catalogueProject !== 'project_a' && (
+                <CatalogueOtherProject />
+            )}
         </SharedSignInQueryBoundary>
     );
 };
@@ -186,20 +477,45 @@ const mount = (
         },
         logger: { log: () => {}, warn: () => {}, error: () => {} },
     });
+    if (state.legacySwitcher && !state.realApp) {
+        client.setQueryData(
+            ['feature-flag', FeatureFlags.SharedSignInReconnect],
+            { enabled: state.reconnect },
+        );
+        client.setQueryData(
+            ['feature-flag', FeatureFlags.SharedSignInExpiryMessage],
+            { enabled: state.expiry },
+        );
+    }
     configureClient?.(client);
-    const tree = () => (
-        <MantineProvider env="test">
-            <QueryClientProvider client={client}>
-                <MemoryRouter initialEntries={[path]}>
-                    <Harness />
-                </MemoryRouter>
-            </QueryClientProvider>
-        </MantineProvider>
-    );
+    const tree = () => {
+        const content = (
+            <MantineProvider env="test">
+                <QueryClientProvider client={client}>
+                    <MemoryRouter initialEntries={[path]}>
+                        {state.realApp ? (
+                            <AppProvider>
+                                <Harness />
+                            </AppProvider>
+                        ) : (
+                            <Harness />
+                        )}
+                    </MemoryRouter>
+                </QueryClientProvider>
+            </MantineProvider>
+        );
+        return state.realApp ? <StrictMode>{content}</StrictMode> : content;
+    };
     return { ...render(tree()), client, tree };
 };
 beforeEach(() => {
     vi.clearAllMocks();
+    state.legacySwitcher = null;
+    state.requiredCredentials = true;
+    state.allowCredentials = false;
+    state.legacyWarehouse = WarehouseTypes.BIGQUERY;
+    state.realApp = false;
+    state.projectLoading = false;
     state.userUuid = 'user_a';
     state.projectUuid = 'project_a';
     state.higherPriority = false;
@@ -208,6 +524,19 @@ beforeEach(() => {
     state.binding = null;
     state.deferPopup = false;
     state.popupCallback = null;
+    state.realQueries = false;
+    state.boundRoots = null;
+    state.catalogue = false;
+    state.pageSourceMounted = true;
+    state.realCatalogueScope = false;
+    state.catalogueExtra = false;
+    state.catalogueFields = false;
+    state.catalogueMounted = true;
+    state.catalogueEnabled = true;
+    state.catalogueConnection = 'connection_a';
+    state.catalogueProject = 'project_a';
+    state.showRemoved = true;
+    state.deliberateDisabled = true;
     state.api.mockImplementation(
         async ({ method, url }: { method: string; url: string }) =>
             method === 'GET' && url.includes('shared-sign-in')
@@ -908,4 +1237,2088 @@ test('a shared failure during the proactive cooldown rechecks when the cooldown 
         view.client.clear();
         vi.useRealTimers();
     }
+});
+
+test('replays every mounted root once through the actual modal gate, including an Infinity-fresh sibling and duplicate observers', async () => {
+    state.realQueries = true;
+    const calls = new Map<string, number>();
+    const oldPending = Promise.withResolvers<never>();
+    const oldPoll = Promise.withResolvers<unknown>();
+    let repaired = false;
+    state.api.mockImplementation(
+        async ({
+            method,
+            url,
+            body,
+        }: {
+            method: string;
+            url: string;
+            body?: string;
+        }) => {
+            if (url.includes('shared-sign-in'))
+                return {
+                    ...personal,
+                    personalSignIn: {
+                        ...personal.personalSignIn!,
+                        expired: !repaired,
+                    },
+                };
+            if (method === 'POST') {
+                const { chartUuid } = JSON.parse(body!);
+                const count = (calls.get(chartUuid) ?? 0) + 1;
+                calls.set(chartUuid, count);
+                if (chartUuid === 'inflight' && count === 1)
+                    return oldPending.promise;
+                return { queryUuid: `${chartUuid}_${count}` };
+            }
+            if (url.includes('/query/')) {
+                const queryUuid = url.split('/query/')[1].split('?')[0];
+                if (queryUuid === 'pending_poll_1') return oldPoll.promise;
+                return {
+                    queryUuid,
+                    status:
+                        queryUuid.startsWith('failed') && !repaired
+                            ? QueryHistoryStatus.ERROR
+                            : QueryHistoryStatus.READY,
+                    error: getExpiredPersonalSignInMessage({
+                        provider: PersonSignInProvider.GOOGLE,
+                    }),
+                    rows: [],
+                    columns: {},
+                    totalResults: 0,
+                    metadata: { performance: {} },
+                };
+            }
+            return [];
+        },
+    );
+    const outsideRuns = vi.fn(async () => ({}));
+    const stops: (() => void)[] = [];
+    const { rerender, tree, client } = mount(
+        '/projects/project_a/sql-runner',
+        (client) => {
+            for (const queryKey of [
+                ['tables', 'project_a'],
+                ['create-query', { projectUuid: 'project_b' }],
+            ]) {
+                const observer = new QueryObserver(client, {
+                    queryKey,
+                    queryFn: outsideRuns,
+                    staleTime: Infinity,
+                });
+                stops.push(observer.subscribe(() => {}));
+            }
+        },
+    );
+    await screen.findByRole('dialog');
+    expect(calls.size).toBe(0);
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await waitFor(() => expect(calls.get('failed_c')).toBe(1));
+    await waitFor(() => expect(state.toastError).not.toHaveBeenCalled());
+    state.showRemoved = false;
+    rerender(tree());
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    await screen.findByRole('dialog');
+    expect(
+        client
+            .getQueryCache()
+            .find([
+                'create-query',
+                {
+                    projectUuid: 'project_a',
+                    tableId: 'table_a',
+                    chartUuid: 'healthy',
+                },
+                [],
+            ])
+            ?.isActive(),
+    ).toBe(false);
+    repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(calls.get('healthy')).toBe(2));
+    await waitFor(() => expect(calls.get('inflight')).toBe(2));
+    for (const name of [
+        'failed_a',
+        'failed_b',
+        'failed_c',
+        'healthy',
+        'inflight',
+    ])
+        expect(calls.get(name)).toBe(2);
+    expect(calls.get('removed')).toBe(1);
+    expect(calls.get('other_project')).toBeUndefined();
+    expect(calls.get('disabled')).toBeUndefined();
+    await act(async () =>
+        oldPending.reject({ status: 'error', error: personalError }),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
+    expect(state.success).toHaveBeenCalledOnce();
+    await act(async () =>
+        oldPoll.resolve({
+            queryUuid: 'pending_poll_1',
+            status: QueryHistoryStatus.ERROR,
+            error: getExpiredPersonalSignInMessage({
+                provider: PersonSignInProvider.GOOGLE,
+            }),
+        }),
+    );
+    expect(state.toastError).not.toHaveBeenCalled();
+    expect(outsideRuns).toHaveBeenCalledTimes(2);
+    stops.forEach((stop) => stop());
+});
+
+test.each([
+    { reconnect: false, expiry: false },
+    { reconnect: false, expiry: true },
+    { reconnect: true, expiry: false },
+])(
+    'keeps raw 401 health handling through the real flag boundary: %j',
+    async (flags) => {
+        state.reconnect = flags.reconnect;
+        state.expiry = flags.expiry;
+        state.realQueries = true;
+        state.api.mockImplementation(
+            async ({
+                method,
+                url,
+                body,
+            }: {
+                method: string;
+                url: string;
+                body?: string;
+            }) => {
+                if (url.includes('shared-sign-in')) return shared;
+                if (method === 'POST')
+                    return {
+                        queryUuid: `${JSON.parse(body!).chartUuid}_query`,
+                    };
+                if (url.includes('/query/'))
+                    return {
+                        queryUuid: 'query_a',
+                        status: QueryHistoryStatus.ERROR,
+                        error: BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
+                    };
+                return [];
+            },
+        );
+        const { client } = mount();
+        const invalidate = vi.spyOn(client, 'invalidateQueries');
+        await waitFor(() =>
+            expect(invalidate).toHaveBeenCalledWith(['health']),
+        );
+        expect(state.toastError).not.toHaveBeenCalled();
+        expect(state.warning).not.toHaveBeenCalled();
+        if (flags.reconnect) await screen.findByRole('dialog');
+        else expect(screen.queryByRole('dialog')).toBeNull();
+    },
+);
+test('an old popup cannot close or replay a newer expired selection', async () => {
+    state.binding = 'connection_a';
+    state.deferPopup = true;
+    let repaired = false;
+    state.api.mockImplementation(async () => ({
+        ...personal,
+        personalSelection: { warehouseConnectionUuid: state.binding },
+        personalSignIn: {
+            ...personal.personalSignIn!,
+            userWarehouseCredentialsUuid:
+                state.binding === 'connection_a'
+                    ? 'credential_a'
+                    : 'credential_b',
+            expired: !repaired,
+        },
+    }));
+    const { rerender, tree } = mount();
+    await screen.findByRole('dialog');
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    const finishA = state.popupCallback!;
+    state.binding = 'connection_b';
+    rerender(tree());
+    await waitFor(() => expect(state.api).toHaveBeenCalledTimes(2));
+    await screen.findByRole('dialog');
+    const before = state.executed.mock.calls.length;
+    await act(async () => finishA());
+    expect(state.api).toHaveBeenCalledTimes(2);
+    expect(state.success).not.toHaveBeenCalled();
+    expect(state.executed).toHaveBeenCalledTimes(before);
+    expect(screen.getByRole('dialog')).toBeVisible();
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    expect(state.popup).toHaveBeenLastCalledWith({
+        light: true,
+        personalCredentialUuid: 'credential_b',
+    });
+    repaired = true;
+    await act(async () => state.popupCallback!());
+    await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+    expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+test('a dismissed verification cannot complete after the same target modal reopens', async () => {
+    const verification = Promise.withResolvers<SharedSignInStatus>();
+    state.api
+        .mockResolvedValueOnce(personal)
+        .mockReturnValueOnce(verification.promise)
+        .mockResolvedValue({
+            ...personal,
+            personalSignIn: { ...personal.personalSignIn!, expired: false },
+        });
+    mount();
+    await screen.findByRole('dialog');
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(state.api).toHaveBeenCalledTimes(2));
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    await act(async () =>
+        verification.resolve({
+            ...personal,
+            personalSignIn: { ...personal.personalSignIn!, expired: false },
+        }),
+    );
+    expect(screen.getByRole('dialog')).toBeVisible();
+    expect(state.success).not.toHaveBeenCalled();
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+});
+
+test.each([personal, shared])(
+    'accepts a second fresh rejection and repair without queuing old failures: %j',
+    async (initial) => {
+        state.realQueries = true;
+        let expired = true;
+        let rejectNext = false;
+        const calls = new Map<string, number>();
+        const failure = initial.personalSignIn
+            ? { status: 'error', error: personalError }
+            : {
+                  status: 'error',
+                  error: {
+                      name: 'WarehouseSignInExpiredError',
+                      statusCode: 401,
+                      message: 'expired',
+                      data: {
+                          sharedSignIn: {
+                              projectUuid: 'project_a',
+                              provider: shared.provider,
+                              subjectUserUuid: 'user_a',
+                              subjectBasis: shared.subjectBasis,
+                          },
+                      },
+                  },
+              };
+        state.api.mockImplementation(
+            async ({
+                method,
+                url,
+                body,
+            }: {
+                method: string;
+                url: string;
+                body?: string;
+            }) => {
+                if (url.includes('shared-sign-in')) {
+                    if (method === 'POST') return { status: 'ok' };
+                    return initial.personalSignIn
+                        ? {
+                              ...initial,
+                              personalSignIn: {
+                                  ...initial.personalSignIn,
+                                  expired,
+                              },
+                          }
+                        : { ...initial, expired };
+                }
+                if (method === 'POST') {
+                    const { chartUuid } = JSON.parse(body!);
+                    const count = (calls.get(chartUuid) ?? 0) + 1;
+                    calls.set(chartUuid, count);
+                    if (chartUuid === 'healthy' && rejectNext) {
+                        rejectNext = false;
+                        throw failure;
+                    }
+                    return { queryUuid: `${chartUuid}_${count}` };
+                }
+                return {
+                    status: QueryHistoryStatus.READY,
+                    rows: [],
+                    columns: {},
+                    totalResults: 0,
+                    metadata: { performance: {} },
+                };
+            },
+        );
+        const { client } = mount();
+        await screen.findByRole('dialog');
+        const preflight = getActiveWarehouseSignInPreflight()!;
+        const retired = captureSharedSignInQueryScope('project_a', null);
+        const release = preflight.register(
+            'expired_sibling',
+            'connection_b',
+            0,
+        );
+        act(() => {
+            preflight.settle(
+                'connection_b',
+                preflight.checks.get('connection_b')!.generation,
+                {
+                    ...personal,
+                    personalSelection: {
+                        warehouseConnectionUuid: 'connection_b',
+                    },
+                },
+            );
+        });
+        expired = false;
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Sign in with Google' }),
+        );
+        await waitFor(() => expect(calls.get('healthy')).toBe(1));
+        await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+        act(() => {
+            reportSharedSignInQueryFailure('project_a', failure, retired);
+        });
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
+        const clock = vi
+            .spyOn(Date, 'now')
+            .mockReturnValue(Date.now() + 60_001);
+        try {
+            expired = true;
+            rejectNext = true;
+            await act(async () => {
+                await client.refetchQueries({
+                    predicate: (q) =>
+                        q.queryKey[0] === 'create-query' &&
+                        (q.queryKey[1] as { chartUuid?: string })?.chartUuid ===
+                            'healthy',
+                });
+            });
+            expect(await screen.findByRole('dialog')).toBeVisible();
+            expired = false;
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Sign in with Google' }),
+            );
+            await waitFor(() => expect(state.success).toHaveBeenCalledTimes(2));
+            await waitFor(() => expect(calls.get('healthy')).toBe(3));
+            for (const name of [
+                'failed_a',
+                'failed_b',
+                'failed_c',
+                'inflight',
+                'pending_poll',
+            ])
+                expect(calls.get(name)).toBe(2);
+            act(() => {
+                reportSharedSignInQueryFailure('project_a', failure, retired);
+            });
+            expect(screen.queryByRole('dialog')).toBeNull();
+            expect(
+                screen.queryByRole('button', { name: 'Reconnect' }),
+            ).toBeNull();
+        } finally {
+            clock.mockRestore();
+            release();
+        }
+    },
+);
+
+test('a current healthy selected status cannot be overridden by stale personal failure metadata', async () => {
+    state.api.mockResolvedValue({
+        ...personal,
+        personalSignIn: { ...personal.personalSignIn!, expired: false },
+    });
+    mount();
+    await waitFor(() => expect(state.executed).toHaveBeenCalledOnce());
+    const scope = captureSharedSignInQueryScope('project_a', null);
+    act(() =>
+        reportSharedSignInQueryFailure(
+            'project_a',
+            { status: 'error', error: personalError },
+            scope,
+        ),
+    );
+    await waitFor(() => expect(state.api).toHaveBeenCalledTimes(2));
+    await act(async () => {});
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
+});
+
+test('a fresh current rejection after healthy preflight still opens recovery', async () => {
+    state.api
+        .mockResolvedValueOnce({
+            ...personal,
+            personalSignIn: { ...personal.personalSignIn!, expired: false },
+        })
+        .mockResolvedValue(personal);
+    mount();
+    await waitFor(() => expect(state.executed).toHaveBeenCalledOnce());
+    const scope = captureSharedSignInQueryScope('project_a', null);
+    act(() =>
+        reportSharedSignInQueryFailure(
+            'project_a',
+            { status: 'error', error: personalError },
+            scope,
+        ),
+    );
+    expect(await screen.findByRole('dialog')).toBeVisible();
+    expect(state.api).toHaveBeenCalledTimes(2);
+});
+
+test('dismissal during cancellation preparation abandons the old attempt and permits the reopened target repair', async () => {
+    state.api.mockResolvedValueOnce(personal).mockResolvedValue({
+        ...personal,
+        personalSignIn: { ...personal.personalSignIn!, expired: false },
+    });
+    const { client } = mount();
+    await screen.findByRole('dialog');
+    const preflight = getActiveWarehouseSignInPreflight()!;
+    const target = preflight.target;
+    const scope = captureSharedSignInQueryScope('project_a', null);
+    const pending = Promise.withResolvers<void>();
+    const cancel = vi
+        .spyOn(client, 'cancelQueries')
+        .mockReturnValueOnce(pending.promise);
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(cancel).toHaveBeenCalledOnce());
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    expect(preflight.target).toBe(target);
+    await act(async () => pending.resolve());
+    expect(state.success).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeVisible();
+    const restored = vi.fn();
+    window.addEventListener(SHARED_SIGN_IN_RECONNECTED, restored);
+    try {
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Sign in with Google' }),
+        );
+        await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+        expect(restored).toHaveBeenCalledOnce();
+        expect(
+            canReplayRestoredSql(scope, restored.mock.calls[0][0].detail),
+        ).toBe(true);
+        expect(screen.queryByRole('dialog')).toBeNull();
+    } finally {
+        window.removeEventListener(SHARED_SIGN_IN_RECONNECTED, restored);
+        cancel.mockRestore();
+    }
+});
+
+test('a second shared episode waits for its healthy-status cooldown and then accepts one repair', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(100_000);
+    state.api.mockResolvedValue(shared);
+    const view = mount();
+    try {
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        const preflight = getActiveWarehouseSignInPreflight()!;
+        const first = preflight.target!;
+        await act(async () => {
+            const detail = await completeSharedSignInRestoration(
+                view.client,
+                first,
+            );
+            window.dispatchEvent(
+                new CustomEvent(SHARED_SIGN_IN_RECONNECTED, { detail }),
+            );
+        });
+        expect(preflight.target).toBeNull();
+        const scope = captureSharedSignInQueryScope('project_a', null);
+        const error = {
+            error: {
+                name: 'BigqueryTokenError',
+                statusCode: 401,
+                message: BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
+                data: {},
+            },
+        };
+        state.api.mockResolvedValue({ ...shared, expired: false });
+        await act(async () => {
+            reportSharedSignInQueryFailure('project_a', error, scope);
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(state.api).toHaveBeenCalledTimes(2);
+        state.api.mockResolvedValue(shared);
+        await act(async () => {
+            reportSharedSignInQueryFailure('project_a', error, scope);
+            await vi.advanceTimersByTimeAsync(59_999);
+        });
+        expect(state.api).toHaveBeenCalledTimes(2);
+        expect(preflight.target).toBeNull();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1);
+        });
+        expect(state.api).toHaveBeenCalledTimes(3);
+        expect(screen.getByRole('dialog')).toBeVisible();
+        expect(preflight.target).not.toBe(first);
+        await act(async () => {
+            const detail = await completeSharedSignInRestoration(
+                view.client,
+                preflight.target!,
+            );
+            expect(detail?.recoveryGeneration).toBe(2);
+            window.dispatchEvent(
+                new CustomEvent(SHARED_SIGN_IN_RECONNECTED, { detail }),
+            );
+        });
+        expect(preflight.target).toBeNull();
+    } finally {
+        view.unmount();
+        view.client.clear();
+        vi.useRealTimers();
+    }
+});
+
+test.each([
+    ['original', 'extra', 'expired-first'],
+    ['original', 'extra', 'healthy-first'],
+    ['extra', 'original', 'expired-first'],
+    ['extra', 'original', 'healthy-first'],
+])(
+    'does not queue the known expired mounted sibling after repairing %s with %s and %s completion',
+    async (first, sibling, order) => {
+        state.boundRoots = [first, sibling, 'healthy'];
+        const expired = new Set([first, sibling]);
+        const calls = new Map<string, number>();
+        const lateSibling = Promise.withResolvers<unknown>();
+        const lateRepaired = Promise.withResolvers<unknown>();
+        const lateHealthy = Promise.withResolvers<unknown>();
+        const statusFor = (name: string): SharedSignInStatus => ({
+            ...personal,
+            personalSelection: {
+                warehouseConnectionUuid:
+                    name === 'original' ? null : `connection_${name}`,
+            },
+            personalSignIn: {
+                ...personal.personalSignIn!,
+                userWarehouseCredentialsUuid: `credential_${name}`,
+                expired: expired.has(name),
+            },
+        });
+        const response = (name: string) => ({
+            status: 'error',
+            error: {
+                ...personalError,
+                data: { personalSignIn: statusFor(name).personalSignIn },
+            },
+        });
+        state.api.mockImplementation(
+            async ({
+                url,
+                method,
+                body,
+            }: {
+                url: string;
+                method: string;
+                body?: string;
+            }) => {
+                if (url.includes('shared-sign-in')) {
+                    const binding = new URLSearchParams(url.split('?')[1]).get(
+                        'warehouseConnectionUuid',
+                    );
+                    return statusFor(
+                        binding?.replace('connection_', '') ?? 'original',
+                    );
+                }
+                if (method === 'POST') {
+                    const name = JSON.parse(body!).chartUuid;
+                    const count = (calls.get(name) ?? 0) + 1;
+                    calls.set(name, count);
+                    if (count === 2 && name === sibling)
+                        return lateSibling.promise;
+                    if (count === 2 && name === first)
+                        return lateRepaired.promise;
+                    if (count === 2 && name === 'healthy')
+                        return lateHealthy.promise;
+                    if (expired.has(name)) throw response(name);
+                    return { queryUuid: `${name}_${count}` };
+                }
+                if (url.includes('/query/'))
+                    return {
+                        status: QueryHistoryStatus.READY,
+                        rows: [],
+                        columns: {},
+                        totalResults: 0,
+                        metadata: { performance: {} },
+                    };
+                return [];
+            },
+        );
+        const { client } = mount('/projects/project_a/dashboards/dashboard_a');
+        await screen.findByRole('dialog');
+        const preflight = getActiveWarehouseSignInPreflight()!;
+        expect(
+            [...preflight.checks.values()].map((check) => check.priority),
+        ).toEqual([0, 0, 0]);
+        expect(
+            preflight.target?.status.personalSignIn
+                ?.userWarehouseCredentialsUuid,
+        ).toBe(`credential_${first}`);
+        await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+        await waitFor(() => expect([...calls.values()]).toEqual([1, 1, 1]));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Reconnect' }),
+        );
+        expired.delete(first);
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Sign in with Google' }),
+        );
+        await waitFor(() => expect(calls.get(sibling)).toBe(2));
+        if (order === 'healthy-first')
+            await act(async () => {
+                lateRepaired.resolve({ queryUuid: `${first}_2` });
+                lateHealthy.resolve({ queryUuid: 'healthy_2' });
+            });
+        await act(async () => {
+            lateSibling.reject(response(sibling));
+        });
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(preflight.target).toBeNull();
+        if (order === 'expired-first')
+            await act(async () => {
+                lateRepaired.resolve({ queryUuid: `${first}_2` });
+                lateHealthy.resolve({ queryUuid: 'healthy_2' });
+            });
+        await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
+        expect([...calls.values()]).toEqual([2, 2, 2]);
+        const clock = vi
+            .spyOn(Date, 'now')
+            .mockReturnValue(Date.now() + 60_001);
+        try {
+            expired.add(first);
+            await act(async () => {
+                await client.refetchQueries({
+                    predicate: (query) =>
+                        query.queryKey[0] === 'create-query' &&
+                        (query.queryKey[1] as { chartUuid?: string })
+                            ?.chartUuid === first,
+                });
+            });
+            expect(await screen.findByRole('dialog')).toBeVisible();
+            expect(
+                preflight.target?.status.personalSignIn
+                    ?.userWarehouseCredentialsUuid,
+            ).toBe(`credential_${first}`);
+            expired.delete(first);
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Sign in with Google' }),
+            );
+            await waitFor(() => expect(state.success).toHaveBeenCalledTimes(2));
+            await waitFor(() => expect(calls.get(first)).toBe(4));
+            expect(calls.get(sibling)).toBe(3);
+            expect(calls.get('healthy')).toBe(3);
+            expect(screen.queryByRole('dialog')).toBeNull();
+            expect(
+                screen.queryByRole('button', { name: 'Reconnect' }),
+            ).toBeNull();
+        } finally {
+            clock.mockRestore();
+        }
+    },
+);
+
+test('a later current personal rejection presents recovery after an unknown status without reusing the healthy preflight', async () => {
+    let statusReads = 0;
+    state.api.mockImplementation(async ({ url }: { url: string }) => {
+        if (!url.includes('shared-sign-in')) return [];
+        statusReads += 1;
+        return {
+            ...personal,
+            statusUnknown: statusReads === 2,
+            personalSignIn: {
+                ...personal.personalSignIn!,
+                expired: statusReads > 1,
+            },
+        };
+    });
+    mount();
+    await waitFor(() => expect(state.executed).toHaveBeenCalledOnce());
+    const reject = () =>
+        reportSharedSignInQueryFailure(
+            'project_a',
+            { status: 'error', error: personalError },
+            captureSharedSignInQueryScope('project_a', null),
+        );
+    await act(async () => {
+        reject();
+    });
+    expect(statusReads).toBe(2);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
+    await act(async () => {
+        reject();
+    });
+    expect(await screen.findByRole('dialog')).toBeVisible();
+    expect(statusReads).toBe(3);
+});
+
+test('restores the mounted failed warehouse catalogue after accepted sign-in without replaying healthy catalogue', async () => {
+    state.catalogue = true;
+    let repaired = false;
+    const calls = { tables: 0, fields: 0, data: 0 };
+    state.api.mockImplementation(
+        async ({ url, method }: { url: string; method: string }) => {
+            if (url.includes('shared-sign-in'))
+                return {
+                    ...personal,
+                    personalSignIn: {
+                        ...personal.personalSignIn!,
+                        expired: !repaired,
+                    },
+                };
+            if (url.endsWith('/sqlRunner/tables')) {
+                calls.tables += 1;
+                if (!repaired) throw { status: 'error', error: personalError };
+                return { database_a: { schema_a: { table_a: {} } } };
+            }
+            if (url.includes('/sqlRunner/fields')) {
+                calls.fields += 1;
+                return { field_a: 'string' };
+            }
+            if (method === 'POST') {
+                calls.data += 1;
+                if (!repaired) throw { status: 'error', error: personalError };
+                return { queryUuid: 'query_ready' };
+            }
+            if (url.includes('/query/'))
+                return {
+                    status: QueryHistoryStatus.READY,
+                    rows: [],
+                    columns: {},
+                    totalResults: 0,
+                    metadata: { performance: {} },
+                };
+            return [];
+        },
+    );
+    mount();
+    await screen.findByRole('dialog');
+    await waitFor(() => expect(calls.tables).toBe(1));
+    expect(screen.getByText('Catalogue unavailable')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await waitFor(() => expect(calls.data).toBe(1));
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(calls.data).toBe(2));
+    await waitFor(() => expect(calls.tables).toBe(2));
+    expect(await screen.findByText(/table_a/)).toBeVisible();
+    expect(calls.fields).toBe(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+test.each(['fields', 'extra', 'original-route'] as const)(
+    'recovers only current failed warehouse catalogue requests through real %s hooks',
+    async (kind) => {
+        state.catalogueFields = kind === 'fields';
+        state.catalogueExtra = kind !== 'fields';
+        state.catalogueConnection =
+            kind === 'original-route' ? 'original_a' : 'connection_a';
+        state.binding = kind === 'extra' ? 'connection_a' : null;
+        state.catalogueProject = 'project_b';
+        const calls = new Map<string, number>();
+        let repaired = false;
+        state.api.mockImplementation(async ({ url }: { url: string }) => {
+            if (url.includes('shared-sign-in'))
+                return {
+                    ...personal,
+                    personalSelection: {
+                        warehouseConnectionUuid: state.binding,
+                    },
+                    personalSignIn: {
+                        ...personal.personalSignIn!,
+                        expired: !repaired,
+                    },
+                };
+            calls.set(url, (calls.get(url) ?? 0) + 1);
+            if (url.endsWith('/sqlRunner/connections'))
+                return [
+                    {
+                        warehouseConnectionUuid: state.catalogueConnection,
+                        isOriginal: kind === 'original-route',
+                    },
+                ];
+            if (url.includes('database_healthy'))
+                return {
+                    database_healthy: { schema_a: { healthy_table: {} } },
+                };
+            if (!repaired) throw { status: 'error', error: personalError };
+            if (url.endsWith('/databases'))
+                return {
+                    databases: [{ name: 'database_a' }],
+                    truncated: false,
+                    limit: 100,
+                };
+            if (url.includes('/fields')) return { field_a: 'string' };
+            return { database_a: { schema_a: { table_a: {} } } };
+        });
+        const view = mount();
+        await screen.findByRole('dialog');
+        await waitFor(() =>
+            expect(
+                [...calls.keys()].filter((url) => url.includes('/fields'))
+                    .length,
+            ).toBe(2),
+        );
+        state.catalogueEnabled = false;
+        view.rerender(view.tree());
+        repaired = true;
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Sign in with Google' }),
+        );
+        await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+        await waitFor(() => {
+            for (const [url, count] of calls) {
+                const excluded =
+                    url.includes('project_b') ||
+                    url.includes('connection_other') ||
+                    url.includes('database_healthy') ||
+                    url.includes('database_disabled') ||
+                    url.endsWith('/sqlRunner/connections');
+                expect(count).toBe(excluded ? 1 : 2);
+            }
+        });
+        expect(await screen.findByText(/field_a/)).toBeVisible();
+        const receipt = new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
+            detail: {},
+        });
+        act(() => {
+            window.dispatchEvent(receipt);
+        });
+        for (const [url, count] of calls)
+            expect(count).toBe(
+                url.includes('project_b') ||
+                    url.includes('connection_other') ||
+                    url.includes('database_healthy') ||
+                    url.includes('database_disabled') ||
+                    url.endsWith('/sqlRunner/connections')
+                    ? 1
+                    : 2,
+            );
+    },
+);
+
+test.each([
+    'accepted',
+    'abandoned',
+    'shared',
+    'healthy',
+    'permission',
+    'network',
+    'other-row',
+    'unmounted',
+    'selection',
+    'user',
+    'page',
+    'superseded',
+    'late',
+    'pending-selection',
+    'pending-other-selection',
+] as const)(
+    'keeps warehouse catalogue recovery scoped to the accepted current failure: %s',
+    async (kind) => {
+        state.catalogue = true;
+        state.pageSourceMounted = !kind.startsWith('pending-');
+        let repaired = false;
+        let superseded = false;
+        const pending = Promise.withResolvers<never>();
+        const calls = { tables: 0, data: 0 };
+        let receipt: unknown;
+        const onReceipt = (event: Event) => {
+            if (event instanceof CustomEvent) receipt = event.detail;
+        };
+        window.addEventListener(SHARED_SIGN_IN_RECONNECTED, onReceipt);
+        const failure =
+            kind === 'shared'
+                ? {
+                      ...personalError,
+                      data: {
+                          sharedSignIn: {
+                              projectUuid: 'project_a',
+                              provider: PersonSignInProvider.GOOGLE,
+                              subjectUserUuid: 'user_a',
+                              subjectBasis: SignInSubjectBasis.RECORDED,
+                          },
+                      },
+                  }
+                : personalError;
+        state.api.mockImplementation(
+            async ({ url, method }: { url: string; method: string }) => {
+                if (url.includes('shared-sign-in')) {
+                    if (method === 'POST') return { status: 'ok' };
+                    return kind === 'shared'
+                        ? { ...shared, expired: !repaired }
+                        : {
+                              ...personal,
+                              personalSelection: {
+                                  warehouseConnectionUuid: state.binding,
+                              },
+                              personalSignIn: {
+                                  ...personal.personalSignIn!,
+                                  expired: !repaired,
+                              },
+                          };
+                }
+                if (url.endsWith('/sqlRunner/tables')) {
+                    calls.tables += 1;
+                    if (kind === 'late' && calls.tables === 1)
+                        return pending.promise;
+                    if (!repaired && kind !== 'healthy') {
+                        const error = {
+                            ...failure,
+                            statusCode:
+                                kind === 'permission' || superseded
+                                    ? 403
+                                    : kind === 'network'
+                                      ? 500
+                                      : 400,
+                        };
+                        if (kind === 'other-row')
+                            error.data = {
+                                personalSignIn: {
+                                    ...personal.personalSignIn!,
+                                    userWarehouseCredentialsUuid:
+                                        'credential_other',
+                                },
+                            };
+                        throw { status: 'error', error };
+                    }
+                    return { database_a: { schema_a: { table_a: {} } } };
+                }
+                if (url.includes('/sqlRunner/fields'))
+                    return { field_a: 'string' };
+                if (method === 'POST') {
+                    calls.data += 1;
+                    if (!repaired)
+                        throw { status: 'error', error: { ...failure } };
+                    return { queryUuid: 'query_ready' };
+                }
+                if (url.includes('/query/'))
+                    return {
+                        status: QueryHistoryStatus.READY,
+                        rows: [],
+                        columns: {},
+                        totalResults: 0,
+                        metadata: { performance: {} },
+                    };
+                return [];
+            },
+        );
+        const view = mount();
+        try {
+            if (kind.startsWith('pending-')) {
+                expect(calls.tables).toBe(0);
+                await act(async () => {});
+                expect(getActiveWarehouseSignInPreflight()!.checks.size).toBe(
+                    0,
+                );
+                state.pageSourceMounted = true;
+                if (kind === 'pending-other-selection')
+                    state.binding = 'connection_b';
+                view.rerender(view.tree());
+                await screen.findByRole('dialog');
+                if (kind === 'pending-other-selection') {
+                    state.binding = null;
+                    view.rerender(view.tree());
+                }
+            }
+            await screen.findByRole('dialog');
+            await waitFor(() => expect(calls.tables).toBe(1));
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Not now' }),
+            );
+            await waitFor(() => expect(calls.data).toBe(1));
+            if (kind === 'unmounted') {
+                state.catalogueMounted = false;
+                view.rerender(view.tree());
+            }
+            if (kind === 'superseded') {
+                superseded = true;
+                await act(async () => {
+                    await view.client.refetchQueries(
+                        ['sqlRunner', 'tables', 'project_a'],
+                        { exact: true },
+                    );
+                });
+                expect(calls.tables).toBe(2);
+            }
+            if (kind === 'selection') {
+                state.binding = 'connection_b';
+                view.rerender(view.tree());
+                await screen.findByRole('dialog');
+                state.binding = null;
+                view.rerender(view.tree());
+                await screen.findByRole('dialog');
+            } else if (kind === 'user') {
+                state.userUuid = 'user_b';
+                view.rerender(view.tree());
+                await screen.findByRole('dialog');
+            } else if (kind === 'page') {
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Home' }),
+                );
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Query route' }),
+                );
+                await screen.findByRole('dialog');
+            } else {
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Reconnect' }),
+                );
+            }
+            if (kind === 'abandoned') {
+                const hold = Promise.withResolvers<void>();
+                const cancel = vi
+                    .spyOn(view.client, 'cancelQueries')
+                    .mockReturnValueOnce(hold.promise);
+                let current = true;
+                await act(async () => {
+                    const attempt = completeSharedSignInRestoration(
+                        view.client,
+                        getActiveWarehouseSignInPreflight()!.target!,
+                        () => current,
+                    );
+                    current = false;
+                    hold.resolve();
+                    expect(await attempt).toBeNull();
+                });
+                cancel.mockRestore();
+                expect(calls.tables).toBe(1);
+            }
+            repaired = true;
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Sign in with Google' }),
+            );
+            await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+            const eligible = [
+                'accepted',
+                'abandoned',
+                'shared',
+                'pending-selection',
+            ].includes(kind);
+            await waitFor(() =>
+                expect(calls.tables).toBe(
+                    eligible || kind === 'superseded' ? 2 : 1,
+                ),
+            );
+            await waitFor(() => expect(calls.data).toBe(2));
+            if (kind === 'late')
+                await act(async () => {
+                    pending.reject({ status: 'error', error: personalError });
+                });
+            expect(receipt).toBeTruthy();
+            act(() => {
+                window.dispatchEvent(
+                    new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
+                        detail: { ...(receipt as object) },
+                    }),
+                );
+                window.dispatchEvent(
+                    new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
+                        detail: receipt,
+                    }),
+                );
+            });
+            expect(calls.tables).toBe(
+                eligible || kind === 'superseded' ? 2 : 1,
+            );
+            expect(calls.data).toBe(2);
+            expect(screen.queryByRole('dialog')).toBeNull();
+            expect(
+                screen.queryByRole('button', { name: 'Reconnect' }),
+            ).toBeNull();
+        } finally {
+            window.removeEventListener(SHARED_SIGN_IN_RECONNECTED, onReceipt);
+        }
+    },
+);
+
+test.each([
+    { reconnect: false, expiry: false },
+    { reconnect: false, expiry: true },
+    { reconnect: true, expiry: false },
+])('does not add warehouse catalogue recovery with flags %j', async (flags) => {
+    state.catalogue = true;
+    state.reconnect = flags.reconnect;
+    state.expiry = flags.expiry;
+    const calls = { catalogue: 0, status: 0 };
+    state.api.mockImplementation(async ({ url }: { url: string }) => {
+        if (url.includes('shared-sign-in')) {
+            calls.status += 1;
+            return personal;
+        }
+        if (url.endsWith('/sqlRunner/tables')) calls.catalogue += 1;
+        throw { status: 'error', error: personalError };
+    });
+    mount();
+    await waitFor(() => expect(calls.catalogue).toBe(1));
+    await act(async () => {
+        window.dispatchEvent(
+            new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
+                detail: { projectUuid: 'project_a' },
+            }),
+        );
+    });
+    expect(calls.status).toBe(0);
+    expect(calls.catalogue).toBe(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+test('recovers catalogue requested by the real SQL connection scope while its initial route synchronizes', async () => {
+    state.catalogue = true;
+    state.realCatalogueScope = true;
+    sqlStore.dispatch(resetState());
+    sqlStore.dispatch(setProjectUuid('project_a'));
+    let repaired = false;
+    let calls = 0;
+    const registrations: number[] = [];
+    state.api.mockImplementation(async ({ url }: { url: string }) => {
+        if (url.includes('shared-sign-in'))
+            return {
+                ...personal,
+                personalSignIn: {
+                    ...personal.personalSignIn!,
+                    expired: !repaired,
+                },
+            };
+        if (url.endsWith('/sqlRunner/tables')) {
+            calls += 1;
+            registrations.push(
+                getActiveWarehouseSignInPreflight()!.checks.size,
+            );
+            if (!repaired) throw { status: 'error', error: personalError };
+            return { database_a: { schema_a: { table_a: {} } } };
+        }
+        return { field_a: 'string' };
+    });
+    mount();
+    await screen.findByRole('dialog');
+    expect(calls).toBe(1);
+    expect(registrations[0]).toBe(1);
+    expect(sqlStore.getState().sqlRunner.connectionRoute.route).toBe('single');
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(calls).toBe(2));
+    expect(await screen.findByText(/table_a/)).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+test.each(
+    [
+        'ready',
+        'user',
+        'flags',
+        'project',
+        'both',
+        'page-return',
+        'project-return',
+    ].flatMap((pending) =>
+        [personal, shared].map((status) => ({ pending, status })),
+    ),
+)(
+    'retains the catalogue request origin through the real strict app boundary lifecycle: $pending / $status.expired',
+    async ({ pending, status }) => {
+        state.realApp = true;
+        state.catalogue = true;
+        state.realCatalogueScope = true;
+        sqlStore.dispatch(resetState());
+        sqlStore.dispatch(setProjectUuid('project_a'));
+        if (pending === 'project') state.projectLoading = true;
+        const user = { userUuid: 'user_a', abilityRules: [] };
+        const pendingUser = Promise.withResolvers<typeof user>();
+        const pendingFlags = Promise.withResolvers<{ enabled: boolean }>();
+        let repaired = false;
+        let calls = 0;
+        let fields = 0;
+        state.api.mockImplementation(async ({ url }: { url: string }) => {
+            if (url.startsWith('/health')) return { isAuthenticated: true };
+            if (url === '/user') return pendingUser.promise;
+            if (url.startsWith('/feature-flag/')) return pendingFlags.promise;
+            if (url.includes('shared-sign-in'))
+                return {
+                    ...status,
+                    expired: status.personalSignIn ? false : !repaired,
+                    personalSignIn: status.personalSignIn
+                        ? { ...status.personalSignIn, expired: !repaired }
+                        : undefined,
+                };
+            if (url.endsWith('/sqlRunner/tables')) {
+                calls += 1;
+                if (!repaired)
+                    throw {
+                        status: 'error',
+                        error: status.personalSignIn
+                            ? { ...personalError, statusCode: 401 }
+                            : {
+                                  ...personalError,
+                                  statusCode: 401,
+                                  data: {
+                                      sharedSignIn: {
+                                          projectUuid: 'project_a',
+                                          provider: shared.provider,
+                                          subjectUserUuid: 'user_a',
+                                          subjectBasis: shared.subjectBasis,
+                                      },
+                                  },
+                              },
+                    };
+                return { database_a: { schema_a: { table_a: {} } } };
+            }
+            if (url.includes('/sqlRunner/fields')) fields += 1;
+            return { field_a: 'string' };
+        });
+        const { client, rerender, tree } = mount(undefined, (queryClient) => {
+            queryClient.setQueryData(['health'], { isAuthenticated: true });
+            if (pending !== 'user' && pending !== 'both')
+                queryClient.setQueryData(['user'], user);
+            if (pending !== 'flags' && pending !== 'both') {
+                for (const flag of [
+                    FeatureFlags.SharedSignInReconnect,
+                    FeatureFlags.SharedSignInExpiryMessage,
+                ])
+                    queryClient.setQueryData(['feature-flag', flag], {
+                        enabled: true,
+                    });
+            }
+        });
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+        });
+        if (['user', 'flags', 'project', 'both'].includes(pending))
+            expect(calls).toBe(0);
+        if (pending === 'project') {
+            state.projectLoading = false;
+            rerender(tree());
+        }
+        await act(async () => {
+            pendingUser.resolve(user);
+            pendingFlags.resolve({ enabled: true });
+        });
+        await screen.findByRole('dialog');
+        await waitFor(() => expect(calls).toBe(1));
+        expect(screen.getByText('Catalogue unavailable')).toBeVisible();
+        const failedQuery = client
+            .getQueryCache()
+            .find(['sqlRunner', 'tables', 'project_a'], { exact: true });
+        const origin = getSharedSignInQueryScope(failedQuery!);
+        expect(origin).toMatchObject({
+            projectUuid: 'project_a',
+            userUuid: 'user_a',
+            binding: null,
+            recoveryGeneration: 0,
+        });
+        expect(getActiveWarehouseSignInPreflight()!.isCurrent(origin!)).toBe(
+            true,
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+        if (pending === 'page-return') {
+            await userEvent.click(screen.getByRole('button', { name: 'Home' }));
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Query route' }),
+            );
+        }
+        if (pending === 'project-return') {
+            sqlStore.dispatch(setProjectUuid('project_b'));
+            state.projectUuid = 'project_b';
+            rerender(tree());
+            await waitFor(() =>
+                expect(
+                    getActiveWarehouseSignInPreflight()!.identity.projectUuid,
+                ).toBe('project_b'),
+            );
+            sqlStore.dispatch(setProjectUuid('project_a'));
+            state.projectUuid = 'project_a';
+            rerender(tree());
+        }
+        if (pending.endsWith('-return')) {
+            await waitFor(() =>
+                expect(
+                    screen.queryByRole('dialog') ??
+                        screen.queryByRole('button', { name: 'Reconnect' }),
+                ).not.toBeNull(),
+            );
+            if (screen.queryByRole('dialog'))
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Not now' }),
+                );
+            if (pending === 'project-return') {
+                expect(calls).toBe(3);
+                const current = getSharedSignInQueryScope(failedQuery!);
+                expect(current).not.toBe(origin);
+                expect(
+                    getActiveWarehouseSignInPreflight()!.isCurrent(current!),
+                ).toBe(true);
+            } else expect(getSharedSignInQueryScope(failedQuery!)).toBe(origin);
+            expect(
+                getActiveWarehouseSignInPreflight()!.isCurrent(origin!),
+            ).toBe(false);
+        }
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Reconnect' }),
+        );
+        repaired = true;
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Sign in with Google' }),
+        );
+        await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+        const eligible = pending !== 'page-return';
+        await waitFor(() =>
+            expect(calls).toBe(
+                pending === 'project-return' ? 4 : eligible ? 2 : 1,
+            ),
+        );
+        if (eligible) expect(await screen.findByText(/table_a/)).toBeVisible();
+        else expect(screen.getByText('Catalogue unavailable')).toBeVisible();
+        const query = client
+            .getQueryCache()
+            .find(['sqlRunner', 'tables', 'project_a'], { exact: true });
+        expect(getSharedSignInQueryScope(query!)).not.toBeNull();
+        expect(fields).toBe(pending === 'project-return' ? 3 : 1);
+        expect(screen.queryByRole('dialog')).toBeNull();
+    },
+);
+
+test.each(['off', 'unknown', 'unrelated'] as const)(
+    'does not adopt an unscoped %s request after the real app resolves enabled flags',
+    async (initial) => {
+        state.realApp = true;
+        state.catalogue = true;
+        state.realCatalogueScope = true;
+        sqlStore.dispatch(resetState());
+        sqlStore.dispatch(setProjectUuid('project_a'));
+        const pending = Promise.withResolvers<never>();
+        const user = { userUuid: 'user_a', abilityRules: [] };
+        let enabled = initial === 'unrelated';
+        let repaired = false;
+        let calls = 0;
+        let statusCalls = 0;
+        state.api.mockImplementation(async ({ url }: { url: string }) => {
+            if (url.startsWith('/health')) return { isAuthenticated: true };
+            if (url === '/user') return user;
+            if (url.startsWith('/feature-flag/')) {
+                if (initial === 'unknown' && !enabled)
+                    throw {
+                        status: 'error',
+                        error: {
+                            name: 'NetworkError',
+                            statusCode: 500,
+                            message: 'Unavailable',
+                        },
+                    };
+                return { enabled };
+            }
+            if (url.includes('shared-sign-in')) {
+                statusCalls += 1;
+                return {
+                    ...personal,
+                    personalSignIn: {
+                        ...personal.personalSignIn!,
+                        expired: !repaired,
+                    },
+                };
+            }
+            if (url.endsWith('/sqlRunner/tables')) {
+                calls += 1;
+                return pending.promise;
+            }
+            return { field_a: 'string' };
+        });
+        const { client } = mount(
+            initial === 'unrelated' ? '/projects/project_a/home' : undefined,
+            (queryClient) => {
+                queryClient.setQueryData(['health'], { isAuthenticated: true });
+                queryClient.setQueryData(['user'], user);
+            },
+        );
+        await waitFor(() => expect(calls).toBe(1));
+        expect(statusCalls).toBe(0);
+        const query = client
+            .getQueryCache()
+            .find(['sqlRunner', 'tables', 'project_a'], { exact: true });
+        expect(getSharedSignInQueryScope(query!)).toBeNull();
+        enabled = true;
+        if (initial === 'unrelated')
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Query route' }),
+            );
+        else
+            await act(async () => {
+                await client.refetchQueries(['feature-flag']);
+            });
+        await screen.findByRole('dialog');
+        await act(async () => {
+            pending.reject({
+                status: 'error',
+                error: { ...personalError, statusCode: 401 },
+            });
+        });
+        await screen.findByText('Catalogue unavailable');
+        expect(getSharedSignInQueryScope(query!)).toBeNull();
+        await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Reconnect' }),
+        );
+        repaired = true;
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Sign in with Google' }),
+        );
+        await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+        expect(calls).toBe(1);
+        expect(getSharedSignInQueryScope(query!)).toBeNull();
+        expect(screen.getByText('Catalogue unavailable')).toBeVisible();
+    },
+);
+
+const ownCredential = {
+    uuid: 'credential_a',
+    userUuid: 'user_a',
+    name: 'Default',
+    purpose: UserWarehouseCredentialPurpose.DEFAULT,
+    credentials: { type: WarehouseTypes.BIGQUERY },
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+    expiresAt: null,
+    project: null,
+};
+
+const serveCredentialPolicy = ({
+    failure = { ...personalError, statusCode: 401 },
+    expired = true,
+    missing = false,
+}: {
+    failure?: ApiErrorDetail | null;
+    expired?: boolean;
+    missing?: boolean;
+} = {}) => {
+    const control = {
+        repaired: false,
+        expired,
+        catalogueCalls: 0,
+        dataCalls: 0,
+    };
+    const credential = {
+        ...ownCredential,
+        credentials: {
+            ...ownCredential.credentials,
+            type: state.legacyWarehouse,
+        },
+    };
+    state.api.mockImplementation(
+        async ({ url, method }: { url: string; method: string }) => {
+            if (url === '/user')
+                return { userUuid: state.userUuid, abilityRules: [] };
+            if (url.startsWith('/feature-flag/'))
+                return {
+                    enabled: url.endsWith(FeatureFlags.SharedSignInReconnect)
+                        ? state.reconnect
+                        : state.expiry,
+                };
+            if (url.includes('shared-sign-in'))
+                return {
+                    ...personal,
+                    personalSelection: {
+                        warehouseConnectionUuid: state.binding,
+                    },
+                    personalSignIn:
+                        missing ||
+                        (!state.requiredCredentials &&
+                            !state.allowCredentials &&
+                            !(
+                                state.legacySwitcher === 'multi' &&
+                                state.binding !== null
+                            ))
+                            ? undefined
+                            : {
+                                  ...personal.personalSignIn!,
+                                  projectUuid: state.projectUuid,
+                                  expired: control.expired && !control.repaired,
+                              },
+                };
+            if (
+                url === '/user/warehouseCredentials' ||
+                url.endsWith('/user-warehouse-credentials')
+            )
+                return missing ? [] : [credential];
+            if (url.endsWith('/warehouse-connection-user-credentials'))
+                return [
+                    {
+                        warehouseConnectionUuid: 'original_a',
+                        name: 'Original connection',
+                        isOriginal: true,
+                        warehouseType: WarehouseTypes.BIGQUERY,
+                        requireUserCredentials: state.requiredCredentials,
+                    },
+                    {
+                        warehouseConnectionUuid: 'connection_a',
+                        name: 'Extra connection',
+                        isOriginal: false,
+                        warehouseType: WarehouseTypes.BIGQUERY,
+                        requireUserCredentials: true,
+                    },
+                ];
+            if (
+                url.includes('/warehouse-connections/') &&
+                url.endsWith('/user-credentials')
+            )
+                return {
+                    warehouseConnectionUuid: 'connection_a',
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                    requireUserCredentials: true,
+                    allowsOptionalUserCredentials: false,
+                    userWarehouseCredentials: missing ? null : credential,
+                };
+            if (url.endsWith('/user-credentials'))
+                return missing ? null : credential;
+            if (url.startsWith('/health'))
+                return {
+                    isAuthenticated: true,
+                    auth: {
+                        snowflake: { enabled: false },
+                        databricks: { enabled: false },
+                    },
+                };
+            if (url.endsWith('/sqlRunner/tables')) {
+                control.catalogueCalls += 1;
+                if (!control.repaired && failure)
+                    throw { status: 'error', error: failure };
+                return { database_a: { schema_a: { table_a: {} } } };
+            }
+            if (url.includes('/sqlRunner/fields')) return { field_a: 'string' };
+            if (method === 'POST') {
+                control.dataCalls += 1;
+                if (!control.repaired && failure)
+                    throw { status: 'error', error: failure };
+                return { queryUuid: 'query_ready' };
+            }
+            if (url.includes('/query/'))
+                return {
+                    status: QueryHistoryStatus.READY,
+                    rows: [],
+                    columns: {},
+                    totalResults: 0,
+                    metadata: { performance: {} },
+                };
+            throw new Error('Unexpected request');
+        },
+    );
+    return control;
+};
+
+test('keeps required personal expiry in one reconnect modal with the real legacy credential switcher mounted', async () => {
+    state.legacySwitcher = 'single';
+    state.catalogue = true;
+    const control = serveCredentialPolicy();
+    const { client } = mount();
+    await waitFor(() => expect(control.catalogueCalls).toBe(1));
+    await screen.findByText('Catalogue unavailable');
+    await waitFor(() => expect(screen.getAllByRole('dialog')).toHaveLength(1));
+    expect(screen.getByRole('dialog')).toHaveAccessibleName(
+        'Sign in again to restore your connection',
+    );
+    expect(screen.queryByText('Login to BigQuery')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await waitFor(() => expect(control.dataCalls).toBe(1));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    control.repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(control.dataCalls).toBe(2));
+    await waitFor(() => expect(control.catalogueCalls).toBe(2));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    control.repaired = false;
+    await act(async () => {
+        await client.refetchQueries({
+            predicate: (query) => query.queryKey[0] === 'create-query',
+        });
+    });
+    await waitFor(() => expect(control.dataCalls).toBe(3));
+    await waitFor(() => expect(screen.getAllByRole('dialog')).toHaveLength(1));
+    expect(screen.getByRole('dialog')).toHaveAccessibleName(
+        'Sign in again to restore your connection',
+    );
+    control.repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(control.dataCalls).toBe(4));
+    expect(control.catalogueCalls).toBe(2);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByText('Login to BigQuery')).toBeNull();
+});
+
+test.each([
+    { reconnect: false, expiry: false },
+    { reconnect: false, expiry: true },
+    { reconnect: true, expiry: false },
+])(
+    'preserves the legacy required policy for controlled personal failures with flags $reconnect / $expiry',
+    async (flags) => {
+        state.legacySwitcher = 'single';
+        state.reconnect = flags.reconnect;
+        state.expiry = flags.expiry;
+        state.catalogue = true;
+        const control = serveCredentialPolicy({ expired: false });
+        mount();
+        await waitFor(() => expect(control.catalogueCalls).toBe(1));
+        expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+            'Login to BigQuery',
+        );
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(
+            screen.queryByText('Sign in again to restore your connection'),
+        ).toBeNull();
+    },
+);
+
+test.each([
+    {
+        name: 'BigqueryTokenError',
+        statusCode: 401,
+        message: 'Ordinary query failure',
+        data: {},
+        legacy: true,
+    },
+    {
+        name: 'BigqueryTokenError',
+        statusCode: 400,
+        message: BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
+        data: {},
+        legacy: true,
+    },
+    {
+        name: 'ForbiddenError',
+        statusCode: 403,
+        message: 'expired invalid_grant',
+        data: personalError.data,
+        legacy: false,
+    },
+    {
+        name: 'NetworkError',
+        statusCode: 500,
+        message: 'expired invalid_grant',
+        data: personalError.data,
+        legacy: false,
+    },
+])(
+    'preserves required-policy handling for an ordinary $name / $statusCode failure',
+    async ({ legacy, ...failure }) => {
+        state.legacySwitcher = 'single';
+        state.catalogue = true;
+        const control = serveCredentialPolicy({ expired: false, failure });
+        mount();
+        await waitFor(() => expect(control.catalogueCalls).toBe(1));
+        await screen.findByText('Catalogue unavailable');
+        if (legacy)
+            expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+                'Login to BigQuery',
+            );
+        else {
+            await act(async () => {});
+            expect(screen.queryByRole('dialog')).toBeNull();
+        }
+        expect(
+            screen.queryByText('Sign in again to restore your connection'),
+        ).toBeNull();
+    },
+);
+
+test('retains initial required-credential signup when no compatible default credential exists', async () => {
+    state.legacySwitcher = 'single';
+    serveCredentialPolicy({ missing: true, expired: false, failure: null });
+    mount('/projects/project_a/tables/table_a');
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+        'Login to BigQuery',
+    );
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.queryByRole('textbox', { name: 'Name' })).toBeNull();
+    expect(
+        screen.queryByText('Sign in again to restore your connection'),
+    ).toBeNull();
+});
+
+test('retains the missing required-credential query handler', async () => {
+    state.legacySwitcher = 'single';
+    state.catalogue = true;
+    serveCredentialPolicy({
+        missing: true,
+        expired: false,
+        failure: {
+            name: 'MissingWarehouseCredentialsError',
+            statusCode: 400,
+            message: 'Missing required credential',
+            data: {},
+        },
+    });
+    mount('/projects/project_a/home');
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+        'Login to BigQuery',
+    );
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+});
+
+test.each([
+    {
+        warehouse: WarehouseTypes.SNOWFLAKE,
+        name: 'SnowflakeTokenError',
+        title: 'Snowflake',
+    },
+    {
+        warehouse: WarehouseTypes.DATABRICKS,
+        name: 'DatabricksTokenError',
+        title: 'Databricks',
+    },
+    {
+        warehouse: WarehouseTypes.REDSHIFT,
+        name: 'RedshiftIamTokenError',
+        title: 'Redshift',
+    },
+])(
+    'retains the existing required $warehouse credential handler',
+    async ({ warehouse, name, title }) => {
+        state.legacySwitcher = 'single';
+        state.legacyWarehouse = warehouse;
+        state.catalogue = true;
+        serveCredentialPolicy({
+            expired: false,
+            failure: {
+                name,
+                statusCode: 400,
+                message: 'Sign-in required',
+                data: {},
+            },
+        });
+        mount();
+        expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+            `Login to ${title}`,
+        );
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    },
+);
+
+test.each(['single', 'multi'] as const)(
+    'retains manual credential creation after dismissing a personal expiry on the %s route',
+    async (route) => {
+        state.legacySwitcher = route;
+        if (route === 'multi') {
+            state.requiredCredentials = false;
+            state.binding = 'connection_a';
+        }
+        serveCredentialPolicy();
+        mount();
+        expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+            'Sign in again to restore your connection',
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Warehouse credentials' }),
+        );
+        if (route === 'multi')
+            expect(screen.getByText('Extra connection')).toBeVisible();
+        await userEvent.click(
+            await screen.findByRole('menuitem', { name: 'Create new' }),
+        );
+        expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+            'Add new credentials',
+        );
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('');
+    },
+);
+
+test.each([true, false])(
+    'does not invoke required-credential signup for optional/project policy allow=%s',
+    async (optional) => {
+        state.legacySwitcher = 'single';
+        state.requiredCredentials = false;
+        state.allowCredentials = optional;
+        state.catalogue = true;
+        const control = serveCredentialPolicy({ expired: optional });
+        mount();
+        await waitFor(() => expect(control.catalogueCalls).toBe(1));
+        if (optional) {
+            expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+                'Sign in again to restore your connection',
+            );
+            expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        } else {
+            await act(async () => {});
+            expect(screen.queryByRole('dialog')).toBeNull();
+        }
+        expect(screen.queryByText('Login to BigQuery')).toBeNull();
+        expect(
+            !!screen.queryByRole('button', { name: 'Warehouse credentials' }),
+        ).toBe(optional);
+    },
+);
+
+test('keeps a failed selected extra-connection query in the existing reconnect flow with the real multi switcher mounted', async () => {
+    state.legacySwitcher = 'multi';
+    state.binding = 'connection_a';
+    state.boundRoots = ['a'];
+    const control = serveCredentialPolicy();
+    mount();
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+        'Sign in again to restore your connection',
+    );
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await waitFor(() => expect(control.dataCalls).toBe(1));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    control.repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(control.dataCalls).toBe(2));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByText('Login to BigQuery')).toBeNull();
+});
+
+test.each([
+    'current',
+    'binding',
+    'selection-return',
+    'user-return',
+    'project',
+    'page-return',
+    'other-row',
+    'other-project',
+] as const)(
+    'keeps required-policy controlled delivery bound to its captured request: %s',
+    async (kind) => {
+        state.legacySwitcher = 'single';
+        state.catalogue = true;
+        const control = serveCredentialPolicy({
+            expired: false,
+            failure: null,
+        });
+        const serve = state.api.getMockImplementation()!;
+        const pending = Promise.withResolvers<never>();
+        let requests = 0;
+        state.api.mockImplementation(
+            (request: { url: string; method: string }) => {
+                if (
+                    request.url.endsWith('/sqlRunner/tables') &&
+                    (kind === 'other-project'
+                        ? request.url.includes('/project_b/')
+                        : kind === 'project'
+                          ? request.url.includes('/project_a/')
+                          : true)
+                ) {
+                    requests += 1;
+                    return pending.promise;
+                }
+                return serve(request);
+            },
+        );
+        if (kind === 'other-project') state.catalogueProject = 'project_b';
+        const view = mount();
+        await waitFor(() => expect(requests).toBe(1));
+        await waitFor(() => expect(state.executed).toHaveBeenCalled());
+        expect(screen.queryByRole('dialog')).toBeNull();
+        if (kind === 'binding' || kind === 'selection-return') {
+            state.binding = 'connection_b';
+            view.rerender(view.tree());
+            await waitFor(() =>
+                expect(
+                    getActiveWarehouseSignInPreflight()!.checks.has(
+                        'connection_b',
+                    ),
+                ).toBe(true),
+            );
+            if (kind === 'selection-return') {
+                state.binding = null;
+                view.rerender(view.tree());
+            }
+        }
+        if (kind === 'user-return') {
+            state.userUuid = 'user_b';
+            view.rerender(view.tree());
+            await waitFor(() =>
+                expect(
+                    getActiveWarehouseSignInPreflight()!.identity.userUuid,
+                ).toBe('user_b'),
+            );
+            state.userUuid = 'user_a';
+            view.rerender(view.tree());
+        }
+        if (kind === 'project') {
+            state.projectUuid = 'project_b';
+            view.rerender(view.tree());
+            await waitFor(() =>
+                expect(
+                    getActiveWarehouseSignInPreflight()!.identity.projectUuid,
+                ).toBe('project_b'),
+            );
+        }
+        if (kind === 'page-return') {
+            await userEvent.click(screen.getByRole('button', { name: 'Home' }));
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Query route' }),
+            );
+        }
+        await waitFor(() =>
+            expect(
+                [...getActiveWarehouseSignInPreflight()!.checks.values()].every(
+                    (check) => check.settled,
+                ),
+            ).toBe(true),
+        );
+        control.expired = true;
+        const failure = {
+            ...personalError,
+            statusCode: 401,
+            data: {
+                personalSignIn: {
+                    ...personal.personalSignIn!,
+                    ...(kind === 'other-row'
+                        ? { userWarehouseCredentialsUuid: 'credential_other' }
+                        : {}),
+                    ...(kind === 'other-project'
+                        ? { projectUuid: 'project_b' }
+                        : {}),
+                },
+            },
+        };
+        await act(async () => {
+            pending.reject({ status: 'error', error: failure });
+        });
+        if (kind === 'current') {
+            expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+                'Sign in again to restore your connection',
+            );
+            expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        } else {
+            await act(async () => {
+                await new Promise((resolve) => setTimeout(resolve, 30));
+            });
+            expect(screen.queryByRole('dialog')).toBeNull();
+        }
+        expect(screen.queryByText('Login to BigQuery')).toBeNull();
+    },
+);
+
+test('defers exact stored personal-expiry copy without metadata to the existing listener under required policy', async () => {
+    state.legacySwitcher = 'single';
+    state.catalogue = true;
+    const control = serveCredentialPolicy({
+        failure: {
+            ...personalError,
+            data: {},
+            message: getExpiredPersonalSignInMessage(personal.personalSignIn!),
+        },
+    });
+    mount();
+    await waitFor(() => expect(control.catalogueCalls).toBe(1));
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+        'Sign in again to restore your connection',
+    );
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.queryByText('Login to BigQuery')).toBeNull();
+});
+
+test.each([true, false])(
+    'keeps the main shared-expiry gate when reconnect=%s and personal expiry is off',
+    async (reconnect) => {
+        state.legacySwitcher = 'single';
+        state.catalogue = true;
+        state.reconnect = reconnect;
+        state.expiry = false;
+        const control = serveCredentialPolicy({
+            expired: false,
+            failure: {
+                ...personalError,
+                data: {
+                    sharedSignIn: {
+                        projectUuid: 'project_b',
+                        provider: shared.provider,
+                        subjectUserUuid: 'user_b',
+                        subjectBasis: shared.subjectBasis,
+                    },
+                },
+            },
+        });
+        mount();
+        await waitFor(() => expect(control.catalogueCalls).toBe(1));
+        if (reconnect) {
+            await act(async () => {});
+            expect(screen.queryByRole('dialog')).toBeNull();
+        } else
+            expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+                'Login to BigQuery',
+            );
+        expect(
+            screen.queryByText('Sign in again to restore this project'),
+        ).toBeNull();
+    },
+);
+
+test('keeps required personal expiry in one modal through real app flag loading and SQL connection scope', async () => {
+    state.realApp = true;
+    state.legacySwitcher = 'single';
+    state.catalogue = true;
+    state.realCatalogueScope = true;
+    sqlStore.dispatch(resetState());
+    sqlStore.dispatch(setProjectUuid('project_a'));
+    const control = serveCredentialPolicy();
+    const { client } = mount();
+    await waitFor(() => expect(control.catalogueCalls).toBe(1));
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+        'Sign in again to restore your connection',
+    );
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.queryByText('Login to BigQuery')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    control.repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(control.catalogueCalls).toBe(2));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    control.repaired = false;
+    await act(async () => {
+        await client.refetchQueries(['sqlRunner', 'tables', 'project_a'], {
+            exact: true,
+        });
+    });
+    await waitFor(() => expect(control.catalogueCalls).toBe(3));
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+        'Sign in again to restore your connection',
+    );
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    control.repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(control.catalogueCalls).toBe(4));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByText('Login to BigQuery')).toBeNull();
 });

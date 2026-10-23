@@ -17,6 +17,7 @@ import {
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
 import { type QueryClient } from '@tanstack/react-query';
+import { captureSharedSignInQueryScope } from '../../hooks/sharedSignInQueryRecovery';
 import { reportSharedSignInQueryFailure } from '../../hooks/useReconnectSharedSignIn';
 import { createQueryClient } from '../../providers/ReactQuery/createQueryClient';
 
@@ -70,6 +71,7 @@ export class BaseResultsRunner implements IResultsRunner {
     private readonly runPivotQuery: RunPivotQuery;
 
     private readonly projectUuid?: string;
+    private readonly warehouseConnectionUuid?: string | null;
 
     constructor({
         fields,
@@ -77,15 +79,18 @@ export class BaseResultsRunner implements IResultsRunner {
         columnNames,
         runPivotQuery,
         projectUuid,
+        warehouseConnectionUuid,
     }: {
         rows: RawResultRow[];
         columnNames: string[];
         fields: SqlRunnerField[];
         runPivotQuery: RunPivotQuery;
         projectUuid?: string;
+        warehouseConnectionUuid?: string | null;
     }) {
         this.runPivotQuery = runPivotQuery;
         this.projectUuid = projectUuid;
+        this.warehouseConnectionUuid = warehouseConnectionUuid;
 
         this.rows = rows;
 
@@ -126,6 +131,12 @@ export class BaseResultsRunner implements IResultsRunner {
             return emptyPivotChartData;
         }
 
+        const scope = this.projectUuid
+            ? captureSharedSignInQueryScope(
+                  this.projectUuid,
+                  this.warehouseConnectionUuid ?? null,
+              )
+            : null;
         try {
             return await this.queryClient.fetchQuery({
                 queryKey: ['transformedData', query],
@@ -133,7 +144,7 @@ export class BaseResultsRunner implements IResultsRunner {
             });
         } catch (error) {
             if (this.projectUuid) {
-                reportSharedSignInQueryFailure(this.projectUuid, error);
+                reportSharedSignInQueryFailure(this.projectUuid, error, scope);
             }
             throw error;
         }

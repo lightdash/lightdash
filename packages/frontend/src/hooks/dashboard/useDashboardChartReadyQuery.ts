@@ -13,7 +13,7 @@ import {
     type ExecuteAsyncDashboardChartRequestParams,
     type SavedChart,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { type LightdashApi } from '../../api';
 import { useWarehouseSignInExecution } from '../../components/NavBar/warehouseSignInPreflight';
@@ -33,8 +33,14 @@ import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboar
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import { pickSavedChartVersion } from '../../utils/savedChartVersion';
+import {
+    beginSharedSignInQuery,
+    rememberSharedSignInQuery,
+    useSharedSignInQueryRecovery,
+} from '../sharedSignInQueryRecovery';
 import { useExplore } from '../useExplore';
 import { useQueryRetryConfig } from '../useQueryRetry';
+import { reportSharedSignInQueryFailure } from '../useReconnectSharedSignIn';
 import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
 import { useSessionTimezone } from '../useSessionTimezone';
@@ -91,6 +97,7 @@ export const useDashboardChartReadyQuery = (
     contextOverride?: QueryExecutionContext,
 ) => {
     const lightdashApi = useLightdashApi();
+    const queryClient = useQueryClient();
     const retryConfig = useQueryRetryConfig();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const invalidateCache = useDashboardSelector(selectInvalidateCache);
@@ -165,10 +172,13 @@ export const useDashboardChartReadyQuery = (
         chartQuery.data?.metricQuery?.exploreName,
     );
 
+    const candidate = Boolean(
+        chartUuid && dashboardUuid && chartQuery.data && explore,
+    );
     const signInReady = useWarehouseSignInExecution(
         projectUuid,
         explore?.warehouseConnection?.warehouseConnectionUuid,
-        !!chartUuid && !!dashboardUuid && !!chartQuery.data,
+        candidate,
     );
 
     const addAvailableCustomGranularities = useDashboardTileStatusContext(
@@ -345,57 +355,75 @@ export const useDashboardChartReadyQuery = (
 
             const dateZoom = tileDateZoom;
 
-            const executeQueryResponse = isEmbedContext
-                ? await postEmbedDashboardTileQuery(
-                      lightdashApi,
-                      chartQuery.data.projectUuid,
-                      {
-                          tileUuid,
-                          dashboardFilters: timezoneFixFilters,
-                          dashboardSorts,
-                          dateZoom,
-                          invalidateCache,
-                          parameters: parameterValues,
-                          pivotResults: true,
-                          timezone: sessionTimezone ?? undefined,
-                      },
-                  )
-                : await executeAsyncDashboardChartQuery(
-                      lightdashApi,
-                      chartQuery.data.projectUuid,
-                      {
-                          context: effectiveContext,
-                          tileUuid,
-                          chartUuid: chartUuid!,
-                          dashboardUuid: dashboardUuid!,
-                          dashboardFilters: timezoneFixFilters,
-                          dashboardSorts,
-                          dateZoom,
-                          invalidateCache,
-                          parameters: parameterValues,
-                          pivotResults: true,
-                          ...(includeUnpublishedDraft && {
-                              includeUnpublishedDraft: true,
-                          }),
-                      },
-                  );
+            const execution = beginSharedSignInQuery(
+                queryClient,
+                queryKey,
+                projectUuid!,
+                explore.warehouseConnection.warehouseConnectionUuid,
+            );
+            try {
+                const executeQueryResponse = isEmbedContext
+                    ? await postEmbedDashboardTileQuery(
+                          lightdashApi,
+                          chartQuery.data.projectUuid,
+                          {
+                              tileUuid,
+                              dashboardFilters: timezoneFixFilters,
+                              dashboardSorts,
+                              dateZoom,
+                              invalidateCache,
+                              parameters: parameterValues,
+                              pivotResults: true,
+                              timezone: sessionTimezone ?? undefined,
+                          },
+                      )
+                    : await executeAsyncDashboardChartQuery(
+                          lightdashApi,
+                          chartQuery.data.projectUuid,
+                          {
+                              context: effectiveContext,
+                              tileUuid,
+                              chartUuid: chartUuid!,
+                              dashboardUuid: dashboardUuid!,
+                              dashboardFilters: timezoneFixFilters,
+                              dashboardSorts,
+                              dateZoom,
+                              invalidateCache,
+                              parameters: parameterValues,
+                              pivotResults: true,
+                              ...(includeUnpublishedDraft && {
+                                  includeUnpublishedDraft: true,
+                              }),
+                          },
+                      );
 
-            return {
-                chart: chartQuery.data,
-                explore,
-                executeQueryResponse,
-                dateZoom: tileDateZoom,
-            };
+                rememberSharedSignInQuery(
+                    execution,
+                    executeQueryResponse.queryUuid,
+                );
+                return {
+                    chart: chartQuery.data,
+                    explore,
+                    executeQueryResponse,
+                    dateZoom: tileDateZoom,
+                };
+            } catch (error) {
+                reportSharedSignInQueryFailure(projectUuid!, error, execution);
+                throw error;
+            }
         },
-        enabled: Boolean(
-            signInReady &&
-            chartUuid &&
-            dashboardUuid &&
-            chartQuery.data &&
-            explore,
-        ),
+        enabled: signInReady && candidate,
         ...retryConfig,
         refetchOnMount: false,
+    });
+
+    useSharedSignInQueryRecovery({
+        queryKey,
+        projectUuid,
+        binding: explore?.warehouseConnection?.warehouseConnectionUuid,
+        candidate,
+        ready: signInReady,
+        refetch: queryResult.refetch,
     });
 
     // Backend reports it for overridden date dimensions; charts that only
