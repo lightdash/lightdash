@@ -880,6 +880,18 @@ describe('FilterPills', () => {
             expect(removeFilterById).toHaveBeenCalledWith('own');
         });
 
+        it('shows the shipped skeletons instead of pills while filters load', () => {
+            setContext({ isLoadingDashboardFilters: true });
+            const { container } = renderWithProviders(
+                <FilterPills activeTabUuid={undefined} />,
+            );
+
+            expect(queryPill(/^Status/)).toBeNull();
+            expect(
+                container.querySelectorAll('.mantine-Skeleton-root'),
+            ).toHaveLength(5);
+        });
+
         it('leaves a locked saved pill read-only, as the shipped pill', async () => {
             const user = userEvent.setup();
             setContext({

@@ -463,6 +463,8 @@
         "filters.rail.fieldTilesTooltip.plural": "{table} · {applied} de {total} mosaicos",
         "filters.rail.sqlColumn": "Columna SQL",
         "filters.rail.thisFilter": "este filtro",
+        "filters.rail.lockedByEditor": "Bloqueado por el editor del panel. Cambia al modo de edición para modificarlo.",
+        "filters.rail.unknownField": "Se intentó usar un campo con un id desconocido: {field}",
         "filters.rail.tabCountTooltip.singular": "{applied} de {total} mosaico de esta pestaña está filtrado por {subject}",
         "filters.rail.tabCountTooltip.plural": "{applied} de {total} mosaicos de esta pestaña están filtrados por {subject}",
         "filters.tileCard.locked": "Los mosaicos están bloqueados mientras se edita un filtro",

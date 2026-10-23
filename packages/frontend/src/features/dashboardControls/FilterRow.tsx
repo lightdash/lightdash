@@ -3,7 +3,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine/core';
+import { Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
@@ -39,8 +39,13 @@ type Props = {
     hasTabs: boolean;
     /** A viewer's own filter, never saved. */
     isOwn: boolean;
-    /** A viewer's row on a locked filter: it opens nothing, as its pill. */
+    /**
+     * Opens nothing, as its pill: a viewer's row on a locked filter, or a
+     * filter whose field cannot be resolved.
+     */
     isReadOnly: boolean;
+    /** Why a read-only row opens nothing, as its pill's tooltip says. */
+    readOnlyTooltip: string | null;
     /** Its field cannot be resolved, or the fields are not loaded yet. */
     isDisabled: boolean;
     onOpen: (filterId: string) => void;
@@ -58,6 +63,7 @@ export const FilterRow: FC<Props> = ({
     hasTabs,
     isOwn,
     isReadOnly,
+    readOnlyTooltip,
     isDisabled,
     onOpen,
     onHover,
@@ -131,17 +137,32 @@ export const FilterRow: FC<Props> = ({
     if (isReadOnly) {
         // Hovering still shows its tiles
         return (
-            <Group
-                gap="xs"
-                wrap="nowrap"
-                align="flex-start"
-                className={`${classes.row} ${classes.readOnlyRow}`}
-                data-controls-row={rule.id}
-                onMouseEnter={() => onHover(rule.id)}
-                onMouseLeave={() => onUnhover(rule.id)}
+            <Tooltip
+                label={readOnlyTooltip}
+                disabled={readOnlyTooltip === null}
+                fz="xs"
+                maw={300}
+                position="top-start"
             >
-                {content}
-            </Group>
+                <Group
+                    gap="xs"
+                    wrap="nowrap"
+                    align="flex-start"
+                    className={`${classes.row} ${classes.readOnlyRow}`}
+                    data-controls-row={rule.id}
+                    tabIndex={0}
+                    aria-disabled
+                    onMouseEnter={() => onHover(rule.id)}
+                    onMouseLeave={() => onUnhover(rule.id)}
+                    onFocus={(event) => {
+                        if (event.currentTarget.matches(':focus-visible'))
+                            onHover(rule.id);
+                    }}
+                    onBlur={() => onUnhover(rule.id)}
+                >
+                    {content}
+                </Group>
+            </Tooltip>
         );
     }
 

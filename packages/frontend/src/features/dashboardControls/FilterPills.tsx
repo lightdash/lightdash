@@ -20,6 +20,7 @@ import {
 } from '../dashboard/store';
 import Filter from '../dashboardFilters/ActiveFilters/Filter';
 import { moveFilterRule } from '../dashboardFilters/ActiveFilters/filterOrder';
+import { FilterPillSkeletons } from '../dashboardFilters/ActiveFilters/FilterPillSkeletons';
 import { UnresolvedFilter } from '../dashboardFilters/ActiveFilters/UnresolvedFilter';
 import {
     isFilterHiddenOnTab,
@@ -162,6 +163,9 @@ export const FilterPills: FC<Props> = ({ activeTabUuid, triggerClassName }) => {
             />
         );
     };
+
+    // The shipped view bar's placeholders while the filters load
+    if (isViewer && areFieldsLoading) return <FilterPillSkeletons />;
 
     return (
         <>

@@ -178,6 +178,7 @@ export const FilterSettings: FC<Props> = ({
     const activeSection = useControlsSidebarSelector((c) => c.activeSection);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const isSavedValue = useControlsSidebarSelector((c) => c.isSavedValue);
+    const isNew = useControlsSidebarSelector((c) => c.isNew);
     const getUiString = useUiStrings();
     const setActiveSection = useControlsSidebarSelector(
         (c) => c.setActiveSection,
@@ -224,6 +225,7 @@ export const FilterSettings: FC<Props> = ({
         >
             <FilterValueSettings
                 isEditMode={!isViewer}
+                isCreatingNew={isViewer && isNew}
                 filterType={filterType}
                 field={field}
                 filterRule={rule}

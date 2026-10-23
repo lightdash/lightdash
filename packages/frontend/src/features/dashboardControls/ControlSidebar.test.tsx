@@ -200,6 +200,7 @@ describe('ControlSidebar', () => {
                 tile('c', undefined),
             ],
             dashboardTabs: [],
+            hiddenFilterableFieldIds: new Set<string>(),
             filterableFieldsByTileUuid: {
                 a: [field],
                 b: [field, { ...field, name: 'region', label: 'Region' }],
@@ -321,9 +322,9 @@ describe('ControlSidebar', () => {
             expect(open).toHaveBeenCalledWith('filter-2');
         });
 
-        it('disables a row whose field cannot be resolved', () => {
-            setSidebar({ isNew: false });
-            renderWithProviders(
+        it('leaves a row whose field cannot be resolved one that opens nothing', () => {
+            const { open } = setSidebar({ isNew: false });
+            const { container } = renderWithProviders(
                 <ControlSidebar />,
                 filters([
                     makeRule({}),
@@ -333,9 +334,13 @@ describe('ControlSidebar', () => {
                 ]),
             );
 
-            expect(
-                screen.getByRole('button', { name: /Order status/ }),
-            ).toBeDisabled();
+            const row = container.querySelector(
+                '[data-controls-row="filter-2"]',
+            );
+            expect(row?.tagName).not.toBe('BUTTON');
+            expect(row).toHaveAttribute('aria-disabled', 'true');
+            fireEvent.click(row as Element);
+            expect(open).not.toHaveBeenCalled();
         });
     });
 
@@ -934,6 +939,55 @@ describe('ControlSidebar', () => {
             expect(row?.tagName).not.toBe('BUTTON');
             fireEvent.click(row as Element);
             expect(open).not.toHaveBeenCalled();
+        });
+
+        it('lets the locked row take focus and says why it is locked', async () => {
+            setSidebar({ isViewer: true, editing: null, editingRule: null });
+            const { container } = renderWithProviders(
+                <ControlSidebar />,
+                filters([{ ...saved, lockedTabUuids: ['dashboard-1'] }]),
+            );
+            const row = container.querySelector<HTMLElement>(
+                '[data-controls-row="saved"]',
+            );
+            expect(row).toHaveAttribute('tabindex', '0');
+            fireEvent.mouseEnter(row as Element);
+            expect(
+                await screen.findByText(
+                    DEFAULT_UI_STRINGS['filters.rail.lockedByEditor'],
+                ),
+            ).toBeInTheDocument();
+        });
+
+        it('says which field a row cannot resolve, as the invalid pill', async () => {
+            const open = vi.fn();
+            setSidebar({
+                isViewer: true,
+                editing: null,
+                editingRule: null,
+                open,
+            });
+            const { container } = renderWithProviders(
+                <ControlSidebar />,
+                filters([
+                    {
+                        ...saved,
+                        target: { fieldId: 'orders_gone', tableName: 'orders' },
+                    },
+                ]),
+            );
+            const row = container.querySelector<HTMLElement>(
+                '[data-controls-row="saved"]',
+            );
+            expect(row).toHaveAttribute('tabindex', '0');
+            fireEvent.click(row as Element);
+            expect(open).not.toHaveBeenCalled();
+            fireEvent.mouseEnter(row as Element);
+            expect(
+                await screen.findByText(
+                    'Tried to reference field with unknown id: orders_gone',
+                ),
+            ).toBeInTheDocument();
         });
 
         it('edits their own filter with no label input, and can remove it', () => {

@@ -16,6 +16,8 @@ import { isDefaultValueIncomplete } from './sidebarState';
 type Props = {
     /** A viewer's form: no default switch, and no value reads "any value". */
     isEditMode: boolean;
+    /** A viewer's new filter: the shipped "Value" label above the form. */
+    isCreatingNew: boolean;
     filterType: FilterType;
     field: DashboardFilterableField | null;
     filterRule: DashboardFilterRule;
@@ -30,6 +32,7 @@ const getInputs = (root: HTMLElement | null): HTMLInputElement[] => [
 // each edit is written at once, except the one the shipped Apply refuses
 export const FilterValueSettings: FC<Props> = ({
     isEditMode,
+    isCreatingNew,
     filterType,
     field,
     filterRule,
@@ -77,7 +80,7 @@ export const FilterValueSettings: FC<Props> = ({
             <Stack key={refusals} gap="xs">
                 <FilterValueSection
                     isEditMode={isEditMode}
-                    isCreatingNew={false}
+                    isCreatingNew={isCreatingNew}
                     filterType={filterType}
                     field={field ?? undefined}
                     filterRule={filterRule}

@@ -34,6 +34,7 @@ const Harness: FC = () => {
         <FiltersProvider>
             <FilterValueSettings
                 isEditMode
+                isCreatingNew={false}
                 filterType={FilterType.NUMBER}
                 field={null}
                 filterRule={rule}

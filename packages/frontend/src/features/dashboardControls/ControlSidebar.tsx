@@ -1,5 +1,6 @@
 import {
     getDashboardFilterField,
+    interpolateUiString,
     isFilterLockedOnTab,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -37,6 +38,7 @@ import {
     getFilterRuleWithDisabledState,
     hasSavedFilterValueChanged,
 } from '../dashboardFilters/FilterConfiguration/utils';
+import { useIsLockedDashboardFilterRule } from '../dashboardFilters/useIsLockedDashboardFilterRule';
 import classes from './ControlSidebar.module.css';
 import { EditorShell } from './EditorShell';
 import { FieldsAndTiles } from './FieldsAndTiles';
@@ -312,7 +314,16 @@ export const ControlSidebar: FC = () => {
     const allFilterableMetricsMap = useDashboardContext(
         (c) => c.allFilterableMetricsMap,
     );
+    const isLockedRule = useIsLockedDashboardFilterRule();
     if (!isRailOpen) return null;
+
+    // The shipped unresolved pills' tooltips: a hidden field, or a gone one
+    const getUnresolvedTooltip = (rule: DashboardFilterRule) =>
+        isLockedRule(rule)
+            ? getUiString('filters.lockedFilterTooltip')
+            : interpolateUiString(getUiString('filters.rail.unknownField'), {
+                  field: rule.target.fieldId,
+              });
 
     // Null while every filter is a row
     const editor =
@@ -337,6 +348,11 @@ export const ControlSidebar: FC = () => {
                     !rule.target.isSqlColumn &&
                     !isPlaceholderRule(rule) &&
                     !areFieldsLoading;
+                // As the shipped pill: a viewer cannot open a locked one
+                const isLockedForViewer =
+                    isViewer &&
+                    !isOwn &&
+                    isFilterLockedOnTab(rule, activeTabUuid, hasTabs);
                 return (
                     <FilterRow
                         key={rule.id}
@@ -345,15 +361,16 @@ export const ControlSidebar: FC = () => {
                         activeTabUuid={activeTabUuid}
                         hasTabs={hasTabs}
                         isOwn={isOwn}
-                        // As the shipped pill: a viewer cannot open a locked one
-                        isReadOnly={
-                            isViewer &&
-                            !isOwn &&
-                            isFilterLockedOnTab(rule, activeTabUuid, hasTabs)
+                        isReadOnly={isUnresolved || isLockedForViewer}
+                        readOnlyTooltip={
+                            isUnresolved
+                                ? getUnresolvedTooltip(rule)
+                                : isLockedForViewer
+                                  ? getUiString('filters.rail.lockedByEditor')
+                                  : null
                         }
                         isDisabled={
-                            isUnresolved ||
-                            (!areFieldsLoaded && !rule.target.isSqlColumn)
+                            !areFieldsLoaded && !rule.target.isSqlColumn
                         }
                         onOpen={open}
                         onHover={setHoveredFilterId}

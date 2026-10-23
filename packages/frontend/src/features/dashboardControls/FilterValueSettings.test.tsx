@@ -1,4 +1,5 @@
 import {
+    DEFAULT_UI_STRINGS,
     FilterOperator,
     FilterType,
     type DashboardFilterRule,
@@ -56,6 +57,7 @@ const renderSettings = (
     renderWithProviders(
         <FilterValueSettings
             isEditMode
+            isCreatingNew={false}
             filterType={filterType}
             field={null}
             filterRule={rule}
@@ -66,6 +68,30 @@ const renderSettings = (
 };
 
 describe('FilterValueSettings', () => {
+    it.each([
+        [true, true],
+        [false, false],
+    ])(
+        'labels a viewer\'s new filter "Value", as the shipped form (new: %s)',
+        (isCreatingNew, hasLabel) => {
+            renderWithProviders(
+                <FilterValueSettings
+                    isEditMode={false}
+                    isCreatingNew={isCreatingNew}
+                    filterType={FilterType.STRING}
+                    field={null}
+                    filterRule={makeRule({})}
+                    onChange={vi.fn()}
+                />,
+            );
+            expect(
+                screen.queryAllByText(
+                    DEFAULT_UI_STRINGS['filters.config.valueLabel'],
+                ),
+            ).toHaveLength(hasLabel ? 1 : 0);
+        },
+    );
+
     it('leaves out the label input and the Required card of the shipped form', () => {
         renderSettings(makeRule({ values: ['done'] }));
 

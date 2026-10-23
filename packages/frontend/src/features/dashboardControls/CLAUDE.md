@@ -56,7 +56,7 @@ All are in `features/dashboardFilters/`.
   the drawer is closed (state adjusted during render, no effect). `ControlsBar`
   sets it while the rail is open, so a viewer's rail is never under the
   drawer.
-- `ActiveFilters/`: `FilterRuleLabel`, `TemporaryFilters`, `UnresolvedFilter`,
+- `ActiveFilters/`: `FilterRuleLabel`, `FilterPillSkeletons`, `TemporaryFilters`, `UnresolvedFilter`,
   `useFilterTabPlacement`, `filterLabels`, `filterLock` and `filterOrder`,
   moved out of `index.tsx` and `Filter.tsx`. `FilterPillButton` is the
   shipped pill's trigger button, moved out of `Filter.tsx`: field icon and
@@ -171,14 +171,18 @@ In `FilterConfiguration/`:
   - `filterLock.ts`: the lock key, label, next rule and tracking event.
   - `filterLabels.ts`, `filterOrder.ts`: the label rules and the reorder.
 - A rule whose field cannot be resolved renders the shipped `UnresolvedFilter`
-  (invalid or locked) and opens no editor. Nothing is called unresolved while
+  (invalid or locked) and opens no editor. Its rail row is read-only too, in
+  both modes, with the pill's tooltip: `filters.lockedFilterTooltip` for a
+  hidden field (`useIsLockedDashboardFilterRule`), else
+  `filters.rail.unknownField` with the field id. Nothing is called unresolved while
   the fields load, or for a placeholder.
 - `TemporaryFilterPills` renders the shipped `TemporaryFilters` after the saved
   pills in edit mode, inside the shipped `FiltersProvider` its popover needs:
   outline pill, its own popover and an X. They are never opened in the
   sidebar in edit mode.
 - For a viewer (`isViewer`) `FilterPills` renders no grip, lock toggle or
-  drag. A saved pill (`FilterPill` `kind="viewerSaved"`) opens the rail on
+  drag, and the shipped `FilterPillSkeletons` (moved out of
+  `ActiveFilters/index.tsx`) in place of every pill while the filters load. A saved pill (`FilterPill` `kind="viewerSaved"`) opens the rail on
   its value and has no X; a saved filter locked on this tab is the shipped
   `Filter` pill as it is in view mode: read-only lock, its tooltip, no
   editor. The viewer's own filters (the lock-safe temporary filters, as the
@@ -427,12 +431,15 @@ In `FilterConfiguration/`:
 - For a viewer the rail lists the saved filters, then their own (the
   lock-safe temporary filters), and the header count is both. An own row
   adds a dimmed "Added by you" line. A saved filter locked on this tab is a
-  read-only row (`isReadOnly`: a `Group`, not a button, that only hovers).
+  read-only row (`isReadOnly`: a `Group`, not a button, that only hovers
+  and takes focus, `aria-disabled`), with `filters.rail.lockedByEditor` as
+  its tooltip, the shipped read-only pill's wording.
   An own filter opens as in edit mode with no label input (its name is a
   focusable heading, `tabIndex={-1}`, focused on mount as the label input
   is), discard and trash; `FilterSettings` gives it the value in view mode
   (`FilterValueSettings isEditMode={false}`: no default switch, the shipped
-  "clear to any value" X), the line "Added by you · only in this view and
+  "clear to any value" X, and the shipped "Value" label while it is new,
+  `isCreatingNew`), the line "Added by you · only in this view and
   its link" and "Tiles", never "Rules". A saved filter (`isSavedValue`) opens
   with its value only, and the head offers the shipped "Reset to original
   value" (`IconRotate2`, the shipped labels) while the value differs from
