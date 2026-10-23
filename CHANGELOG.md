@@ -1,3 +1,10 @@
+# [3.50.0](https://github.com/lightdash/lightdash/compare/3.49.1...3.50.0) (2026-10-23)
+
+
+### Features
+
+* **ai-agents:** run instance decisions wherever a Jev key is set ([#31473](https://github.com/lightdash/lightdash/issues/31473)) ([2bbaf1d](https://github.com/lightdash/lightdash/commit/2bbaf1d51a18bafba36b6fd073b62849d30005f2))
+
 ## [3.49.1](https://github.com/lightdash/lightdash/compare/3.49.0...3.49.1) (2026-10-23)
 
 
