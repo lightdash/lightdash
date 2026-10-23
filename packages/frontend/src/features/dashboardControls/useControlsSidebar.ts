@@ -26,6 +26,13 @@ export type FieldApply = {
 export type ControlsSidebarContextValue = {
     /** The filter control being edited, or null when the sidebar is closed. */
     editing: { filterId: string } | null;
+    /**
+     * Outside edit mode: the editor writes the viewer's own temporary
+     * filters only; saved filters keep the bar's shipped popover.
+     */
+    isViewer: boolean;
+    /** False in an embed whose viewers may not add filters: no "Add filter". */
+    canAddFilters: boolean;
     /** The edited control was started with Add in this sidebar session. */
     isNew: boolean;
     /** The edited control has no mapping yet, so it cannot be kept. */

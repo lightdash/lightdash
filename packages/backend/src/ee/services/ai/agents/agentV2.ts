@@ -2234,6 +2234,7 @@ export const getAgentTools = (
                         ? dependencies.deferSlackVisualization
                         : undefined,
                 slackLinksOnly: args.slackLinksOnly,
+                maxQueryLimit: args.maxQueryLimit,
             }),
         listWarehouseTables: () =>
             getListWarehouseTables({

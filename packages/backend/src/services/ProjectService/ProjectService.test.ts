@@ -11,7 +11,6 @@ import {
     BigqueryAuthenticationType,
     BigqueryTokenError,
     CatalogType,
-    CommercialFeatureFlags,
     ConflictError,
     convertExplores,
     CreateTrainingPreviewResults,
@@ -807,15 +806,6 @@ const getMockedProjectService = (
                             return {
                                 id: featureFlagId,
                                 enabled: lightdashConfig.results.cacheEnabled,
-                            };
-                        }
-                        if (
-                            featureFlagId ===
-                            CommercialFeatureFlags.PreAggregates
-                        ) {
-                            return {
-                                id: featureFlagId,
-                                enabled: lightdashConfig.preAggregates.enabled,
                             };
                         }
                         return { id: featureFlagId, enabled: false };

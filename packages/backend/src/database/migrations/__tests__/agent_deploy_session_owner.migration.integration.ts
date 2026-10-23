@@ -713,7 +713,7 @@ it('keeps the part 1 SQL order and HTTP answers with exactly one project summary
     } finally {
         trace.stop();
     }
-    expect(mainDeploySql).toHaveLength(79);
+    expect(mainDeploySql).toHaveLength(78);
     expect(mainDeploySql[52]).toMatch(/^select .* from "projects" /);
     expect(mainDeploySql[52]).not.toMatch(
         /dbt_connection|encrypted_credentials|warehouse_credentials/,

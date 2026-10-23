@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box, Tooltip } from '@mantine/core';
 import { memo, type FC } from 'react';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
 import {
@@ -17,7 +18,11 @@ import classes from './FilterPills.module.css';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
+// An editor's pill, or a viewer's on a filter of their own (outline, with an X)
+export type FilterPillKind = 'editor' | 'viewerOwn';
+
 type Props = {
+    kind: FilterPillKind;
     filter: DashboardFilterRule;
     field: DashboardFilterableField | undefined;
     isOrphaned: boolean;
@@ -32,10 +37,12 @@ type Props = {
     activeTabUuid: string | undefined;
     hasTabs: boolean;
     dashboardUuid: string | undefined;
+    triggerClassName: string | undefined;
 };
 
 export const FilterPill: FC<Props> = memo(
     ({
+        kind,
         filter,
         field,
         isOrphaned,
@@ -47,8 +54,10 @@ export const FilterPill: FC<Props> = memo(
         activeTabUuid,
         hasTabs,
         dashboardUuid,
+        triggerClassName,
     }) => {
         const { track } = useTracking();
+        const getUiString = useUiStrings();
         const open = useControlsSidebarSelector((c) => c.open);
         const close = useControlsSidebarSelector((c) => c.close);
         const removeFilterById = useControlsSidebarSelector(
@@ -94,11 +103,11 @@ export const FilterPill: FC<Props> = memo(
                         field={field}
                         filterRule={filter}
                         isOrphaned={isOrphaned}
-                        isTemporary={false}
-                        isDraggable={!isSidebarOpen}
+                        isTemporary={kind === 'viewerOwn'}
+                        isDraggable={kind === 'editor' && !isSidebarOpen}
                         isLocked={isLocked}
                         lockLabel={
-                            !isSidebarOpen && lockKey
+                            kind === 'editor' && !isSidebarOpen && lockKey
                                 ? getFilterLockLabel(isLocked, hasTabs)
                                 : null
                         }
@@ -115,8 +124,9 @@ export const FilterPill: FC<Props> = memo(
                                       removeFilterById(filter.id);
                                   }
                         }
-                        removeLabel="Remove filter"
+                        removeLabel={getUiString('filters.rail.removeFilter')}
                         isTablesTooltipDisabled={isSelected}
+                        triggerClassName={triggerClassName}
                         aria-pressed={isSelected}
                         data-controls-pill={filter.id}
                         disabled={isDisabled}

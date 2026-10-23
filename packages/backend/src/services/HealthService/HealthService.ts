@@ -117,12 +117,9 @@ export class HealthService extends BaseService {
                   csvCellsLimit: this.lightdashConfig.query.csvCellsLimit,
               };
 
-        const preAggregatesEnabled = user?.organizationUuid
-            ? await isPreAggregatesEnabled(
-                  this.featureFlagModel,
-                  user.organizationUuid,
-              )
-            : this.lightdashConfig.preAggregates.enabled;
+        const preAggregatesEnabled = isPreAggregatesEnabled(
+            this.lightdashConfig,
+        );
 
         const migrationStartTime = performance.now();
         const { status: migrationStatus, currentVersion } =

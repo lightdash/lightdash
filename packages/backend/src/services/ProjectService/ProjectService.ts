@@ -4900,12 +4900,7 @@ export class ProjectService
                 prevMetricsTreeNodes,
             }));
 
-        if (
-            await isPreAggregatesEnabled(
-                this.featureFlagModel,
-                organizationUuid,
-            )
-        ) {
+        if (isPreAggregatesEnabled(this.lightdashConfig)) {
             await this.syncAndEnqueuePreAggregateMaterializations({
                 projectUuid,
                 organizationUuid,
@@ -6201,9 +6196,8 @@ export class ProjectService
             );
         }
 
-        const preAggregatesEnabled = await isPreAggregatesEnabled(
-            this.featureFlagModel,
-            project.organizationUuid,
+        const preAggregatesEnabled = isPreAggregatesEnabled(
+            this.lightdashConfig,
         );
         const startOfWeekByExplore = preAggregatesEnabled
             ? await this.getDeployStartOfWeekByExplore({
@@ -11354,12 +11348,7 @@ export class ProjectService
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
-        if (
-            !(await isPreAggregatesEnabled(
-                this.featureFlagModel,
-                organizationUuid,
-            ))
-        ) {
+        if (!isPreAggregatesEnabled(this.lightdashConfig)) {
             throw new ForbiddenError('Pre-aggregates are not enabled');
         }
 
@@ -13982,12 +13971,7 @@ export class ProjectService
         ) {
             throw new ForbiddenError();
         }
-        if (
-            !(await isPreAggregatesEnabled(
-                this.featureFlagModel,
-                organizationUuid,
-            ))
-        ) {
+        if (!isPreAggregatesEnabled(this.lightdashConfig)) {
             throw new ForbiddenError('Pre-aggregates are not enabled');
         }
 
@@ -14605,12 +14589,7 @@ export class ProjectService
         organizationUuid: string,
         projectUuid: string,
     ): Promise<boolean> {
-        if (
-            !(await isPreAggregatesEnabled(
-                this.featureFlagModel,
-                organizationUuid,
-            ))
-        ) {
+        if (!isPreAggregatesEnabled(this.lightdashConfig)) {
             return false;
         }
 

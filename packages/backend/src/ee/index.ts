@@ -1565,11 +1565,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getPreAggregateDailyStatsModel(),
                         preAggregateResultsStorageClient:
                             clients.getPreAggregateResultsFileStorageClient(),
-                        isEnabled: (organizationUuid) =>
-                            isPreAggregatesEnabled(
-                                models.getFeatureFlagModel(),
-                                organizationUuid,
-                            ),
+                        isEnabled: async () =>
+                            isPreAggregatesEnabled(context.lightdashConfig),
                         dashboardModel: models.getDashboardModel(),
                         savedChartModel: models.getSavedChartModel(),
                         projectService: repository.getProjectService(),
@@ -1679,9 +1676,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     ) =>
                         enhanceExploresForPreAggregates({
                             explores,
-                            enabled: await isPreAggregatesEnabled(
-                                models.getFeatureFlagModel(),
-                                organizationUuid,
+                            enabled: isPreAggregatesEnabled(
+                                context.lightdashConfig,
                             ),
                             startOfWeek,
                             startOfWeekByExplore,

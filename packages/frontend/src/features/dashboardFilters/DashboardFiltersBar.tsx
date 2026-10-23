@@ -22,7 +22,7 @@ import {
     IconEyeOff,
     IconFilter,
 } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useCompactContentHeader } from '../../components/common/Page/useCompactContentHeader';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -59,6 +59,11 @@ type Props = {
     onCollapse: () => void;
     /** Replaces the filters and the requirements button. Defaults to both. */
     filterArea?: ReactNode;
+    /**
+     * Shows the bar in place on a narrow screen, as edit mode does, instead
+     * of behind its drawer button, and closes the drawer (default false).
+     */
+    isCompactDrawerSuppressed?: boolean;
 };
 
 export const DashboardFiltersBar: FC<Props> = ({
@@ -80,9 +85,19 @@ export const DashboardFiltersBar: FC<Props> = ({
     isDateZoomDisabled,
     onCollapse,
     filterArea,
+    isCompactDrawerSuppressed = false,
 }) => {
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
+    // The drawer is closed once the bar is shown in place, so it never comes
+    // back open on its own
+    const [wasDrawerSuppressed, setWasDrawerSuppressed] = useState(
+        isCompactDrawerSuppressed,
+    );
+    if (wasDrawerSuppressed !== isCompactDrawerSuppressed) {
+        setWasDrawerSuppressed(isCompactDrawerSuppressed);
+        if (isCompactDrawerSuppressed) close();
+    }
     const getUiString = useUiStrings();
     const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
     const allFilters = useDashboardAllFilters();
@@ -283,7 +298,7 @@ export const DashboardFiltersBar: FC<Props> = ({
         </div>
     );
 
-    if (!compact || isEditMode) return content;
+    if (!compact || isEditMode || isCompactDrawerSuppressed) return content;
 
     return (
         <Box px="sm" py="xs">
