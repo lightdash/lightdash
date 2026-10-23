@@ -1,3 +1,16 @@
+# [3.47.0](https://github.com/lightdash/lightdash/compare/3.46.0...3.47.0) (2026-10-23)
+
+
+### Bug Fixes
+
+* apply organization flag overrides to embedded viewers ([#31495](https://github.com/lightdash/lightdash/issues/31495)) ([5c8bfe9](https://github.com/lightdash/lightdash/commit/5c8bfe93113425a922f9ba13577fb5623e22c020))
+* **dashboards:** keep tab names whole beside the filter rail's counts ([#31485](https://github.com/lightdash/lightdash/issues/31485)) ([db85d98](https://github.com/lightdash/lightdash/commit/db85d98260b92a794e427921ba35079555df33f8))
+
+
+### Features
+
+* **ai:** visualize validates viz config against node columns ([#31486](https://github.com/lightdash/lightdash/issues/31486)) ([a2452c7](https://github.com/lightdash/lightdash/commit/a2452c781d7c258ebd79db0702437e0d711616a6))
+
 # [3.46.0](https://github.com/lightdash/lightdash/compare/3.45.0...3.46.0) (2026-10-23)
 
 
