@@ -713,18 +713,18 @@ it('keeps the part 1 SQL order and HTTP answers with exactly one project summary
     } finally {
         trace.stop();
     }
-    expect(mainDeploySql).toHaveLength(83);
-    expect(mainDeploySql[56]).toMatch(/^select .* from "projects" /);
-    expect(mainDeploySql[56]).not.toMatch(
+    expect(mainDeploySql).toHaveLength(79);
+    expect(mainDeploySql[52]).toMatch(/^select .* from "projects" /);
+    expect(mainDeploySql[52]).not.toMatch(
         /dbt_connection|encrypted_credentials|warehouse_credentials/,
     );
-    expect(mainDeploySql[55]).toBe(
+    expect(mainDeploySql[51]).toBe(
         'select * from "deploy_sessions" where "deploy_session_uuid" = $1 limit $2',
     );
-    expect(mainDeploySql[57]).toBe(
+    expect(mainDeploySql[53]).toBe(
         'update "deploy_sessions" set "status" = $1 where "deploy_session_uuid" = $2',
     );
-    expect(mainDeploySql[58]).toBe(mainDeploySql[10]);
+    expect(mainDeploySql[54]).toBe(mainDeploySql[9]);
     expect(trace.statements).toEqual(mainDeploySql);
 });
 
