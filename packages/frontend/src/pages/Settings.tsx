@@ -175,6 +175,7 @@ const Settings: FC = () => {
         isScimTokenManagementEnabled,
         dataAppsFlag,
         dataAppAnalysisFlag,
+        dashboardAnalysisFlag,
         externalSourcesFlag,
         isDataAppsFlagLoading,
         isChartStudioAvailable,
@@ -548,13 +549,29 @@ const Settings: FC = () => {
             });
         }
 
+        // The AI-analysis page hosts the shared consent toggle; dashboard
+        // analysis shares it, so a dashboard-only rollout must still reach it.
+        {
+            const canManageOrganization =
+                user?.ability.can('manage', 'Organization') ?? false;
+            const canManageAiAnalysis =
+                canManageOrganization &&
+                ((dataAppsFlag?.enabled === true &&
+                    dataAppAnalysisFlag?.enabled === true) ||
+                    dashboardAnalysisFlag?.enabled === true);
+            if (canManageAiAnalysis) {
+                allowedRoutes.push({
+                    path: '/dataApps/aiAnalysis',
+                    element: <DataAppAiAnalysisSettingsPage />,
+                });
+            }
+        }
+
         if (dataAppsFlag?.enabled) {
             const canManageThemes =
                 user?.ability.can('manage', 'OrganizationDesign') ?? false;
             const canManageOrganization =
                 user?.ability.can('manage', 'Organization') ?? false;
-            const canManageAiAnalysis =
-                canManageOrganization && dataAppAnalysisFlag?.enabled === true;
 
             if (canManageOrganization) {
                 allowedRoutes.push({
@@ -566,12 +583,6 @@ const Settings: FC = () => {
                 allowedRoutes.push({
                     path: '/dataApps/activity',
                     element: <DataAppActivitySettingsPage />,
-                });
-            }
-            if (canManageAiAnalysis) {
-                allowedRoutes.push({
-                    path: '/dataApps/aiAnalysis',
-                    element: <DataAppAiAnalysisSettingsPage />,
                 });
             }
             // Land on whichever sub-page the user can actually reach.
@@ -901,6 +912,7 @@ const Settings: FC = () => {
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
         dataAppAnalysisFlag?.enabled,
+        dashboardAnalysisFlag?.enabled,
         isChartStudioAvailable,
         externalSourcesFlag?.enabled,
         isProLimitsEnabled,

@@ -59,6 +59,7 @@ const buildAdapter = (
     availabilityStatus: 'available' | 'unavailable' = 'available',
 ): LauncherAnalysisAdapter => ({
     projectUuid: 'project-1',
+    targetKind: 'app',
     targetName: 'My app',
     availability:
         availabilityStatus === 'available'
