@@ -4,7 +4,6 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
-    getSectionCountLabel,
     groupRulesBySection,
     moveRuleToSection,
     removeSectionFromRules,
@@ -156,14 +155,6 @@ describe('removeSectionFromRules', () => {
         expect(removeSectionFromRules(dashboardFilters, 'a')).toBe(
             dashboardFilters,
         );
-    });
-});
-
-describe('getSectionCountLabel', () => {
-    it('counts filters', () => {
-        expect(getSectionCountLabel(0)).toBe('0 filters');
-        expect(getSectionCountLabel(1)).toBe('1 filter');
-        expect(getSectionCountLabel(3)).toBe('3 filters');
     });
 });
 

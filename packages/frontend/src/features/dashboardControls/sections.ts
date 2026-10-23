@@ -147,9 +147,6 @@ export const sectionZoneId = (sectionId: string) =>
 export const sectionOfZoneId = (id: string) =>
     id.startsWith(ZONE_PREFIX) ? id.slice(ZONE_PREFIX.length) : null;
 
-export const getSectionCountLabel = (count: number) =>
-    count === 1 ? '1 filter' : `${count} filters`;
-
 /** Screen reader wording for a drag; dnd-kit only knows the ids */
 export const getDragAnnouncements = (
     nameOf: (id: string) => string,

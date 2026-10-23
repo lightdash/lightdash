@@ -971,6 +971,85 @@ describe('ControlSidebar', () => {
             expect(screen.getByText('1')).toBeInTheDocument();
         });
 
+        it('lists the saved sections read-only after their own filters', async () => {
+            mockDashboardContext.current.dashboard = {
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: [
+                        { id: 'section-a', name: 'Dates' },
+                        { id: 'section-b', name: 'Empty' },
+                    ],
+                },
+            };
+            const open = vi.fn();
+            setSidebar({
+                isViewer: true,
+                editing: null,
+                editingRule: null,
+                isSidebarOpen: false,
+                open,
+            });
+            const { container } = renderWithProviders(
+                <ControlSidebar />,
+                filters([
+                    makeRule({
+                        id: 'created',
+                        label: 'Created',
+                        sectionId: 'section-a',
+                    }),
+                    saved,
+                ]),
+                filters([own]),
+            );
+            const listed = [
+                ...container.querySelectorAll(
+                    '[data-controls-row], [data-controls-section]',
+                ),
+            ].map(
+                (node) =>
+                    node.getAttribute('data-controls-row') ??
+                    `# ${node.textContent}`,
+            );
+            expect(listed).toEqual(['own', '# Dates1 filter', 'created']);
+            expect(screen.queryByText('Empty')).not.toBeInTheDocument();
+            // The badge counts their own filters only
+            expect(screen.getByText('1')).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: /Drag to reorder/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Section Dates actions' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'New section' }),
+            ).not.toBeInTheDocument();
+
+            const row = container.querySelector<HTMLElement>(
+                '[data-controls-row="created"]',
+            );
+            expect(row).toHaveAttribute('aria-disabled', 'true');
+            expect(row).not.toHaveTextContent('Added by you');
+            expect(row).toHaveAccessibleDescription(
+                'Set this filter from the bar',
+            );
+            fireEvent.click(row as Element);
+            expect(open).not.toHaveBeenCalled();
+            fireEvent.mouseEnter(row as Element);
+            expect(
+                await screen.findByText('Set this filter from the bar'),
+            ).toBeInTheDocument();
+
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Collapse section Dates' }),
+            );
+            expect(
+                container.querySelector('[data-controls-row="created"]'),
+            ).toBeNull();
+            expect(
+                container.querySelector('[data-controls-row="own"]'),
+            ).not.toBeNull();
+        });
+
         it('carries the class an embed gives the rail', () => {
             setSidebar({ isViewer: true, editing: null, editingRule: null });
             const { container } = renderWithProviders(

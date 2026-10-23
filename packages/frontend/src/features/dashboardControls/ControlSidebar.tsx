@@ -58,6 +58,7 @@ import {
 import { useIsLockedDashboardFilterRule } from '../dashboardFilters/useIsLockedDashboardFilterRule';
 import classes from './ControlSidebar.module.css';
 import { EditorShell } from './EditorShell';
+import { formatSectionCount } from './fieldLabels';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import { FilterRow, FilterTypeIcon } from './FilterRow';
 import { FilterSettings } from './FilterSettings';
@@ -69,7 +70,6 @@ const NEW_SECTION_BUTTON = '[data-controls-new-section]';
 const sectionMenuSelector = (sectionId: string) =>
     `[data-controls-section="${sectionId}"] [data-controls-section-menu]`;
 import {
-    getSectionCountLabel,
     groupRulesBySection,
     moveRuleToSection,
     removeSectionFromRules,
@@ -363,18 +363,22 @@ export const ControlSidebar: FC = () => {
     const sections = nameEdit?.isNew
         ? [...controlSections, { id: nameEdit.id, name: '' }]
         : controlSections;
-    // A viewer's rail lists only their own filters: saved ones stay on the
-    // bar, and sections are the editor's
+    // A viewer's rail lists their own filters first, then the saved
+    // sections read-only; a saved filter with no section stays on the bar
     const listedFilters = isViewer ? temporaryFilters : dashboardFilters;
-    const grouped = groupRulesBySection(
-        listedFilters,
-        isViewer ? [] : sections,
-    );
+    const grouped = isViewer
+        ? [
+              ...groupRulesBySection(temporaryFilters, []),
+              ...groupRulesBySection(dashboardFilters, sections).filter(
+                  ({ section, rules }) => section !== null && rules.length > 0,
+              ),
+          ]
+        : groupRulesBySection(dashboardFilters, sections);
     const sectionIds = new Set(controlSections.map((section) => section.id));
     const sectionNames = new Map(
         sections.map((section) => [
             section.id,
-            section.name || 'Untitled section',
+            section.name || getUiString('filters.rail.untitledSection'),
         ]),
     );
     const ruleNames = new Map(
@@ -477,7 +481,8 @@ export const ControlSidebar: FC = () => {
         filterId === null || editingRule === null ? null : (
             <FilterEditor key={filterId} rule={editingRule} />
         );
-    const renderRow = ({ rule, group }: SectionRule) => {
+    // A viewer's saved row (in a section) opens nothing and has no grip
+    const renderRow = ({ rule, group }: SectionRule, isSaved: boolean) => {
         if (rule.id === filterId) return editor;
         const field =
             getDashboardFilterField<DashboardFilterableField>(
@@ -492,27 +497,36 @@ export const ControlSidebar: FC = () => {
             !rule.target.isSqlColumn &&
             !isPlaceholderRule(rule) &&
             !areFieldsLoading;
+        const row = (
+            <FilterRow
+                key={rule.id}
+                rule={rule}
+                field={field}
+                activeTabUuid={activeTabUuid}
+                hasTabs={hasTabs}
+                isOwn={isViewer && !isSaved}
+                isReadOnly={isUnresolved || isSaved}
+                readOnlyTooltip={
+                    isUnresolved
+                        ? getUnresolvedTooltip(rule)
+                        : isSaved
+                          ? getUiString('filters.rail.savedFilterReadOnly')
+                          : null
+                }
+                isDisabled={!areFieldsLoaded && !rule.target.isSqlColumn}
+                onOpen={open}
+                onHover={setHoveredFilterId}
+                onUnhover={clearHoveredFilterId}
+            />
+        );
+        if (isSaved) return row;
         return (
             <SortableRow
                 key={rule.id}
                 id={rule.id}
                 isDisabled={isSidebarOpen || isViewer}
             >
-                <FilterRow
-                    rule={rule}
-                    field={field}
-                    activeTabUuid={activeTabUuid}
-                    hasTabs={hasTabs}
-                    isOwn={isViewer}
-                    isReadOnly={isUnresolved}
-                    readOnlyTooltip={
-                        isUnresolved ? getUnresolvedTooltip(rule) : null
-                    }
-                    isDisabled={!areFieldsLoaded && !rule.target.isSqlColumn}
-                    onOpen={open}
-                    onHover={setHoveredFilterId}
-                    onUnhover={clearHoveredFilterId}
-                />
+                {row}
             </SortableRow>
         );
     };
@@ -525,9 +539,11 @@ export const ControlSidebar: FC = () => {
             rules.some(({ rule }) => rule.id === filterId),
         );
     // A filter in a section: a zone under the unsectioned rows to take it out
-    const hasUnsectionedZone = grouped.some(
-        ({ section, rules }) => section !== null && rules.length > 0,
-    );
+    const hasUnsectionedZone =
+        !isViewer &&
+        grouped.some(
+            ({ section, rules }) => section !== null && rules.length > 0,
+        );
     const sortableIds = grouped.flatMap(({ section, rules }) => [
         ...(section === null ? [] : [section.id]),
         ...rules.map(({ rule }) => rule.id),
@@ -540,7 +556,7 @@ export const ControlSidebar: FC = () => {
     ]);
     const body = grouped.flatMap(({ section, rules }) => {
         if (section === null) {
-            const rows = rules.map(renderRow);
+            const rows = rules.map((rule) => renderRow(rule, false));
             const zone = hasUnsectionedZone
                 ? [
                       <SectionDropZone
@@ -562,10 +578,11 @@ export const ControlSidebar: FC = () => {
             <SectionHeader
                 key={`section:${section.id}`}
                 section={section}
-                countLabel={getSectionCountLabel(rules.length)}
+                countLabel={formatSectionCount(getUiString, rules.length)}
                 isCollapsed={isCollapsed}
                 isEditingName={nameEdit?.id === section.id}
                 isDragDisabled={isSidebarOpen || nameEdit !== null}
+                isReadOnly={isViewer}
                 onToggle={() =>
                     setCollapsedIds((ids) =>
                         ids.includes(section.id)
@@ -578,7 +595,7 @@ export const ControlSidebar: FC = () => {
                 onCancelName={cancelName}
                 onRemove={() => removeSection(section.id, rules.length > 0)}
             />,
-            ...shown.map(renderRow),
+            ...shown.map((rule) => renderRow(rule, isViewer)),
             ...(rules.length === 0 && !isCollapsed
                 ? [
                       <SectionDropZone

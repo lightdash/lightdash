@@ -1,7 +1,10 @@
 import { useDroppable } from '@dnd-kit/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { type DashboardControlSection } from '@lightdash/common';
+import {
+    interpolateUiString,
+    type DashboardControlSection,
+} from '@lightdash/common';
 import { ActionIcon, Box, Menu, Text, TextInput } from '@mantine/core';
 import {
     IconChevronRight,
@@ -10,6 +13,7 @@ import {
 } from '@tabler/icons-react';
 import { useRef, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import classes from './ControlSidebar.module.css';
 
 type GripProps = {
@@ -80,6 +84,8 @@ type Props = {
     isCollapsed: boolean;
     isEditingName: boolean;
     isDragDisabled: boolean;
+    /** A viewer's saved section: chevron, name and count only. */
+    isReadOnly: boolean;
     onToggle: () => void;
     onRename: () => void;
     onCommitName: (name: string) => void;
@@ -94,6 +100,7 @@ export const SectionHeader: FC<Props> = ({
     isCollapsed,
     isEditingName,
     isDragDisabled,
+    isReadOnly,
     onToggle,
     onRename,
     onCommitName,
@@ -108,7 +115,8 @@ export const SectionHeader: FC<Props> = ({
         transition,
         isDragging,
     } = useSortable({ id: section.id, disabled: isDragDisabled });
-    const name = section.name || 'Untitled section';
+    const getUiString = useUiStrings();
+    const name = section.name || getUiString('filters.rail.untitledSection');
     return (
         <Box
             ref={setNodeRef}
@@ -118,7 +126,7 @@ export const SectionHeader: FC<Props> = ({
             style={{ transform: CSS.Translate.toString(transform), transition }}
         >
             <Box className={classes.sectionHeadRow}>
-                {!isDragDisabled && (
+                {!isDragDisabled && !isReadOnly && (
                     <DragGrip
                         label="Drag to reorder section"
                         attributes={attributes}
@@ -128,11 +136,14 @@ export const SectionHeader: FC<Props> = ({
                 <ActionIcon
                     variant="subtle"
                     size="sm"
-                    aria-label={
-                        isCollapsed
-                            ? `Expand section ${name}`
-                            : `Collapse section ${name}`
-                    }
+                    aria-label={interpolateUiString(
+                        getUiString(
+                            isCollapsed
+                                ? 'filters.rail.expandSection'
+                                : 'filters.rail.collapseSection',
+                        ),
+                        { section: name },
+                    )}
                     aria-expanded={!isCollapsed}
                     onClick={onToggle}
                 >
@@ -157,27 +168,29 @@ export const SectionHeader: FC<Props> = ({
                     {countLabel}
                 </Text>
                 {/* Focus must stay on the name input Rename opens */}
-                <Menu position="bottom-end" returnFocus={false}>
-                    <Menu.Target>
-                        <ActionIcon
-                            variant="subtle"
-                            size="sm"
-                            className={classes.sectionMenu}
-                            aria-label={`Section ${name} actions`}
-                            data-controls-section-menu
-                        >
-                            <MantineIcon icon={IconDots} size={14} />
-                        </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                        <Menu.Item fz="xs" onClick={onRename}>
-                            Rename
-                        </Menu.Item>
-                        <Menu.Item fz="xs" color="red" onClick={onRemove}>
-                            Remove section
-                        </Menu.Item>
-                    </Menu.Dropdown>
-                </Menu>
+                {!isReadOnly && (
+                    <Menu position="bottom-end" returnFocus={false}>
+                        <Menu.Target>
+                            <ActionIcon
+                                variant="subtle"
+                                size="sm"
+                                className={classes.sectionMenu}
+                                aria-label={`Section ${name} actions`}
+                                data-controls-section-menu
+                            >
+                                <MantineIcon icon={IconDots} size={14} />
+                            </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Item fz="xs" onClick={onRename}>
+                                Rename
+                            </Menu.Item>
+                            <Menu.Item fz="xs" color="red" onClick={onRemove}>
+                                Remove section
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
+                )}
             </Box>
         </Box>
     );

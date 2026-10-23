@@ -92,6 +92,7 @@
 
 .readOnlyRow.readOnlyRow {
     cursor: default;
+    opacity: 0.6;
 }
 
 .readOnlyRow.readOnlyRow:hover {

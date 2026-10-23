@@ -478,9 +478,11 @@ In `FilterConfiguration/`:
   1px under the footer's top border (`.body`'s `margin-bottom: -1px`), so
   the last row's border and the footer's read as one line whether the list
   scrolls or not.
-- For a viewer the rail lists only their own filters (the lock-safe
-  temporary filters), and the header counts them; saved filters stay on the
-  bar. An own row adds a dimmed "Added by you" line. A read-only row
+- For a viewer the rail lists their own filters first (the lock-safe
+  temporary filters), and the header counts only them; then every saved
+  section that has a member, read-only (see "Sections"). A saved filter
+  with no section stays on the bar. An own row adds a dimmed "Added by
+  you" line. A read-only row
   (`isReadOnly`: a `Group`, not a `<button>`, that only hovers and takes
   focus) is `role="button"` with `aria-disabled`, named by its content and
   described (`aria-describedby`, a `VisuallyHidden` copy) by the
@@ -1063,7 +1065,17 @@ the language map, as tab names are.
   menu with "Rename" and "Remove section") over its rows; an empty section
   shows `SectionDropZone` ("Drag filters here"). Collapsing is local state
   keyed by section id and still shows the filter being edited. A placeholder
-  comes last among the unsectioned rows.
+  comes last among the unsectioned rows. The header's strings go through
+  `useUiStrings` (`filters.rail.sectionCount.*` via `formatSectionCount`,
+  `untitledSection`, `collapseSection`, `expandSection`), since a viewer
+  sees it too.
+- A viewer's rail: their own rows (unsectioned, editable), then each saved
+  section with at least one member, in `controlSections` order, as the
+  `SectionHeader` with `isReadOnly` (chevron, name, count; no grip, menu or
+  name input) over its members as read-only `FilterRow`s (`isOwn` false,
+  no `SortableRow`, dimmed, tooltip `filters.rail.savedFilterReadOnly`):
+  they are set from the bar. No drop zones, no "New section". The same
+  `collapsedIds` state collapses them.
 - Footer "New section" (subtle, `xs`) opens a section header with its name
   input, held only in the rail's `nameEdit` state until a name is committed
   (Enter or blur with a name); Escape or an empty name drops it. Rename opens
