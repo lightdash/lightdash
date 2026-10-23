@@ -274,7 +274,6 @@ type ServiceProvider<T extends ServiceManifest> = (providerArgs: {
     utils: UtilRepository;
     clients: ClientRepository;
     prometheusMetrics?: PrometheusMetrics;
-    readinessService?: Pick<ReadinessService, 'getReadiness'>;
 }) => T[keyof T];
 
 /**
@@ -2486,7 +2485,6 @@ export class ServiceRepository
                     clients: this.clients,
                     utils: this.utils,
                     prometheusMetrics: this.prometheusMetrics,
-                    readinessService: this.readinessService,
                 }) as T;
             } else if (factory != null) {
                 serviceInstance = factory();

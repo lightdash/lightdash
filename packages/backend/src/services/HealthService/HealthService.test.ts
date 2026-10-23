@@ -516,12 +516,7 @@ describe('fast decisions in health', () => {
             decisions: { ...lightdashConfigMock.ai.decisions, apiKey: 'test' },
         },
     };
-    const build = (
-        lightdashConfig: typeof lightdashConfigMock,
-        isOrgOnOwnAiProviderKeys?: (
-            organizationUuid: string,
-        ) => Promise<boolean>,
-    ) =>
+    const build = (lightdashConfig: typeof lightdashConfigMock) =>
         new HealthService({
             organizationModel:
                 organizationModel as unknown as OrganizationModel,
@@ -532,64 +527,19 @@ describe('fast decisions in health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
-            isOrgOnOwnAiProviderKeys,
         });
 
     it('is off without a decision key', async () => {
-        const isOrgOnOwnAiProviderKeys = vi.fn(async () => false);
         expect(
-            (
-                await build(
-                    lightdashConfigMock,
-                    isOrgOnOwnAiProviderKeys,
-                ).getHealthState(userMock)
-            ).ai.fastDecisionsEnabled,
-        ).toBe(false);
-        expect(isOrgOnOwnAiProviderKeys).not.toHaveBeenCalled();
-    });
-
-    it('is on with a decision key for an org on instance keys', async () => {
-        const isOrgOnOwnAiProviderKeys = vi.fn(async () => false);
-        expect(
-            (
-                await build(withKey, isOrgOnOwnAiProviderKeys).getHealthState(
-                    userMock,
-                )
-            ).ai.fastDecisionsEnabled,
-        ).toBe(true);
-        expect(isOrgOnOwnAiProviderKeys).toHaveBeenCalledWith(
-            userMock.organizationUuid,
-        );
-    });
-
-    it('is off with a decision key for an org on its own provider keys', async () => {
-        expect(
-            (await build(withKey, async () => true).getHealthState(userMock)).ai
+            (await build(lightdashConfigMock).getHealthState(userMock)).ai
                 .fastDecisionsEnabled,
         ).toBe(false);
     });
 
-    it('is off when the org provider keys cannot be resolved', async () => {
-        expect(
-            (
-                await build(withKey, async () => {
-                    throw new Error('unreadable credential');
-                }).getHealthState(userMock)
-            ).ai.fastDecisionsEnabled,
-        ).toBe(false);
-    });
-
-    it('is on with a decision key when no org can bring its own keys', async () => {
+    it('is on with a decision key', async () => {
         expect(
             (await build(withKey).getHealthState(userMock)).ai
                 .fastDecisionsEnabled,
-        ).toBe(true);
-    });
-
-    it('reports the key to anonymous callers', async () => {
-        expect(
-            (await build(withKey, async () => true).getHealthState(undefined))
-                .ai.fastDecisionsEnabled,
         ).toBe(true);
     });
 });
