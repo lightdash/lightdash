@@ -4,7 +4,6 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AnyType,
-    CommercialFeatureFlags,
     ConflictError,
     DEFAULT_MANAGED_AGENT_POLICY,
     FeatureFlags,
@@ -38,17 +37,6 @@ import {
     createAutopilotAuthority,
 } from './autopilotAuthority';
 import { ManagedAgentService } from './ManagedAgentService';
-
-// Flag lookups other than the pre-aggregates kill switch, which every
-// heartbeat resolves while rendering the agent.
-const flagLookups = (featureFlagModel: {
-    get: { mock: { calls: unknown[][] } };
-}) =>
-    featureFlagModel.get.mock.calls.filter(
-        ([args]) =>
-            (args as { featureFlagId: string }).featureFlagId !==
-            CommercialFeatureFlags.PreAggregates,
-    );
 
 const captureAutopilotFailure = vi.fn();
 vi.mock('./autopilotFailure', async (importOriginal) => ({
@@ -1597,7 +1585,7 @@ describe('ManagedAgentService heartbeat authority', () => {
         await service.runHeartbeat(PROJECT_UUID, 'run-uuid');
 
         expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledTimes(2);
-        expect(flagLookups(featureFlagModel)).toHaveLength(2);
+        expect(featureFlagModel.get.mock.calls).toHaveLength(2);
         expect(agentPermissionService.loadRequest).not.toHaveBeenCalled();
         expect(
             agentPermissionService.assertOperationWithRequest,
@@ -1748,7 +1736,7 @@ describe('ManagedAgentService enabled heartbeat authority', () => {
             expect(captureAutopilotFailure).toHaveBeenCalledTimes(
                 failure === 'database' ? 1 : 0,
             );
-            expect(flagLookups(fixture.featureFlagModel)).toHaveLength(1);
+            expect(fixture.featureFlagModel.get.mock.calls).toHaveLength(1);
         },
     );
 
@@ -2092,7 +2080,7 @@ describe('ManagedAgentService authority check cadence', () => {
                 error: 'Autopilot actor is not configured for project project-uuid',
             }),
         );
-        expect(flagLookups(fixture.featureFlagModel)).toHaveLength(0);
+        expect(fixture.featureFlagModel.get.mock.calls).toHaveLength(0);
         expect(
             fixture.userModel.findSessionUserAndOrgByUuid,
         ).not.toHaveBeenCalled();
@@ -2151,7 +2139,7 @@ describe('ManagedAgentService authority review regressions', () => {
             await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
             expectAuthorityBlocked(fixture, blockedPersonMessage);
             expect(fixture.doGenerate).not.toHaveBeenCalled();
-            expect(flagLookups(fixture.featureFlagModel)).toHaveLength(0);
+            expect(fixture.featureFlagModel.get.mock.calls).toHaveLength(0);
             expect(
                 fixture.userModel.findSessionUserAndOrgByUuid,
             ).toHaveBeenCalledTimes(1);
