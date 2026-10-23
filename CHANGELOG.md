@@ -1,3 +1,11 @@
+# [3.39.0](https://github.com/lightdash/lightdash/compare/3.38.0...3.39.0) (2026-10-23)
+
+
+### Features
+
+* **composer-queries:** duckdb session + profile timings on execute span ([#31460](https://github.com/lightdash/lightdash/issues/31460)) ([959f703](https://github.com/lightdash/lightdash/commit/959f7033b91ee2015beea0a00dc87b1b288dd7e9))
+* **composer-queries:** stage spans + histogram for python and duckdb nodes ([#31351](https://github.com/lightdash/lightdash/issues/31351)) ([b92af4b](https://github.com/lightdash/lightdash/commit/b92af4b134072b70f4f1897f7b9541fae47a84d6))
+
 # [3.38.0](https://github.com/lightdash/lightdash/compare/3.37.0...3.38.0) (2026-10-23)
 
 
