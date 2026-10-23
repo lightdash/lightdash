@@ -4,7 +4,6 @@ import {
     getSourceQueryResultReferences,
     getSqlApprovalSql,
     getToolComposerQueriesDescription,
-    isSlackPrompt,
     QuerySourceType,
     queryToolDefinition,
     toolComposerQueryNodeToSourceQuery,
@@ -452,15 +451,7 @@ export const getRunComposerQueries = ({
                     });
                 }
 
-                // Slack renders composer results as a native table.
-                const isSlack = isSlackPrompt(prompt);
                 const artifactTitle = title ?? 'Composer query results';
-                if (isSlack && enableDataAccess) {
-                    agentContext.registerSlackTableResults(terminal.queryUuid, {
-                        rows: terminal.rows,
-                        fields: {},
-                    });
-                }
                 const metadata: ToolComposerQueriesSuccessMetadata = {
                     status: 'success',
                     queryUuid: terminal.queryUuid,
@@ -528,9 +519,7 @@ export const getRunComposerQueries = ({
                         ({ nodeId, ...applied }) =>
                             `Node "${nodeId}":${renderAppliedParameters(applied)}`,
                     ),
-                    isSlack
-                        ? `Not shared with the user yet. To include this table, write <slack-table queryUuid="${terminal.queryUuid}" /> in your final answer.`
-                        : `Not visualized yet. To present it to the user, call visualize with nodeId "${resolvedTerminalNodeId}".`,
+                    `Not visualized yet. To present it to the user, call visualize with nodeId "${resolvedTerminalNodeId}".`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),
                 ].join('\n');

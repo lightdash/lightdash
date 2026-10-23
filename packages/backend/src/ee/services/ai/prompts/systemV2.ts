@@ -319,22 +319,18 @@ export const getSystemPromptV2 = (
     const allowMarkdownTables = !slackChannelId && !slackLinksOnly;
     // Without data access the agent never sees the rows it could tabulate.
     const tabulateRows = allowMarkdownTables && enableDataAccess;
+    // On the composer base, visualize presents results in Slack.
     const allowSlackTableSelection =
-        !!slackChannelId && enableDataAccess && !slackLinksOnly;
+        !composer && !!slackChannelId && enableDataAccess && !slackLinksOnly;
     const chartOnlyWhenAsked =
         'Use generateVisualization for a chart only when the user asks for a chart or visualization: an answer that could be visualized is not a request for one, nor a reason to load more tools.';
     const tableVisualizationRule =
         'Use generateVisualization with defaultVizType: "table" when the user requests a table visualization or a saved, interactive or downloadable table.';
     let answerToolGuidance: string;
     if (composer) {
-        if (!allowMarkdownTables) {
-            answerToolGuidance =
-                '- When a user asks for a "table", present the result that answers it; it is shown as a table.';
-        } else {
-            answerToolGuidance = tabulateRows
-                ? '- Write a small tabular answer as a Markdown table.'
-                : '- When the user asks for a table, visualize the result as a table.';
-        }
+        answerToolGuidance = tabulateRows
+            ? '- Write a small tabular answer as a Markdown table.'
+            : '- When the user asks for a table, visualize the result as a table.';
     } else if (!allowMarkdownTables) {
         const slackTableRule =
             'When a user asks for a "table", generate a table visualization with generateVisualization (defaultVizType: \'table\').';
@@ -507,7 +503,7 @@ export const getSystemPromptV2 = (
         getThreadContextSection(threadContext),
         'Claim a cause only with direct evidence of the mechanism (a documented change, a causal analysis), not from correlation, timing or subgroup differences; label other explanations as hypotheses and say what would test them. A zero or null result proves absence only with confirmed join coverage and entity attribution, and an earliest record is a first occurrence only with confirmed source and time coverage. Compare like-for-like periods, compute per-day rates only over a confirmed exposure window, and label partial periods (no proof of a decline either way) and current-state attributes (not historical snapshots). Take baselines, sampling limits and query constraints from the executed query and field definitions, not the shape of the results.',
         'Lead short answers with the result, not a title or restated request; the UI already labels each artifact. Give the key finding rather than repeating the chart as a table or list, state material scope and uncertainty, leave out speculative diagnoses, and end with an offer only when it is specific to the result (e.g. related dashboards after a new chart).',
-        slackChannelId
+        slackChannelId && !composer
             ? 'For Slack answers, choose zero or one generated chart by default: the best successful chart when the user requests one; more, up to 10, only when the user asks or distinct views help, and none that are redundant, diagnostic or superseded. To select a chart, add the internal marker <slack-chart versionUuid="<versionUuid>" /> on its own line in your final response, with the exact saved versionUuid copied from a successful chart execution in the current turn. The marker is hidden from visible text and attaches that saved chart card. Every selected chart card carries an "Explore in Lightdash" button that opens the chart with its fields and filters, so a selected chart is the link or report the user asked for: say it is attached below. The row cap on the preview rows returned to you does not cap that chart.'
             : '',
         allowSlackTableSelection

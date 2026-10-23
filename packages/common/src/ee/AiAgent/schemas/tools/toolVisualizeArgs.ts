@@ -40,7 +40,20 @@ const toolVisualizeSuccessMetadataSchema = z.object({
     nodeId: z.string(),
     artifactUuid: z.string(),
     versionUuid: z.string(),
+    // Set when the node was run; Slack reads table rows from this execution.
+    queryUuid: z.string().nullable(),
 });
+
+export type ToolVisualizeSuccessMetadata = z.infer<
+    typeof toolVisualizeSuccessMetadataSchema
+>;
+
+export const parseToolVisualizeSuccessMetadata = (
+    metadata: unknown,
+): ToolVisualizeSuccessMetadata | null => {
+    const parsed = toolVisualizeSuccessMetadataSchema.safeParse(metadata);
+    return parsed.success ? parsed.data : null;
+};
 
 export const toolVisualizeOutputSchema = structuredToolOutputSchema({
     metadata: z.discriminatedUnion('status', [

@@ -932,6 +932,36 @@ export async function getModernArtifactCardBlocks(
                 });
             }
 
+            // Composer charts post a link until Slack renders their images.
+            if (
+                isAiComposerChartArtifactConfig(artifact.chartConfig) &&
+                artifact.chartConfig.schemaVersion === 2 &&
+                agentUuid
+            ) {
+                const isTable =
+                    artifact.chartConfig.vizConfig?.type === 'table';
+                return buildSlackCardBlock({
+                    blockId: `ai_agent_composer_card_${artifact.versionUuid}`,
+                    title: getArtifactTitle(artifact),
+                    subtitle: isTable ? 'Table' : 'Chart',
+                    body:
+                        artifact.description ||
+                        `Open the thread to see this ${isTable ? 'table' : 'chart'}.`,
+                    actions: [
+                        {
+                            type: 'button',
+                            url: `${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}`,
+                            style: 'primary',
+                            action_id: `actions.view_composer_card_button_click.${index}`,
+                            text: {
+                                type: 'plain_text',
+                                text: 'Explore in Lightdash',
+                            },
+                        },
+                    ],
+                });
+            }
+
             if (artifact.dashboardConfig && agentUuid) {
                 return buildSlackCardBlock({
                     blockId: `ai_agent_dashboard_card_${artifact.versionUuid}`,

@@ -471,17 +471,19 @@ describe('getSystemPromptV2 composer queries', () => {
         expect(content).not.toMatch(/\bpresent the result|<show/i);
     });
 
-    test('Slack answers share composer tables without visualize guidance', () => {
+    test('Slack composer answers present with visualize, without Slack markers', () => {
         const content = promptText({
             availableExplores: [],
             promptSections: composerSections(),
             slackChannelId: 'channel',
+            enableDataAccess: true,
         });
 
-        expect(content).not.toContain('call visualize');
         expect(content).toContain(
-            'whose terminal node is the table you can share',
+            'call visualize on the node your answer rests on when the user asks for a chart or a table',
         );
+        expect(content).not.toContain('<slack-table');
+        expect(content).not.toContain('<slack-chart');
     });
 
     test.each([

@@ -22202,6 +22202,16 @@ Pie and series-split charts return readability notes when they have many slices 
                         "nodeId": {
                           "type": "string",
                         },
+                        "queryUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
                         "status": {
                           "const": "success",
                           "type": "string",
@@ -22215,6 +22225,7 @@ Pie and series-split charts return readability notes when they have many slices 
                         "nodeId",
                         "artifactUuid",
                         "versionUuid",
+                        "queryUuid",
                       ],
                       "type": "object",
                     },
@@ -22298,6 +22309,16 @@ Pie and series-split charts return readability notes when they have many slices 
                         "nodeId": {
                           "type": "string",
                         },
+                        "queryUuid": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                            },
+                            {
+                              "type": "null",
+                            },
+                          ],
+                        },
                         "status": {
                           "const": "success",
                           "type": "string",
@@ -22311,6 +22332,7 @@ Pie and series-split charts return readability notes when they have many slices 
                         "nodeId",
                         "artifactUuid",
                         "versionUuid",
+                        "queryUuid",
                       ],
                       "type": "object",
                     },
