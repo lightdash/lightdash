@@ -128,3 +128,33 @@ test('a healthy marked status is not cached across a later rejection on the same
     });
     expect(accessToken).toHaveBeenCalledTimes(2);
 });
+
+test('reprobes a completed unknown marked attempt while coalescing pending work and retaining confirmed expiry', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const probe = new GoogleSignInProbe();
+    await probe.check(keyfile, 'incarnation_a');
+    accessToken.mockRejectedValueOnce(new Error('network unavailable'));
+    expect(await probe.check(keyfile, 'incarnation_a', true)).toEqual({
+        expired: undefined,
+    });
+    expect(await probe.check(keyfile, 'incarnation_a')).toEqual({
+        expired: undefined,
+    });
+    expect(accessToken).toHaveBeenCalledTimes(2);
+    const pending = Promise.withResolvers<never>();
+    accessToken.mockReturnValueOnce(pending.promise);
+    const first = probe.check(keyfile, 'incarnation_a', true);
+    const second = probe.check(keyfile, 'incarnation_a', true);
+    expect(accessToken).toHaveBeenCalledTimes(3);
+    pending.reject({
+        response: { status: 400, data: { error: 'invalid_grant' } },
+    });
+    const expired = {
+        expired: true,
+        rejection: WarehouseSignInRejection.INVALID_GRANT,
+    };
+    expect(await first).toEqual(expired);
+    expect(await second).toEqual(expired);
+    expect(await probe.check(keyfile, 'incarnation_a', true)).toEqual(expired);
+    expect(accessToken).toHaveBeenCalledTimes(3);
+});

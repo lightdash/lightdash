@@ -37,7 +37,8 @@ export class GoogleSignInProbe {
             cached &&
             cached.until > Date.now() &&
             (!afterRejection ||
-                (cached.afterRejection && cached.status?.expired !== false))
+                (cached.afterRejection &&
+                    (cached.status === null || cached.status.expired === true)))
         )
             return cached.result;
         const result = this.probe(keyfile);
