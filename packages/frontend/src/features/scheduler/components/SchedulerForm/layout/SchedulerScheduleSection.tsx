@@ -3,8 +3,8 @@ import { Box, Input, Stack, TextInput } from '@mantine/core';
 import { useMemo, type FC } from 'react';
 import TimeZonePicker from '../../../../../components/common/TimeZonePicker';
 import { CronInternalInputs } from '../../../../../components/CronInput';
-import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useProject } from '../../../../../hooks/useProject';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 
 type Props = {
@@ -13,8 +13,8 @@ type Props = {
 
 export const SchedulerScheduleSection: FC<Props> = ({ isThresholdAlert }) => {
     const form = useSchedulerFormContext();
-    const { activeProjectUuid } = useActiveProjectUuid();
-    const { data: project } = useProject(activeProjectUuid);
+    const projectUuid = useProjectUuid();
+    const { data: project } = useProject(projectUuid);
 
     const projectDefaultOffsetString = useMemo(() => {
         if (!project) return undefined;
