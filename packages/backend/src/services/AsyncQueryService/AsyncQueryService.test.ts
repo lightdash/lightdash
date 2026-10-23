@@ -101,6 +101,7 @@ import { getTracker, MockClient } from 'knex-mock-client';
 import { StringCodec, type JsMsg } from 'nats';
 import ExecutionContext from 'node-execution-context';
 import { PassThrough, Readable, Writable } from 'stream';
+import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import {
     fromApiKey,
@@ -11106,14 +11107,31 @@ describe('AsyncQueryService', () => {
             },
         );
 
-        test.each([false, true])(
-            'bypasses the factory with a client override (fails: %s)',
-            async (fails) => {
+        test.each(
+            (
+                [
+                    'pre_aggregate_duckdb',
+                    'external_source_duckdb',
+                    'composer_duckdb',
+                ] as const
+            ).flatMap((source) => [
+                [source, false],
+                [source, true],
+            ]),
+        )(
+            'bypasses the factory with a %s client override (fails: %s)',
+            async (executionSource, fails) => {
                 const service = getMockedAsyncQueryService(lightdashConfigMock);
                 const factory = vi.spyOn(
                     service.warehouseClientFactory,
                     'withWarehouseClient',
                 );
+                const track = vi.spyOn(
+                    (service as unknown as { analytics: LightdashAnalytics })
+                        .analytics,
+                    'track',
+                );
+                track.mockClear();
                 const queryError = new Error('override failed');
                 const client = {
                     ...warehouseClientMock,
@@ -11125,10 +11143,7 @@ describe('AsyncQueryService', () => {
                     client.executeAsyncQuery.mockRejectedValueOnce(queryError);
                 const run = service.runAsyncWarehouseQuery({
                     ...args,
-                    warehouseClientOverride: {
-                        client,
-                        executionSource: 'pre_aggregate_duckdb',
-                    },
+                    warehouseClientOverride: { client, executionSource },
                     resultProducerOverride: {
                         version: 1,
                         warehouseConnectionUuid: null,
@@ -11140,6 +11155,20 @@ describe('AsyncQueryService', () => {
                 else await expect(run).resolves.toBeUndefined();
                 expect(factory).not.toHaveBeenCalled();
                 expect(client.executeAsyncQuery).toHaveBeenCalledOnce();
+                const sources = track.mock.calls.flatMap(([event]) =>
+                    event.event === 'query.ready' ? [event] : [],
+                );
+                expect(sources).toEqual(
+                    fails
+                        ? []
+                        : [
+                              expect.objectContaining({
+                                  properties: expect.objectContaining({
+                                      executionSource,
+                                  }),
+                              }),
+                          ],
+                );
             },
         );
 
@@ -16227,12 +16256,18 @@ describe('runDuckdbQuery', () => {
     it('a run over the same result files is served from the earlier run without touching DuckDB', async () => {
         const { streamQuery, warehouseClient } = probingClient({});
         const {
+            service,
             run,
             runWarehouseQuery,
             findCachedResultsFile,
             markDuckdbCacheHit,
             update,
         } = buildService(cachedResults);
+        const track = vi.spyOn(
+            (service as unknown as { analytics: LightdashAnalytics }).analytics,
+            'track',
+        );
+        track.mockClear();
 
         await run(
             baseArgs({
@@ -16266,6 +16301,15 @@ describe('runDuckdbQuery', () => {
                 warehouse_execution_time_ms: 0,
             }),
             expect.anything(),
+        );
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'query.completed',
+                properties: expect.objectContaining({
+                    cacheHit: true,
+                    executionSource: 'composer_duckdb',
+                }),
+            }),
         );
     });
 

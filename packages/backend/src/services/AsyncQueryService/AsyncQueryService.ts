@@ -5333,7 +5333,7 @@ export class AsyncQueryService extends ProjectService {
                     const s3UploadMs = Date.now() - s3UploadStart;
                     onComposerStageTimed?.('upload', s3UploadMs);
                     if (
-                        executionSource === 'pre_aggregate_duckdb' ||
+                        executionSource !== 'warehouse' ||
                         this.lightdashConfig.prometheus.allQueryMetricsEnabled
                     ) {
                         this.prometheusMetrics?.observeS3ResultsUploadDuration(
