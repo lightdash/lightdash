@@ -19,6 +19,7 @@ import {
     TooManyRequestsError,
     type Account,
     type AnalysisTarget,
+    type AnalysisTargetRef,
     type DataAppAnalysis,
     type DataAppAnalysisLimits,
     type DataAppAnalysisLookup,
@@ -63,7 +64,10 @@ import {
     type DbDataAppAnalysis,
 } from '../../database/entities/dataAppAnalyses';
 import { type AiAgentModel } from '../../models/AiAgentModel';
-import { type DataAppAnalysisModel } from '../../models/DataAppAnalysisModel';
+import {
+    rowTarget,
+    type DataAppAnalysisModel,
+} from '../../models/DataAppAnalysisModel';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { DATA_APP_INVESTIGATE_TOOL_NAMES } from '../ai/agents/agentV2';
@@ -658,8 +662,7 @@ export class DataAppAnalysisService extends BaseService {
         return {
             ...row.result,
             analysisId: row.data_app_analysis_uuid,
-            appUuid: row.app_id,
-            appVersion: row.app_version,
+            target: rowTarget(row),
             sources: row.sources,
             generatedAt: row.created_at,
         };
@@ -672,8 +675,7 @@ export class DataAppAnalysisService extends BaseService {
             ...row.result,
             investigationId: row.data_app_analysis_uuid,
             analysisId: row.parent_analysis_uuid,
-            appUuid: row.app_id,
-            appVersion: row.app_version,
+            target: rowTarget(row),
             generatedAt: row.created_at,
         };
     }
@@ -694,9 +696,13 @@ export class DataAppAnalysisService extends BaseService {
         sectionHashes: DataAppSourceHash[];
         contentHash: string;
     }): Promise<DataAppAnalysisLookup | null> {
-        const own = await this.dataAppAnalysisModel.findLatestDetectByHash({
+        const target: AnalysisTargetRef = {
+            kind: 'app',
             appUuid: args.appUuid,
             appVersion: args.appVersion,
+        };
+        const own = await this.dataAppAnalysisModel.findLatestDetectByHash({
+            target,
             contentHash: args.contentHash,
             userUuid: args.user.userUuid,
         });
@@ -741,8 +747,7 @@ export class DataAppAnalysisService extends BaseService {
             };
         }
         const shared = await this.dataAppAnalysisModel.findLatestDetectByHash({
-            appUuid: args.appUuid,
-            appVersion: args.appVersion,
+            target,
             contentHash: args.contentHash,
             userUuid: null,
         });
@@ -755,8 +760,7 @@ export class DataAppAnalysisService extends BaseService {
         const copy = await this.dataAppAnalysisModel.create({
             organizationUuid: args.user.organizationUuid!,
             projectUuid: args.projectUuid,
-            appUuid: args.appUuid,
-            appVersion: args.appVersion,
+            target,
             createdByUserUuid: args.user.userUuid,
             operation: 'detect',
             sources: args.sources,
@@ -1030,8 +1034,7 @@ export class DataAppAnalysisService extends BaseService {
         const row = await this.dataAppAnalysisModel.create({
             organizationUuid: user.organizationUuid!,
             projectUuid,
-            appUuid,
-            appVersion,
+            target: { kind: 'app', appUuid, appVersion },
             createdByUserUuid: user.userUuid,
             operation: 'detect',
             sources,
@@ -1050,8 +1053,7 @@ export class DataAppAnalysisService extends BaseService {
             analysis: {
                 ...result,
                 analysisId: row.data_app_analysis_uuid,
-                appUuid,
-                appVersion,
+                target: { kind: 'app', appUuid, appVersion },
                 sources,
                 generatedAt: row.created_at,
             },
@@ -1071,7 +1073,7 @@ export class DataAppAnalysisService extends BaseService {
             Math.floor(now / RATE_WINDOW_MS) * RATE_WINDOW_MS,
         );
         const count = await this.dataAppAnalysisModel.incrementRateCounter({
-            appUuid,
+            targetUuid: appUuid,
             userUuid,
             operation,
             windowStartedAt,
@@ -1276,8 +1278,7 @@ export class DataAppAnalysisService extends BaseService {
         const row = await this.dataAppAnalysisModel.create({
             organizationUuid: user.organizationUuid!,
             projectUuid,
-            appUuid,
-            appVersion,
+            target: { kind: 'app', appUuid, appVersion },
             createdByUserUuid: user.userUuid,
             operation: 'prompt',
             sources: body.sources,
@@ -1291,8 +1292,7 @@ export class DataAppAnalysisService extends BaseService {
         return {
             ...result,
             promptId: row.data_app_analysis_uuid,
-            appUuid,
-            appVersion,
+            target: { kind: 'app', appUuid, appVersion },
             sources: body.sources,
             generatedAt: row.created_at,
         };
@@ -1300,8 +1300,7 @@ export class DataAppAnalysisService extends BaseService {
 
     private static toRecord(row: DbDataAppAnalysis): DataAppAnalysisRecord {
         const base = {
-            appUuid: row.app_id,
-            appVersion: row.app_version,
+            target: rowTarget(row),
             generatedAt: row.created_at,
         };
         if (row.operation === 'detect') {
@@ -1338,7 +1337,7 @@ export class DataAppAnalysisService extends BaseService {
     ): Promise<DbDataAppAnalysis & { operation: 'detect' }> {
         const row = await this.dataAppAnalysisModel.find(
             analysisId,
-            appUuid,
+            { kind: 'app', targetUuid: appUuid },
             user.userUuid,
         );
         if (!row || row.operation !== 'detect') {
@@ -1372,7 +1371,7 @@ export class DataAppAnalysisService extends BaseService {
         const { user } = await this.assertViewer(account, projectUuid, appUuid);
         const row = await this.dataAppAnalysisModel.find(
             analysisId,
-            appUuid,
+            { kind: 'app', targetUuid: appUuid },
             user.userUuid,
         );
         if (!row) {
@@ -1669,8 +1668,7 @@ export class DataAppAnalysisService extends BaseService {
             const row = await this.dataAppAnalysisModel.create({
                 organizationUuid: payload.organizationUuid,
                 projectUuid: payload.projectUuid,
-                appUuid: payload.appUuid,
-                appVersion,
+                target: { kind: 'app', appUuid: payload.appUuid, appVersion },
                 createdByUserUuid: user.userUuid,
                 operation: 'investigate',
                 sources: source ? [source] : [],

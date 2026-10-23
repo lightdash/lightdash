@@ -9,6 +9,15 @@ import type { TraceTaskBase } from '../../types/scheduler';
  */
 export type AnalysisTarget = 'app' | 'dashboard';
 
+/**
+ * The concrete thing one stored analysis ran over. Apps carry their version
+ * because results are cached per build; dashboards have no version — the
+ * content hash alone decides reuse.
+ */
+export type AnalysisTargetRef =
+    | { kind: 'app'; appUuid: string; appVersion: number }
+    | { kind: 'dashboard'; dashboardUuid: string };
+
 /** Whether an app analyses on load: its own choice, or the org default. */
 export type DataAppAutoAnalysis = 'inherit' | 'on' | 'off';
 
@@ -103,8 +112,7 @@ export type DataAppLookupRequest = {
 
 export type DataAppAnalysis = DataAppDetectResult & {
     analysisId: string;
-    appUuid: string;
-    appVersion: number;
+    target: AnalysisTargetRef;
     sources: DataAppAnalysisSource[];
     generatedAt: Date;
 };
@@ -132,8 +140,7 @@ export type DataAppInvestigateResult = {
 export type DataAppInvestigation = DataAppInvestigateResult & {
     investigationId: string;
     analysisId: string;
-    appUuid: string;
-    appVersion: number;
+    target: AnalysisTargetRef;
     generatedAt: Date;
 };
 
@@ -165,8 +172,7 @@ export type DataAppPromptResult = {
 
 export type DataAppPromptAnswer = DataAppPromptResult & {
     promptId: string;
-    appUuid: string;
-    appVersion: number;
+    target: AnalysisTargetRef;
     sources: DataAppAnalysisSource[];
     generatedAt: Date;
 };

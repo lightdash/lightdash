@@ -93,14 +93,22 @@ function buildService(
     } = {},
 ) {
     const dataAppAnalysisModel = {
-        create: vi.fn(async (data: Record<string, unknown>) => ({
-            data_app_analysis_uuid: 'analysis-1',
-            created_at: new Date('2026-09-15T10:00:00Z'),
-            app_id: data.appUuid,
-            app_version: data.appVersion,
-            created_by_user_uuid: data.createdByUserUuid,
-            ...data,
-        })),
+        create: vi.fn(async (data: Record<string, unknown>) => {
+            const target = data.target as {
+                appUuid?: string;
+                appVersion?: number;
+                dashboardUuid?: string;
+            };
+            return {
+                data_app_analysis_uuid: 'analysis-1',
+                created_at: new Date('2026-09-15T10:00:00Z'),
+                app_id: target.appUuid ?? null,
+                app_version: target.appVersion ?? null,
+                dashboard_uuid: target.dashboardUuid ?? null,
+                created_by_user_uuid: data.createdByUserUuid,
+                ...data,
+            };
+        }),
         findLatestDetectByHash: vi.fn().mockResolvedValue(null),
         findInvestigations: vi.fn().mockResolvedValue([]),
         rebindSources: vi.fn().mockResolvedValue(undefined),
@@ -290,7 +298,11 @@ describe('DataAppAnalysisService.detect', () => {
         );
 
         expect(result.analysisId).toBe('analysis-1');
-        expect(result.appVersion).toBe(3);
+        expect(result.target).toEqual({
+            kind: 'app',
+            appUuid: 'app-1',
+            appVersion: 3,
+        });
         expect(result.anomalies).toHaveLength(1);
         expect(result.anomalies[0].dimensionValues).toEqual({
             orders_status: 'returned',
@@ -302,7 +314,7 @@ describe('DataAppAnalysisService.detect', () => {
         expect(dataAppAnalysisModel.create).toHaveBeenCalledWith(
             expect.objectContaining({
                 operation: 'detect',
-                appVersion: 3,
+                target: { kind: 'app', appUuid: 'app-1', appVersion: 3 },
                 modelId: 'fast-model',
                 result: expect.objectContaining({
                     anomalies: result.anomalies,
@@ -1083,7 +1095,7 @@ describe('DataAppAnalysisService.prompt', () => {
         });
         expect(dataAppAnalysisModel.incrementRateCounter).toHaveBeenCalledWith(
             expect.objectContaining({
-                appUuid: 'app-1',
+                targetUuid: 'app-1',
                 userUuid: buildAccount().user.id,
                 operation: 'prompt',
             }),
@@ -1117,7 +1129,7 @@ describe('DataAppAnalysisService rate limits', () => {
             },
         });
         expect(dataAppAnalysisModel.incrementRateCounter).toHaveBeenCalledWith({
-            appUuid: 'app-1',
+            targetUuid: 'app-1',
             userUuid: buildAccount().user.id,
             operation: 'detect',
             windowStartedAt: new Date(Date.UTC(2026, 8, 22, 12, 34, 0)),
@@ -1562,7 +1574,7 @@ describe('DataAppAnalysisService.investigate', () => {
         ).rejects.toMatchObject({ statusCode: 404 });
         expect(find).toHaveBeenCalledWith(
             'analysis-1',
-            'other-app',
+            { kind: 'app', targetUuid: 'other-app' },
             buildAccount().user.id,
         );
         expect(dataAppInvestigate).not.toHaveBeenCalled();

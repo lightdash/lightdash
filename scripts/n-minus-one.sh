@@ -45,6 +45,11 @@ EXCLUDED_API_TESTS=(
     "tests/async-query.test.ts|it queries the jaffle tables in database postgres on port 5432, not the database this run seeds"
 )
 PREVIEW_FEATURE_ENV=(
+    # The preview stack resolves DB feature flags on via pr-mode preview
+    # defaults, which this harness does not enable. SCIM provisioning is
+    # gated on the commercial scim-token-management flag (#31474), and the
+    # previous release's SCIM tests expect it on, so force that flag here.
+    LIGHTDASH_ENABLE_FEATURE_FLAGS=scim-token-management
     GROUPS_ENABLED=true
     MCP_ENABLED=true
     CUSTOM_ROLES_ENABLED=true
