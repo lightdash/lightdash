@@ -1,3 +1,10 @@
+# [3.46.0](https://github.com/lightdash/lightdash/compare/3.45.0...3.46.0) (2026-10-23)
+
+
+### Features
+
+* make Learn available on every instance and remove enable-learn ([#31477](https://github.com/lightdash/lightdash/issues/31477)) ([466ad7c](https://github.com/lightdash/lightdash/commit/466ad7c1457bd1e5288e0bbdf6bff1c635c4a287))
+
 # [3.45.0](https://github.com/lightdash/lightdash/compare/3.44.1...3.45.0) (2026-10-23)
 
 
