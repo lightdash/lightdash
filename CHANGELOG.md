@@ -1,3 +1,10 @@
+# [3.49.0](https://github.com/lightdash/lightdash/compare/3.48.2...3.49.0) (2026-10-23)
+
+
+### Features
+
+* **ai:** list a turn's query pipelines under unvisualized composer messages ([#31482](https://github.com/lightdash/lightdash/issues/31482)) ([0ea6b0a](https://github.com/lightdash/lightdash/commit/0ea6b0a1db011f4f1460a0b1c26b66d8e003d739))
+
 ## [3.48.2](https://github.com/lightdash/lightdash/compare/3.48.1...3.48.2) (2026-10-23)
 
 
