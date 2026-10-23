@@ -166,15 +166,16 @@ const getChartReference = (
     artifact: Pick<AiArtifact, 'versionUuid'> | undefined,
 ) =>
     isSlackPrompt(prompt) && artifact && !isTableResult(chartConfig)
-        ? ` This chart's versionUuid is ${artifact.versionUuid}; use exactly this value to select the saved chart in your final answer.`
+        ? ` This chart's versionUuid is ${artifact.versionUuid}; to attach it to your Slack answer, add <slack-chart versionUuid="${artifact.versionUuid}" /> on its own line.`
         : '';
 
 const getDocumentReference = (
+    prompt: Awaited<ReturnType<GetPromptFn>>,
     chartConfig: ToolRunQueryArgsTransformed['chartConfig'],
     artifact: Pick<AiArtifact, 'versionUuid'> | undefined,
     documentsEnabled: boolean,
 ) => {
-    if (!documentsEnabled || !artifact) return '';
+    if (!documentsEnabled || !artifact || isSlackPrompt(prompt)) return '';
     return isTableResult(chartConfig)
         ? ` To place this result in a Document, use <query-result version="${artifact.versionUuid}" display="table">, or display="big_number" for a single value.`
         : ` To place this chart in a Document, use <artifact-chart version="${artifact.versionUuid}">.`;
@@ -779,7 +780,7 @@ export const getRunQuery = ({
                 ) {
                     const artifact = await createOrUpdateArtifactHook();
                     return {
-                        result: `Success${getChartReference(prompt, queryTool.chartConfig, artifact)}${getDocumentReference(queryTool.chartConfig, artifact, documentsEnabled)}`,
+                        result: `Success${getChartReference(prompt, queryTool.chartConfig, artifact)}${getDocumentReference(prompt, queryTool.chartConfig, artifact, documentsEnabled)}`,
                         metadata: {
                             status: 'success',
                             ...(isSlackPrompt(prompt) && artifact
@@ -1002,7 +1003,7 @@ export const getRunQuery = ({
                     prompt,
                     queryTool.chartConfig,
                     artifact,
-                )}${getDocumentReference(queryTool.chartConfig, artifact, documentsEnabled)}`;
+                )}${getDocumentReference(prompt, queryTool.chartConfig, artifact, documentsEnabled)}`;
                 if (isSlackPrompt(prompt) && !slackLinksOnly) {
                     await deferSlackChart({
                         queryTool,
