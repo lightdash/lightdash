@@ -646,7 +646,16 @@ describe('cross-connection dbt ref diagnostics', () => {
 
     it('stages fresh catalogues in each group and replaces confirmed rows after all artifacts persist', async () => {
         const h = harness({ providerGroup: 'extra' });
+        const info = vi.spyOn(Logger, 'info');
         const compilation = await h.compiler.compile(h.input);
+        expect(info).toHaveBeenCalledWith(
+            'dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=1 packageNodesOmitted=0',
+            expect.objectContaining({
+                event: 'dbt.compile.crossSourceRefsResolved',
+                ownedInjected: 1,
+                packageNodesOmitted: 0,
+            }),
+        );
         expect(h.dbtSourceRefCatalogModel.get).toHaveBeenCalledWith(
             'project',
             'original',

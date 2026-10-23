@@ -518,6 +518,8 @@ it('preserves disabled work byte for byte and never prepares or writes cache row
         warnings: [],
         scan: { known: 0, ordered: 0 },
         firstAttemptInjected: 0,
+        ownedInjected: 0,
+        packageNodesOmitted: 0,
     });
 });
 
@@ -1370,6 +1372,10 @@ it.each(['confirmed', 'fresh'])(
             ),
         );
         expect(resolution.results).toHaveLength(3);
+        expect(resolution.ownedInjected).toBe(2);
+        expect(resolution.packageNodesOmitted).toBe(
+            source === 'confirmed' ? 4 : 2,
+        );
         expect(cache).toEqual(before);
     },
 );

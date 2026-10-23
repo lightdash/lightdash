@@ -9195,7 +9195,7 @@ export class ProjectService
         });
         if (crossSourceRefsEnabled) {
             this.logger.info(
-                `dbt.compile.crossSourceRefsResolved diskEvictions=${diskPool.stats.diskEvictions} diskRecreations=${diskPool.stats.diskRecreations}`,
+                `dbt.compile.crossSourceRefsResolved diskEvictions=${diskPool.stats.diskEvictions} diskRecreations=${diskPool.stats.diskRecreations} ownedInjected=${resolution.ownedInjected} packageNodesOmitted=${resolution.packageNodesOmitted}`,
                 {
                     ...diskPool.stats,
                     event: 'dbt.compile.crossSourceRefsResolved',
@@ -9206,6 +9206,8 @@ export class ProjectService
                     cacheRowsWritten: catalogCache?.rowsWritten ?? 0,
                     scannedEdges: resolution.scan.known,
                     firstAttemptInjected: resolution.firstAttemptInjected,
+                    ownedInjected: resolution.ownedInjected,
+                    packageNodesOmitted: resolution.packageNodesOmitted,
                     dbtLsRuns: resolution.attempts,
                     preflightWarnings: resolution.preflightWarnings,
                     timeouts: {

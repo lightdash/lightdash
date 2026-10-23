@@ -487,7 +487,7 @@ export class MultiConnectionCompiler {
         warnings.push(...resolution.warnings);
         if (enabled) {
             Logger.info(
-                `dbt.compile.crossSourceRefsResolved diskEvictions=${resolutionOptions.diskStats?.diskEvictions ?? 0} diskRecreations=${resolutionOptions.diskStats?.diskRecreations ?? 0}`,
+                `dbt.compile.crossSourceRefsResolved diskEvictions=${resolutionOptions.diskStats?.diskEvictions ?? 0} diskRecreations=${resolutionOptions.diskStats?.diskRecreations ?? 0} ownedInjected=${resolution.ownedInjected} packageNodesOmitted=${resolution.packageNodesOmitted}`,
                 {
                     ...resolutionOptions.diskStats,
                     event: 'dbt.compile.crossSourceRefsResolved',
@@ -498,6 +498,8 @@ export class MultiConnectionCompiler {
                     cacheRowsWritten: catalogCache?.rowsWritten ?? 0,
                     scannedEdges: resolution.scan.known,
                     firstAttemptInjected: resolution.firstAttemptInjected,
+                    ownedInjected: resolution.ownedInjected,
+                    packageNodesOmitted: resolution.packageNodesOmitted,
                     dbtLsRuns: resolution.attempts,
                     preflightWarnings: resolution.preflightWarnings,
                     timeouts:

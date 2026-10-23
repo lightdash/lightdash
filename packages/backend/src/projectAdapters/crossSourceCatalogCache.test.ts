@@ -177,3 +177,51 @@ it('keeps last-good rows unchanged when a refresh stops after resolving a source
     ]);
     expect(model.replaceConfirmed).not.toHaveBeenCalled();
 });
+
+it('logs the written batch only after confirmation succeeds', async () => {
+    const { model, cache } = setup();
+    const info = vi.spyOn(Logger, 'info');
+    await cache.resolved('first', nodes, 'provider', []);
+    await cache.resolved('second', nodes, 'provider', []);
+    let complete: () => void = () => undefined;
+    model.replaceConfirmed.mockImplementationOnce(
+        () =>
+            new Promise<undefined>((resolve) => {
+                complete = () => resolve(undefined);
+            }),
+    );
+    const confirmation = cache.confirm();
+    expect(info).not.toHaveBeenCalled();
+    expect(cache.rowsWritten).toBe(0);
+    complete();
+    await confirmation;
+    expect(cache.rowsWritten).toBe(2);
+    expect(info).toHaveBeenLastCalledWith(
+        'dbt.compile.crossSourceLastGoodConfirmed rowsWritten=2 projectUuid=project connectionGroup=original',
+        {
+            event: 'dbt.compile.crossSourceLastGoodConfirmed',
+            projectUuid: 'project',
+            connectionGroup: 'original',
+            rowsWritten: 2,
+        },
+    );
+    await cache.resolved('third', nodes, 'provider', []);
+    await cache.confirm();
+    expect(cache.rowsWritten).toBe(3);
+    expect(info).toHaveBeenLastCalledWith(
+        'dbt.compile.crossSourceLastGoodConfirmed rowsWritten=1 projectUuid=project connectionGroup=original',
+        expect.objectContaining({ rowsWritten: 1 }),
+    );
+    info.mockRestore();
+});
+
+it('does not log a successful confirmation when replacement fails', async () => {
+    const { model, cache } = setup();
+    const info = vi.spyOn(Logger, 'info');
+    model.replaceConfirmed.mockRejectedValue(new Error('write failed'));
+    await cache.resolved('source', nodes, 'provider', []);
+    await cache.confirm();
+    expect(info).not.toHaveBeenCalled();
+    expect(cache.rowsWritten).toBe(0);
+    info.mockRestore();
+});

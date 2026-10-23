@@ -76,6 +76,8 @@ export type CrossSourceResolution<T> = {
     warnings: string[];
     scan: { known: number; ordered: number };
     firstAttemptInjected: number;
+    ownedInjected: number;
+    packageNodesOmitted: number;
     sources?: {
         key: string;
         lsRuns: number;
@@ -167,8 +169,17 @@ export const resolveCrossSourceManifests = async <T>({
             warnings: [],
             scan: { known: 0, ordered: 0 },
             firstAttemptInjected: 0,
+            ownedInjected: 0,
+            packageNodesOmitted: 0,
         };
     }
+    let packageNodesOmitted = cache.reduce(
+        (count, row) =>
+            count +
+            row.nodes.filter((node) => node.package_name !== row.projectName)
+                .length,
+        0,
+    );
     const seededCatalogs = cache.map((row) => ({
         ...row,
         referencedProjects: [...row.referencedProjects],
@@ -577,6 +588,20 @@ export const resolveCrossSourceManifests = async <T>({
                     fetched.manifest,
                 );
                 const newName = fetched.manifest.metadata.project_name;
+                if (newName) {
+                    packageNodesOmitted += Object.values(fetched.manifest.nodes)
+                        .filter((node) =>
+                            ['model', 'seed', 'snapshot'].includes(
+                                node.resource_type,
+                            ),
+                        )
+                        .map((node) => node as DbtRawModelNode)
+                        .filter(
+                            (node) =>
+                                node.package_name !== newName &&
+                                !isExternalDbtNode(node),
+                        ).length;
+                }
                 const duplicate = tasks.find(
                     (other) =>
                         other !== task &&
@@ -915,6 +940,11 @@ export const resolveCrossSourceManifests = async <T>({
             attempts: sources.reduce((sum, source) => sum + source.lsRuns, 0),
             sources,
             firstAttemptInjected,
+            ownedInjected: sources.reduce(
+                (sum, source) => sum + source.injectedStubs,
+                0,
+            ),
+            packageNodesOmitted,
             preflightWarnings,
             warnings: [...warnings],
             scan: {

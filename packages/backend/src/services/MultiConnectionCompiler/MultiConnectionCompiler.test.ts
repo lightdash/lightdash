@@ -507,10 +507,12 @@ describe('cross-source compilation', () => {
                 expect.objectContaining({ concurrency: 1 }),
             );
             expect(log).toHaveBeenCalledWith(
-                'dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0',
+                'dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=1 packageNodesOmitted=0',
                 expect.objectContaining({
                     projectUuid: 'project-uuid',
                     rounds: 1,
+                    ownedInjected: 1,
+                    packageNodesOmitted: 0,
                     sources: expect.arrayContaining([
                         expect.objectContaining({
                             name: 'primary',

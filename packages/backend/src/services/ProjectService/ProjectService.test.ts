@@ -14736,6 +14736,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         'gates managed cross-source injection with flag enabled=%s',
         async (enabled) => {
             const { projectService } = buildServiceWithMocks(true, []);
+            const info = vi.spyOn(
+                (projectService as unknown as ProjectServiceInternals).logger,
+                'info',
+            );
             projectService.featureFlagModel.get = vi.fn(
                 async (args: unknown) => {
                     const { featureFlagId } = args as {
@@ -14840,6 +14844,14 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             });
             if (enabled) {
                 const { adapter, connectionWarnings } = await resolution;
+                expect(info).toHaveBeenCalledWith(
+                    'dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=1 packageNodesOmitted=0',
+                    expect.objectContaining({
+                        event: 'dbt.compile.crossSourceRefsResolved',
+                        ownedInjected: 1,
+                        packageNodesOmitted: 0,
+                    }),
+                );
                 expect(connectionWarnings).toEqual([
                     "Model \"orders\" in dbt source \"analytics\" uses ref('calendar'), which resolved to external model model.shared.calendar from another dbt source. Use ref('shared', 'calendar') to make the cross-source reference explicit.",
                 ]);

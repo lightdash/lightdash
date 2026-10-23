@@ -83,17 +83,27 @@ export class CrossSourceCatalogCache {
 
     async confirm(): Promise<void> {
         try {
+            const entries = [...this.entries].map(([dbtSourceUuid, entry]) => ({
+                dbtSourceUuid,
+                ...entry,
+            }));
             await this.model.replaceConfirmed({
                 projectUuid: this.projectUuid,
                 connectionGroup: this.connectionGroup,
                 dbtVersion: this.dbtVersion,
                 compileJobUuid: this.compileJobUuid,
-                entries: [...this.entries].map(([dbtSourceUuid, entry]) => ({
-                    dbtSourceUuid,
-                    ...entry,
-                })),
+                entries,
             });
-            this.rowsWritten += this.entries.size;
+            this.rowsWritten += entries.length;
+            Logger.info(
+                `dbt.compile.crossSourceLastGoodConfirmed rowsWritten=${entries.length} projectUuid=${this.projectUuid} connectionGroup=${this.connectionGroup}`,
+                {
+                    event: 'dbt.compile.crossSourceLastGoodConfirmed',
+                    projectUuid: this.projectUuid,
+                    connectionGroup: this.connectionGroup,
+                    rowsWritten: entries.length,
+                },
+            );
             this.entries.clear();
         } catch (error) {
             logCrossSourceCacheError(error);
