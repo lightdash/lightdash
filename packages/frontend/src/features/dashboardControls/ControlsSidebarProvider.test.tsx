@@ -2711,6 +2711,34 @@ describe('ControlsSidebarProvider in view mode', () => {
         },
     );
 
+    it("adds a viewer's filter on a SQL column to the temporary filters", () => {
+        const { result } = setup();
+        act(() => result.current.openNew());
+        act(() =>
+            result.current.addFirstSqlColumn(
+                { reference: 'total', type: DimensionType.NUMBER },
+                { s1: [{ reference: 'total', type: DimensionType.NUMBER }] },
+            ),
+        );
+
+        expect(latest.filters).toEqual(initialFilters);
+        expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+        const added = latest.temporaryFilters.dimensions[0];
+        expect(added.target).toEqual(
+            expect.objectContaining({ fieldId: 'total', isSqlColumn: true }),
+        );
+        // No value yet: "any value", as the shipped popover writes it
+        expect(added.disabled).toBe(true);
+
+        act(() => result.current.updateFilter(withValue(added)));
+        act(() => result.current.close());
+        expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+        expect(mockTrack).toHaveBeenCalledWith({
+            name: EventName.ADD_FILTER_CLICKED,
+            properties: { mode: 'viewer' },
+        });
+    });
+
     it("discarding a viewer's new filter leaves nothing behind", () => {
         const { result } = setup();
         act(() => result.current.openNew());

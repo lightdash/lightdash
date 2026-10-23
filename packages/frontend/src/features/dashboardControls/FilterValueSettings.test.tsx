@@ -4,7 +4,7 @@ import {
     FilterType,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
@@ -68,6 +68,34 @@ const renderSettings = (
 };
 
 describe('FilterValueSettings', () => {
+    it("clears a viewer's value to any value with the shipped X", async () => {
+        const onChange = vi.fn();
+        const { container } = renderWithProviders(
+            <FilterValueSettings
+                isEditMode={false}
+                isCreatingNew={false}
+                filterType={FilterType.STRING}
+                field={null}
+                filterRule={makeRule({ values: ['done'] })}
+                onChange={onChange}
+            />,
+            {
+                user: {
+                    abilityRules: [{ action: 'manage', subject: 'Explore' }],
+                },
+            },
+        );
+        const clear = await waitFor(() => {
+            const icon = container.querySelector('.tabler-icon-x');
+            if (!icon) throw new Error('no clear X yet');
+            return icon.closest('button') as HTMLButtonElement;
+        });
+        fireEvent.click(clear);
+        expect(onChange).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'filter-1', values: [] }),
+        );
+    });
+
     it.each([
         [true, true],
         [false, false],
