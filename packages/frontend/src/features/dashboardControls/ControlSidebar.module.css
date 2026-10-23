@@ -6,6 +6,8 @@
     --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
     --controls-duration-arrive: 0.28s;
     --controls-duration-hover: 0.12s;
+    /* ActionIcon sm: row actions sit in one column, flush with the inputs */
+    --controls-action-size: rem(24px);
     --controls-rail-offset: calc(
         var(--controls-rail-top, var(--dashboard-header-height)) +
             var(--mantine-spacing-xs)
@@ -116,8 +118,7 @@
 }
 
 .editedHead {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0
-        var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md) 0;
     /* A click on it collapses the filter */
     cursor: pointer;
 }
@@ -125,6 +126,17 @@
 .editedBody {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-md)
         var(--mantine-spacing-md);
+}
+
+/* The shipped clear X sits beside the value input, so the operator select
+   above it ends where the value input does */
+.value:has(
+        :global(
+            .mantine-Stack-root > .mantine-Group-root > .mantine-ActionIcon-root
+        )
+    )
+    :global(.mantine-Stack-root > .mantine-Select-root) {
+    margin-right: calc(var(--controls-action-size) + var(--mantine-spacing-xs));
 }
 
 .nameInput {
@@ -161,7 +173,11 @@
     gap: var(--mantine-spacing-xs);
     width: 100%;
     min-height: 40px;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm)
+    /* The chevron is centred on the row actions' column */
+    padding: var(--mantine-spacing-xs)
+        calc(
+            var(--mantine-spacing-md) + (var(--controls-action-size) - 14px) / 2
+        )
         var(--mantine-spacing-xs) var(--mantine-spacing-md);
     transition: background-color var(--controls-duration-hover)
         var(--controls-ease);

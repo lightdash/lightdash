@@ -184,6 +184,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                 {hasDiscard && (
                     <Tooltip label={discardLabel}>
                         <ActionIcon
+                            size="sm"
                             variant="subtle"
                             aria-label={discardLabel}
                             onClick={discard}
@@ -194,6 +195,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                 )}
                 {!isNew && (
                     <ConfirmDeleteButton
+                        size="sm"
                         aria-label={getUiString('filters.rail.removeFilter')}
                         tooltip={getUiString('filters.rail.confirmRemove')}
                         onConfirm={removeFilter}
@@ -203,6 +205,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                 )}
                 <Tooltip label={getUiString('filters.rail.collapse')}>
                     <ActionIcon
+                        size="sm"
                         variant="subtle"
                         aria-label={getUiString('filters.rail.collapseFilter')}
                         aria-expanded
