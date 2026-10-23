@@ -1,4 +1,4 @@
-import { FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, type AnalysisTarget } from '@lightdash/common';
 import { useAiOrganizationSettings } from '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 
@@ -26,8 +26,7 @@ export const UNAVAILABLE_COPY: Record<
 > = {
     not_rolled_out: 'AI analysis is not available for this organization yet.',
     copilot_off: 'AI is not enabled for this organization.',
-    org_setting_off:
-        'AI analysis in data apps is turned off for this organization.',
+    org_setting_off: 'AI analysis is turned off for this organization.',
 };
 
 /** Settings page an org admin turns the blocker on at; null when nothing in-product does. */
@@ -40,34 +39,42 @@ export const UNAVAILABLE_SETTINGS_PATH: Record<
     org_setting_off: '/generalSettings/dataApps/aiAnalysis',
 };
 
+const ROLLOUT_FLAG: Record<AnalysisTarget, FeatureFlags> = {
+    app: FeatureFlags.EnableDataAppAnalysis,
+    dashboard: FeatureFlags.EnableDashboardAnalysis,
+};
+
 /**
  * Mirrors the backend gates so the entry point can explain a disabled state
- * instead of failing a request. The backend re-checks everything.
+ * instead of failing a request. The backend re-checks everything. Consent
+ * (org setting) and AI entitlement are shared across targets; the rollout
+ * flag is per target.
  */
-export const useDataAppAnalysisAvailability =
-    (): DataAppAnalysisAvailability => {
-        const analysisFlag = useServerFeatureFlag(
-            FeatureFlags.EnableDataAppAnalysis,
-        );
-        const { data: aiSettings, isInitialLoading } =
-            useAiOrganizationSettings();
+// Exported once the dashboard surface registers (GLITCH-954).
+const useAnalysisAvailability = (
+    target: AnalysisTarget,
+): DataAppAnalysisAvailability => {
+    const rolloutFlag = useServerFeatureFlag(ROLLOUT_FLAG[target]);
+    const { data: aiSettings, isInitialLoading } = useAiOrganizationSettings();
 
-        if (analysisFlag.isInitialLoading || isInitialLoading) {
-            return { status: 'loading' };
-        }
-        if (!analysisFlag.data?.enabled) {
-            return { status: 'unavailable', reason: 'not_rolled_out' };
-        }
-        if (!aiSettings?.isCopilotEnabled && !aiSettings?.isTrial) {
-            return { status: 'unavailable', reason: 'copilot_off' };
-        }
-        if (!aiSettings.dataAppRuntimeAiEnabled) {
-            return { status: 'unavailable', reason: 'org_setting_off' };
-        }
-        return {
-            status: 'available',
-            canContinueInAskAi:
-                aiSettings.dataAppContinueInAskAiEnabled ?? true,
-            autoAnalyseDefault: aiSettings.dataAppAutoAnalysisEnabled ?? false,
-        };
+    if (rolloutFlag.isInitialLoading || isInitialLoading) {
+        return { status: 'loading' };
+    }
+    if (!rolloutFlag.data?.enabled) {
+        return { status: 'unavailable', reason: 'not_rolled_out' };
+    }
+    if (!aiSettings?.isCopilotEnabled && !aiSettings?.isTrial) {
+        return { status: 'unavailable', reason: 'copilot_off' };
+    }
+    if (!aiSettings.dataAppRuntimeAiEnabled) {
+        return { status: 'unavailable', reason: 'org_setting_off' };
+    }
+    return {
+        status: 'available',
+        canContinueInAskAi: aiSettings.dataAppContinueInAskAiEnabled ?? true,
+        autoAnalyseDefault: aiSettings.dataAppAutoAnalysisEnabled ?? false,
     };
+};
+
+export const useDataAppAnalysisAvailability = (): DataAppAnalysisAvailability =>
+    useAnalysisAvailability('app');

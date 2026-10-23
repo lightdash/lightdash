@@ -2,6 +2,13 @@ import type { ApiSuccess } from '../../types/api/success';
 import type { UUID } from '../../types/api/uuid';
 import type { TraceTaskBase } from '../../types/scheduler';
 
+/**
+ * What an analysis runs over. Data apps and classic dashboards share the
+ * analysis pipeline (content building, hashing, reuse, budgets) but have
+ * their own rollout gates, access checks and storage keys.
+ */
+export type AnalysisTarget = 'app' | 'dashboard';
+
 /** Whether an app analyses on load: its own choice, or the org default. */
 export type DataAppAutoAnalysis = 'inherit' | 'on' | 'off';
 

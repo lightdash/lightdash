@@ -152,6 +152,14 @@ export enum FeatureFlags {
     EnableDataAppAnalysis = 'enable-data-app-analysis',
 
     /**
+     * Per-organization rollout of AI analysis on classic dashboards. Gates the
+     * dashboard analysis endpoints and entry points; shares the org's
+     * `dataAppRuntimeAiEnabled` consent setting and daily analysis budgets
+     * with data-app analysis. Disabled by default.
+     */
+    EnableDashboardAnalysis = 'enable-dashboard-analysis',
+
+    /**
      * Per-organization gate for automatic (obscured) data app thumbnail
      * capture and its settings card. Disabled by default.
      */
