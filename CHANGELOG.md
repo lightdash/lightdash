@@ -1,3 +1,10 @@
+## [3.41.1](https://github.com/lightdash/lightdash/compare/3.41.0...3.41.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* ignore blank date and timestamp filter values instead of matching the current time ([#31438](https://github.com/lightdash/lightdash/issues/31438)) ([08c600a](https://github.com/lightdash/lightdash/commit/08c600a37b3417318a6c4fabfdbd2c2195a16b43))
+
 # [3.41.0](https://github.com/lightdash/lightdash/compare/3.40.0...3.41.0) (2026-10-23)
 
 
