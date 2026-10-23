@@ -143,6 +143,7 @@ export const BaseResponse: HealthState = {
         analyticsProjectUuid: undefined,
         analyticsDashboardUuid: undefined,
         isAmbientAiEnabled: false,
+        isCopilotAvailable: false,
         threadDumpEnabled: false,
         fastDecisionsEnabled: false,
     },

@@ -137,6 +137,7 @@ export default function mockHealthResponse(
             analyticsProjectUuid: undefined,
             analyticsDashboardUuid: undefined,
             isAmbientAiEnabled: false,
+            isCopilotAvailable: false,
             threadDumpEnabled: false,
             fastDecisionsEnabled: false,
         },

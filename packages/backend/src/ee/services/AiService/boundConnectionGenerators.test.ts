@@ -79,6 +79,7 @@ describe('AI generator connection dialect', () => {
                     getCopilotConfig: vi
                         .fn()
                         .mockResolvedValue({ providers: {} }),
+                    isCopilotAvailable: vi.fn().mockResolvedValue(true),
                 },
             } as unknown as ConstructorParameters<typeof AiService>[0]);
             const ability = new Ability<PossibleAbilities>([

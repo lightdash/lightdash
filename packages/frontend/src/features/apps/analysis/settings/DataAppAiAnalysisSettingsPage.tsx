@@ -214,9 +214,7 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
     const { mutate: updateSettings, isLoading: isUpdating } =
         useUpdateAiOrganizationSettings();
 
-    const aiOn = settings
-        ? settings.isCopilotEnabled || settings.isTrial
-        : false;
+    const aiOn = settings?.isCopilotEnabled ?? false;
     const analysisOn = settings?.dataAppRuntimeAiEnabled ?? false;
 
     return (

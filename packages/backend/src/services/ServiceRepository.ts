@@ -15,8 +15,10 @@ import {
     mergePullRequest,
 } from '../clients/github/Github';
 import { LightdashConfig } from '../config/parseConfig';
+import { AiModelCatalog } from '../ee/clients/Ai/AiModelCatalog';
 import { type AiOrganizationSettingsModel } from '../ee/models/AiOrganizationSettingsModel';
 import type { ServiceAccountModel } from '../ee/models/ServiceAccountModel';
+import { OrgAiCopilotConfigResolver } from '../ee/services/ai/OrgAiCopilotConfigResolver';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import { seedPlaygroundContent } from '../ee/services/ProjectService/seedPlaygroundContent';
@@ -735,6 +737,16 @@ export class ServiceRepository
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     readinessService: this.readinessService,
                     learnSandboxService: this.getLearnSandboxService(),
+                    getAiCopilotConfigResolver: () =>
+                        new OrgAiCopilotConfigResolver({
+                            lightdashConfig: this.context.lightdashConfig,
+                            featureFlagModel: this.models.getFeatureFlagModel(),
+                            aiOrganizationSettingsModel:
+                                this.models.getAiOrganizationSettingsModel(),
+                            aiOrganizationProviderCredentialModel:
+                                this.models.getAiOrganizationProviderCredentialModel(),
+                            aiModelCatalog: new AiModelCatalog(),
+                        }),
                 }),
         );
     }

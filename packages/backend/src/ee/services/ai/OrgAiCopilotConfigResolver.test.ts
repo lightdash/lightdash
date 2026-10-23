@@ -28,7 +28,6 @@ import {
 
 const baseConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     enabled: true,
-    requiresFeatureFlag: false,
     telemetryEnabled: false,
     threadDumpEnabled: false,
     debugLoggingEnabled: false,
@@ -51,7 +50,6 @@ const baseConfig: CopilotConfig = aiCopilotConfigSchema.parse({
 
 const bothProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     enabled: true,
-    requiresFeatureFlag: false,
     telemetryEnabled: false,
     threadDumpEnabled: false,
     debugLoggingEnabled: false,
@@ -108,7 +106,6 @@ const googleGatewayConfig: CopilotConfig = aiCopilotConfigSchema.parse({
 
 const bedrockConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     enabled: true,
-    requiresFeatureFlag: false,
     telemetryEnabled: false,
     threadDumpEnabled: false,
     debugLoggingEnabled: false,

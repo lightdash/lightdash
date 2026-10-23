@@ -165,6 +165,9 @@ const buildService = ({
         aiAgentModel,
         analytics,
         featureFlagService: { get: getFeatureFlag },
+        orgAiCopilotConfigResolver: {
+            isCopilotAvailable: vi.fn(async () => true),
+        },
         schedulerClient: {
             aiAgentReviewClassifier,
             aiAgentMemoryDistill,

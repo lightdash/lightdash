@@ -302,7 +302,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectModel: models.getProjectModel(),
                     projectContextModel: models.getProjectContextModel(),
                     userModel: models.getUserModel(),
-                    featureFlagService: repository.getFeatureFlagService(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
                     schedulerClient:

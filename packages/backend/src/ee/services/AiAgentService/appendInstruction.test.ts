@@ -52,6 +52,9 @@ const buildService = () => {
     const service = new AiAgentService({
         aiAgentModel,
         featureFlagService,
+        orgAiCopilotConfigResolver: {
+            isCopilotAvailable: vi.fn().mockResolvedValue(true),
+        },
         analytics: { track: vi.fn() },
         lightdashConfig: { ai: { copilot: {} } },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

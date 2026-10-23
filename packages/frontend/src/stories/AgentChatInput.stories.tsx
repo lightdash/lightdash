@@ -106,7 +106,6 @@ const agents = [
 
 const runtimeSettings: AiOrganizationRuntimeSettings = {
     isCopilotEnabled: true,
-    isTrial: false,
     aiAgentsVisible: true,
     aiAgentMemoryEnabled: false,
     aiAgentReviewsEnabled: false,

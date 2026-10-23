@@ -1,7 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     AI_AGENT_MEMORY_PROMOTION_MIN_CITED_COUNT,
-    CommercialFeatureFlags,
     SEED_ORG_1,
     SEED_PROJECT,
     type AiAgentMemoryConsolidationOperation,
@@ -12,13 +11,7 @@ import type { Knex } from 'knex';
 import { vi } from 'vitest';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { parseConfig } from '../../../config/parseConfig';
-import {
-    FeatureFlagsTableName,
-    type DbFeatureFlag,
-    type FeatureFlagsTable,
-} from '../../../database/entities/featureFlags';
 import { UserTableName } from '../../../database/entities/users';
-import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { getTestContext } from '../../../vitest.setup.integration';
 import { AiThreadTableName } from '../../database/entities/ai';
 import { AiAgentTableName } from '../../database/entities/aiAgent';
@@ -47,14 +40,12 @@ const FLOOR = AI_AGENT_MEMORY_CONSOLIDATION_MIN_ACTIVE_ROWS;
 describe('AI agent memory consolidation integration', () => {
     let database: Knex;
     let model: AiAgentMemoryModel;
-    let featureFlagService: FeatureFlagService;
     let schedulerClient: CommercialSchedulerClient;
     let analytics: LightdashAnalytics;
     let ownerUuid: string;
     let otherOwnerUuid: string;
     let agentUuid: string;
     let resolvableExploreName: string;
-    const originalFlags = new Map<string, DbFeatureFlag | undefined>();
     const createdUserUuids: string[] = [];
     const createdThreadUuids: string[] = [];
 
@@ -62,13 +53,6 @@ describe('AI agent memory consolidation integration', () => {
         await database('organizations')
             .where('organization_uuid', SEED_ORG_1.organization_uuid)
             .update({ ai_agent_memory_enabled: enabled });
-    };
-
-    const setFeatureFlag = async (flagId: string, enabled: boolean) => {
-        await database<FeatureFlagsTable>(FeatureFlagsTableName)
-            .insert({ flag_id: flagId, default_enabled: enabled })
-            .onConflict('flag_id')
-            .merge({ default_enabled: enabled });
     };
 
     const createUser = async (firstName: string): Promise<string> => {
@@ -96,10 +80,6 @@ describe('AI agent memory consolidation integration', () => {
             database,
             lightdashConfig,
         });
-        featureFlagService = new FeatureFlagService({
-            lightdashConfig,
-            featureFlagModel,
-        });
         analytics = new LightdashAnalytics({
             lightdashConfig,
             writeKey: 'notrack',
@@ -115,20 +95,6 @@ describe('AI agent memory consolidation integration', () => {
             featureFlagModel,
         });
 
-        const flagIds = [CommercialFeatureFlags.AiCopilot];
-        const storedFlags = await Promise.all(
-            flagIds.map((flagId) =>
-                database<FeatureFlagsTable>(FeatureFlagsTableName)
-                    .where('flag_id', flagId)
-                    .first(),
-            ),
-        );
-        flagIds.forEach((flagId, index) => {
-            originalFlags.set(flagId, storedFlags[index]);
-        });
-        await Promise.all(
-            flagIds.map((flagId) => setFeatureFlag(flagId, true)),
-        );
         await setOrgMemoryEnabled(true);
 
         ownerUuid = await createUser('Owner');
@@ -208,21 +174,6 @@ describe('AI agent memory consolidation integration', () => {
         await database(UserTableName)
             .whereIn('user_uuid', createdUserUuids)
             .delete();
-        await Promise.all(
-            [...originalFlags].map(([flagId, flag]) =>
-                flag
-                    ? database<FeatureFlagsTable>(FeatureFlagsTableName)
-                          .insert({
-                              flag_id: flag.flag_id,
-                              default_enabled: flag.default_enabled,
-                          })
-                          .onConflict('flag_id')
-                          .merge({ default_enabled: flag.default_enabled })
-                    : database<FeatureFlagsTable>(FeatureFlagsTableName)
-                          .where('flag_id', flagId)
-                          .delete(),
-            ),
-        );
         const graphileClient = await schedulerClient.graphileUtils;
         await graphileClient.release();
     });
@@ -322,8 +273,8 @@ describe('AI agent memory consolidation integration', () => {
                     },
                 ),
             },
-            featureFlagService,
             aiOrganizationSettingsService: {
+                isCopilotAvailable: async () => true,
                 isAiAgentMemoryEnabled: async ({ organizationUuid }) => {
                     const org = await database('organizations')
                         .select('ai_agent_memory_enabled')

@@ -33,12 +33,11 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // still being built. Opt-in: previews and the dashboard E2E specs stay on
     // the shipped filter popover.
     FeatureFlags.DashboardControls,
-    // Derived from instance configuration: left to their config handler so a
-    // preview never advertises a feature whose backend isn't configured.
-    CommercialFeatureFlags.AiCopilot,
     // Changes permission semantics per org: makes the org custom role's PAT
     // scope authoritative. Opt-in only; QA enables via feature_flag_overrides.
     CommercialFeatureFlags.PatScopeAuthoritative,
+    // Derived from instance configuration: left to their config handler so a
+    // preview never advertises a feature whose backend isn't configured.
     FeatureFlags.ResultsCacheEnabled,
     FeatureFlags.EnableTimezoneSupport,
 ]);

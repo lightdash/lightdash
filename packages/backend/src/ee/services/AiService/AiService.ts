@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import { type TokenUsage } from '@langchain/core/language_models/base';
 import {
-    CommercialFeatureFlags,
     FeatureFlags,
     ForbiddenError,
     GenerateChartMetadataRequest,
@@ -224,11 +223,13 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
                 });
             // Configuration only: cached review submissions must not contact providers.
             if (config.providers.anthropic?.apiKey) return true;
-            const flag = await this.featureFlagService.get({
-                user,
-                featureFlagId: CommercialFeatureFlags.AiCopilot,
-            });
-            if (!flag.enabled) return false;
+            if (
+                !(await this.orgAiCopilotConfigResolver.isCopilotAvailable(
+                    user.organizationUuid,
+                ))
+            ) {
+                return false;
+            }
             getModel(config, { enableReasoning: false, useFastModel: true });
             return true;
         } catch {
@@ -330,7 +331,7 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
     /**
      * Gets a language model for ambient AI tasks.
      * 1. Checks anthropic shared key
-     * 2. Falls back to AI Copilot if the feature flag is enabled for the user,
+     * 2. Falls back to AI Copilot when it is available to the organization,
      *    using their configured model.
      *
      * @returns The full AiModel with model, callOptions, and providerOptions
@@ -390,12 +391,11 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
             };
         }
 
-        const aiCopilotFlag = await this.featureFlagService.get({
-            user,
-            featureFlagId: CommercialFeatureFlags.AiCopilot,
-        });
-
-        if (!aiCopilotFlag.enabled) {
+        if (
+            !(await this.orgAiCopilotConfigResolver.isCopilotAvailable(
+                user.organizationUuid,
+            ))
+        ) {
             throw new ForbiddenError('Ambient AI is not available');
         }
 

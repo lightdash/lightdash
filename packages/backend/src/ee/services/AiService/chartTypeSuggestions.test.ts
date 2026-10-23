@@ -102,6 +102,7 @@ const setup = ({ ambientEnabled = true } = {}) => {
         orgAiCopilotConfigResolver: {
             getCopilotConfig: vi.fn().mockResolvedValue({ providers: {} }),
             getAccessibleModelIds: vi.fn(),
+            isCopilotAvailable: vi.fn().mockResolvedValue(ambientEnabled),
         },
     } as unknown as ConstructorParameters<typeof AiService>[0]);
     return { service, projectService, analytics };

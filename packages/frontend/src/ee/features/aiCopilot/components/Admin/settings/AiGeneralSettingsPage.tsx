@@ -158,7 +158,6 @@ export const AiGeneralSettingsPage = () => {
                         }
                         slackInstallation={slackInstallation}
                         slackAgentsEnabled={slackAgentsEnabled}
-                        isTrial={settings.isTrial}
                         disabled={isUpdatingSettings}
                         isUpdatingSlack={isUpdatingSlackSettings}
                         onUpdateAiAgentsVisible={(checked) =>

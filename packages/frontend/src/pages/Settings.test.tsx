@@ -45,7 +45,7 @@ const renderSettings = (
     // A settings page outside the project's own; `page` is under it otherwise.
     initialPath = `${base}/${page}`,
     agentIdentityEnabled: boolean | null = false,
-    aiSettings = { isCopilotEnabled: false, isTrial: false },
+    aiSettings = { isCopilotEnabled: false },
     seedAdminSettings = true,
     cold = false,
     isAnalyticsProject = false,
@@ -186,7 +186,7 @@ describe('limited project settings routes', () => {
                 true,
                 `${base}/${page}`,
                 false,
-                { isCopilotEnabled: false, isTrial: false },
+                { isCopilotEnabled: false },
                 true,
                 false,
                 true,
@@ -225,7 +225,7 @@ describe('limited project settings routes', () => {
                 true,
                 `${base}/${page}`,
                 false,
-                { isCopilotEnabled: false, isTrial: false },
+                { isCopilotEnabled: false },
                 true,
                 false,
                 true,
@@ -268,7 +268,7 @@ describe('limited project settings routes', () => {
             true,
             `${base}/recentlyDeleted`,
             false,
-            { isCopilotEnabled: false, isTrial: false },
+            { isCopilotEnabled: false },
             true,
             false,
             true,
@@ -757,7 +757,7 @@ describe('MCP settings route permission parity', () => {
                     ? '/generalSettings/mcp/general'
                     : AGENT_IDENTITY_SETTINGS_PATH,
                 enabled,
-                { isCopilotEnabled: true, isTrial: false },
+                { isCopilotEnabled: true },
                 manageAi,
             );
             if (!manageAi) {
@@ -801,7 +801,6 @@ describe('MCP settings route permission parity', () => {
                     enabled,
                     {
                         isCopilotEnabled: true,
-                        isTrial: false,
                     },
                 );
                 await screen.findByRole('heading', { name: 'Profile' });
@@ -847,7 +846,6 @@ describe('MCP settings route permission parity', () => {
                 enabled,
                 {
                     isCopilotEnabled: true,
-                    isTrial: false,
                 },
             );
             if (!manageAi) {
@@ -1049,7 +1047,7 @@ describe('agent connections flag-off baseline', () => {
             .get('/api/v1/aiAgents/settings')
             .reply(200, {
                 status: 'ok',
-                results: { isCopilotEnabled: false, isTrial: false },
+                results: { isCopilotEnabled: false },
             });
         const result = renderSettings(
             '',

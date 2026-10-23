@@ -329,7 +329,6 @@ export const lightdashConfigMock: LightdashConfig = {
             runSqlMaxLimit: 5000,
             telemetryEnabled: false,
             threadDumpEnabled: false,
-            requiresFeatureFlag: false,
             askAiButtonEnabled: false,
             embeddingEnabled: true,
             defaultProvider: 'openai',

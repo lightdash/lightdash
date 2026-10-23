@@ -14,13 +14,14 @@ const state = vi.hoisted(() => ({
 }));
 
 vi.mock('../../../../hooks/health/useHealth', () => ({
-    default: () => ({ data: { ai: { isAmbientAiEnabled: state.sharedKey } } }),
-}));
-vi.mock('../../../../providers/App/useApp', () => ({
-    default: () => ({ user: { data: {} } }),
-}));
-vi.mock('../../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: state.copilot } }),
+    default: () => ({
+        data: {
+            ai: {
+                isAmbientAiEnabled: state.sharedKey,
+                isCopilotAvailable: state.copilot,
+            },
+        },
+    }),
 }));
 vi.mock('../../../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => state.activeProjectUuid,

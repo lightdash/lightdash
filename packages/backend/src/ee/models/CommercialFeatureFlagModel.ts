@@ -12,8 +12,6 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
         this.featureFlagHandlers = {
             ...this.featureFlagHandlers, // Inherit parent handlers
             // Add new commercial handlers
-            [CommercialFeatureFlags.AiCopilot]:
-                this.getAiCopilotFlag.bind(this),
             [CommercialFeatureFlags.HomepageBuilder]:
                 this.getHomepageBuilderFlag.bind(this),
             // Infra (licence + storage) decides whether pre-aggregates can run
@@ -36,30 +34,6 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
         if (!user) {
             return { id: featureFlagId, enabled: false };
         }
-        const dbResult = await this.tryGetFromDatabase({ user, featureFlagId });
-        return dbResult ?? { id: featureFlagId, enabled: false };
-    }
-
-    private async getAiCopilotFlag({
-        featureFlagId,
-        user,
-    }: FeatureFlagLogicArgs) {
-        const { enabled: copilotConfigEnabled, requiresFeatureFlag } =
-            this.lightdashConfig.ai.copilot;
-
-        // Dedicated instances (per the AI Copilot tenant docs) bypass the
-        // flag system entirely. Shared tenants (app/eu1) set
-        // requiresFeatureFlag=true and gate per-org via DB-backed overrides.
-        if (!copilotConfigEnabled || !requiresFeatureFlag) {
-            return { id: featureFlagId, enabled: copilotConfigEnabled };
-        }
-
-        // The endpoint allows anonymous callers, so fail closed like the
-        // other commercial flags instead of erroring.
-        if (!user) {
-            return { id: featureFlagId, enabled: false };
-        }
-
         const dbResult = await this.tryGetFromDatabase({ user, featureFlagId });
         return dbResult ?? { id: featureFlagId, enabled: false };
     }

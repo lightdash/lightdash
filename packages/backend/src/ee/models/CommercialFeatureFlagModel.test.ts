@@ -17,68 +17,6 @@ const createModel = (config: Partial<typeof lightdashConfigMock> = {}) =>
         },
     });
 
-const createGatedCopilotModel = () =>
-    createModel({
-        ai: {
-            ...lightdashConfigMock.ai,
-            copilot: {
-                ...lightdashConfigMock.ai.copilot,
-                enabled: true,
-                requiresFeatureFlag: true,
-            },
-        },
-    });
-
-describe('CommercialFeatureFlagModel ai copilot', () => {
-    let tracker: Tracker;
-
-    beforeAll(() => {
-        tracker = getTracker();
-    });
-
-    afterEach(() => {
-        tracker.reset();
-    });
-
-    it('fails closed without a user and issues no flag queries', async () => {
-        await expect(
-            createGatedCopilotModel().get({
-                featureFlagId: CommercialFeatureFlags.AiCopilot,
-            }),
-        ).resolves.toEqual({
-            id: CommercialFeatureFlags.AiCopilot,
-            enabled: false,
-        });
-        expect(tracker.history.select).toHaveLength(0);
-    });
-
-    it('resolves through the database when a user is present', async () => {
-        tracker.on.select('feature_flags').responseOnce({
-            flag_id: CommercialFeatureFlags.AiCopilot,
-            default_enabled: null,
-        });
-        tracker.on.select('feature_flag_overrides').responseOnce({
-            flag_id: CommercialFeatureFlags.AiCopilot,
-            organization_uuid: 'organization-uuid',
-            user_uuid: null,
-            enabled: true,
-        });
-
-        await expect(
-            createGatedCopilotModel().get({
-                featureFlagId: CommercialFeatureFlags.AiCopilot,
-                user: {
-                    userUuid: 'user-uuid',
-                    organizationUuid: 'organization-uuid',
-                },
-            }),
-        ).resolves.toEqual({
-            id: CommercialFeatureFlags.AiCopilot,
-            enabled: true,
-        });
-    });
-});
-
 describe('CommercialFeatureFlagModel pre-aggregates', () => {
     let tracker: Tracker;
 

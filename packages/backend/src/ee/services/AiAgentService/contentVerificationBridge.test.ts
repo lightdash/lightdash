@@ -79,6 +79,9 @@ const buildService = ({
         contentVerificationModel,
         analytics,
         featureFlagService,
+        orgAiCopilotConfigResolver: {
+            isCopilotAvailable: vi.fn().mockResolvedValue(true),
+        },
         lightdashConfig: {
             siteUrl: 'https://app.example.com',
             ai: { copilot: { embeddingEnabled: true } },

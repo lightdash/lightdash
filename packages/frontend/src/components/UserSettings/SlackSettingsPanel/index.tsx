@@ -1,7 +1,4 @@
-import {
-    CommercialFeatureFlags,
-    type SlackAppCustomSettings,
-} from '@lightdash/common';
+import { type SlackAppCustomSettings } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -35,12 +32,12 @@ import {
     useAiOrganizationAdminSettings,
     useUpdateAiOrganizationSettings,
 } from '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
+import useHealth from '../../../hooks/health/useHealth';
 import {
     useDeleteSlack,
     useGetSlack,
     useUpdateSlackAppCustomSettingsMutation,
 } from '../../../hooks/slack/useSlack';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import slackSvg from '../../../svgs/slack.svg';
 import Callout from '../../common/Callout';
 import { default as MantineIcon } from '../../common/MantineIcon';
@@ -90,15 +87,10 @@ const formSchema = z.object({
 
 const SlackSettingsPanel: FC = () => {
     const aiOrganizationSettingsQuery = useAiOrganizationAdminSettings();
-    const { data: aiCopilotFlag } = useServerFeatureFlag(
-        CommercialFeatureFlags.AiCopilot,
-    );
     const { data: slackInstallation, isInitialLoading } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
-    const isAiCopilotEnabledOrTrial =
-        !!aiCopilotFlag?.enabled ||
-        !!aiOrganizationSettingsQuery.data?.isCopilotEnabled ||
-        !!aiOrganizationSettingsQuery.data?.isTrial;
+    const { data: health } = useHealth();
+    const isAiCopilotEnabled = !!health?.ai.isCopilotAvailable;
 
     const { mutate: deleteSlack } = useDeleteSlack();
     const { mutate: updateCustomSettings, isLoading: isUpdatingSlackSettings } =
@@ -109,7 +101,7 @@ const SlackSettingsPanel: FC = () => {
     } = useUpdateAiOrganizationSettings();
 
     const { data: aiAgents } = useAiAgentAdminAgents({
-        enabled: organizationHasSlack && isAiCopilotEnabledOrTrial,
+        enabled: organizationHasSlack && isAiCopilotEnabled,
     });
 
     const form = useForm<SlackSettingsFormValues>({
@@ -313,7 +305,7 @@ const SlackSettingsPanel: FC = () => {
                                             )
                                         }
                                     />
-                                    {isAiCopilotEnabledOrTrial && (
+                                    {isAiCopilotEnabled && (
                                         <>
                                             <SlackSettingRow
                                                 title="AI Agents in Slack"
@@ -397,7 +389,7 @@ const SlackSettingsPanel: FC = () => {
                                     )}
                                 </Stack>
 
-                                {isAiCopilotEnabledOrTrial && (
+                                {isAiCopilotEnabled && (
                                     <Stack gap="xs">
                                         <Group gap="xs">
                                             <Title order={6} fw={500}>

@@ -21,17 +21,17 @@ exclusion, with a reason, when that isn't safe. Flags are excluded when they:
 - act outside the environment (`ai-preview-deploy-setup` opens pull requests on
   real repos),
 - are off pending a security review, or are deprecated,
-- derive their value from instance configuration (`ai-copilot`,
-  `results-cache-enabled`, `enable-timezone-support`) — these are left to their
-  config handler so a preview never advertises an unconfigured backend. To test
-  AI copilot in a preview, configure a provider (`AI_COPILOT_ENABLED` plus
-  credentials) rather than forcing the flag. PR previews pass
-  `AI_COPILOT_ENABLED`, `AI_DEFAULT_PROVIDER`, `ANTHROPIC_API_KEY`,
-  `GEMINI_API_KEY`, and `OPENAI_API_KEY` through from the Okteto admin UI
-  variables (`docker/docker-compose.preview.yml`), so setting those once in the
-  admin UI
-  provisions Ask AI in every preview; leave them unset and the copilot stays
-  off.
+- derive their value from instance configuration (`results-cache-enabled`,
+  `enable-timezone-support`) — these are left to their config handler so a
+  preview never advertises an unconfigured backend.
+
+AI copilot isn't a feature flag. It follows the licence and AI configuration
+described in [AI copilot availability](ai-copilot-availability.md). PR previews
+pass `AI_COPILOT_ENABLED`, `AI_DEFAULT_PROVIDER`, `ANTHROPIC_API_KEY`,
+`GEMINI_API_KEY`, and `OPENAI_API_KEY` through from the Okteto admin UI
+variables (`docker/docker-compose.preview.yml`), so setting those once in the
+admin UI provisions Ask AI in every preview. Leave them unset and the copilot
+stays off.
 
 Flags that only gate UI can still be enabled while their backend is
 unconfigured (for example email whitelabel needs a Postmark token, data apps

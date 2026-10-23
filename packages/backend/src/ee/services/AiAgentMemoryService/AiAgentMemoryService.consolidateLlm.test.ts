@@ -102,13 +102,8 @@ const build = () => {
         } as AnyType,
         projectContextModel: { getDocument: vi.fn() },
         userModel: { findSessionUserAndOrgByUuid: vi.fn() } as AnyType,
-        featureFlagService: {
-            get: vi.fn(async ({ featureFlagId }) => ({
-                id: featureFlagId,
-                enabled: true,
-            })),
-        } as AnyType,
         aiOrganizationSettingsService: {
+            isCopilotAvailable: vi.fn().mockResolvedValue(true),
             isAiAgentMemoryEnabled: vi.fn().mockResolvedValue(true),
             isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
         },

@@ -34,7 +34,6 @@ export const agentSettingsMcpMock =
     (): ApiAiOrganizationSettingsResponse['results'] => ({
         organizationUuid: 'org',
         isCopilotEnabled: true,
-        isTrial: false,
         aiAgentsVisible: true,
         aiAgentReviewsEnabled: false,
         aiAgentMemoryEnabled: false,

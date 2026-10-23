@@ -65,6 +65,10 @@ const learnSandboxServiceMock = {
     isRuntimeAvailable: vi.fn(async () => false),
 };
 
+const aiCopilotConfigResolverMock = {
+    isCopilotAvailable: vi.fn(async () => true),
+};
+
 describe('health', () => {
     const healthService = new HealthService({
         organizationModel: organizationModel as unknown as OrganizationModel,
@@ -75,6 +79,7 @@ describe('health', () => {
             organizationSettingsModel as unknown as OrganizationSettingsModel,
         featureFlagModel: featureFlagModelMock,
         learnSandboxService: learnSandboxServiceMock,
+        getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
     });
 
     afterEach(() => {
@@ -111,6 +116,7 @@ describe('health', () => {
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
+                getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
             });
             const health = await service.getHealthState(undefined);
             expect(health.auth.snowflakeAi.enabled).toBe(licenseKey !== null);
@@ -143,6 +149,7 @@ describe('health', () => {
                 organizationSettingsModel:
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 learnSandboxService: learnSandboxServiceMock,
+                getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
                 featureFlagModel: featureFlagModelMock,
             });
             const health = await service.getHealthState(undefined);
@@ -184,6 +191,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
         });
 
         expect(
@@ -213,6 +221,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
         });
 
         await expect(service.getHealthState(undefined)).resolves.toEqual({
@@ -243,6 +252,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
         });
 
         expect(
@@ -272,6 +282,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
         });
         expect(
             (await licensedService.getHealthState(undefined))
@@ -317,6 +328,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
         });
 
         expect(
@@ -336,6 +348,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
         });
 
         expect(
@@ -359,6 +372,7 @@ describe('health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
         });
         expect(await service.getHealthState(undefined)).toEqual({
             ...BaseResponse,
@@ -432,6 +446,7 @@ describe('health', () => {
             featureFlagModel: featureFlagModelMock,
             readinessService: { getReadiness },
             learnSandboxService: learnSandboxServiceMock,
+            getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
         });
 
         await expect(service.getHealthState(undefined)).resolves.toEqual({
@@ -470,6 +485,7 @@ describe('health', () => {
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
+                getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
             });
 
             const result = await service.getHealthState(userMock);
@@ -493,6 +509,7 @@ describe('health', () => {
                     organizationSettingsModel as unknown as OrganizationSettingsModel,
                 featureFlagModel: featureFlagModelMock,
                 learnSandboxService: learnSandboxServiceMock,
+                getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
             });
 
             const userWithEmail = { ...userMock, email: testEmail };
@@ -528,6 +545,7 @@ describe('fast decisions in health', () => {
                 organizationSettingsModel as unknown as OrganizationSettingsModel,
             featureFlagModel: featureFlagModelMock,
             learnSandboxService: learnSandboxServiceMock,
+            getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
         });
 
     it('is off without a decision key whatever the flag says', async () => {
@@ -563,5 +581,45 @@ describe('fast decisions in health', () => {
             (await build(withKey).getHealthState(undefined)).ai
                 .fastDecisionsEnabled,
         ).toBe(true);
+    });
+});
+
+describe('AI copilot availability in health', () => {
+    const build = (license: LicenseService) =>
+        new HealthService({
+            organizationModel:
+                organizationModel as unknown as OrganizationModel,
+            lightdashConfig: lightdashConfigMock,
+            licenseService: license,
+            migrationModel: migrationModel as unknown as MigrationModel,
+            organizationSettingsModel:
+                organizationSettingsModel as unknown as OrganizationSettingsModel,
+            featureFlagModel: featureFlagModelMock,
+            learnSandboxService: learnSandboxServiceMock,
+            getAiCopilotConfigResolver: () => aiCopilotConfigResolverMock,
+        });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('is off without a valid licence and never resolves the org config', async () => {
+        expect(
+            (await build(invalidLicenseService).getHealthState(userMock)).ai
+                .isCopilotAvailable,
+        ).toBe(false);
+        expect(
+            aiCopilotConfigResolverMock.isCopilotAvailable,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('resolves availability for the caller organization under a valid licence', async () => {
+        expect(
+            (await build(validLicenseService).getHealthState(userMock)).ai
+                .isCopilotAvailable,
+        ).toBe(true);
+        expect(
+            aiCopilotConfigResolverMock.isCopilotAvailable,
+        ).toHaveBeenCalledWith(userMock.organizationUuid);
     });
 });

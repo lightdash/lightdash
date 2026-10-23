@@ -125,6 +125,9 @@ const buildService = (overrides?: {
         aiAgentModel,
         projectModel,
         featureFlagService,
+        orgAiCopilotConfigResolver: {
+            isCopilotAvailable: vi.fn().mockResolvedValue(true),
+        },
         analytics: { track: vi.fn() },
         aiAgentDocumentModel: {
             findAllForAgent: vi.fn().mockResolvedValue([]),

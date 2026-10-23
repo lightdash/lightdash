@@ -93,6 +93,9 @@ const setup = (runtimeOptions?: EmbedAiAgentRuntimeOptions) => {
         featureFlagService: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
         },
+        orgAiCopilotConfigResolver: {
+            isCopilotAvailable: vi.fn().mockResolvedValue(true),
+        },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     const access = (
         service as unknown as ExportFactory

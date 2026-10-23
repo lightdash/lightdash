@@ -1,6 +1,5 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
-    CommercialFeatureFlags,
     DimensionType,
     FieldType,
     ForbiddenError,
@@ -156,12 +155,10 @@ describe('AiAgentMemoryService', () => {
         consolidationDryRun = false,
         memorySettingEnabled = true,
     } = {}) => {
-        const getFlag = vi.fn(async ({ user, featureFlagId }) => ({
-            id: featureFlagId,
-            enabled:
-                user.organizationUuid === enabledOrganization &&
-                featureFlagId === CommercialFeatureFlags.AiCopilot,
-        }));
+        const isCopilotAvailable = vi.fn(
+            async (organizationUuid: string) =>
+                organizationUuid === enabledOrganization,
+        );
         const findByProjectAndSlug = vi.fn();
         const findByProjectAndUuid = vi.fn();
         const findThreadsDueForDistill = vi.fn();
@@ -278,7 +275,6 @@ describe('AiAgentMemoryService', () => {
             } as AnyType,
             projectContextModel: { getDocument: vi.fn() },
             userModel: { findSessionUserAndOrgByUuid } as AnyType,
-            featureFlagService: { get: getFlag } as AnyType,
             aiOrganizationSettingsService: {
                 isAiAgentMemoryEnabled: async (user: {
                     organizationUuid?: string;
@@ -286,6 +282,7 @@ describe('AiAgentMemoryService', () => {
                     memorySettingEnabled &&
                     user.organizationUuid === enabledOrganization,
                 isAiAgentReviewsEnabled: vi.fn().mockResolvedValue(true),
+                isCopilotAvailable,
             },
             schedulerClient: {
                 aiAgentMemoryDistill,
@@ -299,7 +296,7 @@ describe('AiAgentMemoryService', () => {
         });
         return {
             service,
-            getFlag,
+            isCopilotAvailable,
             findByProjectAndSlug,
             findByProjectAndUuid,
             findThreadsDueForDistill,
@@ -2083,7 +2080,7 @@ describe('AiAgentMemoryService', () => {
         const {
             service,
             findSessionUserAndOrgByUuid,
-            getFlag,
+            isCopilotAvailable,
             findConsolidationPartition,
             findActiveForProject,
         } = buildManualPartition();
@@ -2096,7 +2093,7 @@ describe('AiAgentMemoryService', () => {
             'Cannot manage AI agents in this project',
         );
 
-        expect(getFlag).not.toHaveBeenCalled();
+        expect(isCopilotAvailable).not.toHaveBeenCalled();
         expect(findConsolidationPartition).not.toHaveBeenCalled();
         expect(findActiveForProject).not.toHaveBeenCalled();
     });
@@ -2496,23 +2493,23 @@ describe('AiAgentMemoryService', () => {
     });
 
     it('rejects users who cannot view the project before checking flags', async () => {
-        const { service, getFlag } = build();
+        const { service, isCopilotAvailable } = build();
         const user = buildUser(false);
 
         await expect(
             service.getMemory(user, 'project-enabled', 'net-revenue'),
         ).rejects.toThrow('Cannot view project');
-        expect(getFlag).not.toHaveBeenCalled();
+        expect(isCopilotAvailable).not.toHaveBeenCalled();
     });
 
     it('rejects an organization member for a project in another organization', async () => {
-        const { service, getFlag, findByProjectAndSlug } = build();
+        const { service, isCopilotAvailable, findByProjectAndSlug } = build();
         const user = buildUser(true);
 
         await expect(
             service.getMemory(user, 'project-other', 'net-revenue'),
         ).rejects.toThrow('Cannot view project');
-        expect(getFlag).not.toHaveBeenCalled();
+        expect(isCopilotAvailable).not.toHaveBeenCalled();
         expect(findByProjectAndSlug).not.toHaveBeenCalled();
     });
 
@@ -2576,7 +2573,8 @@ describe('AiAgentMemoryService', () => {
     });
 
     it('rejects a memory list request from a non project member', async () => {
-        const { service, getFlag, findUserMemoriesPaginated } = build();
+        const { service, isCopilotAvailable, findUserMemoriesPaginated } =
+            build();
         const user = buildUser(false);
 
         await expect(
@@ -2585,7 +2583,7 @@ describe('AiAgentMemoryService', () => {
                 pageSize: 50,
             }),
         ).rejects.toThrow('Cannot view project');
-        expect(getFlag).not.toHaveBeenCalled();
+        expect(isCopilotAvailable).not.toHaveBeenCalled();
         expect(findUserMemoriesPaginated).not.toHaveBeenCalled();
     });
 });

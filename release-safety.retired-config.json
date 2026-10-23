@@ -2,5 +2,6 @@
     "LUNA_API_KEY": "Set only on the internal analytics deployment for the OpenAI Decisions shadow experiment; never documented for operators. The provider is removed, so the key has nothing to authenticate.",
     "LUNA_MODEL": "Model name for the removed OpenAI Decisions provider; set only on the internal analytics deployment and never documented for operators.",
     "LUNA_TIMEOUT_MS": "Timeout for the removed OpenAI Decisions provider; set only on the internal analytics deployment and never documented for operators.",
-    "LUNA_SHADOW_ENABLED": "Toggled the removed shadow comparison between Jev and OpenAI Decisions; set only on the internal analytics deployment and never documented for operators."
+    "LUNA_SHADOW_ENABLED": "Toggled the removed shadow comparison between Jev and OpenAI Decisions; set only on the internal analytics deployment and never documented for operators.",
+    "AI_COPILOT_REQUIRES_FEATURE_FLAG": "Set only by Lightdash Cloud infrastructure on the multi-org tenants and one dedicated instance to gate AI copilot per organization through the removed ai-copilot flag; never documented for operators. Copilot now follows the licence, AI_COPILOT_ENABLED and a configured model, so the variable has nothing to gate."
 }

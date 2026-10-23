@@ -26,6 +26,7 @@ const createService = () =>
         },
         orgAiCopilotConfigResolver: {
             getCopilotConfig: vi.fn().mockResolvedValue({ providers: {} }),
+            isCopilotAvailable: vi.fn().mockResolvedValue(true),
         },
     } as unknown as ConstructorParameters<typeof AiService>[0]);
 

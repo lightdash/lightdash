@@ -16,8 +16,7 @@ export const useDefaultAiAgent = (projectUuid: string | undefined) => {
             enabled:
                 aiOrganizationSettingsQuery.isSuccess &&
                 !!aiOrganizationSettingsQuery.data?.aiAgentsVisible &&
-                (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
-                    aiOrganizationSettingsQuery.data.isTrial),
+                aiOrganizationSettingsQuery.data.isCopilotEnabled,
         },
         redirectOnUnauthorized: false,
     });

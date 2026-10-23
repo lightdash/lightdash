@@ -178,7 +178,7 @@ const Settings: FC = () => {
         externalSourcesFlag,
         isDataAppsFlagLoading,
         isChartStudioAvailable,
-        isAiCopilotEnabledOrTrial,
+        isAiCopilotEnabled,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,
@@ -715,7 +715,7 @@ const Settings: FC = () => {
                                 user?.ability.can('manage', 'Organization') ??
                                 false,
                             canManageOrgAiAgent,
-                            isAiAvailable: isAiCopilotEnabledOrTrial,
+                            isAiAvailable: isAiCopilotEnabled,
                         })}
                     />
                 ),
@@ -733,7 +733,7 @@ const Settings: FC = () => {
             },
         );
 
-        if (isAiCopilotEnabledOrTrial && hasAnyAiAgentAccess) {
+        if (isAiCopilotEnabled && hasAnyAiAgentAccess) {
             allowedRoutes.push({
                 path: '/ai',
                 element: (
@@ -755,7 +755,7 @@ const Settings: FC = () => {
                 });
                 if (
                     canAccessDeepResearchSettings({
-                        isAiCopilotEnabledOrTrial,
+                        isAiCopilotEnabled,
                         canManageOrgAiAgent,
                         hasAnyAiAgentAccess,
                     })
@@ -809,7 +809,7 @@ const Settings: FC = () => {
                                             'Organization',
                                         ) ?? false,
                                     canManageOrgAiAgent,
-                                    isAiAvailable: isAiCopilotEnabledOrTrial,
+                                    isAiAvailable: isAiCopilotEnabled,
                                 }).mcpPage === 'link'
                             }
                         />
@@ -909,7 +909,7 @@ const Settings: FC = () => {
         canAccessAiCredits,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
-        isAiCopilotEnabledOrTrial,
+        isAiCopilotEnabled,
         shouldShowAiAgentReviews,
         canManageOrgAiAgent,
         hasAnyAiAgentAccess,

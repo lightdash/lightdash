@@ -79,7 +79,6 @@ const createService = ({ copilotEnabled = false } = {}) => {
             copilot: {
                 ...lightdashConfigMock.ai.copilot,
                 enabled: copilotEnabled,
-                requiresFeatureFlag: false,
             },
         },
     };

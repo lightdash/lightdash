@@ -17,7 +17,6 @@ import {
     buildRunSqlDescription,
     ChartType,
     clientSupportsMcpTasks,
-    CommercialFeatureFlags,
     connectAgentToolDefinition,
     convertAiTableCalcsSchemaToTableCalcs,
     convertFieldRefToFieldId,
@@ -5637,22 +5636,12 @@ export class McpService extends BaseService {
             return false;
         }
 
-        // MCP is enabled if MCP_ENABLED is true, AI Copilot is enabled, or user is on trial
+        // MCP is enabled if MCP_ENABLED is true or AI copilot is available
         if (this.lightdashConfig.mcp.enabled) {
             return true;
         }
 
-        const aiCopilotFlag = await this.featureFlagService.get({
-            user,
-            featureFlagId: CommercialFeatureFlags.AiCopilot,
-        });
-
-        if (aiCopilotFlag.enabled) {
-            return true;
-        }
-
-        return this.aiOrganizationSettingsService.isEligibleForTrial(
-            aiCopilotFlag.enabled,
+        return this.aiOrganizationSettingsService.isCopilotAvailable(
             user.organizationUuid,
         );
     }

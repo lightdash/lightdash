@@ -146,6 +146,9 @@ const buildService = ({
         featureFlagService: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
         },
+        orgAiCopilotConfigResolver: {
+            isCopilotAvailable: vi.fn().mockResolvedValue(true),
+        },
         lightdashConfig: {
             siteUrl: 'https://app.example.com',
             ai: { copilot: {} },
