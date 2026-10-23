@@ -1255,7 +1255,7 @@ describe('getSystemPromptV2 Slack links only', () => {
             slackLinksOnly: true,
         });
         expect(content).toContain(noDataInSlackRule);
-        expect(content).toContain('You do not see the actual query results');
+        expect(content).toContain('Never state figures, counts, totals');
     });
 
     test('is absent by default', () => {
