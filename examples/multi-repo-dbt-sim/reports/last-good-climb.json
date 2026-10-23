@@ -226,6 +226,479 @@
     "store_unchanged": true,
     "success": true
   },
+  "fresh_over_seed": {
+    "command": [
+      "ls",
+      "--output",
+      "json",
+      "--output-keys",
+      "unique_id"
+    ],
+    "runs": {
+      "alpha_first": {
+        "command": [
+          "ls",
+          "--output",
+          "json",
+          "--output-keys",
+          "unique_id"
+        ],
+        "order": [
+          "proj_alpha",
+          "proj_beta"
+        ],
+        "broken": [],
+        "fresh_parsed": [
+          "proj_alpha",
+          "proj_beta"
+        ],
+        "failed": [],
+        "projects": {
+          "proj_alpha": {
+            "returncode": 0,
+            "unresolved": false,
+            "cycle_error": false,
+            "error_excerpt": [],
+            "bindings": {
+              "alpha_report": [
+                "model.proj_beta.measure.v3"
+              ]
+            },
+            "catalog_sources": {
+              "proj_beta": "confirmed"
+            },
+            "owned_injected": 3,
+            "injected": [
+              {
+                "package_name": "proj_beta",
+                "name": "beta_base",
+                "version": null,
+                "latest_version": null
+              },
+              {
+                "package_name": "proj_beta",
+                "name": "beta_report",
+                "version": null,
+                "latest_version": null
+              },
+              {
+                "package_name": "proj_beta",
+                "name": "measure",
+                "version": 3,
+                "latest_version": 3
+              }
+            ]
+          },
+          "proj_beta": {
+            "returncode": 0,
+            "unresolved": false,
+            "cycle_error": false,
+            "error_excerpt": [],
+            "bindings": {
+              "beta_report": [
+                "model.proj_alpha.alpha_base"
+              ]
+            },
+            "catalog_sources": {
+              "proj_alpha": "fresh"
+            },
+            "owned_injected": 2,
+            "injected": [
+              {
+                "package_name": "proj_alpha",
+                "name": "alpha_base",
+                "version": null,
+                "latest_version": null
+              },
+              {
+                "package_name": "proj_alpha",
+                "name": "alpha_report",
+                "version": null,
+                "latest_version": null
+              }
+            ]
+          }
+        },
+        "owned_injected": 5,
+        "package_nodes_omitted": 0,
+        "sources": [
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 3
+          },
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
+            ],
+            "injectedStubs": 2
+          }
+        ]
+      },
+      "beta_first": {
+        "command": [
+          "ls",
+          "--output",
+          "json",
+          "--output-keys",
+          "unique_id"
+        ],
+        "order": [
+          "proj_beta",
+          "proj_alpha"
+        ],
+        "broken": [],
+        "fresh_parsed": [
+          "proj_alpha",
+          "proj_beta"
+        ],
+        "failed": [],
+        "projects": {
+          "proj_beta": {
+            "returncode": 0,
+            "unresolved": false,
+            "cycle_error": false,
+            "error_excerpt": [],
+            "bindings": {
+              "beta_report": [
+                "model.proj_alpha.alpha_base"
+              ]
+            },
+            "catalog_sources": {
+              "proj_alpha": "confirmed"
+            },
+            "owned_injected": 1,
+            "injected": [
+              {
+                "package_name": "proj_alpha",
+                "name": "alpha_base",
+                "version": null,
+                "latest_version": null
+              }
+            ]
+          },
+          "proj_alpha": {
+            "returncode": 0,
+            "unresolved": false,
+            "cycle_error": false,
+            "error_excerpt": [],
+            "bindings": {
+              "alpha_report": [
+                "model.proj_beta.measure.v2"
+              ]
+            },
+            "catalog_sources": {
+              "proj_beta": "fresh"
+            },
+            "owned_injected": 4,
+            "injected": [
+              {
+                "package_name": "proj_beta",
+                "name": "beta_base",
+                "version": null,
+                "latest_version": null
+              },
+              {
+                "package_name": "proj_beta",
+                "name": "beta_report",
+                "version": null,
+                "latest_version": null
+              },
+              {
+                "package_name": "proj_beta",
+                "name": "measure",
+                "version": 2,
+                "latest_version": 2
+              },
+              {
+                "package_name": "proj_beta",
+                "name": "measure",
+                "version": 3,
+                "latest_version": 2
+              }
+            ]
+          }
+        },
+        "owned_injected": 5,
+        "package_nodes_omitted": 0,
+        "sources": [
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
+            ],
+            "injectedStubs": 1
+          },
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 4
+          }
+        ]
+      },
+      "failed_provider": {
+        "command": [
+          "ls",
+          "--output",
+          "json",
+          "--output-keys",
+          "unique_id"
+        ],
+        "order": [
+          "proj_beta",
+          "proj_alpha"
+        ],
+        "broken": [
+          "proj_beta"
+        ],
+        "fresh_parsed": [
+          "proj_alpha"
+        ],
+        "failed": [
+          "proj_beta"
+        ],
+        "projects": {
+          "proj_beta": {
+            "returncode": 2,
+            "unresolved": true,
+            "cycle_error": false,
+            "error_excerpt": [
+              "  Model 'model.proj_beta.broken' (models/broken.sql) depends on a node named 'missing_model' which was not found"
+            ],
+            "bindings": null,
+            "catalog_sources": {
+              "proj_alpha": "confirmed"
+            },
+            "owned_injected": 1,
+            "injected": [
+              {
+                "package_name": "proj_alpha",
+                "name": "alpha_base",
+                "version": null,
+                "latest_version": null
+              }
+            ]
+          },
+          "proj_alpha": {
+            "returncode": 0,
+            "unresolved": false,
+            "cycle_error": false,
+            "error_excerpt": [],
+            "bindings": {
+              "alpha_report": [
+                "model.proj_beta.measure.v3"
+              ]
+            },
+            "catalog_sources": {
+              "proj_beta": "confirmed"
+            },
+            "owned_injected": 3,
+            "injected": [
+              {
+                "package_name": "proj_beta",
+                "name": "beta_base",
+                "version": null,
+                "latest_version": null
+              },
+              {
+                "package_name": "proj_beta",
+                "name": "beta_report",
+                "version": null,
+                "latest_version": null
+              },
+              {
+                "package_name": "proj_beta",
+                "name": "measure",
+                "version": 3,
+                "latest_version": 3
+              }
+            ]
+          }
+        },
+        "owned_injected": 4,
+        "package_nodes_omitted": 0,
+        "sources": [
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
+            ],
+            "injectedStubs": 1
+          },
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 3
+          }
+        ]
+      }
+    },
+    "checks": {
+      "ring_first_source_uses_confirmed_seed": true,
+      "second_source_takes_fresh_provider": true,
+      "fresh_latest_version_wins": true,
+      "failed_provider_falls_back_to_seed": true,
+      "every_parse_exited_cleanly": true,
+      "store_unchanged": true
+    },
+    "success": true
+  },
+  "per_provider_confirm": {
+    "command": [
+      "ls",
+      "--output",
+      "json",
+      "--output-keys",
+      "unique_id"
+    ],
+    "explore_error_signal": "modelled; the harness compiles no explores",
+    "scenarios": {
+      "healthy": {
+        "failed_sources": [],
+        "unattributed": false,
+        "rows_written": 2,
+        "confirmations_logged": 1,
+        "store_changed": [
+          "proj_alpha",
+          "proj_beta"
+        ],
+        "store_measure_latest": [
+          2,
+          2
+        ],
+        "alpha_refresh_after_confirm": {
+          "returncode": 0,
+          "bindings": {
+            "alpha_report": [
+              "model.proj_beta.measure.v2"
+            ]
+          },
+          "measure_versions": [
+            2,
+            3
+          ]
+        },
+        "resolution": {
+          "fresh_parsed": [
+            "proj_alpha",
+            "proj_beta"
+          ],
+          "owned_injected": 5,
+          "package_nodes_omitted": 0
+        }
+      },
+      "other_source_error": {
+        "failed_sources": [
+          "proj_beta"
+        ],
+        "unattributed": false,
+        "rows_written": 1,
+        "confirmations_logged": 1,
+        "store_changed": [
+          "proj_alpha"
+        ],
+        "store_measure_latest": [
+          3
+        ],
+        "alpha_refresh_after_confirm": {
+          "returncode": 0,
+          "bindings": {
+            "alpha_report": [
+              "model.proj_beta.measure.v3"
+            ]
+          },
+          "measure_versions": [
+            3
+          ]
+        },
+        "resolution": {
+          "fresh_parsed": [
+            "proj_alpha",
+            "proj_beta"
+          ],
+          "owned_injected": 5,
+          "package_nodes_omitted": 0
+        }
+      },
+      "every_source_error": {
+        "failed_sources": [
+          "proj_alpha",
+          "proj_beta"
+        ],
+        "unattributed": false,
+        "rows_written": 0,
+        "confirmations_logged": 1,
+        "store_changed": [],
+        "store_measure_latest": [
+          3
+        ],
+        "alpha_refresh_after_confirm": {
+          "returncode": 0,
+          "bindings": {
+            "alpha_report": [
+              "model.proj_beta.measure.v3"
+            ]
+          },
+          "measure_versions": [
+            3
+          ]
+        },
+        "resolution": {
+          "fresh_parsed": [
+            "proj_alpha",
+            "proj_beta"
+          ],
+          "owned_injected": 5,
+          "package_nodes_omitted": 0
+        }
+      },
+      "unattributed_error": {
+        "failed_sources": [],
+        "unattributed": true,
+        "rows_written": null,
+        "confirmations_logged": 0,
+        "store_changed": [],
+        "store_measure_latest": [
+          3
+        ],
+        "alpha_refresh_after_confirm": {
+          "returncode": 0,
+          "bindings": {
+            "alpha_report": [
+              "model.proj_beta.measure.v3"
+            ]
+          },
+          "measure_versions": [
+            3
+          ]
+        },
+        "resolution": {
+          "fresh_parsed": [
+            "proj_alpha",
+            "proj_beta"
+          ],
+          "owned_injected": 5,
+          "package_nodes_omitted": 0
+        }
+      }
+    },
+    "checks": {
+      "healthy_confirms_every_provider": true,
+      "unrelated_error_does_not_block_healthy_provider": true,
+      "failed_provider_keeps_its_seed": true,
+      "every_attributed_error_writes_nothing": true,
+      "unattributed_error_withholds_confirmation": true,
+      "seed_store_unchanged": true
+    },
+    "success": true
+  },
   "markers": [
     {
       "message": "dbt.compile.crossSourceLastGoodConfirmed rowsWritten=2 projectUuid=7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a connectionGroup=original",
@@ -289,6 +762,229 @@
             "injectedFrom": [
               "proj_owner_one",
               "proj_owner_two"
+            ],
+            "injectedStubs": 2
+          }
+        ]
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=5 packageNodesOmitted=0",
+      "meta": {
+        "event": "dbt.compile.crossSourceRefsResolved",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "diskEvictions": 0,
+        "diskRecreations": 0,
+        "cacheRowsLoaded": 2,
+        "ownedInjected": 5,
+        "packageNodesOmitted": 0,
+        "sources": [
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 3
+          },
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
+            ],
+            "injectedStubs": 2
+          }
+        ]
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=5 packageNodesOmitted=0",
+      "meta": {
+        "event": "dbt.compile.crossSourceRefsResolved",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "diskEvictions": 0,
+        "diskRecreations": 0,
+        "cacheRowsLoaded": 2,
+        "ownedInjected": 5,
+        "packageNodesOmitted": 0,
+        "sources": [
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
+            ],
+            "injectedStubs": 1
+          },
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 4
+          }
+        ]
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=4 packageNodesOmitted=0",
+      "meta": {
+        "event": "dbt.compile.crossSourceRefsResolved",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "diskEvictions": 0,
+        "diskRecreations": 0,
+        "cacheRowsLoaded": 2,
+        "ownedInjected": 4,
+        "packageNodesOmitted": 0,
+        "sources": [
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
+            ],
+            "injectedStubs": 1
+          },
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 3
+          }
+        ]
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=5 packageNodesOmitted=0",
+      "meta": {
+        "event": "dbt.compile.crossSourceRefsResolved",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "diskEvictions": 0,
+        "diskRecreations": 0,
+        "cacheRowsLoaded": 2,
+        "ownedInjected": 5,
+        "packageNodesOmitted": 0,
+        "sources": [
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 3
+          },
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
+            ],
+            "injectedStubs": 2
+          }
+        ]
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceLastGoodConfirmed rowsWritten=2 projectUuid=7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a connectionGroup=original",
+      "meta": {
+        "event": "dbt.compile.crossSourceLastGoodConfirmed",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "connectionGroup": "original",
+        "rowsWritten": 2
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=5 packageNodesOmitted=0",
+      "meta": {
+        "event": "dbt.compile.crossSourceRefsResolved",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "diskEvictions": 0,
+        "diskRecreations": 0,
+        "cacheRowsLoaded": 2,
+        "ownedInjected": 5,
+        "packageNodesOmitted": 0,
+        "sources": [
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 3
+          },
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
+            ],
+            "injectedStubs": 2
+          }
+        ]
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceLastGoodConfirmed rowsWritten=1 projectUuid=7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a connectionGroup=original",
+      "meta": {
+        "event": "dbt.compile.crossSourceLastGoodConfirmed",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "connectionGroup": "original",
+        "rowsWritten": 1
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=5 packageNodesOmitted=0",
+      "meta": {
+        "event": "dbt.compile.crossSourceRefsResolved",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "diskEvictions": 0,
+        "diskRecreations": 0,
+        "cacheRowsLoaded": 2,
+        "ownedInjected": 5,
+        "packageNodesOmitted": 0,
+        "sources": [
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 3
+          },
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
+            ],
+            "injectedStubs": 2
+          }
+        ]
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceLastGoodConfirmed rowsWritten=0 projectUuid=7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a connectionGroup=original",
+      "meta": {
+        "event": "dbt.compile.crossSourceLastGoodConfirmed",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "connectionGroup": "original",
+        "rowsWritten": 0
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=5 packageNodesOmitted=0",
+      "meta": {
+        "event": "dbt.compile.crossSourceRefsResolved",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "diskEvictions": 0,
+        "diskRecreations": 0,
+        "cacheRowsLoaded": 2,
+        "ownedInjected": 5,
+        "packageNodesOmitted": 0,
+        "sources": [
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 3
+          },
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
             ],
             "injectedStubs": 2
           }

@@ -17,7 +17,14 @@ its owner in `metadata.project_name`. Only public models, seeds, and
 snapshots whose `package_name` is that owner cross to another project. Nodes
 from an installed dbt package stay local to the project that installs them.
 A manifest with no owner identity exports no nodes. This mirrors the product
-tip `04c9461063` on #31471.
+tip `009bd64189` on #31471.
+
+That tip also steers two policies that this fixture expresses. A provider
+that parses successfully in the current refresh supplies its fresh catalogue
+to later consumers; the confirmed store is the fallback for a provider that
+has not parsed yet or whose parse failed. Each provider confirms on its own:
+an explore error attributed to one source withholds only that source's
+confirmation, an unattributed error withholds every confirmation.
 
 ## Graph
 
@@ -151,6 +158,81 @@ The consumer refresh runs `dbt ls` with both owners injected. Pass:
   no nodes and omits nothing
 - the owners' stored manifests are unchanged after the refresh
 
+## Fresh over seed
+
+The ring runs in dependency order. `proj_alpha` and `proj_beta` reference
+each other, so neither is ready first and the product takes the first
+source in its list. The harness runs the ring three times from the same
+disk and the same confirmed store, and keeps every fresh manifest in memory
+until a confirmation step writes it. The store digests do not change.
+
+`alpha_first` is the product's ring order. `proj_alpha` parses with the
+confirmed `proj_beta` seed and binds `model.proj_beta.measure.v3`.
+`proj_beta` then parses with the fresh `proj_alpha` manifest, not the
+store: its injected set is `alpha_base` and `alpha_report`, two owned
+nodes, where the confirmed seed carries one. `beta_report` still binds
+`model.proj_alpha.alpha_base`. The resolution injects 5 stubs.
+
+`beta_first` reverses the order. `proj_beta` parses with the confirmed
+`proj_alpha` seed. `proj_alpha` then parses with the fresh `proj_beta`
+manifest: `measure` v2 and v3 arrive with `latest_version` 2, and the
+unversioned ref binds `model.proj_beta.measure.v2`. Same disk, same store,
+different binding, because the fresh catalogue wins over the seed. The
+resolution injects 5 stubs.
+
+`failed_provider` runs `beta_first` against a copy of `disk/proj_beta` with
+an added `broken.sql` that references `missing_model`. The `dbt ls` for
+`proj_beta` exits non-zero with `which was not found`, so no fresh
+manifest is recorded for it. `proj_alpha` then falls back to the confirmed
+seed and binds `model.proj_beta.measure.v3`. The failed attempt still
+counts the stub it was handed, as the product does, so the resolution
+reports 4.
+
+Pass:
+
+- the first source in each order reads its provider as `confirmed`, the
+  second reads it as `fresh`
+- `alpha_first` binds v3 then `alpha_base`; `beta_first` binds `alpha_base`
+  then v2 with both measure versions at `latest_version` 2
+- `failed_provider` fails `proj_beta`, keeps `proj_alpha` on v3
+- every successful parse exits 0 with no cycle error
+- the seeded store is unchanged after all three runs
+
+## Per-provider confirm
+
+The product confirms a provider only after its own parse and the explore
+publication succeed. `persistArtifacts` receives the source UUIDs of
+attributed explore errors and discards those entries before `confirm()`;
+an unattributed explore error sets `successfulCompile` false and nothing
+confirms. `replaceConfirmed` upserts, so a discarded provider keeps its
+earlier confirmed row.
+
+The harness compiles no explores, so the explore error is a modelled
+signal: each scenario declares which sources failed, or that the error has
+no source. The parse and the store writes are real. Each scenario copies
+the seeded store, runs the ring in `alpha_first` order, confirms, then
+refreshes `proj_alpha` once more against the scenario store.
+
+| Scenario | Explore error | Rows written | Store rows replaced | `proj_alpha` after confirm |
+| --- | --- | ---: | --- | --- |
+| `healthy` | none | 2 | both | binds `measure.v2` from the new `proj_beta` row |
+| `other_source_error` | attributed to `proj_beta` | 1 | `proj_alpha` only | binds `measure.v3` from the retained seed |
+| `every_source_error` | attributed to both | 0 | none | binds `measure.v3` |
+| `unattributed_error` | no source | none | none | binds `measure.v3` |
+
+Pass:
+
+- `healthy` writes both rows and the stored `proj_beta` row now declares
+  latest version 2
+- `other_source_error` writes one row and logs one confirmation; the
+  `proj_beta` row still declares latest version 3 and the next `proj_alpha`
+  refresh binds v3
+- `every_source_error` writes nothing and logs `rowsWritten=0`, because
+  `confirm()` logs after `replaceConfirmed` returns early on an empty entry
+  list
+- `unattributed_error` writes nothing and logs no confirmation
+- the seeded store used by the other cases is unchanged
+
 ## Log markers
 
 The product tip logs two markers that a post-merge success watch reads. The
@@ -162,9 +244,11 @@ store write, after the manifests are on disk. The text is
 `dbt.compile.crossSourceLastGoodConfirmed rowsWritten=N projectUuid=<uuid>
 connectionGroup=original`; the fields are `event`, `projectUuid`,
 `connectionGroup` and `rowsWritten`. The ring seed writes 2 rows and the
-package seed writes 2 rows. The withheld run writes nothing and must not log
-a confirmation. The project UUID and connection group are fixed synthetic
-values; the harness has no project table.
+package seed writes 2 rows. The per-provider scenarios write 2, 1 and 0
+rows in that order and the unattributed scenario logs nothing. The
+withheld run writes nothing and must not log a confirmation. The project
+UUID and connection group are fixed synthetic values; the harness has no
+project table.
 
 `dbt.compile.crossSourceRefsResolved` is emitted once per resolution. The
 text ends with ` ownedInjected=X packageNodesOmitted=Y`; the fields include
@@ -172,7 +256,9 @@ text ends with ` ownedInjected=X packageNodesOmitted=Y`; the fields include
 `sources` list with `injectedFrom` and `injectedStubs`. The harness has no
 disk pool, so `diskEvictions` and `diskRecreations` are 0. The ring
 resolution reports 4 and 0. The package resolution reports 2 and 2. The
-contract fails if a count, the text suffix, or a field name drifts.
+three fresh-over-seed runs report 5, 5 and 4 with 0 omitted, and each
+per-provider scenario reports 5 and 0. The contract fails if a count, the
+text suffix, or a field name drifts.
 
 The harness counts each stored manifest once per resolution. The product
 counts package nodes when it loads older confirmed rows and again when it
@@ -216,9 +302,25 @@ The package share ran `dbt deps` and `dbt parse` for both owners, then
 appear in the consumer manifest. The injected payload carried two nodes
 with empty `depends_on`. The ownerless copy exported no nodes.
 
-The markers recorded were two confirmations (`rowsWritten=2` each) and two
-resolutions (`ownedInjected=4 packageNodesOmitted=0`, then
-`ownedInjected=2 packageNodesOmitted=2`).
+The fresh-over-seed runs used the same disk and store. `alpha_first` read
+`proj_beta` as `confirmed` and bound `measure.v3`, then read `proj_alpha` as
+`fresh` and injected `alpha_base` and `alpha_report`. `beta_first` read
+`proj_alpha` as `confirmed`, then read `proj_beta` as `fresh`, injected
+`measure` v2 and v3 both at latest version 2, and bound `measure.v2`.
+`failed_provider` exited 2 for `proj_beta` with
+`Model 'model.proj_beta.broken' (models/broken.sql) depends on a node named
+'missing_model' which was not found`; `proj_alpha` then read `proj_beta` as
+`confirmed` and bound `measure.v3`. The store digests were unchanged.
+
+The per-provider scenarios wrote 2, 1, 0 rows and then nothing. After the
+`other_source_error` confirm the `proj_alpha` row held the fresh manifest
+and the `proj_beta` row still declared latest version 3; the next
+`proj_alpha` refresh bound `measure.v3`. After the `healthy` confirm the
+same refresh bound `measure.v2`.
+
+The markers recorded were confirmations with `rowsWritten` 2, 2, 2, 1, 0
+and resolutions with `ownedInjected` 4, 2, 5, 5, 4, 5, 5, 5, 5
+(`packageNodesOmitted` 2 for the package resolution and 0 elsewhere).
 
 ## Recorded divergences
 
@@ -240,6 +342,19 @@ These are harness notes. They are not product changes.
   it. This harness does not copy that check. A cycle whose two ends are
   both injected is a different case: `dbt ls` reports `Found a cycle` and
   `dbt parse` does not. The runner checks that pair.
+- Explore errors are modelled. The per-provider scenarios declare which
+  sources carry an explore error instead of compiling explores. The
+  product attributes an error through `dbtModelIdentity.sourceUuid`, the
+  base table's `dbtSourceUuid`, or the stamped `dbtSourceUuid`; the
+  harness has none of those and takes the source name directly.
+- Fresh-manifest wording is not checked. The product's missing-ref message
+  says `fresh manifest` when the provider parsed this run and `confirmed
+  last-good manifest` otherwise. The harness never produces that message:
+  a missing ref surfaces as the dbt `which was not found` failure.
+- Publication and artefact-write failures are not run. The product
+  withholds every confirmation when explore publication or the merged
+  manifest write throws. The harness has neither step, so it covers the
+  attributed, every-source and unattributed error paths only.
 - Duplicate ids are not a divergence. `injection_for` raises before dbt
   when two upstreams export the same public id. With the owner filter that
   needs two sources that claim the same project name; two owners of the

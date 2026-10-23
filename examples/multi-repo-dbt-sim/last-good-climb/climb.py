@@ -481,16 +481,36 @@ def publish_manifest(target, store, project):
     shutil.copyfile(target / "manifest.json", destination)
 
 
-def injection_report(store, upstreams):
+def load_manifest(store, project):
+    path = manifest_path(store, project)
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    return json.loads(path.read_text())
+
+
+FRESH = "fresh"
+CONFIRMED = "confirmed"
+
+
+def provider_catalogs(store, upstreams, fresh=None):
+    fresh = fresh or {}
+    return {
+        upstream: (
+            (FRESH, fresh[upstream])
+            if upstream in fresh
+            else (CONFIRMED, load_manifest(store, upstream))
+        )
+        for upstream in upstreams
+    }
+
+
+def injection_report(store, upstreams, fresh=None):
     payloads = []
     owners = {}
     identities = {}
     omitted = 0
-    for upstream in upstreams:
-        path = manifest_path(store, upstream)
-        if not path.is_file():
-            raise FileNotFoundError(path)
-        manifest = json.loads(path.read_text())
+    catalogs = provider_catalogs(store, upstreams, fresh)
+    for upstream, (_, manifest) in catalogs.items():
         identities[upstream] = owner_identity(manifest)
         omitted += package_nodes_omitted(manifest)
         for payload in projection(manifest):
@@ -512,6 +532,9 @@ def injection_report(store, upstreams):
     return {
         "nodes": nodes,
         "owners": identities,
+        "catalog_sources": {
+            upstream: source for upstream, (source, _) in catalogs.items()
+        },
         "owned_injected": len(nodes),
         "package_nodes_omitted": omitted,
     }
@@ -934,14 +957,336 @@ def package_case(dbt, work, events):
     }
 
 
-def assert_markers(events, present, package, withheld):
+BROKEN_REF = "missing_model"
+
+
+def write_broken_copy(project_dir, destination):
+    destination = Path(destination)
+    if destination.exists():
+        shutil.rmtree(destination)
+    shutil.copytree(project_dir, destination)
+    (destination / "models" / "broken.sql").write_text(
+        f"select * from {{{{ ref('{BROKEN_REF}') }}}}\n", encoding="utf-8"
+    )
+    return destination
+
+
+def injected_summary(nodes):
+    return sorted(
+        (
+            {
+                "package_name": node["package_name"],
+                "name": node["name"],
+                "version": node["version"],
+                "latest_version": node["latest_version"],
+            }
+            for node in nodes
+        ),
+        key=lambda node: (
+            node["package_name"],
+            node["name"],
+            "" if node["version"] is None else str(node["version"]),
+        ),
+    )
+
+
+def ring_refresh(dbt, work, store, order, broken=()):
+    """Refresh the ring in `order`; a provider that parsed this run supplies its fresh manifest, otherwise its confirmed store manifest."""
+    work = Path(work)
+    work.mkdir(parents=True, exist_ok=True)
+    fresh = {}
+    failed = []
+    projects = {}
+    sources = []
+    owned_injected = 0
+    omitted = 0
+    for project in order:
+        missing = [
+            upstream
+            for upstream in missing_upstreams(store, UPSTREAMS[project])
+            if upstream not in fresh
+        ]
+        if missing:
+            raise RuntimeError(cold_start_warning(project, missing))
+        injection = injection_report(store, UPSTREAMS[project], fresh)
+        owned_injected += injection["owned_injected"]
+        omitted += injection["package_nodes_omitted"]
+        sources.append(
+            {
+                "name": project,
+                "injectedFrom": list(UPSTREAMS[project]),
+                "injectedStubs": injection["owned_injected"],
+            }
+        )
+        nodes_path = work / f"{project}-nodes.json"
+        nodes_path.write_text(json.dumps(injection["nodes"]))
+        project_dir = (
+            write_broken_copy(DISK / project, work / "broken" / project)
+            if project in broken
+            else DISK / project
+        )
+        parsed = run_parse(
+            dbt, project_dir, work / project, nodes_path, command=REFRESH_COMMAND
+        )
+        if parsed["command"] != list(REFRESH_COMMAND):
+            raise RuntimeError("ring refresh did not run dbt ls")
+        if parsed["manifest"] is None:
+            failed.append(project)
+            bindings = None
+        else:
+            fresh[project] = parsed["manifest"]
+            bindings = {
+                model: binding(parsed["manifest"], project, model)
+                for model in BINDINGS[project]
+            }
+        projects[project] = {
+            "returncode": parsed["returncode"],
+            "unresolved": parsed["unresolved"],
+            "cycle_error": parsed["cycle_error"],
+            "error_excerpt": [
+                line.replace(str(work), ".work/last-good-climb")
+                for line in parsed["output"].splitlines()
+                if UNRESOLVED_TEXT in line
+            ],
+            "bindings": bindings,
+            "catalog_sources": injection["catalog_sources"],
+            "owned_injected": injection["owned_injected"],
+            "injected": injected_summary(injection["nodes"]),
+        }
+    return {
+        "command": list(REFRESH_COMMAND),
+        "order": list(order),
+        "broken": list(broken),
+        "fresh_parsed": sorted(fresh),
+        "failed": failed,
+        "projects": projects,
+        "owned_injected": owned_injected,
+        "package_nodes_omitted": omitted,
+        "sources": sources,
+        "fresh": fresh,
+    }
+
+
+def measure_nodes(row):
+    return [node for node in row["injected"] if node["name"] == VERSIONED_MODEL]
+
+
+def fresh_over_seed_case(dbt, work, store, events):
+    before = store_digest(store)
+    root = work / "fresh-over-seed"
+    runs = {
+        "alpha_first": ring_refresh(dbt, root / "alpha-first", store, PROJECTS),
+        "beta_first": ring_refresh(
+            dbt, root / "beta-first", store, tuple(reversed(PROJECTS))
+        ),
+        "failed_provider": ring_refresh(
+            dbt,
+            root / "failed-provider",
+            store,
+            tuple(reversed(PROJECTS)),
+            broken=("proj_beta",),
+        ),
+    }
+    for run in runs.values():
+        events.info(
+            *resolved_message(
+                run["owned_injected"], run["package_nodes_omitted"], run["sources"]
+            )
+        )
+    alpha_first = runs["alpha_first"]["projects"]
+    beta_first = runs["beta_first"]["projects"]
+    failed = runs["failed_provider"]["projects"]
+    checks = {
+        "ring_first_source_uses_confirmed_seed": alpha_first["proj_alpha"][
+            "catalog_sources"
+        ]
+        == {"proj_beta": CONFIRMED}
+        and alpha_first["proj_alpha"]["bindings"] == BINDINGS["proj_alpha"],
+        "second_source_takes_fresh_provider": alpha_first["proj_beta"][
+            "catalog_sources"
+        ]
+        == {"proj_alpha": FRESH}
+        and alpha_first["proj_beta"]["bindings"] == BINDINGS["proj_beta"]
+        and [node["name"] for node in alpha_first["proj_beta"]["injected"]]
+        == ["alpha_base", "alpha_report"],
+        "fresh_latest_version_wins": beta_first["proj_alpha"]["catalog_sources"]
+        == {"proj_beta": FRESH}
+        and beta_first["proj_alpha"]["bindings"]
+        == {"alpha_report": ["model.proj_beta.measure.v2"]}
+        and [node["version"] for node in measure_nodes(beta_first["proj_alpha"])]
+        == [2, 3]
+        and {node["latest_version"] for node in measure_nodes(beta_first["proj_alpha"])}
+        == {DISK_LATEST[VERSIONED_MODEL]},
+        "failed_provider_falls_back_to_seed": runs["failed_provider"]["failed"]
+        == ["proj_beta"]
+        and failed["proj_beta"]["returncode"] != 0
+        and failed["proj_beta"]["unresolved"]
+        and failed["proj_alpha"]["catalog_sources"] == {"proj_beta": CONFIRMED}
+        and failed["proj_alpha"]["bindings"] == BINDINGS["proj_alpha"]
+        and [node["version"] for node in measure_nodes(failed["proj_alpha"])]
+        == [SEED_LATEST[VERSIONED_MODEL]],
+        "every_parse_exited_cleanly": all(
+            row["returncode"] == 0 and not row["cycle_error"]
+            for name, run in runs.items()
+            for project, row in run["projects"].items()
+            if project not in run["failed"]
+        ),
+        "store_unchanged": store_digest(store) == before,
+    }
+    return {
+        "command": list(REFRESH_COMMAND),
+        "runs": {
+            name: {key: value for key, value in run.items() if key != "fresh"}
+            for name, run in runs.items()
+        },
+        "checks": checks,
+        "success": all(checks.values()),
+    }
+
+
+def confirm_fresh(store, fresh, events, failed_sources=(), unattributed=False):
+    """Mirror persistArtifacts: attributed explore errors discard their source; an unattributed error withholds every confirmation."""
+    if unattributed:
+        return None
+    entries = [project for project in fresh if project not in set(failed_sources)]
+    for project in entries:
+        destination = manifest_path(store, project)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(json.dumps(fresh[project]), encoding="utf-8")
+    events.info(*confirmed_message(len(entries)))
+    return len(entries)
+
+
+CONFIRM_SCENARIOS = {
+    "healthy": {"failed_sources": (), "unattributed": False},
+    "other_source_error": {"failed_sources": ("proj_beta",), "unattributed": False},
+    "every_source_error": {"failed_sources": PROJECTS, "unattributed": False},
+    "unattributed_error": {"failed_sources": (), "unattributed": True},
+}
+
+
+def per_provider_confirm_case(dbt, work, store, events):
+    root = work / "per-provider-confirm"
+    if root.exists():
+        shutil.rmtree(root)
+    seed_digest = store_digest(store)
+    scenarios = {}
+    for name, scenario in CONFIRM_SCENARIOS.items():
+        scenario_store = root / name / "last-good"
+        shutil.copytree(store, scenario_store)
+        confirmed_before = len(events.named(CONFIRMED_EVENT))
+        run = ring_refresh(dbt, root / name / "refresh", scenario_store, PROJECTS)
+        if run["failed"]:
+            raise RuntimeError(f"ring refresh failed before confirmation: {run}")
+        events.info(
+            *resolved_message(
+                run["owned_injected"], run["package_nodes_omitted"], run["sources"]
+            )
+        )
+        rows_written = confirm_fresh(scenario_store, run["fresh"], events, **scenario)
+        after = store_digest(scenario_store)
+        changed = sorted(
+            project for project in PROJECTS if after[project] != seed_digest[project]
+        )
+        fallback = ring_refresh(
+            dbt, root / name / "after-confirm", scenario_store, ("proj_alpha",)
+        )
+        alpha_after = fallback["projects"]["proj_alpha"]
+        scenarios[name] = {
+            "failed_sources": list(scenario["failed_sources"]),
+            "unattributed": scenario["unattributed"],
+            "rows_written": rows_written,
+            "confirmations_logged": len(events.named(CONFIRMED_EVENT))
+            - confirmed_before,
+            "store_changed": changed,
+            "store_measure_latest": [
+                node["latest_version"]
+                for node in projection(load_manifest(scenario_store, "proj_beta"))
+                if node["name"] == VERSIONED_MODEL
+            ],
+            "alpha_refresh_after_confirm": {
+                "returncode": alpha_after["returncode"],
+                "bindings": alpha_after["bindings"],
+                "measure_versions": [
+                    node["version"] for node in measure_nodes(alpha_after)
+                ],
+            },
+            "resolution": {
+                key: value
+                for key, value in run.items()
+                if key in ("owned_injected", "package_nodes_omitted", "fresh_parsed")
+            },
+        }
+    healthy = scenarios["healthy"]
+    other = scenarios["other_source_error"]
+    every = scenarios["every_source_error"]
+    unattributed = scenarios["unattributed_error"]
+    checks = {
+        "healthy_confirms_every_provider": healthy["rows_written"] == len(PROJECTS)
+        and healthy["store_changed"] == sorted(PROJECTS)
+        and healthy["store_measure_latest"] == [2, 2]
+        and healthy["alpha_refresh_after_confirm"]["bindings"]
+        == {"alpha_report": ["model.proj_beta.measure.v2"]},
+        "unrelated_error_does_not_block_healthy_provider": other["rows_written"] == 1
+        and other["store_changed"] == ["proj_alpha"]
+        and other["confirmations_logged"] == 1,
+        "failed_provider_keeps_its_seed": other["store_measure_latest"] == [3]
+        and other["alpha_refresh_after_confirm"]["bindings"] == BINDINGS["proj_alpha"]
+        and other["alpha_refresh_after_confirm"]["measure_versions"] == [3],
+        "every_attributed_error_writes_nothing": every["rows_written"] == 0
+        and every["store_changed"] == []
+        and every["confirmations_logged"] == 1,
+        "unattributed_error_withholds_confirmation": unattributed["rows_written"]
+        is None
+        and unattributed["store_changed"] == []
+        and unattributed["confirmations_logged"] == 0
+        and unattributed["alpha_refresh_after_confirm"]["bindings"]
+        == BINDINGS["proj_alpha"],
+        "seed_store_unchanged": store_digest(store) == seed_digest,
+    }
+    return {
+        "command": list(REFRESH_COMMAND),
+        "explore_error_signal": "modelled; the harness compiles no explores",
+        "scenarios": scenarios,
+        "checks": checks,
+        "success": all(checks.values()),
+    }
+
+
+def expected_confirmations(confirm=None):
+    expected = [len(PROJECTS), len(PACKAGE_OWNERS)]
+    for scenario in (confirm or {"scenarios": {}})["scenarios"].values():
+        if scenario["rows_written"] is not None:
+            expected.append(scenario["rows_written"])
+    return expected
+
+
+def expected_resolutions(present, package, fresh=None, confirm=None):
+    expected = [
+        (present["owned_injected"], present["package_nodes_omitted"]),
+        (package["owned_injected"], package["package_nodes_omitted"]),
+    ]
+    for run in (fresh or {"runs": {}})["runs"].values():
+        expected.append((run["owned_injected"], run["package_nodes_omitted"]))
+    for scenario in (confirm or {"scenarios": {}})["scenarios"].values():
+        expected.append(
+            (
+                scenario["resolution"]["owned_injected"],
+                scenario["resolution"]["package_nodes_omitted"],
+            )
+        )
+    return expected
+
+
+def assert_markers(events, present, package, withheld, fresh=None, confirm=None):
     errors = []
     confirmed = events.named(CONFIRMED_EVENT)
-    if [entry["meta"]["rowsWritten"] for entry in confirmed] != [
-        len(PROJECTS),
-        len(PACKAGE_OWNERS),
-    ]:
-        errors.append("last-good confirmations were not logged once per seeded store")
+    if [entry["meta"]["rowsWritten"] for entry in confirmed] != expected_confirmations(
+        confirm
+    ):
+        errors.append(
+            "last-good confirmations were not logged once per confirmed store"
+        )
     for entry in confirmed:
         match = CONFIRMED_PATTERN.match(entry["message"])
         meta = entry["meta"]
@@ -958,10 +1303,7 @@ def assert_markers(events, present, package, withheld):
     if withheld["confirmations_logged"] != 0:
         errors.append("withheld run logged a last-good confirmation")
     resolved = events.named(RESOLVED_EVENT)
-    expected = [
-        (present["owned_injected"], present["package_nodes_omitted"]),
-        (package["owned_injected"], package["package_nodes_omitted"]),
-    ]
+    expected = expected_resolutions(present, package, fresh, confirm)
     if [
         (entry["meta"]["ownedInjected"], entry["meta"]["packageNodesOmitted"])
         for entry in resolved
@@ -983,7 +1325,9 @@ def assert_markers(events, present, package, withheld):
     return errors
 
 
-def assert_contract(present, withheld, fidelity, pins, package, events):
+def assert_contract(
+    present, withheld, fidelity, pins, package, events, fresh=None, confirm=None
+):
     errors = []
     if pins["packages"].get("dbt-core") != "1.12.0":
         errors.append("dbt-core is not pinned to 1.12.0")
@@ -1049,7 +1393,13 @@ def assert_contract(present, withheld, fidelity, pins, package, events):
         errors.append("owner projection did not export exactly its own public model")
     if package["ownerless_projection"]["nodes"] != 0:
         errors.append("a manifest without an owner identity exported nodes")
-    errors.extend(assert_markers(events, present, package, withheld))
+    for label, case in (("fresh-over-seed", fresh), ("per-provider confirm", confirm)):
+        if case is None:
+            continue
+        for check, passed in case["checks"].items():
+            if not passed:
+                errors.append(f"{label} check failed: {check}")
+    errors.extend(assert_markers(events, present, package, withheld, fresh, confirm))
     return errors
 
 
@@ -1099,7 +1449,11 @@ def main():
     withheld = withheld_case(args.dbt, args.work, store, events)
     fidelity = refresh_cycle_probe(args.dbt, args.work)
     package = package_case(args.dbt, args.work, events)
-    errors = assert_contract(present, withheld, fidelity, pins, package, events)
+    fresh = fresh_over_seed_case(args.dbt, args.work, store, events)
+    confirm = per_provider_confirm_case(args.dbt, args.work, store, events)
+    errors = assert_contract(
+        present, withheld, fidelity, pins, package, events, fresh, confirm
+    )
     report = relative_output(
         {
             "case": "last-good-manifest-climb",
@@ -1114,6 +1468,8 @@ def main():
             "present": present,
             "refresh_command_fidelity": fidelity,
             "package_share": package,
+            "fresh_over_seed": fresh,
+            "per_provider_confirm": confirm,
             "markers": events.entries,
             "withheld": {
                 key: value for key, value in withheld.items() if key != "projects"
@@ -1140,7 +1496,11 @@ def main():
         for error in errors:
             print(error, file=sys.stderr, flush=True)
         return 1
-    print("present PASS withheld PASS package-share PASS", flush=True)
+    print(
+        "present PASS withheld PASS package-share PASS fresh-over-seed PASS "
+        "per-provider-confirm PASS",
+        flush=True,
+    )
     return 0
 
 

@@ -336,6 +336,145 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
             },
         )
 
+    def _ring_manifest(self, owner, models):
+        nodes = {}
+        for name, version, latest in models:
+            suffix = "" if version is None else f".v{version}"
+            unique_id = f"model.{owner}.{name}{suffix}"
+            nodes[unique_id] = {
+                "resource_type": "model",
+                "path": f"{name}.sql",
+                "original_file_path": f"models/{name}.sql",
+                "access": "public",
+                "name": name,
+                "package_name": owner,
+                "unique_id": unique_id,
+                "alias": name,
+                "schema": "analytics",
+                "database": None,
+                "relation_name": None,
+                "version": version,
+                "latest_version": latest,
+                "depends_on": {"nodes": []},
+            }
+        return {"metadata": {"project_name": owner}, "nodes": nodes}
+
+    def _write_store(self, store, manifests):
+        for project, manifest in manifests.items():
+            path = climb.manifest_path(store, project)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    def test_fresh_catalogue_wins_over_the_confirmed_store(self):
+        seed_beta = self._ring_manifest("proj_beta", [("measure", 3, 3)])
+        fresh_beta = self._ring_manifest(
+            "proj_beta", [("measure", 2, 2), ("measure", 3, 2)]
+        )
+        seed_alpha = self._ring_manifest("proj_alpha", [("alpha_base", None, None)])
+        with tempfile.TemporaryDirectory() as directory:
+            store = Path(directory)
+            self._write_store(store, {"proj_beta": seed_beta, "proj_alpha": seed_alpha})
+            confirmed = climb.injection_report(store, ["proj_beta"])
+            self.assertEqual(confirmed["catalog_sources"], {"proj_beta": "confirmed"})
+            self.assertEqual(
+                [
+                    (node["version"], node["latest_version"])
+                    for node in confirmed["nodes"]
+                ],
+                [(3, 3)],
+            )
+            fresh = climb.injection_report(
+                store, ["proj_beta"], {"proj_beta": fresh_beta}
+            )
+            self.assertEqual(fresh["catalog_sources"], {"proj_beta": "fresh"})
+            self.assertEqual(
+                sorted(
+                    (node["version"], node["latest_version"]) for node in fresh["nodes"]
+                ),
+                [(2, 2), (3, 2)],
+            )
+            unrelated = climb.injection_report(
+                store, ["proj_beta"], {"proj_alpha": seed_alpha}
+            )
+            self.assertEqual(unrelated["catalog_sources"], {"proj_beta": "confirmed"})
+            with self.assertRaises(FileNotFoundError):
+                climb.injection_report(store, ["proj_gamma"], {"proj_beta": fresh_beta})
+            self.assertEqual(
+                climb.provider_catalogs(
+                    store, ["proj_gamma"], {"proj_gamma": fresh_beta}
+                ),
+                {"proj_gamma": ("fresh", fresh_beta)},
+            )
+
+    def test_confirm_writes_only_healthy_providers(self):
+        seed_alpha = self._ring_manifest("proj_alpha", [("alpha_base", None, None)])
+        seed_beta = self._ring_manifest("proj_beta", [("measure", 3, 3)])
+        fresh = {
+            "proj_alpha": self._ring_manifest(
+                "proj_alpha", [("alpha_base", None, None), ("alpha_report", None, None)]
+            ),
+            "proj_beta": self._ring_manifest(
+                "proj_beta", [("measure", 2, 2), ("measure", 3, 2)]
+            ),
+        }
+        for scenario, rows, changed, logged in (
+            ("healthy", 2, ["proj_alpha", "proj_beta"], 1),
+            ("other_source_error", 1, ["proj_alpha"], 1),
+            ("every_source_error", 0, [], 1),
+            ("unattributed_error", None, [], 0),
+        ):
+            with self.subTest(
+                scenario=scenario
+            ), tempfile.TemporaryDirectory() as directory:
+                store = Path(directory)
+                self._write_store(
+                    store, {"proj_alpha": seed_alpha, "proj_beta": seed_beta}
+                )
+                before = climb.store_digest(store)
+                events = climb.EventLog()
+                written = climb.confirm_fresh(
+                    store, fresh, events, **climb.CONFIRM_SCENARIOS[scenario]
+                )
+                after = climb.store_digest(store)
+                self.assertEqual(written, rows)
+                self.assertEqual(
+                    sorted(p for p in climb.PROJECTS if after[p] != before[p]), changed
+                )
+                self.assertEqual(len(events.named(climb.CONFIRMED_EVENT)), logged)
+                if logged:
+                    self.assertEqual(
+                        events.named(climb.CONFIRMED_EVENT)[0]["meta"]["rowsWritten"],
+                        rows,
+                    )
+                beta_latest = [
+                    node["latest_version"]
+                    for node in climb.projection(
+                        climb.load_manifest(store, "proj_beta")
+                    )
+                ]
+                self.assertEqual(beta_latest, [2, 2] if "proj_beta" in changed else [3])
+        self.assertEqual(
+            climb.CONFIRM_SCENARIOS["every_source_error"]["failed_sources"],
+            climb.PROJECTS,
+        )
+
+    def test_broken_copy_adds_a_missing_ref_and_leaves_the_fixture_alone(self):
+        with tempfile.TemporaryDirectory() as directory:
+            copy = climb.write_broken_copy(
+                climb.DISK / "proj_beta", Path(directory) / "proj_beta"
+            )
+            broken = (copy / "models" / "broken.sql").read_text()
+            self.assertEqual(broken, "select * from {{ ref('missing_model') }}\n")
+            self.assertTrue((copy / "models" / "measure_v2.sql").is_file())
+            self.assertFalse(
+                (climb.DISK / "proj_beta" / "models" / "broken.sql").exists()
+            )
+            refs = climb.sql_refs(copy)
+            self.assertEqual(
+                refs["broken"],
+                [{"package": None, "model": "missing_model", "version": None}],
+            )
+
     def test_markers_match_the_product_text_and_meta(self):
         message, meta = climb.confirmed_message(2, "project", "original")
         self.assertEqual(
@@ -383,6 +522,41 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
         package = {"owned_injected": 2, "package_nodes_omitted": 2}
         withheld = {"confirmations_logged": 0}
         self.assertEqual(climb.assert_markers(events, present, package, withheld), [])
+        fresh = {
+            "runs": {"alpha_first": {"owned_injected": 5, "package_nodes_omitted": 0}}
+        }
+        confirm = {
+            "scenarios": {
+                "other_source_error": {
+                    "rows_written": 1,
+                    "resolution": {"owned_injected": 5, "package_nodes_omitted": 0},
+                },
+                "unattributed_error": {
+                    "rows_written": None,
+                    "resolution": {"owned_injected": 5, "package_nodes_omitted": 0},
+                },
+            }
+        }
+        self.assertEqual(climb.expected_confirmations(confirm), [2, 2, 1])
+        self.assertEqual(
+            climb.expected_resolutions(present, package, fresh, confirm),
+            [(4, 0), (2, 2), (5, 0), (5, 0), (5, 0)],
+        )
+        extended = climb.EventLog()
+        extended.entries = json.loads(json.dumps(events.entries))
+        extended.info(*climb.resolved_message(5, 0, []))
+        extended.info(*climb.resolved_message(5, 0, []))
+        extended.info(*climb.confirmed_message(1))
+        extended.info(*climb.resolved_message(5, 0, []))
+        self.assertEqual(
+            climb.assert_markers(extended, present, package, withheld, fresh, confirm),
+            [],
+        )
+        extended.info(*climb.confirmed_message(2))
+        self.assertEqual(
+            climb.assert_markers(extended, present, package, withheld, fresh, confirm),
+            ["last-good confirmations were not logged once per confirmed store"],
+        )
         drifted = climb.EventLog()
         drifted.entries = json.loads(json.dumps(events.entries))
         drifted.entries[0]["message"] = drifted.entries[0]["message"].replace(
