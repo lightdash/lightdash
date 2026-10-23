@@ -3,9 +3,11 @@ import {
     ALL_FEATURE_FLAG_IDS,
     ForbiddenError,
     isAccount,
+    isJwtUser,
     isKnownFeatureFlagId,
     NotFoundError,
     ParameterError,
+    type Account,
     type FeatureFlag,
     type LightdashUser,
     type RegisteredAccount,
@@ -43,6 +45,26 @@ export class FeatureFlagService extends BaseService {
         featureFlagId: string;
     }) {
         return this.featureFlagModel.get({ user, featureFlagId });
+    }
+
+    // Embed (JWT) viewers have no Lightdash user, but their organization's
+    // overrides still apply.
+    getForAccount({
+        account,
+        featureFlagId,
+    }: {
+        account: Account | undefined;
+        featureFlagId: string;
+    }) {
+        if (!account) {
+            return this.get({ featureFlagId });
+        }
+        return this.get({
+            user: isJwtUser(account)
+                ? { organizationUuid: account.organization.organizationUuid }
+                : FeatureFlagService.toFlagUser(account),
+            featureFlagId,
+        });
     }
 
     // Returns the organization the caller is allowed to manage.
