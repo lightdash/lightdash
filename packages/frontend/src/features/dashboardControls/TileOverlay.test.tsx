@@ -158,6 +158,7 @@ const groupLabels = () =>
 const setSidebar = (overrides: Record<string, unknown> = {}) => {
     mockSidebar.current = {
         editing: null,
+        editingZoom: null,
         editingRule: rule(),
         isPlaceholder: false,
         activeFieldId: null,

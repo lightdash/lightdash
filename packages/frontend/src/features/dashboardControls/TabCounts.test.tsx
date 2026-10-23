@@ -89,6 +89,7 @@ const rule = (
 const setSidebar = (overrides: Record<string, unknown> = {}) => {
     mockSidebar.current = {
         editing: null,
+        editingZoom: null,
         editingRule: rule(),
         isPlaceholder: false,
         activeFieldId: null,
@@ -506,6 +507,81 @@ describe('TabCounts', () => {
             rerender(<TabCounts />);
 
             expect(list.scrollLeft).toBe(0);
+        });
+    });
+
+    describe('a date zoom', () => {
+        const zoomConfig = {
+            controls: [
+                { uuid: 'z1', name: 'Order trend', granularity: 'Month' },
+                { uuid: 'z2', name: 'Ship trend', granularity: 'Week' },
+            ],
+            tileTargets: {
+                'tile-both': {
+                    controlUuid: 'z1',
+                    fieldId: 'orders_date',
+                    tableName: 'orders',
+                },
+                'tile-region': {
+                    controlUuid: 'z2',
+                    fieldId: 'orders_date',
+                    tableName: 'orders',
+                },
+            },
+        };
+        const DATE = {
+            fieldId: 'orders_date',
+            label: 'Order date',
+            tableName: 'orders',
+        };
+        const renderZoomCounts = () => {
+            const store = seedDashboardEditState(
+                createDashboardTestStore({
+                    chartZoomableFieldsByTileUuid: {
+                        'tile-both': [DATE],
+                        'tile-status': [DATE],
+                        'tile-region': [DATE],
+                    },
+                }),
+                {
+                    ...(mockDashboardContext.current as DashboardEditTestValues),
+                    dateZoomConfig: zoomConfig,
+                },
+            );
+            renderWithAppProviders(
+                <DashboardStoreTestProvider store={store}>
+                    <TabCounts />
+                </DashboardStoreTestProvider>,
+            );
+        };
+
+        it('counts the tiles in the edited zoom out of the ones a zoom can reach', () => {
+            setSidebar({
+                editing: { kind: 'dateZoom', controlUuid: 'z1' },
+                editingRule: null,
+                editingZoom: zoomConfig.controls[0],
+                hoveredFilterId: null,
+            });
+            renderZoomCounts();
+            // The markdown tile has no date to zoom
+            expect(badgeText('tab-1')).toBe('1 of 2');
+            expect(isBadgeReached('tab-1')).toBe('true');
+            expect(badgeText('tab-2')).toBe('0 of 1');
+            expect(isBadgeReached('tab-2')).toBe('false');
+            expect(badgeText('tab-empty')).toBe('');
+            expect(isBadgeBlue('tab-1')).toBe(false);
+        });
+
+        it("counts a hovered zoom row's tiles in blue", () => {
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                hoveredFilterId: 'z2',
+            });
+            renderZoomCounts();
+            expect(badgeText('tab-1')).toBe('0 of 2');
+            expect(badgeText('tab-2')).toBe('1 of 1');
+            expect(isBadgeBlue('tab-2')).toBe(true);
         });
     });
 });

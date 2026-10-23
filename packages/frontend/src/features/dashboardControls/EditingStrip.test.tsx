@@ -1,11 +1,19 @@
 import { FilterOperator, type DashboardFilterRule } from '@lightdash/common';
 import { screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+} from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../testing/testUtils';
 import { EditingStrip } from './EditingStrip';
 
 const mockSidebar = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
+}));
+vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
+    default: vi.fn((selector) => selector({})),
 }));
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebarSelector: (
@@ -46,8 +54,10 @@ const rule = (
 
 const setSidebar = (overrides: Record<string, unknown>) => {
     mockSidebar.current = {
+        editingZoom: null,
         editingRule: rule({}),
         isNew: false,
+        isViewer: true,
         isPlaceholder: false,
         emptiedFieldLabel: null,
         ...overrides,
@@ -58,6 +68,19 @@ describe('EditingStrip', () => {
     beforeEach(() => {
         mockCounts.a = 3;
         mockCounts.b = 1;
+    });
+
+    it('titles the editor strip "Editing controls" and the viewer strip "Editing filters"', () => {
+        setSidebar({ isViewer: false });
+        const { rerender } = renderWithProviders(<EditingStrip />);
+        expect(screen.getByRole('status')).toHaveTextContent(
+            'Editing controlsStatus · 3 tiles',
+        );
+        setSidebar({ isViewer: true });
+        rerender(<EditingStrip />);
+        expect(screen.getByRole('status')).toHaveTextContent(
+            'Editing filtersStatus · 3 tiles',
+        );
     });
 
     it('names the edited filter and the tiles it is on, in a status', () => {
@@ -116,6 +139,32 @@ describe('EditingStrip', () => {
 
         expect(screen.getByRole('status')).toHaveTextContent(
             /^Editing filters$/,
+        );
+    });
+
+    it('names the edited date zoom and the tiles it zooms', () => {
+        const control = {
+            uuid: 'z1',
+            name: 'Order trend',
+            granularity: 'Month',
+        };
+        setSidebar({ editingRule: null, editingZoom: control });
+        const store = seedDashboardEditState(createDashboardTestStore(), {
+            dateZoomConfig: {
+                controls: [control],
+                tileTargets: {
+                    t1: { controlUuid: 'z1', fieldId: null, tableName: null },
+                    t2: { controlUuid: 'z1', fieldId: 'd', tableName: 'o' },
+                },
+            },
+        });
+        renderWithProviders(
+            <DashboardStoreTestProvider store={store}>
+                <EditingStrip />
+            </DashboardStoreTestProvider>,
+        );
+        expect(screen.getByRole('status')).toHaveTextContent(
+            'Editing date zoomOrder trend · 2 tiles',
         );
     });
 });

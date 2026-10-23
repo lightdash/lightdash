@@ -1,11 +1,16 @@
-import { type DashboardFilterRule } from '@lightdash/common';
+import {
+    type DashboardFilterRule,
+    type DateZoomControl,
+} from '@lightdash/common';
 import { Divider, Group, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
+import { useDashboardDateZoomConfig } from '../dashboard/store';
 import { formatTileCount } from './fieldLabels';
 import { useAppliedTileCount } from './useAppliedTileCount';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFilterRuleField } from './useFilterRuleField';
+import { getZoomTileUuids } from './zoomState';
 
 const TileCount: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
     const count = useAppliedTileCount(rule);
@@ -41,15 +46,45 @@ const EditedFilter: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
     );
 };
 
-// The bar while the rail is open: what is being edited, nothing to press
-export const EditingStrip: FC = () => {
-    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
-    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+// An editor's strip for a date zoom: its name and the tiles it zooms
+const EditedZoom: FC<{ control: DateZoomControl }> = ({ control }) => {
     const getUiString = useUiStrings();
+    const config = useDashboardDateZoomConfig();
+    const count = getZoomTileUuids(config, control.uuid).length;
     return (
         <Group gap="xs" mih={30} wrap="wrap" role="status">
             <Text fz="sm" fw={600}>
-                {getUiString('filters.rail.editingFilters')}
+                Editing date zoom
+            </Text>
+            <Divider orientation="vertical" />
+            <Text fz="sm">
+                <Text span inherit fw={600}>
+                    {control.name}
+                </Text>
+                <Text span fz="sm" c="dimmed">
+                    {` · ${formatTileCount(getUiString, count)}`}
+                </Text>
+            </Text>
+        </Group>
+    );
+};
+
+// The bar while the rail is open: what is being edited, nothing to press
+export const EditingStrip: FC = () => {
+    const editingZoom = useControlsSidebarSelector((c) => c.editingZoom);
+    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
+    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const getUiString = useUiStrings();
+    if (editingZoom !== null) return <EditedZoom control={editingZoom} />;
+    return (
+        <Group gap="xs" mih={30} wrap="wrap" role="status">
+            <Text fz="sm" fw={600}>
+                {getUiString(
+                    isViewer
+                        ? 'filters.rail.editingFilters'
+                        : 'filters.rail.editingControls',
+                )}
             </Text>
             {editingRule !== null && !isPlaceholder && (
                 <EditedFilter rule={editingRule} />
