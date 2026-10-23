@@ -1714,7 +1714,16 @@ export class DataAppAnalysisService extends BaseService {
                               },
                     ],
                 },
-                target.kind === 'app' ? 'data_app' : 'dashboard_analysis',
+                // Dashboard investigations also write the data_app origin
+                // for now: during a rolling deploy an older pod reading
+                // 'dashboard_analysis' would treat the thread as
+                // unrestricted (no investigation tool allowlist, no
+                // deep-research block, no continue consent). The read side
+                // already handles both origins; flip this write to
+                // 'dashboard_analysis' once a release with that read support
+                // is the deployment floor. The dashboard context item on the
+                // thread carries the real target.
+                'data_app',
             );
             if (!thread) {
                 throw new NotFoundError(

@@ -2138,7 +2138,7 @@ describe('DataAppAnalysisService.investigate', () => {
         expect(dataAppInvestigate.mock.calls[0][0].appUuid).toBeUndefined();
     });
 
-    it('runs a dashboard investigation on a dashboard_analysis thread', async () => {
+    it('runs a dashboard investigation on a restricted thread with dashboard context', async () => {
         const { service } = buildInvestigateService();
         const { create } = primeRunInvestigation(
             service,
@@ -2160,13 +2160,15 @@ describe('DataAppAnalysisService.investigate', () => {
             'job-1',
             new Date('2026-09-15T10:00:00Z'),
         );
+        // The restricted legacy origin, until every pod reads the staged
+        // 'dashboard_analysis' origin; the context item carries the target.
         expect(createAgentThread).toHaveBeenCalledWith(
             expect.anything(),
             'agent-1',
             expect.objectContaining({
                 context: [{ type: 'dashboard', dashboardUuid: 'dash-1' }],
             }),
-            'dashboard_analysis',
+            'data_app',
         );
         expect(create).toHaveBeenCalledWith(
             expect.objectContaining({
