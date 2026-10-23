@@ -317,8 +317,8 @@ export class UserWarehouseCredentialsModel {
     async markNeedsSignIn(
         snapshot: PersonalSignInSnapshot,
         reason: WarehouseSignInRejection,
-    ): Promise<void> {
-        await this.database(UserWarehouseCredentialsTableName)
+    ): Promise<boolean> {
+        const updated = await this.database(UserWarehouseCredentialsTableName)
             .where({
                 user_warehouse_credentials_uuid: snapshot.uuid,
                 user_uuid: snapshot.userUuid,
@@ -330,6 +330,21 @@ export class UserWarehouseCredentialsModel {
                 needs_sign_in_at: new Date(),
                 needs_sign_in_reason: reason,
             });
+        return updated > 0 || this.isSignInSnapshotCurrent(snapshot);
+    }
+
+    async isSignInSnapshotCurrent(
+        snapshot: PersonalSignInSnapshot,
+    ): Promise<boolean> {
+        const row = await this.database(UserWarehouseCredentialsTableName)
+            .where({
+                user_warehouse_credentials_uuid: snapshot.uuid,
+                user_uuid: snapshot.userUuid,
+                purpose: UserWarehouseCredentialPurpose.DEFAULT,
+                encrypted_credentials: snapshot.encryptedCredentials,
+            })
+            .first('user_uuid');
+        return !!row;
     }
 
     async getAllByUserUuid(

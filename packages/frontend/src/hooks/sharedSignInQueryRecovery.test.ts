@@ -5,7 +5,7 @@ import {
     PersonSignInProvider,
 } from '@lightdash/common';
 import { QueryClient } from '@tanstack/react-query';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import {
     WarehouseSignInPreflight,
     activateWarehouseSignInPreflight,
@@ -116,4 +116,35 @@ test('keeps shared token, preview and Redshift classification and excludes misle
             }),
         ).toBe(false);
     }
+});
+
+test('an abandoned cancellation attempt preserves an eligible SQL failure for the next accepted repair', async () => {
+    const { store, stop } = setup();
+    const client = new QueryClient();
+    const scope = captureSharedSignInQueryScope('project_a', null);
+    const target = store.target!;
+    const held = Promise.withResolvers<void>();
+    const cancel = vi
+        .spyOn(client, 'cancelQueries')
+        .mockReturnValueOnce(held.promise);
+    let current = true;
+    const abandoned = completeSharedSignInRestoration(
+        client,
+        target,
+        () => current,
+    );
+    current = false;
+    store.dismiss(target);
+    store.modalOpen = true;
+    store.notify();
+    held.resolve();
+    expect(await abandoned).toBeNull();
+    expect(store.target).toBe(target);
+    const accepted = await completeSharedSignInRestoration(client, target);
+    expect(accepted).not.toBeNull();
+    expect(canReplayRestoredSql(scope, accepted)).toBe(true);
+    expect(canReplayRestoredSql(scope, { ...accepted })).toBe(false);
+    cancel.mockRestore();
+    stop();
+    client.clear();
 });

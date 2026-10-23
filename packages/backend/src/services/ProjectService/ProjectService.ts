@@ -3561,75 +3561,105 @@ export class ProjectService
                         ? target.warehouseConnectionUuid
                         : null,
             };
-            const { policy, userWarehouseCredentials: personal } =
-                await selectDefaultPersonalCredentials(
-                    {
-                        featureFlagModel: this.featureFlagModel,
-                        userWarehouseCredentialsModel:
-                            this.userWarehouseCredentialsModel,
-                    },
-                    credentials,
-                    projectUuid,
-                    {
-                        userUuid: account.user.id,
-                        organizationUuid: summary.organizationUuid,
-                    },
-                    target.kind === 'extra'
-                        ? { ...target, model: this.warehouseConnectionModel }
-                        : target,
-                );
-            if (personal) {
-                const selected = composeSelectedPersonalCredentials(
-                    credentials,
-                    personal,
-                    policy,
-                );
-                const personalSignIn = getPersonSignIn(selected);
-                if (
-                    !personalSignIn ||
-                    selected.type !== WarehouseTypes.BIGQUERY ||
-                    personalSignIn.provider !== PersonSignInProvider.GOOGLE
-                )
-                    return null;
-                const snapshot =
-                    await this.userWarehouseCredentialsModel.getSignInSnapshot(
-                        personal.uuid,
-                        selected,
-                    );
-                if (!snapshot || snapshot.userUuid !== account.user.id)
-                    return null;
-                const result = await this.googleSignInProbe.check(
-                    selected.keyfileContents,
-                    snapshot.encryptedCredentials,
-                );
-                if (result.rejection)
-                    await this.userWarehouseCredentialsModel
-                        .markNeedsSignIn(snapshot, result.rejection)
-                        .catch(() => {
-                            this.logger.warn(
-                                'Could not mark personal warehouse sign-in status',
-                            );
-                        });
-                return {
-                    personalSelection,
-                    provider: personalSignIn.provider,
-                    subject: null,
-                    subjectBasis: null,
-                    expired: false,
-                    canReconnect: false,
-                    ...(result.expired === undefined
-                        ? { statusUnknown: true }
-                        : {}),
-                    personalSignIn: {
+            const checkPersonal = async (
+                retry: boolean,
+            ): Promise<{
+                selected: boolean;
+                status: SharedSignInStatus | null;
+            }> => {
+                const { policy, userWarehouseCredentials: personal } =
+                    await selectDefaultPersonalCredentials(
+                        {
+                            featureFlagModel: this.featureFlagModel,
+                            userWarehouseCredentialsModel:
+                                this.userWarehouseCredentialsModel,
+                        },
+                        credentials,
                         projectUuid,
-                        provider: personalSignIn.provider,
-                        userWarehouseCredentialsUuid: personal.uuid,
-                        expired:
-                            result.expired ?? snapshot.needsSignIn === true,
-                        canReconnect: true,
-                    },
-                };
-            }
+                        {
+                            userUuid: account.user.id,
+                            organizationUuid: summary.organizationUuid,
+                        },
+                        target.kind === 'extra'
+                            ? {
+                                  ...target,
+                                  model: this.warehouseConnectionModel,
+                              }
+                            : target,
+                    );
+                if (personal) {
+                    const selected = composeSelectedPersonalCredentials(
+                        credentials,
+                        personal,
+                        policy,
+                    );
+                    const personalSignIn = getPersonSignIn(selected);
+                    if (
+                        !personalSignIn ||
+                        selected.type !== WarehouseTypes.BIGQUERY ||
+                        personalSignIn.provider !== PersonSignInProvider.GOOGLE
+                    )
+                        return { selected: true, status: null };
+                    const snapshot =
+                        await this.userWarehouseCredentialsModel.getSignInSnapshot(
+                            personal.uuid,
+                            selected,
+                        );
+                    if (!snapshot || snapshot.userUuid !== account.user.id)
+                        return { selected: true, status: null };
+                    const result = await this.googleSignInProbe.check(
+                        selected.keyfileContents,
+                        snapshot.encryptedCredentials,
+                        snapshot.needsSignIn === true,
+                    );
+                    let current: boolean;
+                    try {
+                        current = result.rejection
+                            ? await this.userWarehouseCredentialsModel.markNeedsSignIn(
+                                  snapshot,
+                                  result.rejection,
+                              )
+                            : await this.userWarehouseCredentialsModel.isSignInSnapshotCurrent(
+                                  snapshot,
+                              );
+                    } catch {
+                        this.logger.warn(
+                            'Could not verify personal warehouse sign-in status',
+                        );
+                        return { selected: true, status: null };
+                    }
+                    if (!current)
+                        return retry
+                            ? checkPersonal(false)
+                            : { selected: true, status: null };
+                    return {
+                        selected: true,
+                        status: {
+                            personalSelection,
+                            provider: personalSignIn.provider,
+                            subject: null,
+                            subjectBasis: null,
+                            expired: false,
+                            canReconnect: false,
+                            ...(result.expired === undefined
+                                ? { statusUnknown: true }
+                                : {}),
+                            personalSignIn: {
+                                projectUuid,
+                                provider: personalSignIn.provider,
+                                userWarehouseCredentialsUuid: personal.uuid,
+                                expired:
+                                    result.expired ??
+                                    snapshot.needsSignIn === true,
+                                canReconnect: true,
+                            },
+                        },
+                    };
+                }
+                return { selected: false, status: null };
+            };
+            const result = await checkPersonal(true);
+            if (result.selected) return result.status;
             if (credentials.requireUserCredentials || target.kind === 'extra')
                 return null;
         } else if (warehouseConnectionUuid !== undefined) return null;

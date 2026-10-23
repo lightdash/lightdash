@@ -224,6 +224,7 @@ export const addAutomaticPivotFailureListener = (
     onFailure: (
         execution: ReturnType<typeof captureSharedSignInQueryScope>,
         requestId: string,
+        executionIntent: number,
     ) => void,
 ) =>
     startListening({
@@ -233,6 +234,9 @@ export const addAutomaticPivotFailureListener = (
                 listenerApi.getState().sqlRunner.projectUuid === projectUuid &&
                 action.payload &&
                 isWarehouseSignInQueryErrorDetail(action.payload) &&
+                action.meta.executionIntent !== undefined &&
+                action.meta.executionIntent ===
+                    listenerApi.getState().sqlRunner.executionIntent &&
                 listenerApi.getState().sqlRunner.pivotRequestId ===
                     action.meta.requestId &&
                 isCurrentSharedSignInQueryScope(
@@ -242,6 +246,7 @@ export const addAutomaticPivotFailureListener = (
                 onFailure(
                     getSharedSignInFailureScope(action.payload),
                     action.meta.requestId,
+                    action.meta.executionIntent,
                 );
         },
     });

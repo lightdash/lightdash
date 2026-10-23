@@ -17,6 +17,11 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect } from 'react';
 import { MemoryRouter, useNavigate } from 'react-router';
+import {
+    completeSharedSignInRestoration,
+    canReplayRestoredSql,
+    captureSharedSignInQueryScope,
+} from '../../hooks/sharedSignInQueryRecovery';
 import { shouldSuppressSharedSignInToast } from '../../hooks/toaster/sharedSignInToastSuppression';
 import {
     useGetReadyQueryResults,
@@ -26,6 +31,7 @@ import {
     SHARED_SIGN_IN_QUERY_FAILED,
     SHARED_SIGN_IN_RECONNECTED,
 } from '../../hooks/useReconnectSharedSignIn';
+import { reportSharedSignInQueryFailure } from '../../hooks/useReconnectSharedSignIn';
 import { SharedSignInExpiryListener } from './SharedSignInExpiryListener';
 import { SharedSignInQueryBoundary } from './SharedSignInQueryBoundary';
 import { WarehouseSignInBanner } from './WarehouseSignInBanner';
@@ -33,7 +39,10 @@ import {
     setWarehouseSignInBannerVisibility,
     useWarehouseSignInBanner,
 } from './warehouseSignInBannerState';
-import { useWarehouseSignInExecution } from './warehouseSignInPreflight';
+import {
+    getActiveWarehouseSignInPreflight,
+    useWarehouseSignInExecution,
+} from './warehouseSignInPreflight';
 
 const state = vi.hoisted(() => ({
     userUuid: 'user_a' as string | null,
@@ -1231,4 +1240,296 @@ test('a dismissed verification cannot complete after the same target modal reope
         screen.getByRole('button', { name: 'Sign in with Google' }),
     );
     await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+});
+
+test.each([personal, shared])(
+    'accepts a second fresh rejection and repair without queuing old failures: %j',
+    async (initial) => {
+        state.realQueries = true;
+        let expired = true;
+        let rejectNext = false;
+        const calls = new Map<string, number>();
+        const failure = initial.personalSignIn
+            ? { status: 'error', error: personalError }
+            : {
+                  status: 'error',
+                  error: {
+                      name: 'WarehouseSignInExpiredError',
+                      statusCode: 401,
+                      message: 'expired',
+                      data: {
+                          sharedSignIn: {
+                              projectUuid: 'project_a',
+                              provider: shared.provider,
+                              subjectUserUuid: 'user_a',
+                              subjectBasis: shared.subjectBasis,
+                          },
+                      },
+                  },
+              };
+        state.api.mockImplementation(
+            async ({
+                method,
+                url,
+                body,
+            }: {
+                method: string;
+                url: string;
+                body?: string;
+            }) => {
+                if (url.includes('shared-sign-in')) {
+                    if (method === 'POST') return { status: 'ok' };
+                    return initial.personalSignIn
+                        ? {
+                              ...initial,
+                              personalSignIn: {
+                                  ...initial.personalSignIn,
+                                  expired,
+                              },
+                          }
+                        : { ...initial, expired };
+                }
+                if (method === 'POST') {
+                    const { chartUuid } = JSON.parse(body!);
+                    const count = (calls.get(chartUuid) ?? 0) + 1;
+                    calls.set(chartUuid, count);
+                    if (chartUuid === 'healthy' && rejectNext) {
+                        rejectNext = false;
+                        throw failure;
+                    }
+                    return { queryUuid: `${chartUuid}_${count}` };
+                }
+                return {
+                    status: QueryHistoryStatus.READY,
+                    rows: [],
+                    columns: {},
+                    totalResults: 0,
+                    metadata: { performance: {} },
+                };
+            },
+        );
+        const { client } = mount();
+        await screen.findByRole('dialog');
+        const preflight = getActiveWarehouseSignInPreflight()!;
+        const retired = captureSharedSignInQueryScope('project_a', null);
+        const release = preflight.register(
+            'expired_sibling',
+            'connection_b',
+            0,
+        );
+        act(() => {
+            preflight.settle(
+                'connection_b',
+                preflight.checks.get('connection_b')!.generation,
+                {
+                    ...personal,
+                    personalSelection: {
+                        warehouseConnectionUuid: 'connection_b',
+                    },
+                },
+            );
+        });
+        expired = false;
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Sign in with Google' }),
+        );
+        await waitFor(() => expect(calls.get('healthy')).toBe(1));
+        await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+        act(() => {
+            reportSharedSignInQueryFailure('project_a', failure, retired);
+        });
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
+        const clock = vi
+            .spyOn(Date, 'now')
+            .mockReturnValue(Date.now() + 60_001);
+        try {
+            expired = true;
+            rejectNext = true;
+            await act(async () => {
+                await client.refetchQueries({
+                    predicate: (q) =>
+                        q.queryKey[0] === 'create-query' &&
+                        (q.queryKey[1] as { chartUuid?: string })?.chartUuid ===
+                            'healthy',
+                });
+            });
+            expect(await screen.findByRole('dialog')).toBeVisible();
+            expired = false;
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Sign in with Google' }),
+            );
+            await waitFor(() => expect(state.success).toHaveBeenCalledTimes(2));
+            await waitFor(() => expect(calls.get('healthy')).toBe(3));
+            for (const name of [
+                'failed_a',
+                'failed_b',
+                'failed_c',
+                'inflight',
+                'pending_poll',
+            ])
+                expect(calls.get(name)).toBe(2);
+            act(() => {
+                reportSharedSignInQueryFailure('project_a', failure, retired);
+            });
+            expect(screen.queryByRole('dialog')).toBeNull();
+            expect(
+                screen.queryByRole('button', { name: 'Reconnect' }),
+            ).toBeNull();
+        } finally {
+            clock.mockRestore();
+            release();
+        }
+    },
+);
+
+test('a current healthy selected status cannot be overridden by stale personal failure metadata', async () => {
+    state.api.mockResolvedValue({
+        ...personal,
+        personalSignIn: { ...personal.personalSignIn!, expired: false },
+    });
+    mount();
+    await waitFor(() => expect(state.executed).toHaveBeenCalledOnce());
+    const scope = captureSharedSignInQueryScope('project_a', null);
+    act(() =>
+        reportSharedSignInQueryFailure(
+            'project_a',
+            { status: 'error', error: personalError },
+            scope,
+        ),
+    );
+    await waitFor(() => expect(state.api).toHaveBeenCalledTimes(2));
+    await act(async () => {});
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
+});
+
+test('a fresh current rejection after healthy preflight still opens recovery', async () => {
+    state.api
+        .mockResolvedValueOnce({
+            ...personal,
+            personalSignIn: { ...personal.personalSignIn!, expired: false },
+        })
+        .mockResolvedValue(personal);
+    mount();
+    await waitFor(() => expect(state.executed).toHaveBeenCalledOnce());
+    const scope = captureSharedSignInQueryScope('project_a', null);
+    act(() =>
+        reportSharedSignInQueryFailure(
+            'project_a',
+            { status: 'error', error: personalError },
+            scope,
+        ),
+    );
+    expect(await screen.findByRole('dialog')).toBeVisible();
+    expect(state.api).toHaveBeenCalledTimes(2);
+});
+
+test('dismissal during cancellation preparation abandons the old attempt and permits the reopened target repair', async () => {
+    state.api.mockResolvedValueOnce(personal).mockResolvedValue({
+        ...personal,
+        personalSignIn: { ...personal.personalSignIn!, expired: false },
+    });
+    const { client } = mount();
+    await screen.findByRole('dialog');
+    const preflight = getActiveWarehouseSignInPreflight()!;
+    const target = preflight.target;
+    const scope = captureSharedSignInQueryScope('project_a', null);
+    const pending = Promise.withResolvers<void>();
+    const cancel = vi
+        .spyOn(client, 'cancelQueries')
+        .mockReturnValueOnce(pending.promise);
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(cancel).toHaveBeenCalledOnce());
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    expect(preflight.target).toBe(target);
+    await act(async () => pending.resolve());
+    expect(state.success).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).toBeVisible();
+    const restored = vi.fn();
+    window.addEventListener(SHARED_SIGN_IN_RECONNECTED, restored);
+    try {
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Sign in with Google' }),
+        );
+        await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+        expect(restored).toHaveBeenCalledOnce();
+        expect(
+            canReplayRestoredSql(scope, restored.mock.calls[0][0].detail),
+        ).toBe(true);
+        expect(screen.queryByRole('dialog')).toBeNull();
+    } finally {
+        window.removeEventListener(SHARED_SIGN_IN_RECONNECTED, restored);
+        cancel.mockRestore();
+    }
+});
+
+test('a second shared episode waits for its healthy-status cooldown and then accepts one repair', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(100_000);
+    state.api.mockResolvedValue(shared);
+    const view = mount();
+    try {
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        const preflight = getActiveWarehouseSignInPreflight()!;
+        const first = preflight.target!;
+        await act(async () => {
+            const detail = await completeSharedSignInRestoration(
+                view.client,
+                first,
+            );
+            window.dispatchEvent(
+                new CustomEvent(SHARED_SIGN_IN_RECONNECTED, { detail }),
+            );
+        });
+        expect(preflight.target).toBeNull();
+        const scope = captureSharedSignInQueryScope('project_a', null);
+        const error = {
+            error: {
+                name: 'BigqueryTokenError',
+                statusCode: 401,
+                message: BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
+                data: {},
+            },
+        };
+        state.api.mockResolvedValue({ ...shared, expired: false });
+        await act(async () => {
+            reportSharedSignInQueryFailure('project_a', error, scope);
+            await vi.advanceTimersByTimeAsync(0);
+        });
+        expect(state.api).toHaveBeenCalledTimes(2);
+        state.api.mockResolvedValue(shared);
+        await act(async () => {
+            reportSharedSignInQueryFailure('project_a', error, scope);
+            await vi.advanceTimersByTimeAsync(59_999);
+        });
+        expect(state.api).toHaveBeenCalledTimes(2);
+        expect(preflight.target).toBeNull();
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(1);
+        });
+        expect(state.api).toHaveBeenCalledTimes(3);
+        expect(screen.getByRole('dialog')).toBeVisible();
+        expect(preflight.target).not.toBe(first);
+        await act(async () => {
+            const detail = await completeSharedSignInRestoration(
+                view.client,
+                preflight.target!,
+            );
+            expect(detail?.recoveryGeneration).toBe(2);
+            window.dispatchEvent(
+                new CustomEvent(SHARED_SIGN_IN_RECONNECTED, { detail }),
+            );
+        });
+        expect(preflight.target).toBeNull();
+    } finally {
+        view.unmount();
+        view.client.clear();
+        vi.useRealTimers();
+    }
 });

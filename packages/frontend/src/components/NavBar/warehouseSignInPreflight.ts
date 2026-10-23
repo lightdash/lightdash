@@ -260,6 +260,27 @@ export class WarehouseSignInPreflight {
         this.notify();
         return true;
     }
+    settleRejection(
+        execution: WarehouseSignInExecutionIdentity & {
+            recoveryGeneration: number;
+        },
+        status: SharedSignInStatus,
+    ) {
+        if (
+            !this.isCurrent(execution) ||
+            execution.recoveryGeneration !== this.recoveryGeneration ||
+            !this.hasPreferredBinding(execution.binding) ||
+            this.target
+        )
+            return false;
+        if (
+            !(status.personalSignIn?.expired ?? status.expired) ||
+            status.statusUnknown
+        )
+            return false;
+        this.present(execution.binding, execution.generation, status);
+        return this.settle(execution.binding, execution.generation, status);
+    }
     arbitrate() {
         if (
             this.target &&
@@ -285,35 +306,46 @@ export class WarehouseSignInPreflight {
                     this.hasPreferredBinding(check.binding),
             )
             .sort((a, b) => b.priority - a.priority)[0];
-        if (expired?.status && !this.automaticOpened) {
-            this.target = {
-                ...this.identity,
-                binding: expired.binding,
-                generation: expired.generation,
-                status: expired.status,
-            };
-            this.modalOpen =
-                (expired.status.personalSignIn?.canReconnect ??
-                    expired.status.canReconnect) &&
-                (!!expired.status.personalSignIn ||
-                    !this.statusCache.openedSharedProjects.has(
-                        this.identity.projectUuid,
-                    ));
-            if (!expired.status.personalSignIn && this.modalOpen) {
-                this.statusCache.openedSharedProjects.add(
-                    this.identity.projectUuid,
-                );
-                if (this.statusCache.openedSharedProjects.size > 100)
-                    this.statusCache.openedSharedProjects.delete(
-                        this.statusCache.openedSharedProjects.values().next()
-                            .value!,
-                    );
-            }
-            this.automaticOpened = true;
-        }
+        const target =
+            expired?.status && !this.automaticOpened
+                ? this.present(
+                      expired.binding,
+                      expired.generation,
+                      expired.status,
+                  )
+                : null;
         for (const check of this.checks.values())
-            check.blocked =
-                this.modalOpen && check.binding === this.target?.binding;
+            check.blocked = this.modalOpen && check.binding === target?.binding;
+    }
+    private present(
+        binding: WarehouseSignInBinding,
+        generation: number,
+        status: SharedSignInStatus,
+    ) {
+        this.target = {
+            ...this.identity,
+            binding,
+            generation,
+            status,
+        };
+        this.modalOpen =
+            (status.personalSignIn?.canReconnect ?? status.canReconnect) &&
+            (!!status.personalSignIn ||
+                !this.statusCache.openedSharedProjects.has(
+                    this.identity.projectUuid,
+                ));
+        if (!status.personalSignIn && this.modalOpen) {
+            this.statusCache.openedSharedProjects.add(
+                this.identity.projectUuid,
+            );
+            if (this.statusCache.openedSharedProjects.size > 100)
+                this.statusCache.openedSharedProjects.delete(
+                    this.statusCache.openedSharedProjects.values().next()
+                        .value!,
+                );
+        }
+        this.automaticOpened = true;
+        return this.target;
     }
     dismiss(target: WarehouseSignInTarget) {
         if (this.target !== target || !this.isCurrent(target)) return;

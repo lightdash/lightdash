@@ -38,6 +38,7 @@ type Root = {
     selectionGeneration: number;
 };
 type Replay = {
+    restoration: SharedSignInRestoration;
     watermark: number;
     generation: number;
     binding: WarehouseSignInBinding;
@@ -256,8 +257,7 @@ export const completeSharedSignInRestoration = async (
     const abandon = () => {
         if (state.receipt === receipt) state.receipt = null;
         for (const [query, replay] of state.replays)
-            if (replay.generation === receipt.recoveryGeneration)
-                state.replays.delete(query);
+            if (replay.restoration === receipt) state.replays.delete(query);
         return null;
     };
     const candidates = new Map(
@@ -267,7 +267,6 @@ export const completeSharedSignInRestoration = async (
     const watermarks = new Map(
         [...roots].map((query) => [query, starts.get(query) ?? 0]),
     );
-    store.recoveryGeneration += 1;
     store.checks.get(
         warehouseSignInBindingKey(target.binding),
     )!.requestVersion += 1;
@@ -300,6 +299,7 @@ export const completeSharedSignInRestoration = async (
     for (const [query, root] of candidates)
         if (current.has(query))
             state.replays.set(query, {
+                restoration: receipt,
                 binding: root.binding,
                 selectionGeneration: root.selectionGeneration,
                 watermark: watermarks.get(query) ?? 0,
@@ -324,8 +324,8 @@ export const completeSharedSignInRestoration = async (
             warehouseSignInBindingKey(target.binding),
         ],
     });
-    store.restored(target);
     store.recoveryGeneration = receipt.recoveryGeneration;
+    store.restored(target);
     return receipt;
 };
 export const useSharedSignInQueryRecovery = ({
@@ -400,7 +400,12 @@ export const useSharedSignInQueryRecovery = ({
         const state = pageState(store);
         if (state.publishedGeneration !== store.recoveryGeneration) return;
         const replay = state.replays.get(query);
-        if (!replay || replay.generation !== store.recoveryGeneration) return;
+        if (
+            !replay ||
+            replay.restoration !== state.receipt ||
+            replay.generation !== store.recoveryGeneration
+        )
+            return;
         if (
             replay.binding !== binding ||
             replay.selectionGeneration !== selectionGeneration

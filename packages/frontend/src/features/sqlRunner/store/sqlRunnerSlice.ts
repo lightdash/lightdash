@@ -104,6 +104,7 @@ export interface SqlRunnerState {
     activeConfigs: ChartKind[];
     fetchResultsOnLoad: boolean;
     mode: 'default' | 'virtualView';
+    executionIntent: number;
     executionRequestId?: string;
     pivotRequestId?: string;
     queryIsLoading: boolean;
@@ -119,6 +120,7 @@ export interface SqlRunnerState {
 }
 
 export const initialState: SqlRunnerState = {
+    executionIntent: 0,
     mode: 'default',
     projectUuid: '',
     activeTable: undefined,
@@ -218,11 +220,19 @@ export const sqlRunnerSlice = createSlice({
         },
     },
     reducers: {
-        resetState: () => initialState,
+        resetState: (state) => ({
+            ...initialState,
+            executionIntent: state.executionIntent + 1,
+        }),
         setState: (state, action: PayloadAction<typeof initialState>) => {
-            return action.payload;
+            return {
+                ...action.payload,
+                executionIntent: state.executionIntent + 1,
+            };
         },
         setProjectUuid: (state, action: PayloadAction<string>) => {
+            if (state.projectUuid !== action.payload)
+                state.executionIntent += 1;
             state.projectUuid = action.payload;
         },
         updateParameterValue: (
@@ -232,6 +242,7 @@ export const sqlRunnerSlice = createSlice({
                 value: ParameterValue | null;
             }>,
         ) => {
+            state.executionIntent += 1;
             const { key, value } = action.payload;
             if (value) {
                 state.parameterValues = {
@@ -245,12 +256,14 @@ export const sqlRunnerSlice = createSlice({
             }
         },
         clearParameterValues: (state) => {
+            state.executionIntent += 1;
             state.parameterValues = {};
         },
         setParameterValues: (
             state,
             action: PayloadAction<ParametersValuesMap>,
         ) => {
+            state.executionIntent += 1;
             state.parameterValues = action.payload;
         },
         setFetchResultsOnLoad: (
@@ -272,6 +285,7 @@ export const sqlRunnerSlice = createSlice({
             state.mode = action.payload;
         },
         setSql: (state, action: PayloadAction<string>) => {
+            if (state.sql !== action.payload) state.executionIntent += 1;
             state.sql = action.payload;
 
             const normalizedNewSql = formatSql(
@@ -289,6 +303,7 @@ export const sqlRunnerSlice = createSlice({
             );
         },
         setSqlLimit: (state, action: PayloadAction<number>) => {
+            if (state.limit !== action.payload) state.executionIntent += 1;
             state.limit = action.payload;
         },
         setActiveEditorTab: (state, action: PayloadAction<EditorTabs>) => {
@@ -310,6 +325,7 @@ export const sqlRunnerSlice = createSlice({
             }
         },
         setSavedChartData: (state, action: PayloadAction<SqlChart>) => {
+            state.executionIntent += 1;
             state.savedSqlChart = action.payload;
             state.name = action.payload.name;
             state.description = action.payload.description || '';
@@ -322,6 +338,8 @@ export const sqlRunnerSlice = createSlice({
             }
         },
         setSelectedChartType: (state, action: PayloadAction<ChartKind>) => {
+            if (state.selectedChartType !== action.payload)
+                state.executionIntent += 1;
             state.selectedChartType = action.payload;
             if (!state.activeConfigs.includes(action.payload)) {
                 state.activeConfigs.push(action.payload);
@@ -382,6 +400,7 @@ export const sqlRunnerSlice = createSlice({
                     action.payload.connection.warehouseType,
                 );
             }
+            if (previous !== next) state.executionIntent += 1;
             if (previous !== undefined && previous !== next) {
                 state.sqlColumns = undefined;
                 state.sqlRows = undefined;
@@ -394,6 +413,7 @@ export const sqlRunnerSlice = createSlice({
     extraReducers: (builder) => {
         builder
             .addCase(runSqlQuery.pending, (state, action) => {
+                state.executionIntent += 1;
                 state.executionRequestId = action.meta.requestId;
                 state.queryIsLoading = true;
                 state.queryError = undefined;

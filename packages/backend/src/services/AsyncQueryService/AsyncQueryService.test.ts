@@ -11627,7 +11627,7 @@ describe('AsyncQueryService', () => {
                         refreshToken: refreshTokenOf(credentials),
                     }),
                 ),
-                markNeedsSignIn: vi.fn(async () => undefined),
+                markNeedsSignIn: vi.fn(async () => true),
                 findForProjectWithSecrets: vi.fn(
                     async () => userWarehouseCredentials,
                 ),

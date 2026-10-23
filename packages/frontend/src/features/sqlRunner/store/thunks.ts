@@ -152,6 +152,7 @@ export const runSqlQuery = createAsyncThunk<
  */
 export const prepareAndFetchChartData = createAsyncThunk.withTypes<{
     rejectValue: ApiErrorDetail;
+    rejectedMeta: { executionIntent: number };
 }>()(
     'cartesianChartBaseConfig/prepareAndFetchChartData',
     async (
@@ -206,6 +207,8 @@ export const prepareAndFetchChartData = createAsyncThunk.withTypes<{
         } catch (error) {
             if (
                 isApiError(error) &&
+                (getState() as RootState).sqlRunner.executionIntent ===
+                    state.sqlRunner.executionIntent &&
                 (getState() as RootState).sqlRunner.sql ===
                     state.sqlRunner.sql &&
                 (getState() as RootState).sqlRunner.limit ===
@@ -232,7 +235,9 @@ export const prepareAndFetchChartData = createAsyncThunk.withTypes<{
                     error,
                     scope,
                 );
-                return rejectWithValue(error.error);
+                return rejectWithValue(error.error, {
+                    executionIntent: state.sqlRunner.executionIntent,
+                });
             }
             throw error;
         }

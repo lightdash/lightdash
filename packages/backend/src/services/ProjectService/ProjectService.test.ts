@@ -20575,7 +20575,8 @@ describe('ProjectService.getSharedSignInStatus', () => {
                     options.selected === false ? undefined : personal,
                 ),
                 getSignInSnapshot: vi.fn(async () => snapshot),
-                markNeedsSignIn: vi.fn(async () => undefined),
+                markNeedsSignIn: vi.fn(async () => true),
+                isSignInSnapshotCurrent: vi.fn(async () => true),
             };
             const probe = {
                 check: vi.fn(async () => ({
@@ -20642,6 +20643,7 @@ describe('ProjectService.getSharedSignInStatus', () => {
                 expect(probe.check).toHaveBeenCalledWith(
                     expect.objectContaining({ refresh_token: 'token_a' }),
                     snapshot.encryptedCredentials,
+                    false,
                 );
                 expect(personalModel.markNeedsSignIn).toHaveBeenCalledWith(
                     snapshot,
@@ -20693,6 +20695,32 @@ describe('ProjectService.getSharedSignInStatus', () => {
             });
             expect(personalModel.markNeedsSignIn).not.toHaveBeenCalled();
         });
+        test('drops a selected status when current incarnation verification is unavailable', async () => {
+            const { status, personalModel } = setupPersonal({ expired: false });
+            personalModel.isSignInSnapshotCurrent.mockRejectedValue(
+                new Error('database_a'),
+            );
+            await expect(status()).resolves.toBeNull();
+            expect(personalModel.markNeedsSignIn).not.toHaveBeenCalled();
+        });
+        test('does not deliver a rejected status when its advisory mark cannot establish current ownership', async () => {
+            const { status, personalModel } = setupPersonal({ expired: true });
+            personalModel.markNeedsSignIn.mockRejectedValue(
+                new Error('database_a'),
+            );
+            await expect(status()).resolves.toBeNull();
+        });
+        test('bounds repeated incarnation changes during a selected status probe', async () => {
+            const { status, personalModel, probe, sharedProbe } = setupPersonal(
+                { expired: true },
+            );
+            personalModel.markNeedsSignIn.mockResolvedValue(false);
+            await expect(status()).resolves.toBeNull();
+            expect(probe.check).toHaveBeenCalledTimes(2);
+            expect(personalModel.markNeedsSignIn).toHaveBeenCalledTimes(2);
+            expect(sharedProbe).not.toHaveBeenCalled();
+        });
+
         test('keeps legacy clients on the original shared contract', async () => {
             const { status, personalModel, sharedProbe } = setupPersonal({
                 expired: true,

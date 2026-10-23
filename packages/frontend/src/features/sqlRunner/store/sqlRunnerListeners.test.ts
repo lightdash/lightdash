@@ -9,6 +9,7 @@ import {
 } from '../../../components/NavBar/warehouseSignInPreflight';
 import {
     captureSharedSignInQueryScope,
+    getSharedSignInFailureScope,
     rememberSharedSignInFailure,
 } from '../../../hooks/sharedSignInQueryRecovery';
 import { getAsyncQueryError } from '../../queryRunner/asyncQueryError';
@@ -37,7 +38,7 @@ describe('automatic pivot retry tracking', () => {
         );
         const { effect } = listen.mock.calls[0][0];
         const action = {
-            meta: { requestId: 'request_a' },
+            meta: { requestId: 'request_a', executionIntent: 2 },
             payload: getAsyncQueryError(
                 getExpiredPersonalSignInMessage({
                     provider: PersonSignInProvider.GOOGLE,
@@ -57,10 +58,26 @@ describe('automatic pivot retry tracking', () => {
                 sqlRunner: {
                     projectUuid: 'current-project',
                     pivotRequestId: 'request_a',
+                    executionIntent: 2,
                 },
             }),
         });
-        expect(recordFailure).toHaveBeenCalledOnce();
+        expect(recordFailure).toHaveBeenCalledExactlyOnceWith(
+            getSharedSignInFailureScope(action.payload),
+            'request_a',
+            2,
+        );
+        recordFailure.mockClear();
+        await effect(action, {
+            getState: () => ({
+                sqlRunner: {
+                    projectUuid: 'current-project',
+                    pivotRequestId: 'request_a',
+                    executionIntent: 4,
+                },
+            }),
+        });
+        expect(recordFailure).not.toHaveBeenCalled();
         stop();
     });
 });

@@ -282,3 +282,41 @@ test('an explicit new selection can recover after a repair without opening a que
     expect(store.target?.binding).toBe('connection_b');
     expect(store.modalOpen).toBe(true);
 });
+
+test('a fresh rejected binding wins over an older expired sibling after repair', () => {
+    const store = create();
+    store.register('earlier_sibling', 'connection_b', 0);
+    store.register('repaired_root', 'connection_a', 0);
+    const earlier = store.checks.get('connection_b')!;
+    const current = store.checks.get('connection_a')!;
+    store.settle(
+        'connection_b',
+        earlier.generation,
+        personal('connection_b', false),
+    );
+    store.settle(
+        'connection_a',
+        current.generation,
+        personal('connection_a', true),
+    );
+    const first = store.target!;
+    store.settle(
+        'connection_b',
+        earlier.generation,
+        personal('connection_b', true),
+    );
+    store.recoveryGeneration += 1;
+    store.restored(first);
+    expect(store.target).toBeNull();
+    store.settleRejection(
+        {
+            ...identity,
+            binding: 'connection_a',
+            generation: current.generation,
+            recoveryGeneration: store.recoveryGeneration,
+        },
+        personal('connection_a', true),
+    );
+    expect(store.target?.binding).toBe('connection_a');
+    expect(store.modalOpen).toBe(true);
+});

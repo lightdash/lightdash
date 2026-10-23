@@ -117,10 +117,14 @@ export const useSharedSignInStatusListener = ({
             if (trailingCheck !== null) clearTimeout(trailingCheck);
             trailingCheck = null;
         };
-        const scheduleCheck = (error: unknown, checkedAt: number) => {
+        const scheduleCheck = (
+            error: unknown,
+            checkedAt: number,
+            execution: ReturnType<typeof captureSharedSignInQueryScope>,
+        ) => {
             clearTrailingCheck();
             trailingCheck = scheduleSharedSignInCooldownCheck(checkedAt, () =>
-                notify(error),
+                notify(error, execution),
             );
         };
         const pendingPersonal = new Set<string>();
@@ -147,7 +151,7 @@ export const useSharedSignInStatusListener = ({
                     !isWarehouseSignInQueryError(error)
                 )
                     return;
-                const { binding, generation } = execution;
+                const { binding } = execution;
                 const key = warehouseSignInBindingKey(binding);
                 const check = store.checks.get(key);
                 if (!check || pendingPersonal.has(key) || store.target) return;
@@ -184,15 +188,8 @@ export const useSharedSignInStatusListener = ({
                                 selected.provider !== controlled.provider)
                         )
                             return;
-                        if (
-                            accepted.statusUnknown ||
-                            (!failure && !selected.expired)
-                        )
-                            return;
-                        store.settle(binding, generation, {
-                            ...accepted,
-                            personalSignIn: { ...selected, expired: true },
-                        });
+                        if (accepted.statusUnknown || !selected.expired) return;
+                        store.settleRejection(execution, accepted);
                     })
                     .catch(() => {})
                     .finally(() => pendingPersonal.delete(key));
@@ -258,7 +255,7 @@ export const useSharedSignInStatusListener = ({
             ]);
             const last = lastSharedChecks.current.get(sharedKey) ?? -Infinity;
             if (Date.now() - last < 60_000) {
-                scheduleCheck(error, last);
+                scheduleCheck(error, last, execution);
                 return;
             }
             clearTrailingCheck();
@@ -283,14 +280,22 @@ export const useSharedSignInStatusListener = ({
                     const accepted = status?.personalSignIn
                         ? null
                         : acceptWarehouseSignInStatus(status, null, true);
-                    if (!store.settle(null, generation, accepted)) return;
+                    if (
+                        execution &&
+                        !isCurrentSharedSignInQueryScope(execution)
+                    )
+                        return;
+                    if (accepted?.expired && execution) {
+                        if (!store.settleRejection(execution, accepted)) return;
+                    } else if (!store.settle(null, generation, accepted))
+                        return;
                     if (
                         cachedAt !== undefined &&
                         Date.now() - cachedAt < 60_000 &&
                         !status?.personalSignIn &&
                         !accepted?.expired
                     )
-                        scheduleCheck(error, cachedAt);
+                        scheduleCheck(error, cachedAt, execution);
                 })
                 .catch(() => {
                     if (!cancelled && check.requestVersion === requestVersion)

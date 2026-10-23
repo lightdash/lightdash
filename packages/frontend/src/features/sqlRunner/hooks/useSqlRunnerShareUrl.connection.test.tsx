@@ -69,6 +69,7 @@ describe('SQL runner share links and the active connection', () => {
                 .params,
         );
         expect(params.sqlRunnerState).not.toHaveProperty('connectionRoute');
+        expect(params.sqlRunnerState).not.toHaveProperty('executionIntent');
         expect(params.warehouseConnectionUuid).toBe('finance-uuid');
     });
 

@@ -12,8 +12,14 @@ import {
     activateWarehouseSignInPreflight,
     useWarehouseSignInExecution,
 } from '../../../components/NavBar/warehouseSignInPreflight';
-import { completeSharedSignInRestoration } from '../../../hooks/sharedSignInQueryRecovery';
-import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
+import {
+    captureSharedSignInQueryScope,
+    completeSharedSignInRestoration,
+} from '../../../hooks/sharedSignInQueryRecovery';
+import {
+    SHARED_SIGN_IN_QUERY_FAILED,
+    SHARED_SIGN_IN_RECONNECTED,
+} from '../../../hooks/useReconnectSharedSignIn';
 import { getAsyncQueryError } from '../../queryRunner/asyncQueryError';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { SqlRunnerSignInReadinessContext } from '../hooks/useSqlRunnerSignInReady';
@@ -103,7 +109,14 @@ beforeEach(() => {
         }),
     );
 });
-it.each(['unchanged', 'sql', 'limit', 'parameters'] as const)(
+it.each([
+    'unchanged',
+    'repeated',
+    'abandoned',
+    'sql',
+    'limit',
+    'parameters',
+] as const)(
     'retains a failed on-load SQL request across the modal gate with %s inputs',
     async (kind) => {
         const preflight = new WarehouseSignInPreflight(
@@ -134,6 +147,8 @@ it.each(['unchanged', 'sql', 'limit', 'parameters'] as const)(
                 durationMs: null,
                 fileUrl: undefined,
             });
+        if (kind === 'repeated')
+            vi.mocked(executeSqlQuery).mockRejectedValueOnce(error);
         const tree = (
             <MantineProvider env="test">
                 <QueryClientProvider client={client}>
@@ -186,6 +201,29 @@ it.each(['unchanged', 'sql', 'limit', 'parameters'] as const)(
             preflight.modalOpen = true;
             preflight.notify();
         });
+        if (kind === 'abandoned') {
+            const held = Promise.withResolvers<void>();
+            const cancel = vi
+                .spyOn(client, 'cancelQueries')
+                .mockReturnValueOnce(held.promise);
+            let current = true;
+            await act(async () => {
+                const target = preflight.target!;
+                const abandoned = completeSharedSignInRestoration(
+                    client,
+                    target,
+                    () => current,
+                );
+                current = false;
+                preflight.dismiss(target);
+                preflight.modalOpen = true;
+                preflight.notify();
+                held.resolve();
+                expect(await abandoned).toBeNull();
+                expect(preflight.target).toBe(target);
+            });
+            cancel.mockRestore();
+        }
         await act(async () => {
             const receipt = await completeSharedSignInRestoration(
                 client,
@@ -199,13 +237,40 @@ it.each(['unchanged', 'sql', 'limit', 'parameters'] as const)(
         });
         await waitFor(() =>
             expect(executeSqlQuery).toHaveBeenCalledTimes(
-                kind === 'unchanged' ? 2 : 1,
+                kind === 'unchanged' ||
+                    kind === 'repeated' ||
+                    kind === 'abandoned'
+                    ? 2
+                    : 1,
             ),
         );
         await act(async () => {});
         expect(executeSqlQuery).toHaveBeenCalledTimes(
-            kind === 'unchanged' ? 2 : 1,
+            kind === 'unchanged' || kind === 'repeated' || kind === 'abandoned'
+                ? 2
+                : 1,
         );
+        if (kind === 'repeated') {
+            act(() => {
+                preflight.settleRejection(
+                    captureSharedSignInQueryScope('project_a', null)!,
+                    status,
+                );
+            });
+            expect(preflight.target).not.toBeNull();
+            await act(async () => {
+                const detail = await completeSharedSignInRestoration(
+                    client,
+                    preflight.target!,
+                );
+                window.dispatchEvent(
+                    new CustomEvent(SHARED_SIGN_IN_RECONNECTED, { detail }),
+                );
+            });
+            await waitFor(() =>
+                expect(executeSqlQuery).toHaveBeenCalledTimes(3),
+            );
+        }
         unmount();
         stop();
         client.clear();
@@ -268,9 +333,9 @@ it('runs an initially blocked on-load query once after accepted recovery', async
     client.clear();
 });
 
-it.each([false, true])(
-    'replays a confirmed automatic pivot only while its inputs remain unchanged: changed=%s',
-    async (changed) => {
+it.each(['unchanged', 'after-failure', 'before-failure-return'])(
+    'replays a confirmed automatic pivot only while its inputs remain unchanged: %s',
+    async (kind) => {
         store.dispatch(
             setState({
                 ...store.getState().sqlRunner,
@@ -288,13 +353,12 @@ it.each([false, true])(
         );
         const stop = activateWarehouseSignInPreflight(preflight);
         const client = new QueryClient();
+        const reported = vi.fn();
+        window.addEventListener(SHARED_SIGN_IN_QUERY_FAILED, reported);
+        const pending = Promise.withResolvers<never>();
         const pivot = vi
             .fn()
-            .mockRejectedValueOnce(
-                getAsyncQueryError(
-                    'Your BigQuery sign-in has expired. Sign in with Google again to load this.',
-                ),
-            )
+            .mockReturnValueOnce(pending.promise)
             .mockResolvedValue({});
         const runner = vi
             .spyOn(sqlRunnerSelectors, 'selectSqlRunnerResultsRunner')
@@ -333,11 +397,28 @@ it.each([false, true])(
                 );
                 preflight.dismiss(preflight.target!);
             });
-            await act(async () => {
-                await store.dispatch(prepareAndFetchChartData());
-            });
+            const request = store.dispatch(prepareAndFetchChartData());
             expect(pivot).toHaveBeenCalledOnce();
-            if (changed)
+            if (kind === 'before-failure-return') {
+                act(() => {
+                    store.dispatch(setSql('select 2'));
+                });
+                act(() => {
+                    store.dispatch(setSql('select 1'));
+                });
+            }
+            await act(async () => {
+                pending.reject(
+                    getAsyncQueryError(
+                        'Your BigQuery sign-in has expired. Sign in with Google again to load this.',
+                    ),
+                );
+                await request;
+            });
+            expect(reported).toHaveBeenCalledTimes(
+                kind === 'before-failure-return' ? 0 : 1,
+            );
+            if (kind === 'after-failure')
                 act(() => {
                     store.dispatch(setSqlLimit(20));
                 });
@@ -357,13 +438,16 @@ it.each([false, true])(
                 );
             });
             await waitFor(() =>
-                expect(pivot).toHaveBeenCalledTimes(changed ? 1 : 2),
+                expect(pivot).toHaveBeenCalledTimes(
+                    kind === 'unchanged' ? 2 : 1,
+                ),
             );
             expect(executeSqlQuery).not.toHaveBeenCalled();
         } finally {
             unmount();
             stop();
             client.clear();
+            window.removeEventListener(SHARED_SIGN_IN_QUERY_FAILED, reported);
             model.mockRestore();
             runner.mockRestore();
         }
