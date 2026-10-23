@@ -1,3 +1,10 @@
+## [3.42.1](https://github.com/lightdash/lightdash/compare/3.42.0...3.42.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* reject leading spaces in connection form fields ([#31459](https://github.com/lightdash/lightdash/issues/31459)) ([8bb17de](https://github.com/lightdash/lightdash/commit/8bb17de139f6ebdcef59a90fa0b1f1b97d33ec98))
+
 # [3.42.0](https://github.com/lightdash/lightdash/compare/3.41.1...3.42.0) (2026-10-23)
 
 
