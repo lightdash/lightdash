@@ -3552,6 +3552,15 @@ export class UserService extends BaseService {
         return true;
     }
 
+    async getGoogleReconnectContext(
+        user: SessionUser,
+    ): Promise<{ subject: string; email: string } | undefined> {
+        return this.userOAuthGrantsModel.getIdentitySummary(
+            user.userUuid,
+            OpenIdIdentityIssuerType.GOOGLE,
+        );
+    }
+
     /**
      * This method is used on the scheduler to perform the actions on Google Drive for that user
      * @param user
@@ -3662,6 +3671,78 @@ export class UserService extends BaseService {
                 { strictPersonalOverlay: false },
             );
         return credential !== undefined;
+    }
+
+    async validatePersonalBigqueryReconnect(user: SessionUser, uuid: string) {
+        if (!user.organizationUuid) throw new ForbiddenError();
+        const flags = await Promise.all(
+            [
+                FeatureFlags.SharedSignInReconnect,
+                FeatureFlags.SharedSignInExpiryMessage,
+            ].map((featureFlagId) =>
+                this.featureFlagModel.get({
+                    user: {
+                        organizationUuid: user.organizationUuid!,
+                        userUuid: user.userUuid,
+                    },
+                    featureFlagId,
+                }),
+            ),
+        );
+        if (flags.some(({ enabled }) => !enabled)) throw new ForbiddenError();
+        const credential =
+            await this.userWarehouseCredentialsModel.getByUuid(uuid);
+        if (
+            credential.userUuid !== user.userUuid ||
+            credential.credentials.type !== WarehouseTypes.BIGQUERY
+        ) {
+            throw new ForbiddenError();
+        }
+        const selected =
+            await this.userWarehouseCredentialsModel.getByUuidWithSecrets(
+                uuid,
+                undefined,
+                await resolvePersonalCredentialPolicy(this.featureFlagModel, {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+            );
+        if (
+            selected.credentials.type !== WarehouseTypes.BIGQUERY ||
+            selected.credentials.authenticationType ===
+                BigqueryAuthenticationType.ADC ||
+            selected.credentials.keyfileContents?.type !== 'authorized_user' ||
+            !selected.credentials.keyfileContents.refresh_token
+        )
+            throw new ForbiddenError();
+        return credential;
+    }
+
+    async reconnectPersonalBigqueryCredentials(
+        user: SessionUser,
+        uuid: string,
+        refreshToken: string,
+    ) {
+        if (!refreshToken)
+            throw new ParameterError('Google did not return a refresh token.');
+        const credential = await this.validatePersonalBigqueryReconnect(
+            user,
+            uuid,
+        );
+        await this.updateWarehouseCredentials(user, uuid, {
+            name: credential.name,
+            credentials: {
+                type: WarehouseTypes.BIGQUERY,
+                authenticationType: BigqueryAuthenticationType.SSO,
+                keyfileContents: {
+                    type: 'authorized_user',
+                    client_id: this.lightdashConfig.auth.google.oauth2ClientId!,
+                    client_secret:
+                        this.lightdashConfig.auth.google.oauth2ClientSecret!,
+                    refresh_token: refreshToken,
+                },
+            },
+        });
     }
 
     async createBigqueryWarehouseCredentials(

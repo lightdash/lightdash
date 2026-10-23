@@ -133,6 +133,7 @@ import {
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import fs from 'fs/promises';
+import { GoogleAuth } from 'google-auth-library';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import fetch, { Response } from 'node-fetch';
@@ -350,6 +351,9 @@ vi.mock('worker_threads', async () => {
 });
 
 vi.mock('@lightdash/warehouses', async (importOriginal) => ({
+    getGoogleOauthTokenError: (
+        await importOriginal<typeof import('@lightdash/warehouses')>()
+    ).getGoogleOauthTokenError,
     canConnectToPostgresDatabaseName: (
         await importOriginal<typeof import('@lightdash/warehouses')>()
     ).canConnectToPostgresDatabaseName,
@@ -20383,6 +20387,406 @@ describe('ProjectService.getSharedSignInStatus', () => {
                 projectSummary.projectUuid,
             ),
         ).resolves.toBeNull();
+    });
+    describe('main shared Google probe contract', () => {
+        afterEach(() => vi.restoreAllMocks());
+        const failures = [
+            { response: { status: 400, data: { error: 'invalid_grant' } } },
+            {
+                response: {
+                    status: 400,
+                    data: {
+                        error: 'invalid_grant',
+                        error_subtype: 'invalid_rapt',
+                    },
+                },
+            },
+            {
+                response: {
+                    status: 400,
+                    data: {
+                        error: 'invalid_grant',
+                        error_subtype: 'rapt_required',
+                    },
+                },
+            },
+        ];
+        test.each(
+            [false, true].flatMap((includePersonal) =>
+                [
+                    [false, true],
+                    [true, false],
+                ].map((sequence) => ({ includePersonal, sequence })),
+            ),
+        )(
+            'calls Google on consecutive viewers with opt-in $includePersonal and sequence $sequence',
+            async ({ includePersonal, sequence }) => {
+                const access = vi.spyOn(GoogleAuth.prototype, 'getAccessToken');
+                const flags = {
+                    get: vi.fn(
+                        async ({
+                            featureFlagId,
+                        }: {
+                            featureFlagId: FeatureFlags;
+                        }) => ({
+                            id: featureFlagId,
+                            enabled:
+                                featureFlagId ===
+                                FeatureFlags.SharedSignInReconnect,
+                        }),
+                    ),
+                };
+                const realService = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                    { featureFlagModel: flags as unknown as FeatureFlagModel },
+                );
+                access.mockReset();
+                for (const rejected of sequence) {
+                    if (rejected) access.mockRejectedValueOnce(failures[0]);
+                    else access.mockResolvedValueOnce('access_a');
+                }
+                const results = [
+                    await realService.getSharedSignInStatus(
+                        developerAccount,
+                        projectSummary.projectUuid,
+                        includePersonal,
+                    ),
+                    await realService.getSharedSignInStatus(
+                        adminAccount,
+                        projectSummary.projectUuid,
+                        includePersonal,
+                    ),
+                ];
+                expect(results.map((result) => result?.expired)).toEqual(
+                    sequence,
+                );
+                expect(
+                    results.every(
+                        (result) =>
+                            !Object.prototype.hasOwnProperty.call(
+                                result,
+                                'statusUnknown',
+                            ),
+                    ),
+                ).toBe(true);
+                expect(access).toHaveBeenCalledTimes(2);
+                const auth = access.mock.contexts[0] as GoogleAuth;
+                expect(auth.jsonContent).toEqual({
+                    type: 'authorized_user',
+                    refresh_token: 'expired-token',
+                });
+                expect(auth).toHaveProperty('scopes', [
+                    'https://www.googleapis.com/auth/bigquery',
+                ]);
+                expect(auth).toHaveProperty('clientOptions', {});
+                expect(access.mock.contexts[0]).not.toBe(
+                    access.mock.contexts[1],
+                );
+            },
+        );
+        test.each([
+            ...failures.map((error) => ({ error, expired: true })),
+            ...[
+                new Error('network'),
+                { response: { status: 503, data: { error: 'invalid_grant' } } },
+                { response: { status: 400, data: { error: 'invalid_rapt' } } },
+                { response: { status: 400, data: { error: 'rapt_required' } } },
+                { response: { status: 400, data: 'invalid_grant' } },
+                { response: { status: 400, data: { error: null } } },
+            ].map((error) => ({ error, expired: false })),
+        ])(
+            'keeps main false-on-unknown and invalid_grant boundary %#',
+            async ({ error, expired }) => {
+                vi.spyOn(
+                    GoogleAuth.prototype,
+                    'getAccessToken',
+                ).mockRejectedValue(error);
+                const realService = getMockedProjectService(
+                    lightdashConfigWithGoogleOAuthMock,
+                    { featureFlagModel: flag as unknown as FeatureFlagModel },
+                );
+                const result = await realService.getSharedSignInStatus(
+                    developerAccount,
+                    projectSummary.projectUuid,
+                );
+                expect(result?.expired).toBe(expired);
+                expect(result).not.toHaveProperty('statusUnknown');
+            },
+        );
+    });
+    describe('personal status opt-in', () => {
+        const setupPersonal = (
+            options: {
+                required?: boolean;
+                allowed?: boolean;
+                selected?: boolean;
+                expired?: boolean;
+                known?: boolean;
+                strict?: boolean;
+            } = {},
+        ) => {
+            const personalAccount = {
+                ...developerAccount,
+                user: { ...developerAccount.user, id: 'user_a' },
+            } as typeof developerAccount;
+            const projectCredentials = {
+                ...credentials,
+                requireUserCredentials: options.required ?? false,
+                allowUserCredentials: options.allowed ?? true,
+            };
+            projectModel.getWithSensitiveFields.mockResolvedValue({
+                ...projectWithSensitiveFields,
+                warehouseConnection: projectCredentials,
+                organizationWarehouseCredentialsUuid: undefined,
+            } as never);
+            projectModel.getWarehouseCredentialsForProject.mockResolvedValue(
+                projectCredentials,
+            );
+            Object.assign(projectModel, {
+                resolveWarehouseCredentialReadWithRoute: vi.fn(async () => ({
+                    route: 'single',
+                    target: { kind: 'original' },
+                    originalWarehouseConnectionUuid: null,
+                })),
+            });
+            const personal = {
+                uuid: 'credential_a',
+                expiresAt: null,
+                credentials: {
+                    type: WarehouseTypes.BIGQUERY,
+                    authenticationType: BigqueryAuthenticationType.SSO,
+                    keyfileContents: {
+                        type: 'authorized_user',
+                        client_id: 'client_a',
+                        client_secret: 'secret_a',
+                        refresh_token: 'token_a',
+                    },
+                },
+            };
+            const snapshot = {
+                uuid: personal.uuid,
+                userUuid: 'user_a',
+                encryptedCredentials: Buffer.from('incarnation_a'),
+                refreshToken: 'token_a',
+                needsSignIn: options.known ?? false,
+            };
+            const personalModel = {
+                findForProjectWithSecrets: vi.fn(async () =>
+                    options.selected === false ? undefined : personal,
+                ),
+                getSignInSnapshot: vi.fn(async () => snapshot),
+                markNeedsSignIn: vi.fn(async () => true),
+                isSignInSnapshotCurrent: vi.fn(async () => true),
+            };
+            const probe = {
+                check: vi.fn(async () => ({
+                    expired: options.expired,
+                    ...(options.expired ? { rejection: 'invalid_grant' } : {}),
+                })),
+            };
+            const localFlags = {
+                get: vi.fn(
+                    async ({
+                        featureFlagId,
+                    }: {
+                        featureFlagId: FeatureFlags;
+                    }) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.AgentIdentity
+                                ? (options.strict ?? false)
+                                : true,
+                    }),
+                ),
+            };
+            const personalService = getMockedProjectService(
+                lightdashConfigWithGoogleOAuthMock,
+                { featureFlagModel: localFlags as unknown as FeatureFlagModel },
+            );
+            const sharedProbe = vi.fn(async () => true);
+            Object.assign(personalService, {
+                userWarehouseCredentialsModel: personalModel,
+                googleSignInProbe: probe,
+                isGoogleSharedSignInExpired: sharedProbe,
+            });
+            const status = (includePersonal = true) =>
+                personalService.getSharedSignInStatus(
+                    personalAccount,
+                    projectSummary.projectUuid,
+                    includePersonal,
+                );
+            return {
+                personalService,
+                personalAccount,
+                personalModel,
+                snapshot,
+                probe,
+                sharedProbe,
+                status,
+                localFlags,
+            };
+        };
+        test.each([false, true])(
+            'reports the selected personal credential with strict policy %s',
+            async (strict) => {
+                const { status, probe, personalModel, snapshot, sharedProbe } =
+                    setupPersonal({ strict, expired: true });
+                await expect(status()).resolves.toMatchObject({
+                    expired: false,
+                    canReconnect: false,
+                    personalSignIn: {
+                        userWarehouseCredentialsUuid: 'credential_a',
+                        expired: true,
+                        canReconnect: true,
+                    },
+                });
+                expect(probe.check).toHaveBeenCalledWith(
+                    expect.objectContaining({ refresh_token: 'token_a' }),
+                    snapshot.encryptedCredentials,
+                    false,
+                );
+                expect(personalModel.markNeedsSignIn).toHaveBeenCalledWith(
+                    snapshot,
+                    'invalid_grant',
+                );
+                expect(
+                    personalModel.findForProjectWithSecrets,
+                ).toHaveBeenCalledWith(
+                    projectSummary.projectUuid,
+                    'user_a',
+                    WarehouseTypes.BIGQUERY,
+                    { strictPersonalOverlay: strict },
+                );
+                expect(sharedProbe).not.toHaveBeenCalled();
+            },
+        );
+        test('does not report project expiry for a valid selected personal credential', async () => {
+            const { status, sharedProbe, personalModel } = setupPersonal({
+                expired: false,
+            });
+            await expect(status()).resolves.toMatchObject({
+                expired: false,
+                canReconnect: false,
+                personalSignIn: { expired: false },
+            });
+            expect(sharedProbe).not.toHaveBeenCalled();
+            expect(personalModel.markNeedsSignIn).not.toHaveBeenCalled();
+        });
+        test.each([undefined])(
+            'preserves known expiry after a probe result of %s',
+            async (expired) => {
+                const { status, personalModel } = setupPersonal({
+                    expired,
+                    known: true,
+                });
+                await expect(status()).resolves.toMatchObject({
+                    personalSignIn: { expired: true },
+                });
+                expect(personalModel.markNeedsSignIn).not.toHaveBeenCalled();
+            },
+        );
+        test('a successful current probe supersedes a preexisting advisory mark', async () => {
+            const { status, personalModel } = setupPersonal({
+                expired: false,
+                known: true,
+            });
+            await expect(status()).resolves.toMatchObject({
+                personalSignIn: { expired: false },
+            });
+            expect(personalModel.markNeedsSignIn).not.toHaveBeenCalled();
+        });
+        test('drops a selected status when current incarnation verification is unavailable', async () => {
+            const { status, personalModel } = setupPersonal({ expired: false });
+            personalModel.isSignInSnapshotCurrent.mockRejectedValue(
+                new Error('database_a'),
+            );
+            await expect(status()).resolves.toBeNull();
+            expect(personalModel.markNeedsSignIn).not.toHaveBeenCalled();
+        });
+        test('does not deliver a rejected status when its advisory mark cannot establish current ownership', async () => {
+            const { status, personalModel } = setupPersonal({ expired: true });
+            personalModel.markNeedsSignIn.mockRejectedValue(
+                new Error('database_a'),
+            );
+            await expect(status()).resolves.toBeNull();
+        });
+        test('bounds repeated incarnation changes during a selected status probe', async () => {
+            const { status, personalModel, probe, sharedProbe } = setupPersonal(
+                { expired: true },
+            );
+            personalModel.markNeedsSignIn.mockResolvedValue(false);
+            await expect(status()).resolves.toBeNull();
+            expect(probe.check).toHaveBeenCalledTimes(2);
+            expect(personalModel.markNeedsSignIn).toHaveBeenCalledTimes(2);
+            expect(sharedProbe).not.toHaveBeenCalled();
+        });
+
+        test('keeps legacy clients on the original shared contract', async () => {
+            const { status, personalModel, sharedProbe } = setupPersonal({
+                expired: true,
+            });
+            const result = await status(false);
+            expect(result).toMatchObject({ expired: true });
+            expect(result).not.toHaveProperty('personalSignIn');
+            expect(
+                personalModel.findForProjectWithSecrets,
+            ).not.toHaveBeenCalled();
+            expect(sharedProbe).toHaveBeenCalledOnce();
+        });
+        test.each([{ selected: false }, { allowed: false }])(
+            'retains the shared path for optional absence and project-only selection: %j',
+            async (options) => {
+                const { status, sharedProbe } = setupPersonal(options);
+                await expect(status()).resolves.toMatchObject({
+                    expired: true,
+                });
+                expect(sharedProbe).toHaveBeenCalledOnce();
+            },
+        );
+        test('does not fall back to project credentials when personal credentials are required', async () => {
+            const { status, sharedProbe } = setupPersonal({
+                required: true,
+                selected: false,
+            });
+            await expect(status()).resolves.toBeNull();
+            expect(sharedProbe).not.toHaveBeenCalled();
+        });
+        test('denies project view before credential reads and provider calls', async () => {
+            const { personalService, personalAccount, personalModel, probe } =
+                setupPersonal();
+            Object.assign(personalService, {
+                createAuditedAbility: () => new Ability([]),
+            });
+            projectModel.getWithSensitiveFields.mockClear();
+            await expect(
+                personalService.getSharedSignInStatus(
+                    personalAccount,
+                    projectSummary.projectUuid,
+                    true,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(projectModel.getWithSensitiveFields).not.toHaveBeenCalled();
+            expect(
+                personalModel.findForProjectWithSecrets,
+            ).not.toHaveBeenCalled();
+            expect(probe.check).not.toHaveBeenCalled();
+        });
+        test('does not expose personal status or write marks when expiry messaging is disabled', async () => {
+            const { status, localFlags, personalModel } = setupPersonal({
+                expired: true,
+            });
+            localFlags.get.mockImplementation(async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled:
+                    featureFlagId !== FeatureFlags.SharedSignInExpiryMessage,
+            }));
+            const result = await status();
+            expect(result).not.toHaveProperty('personalSignIn');
+            expect(
+                personalModel.findForProjectWithSecrets,
+            ).not.toHaveBeenCalled();
+            expect(personalModel.markNeedsSignIn).not.toHaveBeenCalled();
+        });
     });
 });
 

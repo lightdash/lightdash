@@ -1,0 +1,146 @@
+import {
+    AuthorizationError,
+    LightdashError,
+    OpenIdIdentityIssuerType,
+    OpenIdUser,
+} from '@lightdash/common';
+import express from 'express';
+import {
+    GoogleCallbackParameters,
+    Profile,
+    VerifyCallback,
+} from 'passport-google-oauth20';
+import { URL } from 'url';
+import Logger from '../logging/logger';
+
+const parseEmailVerifiedClaim = (claim: unknown): boolean | undefined => {
+    if (typeof claim === 'boolean') return claim;
+    if (claim === 'true') return true;
+    if (claim === 'false') return false;
+    return undefined;
+};
+
+export const patchedPrerequisiteGoogleStrategyVerify = async (
+    req: Express.Request,
+    _accessToken: string,
+    refreshToken: string,
+    params: GoogleCallbackParameters,
+    profile: Profile,
+    done: VerifyCallback,
+) => {
+    try {
+        const issuer = 'https://accounts.google.com';
+        const { inviteCode, intent } = req.session.oauth || {};
+        const [{ value: email, verified: emailVerifiedClaim }] =
+            profile.emails || [];
+        const { id: subject } = profile;
+        if (!(email && subject)) {
+            return done(null, undefined, {
+                message: 'Could not parse authentication token',
+            });
+        }
+
+        if (parseEmailVerifiedClaim(emailVerifiedClaim) === false) {
+            Logger.warn(
+                `Authentication failed: email ${email} is not verified in Google profile.`,
+            );
+            return done(null, undefined, {
+                message:
+                    'Authentication failed: email is not verified in Google profile.',
+            });
+        }
+
+        const normalisedIssuer = new URL('/', issuer).origin;
+        const openIdUser: OpenIdUser = {
+            openId: {
+                issuer: normalisedIssuer,
+                email,
+                subject,
+                firstName: profile.name?.givenName,
+                lastName: profile.name?.familyName,
+                issuerType: OpenIdIdentityIssuerType.GOOGLE,
+            },
+        };
+        const scopes = params.scope.split(' ').filter(Boolean);
+        const hasBigqueryScope = scopes.includes(
+            'https://www.googleapis.com/auth/bigquery',
+        );
+        const userService = req.services.getUserService();
+
+        if (intent === 'link') {
+            if (!req.user) {
+                throw new AuthorizationError(
+                    'You must be logged in to connect a Google account',
+                );
+            }
+
+            await userService.storeOAuthGrant(
+                req.user,
+                OpenIdIdentityIssuerType.GOOGLE,
+                refreshToken,
+                scopes,
+                openIdUser.openId,
+            );
+
+            if (hasBigqueryScope && refreshToken) {
+                Logger.info(
+                    `Creating user warehouse credentials for bigquery on Google OAuth`,
+                );
+                await userService.createBigqueryWarehouseCredentials(
+                    req.user,
+                    refreshToken,
+                );
+            } else if (hasBigqueryScope) {
+                Logger.warn(
+                    `Google OAuth granted the BigQuery scope but returned no refresh token; keeping existing user warehouse credentials for user ${req.user.userUuid}`,
+                );
+            }
+
+            return done(null, req.user);
+        }
+
+        const user = await userService.loginWithOpenId(
+            openIdUser,
+            req.user,
+            inviteCode,
+            undefined,
+            {
+                ip: (req as express.Request).ip,
+                userAgent: (req as express.Request).get('user-agent'),
+            },
+        );
+
+        if (refreshToken) {
+            await userService.storeOAuthGrant(
+                user,
+                OpenIdIdentityIssuerType.GOOGLE,
+                refreshToken,
+                scopes,
+                openIdUser.openId,
+            );
+        }
+
+        if (hasBigqueryScope && refreshToken) {
+            Logger.info(
+                `Creating user warehouse credentials for bigquery on Google OAuth`,
+            );
+            await userService.createBigqueryWarehouseCredentials(
+                user,
+                refreshToken,
+            );
+        } else if (hasBigqueryScope) {
+            Logger.warn(
+                `Google OAuth granted the BigQuery scope but returned no refresh token; keeping existing user warehouse credentials for user ${user.userUuid}`,
+            );
+        }
+        return done(null, user);
+    } catch (e) {
+        if (e instanceof LightdashError) {
+            return done(null, undefined, { message: e.message });
+        }
+        Logger.warn(`Unexpected error while authorizing user: ${e}`);
+        return done(null, undefined, {
+            message: 'Unexpected error authorizing user',
+        });
+    }
+};

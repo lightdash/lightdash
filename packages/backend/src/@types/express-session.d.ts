@@ -18,6 +18,11 @@ declare module 'express-session' {
                 userUuid: string;
                 credentialUuid: string;
             };
+            googleReconnect?: {
+                userUuid: string;
+                subject: string | null;
+                email: string | null;
+            };
             githubFlow?: 'installation' | 'user_link' | undefined;
             githubInstallation?: {
                 installationId: string;

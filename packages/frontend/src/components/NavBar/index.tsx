@@ -1,24 +1,18 @@
-import { OrganizationAccessStatus, ProjectType } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
 import { memo } from 'react';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
-import { useOrganizationAccess } from '../../hooks/organization/useOrganizationAccess';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
-import { useImpersonation } from '../../hooks/user/useImpersonation';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import MantineBaseProvider from '../../providers/MantineBaseProvider';
-import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
-import { ImpersonationBanner } from './ImpersonationBanner';
 import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
-import { PreviewBanner } from './PreviewBanner';
-import { TrialWarningBanner } from './TrialWarningBanner';
+import { useNavBarBanner } from './useNavBarBanner';
 
 enum NavBarMode {
     DEFAULT = 'default',
@@ -78,37 +72,8 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
         });
     const { data: project } = useProject(activeProjectUuid);
 
-    const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
-    const isCurrentProjectPlayground = isPlaygroundProvisioningSource(
-        project?.provisioningSource,
-    );
-    const upstreamProjectUuid = isCurrentProjectPreview
-        ? project?.upstreamProjectUuid
-        : undefined;
-    const { data: upstreamProject } = useProject(upstreamProjectUuid);
-    // A learner's copy of the training project is not a preview in the
-    // engineering sense: no branch, no upstream to promote to. No banner.
-    const isTrainingCopy =
-        isCurrentProjectPreview &&
-        upstreamProject?.type === ProjectType.TRAINING;
-    const { isImpersonating } = useImpersonation();
-    const { data: organizationAccess } = useOrganizationAccess();
-
     const { navBarMode } = useNavBarMode();
-
-    const showTrialWarning =
-        !isImpersonating &&
-        !isCurrentProjectPreview &&
-        !isCurrentProjectPlayground &&
-        (organizationAccess?.status ===
-            OrganizationAccessStatus.TRIAL_WARNING ||
-            organizationAccess?.status ===
-                OrganizationAccessStatus.TRIAL_EXPIRED);
-
-    const hasBanner =
-        isImpersonating ||
-        (isCurrentProjectPreview && !isTrainingCopy) ||
-        showTrialWarning;
+    const { hasBanner, banner } = useNavBarBanner(project, activeProjectUuid);
 
     // Calculate placeholder height: navbar + banner.
     const headerContainerHeight =
@@ -130,26 +95,7 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                 cssVariablesSelector="#navbar-header"
                 getRootElement={getNavBarRootElement}
             >
-                {isImpersonating ? (
-                    <ImpersonationBanner />
-                ) : isCurrentProjectPreview && !isTrainingCopy ? (
-                    <PreviewBanner
-                        expiresAt={project?.expiresAt ?? null}
-                        upstreamProject={
-                            upstreamProject
-                                ? {
-                                      projectUuid: upstreamProject.projectUuid,
-                                      slug: upstreamProject.slug,
-                                      name: upstreamProject.name,
-                                  }
-                                : null
-                        }
-                    />
-                ) : (
-                    organizationAccess && (
-                        <TrialWarningBanner access={organizationAccess} />
-                    )
-                )}
+                {banner}
                 <Box
                     component="header"
                     h={NAVBAR_HEIGHT}

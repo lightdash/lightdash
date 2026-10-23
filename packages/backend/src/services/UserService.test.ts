@@ -4,6 +4,7 @@ import { Ability } from '@casl/ability';
 import {
     AnyType,
     AuthorizationError,
+    BigqueryAuthenticationType,
     CommercialFeatureFlags,
     DeactivatedAccountError,
     defineUserAbility,
@@ -132,6 +133,9 @@ const userModel = {
 };
 
 const userOAuthGrantsModel = {
+    getIdentitySummary: vi.fn<UserOAuthGrantsModel['getIdentitySummary']>(
+        async () => ({ subject: 'subject_a', email: 'account_a' }),
+    ),
     upsertGrant: vi.fn<UserOAuthGrantsModel['upsertGrant']>(async () => {}),
     getRefreshToken: vi.fn<UserOAuthGrantsModel['getRefreshToken']>(
         async () => 'refresh-token',
@@ -6732,4 +6736,113 @@ test('credential APIs succeed when the advisory flag fails after a reconnect wri
         'credential_a',
         false,
     );
+});
+
+describe('Google reconnect service', () => {
+    test('reads the stored account hint without resolving feature flags', async () => {
+        const flags = { get: vi.fn() };
+        const service = createUserService(lightdashConfigMock, {
+            featureFlagModel: flags,
+        });
+        await expect(
+            service.getGoogleReconnectContext(sessionUser),
+        ).resolves.toEqual({ subject: 'subject_a', email: 'account_a' });
+        expect(flags.get).not.toHaveBeenCalled();
+    });
+    test('does not hide a failed account lookup', async () => {
+        const service = createUserService(lightdashConfigMock);
+        userOAuthGrantsModel.getIdentitySummary.mockRejectedValueOnce(
+            new Error('unavailable'),
+        );
+        await expect(
+            service.getGoogleReconnectContext(sessionUser),
+        ).rejects.toThrow('unavailable');
+    });
+    test('updates the owned personal credential without creating or deleting others', async () => {
+        const flags = {
+            get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled: true,
+            })),
+        };
+        const credentials = {
+            getByUuid: vi.fn(async () => ({
+                uuid: 'credential_a',
+                userUuid: sessionUser.userUuid,
+                name: 'Credential A',
+                credentials: { type: WarehouseTypes.BIGQUERY },
+            })),
+            getByUuidWithSecrets: vi.fn(async () => ({
+                uuid: 'credential_a',
+                expiresAt: null,
+                credentials: {
+                    type: WarehouseTypes.BIGQUERY,
+                    authenticationType: BigqueryAuthenticationType.SSO,
+                    keyfileContents: {
+                        type: 'authorized_user',
+                        refresh_token: 'token_a',
+                    },
+                },
+            })),
+            update: vi.fn(async () => 'credential_a'),
+            create: vi.fn(),
+            deleteAllByUserAndWarehouseType: vi.fn(),
+        };
+        const service = createUserService(lightdashConfigMock, {
+            featureFlagModel: flags,
+            userWarehouseCredentialsModel:
+                credentials as unknown as Partial<UserWarehouseCredentialsModel>,
+        });
+        await service.reconnectPersonalBigqueryCredentials(
+            sessionUser,
+            'credential_a',
+            'token_b',
+        );
+        expect(credentials.update).toHaveBeenCalledWith(
+            sessionUser.userUuid,
+            'credential_a',
+            expect.objectContaining({
+                name: 'Credential A',
+                credentials: expect.objectContaining({
+                    keyfileContents: expect.objectContaining({
+                        refresh_token: 'token_b',
+                    }),
+                }),
+            }),
+            { strictPersonalOverlay: true },
+            true,
+        );
+        expect(credentials.create).not.toHaveBeenCalled();
+        expect(
+            credentials.deleteAllByUserAndWarehouseType,
+        ).not.toHaveBeenCalled();
+    });
+    test('denies a personal credential owned by another user', async () => {
+        const flags = {
+            get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled: true,
+            })),
+        };
+        const credentials = {
+            getByUuid: vi.fn(async () => ({
+                userUuid: 'user_b',
+                credentials: { type: WarehouseTypes.BIGQUERY },
+            })),
+            update: vi.fn(),
+        };
+        const service = createUserService(lightdashConfigMock, {
+            featureFlagModel: flags,
+            userWarehouseCredentialsModel:
+                credentials as unknown as Partial<UserWarehouseCredentialsModel>,
+        });
+        await expect(
+            service.reconnectPersonalBigqueryCredentials(
+                sessionUser,
+                'credential_a',
+                'token_b',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(credentials.update).not.toHaveBeenCalled();
+    });
 });

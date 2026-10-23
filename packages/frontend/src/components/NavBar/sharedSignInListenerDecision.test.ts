@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
     queryBelongsToProject,
+    isWarehouseQueryPage,
     scheduleSharedSignInCooldownCheck,
     shouldCheckSharedSignInStatus,
     shouldUseSharedSignInStatus,
@@ -88,4 +89,20 @@ describe('shared sign-in listener decisions', () => {
             ),
         ).toBe(true);
     });
+});
+
+test.each([
+    ['/projects/project_a/sql-runner', true],
+    ['/projects/project_a/sql-runner/query_a', true],
+    ['/projects/project_a/tables/table_a', true],
+    ['/projects/project_a/dashboards/dashboard_a', true],
+    ['/projects/project_a/saved/chart_a', true],
+    ['/projects/project_a/home', false],
+    ['/projects/project_a/tables', false],
+    ['/projects/project_a/dashboards', false],
+    ['/projects/project_a/dashboards/dashboard_a/history', false],
+    ['/projects/project_a/saved/chart_a/history', false],
+    ['/generalSettings/projectManagement/project_a/settings', false],
+])('limits on-load checks to query pages: %s', (pathname, expected) => {
+    expect(isWarehouseQueryPage(pathname)).toBe(expected);
 });

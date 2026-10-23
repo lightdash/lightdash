@@ -5,6 +5,8 @@ import { Outlet, useLocation, useMatches, useNavigation } from 'react-router';
 import ScopeTourHost from '../../../features/scopeTours/ScopeTourHost';
 import SourceCodeDrawer from '../../../features/sourceCodeEditor/components/SourceCodeDrawer';
 import NavBar from '../../NavBar';
+import { SharedSignInExpiryListener } from '../../NavBar/SharedSignInExpiryListener';
+import { SharedSignInQueryBoundary } from '../../NavBar/SharedSignInQueryBoundary';
 import PageSpinner from '../../PageSpinner';
 import { ContentAuthoringRoute } from './ContentAuthoringRoute';
 import classes from './ProjectLayout.module.css';
@@ -36,8 +38,9 @@ const ProjectLayout: FC = () => {
     });
 
     return (
-        <>
+        <SharedSignInQueryBoundary>
             <NavBar isFixed={isNavBarFixed || isNavigating} />
+            <SharedSignInExpiryListener />
             <Sentry.ErrorBoundary fallback={<></>}>
                 <SourceCodeDrawer />
             </Sentry.ErrorBoundary>
@@ -56,7 +59,7 @@ const ProjectLayout: FC = () => {
                     <PageSpinner />
                 </Box>
             )}
-        </>
+        </SharedSignInQueryBoundary>
     );
 };
 

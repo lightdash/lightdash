@@ -72,6 +72,25 @@ export const googleStrategyVerify = async (
         );
         const userService = req.services.getUserService();
 
+        const hasPersonal = Object.prototype.hasOwnProperty.call(
+            req.session.oauth ?? {},
+            'googlePersonalReconnect',
+        );
+        const personal = req.session.oauth?.googlePersonalReconnect;
+        if (
+            hasPersonal &&
+            (!personal ||
+                !req.user ||
+                intent !== 'link' ||
+                typeof personal.credentialUuid !== 'string' ||
+                personal.userUuid !== req.user.userUuid ||
+                req.session.oauth?.googleReconnect?.userUuid !==
+                    req.user.userUuid)
+        ) {
+            throw new AuthorizationError(
+                'Sign in again to restore this connection.',
+            );
+        }
         if (intent === 'link') {
             if (!req.user) {
                 throw new AuthorizationError(
@@ -79,6 +98,35 @@ export const googleStrategyVerify = async (
                 );
             }
 
+            if (personal && personal.userUuid !== req.user.userUuid)
+                throw new AuthorizationError(
+                    'Sign in again to restore this connection.',
+                );
+            const reconnect = req.session.oauth?.googleReconnect;
+            if (
+                reconnect &&
+                (reconnect.userUuid !== req.user.userUuid ||
+                    (reconnect.subject !== null &&
+                        reconnect.subject !== subject))
+            ) {
+                throw new AuthorizationError(
+                    'Sign in with the Google account used for this connection.',
+                );
+            }
+            if (
+                (reconnect || hasPersonal) &&
+                (!refreshToken || !hasBigqueryScope)
+            ) {
+                throw new AuthorizationError(
+                    'Google did not return a refresh token. Try signing in again.',
+                );
+            }
+            if (personal) {
+                await userService.validatePersonalBigqueryReconnect(
+                    req.user,
+                    personal.credentialUuid,
+                );
+            }
             await userService.storeOAuthGrant(
                 req.user,
                 OpenIdIdentityIssuerType.GOOGLE,
@@ -91,10 +139,18 @@ export const googleStrategyVerify = async (
                 Logger.info(
                     `Creating user warehouse credentials for bigquery on Google OAuth`,
                 );
-                await userService.createBigqueryWarehouseCredentials(
-                    req.user,
-                    refreshToken,
-                );
+                if (personal) {
+                    await userService.reconnectPersonalBigqueryCredentials(
+                        req.user,
+                        personal.credentialUuid,
+                        refreshToken,
+                    );
+                } else {
+                    await userService.createBigqueryWarehouseCredentials(
+                        req.user,
+                        refreshToken,
+                    );
+                }
             } else if (hasBigqueryScope) {
                 Logger.warn(
                     `Google OAuth granted the BigQuery scope but returned no refresh token; keeping existing user warehouse credentials for user ${req.user.userUuid}`,
@@ -143,7 +199,7 @@ export const googleStrategyVerify = async (
         if (e instanceof LightdashError) {
             return done(null, undefined, { message: e.message });
         }
-        Logger.warn(`Unexpected error while authorizing user: ${e}`);
+        Logger.warn('Unexpected error while authorizing user');
         return done(null, undefined, {
             message: 'Unexpected error authorizing user',
         });

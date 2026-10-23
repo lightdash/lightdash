@@ -27,6 +27,10 @@ import {
     storeAgentConnectAttempt,
 } from '../controllers/authentication/agentConnectAnalytics';
 import { storeAgentConnectRedirect } from '../controllers/authentication/agentConnectRedirect';
+import {
+    authenticateBigquery,
+    validateGooglePersonalCallback,
+} from '../controllers/authentication/googleReconnect';
 import { requireAgentIdentity } from '../controllers/authentication/requireAgentIdentity';
 import {
     createAzureAdOidcStrategyForConfig,
@@ -744,20 +748,7 @@ apiV1Router.get(
     '/login/bigquery',
     storeOIDCRedirect,
     storeOIDCLinkIntent,
-    (req, res, next) => {
-        if ('personalCredentialUuid' in req.query) {
-            res.redirect(getOidcRedirectURL(false)(req));
-            return;
-        }
-        next();
-    },
-    passport.authenticate('google', {
-        scope: ['profile', 'email', 'https://www.googleapis.com/auth/bigquery'],
-        accessType: 'offline',
-        prompt: 'consent',
-        session: false,
-        includeGrantedScopes: true,
-    }),
+    authenticateBigquery,
 );
 
 // path to start the OAuth flow
@@ -836,33 +827,41 @@ apiV1Router.get(
     },
 );
 
-apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
-    if (req.session.oauth && 'googlePersonalReconnect' in req.session.oauth) {
-        res.redirect(getOidcRedirectURL(false)(req));
-        return;
-    }
-    if (req.session.oauth?.intent === 'link') {
-        passport.authenticate(
-            'google',
-            { includeGrantedScopes: true, session: false },
-            (error, user) => {
-                if (error) {
-                    next(error);
-                    return;
-                }
-                res.redirect(getOidcRedirectURL(Boolean(user))(req));
-            },
-        )(req, res, next);
-        return;
-    }
+apiV1Router.get(
+    lightdashConfig.auth.google.callbackPath,
+    validateGooglePersonalCallback,
+    (req, res, next) => {
+        if (req.session.oauth?.intent === 'link') {
+            passport.authenticate(
+                'google',
+                { includeGrantedScopes: true, session: false },
+                (error, user) => {
+                    if (
+                        error &&
+                        !Object.prototype.hasOwnProperty.call(
+                            req.session.oauth ?? {},
+                            'googlePersonalReconnect',
+                        )
+                    ) {
+                        next(error);
+                        return;
+                    }
+                    res.redirect(
+                        getOidcRedirectURL(!error && Boolean(user))(req),
+                    );
+                },
+            )(req, res, next);
+            return;
+        }
 
-    passport.authenticate('google', {
-        failureRedirect: getOidcRedirectURL(false)(req),
-        successRedirect: getOidcRedirectURL(true)(req),
-        failureFlash: true,
-        includeGrantedScopes: true,
-    })(req, res, next);
-});
+        passport.authenticate('google', {
+            failureRedirect: getOidcRedirectURL(false)(req),
+            successRedirect: getOidcRedirectURL(true)(req),
+            failureFlash: true,
+            includeGrantedScopes: true,
+        })(req, res, next);
+    },
+);
 
 apiV1Router.get(
     lightdashConfig.auth.snowflake.loginPath,

@@ -25,7 +25,7 @@ export const useExplores = (
     useQueryFetchOptions?: UseQueryOptions<ApiExploresResults, ApiError>,
 ) => {
     const lightdashApi = useLightdashApi();
-    const setErrorResponse = useQueryError();
+    const setErrorResponse = useQueryError({ projectUuid });
     const queryKey = [
         'tables',
         projectUuid,

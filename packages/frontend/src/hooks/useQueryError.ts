@@ -8,12 +8,14 @@ type opts = {
     forbiddenToastTitle?: string;
     forceToastOnForbidden?: boolean;
     chartName?: string;
+    projectUuid?: string;
 };
 
 const useQueryError = ({
     forbiddenToastTitle,
     forceToastOnForbidden,
     chartName,
+    projectUuid,
 }: opts = {}): Dispatch<SetStateAction<ApiError | undefined>> => {
     const queryClient = useQueryClient();
     const [errorResponse, setErrorResponse] = useState<ApiError | undefined>();
@@ -34,6 +36,7 @@ const useQueryError = ({
                         addToastError({
                             title: forbiddenToastTitle ?? 'Forbidden',
                             apiError: error,
+                            projectUuid,
                         });
                     }
                 } else if (statusCode === 401) {
@@ -78,6 +81,7 @@ const useQueryError = ({
                             ? `Chart '${chartName}': Error`
                             : undefined,
                         apiError: error,
+                        projectUuid,
                     });
                 }
             }
@@ -87,6 +91,7 @@ const useQueryError = ({
         forbiddenToastTitle,
         forceToastOnForbidden,
         chartName,
+        projectUuid,
         queryClient,
         showToastError,
         addToastError,

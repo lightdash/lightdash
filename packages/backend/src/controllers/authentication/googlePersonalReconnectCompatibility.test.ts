@@ -1,7 +1,18 @@
 import { type SessionUser } from '@lightdash/common';
 import { randomUUID } from 'node:crypto';
 import { type UserService } from '../../services/UserService';
-import { createGoogleOAuthCompatibilityHarness } from '../../testing/googleOAuthCompatibilityHarness.mock';
+import { createGoogleOAuthCompatibilityHarness as createHarness } from '../../testing/googleOAuthCompatibilityHarness.mock';
+import { createPatchedPrerequisiteGoogleBackend } from '../../testing/patchedPrerequisiteGoogleOAuth.mock';
+
+const createGoogleOAuthCompatibilityHarness = (
+    ...args: Parameters<typeof createHarness>
+) =>
+    createHarness(
+        args[0],
+        args[1],
+        args[2] ?? createPatchedPrerequisiteGoogleBackend(),
+        args[3],
+    );
 
 const user = { userUuid: randomUUID() } as SessionUser;
 const services = () => ({

@@ -9,9 +9,11 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { useQuery, type QueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../api';
+import { useWarehouseSignInExecution } from '../components/NavBar/warehouseSignInPreflight';
 import useIsEmbedded from '../ee/providers/Embed/useIsEmbedded';
 import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { convertDateFilters } from '../utils/dateFilter';
+import { useExploreSignInExecution } from './useExploreSignInExecution';
 import { useProject } from './useProject';
 import type { QueryResultsProps } from './useQueryResults';
 
@@ -118,11 +120,16 @@ export const useMetricQueryCostEstimate = (
     const lightdashApi = useLightdashApi();
 
     const [debouncedBody] = useDebouncedValue(body, ESTIMATE_DEBOUNCE_MS);
+    const signInReady = useExploreSignInExecution(
+        projectUuid,
+        debouncedBody?.query.exploreName,
+        enabled && !!debouncedBody,
+    );
     return useQuery<QueryCostEstimate, ApiError>({
         queryKey: metricEstimateKey(projectUuid ?? '', debouncedBody!),
         queryFn: () =>
             estimateMetricQuery(lightdashApi, projectUuid!, debouncedBody!),
-        enabled: enabled && !!projectUuid && !!debouncedBody,
+        enabled: signInReady && enabled && !!projectUuid && !!debouncedBody,
         staleTime: ESTIMATE_STALE_TIME_MS,
         keepPreviousData: true,
         retry: false,
@@ -137,11 +144,22 @@ export const useSqlQueryCostEstimate = (
     const lightdashApi = useLightdashApi();
 
     const [debouncedBody] = useDebouncedValue(body, ESTIMATE_DEBOUNCE_MS);
+    const signInReady = useWarehouseSignInExecution(
+        projectUuid,
+        debouncedBody
+            ? (debouncedBody.warehouseConnectionUuid ?? null)
+            : undefined,
+        enabled && !!debouncedBody,
+    );
     return useQuery<QueryCostEstimate, ApiError>({
         queryKey: sqlEstimateKey(projectUuid ?? '', debouncedBody!),
         queryFn: () =>
             estimateSqlQuery(lightdashApi, projectUuid!, debouncedBody!),
-        enabled: enabled && !!projectUuid && !!debouncedBody?.sql.trim().length,
+        enabled:
+            signInReady &&
+            enabled &&
+            !!projectUuid &&
+            !!debouncedBody?.sql.trim().length,
         staleTime: ESTIMATE_STALE_TIME_MS,
         keepPreviousData: true,
         retry: false,

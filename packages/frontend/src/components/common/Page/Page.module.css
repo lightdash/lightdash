@@ -27,7 +27,8 @@
     --header-offset: var(--page-header-height);
 }
 
-.root[data-has-banner='true']:not([data-full-page-scroll='true']) {
+:global(body:has(#navbar-header[data-has-banner='true']))
+    .root[data-with-navbar='true']:not([data-full-page-scroll='true']) {
     --banner-offset: var(--banner-height);
 }
 

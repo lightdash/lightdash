@@ -1,254 +1,83 @@
-import {
-    FeatureFlags,
-    getExpiredSharedSignInMessage,
-    SignInSubjectBasis,
-    type ApiError,
-} from '@lightdash/common';
-import { IconPlugConnected } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type FC } from 'react';
-import { useNavigate } from 'react-router';
+import { FeatureFlags } from '@lightdash/common';
+import { useEffect, type FC } from 'react';
 import {
     clearSharedSignInToastSuppression,
     setSharedSignInToastSuppression,
 } from '../../hooks/toaster/sharedSignInToastSuppression';
-import useToaster from '../../hooks/toaster/useToaster';
-import { useActiveProjectUuid } from '../../hooks/useActiveProject';
-import {
-    getSharedSignInStatus,
-    SHARED_SIGN_IN_QUERY_FAILED,
-} from '../../hooks/useReconnectSharedSignIn';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../providers/App/useApp';
-import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import {
-    getSharedSignInExpiry,
-    shouldOpenSharedSignInReconnectModal,
-} from '../ProjectConnection/SharedSignIn/sharedSignInCopy';
 import { SharedSignInReconnectModal } from '../ProjectConnection/SharedSignIn/SharedSignInReconnectModal';
+import { useSharedSignInStatusListener } from './useSharedSignInStatusListener';
 import {
-    queryBelongsToProject,
-    scheduleSharedSignInCooldownCheck,
-    shouldCheckSharedSignInStatus,
-    shouldUseSharedSignInStatus,
-} from './sharedSignInListenerDecision';
+    setWarehouseSignInBanner,
+    useWarehouseSignInBannerVisibility,
+} from './warehouseSignInBannerState';
 
 export const SharedSignInExpiryListener: FC = () => {
-    const lightdashApi = useLightdashApi();
-    const { user } = useApp();
-    const queryClient = useQueryClient();
-    const navigate = useNavigate();
-    const { showToastWarning } = useToaster();
-    const { activeProjectUuid } = useActiveProjectUuid();
-    const userUuid = user.data?.userUuid ?? null;
     const reconnectFlag = useServerFeatureFlag(
         FeatureFlags.SharedSignInReconnect,
     );
-    const lastChecks = useRef(new Map<string, number>());
-    const pendingProjects = useRef(new Set<string>());
-    const openProjects = useRef(new Set<string>());
-    const dismissedProjects = useRef(new Set<string>());
-    const currentProjectUuid = useRef(activeProjectUuid);
-    const [modalProjectUuid, setModalProjectUuid] = useState<string | null>(
-        null,
+    const expiryFlag = useServerFeatureFlag(
+        FeatureFlags.SharedSignInExpiryMessage,
     );
-
+    const bannerVisible = useWarehouseSignInBannerVisibility();
+    const store = useSharedSignInStatusListener({
+        reconnectEnabled: reconnectFlag.data?.enabled,
+        flagsLoading: reconnectFlag.isLoading || expiryFlag.isLoading,
+    });
+    const target = store?.target;
+    const modalOpen = !!store?.modalOpen;
     useEffect(() => {
-        currentProjectUuid.current = activeProjectUuid;
-    }, [activeProjectUuid]);
-
-    useEffect(() => {
-        if (!modalProjectUuid) return;
-        return () => clearSharedSignInToastSuppression(modalProjectUuid);
-    }, [modalProjectUuid]);
-
-    useEffect(() => {
-        if (!activeProjectUuid) return;
-        let trailingCheck: ReturnType<typeof setTimeout> | null = null;
-        const clearTrailingCheck = () => {
-            if (trailingCheck) clearTimeout(trailingCheck);
-            trailingCheck = null;
-        };
-        const showExpiryToast = (error: unknown) => {
-            const apiError = (error as Partial<ApiError> | null)?.error;
-            if (!apiError || !activeProjectUuid) return;
-            const expiry = getSharedSignInExpiry(apiError);
-            if (!expiry) return;
-            const isSubject =
-                !!userUuid &&
-                expiry.subjectUserUuid === userUuid &&
-                (expiry.subjectBasis === SignInSubjectBasis.RECORDED ||
-                    expiry.subjectBasis === SignInSubjectBasis.PROJECT_CREATOR);
-            showToastWarning({
-                key: 'shared-sign-in-expired',
-                projectUuid: expiry.projectUuid,
-                title: getExpiredSharedSignInMessage(expiry, userUuid),
-                autoClose: false,
-                action: isSubject
-                    ? {
-                          children: 'Reconnect',
-                          icon: IconPlugConnected,
-                          onClick: () =>
-                              navigate(
-                                  `/generalSettings/projectManagement/${expiry.projectUuid}/settings`,
-                              ),
-                      }
-                    : undefined,
-            });
-        };
-        const notify = (error: unknown) => {
-            if (!error || !activeProjectUuid) return;
-            if (reconnectFlag.isLoading) return;
-            if (!reconnectFlag.data?.enabled) {
-                showExpiryToast(error);
-                return;
-            }
-            if (
-                !shouldCheckSharedSignInStatus({
-                    projectUuid: activeProjectUuid,
-                    pendingProjects: pendingProjects.current,
-                    openProjects: openProjects.current,
-                    dismissedProjects: dismissedProjects.current,
-                    lastChecks: lastChecks.current,
-                    now: Date.now(),
-                })
-            ) {
-                const lastCheck = lastChecks.current.get(activeProjectUuid);
+        if (!target || !store || !store.enabled || modalOpen) return;
+        setWarehouseSignInBanner({
+            projectUuid: target.projectUuid,
+            userUuid: target.userUuid,
+            status: target.status,
+            reconnect: () => {
                 if (
-                    lastCheck !== undefined &&
-                    Date.now() - lastCheck < 60_000 &&
-                    !openProjects.current.has(activeProjectUuid) &&
-                    !dismissedProjects.current.has(activeProjectUuid)
-                ) {
-                    clearTrailingCheck();
-                    const runTrailing = () => {
-                        if (pendingProjects.current.has(activeProjectUuid)) {
-                            trailingCheck = setTimeout(runTrailing, 100);
-                        } else {
-                            notify(error);
-                        }
-                    };
-                    trailingCheck = scheduleSharedSignInCooldownCheck(
-                        lastCheck,
-                        runTrailing,
-                    );
-                }
-                return;
-            }
-            clearTrailingCheck();
-            lastChecks.current.set(activeProjectUuid, Date.now());
-            pendingProjects.current.add(activeProjectUuid);
-            const projectUuid = activeProjectUuid;
-            void queryClient
-                .fetchQuery({
-                    queryKey: ['shared-sign-in-status', projectUuid],
-                    queryFn: () =>
-                        getSharedSignInStatus(lightdashApi, projectUuid),
-                    staleTime: 0,
-                    retry: false,
-                })
-                .then((status) => {
-                    pendingProjects.current.delete(projectUuid);
-                    if (
-                        !shouldUseSharedSignInStatus(
-                            projectUuid,
-                            currentProjectUuid.current,
-                            dismissedProjects.current,
-                        )
-                    )
-                        return;
-                    if (shouldOpenSharedSignInReconnectModal(status)) {
-                        openProjects.current.add(projectUuid);
-                        setSharedSignInToastSuppression(
-                            projectUuid,
-                            status,
-                            userUuid,
-                        );
-                        setModalProjectUuid(projectUuid);
-                    } else {
-                        showExpiryToast(error);
-                    }
-                })
-                .catch(() => {
-                    pendingProjects.current.delete(projectUuid);
-                    if (projectUuid === currentProjectUuid.current)
-                        showExpiryToast(error);
-                });
-        };
-        const unsubscribeQueries = queryClient
-            .getQueryCache()
-            .subscribe((event) => {
-                if (
-                    event.type === 'updated' &&
-                    queryBelongsToProject(
-                        event.query.queryKey,
-                        activeProjectUuid,
-                    )
+                    !store.isCurrent(target) ||
+                    !store.hasPreferredBinding(target.binding)
                 )
-                    notify(event.query.state.error);
-            });
-        const unsubscribeMutations = queryClient
-            .getMutationCache()
-            .subscribe((event) => {
+                    return;
                 if (
-                    event.type === 'updated' &&
-                    queryBelongsToProject(
-                        event.mutation.options.mutationKey,
-                        activeProjectUuid,
-                    )
+                    target.status.personalSignIn?.canReconnect ??
+                    target.status.canReconnect
                 ) {
-                    notify(event.mutation?.state.error);
+                    store.modalOpen = true;
+                    store.checks.get(target.binding ?? 'original')!.blocked =
+                        true;
+                    store.notify();
                 }
-            });
-        for (const query of queryClient.getQueryCache().getAll()) {
-            if (
-                query.state.status === 'error' &&
-                queryBelongsToProject(query.queryKey, activeProjectUuid)
-            )
-                notify(query.state.error);
-        }
-        const onQueryFailed = (event: Event) => {
-            if (
-                event instanceof CustomEvent &&
-                event.detail?.projectUuid === activeProjectUuid
-            )
-                notify(event.detail.error);
-        };
-        window.addEventListener(SHARED_SIGN_IN_QUERY_FAILED, onQueryFailed);
-        return () => {
-            clearTrailingCheck();
-            unsubscribeQueries();
-            unsubscribeMutations();
-            window.removeEventListener(
-                SHARED_SIGN_IN_QUERY_FAILED,
-                onQueryFailed,
+            },
+        });
+        return () => setWarehouseSignInBanner(null);
+    }, [store, target, modalOpen]);
+    useEffect(() => {
+        if (
+            !target ||
+            !reconnectFlag.data?.enabled ||
+            (target.status.personalSignIn && !store?.enabled)
+        )
+            return;
+        if (modalOpen || bannerVisible)
+            setSharedSignInToastSuppression(
+                target.projectUuid,
+                target.status,
+                target.userUuid,
             );
-        };
-    }, [
-        queryClient,
-        activeProjectUuid,
-        userUuid,
-        showToastWarning,
-        navigate,
-        reconnectFlag.data?.enabled,
-        reconnectFlag.isLoading,
-        lightdashApi,
-    ]);
-
-    return modalProjectUuid ? (
+        else clearSharedSignInToastSuppression(target.projectUuid);
+        return () => clearSharedSignInToastSuppression(target.projectUuid);
+    }, [store, target, modalOpen, bannerVisible, reconnectFlag.data?.enabled]);
+    const displayEnabled =
+        reconnectFlag.data?.enabled &&
+        (!target?.status.personalSignIn || expiryFlag.data?.enabled);
+    return displayEnabled && store && target && modalOpen ? (
         <SharedSignInReconnectModal
-            projectUuid={modalProjectUuid}
-            onRestored={() => {
-                lastChecks.current.delete(modalProjectUuid);
-                openProjects.current.delete(modalProjectUuid);
-                dismissedProjects.current.delete(modalProjectUuid);
-            }}
-            onClose={() => {
-                clearSharedSignInToastSuppression(modalProjectUuid);
-                dismissedProjects.current.add(modalProjectUuid);
-                openProjects.current.delete(modalProjectUuid);
-                setModalProjectUuid(null);
-            }}
+            key={`${target.pageGeneration}:${target.generation}`}
+            projectUuid={target.projectUuid}
+            personalSignIn={target.status.personalSignIn}
+            target={target}
+            onRestored={() => store.restored(target)}
+            onClose={() => store.dismiss(target)}
         />
     ) : null;
 };

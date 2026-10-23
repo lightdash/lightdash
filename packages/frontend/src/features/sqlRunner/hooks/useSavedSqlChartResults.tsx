@@ -16,6 +16,7 @@ import { captureException } from '@sentry/react';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
+import { useWarehouseSignInExecution } from '../../../components/NavBar/warehouseSignInPreflight';
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import {
     CHART_RESULTS_ERROR_NAME,
@@ -140,6 +141,12 @@ export const useSavedSqlChartResults = (
         },
     );
 
+    const signInReady = useWarehouseSignInExecution(
+        projectUuid,
+        chartQuery.data?.warehouseConnectionUuid,
+        !!chartQuery.data && !embedDashboard,
+    );
+
     // Step 2: Get the results
     const chartResultsQuery = useQuery<
         UseSavedSqlChartResults,
@@ -254,6 +261,7 @@ export const useSavedSqlChartResults = (
         {
             // Waiting for a chart refetch avoids running results under a stale key
             enabled:
+                (embedDashboard || signInReady) &&
                 !!chartQuery.data &&
                 !chartQuery.isFetching &&
                 !chartQuery.isError &&

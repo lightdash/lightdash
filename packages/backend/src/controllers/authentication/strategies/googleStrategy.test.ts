@@ -154,3 +154,132 @@ describe('googleStrategyVerify', () => {
         );
     });
 });
+
+describe('Google reconnect callback', () => {
+    const setup = () => {
+        const currentUser = { ...user, userUuid: 'user_a' };
+        const currentProfile = {
+            ...profile,
+            id: 'subject_a',
+            emails: [{ value: 'account_a', verified: true }],
+        } as unknown as Profile;
+        const service = {
+            ...createUserService(),
+            reconnectPersonalBigqueryCredentials: vi.fn(async () => undefined),
+            validatePersonalBigqueryReconnect: vi.fn(async () => undefined),
+        };
+        const req = {
+            session: {
+                oauth: {
+                    intent: 'link',
+                    googleReconnect: {
+                        userUuid: 'user_a',
+                        subject: 'subject_a',
+                        email: 'account_a',
+                    },
+                    googlePersonalReconnect: {
+                        userUuid: 'user_a',
+                        credentialUuid: 'credential_a',
+                    },
+                },
+            },
+            user: currentUser,
+            services: { getUserService: () => service },
+        } as unknown as Express.Request;
+        return { req, service, currentProfile, done: vi.fn<VerifyCallback>() };
+    };
+    test('preserves the grant and credential when Google omits a refresh token', async () => {
+        const { req, service, currentProfile, done } = setup();
+        await googleStrategyVerify(
+            req,
+            'access_a',
+            '',
+            params,
+            currentProfile,
+            done,
+        );
+        expect(service.storeOAuthGrant).not.toHaveBeenCalled();
+        expect(
+            service.createBigqueryWarehouseCredentials,
+        ).not.toHaveBeenCalled();
+        expect(
+            service.reconnectPersonalBigqueryCredentials,
+        ).not.toHaveBeenCalled();
+        expect(done).toHaveBeenCalledWith(null, undefined, {
+            message:
+                'Google did not return a refresh token. Try signing in again.',
+        });
+    });
+    test('a normal link passes an empty token through guarded grant storage', async () => {
+        const { req, service, currentProfile, done } = setup();
+        delete req.session.oauth!.googleReconnect;
+        delete req.session.oauth!.googlePersonalReconnect;
+        await googleStrategyVerify(req, '', '', params, currentProfile, done);
+        expect(service.storeOAuthGrant).toHaveBeenCalledWith(
+            req.user,
+            OpenIdIdentityIssuerType.GOOGLE,
+            '',
+            expect.any(Array),
+            expect.objectContaining({ subject: currentProfile.id }),
+        );
+        expect(
+            service.createBigqueryWarehouseCredentials,
+        ).not.toHaveBeenCalled();
+        expect(done).toHaveBeenCalledWith(null, req.user);
+    });
+    test('reconnect without a stored identity fails before any write', async () => {
+        const { req, service, currentProfile, done } = setup();
+        req.session.oauth!.googleReconnect!.subject = null;
+        req.session.oauth!.googleReconnect!.email = null;
+        await googleStrategyVerify(req, '', '', params, currentProfile, done);
+        expect(service.storeOAuthGrant).not.toHaveBeenCalled();
+        expect(done).toHaveBeenCalledWith(null, undefined, {
+            message:
+                'Google did not return a refresh token. Try signing in again.',
+        });
+    });
+    test('updates only the selected personal credential', async () => {
+        const { req, service, currentProfile, done } = setup();
+        await googleStrategyVerify(
+            req,
+            'access_a',
+            'token_b',
+            params,
+            currentProfile,
+            done,
+        );
+        expect(service.storeOAuthGrant).toHaveBeenCalledOnce();
+        expect(
+            service.reconnectPersonalBigqueryCredentials,
+        ).toHaveBeenCalledWith(req.user, 'credential_a', 'token_b');
+        expect(
+            service.createBigqueryWarehouseCredentials,
+        ).not.toHaveBeenCalled();
+        expect(service.loginWithOpenId).not.toHaveBeenCalled();
+    });
+    test.each(['subject', 'user'])(
+        'rejects a changed %s before writing credentials',
+        async (changed) => {
+            const { req, service, currentProfile, done } = setup();
+            if (changed === 'subject') currentProfile.id = 'subject_b';
+            else req.session.oauth!.googleReconnect!.userUuid = 'user_b';
+            await googleStrategyVerify(
+                req,
+                'access_a',
+                'token_b',
+                params,
+                currentProfile,
+                done,
+            );
+            expect(service.storeOAuthGrant).not.toHaveBeenCalled();
+            expect(
+                service.reconnectPersonalBigqueryCredentials,
+            ).not.toHaveBeenCalled();
+            expect(done).toHaveBeenCalledWith(
+                null,
+                undefined,
+                expect.objectContaining({ message: expect.any(String) }),
+            );
+        },
+    );
+});

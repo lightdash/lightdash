@@ -23,10 +23,18 @@ export const getGdriveAccessToken = async (lightdashApi: LightdashApi) =>
 export const triggerGdriveLogin = async (
     loginPath: 'gdrive' | 'bigquery',
     siteUrl: string,
+    reconnect?: { light: boolean; personalCredentialUuid?: string },
 ) => {
     return new Promise<void>((resolve, reject) => {
         const channel = new BroadcastChannel('lightdash-oauth-popup');
-        const loginUrl = `${siteUrl}/api/v1/login/${loginPath}?isPopup=true`;
+        const params = new URLSearchParams({ isPopup: 'true' });
+        if (reconnect?.light) params.set('reconnect', 'true');
+        if (reconnect?.personalCredentialUuid)
+            params.set(
+                'personalCredentialUuid',
+                reconnect.personalCredentialUuid,
+            );
+        const loginUrl = `${siteUrl}/api/v1/login/${loginPath}?${params}`;
         console.info(`Opening popup with url: ${loginUrl}`);
 
         const popupWindow = window.open(
@@ -72,6 +80,7 @@ export const triggerGdriveLogin = async (
 export const useGoogleLoginPopup = (
     loginPath: 'gdrive' | 'bigquery',
     onLogin?: () => void,
+    reconnect?: { light: boolean; personalCredentialUuid?: string },
 ) => {
     const { showToastError } = useToaster();
     const health = useHealth();
@@ -79,7 +88,11 @@ export const useGoogleLoginPopup = (
 
     return useMutation({
         mutationFn: () =>
-            triggerGdriveLogin(loginPath, health.data?.siteUrl || ''),
+            triggerGdriveLogin(
+                loginPath,
+                health.data?.siteUrl || '',
+                reconnect,
+            ),
         onSuccess: async () => {
             // For BigQuery, invalidate user warehouse credentials since the backend
             // creates credentials during the OAuth flow
