@@ -1829,6 +1829,24 @@ export class DashboardService
                     tiles: [...updatedTiles],
                     filters: remappedFilters,
                     tabs: newTabs,
+                    parameters: newDashboard.parameters,
+                    config: newDashboard.config?.dateZoomConfig
+                        ? {
+                              ...newDashboard.config,
+                              dateZoomConfig: {
+                                  ...newDashboard.config.dateZoomConfig,
+                                  tileTargets: Object.fromEntries(
+                                      Object.entries(
+                                          newDashboard.config.dateZoomConfig
+                                              .tileTargets,
+                                      ).map(([key, value]) => [
+                                          tileUuidMap.get(key) ?? key,
+                                          value,
+                                      ]),
+                                  ),
+                              },
+                          }
+                        : newDashboard.config,
                 },
                 user,
                 projectUuid,
@@ -2447,9 +2465,15 @@ export class DashboardService
                 {
                     tiles: tilesToSave,
                     filters: dashboardFields.filters,
-                    parameters: dashboardFields.parameters,
+                    parameters:
+                        dashboardFields.parameters === undefined
+                            ? existingDashboardDao.parameters
+                            : dashboardFields.parameters,
                     tabs: dashboardFields.tabs || [],
-                    config: dashboardFields.config,
+                    config:
+                        dashboardFields.config === undefined
+                            ? existingDashboardDao.config
+                            : dashboardFields.config,
                 },
                 user,
                 existingDashboardDao.projectUuid,
