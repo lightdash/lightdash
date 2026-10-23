@@ -1,3 +1,16 @@
+# [3.48.0](https://github.com/lightdash/lightdash/compare/3.47.1...3.48.0) (2026-10-23)
+
+
+### Bug Fixes
+
+* prevent horizontal scrolling in model picker ([#31505](https://github.com/lightdash/lightdash/issues/31505)) ([292b082](https://github.com/lightdash/lightdash/commit/292b082879fd28546b0b62a6c04cb1f0228eb4f3))
+
+
+### Features
+
+* **analysis:** decouple availability gates from data apps ([#31496](https://github.com/lightdash/lightdash/issues/31496)) ([be2f4ec](https://github.com/lightdash/lightdash/commit/be2f4ec32e64fd28f7f97af64051acf2b57f6aae))
+* **composer-queries:** python harness stage timings on run span ([#31502](https://github.com/lightdash/lightdash/issues/31502)) ([2ccdd5c](https://github.com/lightdash/lightdash/commit/2ccdd5c61b05a2cdc4e7f759a5af52eb16fe69d7))
+
 ## [3.47.1](https://github.com/lightdash/lightdash/compare/3.47.0...3.47.1) (2026-10-23)
 
 
