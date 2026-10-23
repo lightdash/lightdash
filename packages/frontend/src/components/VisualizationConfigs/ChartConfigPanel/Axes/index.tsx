@@ -170,11 +170,9 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
             ) && (
                 <Config>
                     <Config.Section>
-                        <Config.Heading>Incomplete period</Config.Heading>
                         <Checkbox
                             size="xs"
-                            label="Highlight the current, unfinished period"
-                            description="Dashed lines and hatched bars"
+                            label="Mark incomplete period"
                             checked={!!dirtyLayout?.showIncompletePeriod}
                             onChange={(e) => {
                                 setShowIncompletePeriod(
