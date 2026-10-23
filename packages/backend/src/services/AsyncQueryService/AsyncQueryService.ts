@@ -195,6 +195,7 @@ import {
     DuckdbWarehouseClient,
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
+import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
@@ -366,6 +367,7 @@ import {
     getPivotColumnReferences,
 } from './composePivot';
 import {
+    setPhaseTimingAttributes,
     traceComposerQueryStage,
     type ComposerQuerySource,
     type ComposerQueryStage,
@@ -5207,23 +5209,30 @@ export class AsyncQueryService extends ProjectService {
                             'lightdash.isPivoted': !!pivotConfiguration,
                         },
                     },
-                    () =>
-                        AsyncQueryService.runQueryAndTransformRows({
-                            warehouseClient: client,
-                            query,
-                            queryTags: warehouseQueryTags,
-                            write: resultsStream
-                                ? (rows) => {
-                                      hasWrittenRows = true;
-                                      return resultsStream.write(rows);
-                                  }
-                                : undefined,
-                            pivotConfiguration,
-                            itemsMap: fieldsMap,
-                            usedParameters,
-                            dataTimezone: resolvedDataTimezone,
-                            displayTimezone,
-                        }),
+                    async (span) => {
+                        const results =
+                            await AsyncQueryService.runQueryAndTransformRows({
+                                warehouseClient: client,
+                                query,
+                                queryTags: warehouseQueryTags,
+                                write: resultsStream
+                                    ? (rows) => {
+                                          hasWrittenRows = true;
+                                          return resultsStream.write(rows);
+                                      }
+                                    : undefined,
+                                pivotConfiguration,
+                                itemsMap: fieldsMap,
+                                usedParameters,
+                                dataTimezone: resolvedDataTimezone,
+                                displayTimezone,
+                            });
+                        setPhaseTimingAttributes(
+                            span,
+                            results.warehouseResults.phaseTimings,
+                        );
+                        return results;
+                    },
                 );
             const completeQuery = async (
                 queryResults: Awaited<ReturnType<typeof runWarehouseQuery>>,
@@ -13176,6 +13185,7 @@ export class AsyncQueryService extends ProjectService {
             );
         }
         const columns: SqlQueryColumn[] = [];
+        const phaseTimings: WarehousePhaseTimings = {};
         // The limit is applied to the user's statement alone: the reference
         // CTEs name result files, and the limit strips what reads as a
         // comment even inside a string literal
@@ -13196,8 +13206,15 @@ export class AsyncQueryService extends ProjectService {
                         });
                     }
                 },
-                { tags: queryTags },
+                {
+                    tags: queryTags,
+                    onPhaseTiming: (phase, durationMs) => {
+                        phaseTimings[phase] =
+                            (phaseTimings[phase] ?? 0) + durationMs;
+                    },
+                },
             );
+            setPhaseTimingAttributes(trace.getActiveSpan(), phaseTimings);
         } catch (e) {
             // The DuckDB client throws raw errors (validation + engine)
             if (e instanceof LightdashError) throw e;

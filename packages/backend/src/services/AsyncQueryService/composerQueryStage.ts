@@ -1,3 +1,4 @@
+import type { WarehousePhaseTimings } from '@lightdash/common';
 import type { Attributes } from '@opentelemetry/api';
 import { performance } from 'perf_hooks';
 import { traceSpan, type TraceSpan } from '../../tracing/tracing';
@@ -73,3 +74,17 @@ export type ComposerStageTimedCallback = (
     stage: Extract<ComposerQueryStage<'duckdb'>, 'execute' | 'upload'>,
     durationMs: number,
 ) => void;
+
+export const setPhaseTimingAttributes = (
+    span: TraceSpan | undefined,
+    phaseTimings: WarehousePhaseTimings,
+) => {
+    Object.entries(phaseTimings).forEach(([phase, durationMs]) => {
+        if (durationMs !== undefined) {
+            span?.setAttribute(
+                `lightdash.phase.${phase}Ms`,
+                Math.round(durationMs),
+            );
+        }
+    });
+};
