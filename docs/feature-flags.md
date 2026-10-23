@@ -482,16 +482,14 @@ user-credential requirement; same-type extras still inherit the original's.
 ### DuckDB column probe
 
 `composer-optimization-duckdb-column-probe` is off by default on Cloud,
-self-hosted and previews. Discovered-column DuckDB queries resolve it for the
-project's organization, without personal overrides, through `FeatureFlagModel`.
-The execution worker resolves it after rebuilding the query from history;
-NATS payloads and stored execution specs are unchanged. Pivot preflight probes
-resolve the same organization flag at submission.
+self-hosted and previews. DuckDB queries that discover their output columns
+resolve it for the project's organization, without a user override, through
+`FeatureFlagModel`: on the worker before execution, and at submission for pivot
+preflight. Console changes apply to the next resolution; ENV changes require an
+API/worker restart.
 
-When enabled, `DESCRIBE` plans the SQL to discover columns instead of executing
-it with `LIMIT 1`. Syntax and binding errors still fail column resolution;
-runtime-only errors can surface during execution. The existing column-resolution
-span reports `lightdash.columnsMode=describe`. Disabling restores the existing
-probe for subsequent resolutions; cached results and in-flight probes remain.
-Console changes apply at the next resolution. Generic ENV precedence applies;
-ENV changes require an API/worker restart.
+When enabled, `DESCRIBE` binds the SQL instead of running it with `LIMIT 1`.
+Syntax and binding errors still fail column resolution; runtime-only errors,
+such as failed casts, surface during execution instead. Zero-row results keep
+their columns. The `duckdb.query.resolve_columns` span reports
+`lightdash.columnsMode=describe`.
