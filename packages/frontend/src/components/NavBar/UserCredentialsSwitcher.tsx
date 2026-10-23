@@ -1,9 +1,16 @@
-import { allowsOptionalUserCredentials } from '@lightdash/common';
+import {
+    allowsOptionalUserCredentials,
+    FeatureFlags,
+    getWarehouseSignInErrorType,
+    isApiError,
+    type FeatureFlag,
+} from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu, Text } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { matchRoutes, useLocation } from 'react-router';
+import { isWarehouseSignInQueryError } from '../../hooks/sharedSignInQueryRecovery';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
 import {
@@ -11,6 +18,7 @@ import {
     useProjectUserWarehouseCredentialsPreferenceMutation,
 } from '../../hooks/userWarehouseCredentials/useProjectUserWarehouseCredentialsPreference';
 import { useProjectUserWarehouseCredentials } from '../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { getWarehouseLabel } from '../ProjectConnection/ProjectConnectFlow/utils';
@@ -18,6 +26,34 @@ import { CreateCredentialsModal } from '../UserSettings/MyWarehouseConnectionsPa
 import AppColorSchemeScope from './AppColorSchemeScope';
 import { useNavBarMenuProps } from './NavBarPortalContext';
 import { routesThatNeedWarehouseCredentials } from './routesThatNeedWarehouseCredentials';
+
+const usesSignInExpiryListener = (error: unknown, queryClient: QueryClient) => {
+    if (
+        !isApiError(error) ||
+        typeof error.error.message !== 'string' ||
+        !isWarehouseSignInQueryError(error)
+    )
+        return false;
+    const reconnectEnabled =
+        queryClient.getQueryData<FeatureFlag>([
+            'feature-flag',
+            FeatureFlags.SharedSignInReconnect,
+        ])?.enabled === true;
+    if (!reconnectEnabled) return false;
+    const personalEnabled =
+        queryClient.getQueryData<FeatureFlag>([
+            'feature-flag',
+            FeatureFlags.SharedSignInExpiryMessage,
+        ])?.enabled === true;
+    const controlled = getWarehouseSignInErrorType(error.error.message);
+    return !!(
+        error.error.data?.sharedSignIn ||
+        controlled?.scope === 'shared' ||
+        (personalEnabled &&
+            (error.error.data?.personalSignIn ||
+                controlled?.scope === 'personal'))
+    );
+};
 
 const UserCredentialsSwitcher = () => {
     const menuProps = useNavBarMenuProps();
@@ -31,6 +67,8 @@ const UserCredentialsSwitcher = () => {
     );
     const [isCreatingCredentials, setIsCreatingCredentials] = useState(false);
     const queryClient = useQueryClient();
+    useServerFeatureFlag(FeatureFlags.SharedSignInReconnect);
+    useServerFeatureFlag(FeatureFlags.SharedSignInExpiryMessage);
 
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
         useActiveProjectUuid();
@@ -107,6 +145,8 @@ const UserCredentialsSwitcher = () => {
                         activeProject?.warehouseConnection
                             ?.requireUserCredentials
                     ) {
+                        if (usesSignInExpiryListener(error, queryClient))
+                            return;
                         console.info('Triggering reauth modal for BigQuery');
                         setShowCreateModalOnPageLoad(true);
                         setIsCreatingCredentials(true);

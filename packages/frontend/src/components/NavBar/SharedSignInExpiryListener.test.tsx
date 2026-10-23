@@ -1,11 +1,14 @@
 import {
     BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     FeatureFlags,
+    UserWarehouseCredentialPurpose,
+    WarehouseTypes,
     getExpiredPersonalSignInMessage,
     QueryHistoryStatus,
     PersonSignInProvider,
     SignInSubjectBasis,
     type SharedSignInStatus,
+    type ApiErrorDetail,
 } from '@lightdash/common';
 import { Button, MantineProvider, Text } from '@mantine/core';
 import {
@@ -54,6 +57,8 @@ import { reportSharedSignInQueryFailure } from '../../hooks/useReconnectSharedSi
 import type * as FlagHooks from '../../hooks/useServerOrClientFeatureFlag';
 import AppProvider from '../../providers/App/AppProvider';
 import type * as AppHooks from '../../providers/App/useApp';
+import { NavBarPortalContext } from './NavBarPortalContext';
+import ProjectCredentialsSwitcher from './ProjectCredentialsSwitcher';
 import { SharedSignInExpiryListener } from './SharedSignInExpiryListener';
 import { SharedSignInQueryBoundary } from './SharedSignInQueryBoundary';
 import { WarehouseSignInBanner } from './WarehouseSignInBanner';
@@ -67,6 +72,10 @@ import {
 } from './warehouseSignInPreflight';
 
 const state = vi.hoisted(() => ({
+    legacySwitcher: null as null | 'single' | 'multi',
+    requiredCredentials: true,
+    allowCredentials: false,
+    legacyWarehouse: 'bigquery' as WarehouseTypes,
     realApp: false,
     userUuid: 'user_a' as string | null,
     projectUuid: 'project_a',
@@ -139,7 +148,22 @@ vi.mock('../../hooks/useExplore', () => ({
     }),
 }));
 vi.mock('../../hooks/useProject', () => ({
-    useProject: () => ({ data: { name: 'Project A' } }),
+    useProject: () => ({
+        data: {
+            name: 'Project A',
+            ...(state.legacySwitcher
+                ? {
+                      projectUuid: state.projectUuid,
+                      connectionRoute: state.legacySwitcher,
+                      warehouseConnection: {
+                          type: state.legacyWarehouse,
+                          requireUserCredentials: state.requiredCredentials,
+                          allowUserCredentials: state.allowCredentials,
+                      },
+                  }
+                : {}),
+        },
+    }),
 }));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', async (importOriginal) => {
     const actual = await importOriginal<typeof FlagHooks>();
@@ -385,6 +409,11 @@ const Harness = () => {
     return (
         <SharedSignInQueryBoundary>
             <SharedSignInExpiryListener />
+            {state.legacySwitcher && (
+                <NavBarPortalContext.Provider value="">
+                    <ProjectCredentialsSwitcher />
+                </NavBarPortalContext.Provider>
+            )}
             {banner && !state.higherPriority && (
                 <WarehouseSignInBanner
                     status={banner.status}
@@ -448,6 +477,16 @@ const mount = (
         },
         logger: { log: () => {}, warn: () => {}, error: () => {} },
     });
+    if (state.legacySwitcher && !state.realApp) {
+        client.setQueryData(
+            ['feature-flag', FeatureFlags.SharedSignInReconnect],
+            { enabled: state.reconnect },
+        );
+        client.setQueryData(
+            ['feature-flag', FeatureFlags.SharedSignInExpiryMessage],
+            { enabled: state.expiry },
+        );
+    }
     configureClient?.(client);
     const tree = () => {
         const content = (
@@ -471,6 +510,10 @@ const mount = (
 };
 beforeEach(() => {
     vi.clearAllMocks();
+    state.legacySwitcher = null;
+    state.requiredCredentials = true;
+    state.allowCredentials = false;
+    state.legacyWarehouse = WarehouseTypes.BIGQUERY;
     state.realApp = false;
     state.projectLoading = false;
     state.userUuid = 'user_a';
@@ -2647,3 +2690,635 @@ test.each(['off', 'unknown', 'unrelated'] as const)(
         expect(screen.getByText('Catalogue unavailable')).toBeVisible();
     },
 );
+
+const ownCredential = {
+    uuid: 'credential_a',
+    userUuid: 'user_a',
+    name: 'Default',
+    purpose: UserWarehouseCredentialPurpose.DEFAULT,
+    credentials: { type: WarehouseTypes.BIGQUERY },
+    createdAt: new Date(0),
+    updatedAt: new Date(0),
+    expiresAt: null,
+    project: null,
+};
+
+const serveCredentialPolicy = ({
+    failure = { ...personalError, statusCode: 401 },
+    expired = true,
+    missing = false,
+}: {
+    failure?: ApiErrorDetail | null;
+    expired?: boolean;
+    missing?: boolean;
+} = {}) => {
+    const control = {
+        repaired: false,
+        expired,
+        catalogueCalls: 0,
+        dataCalls: 0,
+    };
+    const credential = {
+        ...ownCredential,
+        credentials: {
+            ...ownCredential.credentials,
+            type: state.legacyWarehouse,
+        },
+    };
+    state.api.mockImplementation(
+        async ({ url, method }: { url: string; method: string }) => {
+            if (url === '/user')
+                return { userUuid: state.userUuid, abilityRules: [] };
+            if (url.startsWith('/feature-flag/'))
+                return {
+                    enabled: url.endsWith(FeatureFlags.SharedSignInReconnect)
+                        ? state.reconnect
+                        : state.expiry,
+                };
+            if (url.includes('shared-sign-in'))
+                return {
+                    ...personal,
+                    personalSelection: {
+                        warehouseConnectionUuid: state.binding,
+                    },
+                    personalSignIn:
+                        missing ||
+                        (!state.requiredCredentials &&
+                            !state.allowCredentials &&
+                            !(
+                                state.legacySwitcher === 'multi' &&
+                                state.binding !== null
+                            ))
+                            ? undefined
+                            : {
+                                  ...personal.personalSignIn!,
+                                  projectUuid: state.projectUuid,
+                                  expired: control.expired && !control.repaired,
+                              },
+                };
+            if (
+                url === '/user/warehouseCredentials' ||
+                url.endsWith('/user-warehouse-credentials')
+            )
+                return missing ? [] : [credential];
+            if (url.endsWith('/warehouse-connection-user-credentials'))
+                return [
+                    {
+                        warehouseConnectionUuid: 'original_a',
+                        name: 'Original connection',
+                        isOriginal: true,
+                        warehouseType: WarehouseTypes.BIGQUERY,
+                        requireUserCredentials: state.requiredCredentials,
+                    },
+                    {
+                        warehouseConnectionUuid: 'connection_a',
+                        name: 'Extra connection',
+                        isOriginal: false,
+                        warehouseType: WarehouseTypes.BIGQUERY,
+                        requireUserCredentials: true,
+                    },
+                ];
+            if (
+                url.includes('/warehouse-connections/') &&
+                url.endsWith('/user-credentials')
+            )
+                return {
+                    warehouseConnectionUuid: 'connection_a',
+                    warehouseType: WarehouseTypes.BIGQUERY,
+                    requireUserCredentials: true,
+                    allowsOptionalUserCredentials: false,
+                    userWarehouseCredentials: missing ? null : credential,
+                };
+            if (url.endsWith('/user-credentials'))
+                return missing ? null : credential;
+            if (url.startsWith('/health'))
+                return {
+                    isAuthenticated: true,
+                    auth: {
+                        snowflake: { enabled: false },
+                        databricks: { enabled: false },
+                    },
+                };
+            if (url.endsWith('/sqlRunner/tables')) {
+                control.catalogueCalls += 1;
+                if (!control.repaired && failure)
+                    throw { status: 'error', error: failure };
+                return { database_a: { schema_a: { table_a: {} } } };
+            }
+            if (url.includes('/sqlRunner/fields')) return { field_a: 'string' };
+            if (method === 'POST') {
+                control.dataCalls += 1;
+                if (!control.repaired && failure)
+                    throw { status: 'error', error: failure };
+                return { queryUuid: 'query_ready' };
+            }
+            if (url.includes('/query/'))
+                return {
+                    status: QueryHistoryStatus.READY,
+                    rows: [],
+                    columns: {},
+                    totalResults: 0,
+                    metadata: { performance: {} },
+                };
+            throw new Error('Unexpected request');
+        },
+    );
+    return control;
+};
+
+test('keeps required personal expiry in one reconnect modal with the real legacy credential switcher mounted', async () => {
+    state.legacySwitcher = 'single';
+    state.catalogue = true;
+    const control = serveCredentialPolicy();
+    const { client } = mount();
+    await waitFor(() => expect(control.catalogueCalls).toBe(1));
+    await screen.findByText('Catalogue unavailable');
+    await waitFor(() => expect(screen.getAllByRole('dialog')).toHaveLength(1));
+    expect(screen.getByRole('dialog')).toHaveAccessibleName(
+        'Sign in again to restore your connection',
+    );
+    expect(screen.queryByText('Login to BigQuery')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await waitFor(() => expect(control.dataCalls).toBe(1));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    control.repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(control.dataCalls).toBe(2));
+    await waitFor(() => expect(control.catalogueCalls).toBe(2));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    control.repaired = false;
+    await act(async () => {
+        await client.refetchQueries({
+            predicate: (query) => query.queryKey[0] === 'create-query',
+        });
+    });
+    await waitFor(() => expect(control.dataCalls).toBe(3));
+    await waitFor(() => expect(screen.getAllByRole('dialog')).toHaveLength(1));
+    expect(screen.getByRole('dialog')).toHaveAccessibleName(
+        'Sign in again to restore your connection',
+    );
+    control.repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(control.dataCalls).toBe(4));
+    expect(control.catalogueCalls).toBe(2);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByText('Login to BigQuery')).toBeNull();
+});
+
+test.each([
+    { reconnect: false, expiry: false },
+    { reconnect: false, expiry: true },
+    { reconnect: true, expiry: false },
+])(
+    'preserves the legacy required policy for controlled personal failures with flags $reconnect / $expiry',
+    async (flags) => {
+        state.legacySwitcher = 'single';
+        state.reconnect = flags.reconnect;
+        state.expiry = flags.expiry;
+        state.catalogue = true;
+        const control = serveCredentialPolicy({ expired: false });
+        mount();
+        await waitFor(() => expect(control.catalogueCalls).toBe(1));
+        expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+            'Login to BigQuery',
+        );
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(
+            screen.queryByText('Sign in again to restore your connection'),
+        ).toBeNull();
+    },
+);
+
+test.each([
+    {
+        name: 'BigqueryTokenError',
+        statusCode: 401,
+        message: 'Ordinary query failure',
+        data: {},
+        legacy: true,
+    },
+    {
+        name: 'BigqueryTokenError',
+        statusCode: 400,
+        message: BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
+        data: {},
+        legacy: true,
+    },
+    {
+        name: 'ForbiddenError',
+        statusCode: 403,
+        message: 'expired invalid_grant',
+        data: personalError.data,
+        legacy: false,
+    },
+    {
+        name: 'NetworkError',
+        statusCode: 500,
+        message: 'expired invalid_grant',
+        data: personalError.data,
+        legacy: false,
+    },
+])(
+    'preserves required-policy handling for an ordinary $name / $statusCode failure',
+    async ({ legacy, ...failure }) => {
+        state.legacySwitcher = 'single';
+        state.catalogue = true;
+        const control = serveCredentialPolicy({ expired: false, failure });
+        mount();
+        await waitFor(() => expect(control.catalogueCalls).toBe(1));
+        await screen.findByText('Catalogue unavailable');
+        if (legacy)
+            expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+                'Login to BigQuery',
+            );
+        else {
+            await act(async () => {});
+            expect(screen.queryByRole('dialog')).toBeNull();
+        }
+        expect(
+            screen.queryByText('Sign in again to restore your connection'),
+        ).toBeNull();
+    },
+);
+
+test('retains initial required-credential signup when no compatible default credential exists', async () => {
+    state.legacySwitcher = 'single';
+    serveCredentialPolicy({ missing: true, expired: false, failure: null });
+    mount('/projects/project_a/tables/table_a');
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+        'Login to BigQuery',
+    );
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.queryByRole('textbox', { name: 'Name' })).toBeNull();
+    expect(
+        screen.queryByText('Sign in again to restore your connection'),
+    ).toBeNull();
+});
+
+test('retains the missing required-credential query handler', async () => {
+    state.legacySwitcher = 'single';
+    state.catalogue = true;
+    serveCredentialPolicy({
+        missing: true,
+        expired: false,
+        failure: {
+            name: 'MissingWarehouseCredentialsError',
+            statusCode: 400,
+            message: 'Missing required credential',
+            data: {},
+        },
+    });
+    mount('/projects/project_a/home');
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+        'Login to BigQuery',
+    );
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+});
+
+test.each([
+    {
+        warehouse: WarehouseTypes.SNOWFLAKE,
+        name: 'SnowflakeTokenError',
+        title: 'Snowflake',
+    },
+    {
+        warehouse: WarehouseTypes.DATABRICKS,
+        name: 'DatabricksTokenError',
+        title: 'Databricks',
+    },
+    {
+        warehouse: WarehouseTypes.REDSHIFT,
+        name: 'RedshiftIamTokenError',
+        title: 'Redshift',
+    },
+])(
+    'retains the existing required $warehouse credential handler',
+    async ({ warehouse, name, title }) => {
+        state.legacySwitcher = 'single';
+        state.legacyWarehouse = warehouse;
+        state.catalogue = true;
+        serveCredentialPolicy({
+            expired: false,
+            failure: {
+                name,
+                statusCode: 400,
+                message: 'Sign-in required',
+                data: {},
+            },
+        });
+        mount();
+        expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+            `Login to ${title}`,
+        );
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    },
+);
+
+test.each(['single', 'multi'] as const)(
+    'retains manual credential creation after dismissing a personal expiry on the %s route',
+    async (route) => {
+        state.legacySwitcher = route;
+        if (route === 'multi') {
+            state.requiredCredentials = false;
+            state.binding = 'connection_a';
+        }
+        serveCredentialPolicy();
+        mount();
+        expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+            'Sign in again to restore your connection',
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Warehouse credentials' }),
+        );
+        if (route === 'multi')
+            expect(screen.getByText('Extra connection')).toBeVisible();
+        await userEvent.click(
+            await screen.findByRole('menuitem', { name: 'Create new' }),
+        );
+        expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+            'Add new credentials',
+        );
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue('');
+    },
+);
+
+test.each([true, false])(
+    'does not invoke required-credential signup for optional/project policy allow=%s',
+    async (optional) => {
+        state.legacySwitcher = 'single';
+        state.requiredCredentials = false;
+        state.allowCredentials = optional;
+        state.catalogue = true;
+        const control = serveCredentialPolicy({ expired: optional });
+        mount();
+        await waitFor(() => expect(control.catalogueCalls).toBe(1));
+        if (optional) {
+            expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+                'Sign in again to restore your connection',
+            );
+            expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        } else {
+            await act(async () => {});
+            expect(screen.queryByRole('dialog')).toBeNull();
+        }
+        expect(screen.queryByText('Login to BigQuery')).toBeNull();
+        expect(
+            !!screen.queryByRole('button', { name: 'Warehouse credentials' }),
+        ).toBe(optional);
+    },
+);
+
+test('keeps a failed selected extra-connection query in the existing reconnect flow with the real multi switcher mounted', async () => {
+    state.legacySwitcher = 'multi';
+    state.binding = 'connection_a';
+    state.boundRoots = ['a'];
+    const control = serveCredentialPolicy();
+    mount();
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+        'Sign in again to restore your connection',
+    );
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await waitFor(() => expect(control.dataCalls).toBe(1));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    control.repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(control.dataCalls).toBe(2));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByText('Login to BigQuery')).toBeNull();
+});
+
+test.each([
+    'current',
+    'binding',
+    'selection-return',
+    'user-return',
+    'project',
+    'page-return',
+    'other-row',
+    'other-project',
+] as const)(
+    'keeps required-policy controlled delivery bound to its captured request: %s',
+    async (kind) => {
+        state.legacySwitcher = 'single';
+        state.catalogue = true;
+        const control = serveCredentialPolicy({
+            expired: false,
+            failure: null,
+        });
+        const serve = state.api.getMockImplementation()!;
+        const pending = Promise.withResolvers<never>();
+        let requests = 0;
+        state.api.mockImplementation(
+            (request: { url: string; method: string }) => {
+                if (
+                    request.url.endsWith('/sqlRunner/tables') &&
+                    (kind === 'other-project'
+                        ? request.url.includes('/project_b/')
+                        : kind === 'project'
+                          ? request.url.includes('/project_a/')
+                          : true)
+                ) {
+                    requests += 1;
+                    return pending.promise;
+                }
+                return serve(request);
+            },
+        );
+        if (kind === 'other-project') state.catalogueProject = 'project_b';
+        const view = mount();
+        await waitFor(() => expect(requests).toBe(1));
+        await waitFor(() => expect(state.executed).toHaveBeenCalled());
+        expect(screen.queryByRole('dialog')).toBeNull();
+        if (kind === 'binding' || kind === 'selection-return') {
+            state.binding = 'connection_b';
+            view.rerender(view.tree());
+            await waitFor(() =>
+                expect(
+                    getActiveWarehouseSignInPreflight()!.checks.has(
+                        'connection_b',
+                    ),
+                ).toBe(true),
+            );
+            if (kind === 'selection-return') {
+                state.binding = null;
+                view.rerender(view.tree());
+            }
+        }
+        if (kind === 'user-return') {
+            state.userUuid = 'user_b';
+            view.rerender(view.tree());
+            await waitFor(() =>
+                expect(
+                    getActiveWarehouseSignInPreflight()!.identity.userUuid,
+                ).toBe('user_b'),
+            );
+            state.userUuid = 'user_a';
+            view.rerender(view.tree());
+        }
+        if (kind === 'project') {
+            state.projectUuid = 'project_b';
+            view.rerender(view.tree());
+            await waitFor(() =>
+                expect(
+                    getActiveWarehouseSignInPreflight()!.identity.projectUuid,
+                ).toBe('project_b'),
+            );
+        }
+        if (kind === 'page-return') {
+            await userEvent.click(screen.getByRole('button', { name: 'Home' }));
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Query route' }),
+            );
+        }
+        await waitFor(() =>
+            expect(
+                [...getActiveWarehouseSignInPreflight()!.checks.values()].every(
+                    (check) => check.settled,
+                ),
+            ).toBe(true),
+        );
+        control.expired = true;
+        const failure = {
+            ...personalError,
+            statusCode: 401,
+            data: {
+                personalSignIn: {
+                    ...personal.personalSignIn!,
+                    ...(kind === 'other-row'
+                        ? { userWarehouseCredentialsUuid: 'credential_other' }
+                        : {}),
+                    ...(kind === 'other-project'
+                        ? { projectUuid: 'project_b' }
+                        : {}),
+                },
+            },
+        };
+        await act(async () => {
+            pending.reject({ status: 'error', error: failure });
+        });
+        if (kind === 'current') {
+            expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+                'Sign in again to restore your connection',
+            );
+            expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        } else {
+            await act(async () => {
+                await new Promise((resolve) => setTimeout(resolve, 30));
+            });
+            expect(screen.queryByRole('dialog')).toBeNull();
+        }
+        expect(screen.queryByText('Login to BigQuery')).toBeNull();
+    },
+);
+
+test('defers exact stored personal-expiry copy without metadata to the existing listener under required policy', async () => {
+    state.legacySwitcher = 'single';
+    state.catalogue = true;
+    const control = serveCredentialPolicy({
+        failure: {
+            ...personalError,
+            data: {},
+            message: getExpiredPersonalSignInMessage(personal.personalSignIn!),
+        },
+    });
+    mount();
+    await waitFor(() => expect(control.catalogueCalls).toBe(1));
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+        'Sign in again to restore your connection',
+    );
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.queryByText('Login to BigQuery')).toBeNull();
+});
+
+test.each([true, false])(
+    'keeps the main shared-expiry gate when reconnect=%s and personal expiry is off',
+    async (reconnect) => {
+        state.legacySwitcher = 'single';
+        state.catalogue = true;
+        state.reconnect = reconnect;
+        state.expiry = false;
+        const control = serveCredentialPolicy({
+            expired: false,
+            failure: {
+                ...personalError,
+                data: {
+                    sharedSignIn: {
+                        projectUuid: 'project_b',
+                        provider: shared.provider,
+                        subjectUserUuid: 'user_b',
+                        subjectBasis: shared.subjectBasis,
+                    },
+                },
+            },
+        });
+        mount();
+        await waitFor(() => expect(control.catalogueCalls).toBe(1));
+        if (reconnect) {
+            await act(async () => {});
+            expect(screen.queryByRole('dialog')).toBeNull();
+        } else
+            expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+                'Login to BigQuery',
+            );
+        expect(
+            screen.queryByText('Sign in again to restore this project'),
+        ).toBeNull();
+    },
+);
+
+test('keeps required personal expiry in one modal through real app flag loading and SQL connection scope', async () => {
+    state.realApp = true;
+    state.legacySwitcher = 'single';
+    state.catalogue = true;
+    state.realCatalogueScope = true;
+    sqlStore.dispatch(resetState());
+    sqlStore.dispatch(setProjectUuid('project_a'));
+    const control = serveCredentialPolicy();
+    const { client } = mount();
+    await waitFor(() => expect(control.catalogueCalls).toBe(1));
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+        'Sign in again to restore your connection',
+    );
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.queryByText('Login to BigQuery')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    control.repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(control.catalogueCalls).toBe(2));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    control.repaired = false;
+    await act(async () => {
+        await client.refetchQueries(['sqlRunner', 'tables', 'project_a'], {
+            exact: true,
+        });
+    });
+    await waitFor(() => expect(control.catalogueCalls).toBe(3));
+    expect(await screen.findByRole('dialog')).toHaveAccessibleName(
+        'Sign in again to restore your connection',
+    );
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    control.repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(control.catalogueCalls).toBe(4));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByText('Login to BigQuery')).toBeNull();
+});
