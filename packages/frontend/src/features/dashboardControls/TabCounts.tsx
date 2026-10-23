@@ -1,8 +1,11 @@
+import { interpolateUiString } from '@lightdash/common';
 import { Badge, Tooltip } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    selectActiveTabUuid,
     selectDashboardTabs,
     selectDashboardTiles,
     useDashboardSelector,
@@ -12,6 +15,7 @@ import { getTabCounts, getTabCountsForField, isSqlColumnRow } from './peers';
 import classes from './TabCounts.module.css';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { toDashboardFilterableField } from './useFilterRuleField';
+import { useHoveredFilterRule } from './useHoveredFilterRule';
 import { usePortalTargets } from './usePortalTargets';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
@@ -19,10 +23,37 @@ import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 const getTabSelector = (tabUuid: string) =>
     `[role="tab"][id$="-tab-${tabUuid}"]`;
 
+// Horizontal only: the page, an embed's container and its host keep their scroll
+const scrollTabIntoList = (tab: Element) => {
+    const list = tab.closest('[role="tablist"]');
+    if (!list) return;
+    const tabBox = tab.getBoundingClientRect();
+    const listBox = list.getBoundingClientRect();
+    if (tabBox.left < listBox.left) {
+        list.scrollLeft -= listBox.left - tabBox.left;
+    } else if (tabBox.right > listBox.right) {
+        list.scrollLeft += Math.min(
+            tabBox.right - listBox.right,
+            tabBox.left - listBox.left,
+        );
+    }
+};
+
 export const TabCounts: FC = () => {
-    const editingRule = useControlsSidebarSelector((c) => c.editingRule);
-    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const activeFieldId = useControlsSidebarSelector((c) => c.activeFieldId);
+    const getUiString = useUiStrings();
+    const editedRule = useControlsSidebarSelector((c) => c.editingRule);
+    const isEditedPlaceholder = useControlsSidebarSelector(
+        (c) => c.isPlaceholder,
+    );
+    const editedActiveFieldId = useControlsSidebarSelector(
+        (c) => c.activeFieldId,
+    );
+    // A hovered rail row counts its own filter, as a whole, in blue
+    const hoveredRule = useHoveredFilterRule();
+    const isFilterHovered = hoveredRule !== null;
+    const editingRule = hoveredRule ?? editedRule;
+    const isPlaceholder = !isFilterHovered && isEditedPlaceholder;
+    const activeFieldId = isFilterHovered ? null : editedActiveFieldId;
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const fieldsByTile = useDashboardContext(
@@ -45,6 +76,19 @@ export const TabCounts: FC = () => {
         isEnabled,
         false,
     );
+
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    // The edited filter's badges, never a hovered row's: a hover scrolls nothing
+    const editedRuleId =
+        editedRule !== null && !isEditedPlaceholder ? editedRule.id : null;
+    const activeTabElement =
+        editedRuleId === null || activeTabUuid === undefined
+            ? undefined
+            : targets[activeTabUuid];
+    // The badges widen the tabs past a narrow screen: keep the active one seen
+    useEffect(() => {
+        if (activeTabElement) scrollTabIntoList(activeTabElement);
+    }, [activeTabElement, editedRuleId]);
 
     const counts = useMemo(() => {
         const tiles = dashboardTiles ?? [];
@@ -79,7 +123,7 @@ export const TabCounts: FC = () => {
     // A SQL column goes by its own name, never by a field's
     const subject =
         activeFieldId === null
-            ? 'this filter'
+            ? getUiString('filters.rail.thisFilter')
             : isSqlColumnRow(editingRule, activeFieldId)
               ? activeFieldId
               : (toDashboardFilterableField(fieldsMap[activeFieldId])?.label ??
@@ -93,11 +137,22 @@ export const TabCounts: FC = () => {
                 if (!element || !count || count.total === 0) return null;
                 // Tabs the control, or the active field, reaches stand out
                 const isReached = count.applied > 0;
-                const isFieldActive = activeFieldId !== null;
+                const isFieldActive = activeFieldId !== null || isFilterHovered;
                 return createPortal(
                     <Tooltip
                         fz="xs"
-                        label={`${count.applied} of ${count.total} ${count.total === 1 ? 'tile on this tab is' : 'tiles on this tab are'} filtered by ${subject}`}
+                        label={interpolateUiString(
+                            getUiString(
+                                count.total === 1
+                                    ? 'filters.rail.tabCountTooltip.singular'
+                                    : 'filters.rail.tabCountTooltip.plural',
+                            ),
+                            {
+                                applied: count.applied,
+                                total: count.total,
+                                subject,
+                            },
+                        )}
                     >
                         <Badge
                             size="xs"
@@ -108,7 +163,13 @@ export const TabCounts: FC = () => {
                             data-field-active={isFieldActive}
                             className={classes.count}
                         >
-                            {`${count.applied} of ${count.total}`}
+                            {interpolateUiString(
+                                getUiString('filters.rail.countOf'),
+                                {
+                                    applied: count.applied,
+                                    total: count.total,
+                                },
+                            )}
                         </Badge>
                     </Tooltip>,
                     element,

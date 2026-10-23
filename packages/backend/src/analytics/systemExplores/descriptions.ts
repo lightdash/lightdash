@@ -39,6 +39,8 @@ export const analyticsTableDescriptions: Record<string, string> = {
         'Dashboard names, slugs and state from the latest available snapshot, joined to recorded dashboard identifiers.',
     lightdash_agents:
         'AI agent names from the latest available snapshot, joined to recorded agent identifiers.',
+    lightdash_projects:
+        'Project names from the latest available organization snapshot, including projects without saved content. Names are current snapshot values, not a history of names.',
     lightdash_apps:
         'App and project names from the latest content inventory, joined to recorded app identifiers.',
 };
@@ -388,6 +390,9 @@ const modelDimensions: Record<string, Record<string, string>> = {
     },
     lightdash_agents: {
         name: 'AI agent name from the latest available snapshot. Unknown agent means no matching name is available.',
+    },
+    lightdash_projects: {
+        name: 'Project name from the latest organization snapshot. Missing or deleted projects appear as Unknown project; historical names are not retained.',
     },
     lightdash_charts: {
         name: 'Chart name from the latest available snapshot. Historical activity uses this snapshot name, which can differ from the name at event time.',

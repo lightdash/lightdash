@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AbilityAction,
     Account,
+    applyNewChartDefaults,
     assertUnreachable,
     BulkActionable,
     ChartHistory,
@@ -2394,9 +2395,11 @@ export class SavedChartService
             chartToSave.metricQuery,
         );
 
+        const chartConfig = applyNewChartDefaults(chartToSave.chartConfig);
         const chartToCreate = resolvedSpaceUuid
             ? {
                   ...chartToSave,
+                  chartConfig,
                   spaceUuid: resolvedSpaceUuid,
                   dashboardUuid: null as null,
                   slug: generateSlug(chartToSave.name),
@@ -2404,6 +2407,7 @@ export class SavedChartService
               }
             : {
                   ...chartToSave,
+                  chartConfig,
                   slug: generateSlug(chartToSave.name),
                   updatedByUser: user,
               };

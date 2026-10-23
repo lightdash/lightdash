@@ -6,12 +6,19 @@ import {
 import { Stack, Text } from '@mantine/core';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import ShippedFilterSettings from '../dashboardFilters/FilterConfiguration/FilterSettings';
-import { getFilterRuleWithDisabledState } from '../dashboardFilters/FilterConfiguration/utils';
-import { isLockedRequiredMissingValue } from './requirements';
+import { FilterValueSection } from '../dashboardFilters/FilterConfiguration/FilterValueSection';
+import {
+    getFilterRuleWithDisabledState,
+    isLockedRequiredMissingValue,
+} from '../dashboardFilters/FilterConfiguration/utils';
+import classes from './ControlSidebar.module.css';
 import { isDefaultValueIncomplete } from './sidebarState';
 
 type Props = {
+    /** A viewer's form: no default switch, and no value reads "any value". */
+    isEditMode: boolean;
+    /** A viewer's new filter: the shipped "Value" label above the form. */
+    isCreatingNew: boolean;
     filterType: FilterType;
     field: DashboardFilterableField | null;
     filterRule: DashboardFilterRule;
@@ -22,16 +29,17 @@ const getInputs = (root: HTMLElement | null): HTMLInputElement[] => [
     ...(root?.querySelectorAll('input') ?? []),
 ];
 
-// The shipped settings form without its label and Required card. No Apply:
+// The value section of the shipped settings form. No Apply:
 // each edit is written at once, except the one the shipped Apply refuses
 export const FilterValueSettings: FC<Props> = ({
+    isEditMode,
+    isCreatingNew,
     filterType,
     field,
     filterRule,
     onChange,
 }) => {
     const getUiString = useUiStrings();
-    const isRequired = !!filterRule.required || !!filterRule.requiredGroupId;
     const isLockedAndRequired =
         !!filterRule.lockedTabUuids?.length && !!filterRule.required;
     const root = useRef<HTMLDivElement>(null);
@@ -41,7 +49,7 @@ export const FilterValueSettings: FC<Props> = ({
     const [wasRefused, setWasRefused] = useState(false);
     const refocusIndex = useRef(-1);
     const handleChange = (next: DashboardFilterRule) => {
-        const written = getFilterRuleWithDisabledState(next, true);
+        const written = getFilterRuleWithDisabledState(next, isEditMode);
         // A rule already in that state can still be edited out of it
         if (
             isLockedRequiredMissingValue(written) &&
@@ -70,17 +78,16 @@ export const FilterValueSettings: FC<Props> = ({
 
     return (
         <Stack gap="xs" ref={root}>
-            <ShippedFilterSettings
-                key={refusals}
-                isEditMode
-                isCreatingNew={false}
-                hideLabel
-                hideRequiredCard
-                filterType={filterType}
-                field={field ?? undefined}
-                filterRule={filterRule}
-                onChangeFilterRule={handleChange}
-            />
+            <Stack key={refusals} gap="xs" className={classes.valueForm}>
+                <FilterValueSection
+                    isEditMode={isEditMode}
+                    isCreatingNew={isCreatingNew}
+                    filterType={filterType}
+                    field={field ?? undefined}
+                    filterRule={filterRule}
+                    onChangeFilterRule={handleChange}
+                />
+            </Stack>
             {isLockedAndRequired && (
                 // A new node per refusal, so each one is announced
                 <Text
@@ -93,15 +100,9 @@ export const FilterValueSettings: FC<Props> = ({
                     {getUiString('filters.config.applyLockedRequiredTooltip')}
                 </Text>
             )}
-            {isDefaultValueIncomplete(filterRule) && (
+            {isEditMode && isDefaultValueIncomplete(filterRule) && (
                 <Text size="xs" c="dimmed">
                     Set a value, or the default stays off.
-                </Text>
-            )}
-            {!!filterRule.disabled && !isRequired && (
-                <Text size="xs" c="dimmed">
-                    No default: each tile keeps its own values until a viewer
-                    sets one.
                 </Text>
             )}
         </Stack>

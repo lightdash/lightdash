@@ -3,6 +3,7 @@ import { HttpResponse } from '@smithy/protocol-http';
 import { writeFile } from 'fs/promises';
 import { applyGcpOAuth } from '../../clients/Aws/gcpOAuth';
 import { buildS3ClientConfig } from '../../clients/Aws/S3BaseClient';
+import Logger from '../../logging/logger';
 import {
     UsageUserActivityBuilder,
     validateUserActivityRange,
@@ -10,6 +11,24 @@ import {
 
 const upload = vi.hoisted(() => vi.fn());
 const uploadConstructor = vi.hoisted(() => vi.fn());
+const workLimit = vi.hoisted(() => ({ override: null as number | null }));
+vi.mock('./usageProcessingLimits', async (importOriginal) => {
+    const original =
+        await importOriginal<typeof import('./usageProcessingLimits')>();
+    return {
+        get MAX_PARTITIONS_PER_RUN() {
+            return workLimit.override ?? original.MAX_PARTITIONS_PER_RUN;
+        },
+    };
+});
+vi.mock('../../logging/logger', () => ({
+    default: {
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+    },
+}));
 vi.mock('google-auth-library', () => ({
     GoogleAuth: class {
         async getClient() {
@@ -39,6 +58,7 @@ const storage = {
 
 describe('user activity safeguards', () => {
     beforeEach(() => {
+        workLimit.override = null;
         vi.clearAllMocks();
         vi.spyOn(S3.prototype, 'headObject').mockRejectedValue({
             $metadata: { httpStatusCode: 404 },
@@ -68,7 +88,7 @@ describe('user activity safeguards', () => {
         ).toEqual(['2025-12-31', '2026-01-01', '2026-01-02']);
     });
 
-    it('keeps the 500 changed-partition cap across eligible organizations', async () => {
+    it('processes more than 500 changed partitions with the default work budget', async () => {
         const orgIds = Array.from(
             { length: 80 },
             (_, index) =>
@@ -90,7 +110,109 @@ describe('user activity safeguards', () => {
         const summary = await new UsageUserActivityBuilder(storage, {
             runSqlWithMetrics: vi.fn(),
         }).runAll(now, orgIds);
-        expect(summary).toMatchObject({ failed: 500, limitReached: true });
+        expect(summary).toMatchObject({ failed: 560, limitReached: false });
+    });
+
+    it.each([
+        { partitions: 3, limitReached: false },
+        { partitions: 4, limitReached: true },
+    ])(
+        'bounds changed work across organizations with $partitions source partitions',
+        async ({ partitions, limitReached }) => {
+            workLimit.override = 3;
+            const orgIds = [org, '22222222-2222-4222-8222-222222222222'];
+            const list = vi
+                .spyOn(S3.prototype, 'listObjectsV2')
+                .mockImplementation(async ({ Prefix }) => {
+                    if (Prefix?.endsWith('/stream=query_events/')) {
+                        const count = Prefix.includes(org) ? 2 : partitions - 2;
+                        return {
+                            Contents: Array.from(
+                                { length: count },
+                                (_, index) => ({
+                                    Key: `${Prefix}dt=2026-01-${25 + index}/part.parquet`,
+                                }),
+                            ),
+                        } as never;
+                    }
+                    if (Prefix?.includes('/dt='))
+                        throw new Error('synthetic partition failure');
+                    return { Contents: [] } as never;
+                });
+            const summary = await new UsageUserActivityBuilder(storage, {
+                runSqlWithMetrics: vi.fn(),
+            }).runAll(now, orgIds);
+            expect(summary).toMatchObject({ failed: 3, limitReached });
+            expect(
+                list.mock.calls.filter(([input]) =>
+                    input.Prefix?.includes('/dt='),
+                ),
+            ).toHaveLength(3);
+            if (limitReached)
+                expect(Logger.warn).toHaveBeenCalledWith(
+                    expect.stringContaining('3-partition work limit'),
+                );
+            else expect(Logger.warn).not.toHaveBeenCalled();
+        },
+    );
+
+    it('does not spend the changed-work budget on unchanged summaries', async () => {
+        workLimit.override = 2;
+        const prefix = `events/compacted/org_id=${org}/stream=query_events/`;
+        const sources = Array.from({ length: 5 }, (_, index) => ({
+            Key: `${prefix}dt=2026-01-${25 + index}/part.parquet`,
+            ETag: `version-${index}`,
+            Size: 100,
+        }));
+        const fingerprints = new Map<string, string>();
+        vi.spyOn(S3.prototype, 'listObjectsV2').mockImplementation(
+            async ({ Prefix }) => {
+                if (Prefix === prefix) return { Contents: sources } as never;
+                if (Prefix?.startsWith('events/raw/'))
+                    return { Contents: [] } as never;
+                return {
+                    Contents: sources.filter((source) =>
+                        source.Key.startsWith(Prefix!),
+                    ),
+                } as never;
+            },
+        );
+        vi.mocked(S3.prototype.headObject).mockImplementation(
+            async ({ Key }) => {
+                const fingerprint = fingerprints.get(Key!);
+                if (!fingerprint)
+                    throw Object.assign(new Error('Summary not found'), {
+                        $metadata: { httpStatusCode: 404 },
+                    });
+                return { Metadata: { 'source-hash': fingerprint } } as never;
+            },
+        );
+        upload.mockResolvedValue(undefined);
+        const runSqlWithMetrics = vi.fn(async (sql: string) => {
+            const output = sql.match(/TO '([^']+)' \(FORMAT/)![1];
+            await writeFile(output, 'test parquet');
+            return { queryMs: 1, bootstrapMs: 0, totalMs: 1 };
+        });
+        const run = () =>
+            new UsageUserActivityBuilder(storage, { runSqlWithMetrics }).runAll(
+                now,
+                [org],
+            );
+        expect(await run()).toMatchObject({ published: 2, limitReached: true });
+        for (const [options] of uploadConstructor.mock.calls) {
+            fingerprints.set(
+                options.params.Key,
+                options.params.Metadata['source-hash'],
+            );
+        }
+        runSqlWithMetrics.mockClear();
+        expect(await run()).toMatchObject({
+            published: 2,
+            unchanged: 2,
+            failed: 0,
+            limitReached: true,
+        });
+        expect(runSqlWithMetrics).toHaveBeenCalledTimes(2);
     });
 
     it('ignores history older than seven closed UTC days', async () => {

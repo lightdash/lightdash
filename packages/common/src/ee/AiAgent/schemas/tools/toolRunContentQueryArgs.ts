@@ -6,15 +6,13 @@ import {
 import { createToolSchema } from '../toolSchemaBuilder';
 import { toolChartAsCodeMetricQuerySchema } from './toolCreateContentArgs';
 
-export const TOOL_RUN_CONTENT_QUERY_DESCRIPTION = `Run a chart-as-code metric query or saved chart content and return the rows it produces as CSV.
+export const TOOL_RUN_CONTENT_QUERY_DESCRIPTION = `Run a chart-as-code metric query, a saved chart or SQL and return the rows as CSV.
 
-Use this to verify generated or edited chart content before presenting it as complete.
-
-Input modes:
-- metricQuery: run an unsaved chart-as-code metricQuery with a tableName.
-- chart: run a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval.
-- dashboardChart: run a saved chart by chartSlug in a dashboardSlug context, applying dashboard filters. chartType works the same.
-- sql: run a raw SELECT to check a SQL chart's sql before saving it. The user approves the SQL first; saving the same SQL in a SQL chart in this response needs no second approval.`;
+Sources:
+- metricQuery: an unsaved chart-as-code metricQuery with its tableName.
+- chart: a saved chart by chartSlug. Set chartType "sql_chart" for a saved SQL chart; it runs without SQL approval.
+- dashboardChart: a saved chart by chartSlug in a dashboardSlug context, with the dashboard filters applied. chartType works the same.
+- sql: a raw SELECT, to check a SQL chart's sql before saving it. The user approves the SQL first; saving the same SQL in a SQL chart in this response needs no second approval.`;
 
 // Slugs are unique per chart type, so the type picks which chart a slug names.
 const savedChartTypeSchema = () =>

@@ -200,7 +200,7 @@ type Props = {
 
 export const LauncherAnalysisPanel: FC<Props> = ({ adapter, style }) => {
     const dispatch = useAiAgentStoreDispatch();
-    const { availability, controller, targetName } = adapter;
+    const { availability, controller, targetName, targetKind } = adapter;
     const {
         sources,
         inFlight,
@@ -276,7 +276,9 @@ export const LauncherAnalysisPanel: FC<Props> = ({ adapter, style }) => {
                                     {sources.length > 0
                                         ? ` (${sources.length})`
                                         : ''}
-                                    ; hidden tabs may be included.
+                                    {targetKind === 'app'
+                                        ? '; hidden tabs may be included.'
+                                        : '; charts on the active tab only.'}
                                     {inFlight
                                         ? ' Waiting for queries to finish.'
                                         : ''}

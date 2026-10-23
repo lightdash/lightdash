@@ -61,18 +61,19 @@
         "loadMcpTools",
         "loadProjectContext",
         "loadSkill",
+        "query",
         "readAttachments",
         "readContent",
         "readPinnedThread",
         "resolveUrl",
-        "runComposerQueries",
         "runContentQuery",
         "runSavedChart",
         "searchFieldValues",
         "searchSemanticLayer",
         "setupPreviewDeploy",
         "syncDbtProject",
-        "updateUserName"
+        "updateUserName",
+        "visualize"
     ],
     "promptSections": [
         "aiWriteback",

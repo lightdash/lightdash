@@ -48,9 +48,6 @@ const DeleteSpaceModalContent: FC<
     );
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
-    const documentsEnabled =
-        !documentsFlag.isError && documentsFlag.data?.enabled;
 
     if (isLoadingImpact) {
         return <Skeleton height={40} radius="sm" />;
@@ -68,7 +65,7 @@ const DeleteSpaceModalContent: FC<
         descendantCount > 0 ||
         impact.chartCount > 0 ||
         impact.dashboardCount > 0 ||
-        (documentsEnabled && impact.documentCount > 0) ||
+        impact.documentCount > 0 ||
         (dataAppsEnabled && impact.appCount > 0);
 
     if (!hasContent) {
@@ -151,24 +148,22 @@ const DeleteSpaceModalContent: FC<
                         </Text>
                     </Group>
                 )}
-                {documentsEnabled && (
-                    <Group gap={4}>
-                        <MantineIcon
-                            icon={IconFileText}
-                            size="sm"
-                            color={softDeleteEnabled ? 'yellow.7' : 'red.7'}
-                            stroke={1.5}
-                        />
-                        <Text
-                            size="sm"
-                            fw={600}
-                            c={softDeleteEnabled ? 'yellow.7' : 'red.7'}
-                        >
-                            {impact.documentCount} document
-                            {impact.documentCount !== 1 ? 's' : ''}
-                        </Text>
-                    </Group>
-                )}
+                <Group gap={4}>
+                    <MantineIcon
+                        icon={IconFileText}
+                        size="sm"
+                        color={softDeleteEnabled ? 'yellow.7' : 'red.7'}
+                        stroke={1.5}
+                    />
+                    <Text
+                        size="sm"
+                        fw={600}
+                        c={softDeleteEnabled ? 'yellow.7' : 'red.7'}
+                    >
+                        {impact.documentCount} document
+                        {impact.documentCount !== 1 ? 's' : ''}
+                    </Text>
+                </Group>
             </Group>
         </Callout>
     );

@@ -324,25 +324,6 @@ describe('Document collections', () => {
         expect(onChange).toHaveBeenLastCalledWith(block);
     });
 
-    it('hides the Document picker when Documents are disabled', () => {
-        mocks.documentsEnabled = false;
-        render(
-            <CollectionBlockBuild
-                block={{
-                    id: 'manual',
-                    type: 'collection',
-                    config: { title: 'Picked', items: [] },
-                }}
-                projectUuid="project"
-                itemSpan={null}
-                onChange={vi.fn()}
-            />,
-            { wrapper: wrapper() },
-        );
-        fireEvent.click(screen.getByRole('button', { name: 'Add content' }));
-        expect(screen.queryByText('Documents')).not.toBeInTheDocument();
-    });
-
     it('imports Documents and charts from the pin list in their existing order', () => {
         const onChange = vi.fn();
         const block: HomepageCollectionBlock = {
@@ -372,25 +353,6 @@ describe('Document collections', () => {
                 ],
             },
         });
-    });
-
-    it('hides the Document type filter for dynamic collections when disabled', () => {
-        mocks.documentsEnabled = false;
-        render(
-            <CollectionBlockBuild
-                block={{
-                    id: 'pinned',
-                    type: 'collection',
-                    config: { title: 'Pins', source: 'pinned', items: [] },
-                }}
-                projectUuid="project"
-                itemSpan={null}
-                onChange={vi.fn()}
-            />,
-            { wrapper: wrapper() },
-        );
-        expect(screen.queryByText('Documents')).not.toBeInTheDocument();
-        expect(screen.getByText('Dashboards')).toBeInTheDocument();
     });
 
     it('keeps scoped results out of the generic collection cache', async () => {

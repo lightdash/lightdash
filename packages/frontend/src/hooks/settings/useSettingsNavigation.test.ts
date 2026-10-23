@@ -38,6 +38,7 @@ const settingsContext = (
     isAiOrganizationSettingsLoading: false,
     dataAppsFlag: undefined,
     dataAppAnalysisFlag: undefined,
+    dashboardAnalysisFlag: undefined,
     isDataAppsFlagLoading: false,
     isChartStudioAvailable: false,
     externalSourcesFlag: undefined,

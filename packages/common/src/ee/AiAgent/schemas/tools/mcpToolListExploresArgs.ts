@@ -6,14 +6,7 @@ export const MCP_TOOL_LIST_EXPLORES_DESCRIPTION = ({
     toolName,
 }: ToolDescriptionContext): string => `Tool: ${toolName}
 
-Purpose:
-Lists all Explores available to the user in the current project. Returns a summary of each explore including its name, label, base table, and tags.
-
-Usage Tips:
-- Use this to discover what data sources are available before using MCP schema-discovery tools for detailed field information
-- No arguments needed - automatically uses the current project context
-- Results are filtered based on user permissions and selected tags
-- Returns explore metadata without field details for quick overview
+List the explores the user can access in a project, limited to the agent's tags when agent-scoped: each explore's name, label, base table, tags, joined tables and required filters, without its fields. Use it for an overview of the available data; grep_fields and get_metadata give the fields.
 `;
 
 // MCP-only tool - no type field needed

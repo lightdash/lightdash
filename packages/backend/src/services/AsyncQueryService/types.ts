@@ -319,6 +319,19 @@ export const SCHEDULER_POLLING_OPTIONS: PollingOptions = {
     maxBackoffMs: 5000,
 };
 
+/** A pre-built client that runs the query instead of the project warehouse. */
+export type WarehouseClientOverride = {
+    client: WarehouseClient;
+    executionSource:
+        | 'pre_aggregate_duckdb'
+        | 'external_source_duckdb'
+        | 'composer_duckdb';
+};
+
+export type WarehouseExecutionSource =
+    | 'warehouse'
+    | WarehouseClientOverride['executionSource'];
+
 export type RunAsyncWarehouseQueryArgs = {
     authMethod?: QueryResultProducer['authMethod'];
     resultEntitlementFingerprint?: string | null;

@@ -11,7 +11,6 @@ import {
     BigqueryAuthenticationType,
     BigqueryTokenError,
     CatalogType,
-    CommercialFeatureFlags,
     ConflictError,
     convertExplores,
     CreateTrainingPreviewResults,
@@ -809,15 +808,6 @@ const getMockedProjectService = (
                                 enabled: lightdashConfig.results.cacheEnabled,
                             };
                         }
-                        if (
-                            featureFlagId ===
-                            CommercialFeatureFlags.PreAggregates
-                        ) {
-                            return {
-                                id: featureFlagId,
-                                enabled: lightdashConfig.preAggregates.enabled,
-                            };
-                        }
                         return { id: featureFlagId, enabled: false };
                     },
                 ),
@@ -1224,12 +1214,11 @@ describe('ProjectService', () => {
 
     describe('Document counts in legacy Space listing', () => {
         it.each([
-            { enabled: false, canViewDocument: true, expectedCount: 0 },
-            { enabled: true, canViewDocument: false, expectedCount: 0 },
-            { enabled: true, canViewDocument: true, expectedCount: 2 },
+            { canViewDocument: false, expectedCount: 0 },
+            { canViewDocument: true, expectedCount: 2 },
         ])(
-            'flag=$enabled Document permission=$canViewDocument returns $expectedCount',
-            async ({ enabled, canViewDocument, expectedCount }) => {
+            'Document permission=$canViewDocument returns $expectedCount',
+            async ({ canViewDocument, expectedCount }) => {
                 const countUser = {
                     ...user,
                     ability: defineUserAbility(
@@ -1264,7 +1253,7 @@ describe('ProjectService', () => {
                     lightdashConfigWithGoogleOAuthMock,
                     {
                         featureFlagModel: {
-                            get: vi.fn().mockResolvedValue({ enabled }),
+                            get: vi.fn().mockResolvedValue({ enabled: true }),
                         } as unknown as FeatureFlagModel,
                         spacePermissionService: {
                             resolveAccessBatch: vi.fn().mockResolvedValue([
@@ -1293,19 +1282,15 @@ describe('ProjectService', () => {
                     projectUuid,
                 );
                 expect(result[0].documentCount).toBe(expectedCount);
-                if (!enabled) {
-                    expect(getDocumentCounts).not.toHaveBeenCalled();
-                } else {
-                    expect(getDocumentCounts).toHaveBeenCalledWith(
-                        canViewDocument ? [listedSpace.uuid] : [],
-                    );
-                }
+                expect(getDocumentCounts).toHaveBeenCalledWith(
+                    canViewDocument ? [listedSpace.uuid] : [],
+                );
                 getDocumentCounts.mockReset();
             },
         );
     });
 
-    describe('Learn flag guards', () => {
+    describe('Learn guards', () => {
         const learnUser: SessionUser = {
             ...user,
             organizationUuid: 'organization-uuid',
@@ -1313,7 +1298,7 @@ describe('ProjectService', () => {
             organizationCreatedAt: new Date('2026-09-01'),
         };
 
-        test('provisions training for an org admin when Learn is enabled', async () => {
+        test('provisions training for an org admin with no feature flag set', async () => {
             const provisionTrainingProject = vi.fn(async () => ({
                 projectUuid: 'training-project',
                 created: true,
@@ -1321,12 +1306,6 @@ describe('ProjectService', () => {
             const learnService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
                 {
-                    featureFlagModel: {
-                        get: vi.fn(async () => ({
-                            id: FeatureFlags.EnableLearn,
-                            enabled: true,
-                        })),
-                    } as unknown as FeatureFlagModel,
                     provisionTrainingProject,
                 },
             );
@@ -1347,49 +1326,41 @@ describe('ProjectService', () => {
             });
         });
         test.each(['enable', 'copy', 'delete'] as const)(
-            'blocks %s when the requesting org has Learn disabled',
+            'blocks %s when the user cannot view Learn',
             async (operation) => {
-                const get = vi.fn(async () => ({
-                    id: FeatureFlags.EnableLearn,
-                    enabled: false,
-                }));
                 const provisionTrainingProject = vi.fn();
                 const learnService = getMockedProjectService(
                     lightdashConfigWithGoogleOAuthMock,
-                    {
-                        featureFlagModel: {
-                            get,
-                        } as unknown as FeatureFlagModel,
-                        provisionTrainingProject,
-                    },
+                    { provisionTrainingProject },
                 );
+                const noLearnUser = {
+                    ...learnUser,
+                    ability: new Ability<PossibleAbilities>([
+                        { action: 'manage', subject: 'Organization' },
+                    ]),
+                };
                 const operations = {
-                    enable: () => learnService.enableLearn(learnUser),
+                    enable: () => learnService.enableLearn(noLearnUser),
                     copy: () =>
                         learnService.createTrainingPreview(
-                            learnUser,
+                            noLearnUser,
                             'training-project',
                         ),
                     delete: () =>
                         learnService.deleteTrainingPreviews(
-                            learnUser,
+                            noLearnUser,
                             'training-project',
                         ),
                 };
                 await expect(operations[operation]()).rejects.toThrow(
-                    'Learn is not enabled for this organization',
+                    new ForbiddenError('You do not have access to Learn'),
                 );
-                expect(get).toHaveBeenCalledExactlyOnceWith({
-                    user: learnUser,
-                    featureFlagId: FeatureFlags.EnableLearn,
-                });
                 expect(provisionTrainingProject).not.toHaveBeenCalled();
             },
         );
 
         describe('sample documents in a new training copy', () => {
-            const withDocumentsFlag = (
-                enabled: boolean,
+            const createLearnService = (
                 seedTrainingCopyEnterpriseContent?: NonNullable<
                     Parameters<typeof getMockedProjectService>[1]
                 >['seedTrainingCopyEnterpriseContent'],
@@ -1399,10 +1370,7 @@ describe('ProjectService', () => {
                     featureFlagModel: {
                         get: vi.fn(async ({ featureFlagId }) => ({
                             id: featureFlagId,
-                            enabled:
-                                featureFlagId === FeatureFlags.Documents
-                                    ? enabled
-                                    : true,
+                            enabled: true,
                         })),
                     } as unknown as FeatureFlagModel,
                 });
@@ -1427,7 +1395,7 @@ describe('ProjectService', () => {
                 spaceModel.find.mockResolvedValueOnce([
                     { uuid: 'training-space' },
                 ] as never);
-                await seed(withDocumentsFlag(true));
+                await seed(createLearnService());
                 expect(spaceModel.find).toHaveBeenCalledWith({
                     projectUuid: 'copy',
                     path: TRAINING_SPACE.path,
@@ -1442,15 +1410,9 @@ describe('ProjectService', () => {
                 );
             });
 
-            test('adds nothing while documents are off', async () => {
-                await seed(withDocumentsFlag(false));
-                expect(spaceModel.find).not.toHaveBeenCalled();
-                expect(documentModel.create).not.toHaveBeenCalled();
-            });
-
             test('adds nothing when the copy has no seeded space', async () => {
                 spaceModel.find.mockResolvedValueOnce([]);
-                await seed(withDocumentsFlag(true));
+                await seed(createLearnService());
                 expect(documentModel.create).not.toHaveBeenCalled();
             });
 
@@ -1474,7 +1436,7 @@ describe('ProjectService', () => {
                     spaceModel.find.mockResolvedValueOnce([
                         { uuid: 'training-space' },
                     ] as never);
-                    await seedAll(withDocumentsFlag(true, enterprise));
+                    await seedAll(createLearnService(enterprise));
                     expect(documentModel.create).toHaveBeenCalledTimes(1);
                     expect(enterprise).toHaveBeenCalledExactlyOnceWith({
                         organizationUuid: 'organization-uuid',
@@ -1489,7 +1451,7 @@ describe('ProjectService', () => {
                     const failure = new Error('no documents table');
                     spaceModel.find.mockRejectedValueOnce(failure);
                     await expect(
-                        seedAll(withDocumentsFlag(true, enterprise)),
+                        seedAll(createLearnService(enterprise)),
                     ).resolves.toBeUndefined();
                     expect(enterprise).toHaveBeenCalledTimes(1);
                     expect(reported).toHaveBeenCalledExactlyOnceWith(failure);
@@ -1501,14 +1463,14 @@ describe('ProjectService', () => {
                         throw failure;
                     });
                     await expect(
-                        seedAll(withDocumentsFlag(false, enterprise)),
+                        seedAll(createLearnService(enterprise)),
                     ).resolves.toBeUndefined();
                     expect(reported).toHaveBeenCalledExactlyOnceWith(failure);
                 });
 
                 test('does nothing more on an instance without the Enterprise seed', async () => {
                     await expect(
-                        seedAll(withDocumentsFlag(false)),
+                        seedAll(createLearnService()),
                     ).resolves.toBeUndefined();
                     expect(reported).not.toHaveBeenCalled();
                 });
@@ -1537,17 +1499,11 @@ describe('ProjectService', () => {
             );
         });
 
-        test('still requires org admin permissions when Learn is enabled', async () => {
+        test('still requires org admin permissions', async () => {
             const provisionTrainingProject = vi.fn();
             const learnService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
                 {
-                    featureFlagModel: {
-                        get: vi.fn(async () => ({
-                            id: FeatureFlags.EnableLearn,
-                            enabled: true,
-                        })),
-                    } as unknown as FeatureFlagModel,
                     provisionTrainingProject,
                 },
             );
@@ -3822,14 +3778,7 @@ describe('ProjectService', () => {
             ...overrides,
         });
         const learnService = () =>
-            getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {
-                featureFlagModel: {
-                    get: vi.fn(async () => ({
-                        id: FeatureFlags.EnableLearn,
-                        enabled: true,
-                    })),
-                } as unknown as FeatureFlagModel,
-            });
+            getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {});
 
         beforeEach(() => {
             projectModel.updateExpiresAt.mockClear();
@@ -4075,14 +4024,7 @@ describe('ProjectService', () => {
             async ({ credentials, organizationWarehouseCredentialsUuid }) => {
                 const learnService = getMockedProjectService(
                     lightdashConfigWithGoogleOAuthMock,
-                    {
-                        featureFlagModel: {
-                            get: vi.fn(async () => ({
-                                id: FeatureFlags.EnableLearn,
-                                enabled: true,
-                            })),
-                        } as unknown as FeatureFlagModel,
-                    },
+                    {},
                 );
                 projectModel.get.mockResolvedValueOnce({
                     ...trainingProject,

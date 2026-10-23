@@ -158,6 +158,9 @@ type AiAgentProps = Omit<
     // Applied to threads started here; an existing thread keeps its own
     binding?: AiThreadBinding;
     threadContext?: string;
+    // Keeps the agent on its thread: dashboard and chart links render static
+    // and "Explore from here" is hidden
+    disableNavigation?: boolean;
     // Beta: 'native' renders the agent in the host page instead of an iframe
     renderMode?: 'iframe' | 'native';
 };
@@ -355,6 +358,7 @@ const getAiAgentPath = ({
 
 const getAiAgentEmbedUrl = ({
     agentUuid,
+    disableNavigation,
     instanceUrl,
     projectUuid,
     targetOrigin,
@@ -364,6 +368,7 @@ const getAiAgentEmbedUrl = ({
     token,
 }: {
     agentUuid: string;
+    disableNavigation: boolean;
     instanceUrl: string;
     projectUuid: string;
     targetOrigin?: string;
@@ -385,7 +390,7 @@ const getAiAgentEmbedUrl = ({
         url.searchParams.set('targetOrigin', targetOrigin);
     }
 
-    url.hash = buildEmbedHash(token, threadSetup);
+    url.hash = buildEmbedHash(token, threadSetup, disableNavigation);
     return url.toString();
 };
 
@@ -1080,6 +1085,7 @@ const Chart: FC<ChartProps> = ({
 const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     agentUuid,
     binding,
+    disableNavigation = false,
     instanceUrl,
     onError,
     onEvent,
@@ -1155,10 +1161,11 @@ const IframeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     return (
         <iframe
             // A hash-only src change doesn't reload the embed, so remount it
-            key={buildEmbedHash('', threadSetup)}
+            key={buildEmbedHash('', threadSetup, disableNavigation)}
             title="AI agent"
             src={getAiAgentEmbedUrl({
                 agentUuid,
+                disableNavigation,
                 instanceUrl,
                 projectUuid: tokenContext.projectUuid,
                 targetOrigin,
@@ -1207,6 +1214,7 @@ const AiAgentRouteSync: FC<{ path: string; hasThread: boolean }> = ({
 
 const NativeAiAgentLayout: FC<{
     agentUuid: string;
+    disableNavigation: boolean;
     embedToken: string;
     threadSetup: EmbedAiAgentThreadSetup | null;
     hasThread: boolean;
@@ -1216,6 +1224,7 @@ const NativeAiAgentLayout: FC<{
     projectUuid: string;
 }> = ({
     agentUuid,
+    disableNavigation,
     embedToken,
     hasThread,
     onEvent,
@@ -1256,6 +1265,7 @@ const NativeAiAgentLayout: FC<{
             onEvent={onEvent}
             onAiAgentThreadChange={handleThreadChange}
             aiAgentThreadSetup={threadSetup}
+            aiAgentNavigationDisabled={disableNavigation}
         >
             <AiAgentsCoreProvider>
                 <AiAgentRouteSync path={path} hasThread={hasThread} />
@@ -1277,6 +1287,7 @@ const toStableThreadBinding = (
 const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
     agentUuid,
     binding,
+    disableNavigation = false,
     instanceUrl,
     onError,
     onEvent,
@@ -1345,6 +1356,7 @@ const NativeAiAgent: FC<Omit<AiAgentProps, 'renderMode'>> = ({
                             element={
                                 <NativeAiAgentLayout
                                     agentUuid={agentUuid}
+                                    disableNavigation={disableNavigation}
                                     embedToken={tokenContext.token}
                                     hasThread={threadUuid !== undefined}
                                     onEvent={onEvent}

@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, ProjectType } from '@lightdash/common';
+import { ProjectType } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -34,7 +34,6 @@ import ForbiddenPanel from '../../components/ForbiddenPanel';
 import { getGreeting } from '../../ee/features/homepageBuilder/greeting';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import { useProjects } from '../../hooks/useProjects';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -161,8 +160,6 @@ const ModuleCard: FC<{
  */
 const LearnPage: FC = () => {
     const { user } = useApp();
-    const { data: learnFlag, isLoading: isLearnFlagLoading } =
-        useServerFeatureFlag(FeatureFlags.EnableLearn);
     const { data: projects } = useProjects();
     const trainingProject = projects?.find(
         (project) => project.type === ProjectType.TRAINING,
@@ -329,7 +326,7 @@ const LearnPage: FC = () => {
     );
 
     // One view per visit to the library, once the page knows what it is
-    // showing: the projects, the instance switch, and the gates that decide
+    // showing: the projects, the gates that decide
     // which modules are in the catalogue (they answer after the projects
     // do, and the counts below would be short without them), and the
     // progress the instance holds. The redirects
@@ -340,8 +337,8 @@ const LearnPage: FC = () => {
     const trackedViewRef = useRef(false);
     useEffect(() => {
         if (trackedViewRef.current) return;
-        if (!projects || !learnFlag || !isSettled || !isProgressSettled) return;
-        if (previewRedirect || !learnFlag.enabled || !canViewLearn) return;
+        if (!projects || !isSettled || !isProgressSettled) return;
+        if (previewRedirect || !canViewLearn) return;
         trackedViewRef.current = true;
         track({
             name: EventName.LEARN_LIBRARY_VIEWED,
@@ -363,7 +360,6 @@ const LearnPage: FC = () => {
         });
     }, [
         projects,
-        learnFlag,
         isSettled,
         isProgressSettled,
         previewRedirect,
@@ -376,21 +372,6 @@ const LearnPage: FC = () => {
         track,
     ]);
 
-    if (isLearnFlagLoading) return null;
-    // Learn switched off for the org: the route falls through to the
-    // project's home.
-    if (!learnFlag?.enabled) {
-        return (
-            <Navigate
-                to={
-                    projectRoute
-                        ? `/projects/${projectRoute.project.projectUuid}/home`
-                        : '/projects'
-                }
-                replace
-            />
-        );
-    }
     if (!canViewLearn) return <ForbiddenPanel />;
     if (previewRedirect) return <Navigate to={previewRedirect} replace />;
     if (projects && !trainingProject) {

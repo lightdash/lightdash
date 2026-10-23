@@ -136,7 +136,7 @@ export const getSearchFieldValues = ({
                             ? ''
                             : `\nMatching value for ${JSON.stringify(args.query)}: ${JSON.stringify(resolved)}. Use the original field and filter operator.`) +
                         (decisions && values.length === 0 && args.query.trim()
-                            ? '\nNo matching values were observed. This does not restrict permitted filter literals. Preserve an explicitly requested literal exclusion even when it currently removes no rows; do not drop it or substitute other categories. Clarify unresolved meaning instead of guessing.'
+                            ? '\nNo matching values were observed. This does not restrict permitted filter literals: keep an explicitly requested exclusion even though it currently removes no rows, say so, and do not substitute other categories.'
                             : ''),
                     metadata: {
                         status: 'success' as const,

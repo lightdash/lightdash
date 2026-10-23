@@ -438,18 +438,54 @@ const sanitizeChartForDownload = (
           }
         : chart;
 
+// NAME_MAX shared by ext4, APFS and NTFS; slugs are ASCII so bytes equal characters
+const MAX_FILE_NAME_LENGTH = 255;
+
+const getSlugTooLongWarning = (
+    contentType: ContentAsCodeType['type'],
+    slug: string,
+): string => {
+    switch (contentType) {
+        case 'chart':
+        case 'dashboard':
+            return `Skipped ${contentType} "${slug}": the slug is too long to use as a file name. Shorten it with: lightdash slug-update --type ${contentType} --from "${slug}" --to <new-slug>`;
+        case 'sqlChart':
+            return `Skipped SQL chart "${slug}": the slug is too long to use as a file name.`;
+        default:
+            return assertUnreachable(contentType, 'getSlugTooLongWarning');
+    }
+};
+
 const writeContent = async (
     contentAsCode: ContentAsCodeType,
     outputDir: string,
     languageMap: boolean,
     stripPivotSeries: boolean = false,
-): Promise<MetadataEntry> => {
+): Promise<MetadataEntry | null> => {
     const content =
         contentAsCode.type === 'chart'
             ? sanitizeChartForDownload(contentAsCode.content, stripPivotSeries)
             : contentAsCode.content;
     const extension = getFileExtension(contentAsCode.type);
-    const itemPath = path.join(outputDir, `${content.slug}${extension}`);
+    const writesTranslationMap =
+        contentAsCode.translationMap !== undefined && languageMap;
+    const fileNames = [
+        `${content.slug}${extension}`,
+        ...(writesTranslationMap ? [`${content.slug}.language.map.yml`] : []),
+    ];
+    if (
+        fileNames.some(
+            (fileName) => Buffer.byteLength(fileName) > MAX_FILE_NAME_LENGTH,
+        )
+    ) {
+        console.info(
+            styles.warning(
+                getSlugTooLongWarning(contentAsCode.type, content.slug),
+            ),
+        );
+        return null;
+    }
+    const itemPath = path.join(outputDir, fileNames[0]);
     // Strip timestamps — they go to .lightdash-metadata.json instead
     const { updatedAt, downloadedAt, ...cleanContent } = content as
         | ChartAsCode
@@ -461,7 +497,7 @@ const writeContent = async (
     });
     await fs.writeFile(itemPath, chartYml);
 
-    if (contentAsCode.translationMap && languageMap) {
+    if (writesTranslationMap) {
         const translationPath = path.join(
             outputDir,
             `${content.slug}.language.map.yml`,
@@ -828,7 +864,7 @@ const writeSpaceContent = async <
             languageMap,
             stripPivotSeries,
         );
-        entries.push(entry);
+        if (entry) entries.push(entry);
     }
     return entries;
 };
@@ -2378,7 +2414,8 @@ export const downloadHandler = async (
                             options.rootSpaces,
                             output.updateActive,
                         ),
-                    detail: ({ total }) => `${total} downloaded`,
+                    detail: ({ metadataEntries }) =>
+                        `${metadataEntries.length} downloaded`,
                 });
                 allMetadataEntries = [
                     ...allMetadataEntries,
@@ -2406,7 +2443,8 @@ export const downloadHandler = async (
                                 options.rootSpaces,
                                 output.updateActive,
                             ),
-                        detail: ({ total }) => `${total} downloaded`,
+                        detail: ({ metadataEntries }) =>
+                            `${metadataEntries.length} downloaded`,
                     });
                 allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
 
@@ -2446,7 +2484,8 @@ export const downloadHandler = async (
                             options.rootSpaces,
                             output.updateActive,
                         ),
-                    detail: ({ total }) => `${total} downloaded`,
+                    detail: ({ metadataEntries }) =>
+                        `${metadataEntries.length} downloaded`,
                 }));
                 allMetadataEntries = [...allMetadataEntries, ...dashMeta];
 
@@ -2460,7 +2499,6 @@ export const downloadHandler = async (
                         `${chartSlugs.length} dashboard dependencies`,
                     );
                     const {
-                        total: regularCharts,
                         chartTableNames: linkedChartTableNames,
                         metadataEntries: linkedChartMeta,
                         chartTypeRefs: linkedChartVizRefs,
@@ -2486,7 +2524,7 @@ export const downloadHandler = async (
                         ...linkedChartVizRefs,
                     ];
 
-                    const { total: sqlCharts, metadataEntries: linkedSqlMeta } =
+                    const { metadataEntries: linkedSqlMeta } =
                         await downloadContent(
                             chartSlugs,
                             'sqlCharts',
@@ -2506,7 +2544,7 @@ export const downloadHandler = async (
                     ];
 
                     output.completeItem(
-                        `${regularCharts + sqlCharts} downloaded`,
+                        `${linkedChartMeta.length + linkedSqlMeta.length} downloaded`,
                     );
 
                     // Virtual views the linked charts are built on. Skipped
@@ -5234,5 +5272,6 @@ export const testHelpers = {
     upsertSpaces,
     upsertVirtualViews,
     validateSpaceIdentity,
+    writeSpaceContent,
     writeSpaceFiles,
 };

@@ -1776,10 +1776,7 @@ export class DocumentService extends BaseService {
                     try {
                         await this.assertProjectAccess(account, projectUuid);
                     } catch (error) {
-                        if (
-                            error instanceof NotFoundError ||
-                            error instanceof ForbiddenError
-                        ) {
+                        if (error instanceof NotFoundError) {
                             return [];
                         }
                         throw error;
@@ -2373,16 +2370,6 @@ export class DocumentService extends BaseService {
             )
         ) {
             throw new NotFoundError('Project not found');
-        }
-        const flag = await this.dependencies.featureFlagModel.get({
-            featureFlagId: FeatureFlags.Documents,
-            user: {
-                userUuid: account.user.userUuid,
-                organizationUuid: project.organizationUuid,
-            },
-        });
-        if (!flag.enabled) {
-            throw new ForbiddenError('Documents are not enabled');
         }
         return project;
     }

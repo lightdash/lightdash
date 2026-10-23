@@ -7,7 +7,7 @@ import {
     type FilterableDimension,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { getLinkCandidates } from './linkCandidates';
+import { getLinkCandidates, getLinkDefault } from './linkCandidates';
 
 const dim = (
     table: string,
@@ -169,5 +169,66 @@ describe('getLinkCandidates', () => {
                 fieldsMap,
             ),
         ).toEqual([]);
+    });
+});
+
+describe('getLinkDefault', () => {
+    const target = (field: FilterableDimension) => ({
+        fieldId: `${field.table}_${field.name}`,
+        tableName: field.table,
+    });
+    const statusRule = rule({
+        target: { fieldId: 'orders_status', tableName: 'orders' },
+    });
+    const paymentsStatus = dim('payments', 'status', DimensionType.STRING);
+    const map = {
+        ...fieldsMap,
+        payments_method: paymentsMethod,
+        payments_status: paymentsStatus,
+    };
+
+    it('chooses nothing for a lone candidate that is another field', () => {
+        expect(
+            getLinkDefault(statusRule, [target(paymentsMethod)], [tile], map),
+        ).toBeNull();
+    });
+
+    it('chooses the candidate whose label is the filter field label', () => {
+        expect(
+            getLinkDefault(
+                statusRule,
+                [target(paymentsMethod), target(paymentsStatus)],
+                [tile],
+                map,
+            ),
+        ).toBe('payments_status');
+    });
+
+    it("chooses one of the filter's own fields", () => {
+        const peerTile = { ...tile, uuid: 'tile-2' };
+        const withPeer = rule({
+            target: { fieldId: 'orders_status', tableName: 'orders' },
+            tileTargets: { 'tile-2': target(paymentsMethod) },
+        });
+        expect(
+            getLinkDefault(
+                withPeer,
+                [target(paymentsMethod)],
+                [tile, peerTile],
+                map,
+            ),
+        ).toBe('payments_method');
+    });
+
+    it('chooses nothing when two candidates match', () => {
+        const refundsStatus = dim('refunds', 'status', DimensionType.STRING);
+        expect(
+            getLinkDefault(
+                statusRule,
+                [target(paymentsStatus), target(refundsStatus)],
+                [tile],
+                { ...map, refunds_status: refundsStatus },
+            ),
+        ).toBeNull();
     });
 });

@@ -1,6 +1,7 @@
 import {
     ContentType,
     generateSlug,
+    MAX_CONTENT_SLUG_LENGTH,
     type ApiError,
     type ApiSuccessEmpty,
     type ContentSlugRenameRequest,
@@ -51,7 +52,10 @@ const ContentSlugRenameModal: FC<Props> = ({
                     .string()
                     .trim()
                     .min(1, 'Enter a slug')
-                    .max(255, 'Slugs must be 255 characters or fewer')
+                    .max(
+                        MAX_CONTENT_SLUG_LENGTH,
+                        `Slugs must be ${MAX_CONTENT_SLUG_LENGTH} characters or fewer`,
+                    )
                     .refine(
                         (value) => generateSlug(value) === value,
                         'Use lowercase letters, numbers, and hyphens only',
@@ -140,7 +144,7 @@ const ContentSlugRenameModal: FC<Props> = ({
                         label="New slug"
                         description="Lowercase letters, numbers, and hyphens"
                         data-autofocus
-                        maxLength={255}
+                        maxLength={MAX_CONTENT_SLUG_LENGTH}
                         disabled={renameMutation.isLoading}
                         onFocus={(event) => event.currentTarget.select()}
                         {...form.getInputProps('slug')}

@@ -574,6 +574,10 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
             tags: Record<string, string>;
             timezone?: string;
             maximumBytesBilled?: number;
+            onPhaseTiming?: (
+                phase: WarehouseQueryPhase,
+                durationMs: number,
+            ) => void;
         },
     ): Promise<void>;
 

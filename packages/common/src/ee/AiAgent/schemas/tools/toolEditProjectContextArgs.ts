@@ -3,10 +3,9 @@ import { aiProjectContextTypedObjectRefSchema } from '../../projectContext';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
 
 export const TOOL_EDIT_PROJECT_CONTEXT_DESCRIPTION = [
-    "Open or update a pull request that changes this project's Lightdash project context — the lightdash.project_context.yml living document of business definitions and routing/context facts the AI agents read before answering.",
-    'Use this ONLY to add or refine a durable, project-specific fact: a business definition or acronym ("HR" = high-risk cohort, not human resources), routing/join guidance about which explore answers a question, or an object-scoped context note — something that would prevent a class of wrong answers in future turns.',
-    'Do NOT use this for dbt / semantic-layer YAML changes (use editDbtProject for those) or for read-only questions.',
-    'The change is applied deterministically via a GitHub-API merge of the YAML — there is no sandbox — and a pull request is opened or updated. The call is synchronous. Treat the result as your own work when you report it to the user.',
+    "Open or update a pull request that adds or changes one entry in this project's context (`lightdash.project_context.yml`), the business definitions and routing facts agents read before answering.",
+    'Use it for a durable, project-specific fact that would prevent a class of wrong answers: a definition or acronym ("HR" = the high-risk cohort, not human resources), which explore or join answers a kind of question, or a note about one object. It does not change dbt or semantic-layer YAML.',
+    'The YAML is changed directly, without a sandbox, and the call returns once the pull request is open; report it as your own work.',
 ].join(' ');
 
 // Mirrors AiAgentJudgeProjectContextEntry — the structured entry the

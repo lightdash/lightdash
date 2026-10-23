@@ -87,7 +87,7 @@ const renderMenu = (
 describe('BrowseMenu', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        setFlags([FeatureFlags.EnableDataApps, FeatureFlags.Documents]);
+        setFlags([FeatureFlags.EnableDataApps]);
         vi.mocked(useSpaceSummaries).mockReturnValue({
             data: [],
             isInitialLoading: false,

@@ -1257,7 +1257,6 @@ export class ServiceRepository
                         provisionTrainingProject({
                             user,
                             projectService,
-                            featureFlagModel: this.models.getFeatureFlagModel(),
                             projectModel: this.models.getProjectModel(),
                             onboardingModel: this.models.getOnboardingModel(),
                             catalogService: this.getCatalogService(),
@@ -1574,7 +1573,6 @@ export class ServiceRepository
             'directAccessService',
             () =>
                 new DirectAccessService({
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     directAccessModel: this.models.getDirectAccessModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                     directAccessFeatureGate: this.getDirectAccessFeatureGate(),
@@ -1593,7 +1591,6 @@ export class ServiceRepository
             'spacePermissionService',
             () =>
                 new SpacePermissionService({
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     spaceModel: this.models.getSpaceModel(),
                     spacePermissionModel: this.models.getSpacePermissionModel(),
                     appAccessModel: this.models.getAppAccessModel(),
@@ -1945,7 +1942,6 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     learnWorkspaceModel: this.models.getLearnWorkspaceModel(),
                     projectModel: this.models.getProjectModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     personalAccessTokenService:
                         this.getPersonalAccessTokenService(),
                     userService: this.getUserService(),
@@ -1959,7 +1955,6 @@ export class ServiceRepository
             'contentService',
             () =>
                 new ContentService({
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     documentService: this.getDocumentService(),
                     analytics: this.context.lightdashAnalytics,
                     projectModel: this.models.getProjectModel(),

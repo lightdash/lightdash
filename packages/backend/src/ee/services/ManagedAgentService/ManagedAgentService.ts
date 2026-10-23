@@ -3,6 +3,7 @@ import {
     AGENT_SUGGESTIONS_SPACE_SLUG,
     AgentActorSurface,
     AiAccessRefusedError,
+    applyNewChartDefaults,
     assertUnreachable,
     computeAutopilotExcludedSpaceUuids,
     ConflictError,
@@ -1927,10 +1928,7 @@ export class ManagedAgentService extends BaseService {
         const agent = renderAutopilotAgent({
             toolSettings,
             policy: { ...policy, aggression: runtimeInfo.effectiveCleanupMode },
-            preAggregatesEnabled: await isPreAggregatesEnabled(
-                this.featureFlagModel,
-                organizationUuid,
-            ),
+            preAggregatesEnabled: isPreAggregatesEnabled(this.lightdashConfig),
         });
         const {
             copilotConfig,
@@ -3454,8 +3452,9 @@ chartConfig:
             description: description ?? null,
             tableName: chartAsCode.tableName as string,
             metricQuery: chartAsCode.metricQuery as MetricQuery,
-            chartConfig: (chartConfig ??
-                chartAsCode.chartConfig) as ChartConfig,
+            chartConfig: applyNewChartDefaults(
+                (chartConfig ?? chartAsCode.chartConfig) as ChartConfig,
+            ),
             tableConfig: (chartAsCode.tableConfig as {
                 columnOrder: string[];
             }) ?? {
@@ -4494,18 +4493,11 @@ chartConfig:
         projectUuid: string,
         input: AutopilotToolInput<'get_preagg_candidates'>,
     ): Promise<string> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
-        if (
-            !(await isPreAggregatesEnabled(
-                this.featureFlagModel,
-                organizationUuid,
-            ))
-        ) {
+        if (!isPreAggregatesEnabled(this.lightdashConfig)) {
             return JSON.stringify({
                 enabled: false,
                 message:
-                    'Pre-aggregates are not enabled for this organization, so there is nothing to check.',
+                    'Pre-aggregates are not enabled on this instance, so there is nothing to check.',
             });
         }
 

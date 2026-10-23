@@ -780,9 +780,8 @@ export class OrgAiCopilotConfigResolver {
 
     /**
      * The instance decision client for an organization, or undefined when
-     * decisions must not run for it: no instance key, the org brings its own
-     * provider keys, or the AiDecisions flag is off for it. The one gate every
-     * decision call site goes through.
+     * decisions must not run for it: no instance key, or the org brings its
+     * own provider keys. The one gate every decision call site goes through.
      */
     async getDecisionClient(
         organizationUuid: string | null | undefined,
@@ -795,24 +794,25 @@ export class OrgAiCopilotConfigResolver {
         if (await this.isOrgOnOwnProviderKeys(organizationUuid, projectUuid)) {
             return undefined;
         }
-        const { enabled } = await this.featureFlagModel.get({
-            user: organizationUuid ? { organizationUuid } : undefined,
-            featureFlagId: FeatureFlags.AiDecisions,
-        });
-        return enabled ? client : undefined;
+        return client;
     }
 
     /**
-     * True when the org routes AI through its own Bedrock config. Auxiliary AI
-     * that can only run on the instance provider is skipped for these orgs: the
-     * point of choosing a Bedrock region is that content does not leave it.
+     * True when the org, or the project's pinned credential, routes AI through
+     * its own Bedrock config. Auxiliary AI that can only run on the instance
+     * provider is skipped for these orgs: the point of choosing a Bedrock
+     * region is that content does not leave it. `projectUuid` is required for
+     * the same reason as in `AiConfigScope`: a credential can serve a project
+     * without being the organization default, so a caller must state that it
+     * has no project rather than silently checking only the org default.
      */
     async isOrgBedrockRouted(
         organizationUuid: string | null | undefined,
+        projectUuid: string | null,
     ): Promise<boolean> {
         if (!organizationUuid) return false;
         const orgKeys = await this.resolveOrgProviderKeys(organizationUuid, {
-            projectUuid: null,
+            projectUuid,
         });
         return Boolean(orgKeys?.bedrock);
     }

@@ -23,6 +23,8 @@ export type AiCallAttribution = {
     userUuid?: string | null;
     // Data app the call ran for (runtime analysis, generation).
     appUuid?: string | null;
+    // Dashboard the call ran for (runtime analysis).
+    dashboardUuid?: string | null;
     model?: string | null;
     provider?: string | null;
     // Whether the call ran on a Lightdash-managed key or the org's own key.
@@ -101,6 +103,7 @@ export const ATTRIBUTION_KEYS = [
     'promptUuid',
     'userUuid',
     'appUuid',
+    'dashboardUuid',
     'model',
     'provider',
     'keyManagement',

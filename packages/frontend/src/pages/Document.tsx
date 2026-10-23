@@ -1,6 +1,5 @@
 import {
     ContentReviewContentType,
-    FeatureFlags,
     type Document,
     type UuidOrSlug,
 } from '@lightdash/common';
@@ -35,7 +34,6 @@ import { useCanEditDocument } from '../features/documents/useCanEditDocument';
 import { useDocument } from '../features/documents/useDocument';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 
 const DocumentEditor = lazy(
     () => import('../features/documents/DocumentEditor'),
@@ -198,11 +196,10 @@ const DocumentPage = () => {
     const { documentUuidOrSlug } = useParams<{
         documentUuidOrSlug: UuidOrSlug;
     }>();
-    const flag = useServerFeatureFlag(FeatureFlags.Documents);
-    if (!projectUuid || flag.isInitialLoading) {
+    if (!projectUuid) {
         return <EmptyStateLoader my="xl" title="Loading document" />;
     }
-    if (flag.isError || !flag.data?.enabled || !documentUuidOrSlug) {
+    if (!documentUuidOrSlug) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
     return (

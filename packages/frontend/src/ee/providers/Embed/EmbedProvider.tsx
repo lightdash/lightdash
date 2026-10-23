@@ -70,6 +70,7 @@ type Props = {
     appUuid?: string;
     onAiAgentThreadChange?: (change: EmbedAiAgentThreadChange) => void;
     aiAgentThreadSetup?: EmbedAiAgentThreadSetup | null;
+    aiAgentNavigationDisabled?: boolean;
 };
 
 const decodeEmbedJwtPayload = (
@@ -113,6 +114,7 @@ const EmbedProviderContent: FC<React.PropsWithChildren<Props>> = ({
     appUuid,
     onAiAgentThreadChange,
     aiAgentThreadSetup: aiAgentThreadSetupFromProps,
+    aiAgentNavigationDisabled: aiAgentNavigationDisabledFromProps,
 }) => {
     const embedToken =
         encodedToken || parseEmbedHash(window.location.hash).token;
@@ -160,13 +162,17 @@ const EmbedProviderContent: FC<React.PropsWithChildren<Props>> = ({
         encodedToken ? null : parseEmbedTimezoneParam(),
     );
     // Read once, before the hash is stripped; SDK embeds pass it as a prop
-    const [aiAgentThreadSetupFromHash] = useState(() =>
-        encodedToken
-            ? null
-            : parseEmbedHash(window.location.hash).aiAgentThreadSetup,
+    const [embedHashOptions] = useState(() =>
+        encodedToken ? null : parseEmbedHash(window.location.hash),
     );
     const aiAgentThreadSetup =
-        aiAgentThreadSetupFromProps ?? aiAgentThreadSetupFromHash;
+        aiAgentThreadSetupFromProps ??
+        embedHashOptions?.aiAgentThreadSetup ??
+        null;
+    const aiAgentNavigationDisabled =
+        aiAgentNavigationDisabledFromProps ??
+        embedHashOptions?.aiAgentNavigationDisabled ??
+        false;
     const embed =
         mode === 'direct'
             ? getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)
@@ -271,6 +277,7 @@ const EmbedProviderContent: FC<React.PropsWithChildren<Props>> = ({
             timezone: embedTimezone,
             onAiAgentThreadChange,
             aiAgentThreadSetup,
+            aiAgentNavigationDisabled,
         };
     }, [
         embed?.projectUuid,
@@ -300,6 +307,7 @@ const EmbedProviderContent: FC<React.PropsWithChildren<Props>> = ({
         embedTimezone,
         onAiAgentThreadChange,
         aiAgentThreadSetup,
+        aiAgentNavigationDisabled,
     ]);
 
     return (

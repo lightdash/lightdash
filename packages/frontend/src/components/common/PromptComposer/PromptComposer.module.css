@@ -426,6 +426,11 @@
     min-width: 0;
 }
 
+/* Call sites whose left section scrolls set this to 0 so the submit controls keep their width. */
+.toolbarSection:last-child {
+    flex-shrink: var(--composer-toolbar-right-shrink, 1);
+}
+
 .inlineActions {
     display: flex;
     align-items: center;

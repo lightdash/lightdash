@@ -61,7 +61,7 @@ const buildJob = (overrides: Partial<Job> = {}): Job =>
         ...overrides,
     }) as Job;
 
-type ApiCall = { url: string; method: string };
+type ApiCall = { url: string; method: string; body?: string };
 
 const routeApi = (handlers: {
     activeJob: () => unknown;
@@ -69,8 +69,8 @@ const routeApi = (handlers: {
     createProject?: () => unknown;
 }) => {
     const calls: ApiCall[] = [];
-    mockApi.mockImplementation(({ url, method }: ApiCall) => {
-        calls.push({ url, method });
+    mockApi.mockImplementation(({ url, method, body }: ApiCall) => {
+        calls.push({ url, method, body });
         if (url === ACTIVE_JOB_URL) {
             return Promise.resolve(handlers.activeJob());
         }
@@ -101,6 +101,19 @@ const renderFlow = () =>
         </MemoryRouter>,
     );
 
+const renderWarehouseOnlyProjectFlow = () =>
+    renderWithProviders(
+        <MemoryRouter initialEntries={['/createProject']}>
+            <ActiveJobProvider>
+                <CreateProjectConnection
+                    isCreatingFirstProject={false}
+                    selectedWarehouse={WarehouseTypes.POSTGRES}
+                    warehouseOnly
+                />
+            </ActiveJobProvider>
+        </MemoryRouter>,
+    );
+
 const renderProjectFlow = () =>
     renderWithProviders(
         <MemoryRouter initialEntries={['/projects/new']}>
@@ -122,6 +135,57 @@ const fillConnectionForm = async () => {
     await user.type(screen.getByLabelText(/^Schema/), 'jaffle');
     return user;
 };
+
+const getPostedProjectName = (calls: ApiCall[]) => {
+    const createCall = calls.find(({ url }) => url === CREATE_PROJECT_URL);
+    return createCall?.body ? JSON.parse(createCall.body).name : undefined;
+};
+
+describe('CreateProjectConnection project name', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('asks for a project name when connecting a warehouse to an organization that already has projects', async () => {
+        const calls = routeApi({ activeJob: () => null });
+
+        renderWarehouseOnlyProjectFlow();
+
+        const nameInput = await screen.findByLabelText(/^Project name/);
+        expect(nameInput).toHaveValue('');
+
+        const user = await fillConnectionForm();
+        const submit = screen.getByRole('button', { name: 'Test & save' });
+        expect(submit).toBeDisabled();
+
+        await user.type(nameInput, 'Finance warehouse');
+        expect(submit).toBeEnabled();
+
+        await user.click(submit);
+
+        await waitFor(() =>
+            expect(getPostedProjectName(calls)).toBe('Finance warehouse'),
+        );
+    });
+
+    it('names the first project after the organization without asking', async () => {
+        const calls = routeApi({ activeJob: () => null });
+
+        renderFlow();
+
+        await screen.findByLabelText(/^Host/);
+        expect(
+            screen.queryByLabelText(/^Project name/),
+        ).not.toBeInTheDocument();
+
+        const user = await fillConnectionForm();
+        await user.click(screen.getByRole('button', { name: 'Test & save' }));
+
+        await waitFor(() =>
+            expect(getPostedProjectName(calls)).toBe('Jaffle Shop'),
+        );
+    });
+});
 
 describe('CreateProjectConnection in-flight job recovery', () => {
     beforeEach(() => {

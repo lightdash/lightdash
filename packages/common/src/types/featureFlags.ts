@@ -20,8 +20,6 @@ export enum FeatureFlags {
     MultiConnectionProjects = 'multi-connection-projects',
     /** Extra warehouse connections of a different type to the project's original connection. */
     MixedWarehouseConnections = 'mixed-warehouse-connections',
-    /** Independent Documents containing narrative and saved chart definitions. */
-    Documents = 'documents',
     /** Backend-provisioned usage analytics projects. */
     AnalyticsProject = 'analytics-project',
     /* Show user groups */
@@ -110,10 +108,6 @@ export enum FeatureFlags {
      * sandbox provider, but still keeps installed chart types usable.
      */
     EnableDataApps = 'enable-data-apps',
-    // Enable the Learn library, walkthroughs and training project per org.
-    // On by default on Lightdash Cloud, off by default for self-hosted.
-    EnableLearn = 'enable-learn',
-
     /**
      * Keeps a preview's copied BigQuery SSO credential in step with its
      * upstream project. On by default; the flag is a kill switch only.
@@ -154,6 +148,14 @@ export enum FeatureFlags {
     EnableDataAppAnalysis = 'enable-data-app-analysis',
 
     /**
+     * Per-organization rollout of AI analysis on classic dashboards. Gates the
+     * dashboard analysis endpoints and entry points; shares the org's
+     * `dataAppRuntimeAiEnabled` consent setting and daily analysis budgets
+     * with data-app analysis. Disabled by default.
+     */
+    EnableDashboardAnalysis = 'enable-dashboard-analysis',
+
+    /**
      * Per-organization gate for automatic (obscured) data app thumbnail
      * capture and its settings card. Disabled by default.
      */
@@ -171,12 +173,6 @@ export enum FeatureFlags {
      * Enable Autopilot project health agent.
      */
     AiAutopilot = 'ai-autopilot',
-
-    /**
-     * Legacy no-op retained so existing self-hosted feature flag configuration
-     * remains valid. Deep Research now follows AI Copilot availability.
-     */
-    AiDeepResearch = 'ai-deep-research',
 
     /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
@@ -396,15 +392,6 @@ export enum FeatureFlags {
      * experiment, off by default.
      */
     AiAgentBattleMode = 'ai-agent-battle-mode',
-    /** @deprecated No longer read; replaced by AiDecisions. */
-    AiAgentFastDecisions = 'ai-agent-fast-decisions',
-    /**
-     * Organization-scoped: whether the instance decision provider (Jev) may
-     * run for an organization. On by default wherever a decision key is set,
-     * so a deployment can store a default of off and opt organizations back
-     * in through Console. Never turns decisions on without a key.
-     */
-    AiDecisions = 'ai-decisions',
     /**
      * Organization-scoped: keep dbt's partial_parse.msgpack from a compile on
      * the worker and seed the next compile of the same project and dbt source

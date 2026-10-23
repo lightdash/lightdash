@@ -19,15 +19,18 @@ export const GREP_FIELDS_DESCRIPTION = ({
     return `Tool: ${grepFields}
 
 Purpose:
-Find which explores and fields can answer a question by grepping an in-memory, annotated view of the project's fields (names, labels, descriptions, hints and tags). Returns matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore.
+Find which explores and fields can answer a data question by grepping the project's field catalog (names, labels, descriptions, hints and tags). ${grepFields} tells you which fields exist; ${getMetadata} gives the detail needed to query them.
 
-Use this as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). Do NOT call this for questions about existing dashboards/charts (use ${findContent}).
+When to use:
+- Use this to discover the fields for a data question (counts, totals, breakdowns, trends, "what is", "show me", "how many"). For questions about existing dashboards, charts or Data Apps, use ${findContent} instead.
 
-Each pattern is a case-insensitive keyword pattern (not a full regex): use \`|\` to OR synonyms ("revenue|sales") and a space or \`.*\` between words to require all of them ("order.*status" matches fields mentioning both "order" and "status"). Pass 1–5 patterns in a SINGLE call covering the different angles of the question — they run together so you see all results at once instead of grepping one at a time. Start broad with meaningful keywords (e.g. ["revenue|sales", "country|region", "segment|tier"]) and narrow from there — long natural-language phrases will not match. If results are empty, try synonyms or broader patterns before giving up. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.
+Returns:
+Matching fields as \`explore/fieldId  [kind type]\` lines grouped by explore. Pick the single explore that answers at the right grain before building a query.
+- A description or hint ending in "...(truncated)" is incomplete; read the full text with ${getMetadata} before using that field.
+- A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters; read their definitions with ${getMetadata} on its explore before querying it.
 
-A description or hint ending in "...(truncated)" is incomplete — call ${getMetadata} to read the full text before using that field.
-
-A field annotated with \`⚠params: <names>\` depends on those Lightdash parameters — what it returns changes with the parameter values the query runs with (unset parameters resolve to their default). Call ${getMetadata} on its explore to see the parameter definitions before querying such a field.
+Recovery:
+When no field matches literally, the result lists the closest catalog matches (fuzzy search) under "No exact grep matches". Use those rather than re-grepping a long list of synonyms; broaden the patterns only when those miss too.
 `;
 };
 
@@ -37,7 +40,7 @@ export const grepFieldsInputSchema = z.object({
         .min(1)
         .max(5)
         .describe(
-            'Up to 5 case-insensitive keyword patterns, run together in one call. Use `|` to OR synonyms and a space or `.*` between words to require all of them. Each is matched against field names, labels, descriptions, hints and tags.',
+            'Up to 5 case-insensitive keyword patterns, not full regexes, matched against field names, labels, descriptions, hints and tags. Use `|` to OR synonyms ("revenue|sales") and a space or `.*` between words to require all of them ("order.*status"). Use short keywords: long natural-language phrases do not match. The patterns run together, so cover every angle of the question in one call (e.g. ["revenue|sales", "country|region", "segment|tier"]).',
         ),
     exploreName: z
         .string()

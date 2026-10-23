@@ -185,6 +185,11 @@ order, `sortBy` describes result ordering, `totalColumnCount` exposes truncation
   A short ask ("add AI analysis") gets the whole set. They sit on
   `useInsights()` / `useInsights(result)` and render nothing when the host has
   no analysis. Full contract in `/app/references/ai-analysis.md`.
+- `analysis-instructions`: author guidance for the analysis model — language
+  and format rules plus a line or two of domain vocabulary. Pass it as the
+  `instructions` prop on `InsightsSummary` (or `useInsights({ instructions })`
+  in a custom block). One string per app, max 2000 characters. See "Author
+  instructions" in `/app/references/ai-analysis.md`.
 - `ai-prompt`: `useAiPrompt()` returns `{ available, ask, loading, text, error }`;
   `ask({ prompt, sources: [{ result, label }], focus?: { row } })` sends an
   author-written question over loaded `useLightdash` results and resolves to

@@ -54,19 +54,4 @@ describe('Document content filter', () => {
 
         expect(onChange).toHaveBeenCalledWith(ContentType.DOCUMENT);
     });
-
-    it.each([
-        { enabled: false, error: false },
-        { enabled: true, error: true },
-    ])('hides Documents when unavailable %j', ({ enabled, error }) => {
-        flag.data.enabled = enabled;
-        flag.isError = error;
-        renderFilter();
-        expect(
-            screen.queryByRole('radio', { name: 'Documents' }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.getByRole('radio', { name: 'Charts' }),
-        ).toBeInTheDocument();
-    });
 });

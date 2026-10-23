@@ -537,6 +537,13 @@ export type CreateAiProviderCredential = {
     apiKey: string;
     // Omit for the region's default (narrowest) geography.
     inferenceGeography?: BedrockInferenceGeography;
+    /**
+     * Whether this credential becomes the organization default on creation.
+     * Omitted: the first credential becomes the default, later ones do not
+     * (legacy behavior). `true`: takes over as the default. `false`: stored
+     * without serving any AI traffic until explicitly made the default.
+     */
+    setAsDefault?: boolean;
 };
 
 /** A credential row whose ciphertext could not be read with the current secret. */
@@ -614,6 +621,8 @@ export type AiOrganizationSettings = {
     aiAgentMemoryEnabled: boolean;
     deepResearchLimits: AiDeepResearchLimits;
     deepResearchRawSqlEnabled: boolean;
+    // Optional for clients talking to an older server; defaults to true.
+    mcpEnabled?: boolean;
     mcpContentWritesEnabled: boolean;
     mcpAgentsEnabled: boolean;
     // Customer consent for data apps to call AI at runtime (analysis, insights).
@@ -656,6 +665,7 @@ export type UpdateAiOrganizationSettings = {
     aiAgentReviewsEnabled?: boolean;
     deepResearchLimits?: AiDeepResearchLimits;
     deepResearchRawSqlEnabled?: boolean;
+    mcpEnabled?: boolean;
     mcpContentWritesEnabled?: boolean;
     mcpAgentsEnabled?: boolean;
     dataAppRuntimeAiEnabled?: boolean;
@@ -677,6 +687,8 @@ export type ApiAiOrganizationSettingsResponse = ApiSuccess<
 export type AiOrganizationRuntimeSettings = {
     isCopilotEnabled: boolean;
     isTrial: boolean;
+    // Available to all members so client setup reflects organization consent.
+    mcpEnabled?: boolean;
     aiAgentsVisible: boolean;
     aiAgentMemoryEnabled: boolean;
     aiAgentReviewsEnabled: boolean;

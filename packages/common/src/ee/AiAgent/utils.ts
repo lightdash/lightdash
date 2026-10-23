@@ -15,6 +15,7 @@ import {
     toolRunQueryArgsSchemaPersisted,
     toolRunQueryExpressionResolvedArgsSchema,
 } from './schemas';
+import { parseComposerStoredChartVizConfig } from './schemas/tools/composerChartVizConfigSchema';
 import { AiResultType } from './types';
 import { getValidAiQueryLimit } from './validators';
 
@@ -127,7 +128,14 @@ export const parseAiArtifactChartConfig = (
             : {};
 
     if (isAiComposerChartArtifactConfig(config)) {
-        return { ...config, vizConfig: config.vizConfig ?? null };
+        return config.schemaVersion === 1
+            ? { ...config, vizConfig: config.vizConfig ?? null }
+            : {
+                  ...config,
+                  vizConfig: parseComposerStoredChartVizConfig(
+                      config.vizConfig,
+                  ),
+              };
     }
 
     if (

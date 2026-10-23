@@ -58,9 +58,4 @@ describe('Space card Document counts', () => {
             expect(screen.getByText(String(count))).toBeInTheDocument();
         },
     );
-    it('hides counts while Documents are disabled', () => {
-        flag.enabled = false;
-        renderCard(17);
-        expect(screen.queryByText('17')).not.toBeInTheDocument();
-    });
 });

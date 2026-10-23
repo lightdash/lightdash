@@ -1,5 +1,6 @@
 # AI Agent Tool Contract Notes
 
+- Before editing a tool description, read `docs/ai-agent/prompt-writing-principles.md`.
 - Agent tool names are camelCase.
 - Keep descriptions, input schemas, and output schemas stable unless the LLM-facing contract is intentionally changing.
 - Run `pnpm -F backend test src/ee/services/ai/tools/toolContracts.snapshot.test.ts` before and after shared tool-definition refactors.

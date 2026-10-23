@@ -6,6 +6,7 @@ import {
     type ChartAsCode,
     type DashboardAsCode,
 } from '@lightdash/common';
+import { buildAiTokenDashboard } from './aiTokenDashboard';
 import { buildUsageDashboards } from './usageDashboards';
 
 type SampleChart = Omit<
@@ -341,4 +342,7 @@ const legacyContentAsCode: {
     };
 });
 
-export const analyticsContentAsCode = buildUsageDashboards(legacyContentAsCode);
+export const analyticsContentAsCode = [
+    ...buildUsageDashboards(legacyContentAsCode),
+    buildAiTokenDashboard(),
+];

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    getCellUrls,
     hasCustomBinDimension,
     isCustomDimension,
     isDimension,
@@ -38,6 +39,11 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const value: ResultValue = useMemo(
         () => cell.getValue()?.value || {},
         [cell],
+    );
+
+    const urls = useMemo(
+        () => getCellUrls(isField(item) ? item.urls : undefined, value.raw),
+        [item, value],
     );
     const fieldValues = useMemo(
         () => mapValues(cell.row.original, (v) => v?.value) || {},
@@ -98,14 +104,12 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
 
     return (
         <>
-            {item &&
-            value.raw !== undefined &&
-            value.raw !== null &&
-            isField(item) ? (
-                <UrlMenuItems urls={item.urls} cell={cell} />
-            ) : null}
-
-            {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
+            {urls.length > 0 && (
+                <>
+                    <UrlMenuItems urls={urls} cell={cell} />
+                    <Menu.Divider />
+                </>
+            )}
 
             <Menu.Item
                 leftSection={

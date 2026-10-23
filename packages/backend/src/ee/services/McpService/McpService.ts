@@ -50,6 +50,7 @@ import {
     getMetadataToolDefinition,
     getQueryResultToolDefinition,
     getRunQueryChartConfig,
+    getRunSqlDefaultLimit,
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
@@ -214,12 +215,10 @@ import { getListContent } from '../ai/tools/listContent';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getReadContent } from '../ai/tools/readContent';
 import { getResolveUrl } from '../ai/tools/resolveUrl';
-import {
-    summarizeAppliedParameters,
-    validateRunQueryTool,
-} from '../ai/tools/runQuery';
+import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import { formatToolJsonOutput } from '../ai/tools/toolOutputFormat';
+import { summarizeAppliedParameters } from '../ai/utils/appliedParameters';
 import {
     formatFilterExpressionError,
     resolveFilterExpressionArgs,
@@ -437,7 +436,7 @@ const mcpCreateContentDocumentTool = withProjectScopeInput(
 );
 const mcpCreateContentTool = {
     ...mcpCreateContentDocumentTool,
-    description: `${mcpCreateContentDocumentTool.description} After a multi-step investigation (two or more queries or charts), offer once to save it as a Document the user can share, and create it when they agree. Pass a spaceSlug only for a Space the user named, so the Document stays personal.`,
+    description: `${mcpCreateContentDocumentTool.description} After a multi-step investigation (two or more queries or charts), offer once to save it as a Document the user can share, and create it when they agree.`,
 };
 const mcpEditContentTool = withProjectScopeInput(
     mcpEditContentToolDefinition.for('mcp'),
@@ -4597,7 +4596,9 @@ export class McpService extends BaseService {
                     title: mcpRunSqlTool.title,
                     description:
                         buildRunSqlDescription(
-                            500,
+                            getRunSqlDefaultLimit(
+                                this.lightdashConfig.mcp.runSqlMaxLimit,
+                            ),
                             this.lightdashConfig.mcp.runSqlMaxLimit,
                         ) +
                         (options.agentIdentityEnabled
@@ -5621,10 +5622,22 @@ export class McpService extends BaseService {
         return true;
     }
 
-    // MCP is enabled if MCP_ENABLED is true, AI Copilot is enabled, or user is on trial
+    // Organization disablement takes precedence over every MCP enablement path.
     public async isEnabled(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
     ) {
+        if (!user.organizationUuid) {
+            return false;
+        }
+        if (
+            !(await this.aiOrganizationSettingsService.isMcpEnabled(
+                user.organizationUuid,
+            ))
+        ) {
+            return false;
+        }
+
+        // MCP is enabled if MCP_ENABLED is true, AI Copilot is enabled, or user is on trial
         if (this.lightdashConfig.mcp.enabled) {
             return true;
         }
@@ -5636,10 +5649,6 @@ export class McpService extends BaseService {
 
         if (aiCopilotFlag.enabled) {
             return true;
-        }
-
-        if (!user.organizationUuid) {
-            return false;
         }
 
         return this.aiOrganizationSettingsService.isEligibleForTrial(
@@ -5774,16 +5783,6 @@ export class McpService extends BaseService {
             settingEnabled &&
             this.createAuditedAbility(user).can('create', 'ScheduledDeliveries')
         );
-    }
-
-    public async isDocumentsEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<boolean> {
-        const { enabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.Documents,
-        });
-        return enabled;
     }
 
     /**

@@ -18,7 +18,6 @@ import {
 } from '@lightdash/common';
 import { type EChartsOption, type FunnelSeriesOption } from 'echarts';
 import round from 'lodash/round';
-import { getLegendDoubleClickTooltip } from '../cartesian/legendTooltip';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import { type VisualizationTheme } from '../theme';
 import { type VisualizationContextInput } from '../types';
@@ -237,9 +236,7 @@ export const buildFunnelEchartsOption = ({
         };
     })();
 
-    const legendDoubleClickTooltip = getLegendDoubleClickTooltip(theme);
-
-    const legendConfigWithTooltip = (() => {
+    const legendConfigWithStyle = (() => {
         if (!chartConfig) return undefined;
 
         const { showLegend, legendPosition } = chartConfig;
@@ -267,7 +264,6 @@ export const buildFunnelEchartsOption = ({
         return {
             ...legendConfig,
             ...legendStyle,
-            tooltip: legendDoubleClickTooltip,
         };
     })();
 
@@ -289,7 +285,7 @@ export const buildFunnelEchartsOption = ({
 
         return {
             ...baseOptions,
-            legend: legendConfigWithTooltip,
+            legend: legendConfigWithStyle,
         };
     })();
 

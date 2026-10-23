@@ -141,12 +141,17 @@ export default function AppPreviewTest() {
     const openAnalysis = useCallback(() => {
         aiAgentStore.dispatch(openAnalysisPanel());
     }, []);
+    // Author guidance declared in app code, reported by the running bundle.
+    const [insightInstructions, setInsightInstructions] = useState<
+        string | null
+    >(null);
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid,
         queries: inspector.panelProps.queries,
         availability: analysisAvailability,
         autoAnalyse: appAutoAnalysis ?? 'inherit',
+        instructions: insightInstructions,
         onNeedsAgent: openAnalysis,
         // Expired sources: reload the app once so its queries re-run.
         onSourcesExpired: handleRefresh,
@@ -158,6 +163,7 @@ export default function AppPreviewTest() {
             projectUuid && showAnalysis
                 ? {
                       projectUuid,
+                      targetKind: 'app' as const,
                       targetName: appName || null,
                       availability: analysisAvailability,
                       controller: analysisController,
@@ -304,6 +310,7 @@ export default function AppPreviewTest() {
                         showAnalysis ? analysisController.insightsPayload : null
                     }
                     onInsightAction={analysisController.handleAction}
+                    onInsightInstructionsChange={setInsightInstructions}
                     onMountedQueriesChange={
                         analysisController.setMountedQueryUuids
                     }

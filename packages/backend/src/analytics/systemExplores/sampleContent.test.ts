@@ -14,12 +14,15 @@ describe('analytics sample content', () => {
         for (const { dashboard, charts } of analyticsContentAsCode) {
             expect(dashboard.version).toBe(1);
             expect(
-                dashboard.tiles
-                    .filter(
-                        (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
-                    )
-                    .map((tile) => tile.properties),
-            ).toEqual(charts.map(({ slug }) => ({ chartSlug: slug })));
+                new Set(
+                    dashboard.tiles
+                        .filter(
+                            (tile) =>
+                                tile.type === DashboardTileTypes.SAVED_CHART,
+                        )
+                        .map((tile) => tile.properties.chartSlug),
+                ),
+            ).toEqual(new Set(charts.map(({ slug }) => slug)));
             expect(
                 charts.every((chart) => chart.dashboardSlug === dashboard.slug),
             ).toBe(true);

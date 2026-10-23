@@ -40,6 +40,7 @@ export {
     type LegendValues,
 } from './cartesian/echartsOption';
 export { defaultGrid } from './cartesian/grid';
+export { isIncompletePeriodEligible } from './cartesian/incompletePeriod';
 export { finalizeTimeAxisOptions } from './cartesian/timezoneShift';
 export {
     calculateKeyColorAssignment,

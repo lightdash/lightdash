@@ -10,11 +10,16 @@ import { IconChevronUp } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
+    selectActiveTabUuid,
     selectDashboardFilters,
     selectDateZoomGranularity,
     useDashboardSelector,
     useDashboardTemporaryFilters,
 } from '../../../../../features/dashboard/store';
+import { AddControl } from '../../../../../features/dashboardControls/AddControl';
+import { EditingStrip } from '../../../../../features/dashboardControls/EditingStrip';
+import { FilterPills } from '../../../../../features/dashboardControls/FilterPills';
+import { useControlsSidebarSelector } from '../../../../../features/dashboardControls/useControlsSidebar';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
 import { getDateZoomSummaryLabel } from '../../../../../features/dateZoom/utils';
@@ -22,7 +27,9 @@ import { useActiveTabParameters } from '../../../../../hooks/dashboard/useActive
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
 import styles from './EmbedDashboardFilterBar.module.css';
-import EmbedDashboardFilters from './EmbedDashboardFilters';
+import EmbedDashboardFilters, {
+    EmbedResetFiltersButton,
+} from './EmbedDashboardFilters';
 import EmbedDashboardParameters from './EmbedDashboardParameters';
 
 type Props = {
@@ -31,6 +38,38 @@ type Props = {
     /** Tiles rendered on the active tab */
     activeTiles: DashboardTile[];
     isEditMode?: boolean;
+    /** The filters open in the dashboard's filter rail (default false). */
+    isControlsEnabled?: boolean;
+};
+
+// The filters as the rail's bar has them: "Add filter" and the pills open the
+// rail, and while it is open the bar says what is being edited
+const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
+    canAddFilters,
+}) => {
+    const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    const getUiString = useUiStrings();
+    if (isRailOpen) return <EditingStrip />;
+    return (
+        <>
+            <AddControl
+                placement="bar"
+                triggerClassName={embedContractClass('ld-dashboard-add-filter')}
+                unsavedFiltersTooltip={getUiString(
+                    'filters.unsavedFiltersTooltip',
+                )}
+            />
+            {!canAddFilters && <EmbedResetFiltersButton />}
+            <FilterPills
+                activeTabUuid={activeTabUuid}
+                triggerClassName={embedContractClass('ld-dashboard-filter')}
+                dropdownClassName={embedContractClass(
+                    'ld-dashboard-filter-dropdown',
+                )}
+            />
+        </>
+    );
 };
 
 const EmbedDashboardFilterBar: FC<Props> = ({
@@ -38,6 +77,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     shouldShowFilters,
     activeTiles,
     isEditMode = false,
+    isControlsEnabled = false,
 }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -115,12 +155,15 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                 flex="1 1 24rem"
                 miw={0}
             >
-                {shouldShowFilters && (
-                    <EmbedDashboardFilters
-                        canAddFilters={canAddFilters}
-                        isEditMode={isEditMode}
-                    />
-                )}
+                {shouldShowFilters &&
+                    (isControlsEnabled ? (
+                        <ControlsFilterArea canAddFilters={canAddFilters} />
+                    ) : (
+                        <EmbedDashboardFilters
+                            canAddFilters={canAddFilters}
+                            isEditMode={isEditMode}
+                        />
+                    ))}
                 {shouldShowFilters && hasVisibleParameters && (
                     <Divider
                         className={styles.filterParameterDivider}

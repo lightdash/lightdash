@@ -95,7 +95,7 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                 const prVerb =
                     pullRequestAction === 'updated' ? 'Updated' : 'Opened';
                 const result = pullRequestAction
-                    ? `${prVerb} a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which repository it targeted.\n\nAgent summary:\n${output}`
+                    ? `${prVerb} a pull request against ${target}. The user sees a "View pull request" button, so summarise the change and the repository it targeted without the pull request URL or number.\n\nAgent summary:\n${output}`
                     : `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${output}`;
 
                 return {
@@ -146,7 +146,7 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                 // A commit touching a CI/workflow or secret path was rejected
                 // host-side — terminal, do not retry. Relay the reason verbatim.
                 if (error instanceof DeniedPathError) {
-                    const result = `${error.message} Do not retry this — tell the user the agent will not edit CI/workflow or secret files. If they need that change, they must make it themselves.`;
+                    const result = `${error.message} Retrying fails the same way: tell the user you do not edit CI/workflow or secret files, so they must make that change themselves.`;
                     return {
                         result,
                         structuredContent: { error: result },

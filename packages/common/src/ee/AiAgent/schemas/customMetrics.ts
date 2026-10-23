@@ -253,8 +253,8 @@ DO NOT simulate a period comparison by adding a second time-dimension granularit
 
 For aggregation entries:
 1. Add the entry to customMetrics with kind: "aggregation"
-2. Reference it in queryConfig.metrics using the format "table_name" (e.g. "customers_avg_customer_age")
-3. Reference it the same way in sorts, filters, chartConfig.yAxisMetrics
+2. Reference it in queryConfig.metrics by its field id, \`<table>_<name>\` (e.g. "customers_avg_customer_age")
+3. Reference it the same way in sorts, filters, tableCalculations and chartConfig.yAxisMetrics
 
 Example A — "Average customer age sorted descending"
   customMetrics: [{ kind: "aggregation", name: "avg_customer_age", label: "Average Customer Age", description: "...", type: "AVERAGE", baseDimensionName: "age", table: "customers", filters: null }]

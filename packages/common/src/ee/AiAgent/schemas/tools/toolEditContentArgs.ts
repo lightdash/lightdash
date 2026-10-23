@@ -1,19 +1,21 @@
 import { z } from 'zod';
+import { type ToolDescriptionContext } from '../defineTool';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
+import { toolNameFor } from './discoveryToolNames';
 
-export const TOOL_EDIT_CONTENT_DESCRIPTION =
-    'Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting';
+export const TOOL_EDIT_CONTENT_DESCRIPTION = ({
+    runtime,
+}: ToolDescriptionContext): string =>
+    `Edit a dashboard, chart or SQL chart with an RFC6902 patch against its JSON as ${toolNameFor('readContent', runtime)} last returned it; the edited content is validated before it is saved. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL.`;
 
 export const toolEditContentArgsSchema = z.object({
-    slug: z.string().min(1).describe('Slug of the dashboard or chart to edit'),
+    slug: z.string().min(1).describe('Exact slug of the content to edit'),
     type: z
         .enum(['dashboard', 'chart', 'sql_chart'])
         .describe('Type of Lightdash content to edit'),
     patch: z
         .array(z.unknown())
-        .describe(
-            'RFC6902 Patch objects array to apply to the current dashboard or chart JSON',
-        ),
+        .describe('RFC6902 operations applied to the current JSON'),
 });
 
 const toolEditContentMetadataSchema = z.discriminatedUnion('status', [

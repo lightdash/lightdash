@@ -37,11 +37,13 @@ const QUERY_TOOLS = new Set([
     'runSavedChart',
     'runContentQuery',
     'runSql',
+    'query',
     'runComposerQueries',
 ]);
 
 const RENDER_TOOLS = new Set([
     'generateVisualization',
+    'visualize',
     'generateDashboardV2',
     'generateDataApp',
     'iterateDataApp',

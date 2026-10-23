@@ -8,18 +8,10 @@ import { useFavorites } from './useFavorites';
 
 const mocks = vi.hoisted(() => ({
     api: vi.fn(),
-    enabled: true,
-    flagError: false,
     success: vi.fn(),
     error: vi.fn(),
 }));
 vi.mock('../../api');
-vi.mock('../useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: mocks.enabled },
-        isError: mocks.flagError,
-    }),
-}));
 vi.mock('../toaster/useToaster', () => ({
     default: () => ({
         showToastSuccess: mocks.success,
@@ -31,10 +23,6 @@ const document = {
     type: ResourceViewItemType.DOCUMENT,
     data: { uuid: 'document', name: 'Report', slug: 'report' },
 };
-const chart = {
-    type: ResourceViewItemType.CHART,
-    data: { uuid: 'chart', name: 'Chart' },
-};
 
 describe('Document favorites', () => {
     const clients: QueryClient[] = [];
@@ -42,8 +30,6 @@ describe('Document favorites', () => {
         mockedLightdashApi.mockReset();
         mocks.success.mockReset();
         mocks.error.mockReset();
-        mocks.enabled = true;
-        mocks.flagError = false;
     });
     afterEach(() => clients.forEach((client) => client.clear()));
     const wrapper = () => {
@@ -103,20 +89,6 @@ describe('Document favorites', () => {
             title: 'Removed from favorites',
         });
     });
-    it.each([
-        { enabled: false, flagError: false },
-        { enabled: true, flagError: true },
-    ])(
-        'hides documents without hiding existing favorite types when flag unavailable: %j',
-        async (flags) => {
-            Object.assign(mocks, flags);
-            mockedLightdashApi.mockResolvedValue([document, chart]);
-            const { result } = renderHook(() => useFavorites('project'), {
-                wrapper: wrapper(),
-            });
-            await waitFor(() => expect(result.current.data).toEqual([chart]));
-        },
-    );
     it('retains existing favorite state and surfaces failed mutations', async () => {
         mockedLightdashApi
             .mockResolvedValueOnce([document])

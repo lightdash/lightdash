@@ -5,7 +5,7 @@ import {
 } from '../outputMetadata';
 
 export const TOOL_LOAD_SKILL_DESCRIPTION =
-    'Load a skill by name, or one of its resources. Always load the skill itself first, then resources on demand. When the skill takes arguments, pass what the user asked for in `arguments` so its placeholders are filled.';
+    "Load a skill by name. The result lists the skill's resources; load only the one you need with `resourceName`.";
 
 export const toolLoadSkillArgsSchema = z.object({
     name: z.string().min(1).describe('Exact name of the skill to load.'),
@@ -20,7 +20,7 @@ export const toolLoadSkillArgsSchema = z.object({
         .min(1)
         .nullish()
         .describe(
-            'Optional sub-resource file name to load from the skill. You can find names of sub-resources by first loading the skill without this parameter.',
+            'Name of a resource listed in the loaded skill, to load that resource instead of the skill.',
         ),
 });
 

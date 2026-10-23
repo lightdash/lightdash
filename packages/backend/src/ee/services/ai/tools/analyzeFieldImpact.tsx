@@ -68,14 +68,6 @@ const generateResponse = (report: ToolAnalyzeFieldImpactStructuredContent) => (
         dependentMetricCount={report.summary.metricTreeDependents}
         scheduledDeliveryCount={report.summary.scheduledDeliveries}
     >
-        <note>
-            These references are exact (queried from saved content), not a fuzzy
-            search. "breaking" means at least one chart, dependent metric or
-            dashboard filter references this field and will break if it is
-            removed. This does NOT detect silent value-drift: if the field id
-            stays the same but its underlying SQL/aggregation changes, numbers
-            can move without anything appearing here.
-        </note>
         {report.charts.length > 0 && (
             <charts>
                 {report.charts.map((chart) => (

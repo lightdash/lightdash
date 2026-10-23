@@ -10,14 +10,16 @@ import {
     type LiveActivityToolGroup,
 } from './LiveActivityCard';
 
-const composerToolGroups: LiveActivityToolGroup[] = [
+const buildComposerToolGroups = (
+    toolName: 'query' | 'runComposerQueries',
+): LiveActivityToolGroup[] => [
     {
         keyId: 'composer-call',
-        toolName: 'runComposerQueries',
+        toolName,
         calls: [
             {
                 toolCallId: 'composer-call',
-                toolName: 'runComposerQueries',
+                toolName,
                 toolArgs: {
                     title: 'Compare targets',
                     description: null,
@@ -39,63 +41,77 @@ const composerToolGroups: LiveActivityToolGroup[] = [
     },
 ];
 
-describe('LiveActivityCard composer queries', () => {
-    const runningTargets = [
-        {
-            message: 'Running "targets"',
-            toolName: 'runComposerQueries',
-            progressId: 'composer-call:targets',
-            progressStatus: 'in_progress' as const,
-        },
-    ];
+const composerToolGroups = buildComposerToolGroups('runComposerQueries');
 
-    it('shows the running node SQL by default while the query is running', async () => {
-        renderWithProviders(
-            <LiveActivityCard
-                isLive
-                toolGroups={composerToolGroups}
-                stepProgressMessages={runningTargets}
-            />,
-        );
+describe.each(['query', 'runComposerQueries'] as const)(
+    'LiveActivityCard composer queries (%s)',
+    (toolName) => {
+        const composerToolGroups = buildComposerToolGroups(toolName);
+        const runningTargets = [
+            {
+                message: 'Running "targets"',
+                toolName,
+                progressId: 'composer-call:targets',
+                progressStatus: 'in_progress' as const,
+            },
+        ];
 
-        await waitFor(() =>
-            expect(screen.getByText('External data')).toBeVisible(),
-        );
-        expect(screen.getByRole('button', { name: 'Copy' })).toBeVisible();
-    });
+        it('shows the running node SQL by default while the query is running', async () => {
+            renderWithProviders(
+                <LiveActivityCard
+                    isLive
+                    toolGroups={composerToolGroups}
+                    stepProgressMessages={runningTargets}
+                />,
+            );
 
-    it('collapses the steps once the run finishes', async () => {
-        const { rerender } = renderWithProviders(
-            <LiveActivityCard
-                isLive
-                toolGroups={composerToolGroups}
-                stepProgressMessages={runningTargets}
-            />,
-        );
-        await waitFor(() =>
-            expect(screen.getByText('External data')).toBeVisible(),
-        );
+            await waitFor(() =>
+                expect(screen.getByText('External data')).toBeVisible(),
+            );
+            expect(screen.getByRole('button', { name: 'Copy' })).toBeVisible();
+        });
 
-        rerender(
-            <LiveActivityCard isLive={false} toolGroups={composerToolGroups} />,
-        );
+        it('collapses the steps once the run finishes', async () => {
+            const { rerender } = renderWithProviders(
+                <LiveActivityCard
+                    isLive
+                    toolGroups={composerToolGroups}
+                    stepProgressMessages={runningTargets}
+                />,
+            );
+            await waitFor(() =>
+                expect(screen.getByText('External data')).toBeVisible(),
+            );
 
-        await waitFor(() =>
+            rerender(
+                <LiveActivityCard
+                    isLive={false}
+                    toolGroups={composerToolGroups}
+                />,
+            );
+
+            await waitFor(() =>
+                expect(
+                    screen.getByRole('button', { expanded: false }),
+                ).toBeVisible(),
+            );
+            expect(screen.queryByText('External data')).not.toBeVisible();
+        });
+
+        it('starts collapsed for a finished run', () => {
+            renderWithProviders(
+                <LiveActivityCard
+                    isLive={false}
+                    toolGroups={composerToolGroups}
+                />,
+            );
             expect(
                 screen.getByRole('button', { expanded: false }),
-            ).toBeVisible(),
-        );
-        expect(screen.queryByText('External data')).not.toBeVisible();
-    });
-
-    it('starts collapsed for a finished run', () => {
-        renderWithProviders(
-            <LiveActivityCard isLive={false} toolGroups={composerToolGroups} />,
-        );
-        expect(screen.getByRole('button', { expanded: false })).toBeVisible();
-        expect(screen.queryByText('External data')).not.toBeVisible();
-    });
-});
+            ).toBeVisible();
+            expect(screen.queryByText('External data')).not.toBeVisible();
+        });
+    },
+);
 
 describe('LiveActivityCard composer failure', () => {
     it('marks a node failed when the call errors while it was running', () => {

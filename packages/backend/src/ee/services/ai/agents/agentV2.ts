@@ -155,6 +155,7 @@ import { type SqlChartSaving } from '../tools/sqlChartApproval';
 import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
+import { getVisualize } from '../tools/visualize';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
@@ -718,6 +719,7 @@ const withPreGrepCandidates = (
 const QUERY_TOOL_NAMES = new Set([
     'runQuery',
     'generateVisualization',
+    'query',
     'runComposerQueries',
     'runMetricQuery',
     'runSavedChart',
@@ -849,7 +851,7 @@ const prepareCandidateSeed = async (
     );
     let carriedFieldContext: string | null = null;
     if (args.chartMutationContext) {
-        carriedFieldContext = `The active chart below is authoritative. Mutate its query and visualization, preserving everything the user did not ask to change. A response claiming a change is only valid after ${loadout.toolNames.has('runComposerQueries') ? 'runComposerQueries' : 'generateVisualization'} succeeds.\n${JSON.stringify(args.chartMutationContext.config)}`;
+        carriedFieldContext = `The active chart below is authoritative. Mutate its query and visualization, preserving everything the user did not ask to change. A response claiming a change is only valid after ${loadout.toolNames.has('query') ? 'query' : 'generateVisualization'} succeeds.\n${JSON.stringify(args.chartMutationContext.config)}`;
     } else if (carriedFields.length > 0) {
         carriedFieldContext = `The preceding successful query already established these field IDs: ${recentQueryFields.join(', ')}. For a follow-up, reuse its tool input and preserve its measure, filters and scope. Change only the requested grain or presentation; skip field discovery when the candidates below cover it.`;
     }
@@ -2051,6 +2053,7 @@ export const getAgentTools = (
         runQuery: () =>
             getRunQuery({
                 purpose: 'answer',
+                inSlack: args.slackChannelId !== null,
                 documentsEnabled,
                 enableFastResponse: args.enableDataAnswerFastResponse,
                 agentContext,
@@ -2183,10 +2186,16 @@ export const getAgentTools = (
                 autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
                 useSlackStreamCard: args.useSlackStreamCard,
             }),
-        runComposerQueries: () =>
+        query: () =>
             getRunComposerQueries({
                 agentContext,
                 reviewQuery,
+                filterValueHints: args.decisions
+                    ? {
+                          decisions: args.decisions,
+                          searchFieldValues: dependencies.searchFieldValues,
+                      }
+                    : null,
                 updateProgress: dependencies.updateProgress,
                 runComposerQueries: queryDependencies.runComposerQueries,
                 getPrompt: dependencies.getPrompt,
@@ -2209,6 +2218,25 @@ export const getAgentTools = (
                 autoApproveSql: args.autoApproveSql,
                 autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
                 useSlackStreamCard: args.useSlackStreamCard,
+                projectParameterDefinitions,
+            }),
+        visualize: () =>
+            getVisualize({
+                getPrompt: dependencies.getPrompt,
+                listThreadComposerQueryNodes:
+                    dependencies.listThreadComposerQueryNodes,
+                getThreadComposerNodeColumns:
+                    dependencies.getThreadComposerNodeColumns,
+                runComposerQueries: queryDependencies.runComposerQueries,
+                resolveCustomChartType: dependencies.resolveCustomChartType,
+                createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                updateProgress: dependencies.updateProgress,
+                deferSlackVisualization:
+                    args.execution.mode === 'standard'
+                        ? dependencies.deferSlackVisualization
+                        : undefined,
+                slackLinksOnly: args.slackLinksOnly,
+                maxQueryLimit: args.maxQueryLimit,
             }),
         listWarehouseTables: () =>
             getListWarehouseTables({
@@ -2506,7 +2534,6 @@ const getCapabilitySectionArgs = (
     warehouseSchema: args.warehouseSchema,
     warehouseConnections: args.warehouseConnections ?? [],
     sqlScope: args.sqlScope,
-    runSqlMaxLimit: args.runSqlMaxLimit,
     canRunQuery: loadout.toolNames.has('runQuery'),
 });
 
@@ -2594,7 +2621,6 @@ export const getAgentMessages = (
     const systemPrompt = getSystemPromptV2({
         ...getCapabilitySectionArgs(args, loadout, customChartTypeLibrary),
         deferredSections,
-        enableChartExport: loadout.toolNames.has('exportChartAsCode'),
         agentName: args.agentSettings.name,
         instructions:
             instructions.length > 0 ? instructions.join('\n\n') : undefined,

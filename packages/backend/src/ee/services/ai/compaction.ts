@@ -211,7 +211,7 @@ export class Compaction {
             case 'repository':
                 return `repository ${item.fullName} (mounted at /${item.fullName}; explore it with exploreRepo)`;
             case 'external_source':
-                return `external source ${item.displayName} (${item.tables.length} queryable table${item.tables.length === 1 ? '' : 's'}: ${item.tables.map((table) => `${table.tableName} [${table.tableUuid}]`).join(', ')}; query any subset with an external node in runComposerQueries)`;
+                return `external source ${item.displayName} (${item.tables.length} queryable table${item.tables.length === 1 ? '' : 's'}: ${item.tables.map((table) => `${table.tableName} [${table.tableUuid}]`).join(', ')}; query any subset with an external node in the query tool)`;
             case 'pull_request': {
                 const number = item.prNumber ? ` #${item.prNumber}` : '';
                 return `pull request${number} (${item.status ?? 'open'})${

@@ -1881,7 +1881,10 @@ export class AiWritebackService extends BaseService {
         args: AiWritebackRunArgs,
         assertPublishAllowed: (() => Promise<void>) | null = null,
     ): Promise<AiWritebackRunResult> {
-        await this.assertWritebackProviderSupported(args.user.organizationUuid);
+        await this.assertWritebackProviderSupported(
+            args.user.organizationUuid,
+            args.projectUuid,
+        );
         return this.runCodingAgent(
             args,
             this.dbtWritebackConfig(),
@@ -1945,7 +1948,10 @@ export class AiWritebackService extends BaseService {
         updatedAt: Date;
     }> {
         const { user, projectUuid, aiThreadUuid, source } = args;
-        await this.assertWritebackProviderSupported(user.organizationUuid);
+        await this.assertWritebackProviderSupported(
+            user.organizationUuid,
+            projectUuid,
+        );
         if (!isUserWithOrg(user)) {
             throw new WritebackAccessError(
                 'no_org',
@@ -2304,11 +2310,13 @@ export class AiWritebackService extends BaseService {
      */
     private async assertWritebackProviderSupported(
         organizationUuid: string | undefined,
+        projectUuid: string | null,
         action: 'enqueue' | 'update' = 'enqueue',
     ): Promise<void> {
         if (
             await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
                 organizationUuid,
+                projectUuid,
             )
         ) {
             const scope = agentExecutionContext.getStore();
@@ -2357,6 +2365,7 @@ export class AiWritebackService extends BaseService {
     ): Promise<AiWritebackRunResult> {
         await this.assertWritebackProviderSupported(
             args.user.organizationUuid,
+            args.projectUuid,
             'update',
         );
         const {
@@ -4830,6 +4839,7 @@ export class AiWritebackService extends BaseService {
     async runEditRepo(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
         await this.assertWritebackProviderSupported(
             args.user.organizationUuid,
+            args.projectUuid,
             'update',
         );
         this.logger.info('AI coding agent run requested', {

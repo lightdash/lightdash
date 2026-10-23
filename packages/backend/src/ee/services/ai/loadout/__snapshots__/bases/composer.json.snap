@@ -12,12 +12,13 @@
         "grepFields",
         "listKnowledgeDocuments",
         "listProjects",
+        "query",
         "readPinnedThread",
         "resolveUrl",
-        "runComposerQueries",
         "runSavedChart",
         "searchFieldValues",
-        "searchSemanticLayer"
+        "searchSemanticLayer",
+        "visualize"
     ],
     "promptSections": [
         "queryingComposer"

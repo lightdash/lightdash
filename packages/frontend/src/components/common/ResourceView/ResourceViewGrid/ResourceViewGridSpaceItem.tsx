@@ -36,7 +36,6 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
     const [opened, handlers] = useDisclosure(false);
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
 
     return (
         <Paper
@@ -61,15 +60,13 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                     </Text>
 
                     <Group gap="sm">
-                        {documentsFlag.data?.enabled &&
-                            !documentsFlag.isError &&
-                            item.data.documentCount !== undefined && (
-                                <AttributeCount
-                                    Icon={IconFileText}
-                                    count={item.data.documentCount}
-                                    name="Documents"
-                                />
-                            )}
+                        {item.data.documentCount !== undefined && (
+                            <AttributeCount
+                                Icon={IconFileText}
+                                count={item.data.documentCount}
+                                name="Documents"
+                            />
+                        )}
                         <AttributeCount
                             Icon={IconLayoutDashboard}
                             count={item.data.dashboardCount}

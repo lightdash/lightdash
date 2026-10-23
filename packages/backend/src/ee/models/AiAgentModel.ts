@@ -69,6 +69,7 @@ import {
     ApiUpdateEvaluationRequest,
     assertUnreachable,
     ChartKind,
+    COMPOSER_QUERY_TOOL_NAMES,
     ContentType,
     CreateLlmAssessment,
     CreateSlackPrompt,
@@ -100,6 +101,7 @@ import {
     parseAiArtifactChartConfig,
     ProjectType,
     PullRequestProvider,
+    QuerySourceType,
     servedSkillMetadataSchema,
     SlackPrompt,
     ToolName,
@@ -116,6 +118,7 @@ import {
     type AiAgentJevDecision,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
+    type ComposerNodeColumn,
     type ServedSkillMetadata,
     type ThreadComposerQueryNode,
     type ToolEditDbtProjectOutput,
@@ -289,6 +292,14 @@ import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
 import { AiSlackArtifactDeliveryModel } from './AiSlackArtifactDeliveryModel';
 import type { AiThreadFileModel } from './AiThreadFileModel';
 import { claimAiPromptExecutionMode } from './claimAiPromptExecutionMode';
+
+// Tool calls that can wait on SQL approval: runSql, or a composer query call with a sql node.
+const sqlApprovalToolCallSql = (alias: string): string =>
+    `(${alias}.tool_name = 'runSql' OR (${alias}.tool_name IN (${COMPOSER_QUERY_TOOL_NAMES.map(
+        (name) => `'${name}'`,
+    ).join(', ')}) AND ${alias}.tool_args @> '${JSON.stringify({
+        queries: [{ sourceType: QuerySourceType.SQL }],
+    })}'::jsonb))`;
 
 export type AiPromptResponseState = {
     respondedAt: string | null;
@@ -3608,7 +3619,7 @@ export class AiAgentModel {
                     LEFT JOIN ${AiSqlApprovalTableName} as sql_approval
                         ON sql_approval.tool_call_id = tool_call.tool_call_id
                     WHERE tool_call.ai_prompt_uuid = latest_prompt.ai_prompt_uuid
-                        AND tool_call.tool_name = 'runSql'
+                        AND ${sqlApprovalToolCallSql('tool_call')}
                     ORDER BY tool_call.created_at DESC
                 ) as run_sql_tool_calls ON true`,
             )
@@ -10023,28 +10034,61 @@ export class AiAgentModel {
         return rows.map((row) => row.definition);
     }
 
-    /** Identical definitions are a no-op; a different one under a registered node id throws. */
+    async findComposerQueryNodeColumns({
+        scope,
+        nodeId,
+    }: {
+        scope: ComposerQueryNodeScope;
+        nodeId: string;
+    }): Promise<ComposerNodeColumn[] | null> {
+        const row = await this.database(ComposerQueryNodesTableName)
+            .select('node_columns')
+            .where({
+                scope_type: scope.scopeType,
+                scope_uuid: scope.scopeUuid,
+                node_id: nodeId,
+            })
+            .first();
+        return row?.node_columns ?? null;
+    }
+
+    /**
+     * Identical definitions are a no-op apart from storing given columns;
+     * a different one under a registered node id throws.
+     */
     async registerComposerQueryNodes({
         scope,
         nodes,
+        nodeColumns,
     }: {
         scope: ComposerQueryNodeScope;
         nodes: ThreadComposerQueryNode[];
+        nodeColumns: Record<string, ComposerNodeColumn[]>;
     }): Promise<void> {
         if (nodes.length === 0) return;
         const submitted = new Map(nodes.map((node) => [node.nodeId, node]));
         await this.database.transaction(async (trx) => {
             await trx(ComposerQueryNodesTableName)
                 .insert(
-                    nodes.map((node) => ({
-                        scope_type: scope.scopeType,
-                        scope_uuid: scope.scopeUuid,
-                        node_id: node.nodeId,
-                        definition: node,
-                    })),
+                    nodes.map((node) => {
+                        const columns = nodeColumns[node.nodeId];
+                        return {
+                            scope_type: scope.scopeType,
+                            scope_uuid: scope.scopeUuid,
+                            node_id: node.nodeId,
+                            definition: node,
+                            node_columns: columns
+                                ? JSON.stringify(columns)
+                                : null,
+                        };
+                    }),
                 )
                 .onConflict(['scope_type', 'scope_uuid', 'node_id'])
-                .ignore();
+                .merge({
+                    node_columns: trx.raw(
+                        `COALESCE(EXCLUDED.node_columns, ${ComposerQueryNodesTableName}.node_columns)`,
+                    ),
+                });
             const registered = await trx(ComposerQueryNodesTableName)
                 .select('node_id', 'definition')
                 .where({
@@ -11574,8 +11618,8 @@ export class AiAgentModel {
 
             await trx.raw(
                 `INSERT INTO ${ComposerQueryNodesTableName}
-                    (scope_type, scope_uuid, node_id, definition, created_at)
-                 SELECT scope_type, :targetThreadUuid, node_id, definition, created_at
+                    (scope_type, scope_uuid, node_id, definition, node_columns, created_at)
+                 SELECT scope_type, :targetThreadUuid, node_id, definition, node_columns, created_at
                  FROM ${ComposerQueryNodesTableName}
                  WHERE scope_type = :scopeType AND scope_uuid = :scopeUuid`,
                 {
@@ -11681,7 +11725,7 @@ export class AiAgentModel {
      * Shared predicate for retention sweeps: the effective window (LEAST of
      * agent/org values — nulls ignored, so agentless threads inherit the org
      * value) must have elapsed since the last activity, and nothing may be
-     * in flight: an unanswered prompt under 24h old, a runSql call awaiting
+     * in flight: an unanswered prompt under 24h old, a SQL call awaiting
      * human approval at any age, or a non-terminal deep research/writeback
      * run (their stale-run sweepers guarantee eventual termination).
      */
@@ -11729,7 +11773,7 @@ export class AiAgentModel {
                         ON ap.tool_call_id = tc.tool_call_id
                     WHERE p.ai_thread_uuid = t.ai_thread_uuid
                         AND t.sql_auto_approved_at IS NULL
-                        AND tc.tool_name = 'runSql'
+                        AND ${sqlApprovalToolCallSql('tc')}
                         AND tr.ai_agent_tool_result_uuid IS NULL
                         AND ap.tool_call_id IS NULL
                 )

@@ -25,6 +25,7 @@ export const AI_USAGE_CHANNELS = [
     'evals',
     'scheduler',
     'data_app',
+    'dashboard_analysis',
 ] as const;
 
 export type AiUsageChannel = (typeof AI_USAGE_CHANNELS)[number];

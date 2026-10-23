@@ -41,9 +41,16 @@ for subsequent user queries continue to evaluate their own flag and permissions.
 Only the previous seven closed UTC dates are processed. For a run on 8 October,
 that is 1–7 October inclusive. Current-day events wait for the next run; raw events
 older than that window are left unprocessed. Existing published history stays
-queryable. Dimension snapshots reflect current inventory. Existing partition caps,
-SQL timeouts and query resource limits remain. Missing several nights can consume
+queryable. Dimension snapshots reflect current inventory. Each run processes at
+most 5,000 raw stream/day partitions and, independently, 5,000 changed or failed
+user-summary partitions. Deferred work remains for a subsequent run within this
+window. Processing remains serial, with one DuckDB thread and a 256 MB managed-memory
+limit; SQL timeouts and query resource limits remain. Missing several nights can consume
 the catch-up window; this is a deliberate limit, not unlimited historical repair.
+
+The partition budget is not a runtime guarantee. Graphile Worker expires job and
+queue locks after four hours; monitor processing times and backlog before increasing
+rollout cohorts so that scheduled and initial processing jobs do not overlap.
 
 The explicit `build-usage-user-activity` command also checks the organization flag
 and rejects dates older than this window. It remains a privileged maintenance

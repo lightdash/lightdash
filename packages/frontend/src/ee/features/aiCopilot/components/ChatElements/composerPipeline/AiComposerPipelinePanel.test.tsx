@@ -55,6 +55,7 @@ const renderPanel = (props: {
             displayableNodeIds={new Set(['orders', 'amounts', 'joined'])}
             onDisplayNode={() => {}}
             nodeStatuses={{}}
+            defaultMode="list"
             {...props}
         >
             <div>results</div>
@@ -67,13 +68,19 @@ const nodeButtons = () => screen.getAllByLabelText(/^Display /);
 const nodeButton = (title: string) => screen.getByLabelText(`Display ${title}`);
 
 describe('AiComposerPipelinePanel graph mode', () => {
-    it('shows the List / Graph switch only when expanded', () => {
-        renderPanel({});
+    it('shows the List / Graph switch only when expanded, defaulting to Graph for multiple nodes', () => {
+        renderPanel({ defaultMode: undefined });
         expect(screen.queryByRole('radio', { name: 'Graph' })).toBeNull();
         fireEvent.click(screen.getByRole('button', { name: /queries/i }));
-        expect(
-            screen.getByRole('radio', { name: 'Graph' }),
-        ).toBeInTheDocument();
+        expect(screen.getByRole('radio', { name: 'Graph' })).toBeChecked();
+    });
+
+    it('defaults to List for a single-node pipeline', () => {
+        renderPanel({
+            queries: [{ ...queries[0], nodeId: 'joined' }],
+            defaultExpanded: true,
+            defaultMode: undefined,
+        });
         expect(screen.getByRole('radio', { name: 'List' })).toBeChecked();
     });
 
@@ -302,6 +309,7 @@ describe('AiComposerPipelinePanel python nodes', () => {
                 onDisplayNode={() => {}}
                 nodeStatuses={{}}
                 defaultExpanded
+                defaultMode="list"
             >
                 <div>results</div>
             </AiComposerPipelinePanel>,

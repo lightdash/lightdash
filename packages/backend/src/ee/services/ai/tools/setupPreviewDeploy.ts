@@ -38,13 +38,13 @@ export const getSetupPreviewDeploy = ({ setupPreviewDeploy }: Dependencies) =>
                 const secretsList = secrets
                     .map((s) =>
                         s.value !== null
-                            ? `- ${s.name} = \`${s.value}\` (pre-filled — show this exact value) — ${s.description}`
+                            ? `- ${s.name} = \`${s.value}\` (pre-filled) — ${s.description}`
                             : `- ${s.name} — ${s.description} (the user must provide this)`,
                     )
                     .join('\n');
 
                 const target = `Lightdash project "${projectName}" (repository ${repository})`;
-                const result = `Opened a pull request against ${target} that adds the Lightdash preview-deploy GitHub Actions workflow. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply. IMPORTANT: tell the user which GitHub Actions secrets to add, presenting the pre-filled values EXACTLY as given below (do not replace them with generic descriptions):\n\n${secretsList}`;
+                const result = `Opened a pull request against ${target} that adds the Lightdash preview-deploy GitHub Actions workflow. The user sees a "View pull request" button, so leave the pull request URL and number out of your reply. Tell the user to add these GitHub Actions secrets to the repository, copying each pre-filled value exactly as given rather than describing it:\n\n${secretsList}`;
 
                 return {
                     result,

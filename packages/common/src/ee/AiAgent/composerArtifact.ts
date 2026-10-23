@@ -1,4 +1,5 @@
 import { ParameterError } from '../../types/errors';
+import { type DimensionType } from '../../types/field';
 import {
     isAndFilterGroup,
     isOrFilterGroup,
@@ -11,15 +12,17 @@ import {
     type QueryNodeId,
     type SourceQuery,
 } from '../../types/querySources';
+import { type ResultColumns } from '../../types/results';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { stableJson } from '../../utils/stableJson';
 import { type AllVizChartConfig } from '../../visualizations/types';
+import { type ComposerStoredChartVizConfig } from './schemas/tools/composerChartVizConfigSchema';
 
 /**
  * A composer artifact version: a declarative pipeline, its terminal node and
  * the viz config. Holds no results; opening it runs the pipeline.
  */
-export type AiComposerChartArtifactConfig = {
+export type AiComposerChartArtifactConfigV1 = {
     source: 'composer';
     schemaVersion: 1;
     /** Self-contained pipeline: every node has a node id and reads only nodes of this pipeline. */
@@ -27,6 +30,19 @@ export type AiComposerChartArtifactConfig = {
     terminalNodeId: QueryNodeId;
     vizConfig: AllVizChartConfig | null;
 };
+
+/** v2 draws the terminal node through the runQuery chart builders. */
+export type AiComposerChartArtifactConfigV2 = {
+    source: 'composer';
+    schemaVersion: 2;
+    queries: SourceQuery[];
+    terminalNodeId: QueryNodeId;
+    vizConfig: ComposerStoredChartVizConfig | null;
+};
+
+export type AiComposerChartArtifactConfig =
+    | AiComposerChartArtifactConfigV1
+    | AiComposerChartArtifactConfigV2;
 
 /** Arguments for saving a composer artifact version. */
 export type AiComposerArtifactVersion = {
@@ -61,6 +77,31 @@ export const toComposerArtifactVersion = ({
     },
 });
 
+export const toComposerChartArtifactVersion = ({
+    title,
+    description,
+    queries,
+    terminalNodeId,
+    vizConfig,
+}: {
+    title: string;
+    description: string | null;
+    queries: SourceQuery[];
+    terminalNodeId: QueryNodeId;
+    vizConfig: ComposerStoredChartVizConfig;
+}): AiComposerArtifactVersion => ({
+    artifactType: 'chart',
+    title,
+    ...(description ? { description } : {}),
+    vizConfig: {
+        source: 'composer',
+        schemaVersion: 2,
+        queries,
+        terminalNodeId,
+        vizConfig,
+    },
+});
+
 export const isAiComposerChartArtifactConfig = (
     config: unknown,
 ): config is AiComposerChartArtifactConfig =>
@@ -69,11 +110,24 @@ export const isAiComposerChartArtifactConfig = (
     'source' in config &&
     config.source === 'composer' &&
     'schemaVersion' in config &&
-    config.schemaVersion === 1 &&
+    (config.schemaVersion === 1 || config.schemaVersion === 2) &&
     'queries' in config &&
     Array.isArray(config.queries) &&
     'terminalNodeId' in config &&
     typeof config.terminalNodeId === 'string';
+
+/** Semantic explores a pipeline reads, the access a user needs to see its results. */
+export const getComposerSemanticExploreNames = (
+    queries: SourceQuery[],
+): string[] => [
+    ...new Set(
+        queries.flatMap((node) =>
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                ? [node.exploreName]
+                : [],
+        ),
+    ),
+];
 
 // The full definition, with array references written in map form.
 // Filter group and rule ids are generated per submission, so two identical
@@ -145,6 +199,17 @@ export type ComposerPipelineNode = SourceQuery & { nodeId: QueryNodeId };
 /** A node a thread defined through a successful composer query. */
 export type ThreadComposerQueryNode = ComposerPipelineNode;
 
+/** A result column of a node, stored beside its definition by the run that registered it. */
+export type ComposerNodeColumn = {
+    reference: string;
+    type: DimensionType;
+};
+
+export const toComposerNodeColumns = (
+    columns: ResultColumns,
+): ComposerNodeColumn[] =>
+    Object.values(columns).map(({ reference, type }) => ({ reference, type }));
+
 const hasNodeId = (node: SourceQuery): node is ComposerPipelineNode =>
     !!node.nodeId;
 
@@ -209,4 +274,18 @@ export const buildComposerArtifactPipeline = ({
     };
     queries.forEach(visit);
     return pipeline;
+};
+
+/** A successful `query` call of a turn, presented by its terminal node. */
+export type AiAgentMessageQueryPipeline = {
+    queryUuid: string;
+    title: string;
+    terminalNodeId: QueryNodeId;
+    /** Every node the call ran, reused ones included, in dependency order. */
+    nodes: ComposerPipelineNode[];
+};
+
+export type ApiAiAgentMessageQueryPipelinesResponse = {
+    status: 'ok';
+    results: AiAgentMessageQueryPipeline[];
 };

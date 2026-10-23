@@ -84,6 +84,10 @@ export const useSettingsContext = (): SettingsContext => {
         FeatureFlags.EnableDataAppAnalysis,
     );
     const { data: dataAppAnalysisFlag } = dataAppAnalysisFlagQuery;
+    const dashboardAnalysisFlagQuery = useServerFeatureFlag(
+        FeatureFlags.EnableDashboardAnalysis,
+    );
+    const { data: dashboardAnalysisFlag } = dashboardAnalysisFlagQuery;
     const isChartStudioAvailable = useChartStudioAvailable();
 
     const { data: externalSourcesFlag } = useServerFeatureFlag(
@@ -242,9 +246,11 @@ export const useSettingsContext = (): SettingsContext => {
             aiOrganizationSettingsQuery.isInitialLoading,
         dataAppsFlag,
         dataAppAnalysisFlag,
+        dashboardAnalysisFlag,
         isDataAppsFlagLoading:
             dataAppsFlagQuery.isInitialLoading ||
-            dataAppAnalysisFlagQuery.isInitialLoading,
+            dataAppAnalysisFlagQuery.isInitialLoading ||
+            dashboardAnalysisFlagQuery.isInitialLoading,
         isChartStudioAvailable,
         externalSourcesFlag,
         isResultsCacheEnabled,

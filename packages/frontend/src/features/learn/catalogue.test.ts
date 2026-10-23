@@ -30,9 +30,9 @@ describe('learn catalogue gates', () => {
         );
     });
 
-    it('gates document modules on the documents flag', () => {
+    it('leaves document modules ungated', () => {
         ['view:Document', 'manage:Document'].forEach((name) =>
-            expect(gateFor({ name, isEnterprise: false })).toBe('documents'),
+            expect(gateFor({ name, isEnterprise: false })).toBeNull(),
         );
     });
 

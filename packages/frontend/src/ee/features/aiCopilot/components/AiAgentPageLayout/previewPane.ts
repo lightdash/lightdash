@@ -25,6 +25,8 @@ export const previewPaneOf = (
                 : { id: 'chart-artifact', defaultSize: 46 };
         case 'savedChart':
             return { id: 'chart-artifact', defaultSize: 46 };
+        case 'queryPipeline':
+            return { id: 'composer-artifact', defaultSize: PREVIEW_PANE_MAX };
         case 'document':
             return { id: 'document', defaultSize: 50 };
         default:

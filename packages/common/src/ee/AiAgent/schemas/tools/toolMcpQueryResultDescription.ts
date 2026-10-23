@@ -8,7 +8,7 @@ export const MCP_QUERY_TIMING_NOTE = `Each get_query_result call waits up to ${M
 
 export const MCP_QUERY_ERROR_NOTE = `Stop on terminal errors and correct the request before retrying.`;
 
-export const MCP_ARTIFACT_INTEGRATION_NOTE = `When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data. This is not needed for ordinary chat or the built-in chart app.`;
+export const MCP_ARTIFACT_INTEGRATION_NOTE = `When building an HTML/React artifact that calls MCP, load the mcp-artifact-integration skill (read_skill with name: "mcp-artifact-integration") for response parsing, polling, errors and chart data.`;
 
 export const MCP_QUERY_RESULT_USAGE_NOTE = `If running, follow the response's polling instructions and call get_query_result with the same queryUuid; never resubmit the query.`;
 

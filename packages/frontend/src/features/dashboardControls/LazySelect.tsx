@@ -1,15 +1,16 @@
-import { Combobox, Group, Input, InputBase, Select, Text } from '@mantine/core';
-import { IconCheck } from '@tabler/icons-react';
+import { getItemId, type DashboardFilterableField } from '@lightdash/common';
+import { Combobox, Input, InputBase, Select, Text } from '@mantine/core';
 import {
     useEffect,
     useRef,
     useState,
     type FC,
+    type FocusEvent,
     type KeyboardEvent,
     type MouseEvent,
     type ReactNode,
 } from 'react';
-import MantineIcon from '../../components/common/MantineIcon';
+import FieldSelect from '../../components/common/FieldSelect';
 
 type Option = { value: string; label: string };
 export type OptionGroup = { label: string; items: Option[] };
@@ -26,8 +27,9 @@ type Props = {
     placeholder: string;
     // Accessible name of the clear button
     clearLabel: string;
-    // The symbol shown before an option, or null for none. Keep it stable
-    renderOptionIcon: ((value: string) => ReactNode) | null;
+    // The fields the options stand for: the shipped field select lists them,
+    // grouped by table. Null lists the options as they are (SQL columns)
+    fieldsMap: Record<string, DashboardFilterableField> | null;
     onChange: (value: string | null) => void;
 };
 
@@ -43,7 +45,7 @@ export const LazySelect: FC<Props> = ({
     value,
     placeholder,
     clearLabel,
-    renderOptionIcon,
+    fieldsMap,
     onChange,
 }) => {
     const [isActivated, setIsActivated] = useState(false);
@@ -136,29 +138,53 @@ export const LazySelect: FC<Props> = ({
         );
     }
 
+    const sharedProps = {
+        size: 'xs',
+        'aria-label': ariaLabel,
+        clearable: true,
+        clearButtonProps,
+        placeholder,
+        autoFocus: true,
+        dropdownOpened: isListOpen,
+        onDropdownOpen: () => setIsListOpen(true),
+        onDropdownClose: () => setIsListOpen(false),
+        // Focus alone never opens the list: clearing puts focus back here
+        openOnFocus: false,
+        comboboxProps: { withinPortal: true },
+        leftSection,
+        searchable,
+        // Typing replaces the current choice instead of appending to it
+        onFocus: (event: FocusEvent<HTMLInputElement>) => {
+            if (searchable) event.currentTarget.select();
+        },
+        nothingFoundMessage,
+    } as const;
+
+    if (fieldsMap !== null) {
+        const items = filled.flatMap((group) =>
+            group.items.flatMap((option) => {
+                const field = fieldsMap[option.value];
+                return field ? [field] : [];
+            }),
+        );
+        return (
+            <FieldSelect
+                {...sharedProps}
+                ref={inputRef}
+                miw={0}
+                hasGrouping
+                item={value === null ? undefined : fieldsMap[value]}
+                items={items}
+                onChange={(field) => onChange(field ? getItemId(field) : null)}
+            />
+        );
+    }
+
     return (
         <Select
+            {...sharedProps}
             ref={inputRef}
-            size="xs"
-            aria-label={ariaLabel}
             allowDeselect={false}
-            clearable
-            clearButtonProps={clearButtonProps}
-            placeholder={placeholder}
-            autoFocus
-            dropdownOpened={isListOpen}
-            onDropdownOpen={() => setIsListOpen(true)}
-            onDropdownClose={() => setIsListOpen(false)}
-            // Focus alone never opens the list: clearing puts focus back here
-            openOnFocus={false}
-            comboboxProps={{ withinPortal: true }}
-            leftSection={leftSection}
-            searchable={searchable}
-            // Typing replaces the current choice instead of appending to it
-            onFocus={(event) => {
-                if (searchable) event.currentTarget.select();
-            }}
-            nothingFoundMessage={nothingFoundMessage}
             // Mantine labels a lone group too; one group is a plain list here
             data={
                 filled.length > 1
@@ -167,25 +193,6 @@ export const LazySelect: FC<Props> = ({
                           items: group.items,
                       }))
                     : filled.flatMap((group) => group.items)
-            }
-            renderOption={
-                renderOptionIcon === null
-                    ? undefined
-                    : ({ option, checked }) => (
-                          <Group gap="xs" wrap="nowrap" w="100%">
-                              {renderOptionIcon(option.value)}
-                              <Text inherit truncate flex={1}>
-                                  {option.label}
-                              </Text>
-                              {checked && (
-                                  <MantineIcon
-                                      icon={IconCheck}
-                                      size={14}
-                                      color="dimmed"
-                                  />
-                              )}
-                          </Group>
-                      )
             }
             value={value}
             onChange={onChange}

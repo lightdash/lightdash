@@ -108,9 +108,9 @@ To add or retarget a dashboard filter, take each tile's explore and field ids fr
 
 ### Create and Edit SQL Charts
 
-Use SQL charts only when the semantic layer cannot express the question. Always read `sql-chart-reference` first: saving a SQL chart needs SQL mode and the SQL chart save permission, and the user approves its SQL before it is saved. For a dashboard of SQL charts, create every SQL chart first, then reference their persisted slugs in `sql_chart` tiles.
+Use SQL charts only when the semantic layer cannot express the question. Always read `sql-chart-reference` first. A dashboard of SQL charts references their persisted slugs in `sql_chart` tiles.
 
-To edit a SQL chart, read it, then patch it with `editContent` (`type: sql_chart`). Edits that change its `sql` wait for the user to approve the new SQL; other edits save straight away.
+To edit a SQL chart, read it, then patch it with `editContent` (`type: sql_chart`).
 
 ## Editing Charts
 

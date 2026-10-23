@@ -21,6 +21,7 @@ import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
 import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
 import { Table as TableStyled, Tr } from '../../common/Table/Table.styles';
 import { useVirtualTable } from '../hooks/useVirtualTable';
+import { RawResultCellContextMenu } from './RawResultCellContextMenu';
 
 type TableProps = {
     columnNames: string[];
@@ -170,6 +171,9 @@ export const ChartDataTable = ({
                                                 cell={cell}
                                                 isNumericItem={false}
                                                 hasData={!!cellValue}
+                                                cellContextMenu={
+                                                    RawResultCellContextMenu
+                                                }
                                                 isLargeText={
                                                     (
                                                         cellValue?.toString() ||

@@ -56,7 +56,14 @@ export const formulaTableCalcsSchema = z
     .nullable().describe(`
 Table calculations perform row-by-row calculations on query results without collapsing rows, using spreadsheet-like formulas.
 
-Use them whenever the question needs math the metric query alone can't express: arithmetic across metrics (\`metric_a + metric_b\`), ratios, percent of total, period-over-period change, running totals, moving averages, ranking, row-level comparisons, or aggregating already-aggregated metrics.
+Use them whenever the question needs math the metric query alone can't express; the metric query cannot combine metrics, only a table calculation can. Patterns (\`m\` a metric, \`d\` a date dimension, \`g\` a grouping dimension):
+- Arithmetic and ratios across metrics: \`metric_a + metric_b\`, \`metric_a / metric_b\`
+- Percent of total: \`m / SUM(m)\`
+- Aggregating already-aggregated metrics, e.g. the average of monthly totals: \`AVG(m)\` over a monthly query
+- Period-over-period change: \`(m - LAG(m, ORDER BY d)) / LAG(m, ORDER BY d)\`; add \`PARTITION BY g\` per group
+- Running totals and moving averages: \`RUNNING_TOTAL(m, ORDER BY d)\`, \`MOVING_AVG(m, 2, ORDER BY d)\`
+- Cohort rebasing: \`m / FIRST(m, PARTITION BY g, ORDER BY d)\`
+- Top N per group: \`ROW_NUMBER(PARTITION BY g, ORDER BY m DESC)\` or \`RANK(...)\`, then filter that calculation in \`filters.tableCalculations\`; without the filter every row comes back with its rank
 
 **Technical Requirements:**
 - Appear as additional columns in query results

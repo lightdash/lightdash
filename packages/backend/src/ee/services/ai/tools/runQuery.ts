@@ -50,7 +50,7 @@ import {
     getEmptyFilterHints,
     queryReviewNote,
 } from '../decisions/queryChecks';
-import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
+import { preferFilterValueHints } from '../decisions/queryReview';
 import { joinedMeasureGuidance } from '../decisions/sourceEvidence';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
@@ -66,6 +66,10 @@ import type {
 } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { AiAgentUnknownFieldsError } from '../utils/AiAgentUnknownFieldsError';
+import {
+    getAppliedParameters,
+    summarizeAppliedParameters,
+} from '../utils/appliedParameters';
 import {
     prepareChartAsCode,
     type ChartExportSource,
@@ -162,15 +166,16 @@ const getChartReference = (
     artifact: Pick<AiArtifact, 'versionUuid'> | undefined,
 ) =>
     isSlackPrompt(prompt) && artifact && !isTableResult(chartConfig)
-        ? ` This chart's versionUuid is ${artifact.versionUuid}; use exactly this value to select the saved chart in your final answer.`
+        ? ` This chart's versionUuid is ${artifact.versionUuid}; to attach it to your Slack answer, add <slack-chart versionUuid="${artifact.versionUuid}" /> on its own line.`
         : '';
 
 const getDocumentReference = (
+    prompt: Awaited<ReturnType<GetPromptFn>>,
     chartConfig: ToolRunQueryArgsTransformed['chartConfig'],
     artifact: Pick<AiArtifact, 'versionUuid'> | undefined,
     documentsEnabled: boolean,
 ) => {
-    if (!documentsEnabled || !artifact) return '';
+    if (!documentsEnabled || !artifact || isSlackPrompt(prompt)) return '';
     return isTableResult(chartConfig)
         ? ` To place this result in a Document, use <query-result version="${artifact.versionUuid}" display="table">, or display="big_number" for a single value.`
         : ` To place this chart in a Document, use <artifact-chart version="${artifact.versionUuid}">.`;
@@ -178,6 +183,8 @@ const getDocumentReference = (
 
 type Dependencies = {
     purpose?: 'visualization' | 'answer';
+    // The answer goes to a Slack thread, which also shows a result card.
+    inSlack?: boolean;
     documentsEnabled?: boolean;
     enableFastResponse?: boolean;
     decisions?: AiDecisionClient;
@@ -205,102 +212,6 @@ type Dependencies = {
     enableFilterExpressions: boolean;
     resolveCustomChartType: ResolveCustomChartTypeFn;
     exportCustomChartTypeImage: ExportCustomChartTypeImageFn;
-};
-
-export const getAppliedParameters = (
-    explore: Explore,
-    projectParameterDefinitions: ParameterDefinitions,
-    provided: ParametersValuesMap | null,
-): ToolRunQueryAppliedParameters | null => {
-    const definitions = getReferencedExploreParameterDefinitions(
-        explore,
-        projectParameterDefinitions,
-    );
-    const referenced = Object.keys(definitions);
-    if (referenced.length === 0) return null;
-    const applied = Object.fromEntries(
-        referenced.flatMap((name) => {
-            const value = provided?.[name];
-            return value !== undefined ? [[name, value] as const] : [];
-        }),
-    );
-    const defaulted = Object.fromEntries(
-        referenced.flatMap((name) => {
-            if (provided?.[name] !== undefined) return [];
-            const value = definitions[name].default;
-            return value !== undefined ? [[name, value] as const] : [];
-        }),
-    );
-    const unset = referenced.filter(
-        (name) =>
-            provided?.[name] === undefined &&
-            definitions[name].default === undefined,
-    );
-    return { applied, defaulted, unset };
-};
-
-const renderAppliedParameters = (
-    parameters: ToolRunQueryAppliedParameters | null,
-): string => {
-    if (parameters === null) return '';
-    const { applied, defaulted, unset } = parameters;
-    const parts = [
-        Object.keys(applied).length > 0
-            ? `set explicitly: ${JSON.stringify(applied)}`
-            : null,
-        Object.keys(defaulted).length > 0
-            ? `resolved to defaults: ${JSON.stringify(defaulted)}`
-            : null,
-        unset.length > 0 ? `unset with no default: ${unset.join(', ')}` : null,
-    ].filter((part): part is string => part !== null);
-    return parts.length > 0
-        ? ` Parameter values this query ran with — ${parts.join('; ')}.`
-        : '';
-};
-
-// The parameter state a query actually ran with — explicit vs
-// default-resolved vs unset-with-no-default — so results never hide it.
-export const summarizeAppliedParameters = (
-    explore: Explore,
-    projectParameterDefinitions: ParameterDefinitions,
-    provided: ParametersValuesMap | null,
-): string => {
-    const definitions = getReferencedExploreParameterDefinitions(
-        explore,
-        projectParameterDefinitions,
-    );
-    const referenced = Object.keys(definitions);
-    if (referenced.length === 0) return '';
-    const applied = Object.fromEntries(
-        referenced.flatMap((name) => {
-            const value = provided?.[name];
-            return value !== undefined ? [[name, value] as const] : [];
-        }),
-    );
-    const defaulted = Object.fromEntries(
-        referenced.flatMap((name) => {
-            if (provided?.[name] !== undefined) return [];
-            const value = definitions[name].default;
-            return value !== undefined ? [[name, value] as const] : [];
-        }),
-    );
-    const unset = referenced.filter(
-        (name) =>
-            provided?.[name] === undefined &&
-            definitions[name].default === undefined,
-    );
-    const parts = [
-        Object.keys(applied).length > 0
-            ? `set explicitly: ${JSON.stringify(applied)}`
-            : null,
-        Object.keys(defaulted).length > 0
-            ? `resolved to defaults: ${JSON.stringify(defaulted)}`
-            : null,
-        unset.length > 0 ? `unset with no default: ${unset.join(', ')}` : null,
-    ].filter((part): part is string => part !== null);
-    return parts.length > 0
-        ? ` Parameter values this query ran with — ${parts.join('; ')}.`
-        : '';
 };
 
 // The rows written into the conversation: the CSV block and the structured
@@ -492,6 +403,7 @@ const deferSlackChart = async ({
     }
     try {
         await deferSlackVisualization({
+            source: 'runQuery',
             artifactUuid: artifact.artifactUuid,
             versionUuid: artifact.versionUuid,
             queryUuid: queryResults.queryUuid,
@@ -565,6 +477,7 @@ const getFastAnswerText = (
 
 export const getRunQuery = ({
     purpose = 'visualization',
+    inSlack = false,
     documentsEnabled = false,
     enableFastResponse = false,
     updateProgress,
@@ -598,7 +511,9 @@ export const getRunQuery = ({
     const inputSchema: Schema<RunQueryToolInput> = rawInputSchema;
     let description = baseDescription;
     if (purpose === 'answer') {
-        description = `${baseDescription} Use this when the user wants a data answer without a visualization. Set chartConfig to null. It returns query rows and saves them as a table artifact, so follow-up edits can refine it; Slack also receives an explorable result card.`;
+        description = `${baseDescription} It answers without a chart: set chartConfig to null. The rows are saved as a table artifact, so follow-up edits can refine it${
+            inSlack ? '; Slack also receives an explorable result card' : ''
+        }.`;
     } else if (decisions && enableDataAccess) {
         description = `${baseDescription} For builtin charts, you can set chartConfig to null: the server selects a validated default from the question and actual result shape. Supply chartConfig when explicit presentation settings are needed. Query fields, filters and limits are always your responsibility.`;
     }
@@ -865,7 +780,7 @@ export const getRunQuery = ({
                 ) {
                     const artifact = await createOrUpdateArtifactHook();
                     return {
-                        result: `Success${getChartReference(prompt, queryTool.chartConfig, artifact)}${getDocumentReference(queryTool.chartConfig, artifact, documentsEnabled)}`,
+                        result: `Success${getChartReference(prompt, queryTool.chartConfig, artifact)}${getDocumentReference(prompt, queryTool.chartConfig, artifact, documentsEnabled)}`,
                         metadata: {
                             status: 'success',
                             ...(isSlackPrompt(prompt) && artifact
@@ -969,14 +884,16 @@ export const getRunQuery = ({
                         decisions && enableDataAccess && searchFieldValues
                             ? getEmptyFilterHints({
                                   decisions,
-                                  query: queryTool,
+                                  query: queryTool.queryConfig,
                                   searchFieldValues,
                               })
                             : '',
                     ]);
-                    const emptyResultText = valueHints
-                        ? `${EMPTY_QUERY_GUIDANCE} ${valueHints}${intentNote}`
-                        : diagnosis;
+                    const emptyResultText = preferFilterValueHints({
+                        diagnosis,
+                        valueHints,
+                        review: intentNote,
+                    });
                     return {
                         result:
                             emptyResultText +
@@ -1086,7 +1003,7 @@ export const getRunQuery = ({
                     prompt,
                     queryTool.chartConfig,
                     artifact,
-                )}${getDocumentReference(queryTool.chartConfig, artifact, documentsEnabled)}`;
+                )}${getDocumentReference(prompt, queryTool.chartConfig, artifact, documentsEnabled)}`;
                 if (isSlackPrompt(prompt) && !slackLinksOnly) {
                     await deferSlackChart({
                         queryTool,

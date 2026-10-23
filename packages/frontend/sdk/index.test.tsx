@@ -1153,6 +1153,7 @@ describe('SDK AI agent', () => {
                 },
                 threadContext: 'Earlier: revenue & churn',
             },
+            aiAgentNavigationDisabled: false,
         });
     });
 
@@ -1179,6 +1180,32 @@ describe('SDK AI agent', () => {
                 binding: { type: 'chart', chartUuid: 'test-chart-uuid' },
                 threadContext: null,
             },
+            aiAgentNavigationDisabled: false,
+        });
+    });
+
+    it('passes disableNavigation in the iframe hash', async () => {
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                disableNavigation
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        const iframeSrc = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(iframeSrc.search).toBe('');
+        expect(parseEmbedHash(iframeSrc.hash)).toEqual({
+            token: mockToken,
+            aiAgentThreadSetup: null,
+            aiAgentNavigationDisabled: true,
         });
     });
 

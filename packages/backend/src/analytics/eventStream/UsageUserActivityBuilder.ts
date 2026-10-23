@@ -11,12 +11,12 @@ import Logger from '../../logging/logger';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import type { StreamName } from './projection';
 import { compactedStreamSchemas } from './registry';
+import { MAX_PARTITIONS_PER_RUN } from './usageProcessingLimits';
 import { usageProcessingStartDate } from './usageProcessingWindow';
 import { analyticsStreams, userActivityKey } from './userActivity';
 
 const literal = (value: string) => `'${value.replace(/'/g, "''")}'`;
 const MAX_FILES_PER_DAY = 10_000;
-const MAX_CHANGED_PARTITIONS = 500;
 const DAY_MS = 86_400_000;
 const MODEL_VERSION = '1';
 export type UserActivitySummary = {
@@ -172,10 +172,10 @@ export class UsageUserActivityBuilder extends S3BaseClient {
             )) {
                 if (
                     summary.published + summary.failed >=
-                    MAX_CHANGED_PARTITIONS
+                    MAX_PARTITIONS_PER_RUN
                 ) {
                     Logger.warn(
-                        'User activity refresh reached its 500-partition work limit; remaining partitions will be retried on the next run',
+                        `User activity refresh reached its ${MAX_PARTITIONS_PER_RUN}-partition work limit; remaining partitions will be retried on the next run`,
                     );
                     summary.limitReached = true;
                     break;

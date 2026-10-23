@@ -17,6 +17,7 @@ import {
     type FC,
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
@@ -29,10 +30,12 @@ import {
 import FilterFieldSelect from '../dashboardFilters/FilterConfiguration/FilterFieldSelect';
 import SqlColumnSelect from '../dashboardFilters/FilterConfiguration/SqlColumnSelect';
 import { getUniqueSqlColumns } from '../dashboardFilters/FilterConfiguration/utils';
+import { DropdownClass } from './DropdownClass';
 import { getFieldCandidates } from './fieldCandidates';
 import { FieldRow } from './FieldRow';
 import classes from './FieldsAndTiles.module.css';
 import { applyFieldToUnfilteredTiles, getFilterFields } from './peers';
+import { useRailContractClasses } from './railContractClasses';
 import { useControlsSidebar } from './useControlsSidebar';
 import { useFieldTileActions } from './useFieldTileActions';
 import { useFilterRuleField } from './useFilterRuleField';
@@ -60,26 +63,33 @@ const AddFieldSearch: FC<AddFieldSearchProps> = ({
     ...picker
 }) => {
     const root = useRef<HTMLDivElement>(null);
+    const getUiString = useUiStrings();
+    const contractClasses = useRailContractClasses();
     useEffect(() => {
         root.current?.querySelector('input')?.focus();
     }, []);
     return (
-        <Box
-            ref={root}
-            className={classes.addFieldSelect}
-            // Escape hands focus back to the button
-            onKeyDown={(event) => {
-                if (event.key === 'Escape') onDismiss(true);
-            }}
-        >
-            <FilterFieldSelect
-                {...picker}
-                selectedField={undefined}
-                onChange={onPick}
-                defaultOpened
-                popoverProps={{ onClose: () => onDismiss(false) }}
-            />
-        </Box>
+        <DropdownClass className={contractClasses?.addFilterDropdown ?? null}>
+            <Box
+                ref={root}
+                className={classes.addFieldSelect}
+                // Escape hands focus back to the button
+                onKeyDown={(event) => {
+                    if (event.key === 'Escape') onDismiss(true);
+                }}
+            >
+                <FilterFieldSelect
+                    {...picker}
+                    selectedField={undefined}
+                    withLabel={false}
+                    placeholder={getUiString('filters.rail.searchFields')}
+                    withinPortal
+                    onChange={onPick}
+                    defaultOpened
+                    popoverProps={{ onClose: () => onDismiss(false) }}
+                />
+            </Box>
+        </DropdownClass>
     );
 };
 
@@ -98,6 +108,8 @@ export const FieldsAndTiles: FC = () => {
         hoveredFieldId,
         setHoveredFieldId,
     } = useControlsSidebar();
+    const getUiString = useUiStrings();
+    const contractClasses = useRailContractClasses();
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
@@ -207,45 +219,56 @@ export const FieldsAndTiles: FC = () => {
         // As in the shipped "Add filter": columns only when no tile has fields
         const hasFields = starterFields.length > 0;
         return (
-            <Stack gap="xs" ref={starterRef}>
-                {hasFields ? (
-                    <FilterFieldSelect
-                        fields={starterFields}
-                        availableTileFilters={availableTileFilters}
-                        tiles={tiles}
-                        tabs={dashboardTabs}
-                        activeTabUuid={activeTabUuid}
-                        selectedField={undefined}
-                        onChange={(field) => {
-                            addFirstField(field);
-                            // Naming it comes next
-                            focusLabelInput();
-                        }}
-                    />
-                ) : (
-                    <SqlColumnSelect
-                        columns={sqlColumnOptions}
-                        value={undefined}
-                        onChange={(column) => {
-                            addFirstSqlColumn(
-                                column,
-                                Object.fromEntries(
-                                    Object.entries(sqlChartTilesMetadata).map(
-                                        ([tileUuid, metadata]) => [
+            <Stack gap="xs" ref={starterRef} data-controls-start>
+                <DropdownClass
+                    className={contractClasses?.addFilterDropdown ?? null}
+                >
+                    {hasFields ? (
+                        <FilterFieldSelect
+                            fields={starterFields}
+                            availableTileFilters={availableTileFilters}
+                            tiles={tiles}
+                            tabs={dashboardTabs}
+                            activeTabUuid={activeTabUuid}
+                            selectedField={undefined}
+                            withLabel={false}
+                            placeholder={getUiString(
+                                'filters.rail.searchFields',
+                            )}
+                            withinPortal
+                            onChange={(field) => {
+                                addFirstField(field);
+                                // Naming it comes next
+                                focusLabelInput();
+                            }}
+                        />
+                    ) : (
+                        <SqlColumnSelect
+                            columns={sqlColumnOptions}
+                            value={undefined}
+                            onChange={(column) => {
+                                addFirstSqlColumn(
+                                    column,
+                                    Object.fromEntries(
+                                        Object.entries(
+                                            sqlChartTilesMetadata,
+                                        ).map(([tileUuid, metadata]) => [
                                             tileUuid,
                                             metadata.columns,
-                                        ],
+                                        ]),
                                     ),
-                                ),
-                            );
-                            focusLabelInput();
-                        }}
-                    />
-                )}
-                <Text fz="xs" c="dimmed" className={classes.hint}>
-                    {hasFields
-                        ? 'Select the field to filter tiles by.'
-                        : 'Select the column to filter tiles by.'}
+                                );
+                                focusLabelInput();
+                            }}
+                        />
+                    )}
+                </DropdownClass>
+                <Text fz="xs" c="dimmed">
+                    {getUiString(
+                        hasFields
+                            ? 'filters.rail.startHint'
+                            : 'filters.rail.startHintColumns',
+                    )}
                 </Text>
             </Stack>
         );
@@ -256,16 +279,8 @@ export const FieldsAndTiles: FC = () => {
     const hasCandidates = candidates.length > 0;
 
     return (
-        <Stack gap="lg">
+        <Stack gap="sm">
             <Stack gap="xs" ref={rowsRef}>
-                <Stack gap={2}>
-                    <Text fz="sm" fw={600}>
-                        Tiles are filtered by
-                    </Text>
-                    <Text fz="xs" c="dimmed">
-                        Select a field to see and change its tiles.
-                    </Text>
-                </Stack>
                 {rowIds.map((fieldId, index) => {
                     const row = fieldTileActions.forField(fieldId);
                     return (
@@ -304,14 +319,15 @@ export const FieldsAndTiles: FC = () => {
             </Stack>
             <Stack gap="xs" align="flex-start">
                 <Tooltip
-                    label="No tile has another field this filter could use"
+                    label={getUiString('filters.rail.noOtherField')}
                     disabled={hasCandidates}
                 >
                     <Button
                         ref={addButtonRef}
-                        variant="light"
+                        variant="subtle"
+                        color="gray"
                         size="xs"
-                        leftSection={<MantineIcon icon={IconPlus} />}
+                        leftSection={<MantineIcon icon={IconPlus} size={14} />}
                         // The press puts the open search away (focus leaves
                         // it), so the click that follows must not reopen it
                         onMouseDown={(event) => {
@@ -331,7 +347,7 @@ export const FieldsAndTiles: FC = () => {
                         data-disabled={!hasCandidates || undefined}
                         aria-disabled={!hasCandidates || undefined}
                     >
-                        Add another field
+                        {getUiString('filters.rail.addAnotherField')}
                     </Button>
                 </Tooltip>
                 {isAdding && hasCandidates && (
@@ -370,6 +386,9 @@ export const FieldsAndTiles: FC = () => {
                     />
                 )}
             </Stack>
+            <Text fz="xs" c="dimmed">
+                {getUiString('filters.rail.tileFieldHint')}
+            </Text>
         </Stack>
     );
 };

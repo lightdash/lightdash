@@ -1,4 +1,5 @@
 import {
+    isComposerQueryToolName,
     type AiAgentToolCall,
     type AiAgentToolName,
     type AiAgentToolResult,
@@ -562,7 +563,7 @@ const renderInlineLiveStepProgress = (params: {
 
 /**
  * Derive per-node execution statuses for a live composer pipeline from the
- * transient step-progress events the runComposerQueries tool emits
+ * transient step-progress events the composer query tool emits
  * (progressId = `${toolCallId}:${nodeId}`). Nodes without an event yet show
  * as pending while the call is in flight, and flip to success wholesale when
  * the tool's final output lands successfully. Returns undefined for other
@@ -573,7 +574,7 @@ const getComposerNodeStatuses = (
     stepProgressMessages: StepProgressMessage[],
     awaitingApproval: boolean,
 ): Record<string, ComposerQueryNodeStatus> | undefined => {
-    if (call.toolName !== 'runComposerQueries') return undefined;
+    if (!isComposerQueryToolName(call.toolName)) return undefined;
     const queries = getComposerQueryNodes(call.toolArgs);
     const nodeIds = queries.map((query) => query.nodeId);
     const sqlNodeIds = new Set(
@@ -584,7 +585,8 @@ const getComposerNodeStatuses = (
     const progressIdPrefix = `${call.toolCallId}:`;
     const eventStatuses = new Map<string, ComposerQueryNodeStatus>();
     for (const event of stepProgressMessages) {
-        if (event.toolName !== 'runComposerQueries') continue;
+        if (!event.toolName || !isComposerQueryToolName(event.toolName))
+            continue;
         if (
             !event.progressId?.startsWith(progressIdPrefix) ||
             !event.progressStatus
@@ -681,13 +683,16 @@ export const LiveActivityCard: FC<Props> = ({
 
     // runSql expands by default; composer only while active (the artifact panel
     // shows the pipeline once done). A user toggle wins until expandKey changes.
+    const isComposerQueryGroup =
+        latestGroup !== undefined &&
+        isComposerQueryToolName(latestGroup.toolName);
     const defaultExpanded =
         hasPendingApproval ||
         (!approvalDecided &&
             (latestGroup?.toolName === 'runSql' ||
-                (isActive && latestGroup?.toolName === 'runComposerQueries')));
+                (isActive && isComposerQueryGroup)));
     const expandKey = `${latestGroup?.keyId ?? ''}:${latestGroup?.toolName ?? ''}:${
-        latestGroup?.toolName === 'runComposerQueries' ? isActive : ''
+        isComposerQueryGroup ? isActive : ''
     }:${approvalDecided}`;
     const [userToggle, setUserToggle] = useState<{
         key: string;
@@ -722,7 +727,7 @@ export const LiveActivityCard: FC<Props> = ({
 
     const latestNeedsExpandedBody =
         latest?.toolName === 'runSql' ||
-        latest?.toolName === 'runComposerQueries' ||
+        (latest !== null && isComposerQueryToolName(latest.toolName)) ||
         latestAwaitingApproval;
     const showBody = expanded && (hasHistory || latestNeedsExpandedBody);
 

@@ -14,6 +14,17 @@ import {
 } from './UsageEventsCompactor';
 import { UsageUserActivityBuilder } from './UsageUserActivityBuilder';
 
+const workLimit = vi.hoisted(() => ({ override: null as number | null }));
+vi.mock('./usageProcessingLimits', async (importOriginal) => {
+    const original =
+        await importOriginal<typeof import('./usageProcessingLimits')>();
+    return {
+        get MAX_PARTITIONS_PER_RUN() {
+            return workLimit.override ?? original.MAX_PARTITIONS_PER_RUN;
+        },
+    };
+});
+
 vi.mock('../../logging/logger', () => ({
     __esModule: true,
     default: {
@@ -294,6 +305,7 @@ describe('UsageEventsCompactor.run', () => {
     let metrics: MetricsMock;
 
     beforeEach(() => {
+        workLimit.override = null;
         vi.clearAllMocks();
         metrics = createMetricsMock();
         duckdbMocks.runSqlWithMetrics.mockResolvedValue({
@@ -657,22 +669,86 @@ describe('UsageEventsCompactor.run', () => {
         },
     );
 
-    it('reports raw work capped at 500 partitions as partial', async () => {
+    it('compacts more than 500 partitions with the default work budget', async () => {
         mockListedKeys(
             Array.from({ length: 501 }, (_, index) =>
                 rawKey(`org-${index}`, 'query_events', '2026-07-01'),
             ),
         );
         const summary = await createCompactor(metrics).run(NOW);
-        expect(summary.partitionsCompacted).toBe(500);
+        expect(summary.partitionsCompacted).toBe(501);
         expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
             'compaction',
-            { outcome: 'partial', failed: 0, remaining: 1, limitReached: true },
+            {
+                outcome: 'success',
+                failed: 0,
+                remaining: 0,
+                limitReached: false,
+            },
+            expect.any(Number),
+        );
+    });
+
+    it.each([
+        {
+            discovered: 3,
+            remaining: 0,
+            outcome: 'success',
+            limitReached: false,
+        },
+        { discovered: 4, remaining: 1, outcome: 'partial', limitReached: true },
+    ])(
+        'reports $outcome for $discovered partitions with a three-partition budget',
+        async ({ discovered, remaining, outcome, limitReached }) => {
+            workLimit.override = 3;
+            mockListedKeys(
+                Array.from({ length: discovered }, (_, index) =>
+                    rawKey(`org-${index}`, 'query_events', '2026-07-01'),
+                ),
+            );
+            const summary = await createCompactor(metrics).run(NOW);
+            expect(summary.partitionsCompacted).toBe(3);
+            expect(summary.rawObjectsDeleted).toBe(3);
+            expect(s3Mocks.deleteObjects).toHaveBeenCalledTimes(3);
+            expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
+                'compaction',
+                { outcome, failed: 0, remaining, limitReached },
+                expect.any(Number),
+            );
+            expect(metrics.usageProcessing.finish).toHaveBeenLastCalledWith(
+                'pipeline',
+                { outcome },
+                expect.any(Number),
+            );
+        },
+    );
+
+    it('counts failed raw partitions toward the work budget without deleting their inputs', async () => {
+        workLimit.override = 2;
+        mockListedKeys(
+            Array.from({ length: 3 }, (_, index) =>
+                rawKey(`org-${index}`, 'query_events', '2026-07-01'),
+            ),
+        );
+        duckdbMocks.runSqlWithMetrics.mockRejectedValue(
+            new Error('conversion failed'),
+        );
+        const summary = await createCompactor(metrics).run(NOW);
+        expect(summary).toMatchObject({
+            partitionsDiscovered: 3,
+            partitionsCompacted: 0,
+            partitionsFailed: 2,
+        });
+        expect(duckdbMocks.runSqlWithMetrics).toHaveBeenCalledTimes(2);
+        expect(s3Mocks.deleteObjects).not.toHaveBeenCalled();
+        expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
+            'compaction',
+            { outcome: 'failed', failed: 2, remaining: 3, limitReached: true },
             expect.any(Number),
         );
         expect(metrics.usageProcessing.finish).toHaveBeenLastCalledWith(
             'pipeline',
-            { outcome: 'partial' },
+            { outcome: 'failed' },
             expect.any(Number),
         );
     });

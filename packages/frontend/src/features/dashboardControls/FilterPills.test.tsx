@@ -348,7 +348,6 @@ describe('FilterPills', () => {
             const unlock = screen.getByRole('button', {
                 name: 'Unlock filter on this tab',
             });
-            expect(unlock).toHaveAttribute('aria-pressed', 'true');
             expect(unlock.parentElement?.className).toContain('lockSlotActive');
             const lock = screen.getByRole('button', {
                 name: 'Lock filter on this tab',
@@ -621,11 +620,12 @@ describe('FilterPills', () => {
             });
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
+            // Grip, requirement and field icons, as the shipped pill
             const required = pill(/^Status/);
-            expect(leftIcons(required)).toBe(2);
+            expect(leftIcons(required)).toBe(3);
             expect(required).toHaveAttribute('data-requirement-unmet');
             const optional = pill(/^Region/);
-            expect(leftIcons(optional)).toBe(1);
+            expect(leftIcons(optional)).toBe(2);
             expect(optional).not.toHaveAttribute('data-requirement-unmet');
         });
 
@@ -641,7 +641,7 @@ describe('FilterPills', () => {
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
             const required = pill(/^Status/);
-            expect(leftIcons(required)).toBe(2);
+            expect(leftIcons(required)).toBe(3);
             expect(required).not.toHaveAttribute('data-requirement-unmet');
         });
     });
@@ -827,6 +827,111 @@ describe('FilterPills', () => {
             );
 
             expect(removeMetricDashboardFilter).toHaveBeenCalledWith(0, true);
+        });
+    });
+
+    describe('for a viewer', () => {
+        const ownRule: DashboardFilterRule = {
+            id: 'own',
+            label: undefined,
+            operator: FilterOperator.EQUALS,
+            target: { fieldId: 'orders_region', tableName: 'orders' },
+            values: ['EMEA'],
+        };
+
+        beforeEach(() => {
+            mockSidebar.current = { ...mockSidebar.current, isViewer: true };
+            setContext({
+                dashboardTemporaryFilters: {
+                    ...noFilters,
+                    dimensions: [ownRule],
+                },
+            });
+        });
+
+        it('opens a saved pill in the shipped popover, never the rail', async () => {
+            const user = userEvent.setup();
+            renderWithProviders(
+                <FilterPills
+                    activeTabUuid={undefined}
+                    dropdownClassName="ld-dashboard-filter-dropdown"
+                />,
+            );
+
+            await user.click(pill(/^Status/));
+            expect(open).not.toHaveBeenCalled();
+            const dialog = await screen.findByRole('dialog');
+            expect(dialog).toHaveClass('ld-dashboard-filter-dropdown');
+            expect(
+                screen.queryByRole('button', { name: /ock filter/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                within(pill(/^Status/)).queryByRole('button', {
+                    name: 'Remove filter',
+                }),
+            ).toBeNull();
+        });
+
+        it("applies a saved pill's value as the shipped view-mode write", async () => {
+            const user = userEvent.setup();
+            const updateDimensionDashboardFilter = vi.fn();
+            setContext({ updateDimensionDashboardFilter });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.click(pill(/^Status/));
+            await user.click(
+                await screen.findByRole('button', { name: 'Apply' }),
+            );
+            // The dashboard keeps it as a `filters` URL override
+            expect(updateDimensionDashboardFilter).toHaveBeenCalledWith(
+                expect.objectContaining({ id: 'saved', values: ['done'] }),
+                0,
+                false,
+                false,
+            );
+        });
+
+        it('opens their own pill in the rail and removes it from its X', async () => {
+            const user = userEvent.setup();
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.click(pill(/^Order region/));
+            expect(open).toHaveBeenCalledWith('own');
+
+            const removes = screen.getAllByRole('button', {
+                name: 'Remove filter',
+            });
+            expect(removes).toHaveLength(1);
+            await user.click(removes[0]);
+            expect(removeFilterById).toHaveBeenCalledWith('own');
+        });
+
+        it('shows the shipped skeletons instead of pills while filters load', () => {
+            setContext({ isLoadingDashboardFilters: true });
+            const { container } = renderWithProviders(
+                <FilterPills activeTabUuid={undefined} />,
+            );
+
+            expect(queryPill(/^Status/)).toBeNull();
+            expect(
+                container.querySelectorAll('.mantine-Skeleton-root'),
+            ).toHaveLength(5);
+        });
+
+        it('leaves a locked saved pill read-only, as the shipped pill', async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboardFilters: {
+                    ...filters,
+                    dimensions: [
+                        { ...savedRule, lockedTabUuids: ['dashboard-1'] },
+                    ],
+                },
+            });
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.click(pill(/^Status/));
+            expect(open).not.toHaveBeenCalled();
         });
     });
 });

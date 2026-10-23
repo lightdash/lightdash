@@ -1,6 +1,9 @@
+import { subject } from '@casl/ability';
 import {
     assertRegisteredAccount,
+    assertUnreachable,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
     EE_SCHEDULER_TASKS,
     FeatureFlags,
     ForbiddenError,
@@ -15,7 +18,11 @@ import {
     ResultsExpiredError,
     SchedulerJobStatus,
     TooManyRequestsError,
+    UnexpectedServerError,
     type Account,
+    type AnalysisTarget,
+    type AnalysisTargetLocator,
+    type AnalysisTargetRef,
     type DataAppAnalysis,
     type DataAppAnalysisLimits,
     type DataAppAnalysisLookup,
@@ -44,6 +51,7 @@ import {
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession, toSessionUser } from '../../../auth/account';
 import { type AppModel } from '../../../models/AppModel';
+import { type DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type UserModel } from '../../../models/UserModel';
@@ -60,7 +68,11 @@ import {
     type DbDataAppAnalysis,
 } from '../../database/entities/dataAppAnalyses';
 import { type AiAgentModel } from '../../models/AiAgentModel';
-import { type DataAppAnalysisModel } from '../../models/DataAppAnalysisModel';
+import {
+    analysisTargetUuid,
+    rowTarget,
+    type DataAppAnalysisModel,
+} from '../../models/DataAppAnalysisModel';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { DATA_APP_INVESTIGATE_TOOL_NAMES } from '../ai/agents/agentV2';
@@ -210,6 +222,7 @@ const emptyOutcomeMeta = (sourceCount: number | null): OutcomeMeta => ({
 type Dependencies = {
     dataAppAnalysisModel: DataAppAnalysisModel;
     appModel: AppModel;
+    dashboardModel: DashboardModel;
     userModel: UserModel;
     schedulerService: SchedulerService;
     schedulerClient: CommercialSchedulerClient;
@@ -330,6 +343,8 @@ export class DataAppAnalysisService extends BaseService {
 
     private readonly appModel: AppModel;
 
+    private readonly dashboardModel: DashboardModel;
+
     private readonly userModel: UserModel;
 
     private readonly schedulerService: SchedulerService;
@@ -358,6 +373,7 @@ export class DataAppAnalysisService extends BaseService {
         super({ serviceName: 'DataAppAnalysisService' });
         this.dataAppAnalysisModel = deps.dataAppAnalysisModel;
         this.appModel = deps.appModel;
+        this.dashboardModel = deps.dashboardModel;
         this.userModel = deps.userModel;
         this.schedulerService = deps.schedulerService;
         this.schedulerClient = deps.schedulerClient;
@@ -387,10 +403,15 @@ export class DataAppAnalysisService extends BaseService {
 
     /**
      * Fails closed in order: customer consent (org setting), AI entitlement,
-     * data-apps flag, analysis rollout flag. Each has its own code so the
-     * host can explain which.
+     * then the target's rollout flags. Consent and entitlement are shared
+     * across targets; each target has its own rollout flag so apps and
+     * dashboards roll out independently. Each failure has its own code so
+     * the surface can explain which.
      */
-    private async assertRuntimeAiAllowed(user: SessionUser): Promise<void> {
+    private async assertRuntimeAiAllowed(
+        user: SessionUser,
+        target: AnalysisTarget = 'app',
+    ): Promise<void> {
         if (!user.organizationUuid) {
             throw new ForbiddenError('User must belong to an organization');
         }
@@ -400,7 +421,7 @@ export class DataAppAnalysisService extends BaseService {
             ))
         ) {
             throw new DataAppAnalysisUnavailableError(
-                'AI analysis in data apps is turned off for this organization',
+                'AI analysis is turned off for this organization',
                 'org_setting_disabled',
             );
         }
@@ -410,25 +431,45 @@ export class DataAppAnalysisService extends BaseService {
                 'copilot_disabled',
             );
         }
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.EnableDataApps,
-        });
-        if (!enabled) {
-            throw new DataAppAnalysisUnavailableError(
-                'Data apps are not enabled',
-                'data_apps_disabled',
-            );
-        }
-        const analysisFlag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.EnableDataAppAnalysis,
-        });
-        if (!analysisFlag.enabled) {
-            throw new DataAppAnalysisUnavailableError(
-                'AI analysis in data apps is not enabled for this organization',
-                'analysis_disabled',
-            );
+        switch (target) {
+            case 'app': {
+                const { enabled } = await this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.EnableDataApps,
+                });
+                if (!enabled) {
+                    throw new DataAppAnalysisUnavailableError(
+                        'Data apps are not enabled',
+                        'data_apps_disabled',
+                    );
+                }
+                const analysisFlag = await this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.EnableDataAppAnalysis,
+                });
+                if (!analysisFlag.enabled) {
+                    throw new DataAppAnalysisUnavailableError(
+                        'AI analysis is not enabled for this organization',
+                        'analysis_disabled',
+                    );
+                }
+                return;
+            }
+            case 'dashboard': {
+                const analysisFlag = await this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.EnableDashboardAnalysis,
+                });
+                if (!analysisFlag.enabled) {
+                    throw new DataAppAnalysisUnavailableError(
+                        'AI analysis is not enabled for this organization',
+                        'analysis_disabled',
+                    );
+                }
+                return;
+            }
+            default:
+                assertUnreachable(target, 'Unknown analysis target');
         }
     }
 
@@ -441,7 +482,7 @@ export class DataAppAnalysisService extends BaseService {
             ))
         ) {
             throw new DataAppAnalysisUnavailableError(
-                'AI analysis in data apps was turned off for this organization',
+                'AI analysis was turned off for this organization',
                 'org_setting_disabled',
             );
         }
@@ -450,41 +491,105 @@ export class DataAppAnalysisService extends BaseService {
     private async assertViewer(
         account: Account,
         projectUuid: string,
-        appUuid: string,
-    ): Promise<{ user: SessionUser; appVersion: number }> {
+        locator: AnalysisTargetLocator,
+    ): Promise<{ user: SessionUser; target: AnalysisTargetRef }> {
         if (isJwtUser(account)) {
             throw new DataAppAnalysisUnavailableError(
-                'AI analysis is not available in embedded data apps',
+                locator.kind === 'app'
+                    ? 'AI analysis is not available in embedded data apps'
+                    : 'AI analysis is not available in embedded dashboards',
                 'unsupported_context',
             );
         }
         assertRegisteredAccount(account);
         const user = toSessionUser(account);
-        await this.assertRuntimeAiAllowed(user);
+        await this.assertRuntimeAiAllowed(user, locator.kind);
 
-        const app = await this.appModel.getApp(appUuid, projectUuid);
-        await assertCanViewApp(
-            {
-                auditedAbility: this.createAuditedAbility(user),
-                resolveAccess: (userUuid, targetApp) =>
-                    this.spacePermissionService.resolveAccess(userUuid, {
-                        type: 'app',
-                        appUuid: targetApp.app_id,
-                        organizationUuid: targetApp.organization_uuid,
-                        projectUuid: targetApp.project_uuid,
-                        spaceUuid: targetApp.space_uuid,
-                    }),
-                getProjectContext: (appProjectUuid) =>
-                    this.getProjectContext(appProjectUuid),
-            },
-            user,
-            app,
-        );
-        const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
-        if (!latestReady) {
-            throw new NotFoundError('Data app has no ready version');
+        if (locator.kind === 'app') {
+            const app = await this.appModel.getApp(
+                locator.appUuid,
+                projectUuid,
+            );
+            await assertCanViewApp(
+                {
+                    auditedAbility: this.createAuditedAbility(user),
+                    resolveAccess: (userUuid, targetApp) =>
+                        this.spacePermissionService.resolveAccess(userUuid, {
+                            type: 'app',
+                            appUuid: targetApp.app_id,
+                            organizationUuid: targetApp.organization_uuid,
+                            projectUuid: targetApp.project_uuid,
+                            spaceUuid: targetApp.space_uuid,
+                        }),
+                    getProjectContext: (appProjectUuid) =>
+                        this.getProjectContext(appProjectUuid),
+                },
+                user,
+                app,
+            );
+            const latestReady = await this.appModel.getLatestReadyVersion(
+                locator.appUuid,
+            );
+            if (!latestReady) {
+                throw new NotFoundError('Data app has no ready version');
+            }
+            return {
+                user,
+                target: {
+                    kind: 'app',
+                    appUuid: locator.appUuid,
+                    appVersion: latestReady.version,
+                },
+            };
         }
-        return { user, appVersion: latestReady.version };
+
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            locator.dashboardUuid,
+            { projectUuid },
+        );
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            });
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('Dashboard', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                    inheritsFromOrgOrProject,
+                    access,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError("You don't have access to this dashboard");
+        }
+        return {
+            user,
+            target: { kind: 'dashboard', dashboardUuid: dashboard.uuid },
+        };
+    }
+
+    /** App-only entry points (prompt, investigate) need the resolved version. */
+    private async assertAppViewer(
+        account: Account,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<{ user: SessionUser; appVersion: number }> {
+        const { user, target } = await this.assertViewer(account, projectUuid, {
+            kind: 'app',
+            appUuid,
+        });
+        if (target.kind !== 'app') {
+            throw new UnexpectedServerError('Expected an app analysis target');
+        }
+        return { user, appVersion: target.appVersion };
     }
 
     /**
@@ -608,14 +713,29 @@ export class DataAppAnalysisService extends BaseService {
         }
     }
 
+    /** App-author guidance is untrusted model input; keep it short. */
+    private static validateInstructions(
+        raw: string | undefined,
+    ): string | null {
+        const instructions = raw?.trim() || null;
+        if (
+            instructions !== null &&
+            instructions.length > DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS
+        ) {
+            throw new ParameterError(
+                `Analysis instructions are limited to ${DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS} characters`,
+            );
+        }
+        return instructions;
+    }
+
     private static toDetection(
         row: DbDataAppAnalysis & { operation: 'detect' },
     ): DataAppAnalysis {
         return {
             ...row.result,
             analysisId: row.data_app_analysis_uuid,
-            appUuid: row.app_id,
-            appVersion: row.app_version,
+            target: rowTarget(row),
             sources: row.sources,
             generatedAt: row.created_at,
         };
@@ -628,8 +748,7 @@ export class DataAppAnalysisService extends BaseService {
             ...row.result,
             investigationId: row.data_app_analysis_uuid,
             analysisId: row.parent_analysis_uuid,
-            appUuid: row.app_id,
-            appVersion: row.app_version,
+            target: rowTarget(row),
             generatedAt: row.created_at,
         };
     }
@@ -643,16 +762,15 @@ export class DataAppAnalysisService extends BaseService {
     private async findReusable(args: {
         user: SessionUser;
         projectUuid: string;
-        appUuid: string;
-        appVersion: number;
+        target: AnalysisTargetRef;
         sources: DataAppAnalysisSource[];
         instructions: string | null;
         sectionHashes: DataAppSourceHash[];
         contentHash: string;
     }): Promise<DataAppAnalysisLookup | null> {
+        const { target } = args;
         const own = await this.dataAppAnalysisModel.findLatestDetectByHash({
-            appUuid: args.appUuid,
-            appVersion: args.appVersion,
+            target,
             contentHash: args.contentHash,
             userUuid: args.user.userUuid,
         });
@@ -697,8 +815,7 @@ export class DataAppAnalysisService extends BaseService {
             };
         }
         const shared = await this.dataAppAnalysisModel.findLatestDetectByHash({
-            appUuid: args.appUuid,
-            appVersion: args.appVersion,
+            target,
             contentHash: args.contentHash,
             userUuid: null,
         });
@@ -711,8 +828,7 @@ export class DataAppAnalysisService extends BaseService {
         const copy = await this.dataAppAnalysisModel.create({
             organizationUuid: args.user.organizationUuid!,
             projectUuid: args.projectUuid,
-            appUuid: args.appUuid,
-            appVersion: args.appVersion,
+            target,
             createdByUserUuid: args.user.userUuid,
             operation: 'detect',
             sources: args.sources,
@@ -737,15 +853,17 @@ export class DataAppAnalysisService extends BaseService {
     async lookup(
         account: Account,
         projectUuid: string,
-        appUuid: string,
+        locator: AnalysisTargetLocator,
         body: DataAppLookupRequest,
     ): Promise<DataAppAnalysisLookup | null> {
         DataAppAnalysisService.validateSources(body.sources);
-        const instructions = body.instructions?.trim() || null;
-        const { user, appVersion } = await this.assertViewer(
+        const instructions = DataAppAnalysisService.validateInstructions(
+            body.instructions,
+        );
+        const { user, target } = await this.assertViewer(
             account,
             projectUuid,
-            appUuid,
+            locator,
         );
         const { sectionHashes } = await this.buildContent(
             account,
@@ -755,8 +873,7 @@ export class DataAppAnalysisService extends BaseService {
         return this.findReusable({
             user,
             projectUuid,
-            appUuid,
-            appVersion,
+            target,
             sources: body.sources,
             instructions,
             sectionHashes,
@@ -776,7 +893,7 @@ export class DataAppAnalysisService extends BaseService {
     async detect(
         account: Account,
         projectUuid: string,
-        appUuid: string,
+        locator: AnalysisTargetLocator,
         body: DataAppDetectRequest,
     ): Promise<DataAppAnalysis> {
         const startedAt = Date.now();
@@ -788,14 +905,14 @@ export class DataAppAnalysisService extends BaseService {
             const { analysis, outcome } = await this.detectWithOutcome(
                 account,
                 projectUuid,
-                appUuid,
+                locator,
                 body,
                 note,
             );
             await this.trackOutcome(
                 DataAppAnalysisService.idsFromAccount(account),
                 projectUuid,
-                appUuid,
+                locator,
                 {
                     operation: 'detect',
                     outcome,
@@ -808,7 +925,7 @@ export class DataAppAnalysisService extends BaseService {
             await this.trackOutcome(
                 DataAppAnalysisService.idsFromAccount(account),
                 projectUuid,
-                appUuid,
+                locator,
                 {
                     operation: 'detect',
                     outcome: outcomeForError(e),
@@ -823,7 +940,7 @@ export class DataAppAnalysisService extends BaseService {
     private async detectWithOutcome(
         account: Account,
         projectUuid: string,
-        appUuid: string,
+        locator: AnalysisTargetLocator,
         body: DataAppDetectRequest,
         note: (patch: Partial<OutcomeMeta>) => void,
     ): Promise<{
@@ -831,13 +948,17 @@ export class DataAppAnalysisService extends BaseService {
         outcome: Extract<DataAppAnalysisOutcome, 'ok' | 'cached'>;
     }> {
         DataAppAnalysisService.validateSources(body.sources);
-        const instructions = body.instructions?.trim() || null;
-        const { user, appVersion } = await this.assertViewer(
+        const instructions = DataAppAnalysisService.validateInstructions(
+            body.instructions,
+        );
+        const { user, target } = await this.assertViewer(
             account,
             projectUuid,
-            appUuid,
+            locator,
         );
-        note({ appVersion });
+        note({
+            appVersion: target.kind === 'app' ? target.appVersion : null,
+        });
         // Content is read before the rate check on purpose: the hash decides
         // whether a stored analysis serves this request, and cache hits must
         // stay free. The 429 protects model spend, not the result reads.
@@ -854,8 +975,7 @@ export class DataAppAnalysisService extends BaseService {
             const reusable = await this.findReusable({
                 user,
                 projectUuid,
-                appUuid,
-                appVersion,
+                target,
                 sources: body.sources,
                 instructions,
                 sectionHashes,
@@ -865,7 +985,13 @@ export class DataAppAnalysisService extends BaseService {
                 return { analysis: reusable.analysis, outcome: 'cached' };
             }
         }
-        const inFlightKey = `${user.userUuid}:${appUuid}:${appVersion}:${contentHash}`;
+        const inFlightKey = [
+            user.userUuid,
+            target.kind,
+            analysisTargetUuid(target),
+            target.kind === 'app' ? target.appVersion : '',
+            contentHash,
+        ].join(':');
         const inFlight = this.inFlightDetects.get(inFlightKey);
         if (inFlight) {
             // Same rows, but a second tab has its own query uuids: hand back
@@ -888,7 +1014,11 @@ export class DataAppAnalysisService extends BaseService {
         }
         // Registered before any await so a concurrent caller joins this run
         // instead of starting (and being counted for) its own.
-        const run = this.assertRate(user.userUuid, appUuid, 'detect')
+        const run = this.assertRate(
+            user.userUuid,
+            analysisTargetUuid(target),
+            'detect',
+        )
             .then(() =>
                 this.assertDailyBudget(user.organizationUuid!, 'detect'),
             )
@@ -897,8 +1027,7 @@ export class DataAppAnalysisService extends BaseService {
                 return this.runDetect({
                     user,
                     projectUuid,
-                    appUuid,
-                    appVersion,
+                    target,
                     sources: body.sources,
                     instructions,
                     content,
@@ -922,8 +1051,7 @@ export class DataAppAnalysisService extends BaseService {
     private async runDetect(args: {
         user: SessionUser;
         projectUuid: string;
-        appUuid: string;
-        appVersion: number;
+        target: AnalysisTargetRef;
         sources: DataAppAnalysisSource[];
         instructions: string | null;
         content: string;
@@ -940,8 +1068,7 @@ export class DataAppAnalysisService extends BaseService {
         const {
             user,
             projectUuid,
-            appUuid,
-            appVersion,
+            target,
             sources,
             instructions,
             content,
@@ -953,7 +1080,7 @@ export class DataAppAnalysisService extends BaseService {
                 content,
                 instructions,
                 projectUuid,
-                appUuid,
+                target,
             });
         const { anomalies, droppedCount } = groundAnomalies(
             detection.anomalies,
@@ -982,8 +1109,7 @@ export class DataAppAnalysisService extends BaseService {
         const row = await this.dataAppAnalysisModel.create({
             organizationUuid: user.organizationUuid!,
             projectUuid,
-            appUuid,
-            appVersion,
+            target,
             createdByUserUuid: user.userUuid,
             operation: 'detect',
             sources,
@@ -1002,8 +1128,7 @@ export class DataAppAnalysisService extends BaseService {
             analysis: {
                 ...result,
                 analysisId: row.data_app_analysis_uuid,
-                appUuid,
-                appVersion,
+                target,
                 sources,
                 generatedAt: row.created_at,
             },
@@ -1015,7 +1140,7 @@ export class DataAppAnalysisService extends BaseService {
 
     private async assertRate(
         userUuid: string,
-        appUuid: string,
+        targetUuid: string,
         operation: DataAppAnalysisOperation,
     ): Promise<void> {
         const now = Date.now();
@@ -1023,7 +1148,7 @@ export class DataAppAnalysisService extends BaseService {
             Math.floor(now / RATE_WINDOW_MS) * RATE_WINDOW_MS,
         );
         const count = await this.dataAppAnalysisModel.incrementRateCounter({
-            appUuid,
+            targetUuid,
             userUuid,
             operation,
             windowStartedAt,
@@ -1037,7 +1162,7 @@ export class DataAppAnalysisService extends BaseService {
                 ),
             );
             throw new TooManyRequestsError(
-                `Too many AI ${operation} requests for this app. Try again in ${retryAfterSeconds}s.`,
+                `Too many AI ${operation} requests for this view. Try again in ${retryAfterSeconds}s.`,
                 { code: 'rate_limited', operation, retryAfterSeconds },
             );
         }
@@ -1146,7 +1271,7 @@ export class DataAppAnalysisService extends BaseService {
             await this.trackOutcome(
                 DataAppAnalysisService.idsFromAccount(account),
                 projectUuid,
-                appUuid,
+                { kind: 'app', appUuid },
                 {
                     operation: 'prompt',
                     outcome: 'ok',
@@ -1159,7 +1284,7 @@ export class DataAppAnalysisService extends BaseService {
             await this.trackOutcome(
                 DataAppAnalysisService.idsFromAccount(account),
                 projectUuid,
-                appUuid,
+                { kind: 'app', appUuid },
                 {
                     operation: 'prompt',
                     outcome: outcomeForError(e),
@@ -1179,7 +1304,7 @@ export class DataAppAnalysisService extends BaseService {
         note: (patch: Partial<OutcomeMeta>) => void,
     ): Promise<DataAppPromptAnswer> {
         const { prompt, focus } = DataAppAnalysisService.validatePrompt(body);
-        const { user, appVersion } = await this.assertViewer(
+        const { user, appVersion } = await this.assertAppViewer(
             account,
             projectUuid,
             appUuid,
@@ -1228,8 +1353,7 @@ export class DataAppAnalysisService extends BaseService {
         const row = await this.dataAppAnalysisModel.create({
             organizationUuid: user.organizationUuid!,
             projectUuid,
-            appUuid,
-            appVersion,
+            target: { kind: 'app', appUuid, appVersion },
             createdByUserUuid: user.userUuid,
             operation: 'prompt',
             sources: body.sources,
@@ -1243,8 +1367,7 @@ export class DataAppAnalysisService extends BaseService {
         return {
             ...result,
             promptId: row.data_app_analysis_uuid,
-            appUuid,
-            appVersion,
+            target: { kind: 'app', appUuid, appVersion },
             sources: body.sources,
             generatedAt: row.created_at,
         };
@@ -1252,8 +1375,7 @@ export class DataAppAnalysisService extends BaseService {
 
     private static toRecord(row: DbDataAppAnalysis): DataAppAnalysisRecord {
         const base = {
-            appUuid: row.app_id,
-            appVersion: row.app_version,
+            target: rowTarget(row),
             generatedAt: row.created_at,
         };
         if (row.operation === 'detect') {
@@ -1285,12 +1407,18 @@ export class DataAppAnalysisService extends BaseService {
 
     private async getDetectionForViewer(
         user: SessionUser,
-        appUuid: string,
+        locator: AnalysisTargetLocator,
         analysisId: string,
     ): Promise<DbDataAppAnalysis & { operation: 'detect' }> {
         const row = await this.dataAppAnalysisModel.find(
             analysisId,
-            appUuid,
+            {
+                kind: locator.kind,
+                targetUuid:
+                    locator.kind === 'app'
+                        ? locator.appUuid
+                        : locator.dashboardUuid,
+            },
             user.userUuid,
         );
         if (!row || row.operation !== 'detect') {
@@ -1318,13 +1446,17 @@ export class DataAppAnalysisService extends BaseService {
     async getAnalysis(
         account: Account,
         projectUuid: string,
-        appUuid: string,
+        locator: AnalysisTargetLocator,
         analysisId: string,
     ): Promise<DataAppAnalysisRecord> {
-        const { user } = await this.assertViewer(account, projectUuid, appUuid);
+        const { user, target } = await this.assertViewer(
+            account,
+            projectUuid,
+            locator,
+        );
         const row = await this.dataAppAnalysisModel.find(
             analysisId,
-            appUuid,
+            { kind: target.kind, targetUuid: analysisTargetUuid(target) },
             user.userUuid,
         );
         if (!row) {
@@ -1341,7 +1473,7 @@ export class DataAppAnalysisService extends BaseService {
     async investigate(
         account: Account,
         projectUuid: string,
-        appUuid: string,
+        locator: AnalysisTargetLocator,
         analysisId: string,
         body: DataAppInvestigateRequest,
     ): Promise<{ jobId: string }> {
@@ -1350,7 +1482,7 @@ export class DataAppAnalysisService extends BaseService {
             return await this.investigateChecked(
                 account,
                 projectUuid,
-                appUuid,
+                locator,
                 analysisId,
                 body,
             );
@@ -1359,7 +1491,7 @@ export class DataAppAnalysisService extends BaseService {
             await this.trackOutcome(
                 DataAppAnalysisService.idsFromAccount(account),
                 projectUuid,
-                appUuid,
+                locator,
                 {
                     operation: 'investigate',
                     outcome: outcomeForError(e),
@@ -1377,28 +1509,34 @@ export class DataAppAnalysisService extends BaseService {
     private async investigateChecked(
         account: Account,
         projectUuid: string,
-        appUuid: string,
+        locator: AnalysisTargetLocator,
         analysisId: string,
         body: DataAppInvestigateRequest,
     ): Promise<{ jobId: string }> {
-        const { user } = await this.assertViewer(account, projectUuid, appUuid);
+        const { user } = await this.assertViewer(account, projectUuid, locator);
         const detection = await this.getDetectionForViewer(
             user,
-            appUuid,
+            locator,
             analysisId,
         );
         if (!detection.result.anomalies.some((a) => a.id === body.anomalyId)) {
             throw new NotFoundError('Anomaly not found in this analysis');
         }
         await this.assertAgentUsable(user, projectUuid, body.agentUuid);
-        await this.assertRate(user.userUuid, appUuid, 'investigate');
+        await this.assertRate(
+            user.userUuid,
+            locator.kind === 'app' ? locator.appUuid : locator.dashboardUuid,
+            'investigate',
+        );
         await this.assertDailyBudget(user.organizationUuid!, 'investigate');
 
         return this.schedulerClient.dataAppInvestigate({
             organizationUuid: user.organizationUuid!,
             projectUuid,
             userUuid: user.userUuid,
-            appUuid,
+            target: locator,
+            // Legacy key: a not-yet-upgraded worker can still run app jobs.
+            ...(locator.kind === 'app' ? { appUuid: locator.appUuid } : {}),
             analysisId,
             anomalyId: body.anomalyId,
             agentUuid: body.agentUuid,
@@ -1414,7 +1552,7 @@ export class DataAppAnalysisService extends BaseService {
             .map(([fieldId, value]) => `${fieldId} = ${value}`)
             .join(', ');
         return [
-            'A viewer of a data app asked why one data point on the page is notable. Investigate the possible drivers and explain the supporting evidence.',
+            'A viewer asked why one data point on the page they have open is notable. Investigate the possible drivers and explain the supporting evidence.',
             '',
             `Finding: ${anomaly.text}`,
             `Source query: ${sourceLabel ?? anomaly.queryUuid}`,
@@ -1525,16 +1663,17 @@ export class DataAppAnalysisService extends BaseService {
                     payload.organizationUuid,
                 );
             const account = fromSession(sessionUser);
+            const locator = DataAppAnalysisService.payloadLocator(payload);
             // Re-run every gate: consent or access may have changed since queueing.
-            const { user, appVersion } = await this.assertViewer(
+            const { user, target } = await this.assertViewer(
                 account,
                 payload.projectUuid,
-                payload.appUuid,
+                locator,
             );
-            meta.appVersion = appVersion;
+            meta.appVersion = target.kind === 'app' ? target.appVersion : null;
             const detection = await this.getDetectionForViewer(
                 user,
-                payload.appUuid,
+                locator,
                 payload.analysisId,
             );
             const anomaly = detection.result.anomalies.find(
@@ -1566,8 +1705,24 @@ export class DataAppAnalysisService extends BaseService {
                         source?.label ?? null,
                         content,
                     ),
-                    context: [{ type: 'data_app', appUuid: payload.appUuid }],
+                    context: [
+                        target.kind === 'app'
+                            ? { type: 'data_app', appUuid: target.appUuid }
+                            : {
+                                  type: 'dashboard',
+                                  dashboardUuid: target.dashboardUuid,
+                              },
+                    ],
                 },
+                // Dashboard investigations also write the data_app origin
+                // for now: during a rolling deploy an older pod reading
+                // 'dashboard_analysis' would treat the thread as
+                // unrestricted (no investigation tool allowlist, no
+                // deep-research block, no continue consent). The read side
+                // already handles both origins; flip this write to
+                // 'dashboard_analysis' once a release with that read support
+                // is the deployment floor. The dashboard context item on the
+                // thread carries the real target.
                 'data_app',
             );
             if (!thread) {
@@ -1621,8 +1776,7 @@ export class DataAppAnalysisService extends BaseService {
             const row = await this.dataAppAnalysisModel.create({
                 organizationUuid: payload.organizationUuid,
                 projectUuid: payload.projectUuid,
-                appUuid: payload.appUuid,
-                appVersion,
+                target,
                 createdByUserUuid: user.userUuid,
                 operation: 'investigate',
                 sources: source ? [source] : [],
@@ -1656,7 +1810,7 @@ export class DataAppAnalysisService extends BaseService {
             await this.trackOutcome(
                 DataAppAnalysisService.idsFromPayload(payload),
                 payload.projectUuid,
-                payload.appUuid,
+                DataAppAnalysisService.payloadLocator(payload),
                 {
                     operation: 'investigate',
                     outcome: 'ok',
@@ -1678,7 +1832,7 @@ export class DataAppAnalysisService extends BaseService {
             await this.trackOutcome(
                 DataAppAnalysisService.idsFromPayload(payload),
                 payload.projectUuid,
-                payload.appUuid,
+                DataAppAnalysisService.payloadLocator(payload),
                 {
                     operation: 'investigate',
                     outcome: outcomeForError(e),
@@ -1699,7 +1853,7 @@ export class DataAppAnalysisService extends BaseService {
         await this.trackOutcome(
             DataAppAnalysisService.idsFromPayload(payload),
             payload.projectUuid,
-            payload.appUuid,
+            DataAppAnalysisService.payloadLocator(payload),
             {
                 operation: 'investigate',
                 outcome: 'timeout',
@@ -1719,6 +1873,17 @@ export class DataAppAnalysisService extends BaseService {
         };
     }
 
+    /** Pre-target jobs carried only appUuid; they are app investigations. */
+    private static payloadLocator(
+        payload: DataAppInvestigateJobPayload,
+    ): AnalysisTargetLocator {
+        if (payload.target) return payload.target;
+        if (payload.appUuid) {
+            return { kind: 'app', appUuid: payload.appUuid };
+        }
+        throw new ParameterError('Investigation job names no target');
+    }
+
     private static idsFromPayload(
         payload: DataAppInvestigateJobPayload,
     ): OutcomeIds {
@@ -1731,7 +1896,7 @@ export class DataAppAnalysisService extends BaseService {
     private async trackOutcome(
         ids: OutcomeIds,
         projectUuid: string,
-        appUuid: string,
+        locator: AnalysisTargetLocator,
         args: {
             operation: 'detect' | 'prompt' | 'investigate';
             outcome: DataAppAnalysisOutcome;
@@ -1759,7 +1924,12 @@ export class DataAppAnalysisService extends BaseService {
                 properties: {
                     organizationId,
                     projectId: projectUuid,
-                    appUuid,
+                    targetKind: locator.kind,
+                    appUuid: locator.kind === 'app' ? locator.appUuid : null,
+                    dashboardUuid:
+                        locator.kind === 'dashboard'
+                            ? locator.dashboardUuid
+                            : null,
                     operation: args.operation,
                     outcome: args.outcome,
                     latencyMs: Date.now() - args.startedAt,

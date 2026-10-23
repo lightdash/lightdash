@@ -1,4 +1,5 @@
 export { formatFieldLabel } from '../shared/formatFieldLabel';
+export { getComposerSlackEchartsConfig } from './getComposerSlackEchartsConfig';
 export {
     getSlackAiEchartsConfig,
     type SlackAiToolArgs,

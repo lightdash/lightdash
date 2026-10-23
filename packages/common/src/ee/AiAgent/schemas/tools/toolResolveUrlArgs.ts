@@ -14,16 +14,9 @@ export const TOOL_RESOLVE_URL_DESCRIPTION = ({
     const readContent = toolNameFor('readContent', runtime);
     return `Tool: ${toolName}
 
-Purpose:
-Expands a Lightdash share short-link into the full URL it redirects to. Share links are opaque — this tool is the only way to see what they point at.
+Expand a share link, a URL whose path is "/share/<id>" (e.g. "<host>/share/aBcD1234..."), into the full URL it redirects to. Share links are opaque, so this is the only way to see what they point at; read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then fetch the content with other tools such as ${readContent}.
 
-When to use:
-- ONLY for URLs whose path is "/share/<id>" (e.g. "<host>/share/aBcD1234..."). Nothing else is a share link.
-- NEVER call this for any other URL. A URL like "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/dashboards/<uuid>" already contains its identifiers — read them directly from the path and go straight to the appropriate tool.
-
-Usage tips:
-- Read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then use other tools (e.g. ${readContent}) to fetch the content.
-- URLs that don't belong to this Lightdash instance cannot be resolved.`;
+Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/dashboards/<uuid>", already contains its identifiers: read them from the path and go straight to the appropriate tool. URLs from another instance cannot be resolved.`;
 };
 
 export const toolResolveUrlArgsSchema = createToolSchema()

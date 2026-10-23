@@ -14,6 +14,10 @@ import {
 } from '../../logging/auditLog';
 import Logger from '../../logging/logger';
 import { logAuditEvent } from '../../logging/winston';
+import {
+    isScimEnabled,
+    SCIM_NOT_ENABLED_MESSAGE,
+} from '../scim/scimFeatureFlag';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 
 const logServiceAccountAuthFailure = (
@@ -85,6 +89,21 @@ export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
             throw new Error('SCIM token has expired. Authentication failed.');
         }
         const { serviceAccount } = authentication;
+        if (
+            !(await isScimEnabled(
+                req.services.getFeatureFlagService(),
+                serviceAccount.organizationUuid,
+            ))
+        ) {
+            req.scimLogAttribution = {
+                organizationUuid: serviceAccount.organizationUuid,
+                serviceAccountUuid: serviceAccount.uuid,
+            };
+            throw new ScimError({
+                detail: SCIM_NOT_ENABLED_MESSAGE,
+                status: 403,
+            });
+        }
         req.serviceAccount = serviceAccount;
 
         // Load the SA's dedicated `users` row. Abilities are derived from the
@@ -117,10 +136,12 @@ export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
         next();
     } catch (error) {
         next(
-            new ScimError({
-                detail: getErrorMessage(error),
-                status: 401,
-            }),
+            error instanceof ScimError
+                ? error
+                : new ScimError({
+                      detail: getErrorMessage(error),
+                      status: 401,
+                  }),
         );
     }
 };

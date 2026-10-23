@@ -12,6 +12,14 @@ const sanitizeSlug = (slug: string, trimHyphens = true) => {
     return sanitizedSlug;
 };
 
+// Content-as-code writes `<slug>.language.map.yml` and slug-update stages
+// `<file>.slug-update-<pid>-<n>` renames, so a slug must leave room under the
+// 255-byte file name limit that ext4, APFS and NTFS share.
+export const MAX_CONTENT_SLUG_LENGTH = 200;
+
+export const truncateSlug = (slug: string, maxLength: number) =>
+    slug.slice(0, maxLength).replace(/-+$/, '');
+
 export const generateSlug = (name: string) => {
     const sanitizedSlug = sanitizeSlug(name);
     if (sanitizedSlug.length === 0) {

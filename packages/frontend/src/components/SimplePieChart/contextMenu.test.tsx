@@ -87,7 +87,7 @@ describe('non-cartesian chart context menus', () => {
 
             expect(screen.getByTestId('echarts')).toHaveAttribute(
                 'data-events',
-                'legendselectchanged',
+                'legendscroll,legendselectchanged',
             );
             expect(screen.queryByTestId(menuTestId)).toBeNull();
         },
@@ -100,7 +100,7 @@ describe('non-cartesian chart context menus', () => {
 
             expect(screen.getByTestId('echarts')).toHaveAttribute(
                 'data-events',
-                'click,legendselectchanged,oncontextmenu',
+                'click,legendscroll,legendselectchanged,oncontextmenu',
             );
             expect(screen.getByTestId(menuTestId)).toBeVisible();
         },

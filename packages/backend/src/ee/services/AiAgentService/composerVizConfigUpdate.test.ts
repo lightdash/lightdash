@@ -274,4 +274,20 @@ describe('AiAgentService.updateComposerArtifactVizConfig', () => {
             aiAgentModel.updateArtifactVersionChartConfig,
         ).not.toHaveBeenCalled();
     });
+
+    it('rejects a v2 composer artifact', async () => {
+        const { service, aiAgentModel } = buildService({
+            artifact: {
+                ...artifact,
+                chartConfig: { ...composerChartConfig, schemaVersion: 2 },
+            },
+        });
+
+        await expect(
+            service.updateComposerArtifactVizConfig(owner, args),
+        ).rejects.toThrow(ParameterError);
+        expect(
+            aiAgentModel.updateArtifactVersionChartConfig,
+        ).not.toHaveBeenCalled();
+    });
 });

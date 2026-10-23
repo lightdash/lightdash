@@ -22,14 +22,14 @@ const renderResult = (
 ): string => {
     if (workstreams.length === 0) {
         return repoTarget
-            ? `This conversation has not opened any pull requests on ${repoTarget} yet. Use editRepo or editDbtProject to open one.`
-            : 'This conversation has not opened any pull requests yet. Use editRepo or editDbtProject to open one.';
+            ? `This conversation has not opened any pull requests on ${repoTarget} yet.`
+            : 'This conversation has not opened any pull requests yet.';
     }
 
     return [
         `${workstreams.length} pull request${
             workstreams.length === 1 ? '' : 's'
-        } opened in this conversation. To continue one, pass its URL as the edit tool's \`prUrl\` (editRepo or editDbtProject); for a separate change set \`startNewPullRequest\`:`,
+        } opened in this conversation. To continue one, pass its URL as the edit tool's \`prUrl\`; for an unrelated change, set \`startNewPullRequest\`:`,
         ...workstreams.map(
             (w) =>
                 `• ${w.repository} #${w.prNumber} — ${w.prUrl}${

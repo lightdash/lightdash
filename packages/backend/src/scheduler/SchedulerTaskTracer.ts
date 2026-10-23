@@ -365,7 +365,14 @@ const getTagsForTask: {
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
         'project.uuid': payload.projectUuid,
-        'app.uuid': payload.appUuid,
+        ...(payload.target?.kind === 'dashboard'
+            ? { 'dashboard.uuid': payload.target.dashboardUuid }
+            : {
+                  'app.uuid':
+                      payload.target?.kind === 'app'
+                          ? payload.target.appUuid
+                          : (payload.appUuid ?? ''),
+              }),
         'agent.uuid': payload.agentUuid,
     }),
     [SCHEDULER_TASKS.AGENT_ONBOARDING_RUN]: (payload) => ({

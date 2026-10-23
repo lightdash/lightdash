@@ -2494,6 +2494,12 @@ describe('DuckdbWarehouseClient', () => {
                                 operator_cardinality: 9905024,
                                 children: [],
                             },
+                            {
+                                operator_name: 'READ_JSON_AUTO',
+                                operator_timing: 0.05,
+                                operator_cardinality: 10,
+                                children: [],
+                            },
                         ],
                     }),
                 );
@@ -2544,6 +2550,7 @@ describe('DuckdbWarehouseClient', () => {
             expect.objectContaining({
                 latencyMs: 4747,
                 readParquetMs: 4632,
+                readJsonMs: 50,
                 bytesRead: 20225287,
             }),
         );

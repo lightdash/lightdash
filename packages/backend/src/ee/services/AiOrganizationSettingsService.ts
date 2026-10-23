@@ -10,6 +10,7 @@ import {
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     FeatureFlags,
     ForbiddenError,
+    getErrorMessage,
     getVisibleDataAppClaudeModels,
     isValidRetentionWindowHours,
     LightdashUser,
@@ -33,6 +34,9 @@ import {
 } from '@lightdash/common';
 import { toSessionUser } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
+import { createAuditLogEvent } from '../../logging/auditLog';
+import { createActorFromAccount } from '../../logging/caslAuditWrapper';
+import { logAuditEvent } from '../../logging/winston';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -261,6 +265,14 @@ export class AiOrganizationSettingsService extends BaseService {
             dependencies.orgAiCopilotConfigResolver;
     }
 
+    async isMcpEnabled(organizationUuid: string): Promise<boolean> {
+        return (
+            (await this.aiOrganizationSettingsModel.findMcpEnabled(
+                organizationUuid,
+            )) ?? true
+        );
+    }
+
     private checkManageAiAgentAccess(user: SessionUser): void {
         if (!this.canManageAiAgent(user)) {
             throw new ForbiddenError(
@@ -469,6 +481,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiAgentMemoryEnabled,
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 deepResearchRawSqlEnabled: false,
+                mcpEnabled: true,
                 mcpContentWritesEnabled: true,
                 mcpAgentsEnabled: true,
                 dataAppRuntimeAiEnabled: false,
@@ -556,6 +569,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 );
             return {
                 ...availability,
+                mcpEnabled: await this.isMcpEnabled(organizationUuid),
                 aiAgentsVisible: false,
                 aiAgentMemoryEnabled: false,
                 aiAgentReviewsEnabled: false,
@@ -577,6 +591,7 @@ export class AiOrganizationSettingsService extends BaseService {
         const settings = await this.resolveSettings(user, availability);
         return {
             ...availability,
+            mcpEnabled: settings.mcpEnabled ?? true,
             aiAgentsVisible: settings.aiAgentsVisible,
             aiAgentMemoryEnabled: settings.aiAgentMemoryEnabled,
             aiAgentReviewsEnabled: settings.aiAgentReviewsEnabled,
@@ -717,6 +732,30 @@ export class AiOrganizationSettingsService extends BaseService {
         }
 
         await this.checkAiSettingsAccess(user, organizationUuid);
+
+        if (
+            aiSettingsUpdate.mcpAgentsEnabled !== undefined ||
+            aiSettingsUpdate.mcpContentWritesEnabled !== undefined
+        ) {
+            if (!(await this.isMcpEnabled(organizationUuid))) {
+                const storedSettings =
+                    await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                        organizationUuid,
+                    );
+                if (
+                    (aiSettingsUpdate.mcpAgentsEnabled !== undefined &&
+                        aiSettingsUpdate.mcpAgentsEnabled !==
+                            (storedSettings?.mcpAgentsEnabled ?? true)) ||
+                    (aiSettingsUpdate.mcpContentWritesEnabled !== undefined &&
+                        aiSettingsUpdate.mcpContentWritesEnabled !==
+                            (storedSettings?.mcpContentWritesEnabled ?? true))
+                ) {
+                    throw new ForbiddenError(
+                        'MCP access is disabled for this organization',
+                    );
+                }
+            }
+        }
 
         if (aiSettingsUpdate.deepResearchLimits !== undefined) {
             validateDeepResearchLimits(aiSettingsUpdate.deepResearchLimits);
@@ -938,6 +977,34 @@ export class AiOrganizationSettingsService extends BaseService {
             organizationUuid,
             update,
         );
+        if (update.mcpEnabled !== undefined) {
+            try {
+                logAuditEvent(
+                    createAuditLogEvent(
+                        createActorFromAccount(account),
+                        'update',
+                        {
+                            type: 'OrganizationSettings',
+                            organizationUuid,
+                            metadata: {
+                                mcpEnabled: settings.mcpEnabled,
+                            },
+                        },
+                        {
+                            ip: account.requestContext?.ip,
+                            userAgent: account.requestContext?.userAgent,
+                            requestId: account.requestContext?.requestId,
+                        },
+                        'allowed',
+                    ),
+                );
+            } catch (error) {
+                this.logger.warn('Failed to log MCP settings audit event', {
+                    error: getErrorMessage(error),
+                    organizationUuid,
+                });
+            }
+        }
 
         return {
             ...settings,

@@ -715,22 +715,6 @@ describe('DocumentService mutations', () => {
         },
     );
 
-    test.each(mutations)(
-        'rejects %s while the Documents flag is off',
-        async (mutation) => {
-            const { service, featureFlagModel, documentModel } = setup();
-            featureFlagModel.get.mockResolvedValue({ enabled: false });
-
-            await expect(mutate(service, mutation)).rejects.toThrow(
-                ForbiddenError,
-            );
-            expect(documentModel.create).not.toHaveBeenCalled();
-            expect(documentModel.get).not.toHaveBeenCalled();
-            expect(documentModel.updateMetadata).not.toHaveBeenCalled();
-            expect(documentModel.updateContent).not.toHaveBeenCalled();
-        },
-    );
-
     test.each([
         { projectUuid: 'foreign-project', organizationUuid },
         { projectUuid, organizationUuid: 'foreign-organization' },
@@ -1475,17 +1459,6 @@ describe('DocumentService ownership', () => {
         expect(
             organizationMemberProfileModel.getOrganizationMemberByUuid,
         ).not.toHaveBeenCalled();
-        expect(documentModel.updateMetadata).not.toHaveBeenCalled();
-    });
-
-    test('rejects owner changes when Documents are disabled', async () => {
-        const { service, documentModel, featureFlagModel } = setup();
-        featureFlagModel.get.mockResolvedValue({ enabled: false });
-        await expect(
-            service.updateMetadata(makeAccount(), projectUuid, documentUuid, {
-                ownerUserUuid: ownerUuid,
-            }),
-        ).rejects.toThrow('Documents are not enabled');
         expect(documentModel.updateMetadata).not.toHaveBeenCalled();
     });
 });

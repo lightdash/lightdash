@@ -19,7 +19,6 @@ import {
     type ResultValue,
 } from '@lightdash/common';
 import { type EChartsOption, type PieSeriesOption } from 'echarts';
-import { getLegendDoubleClickTooltip } from '../cartesian/legendTooltip';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import { type VisualizationTheme } from '../theme';
 import { type VisualizationContextInput } from '../types';
@@ -242,8 +241,6 @@ export const buildPieEchartsOption = ({
         };
     })();
 
-    const legendDoubleClickTooltip = getLegendDoubleClickTooltip(theme);
-
     const eChartsOption: EChartsOption | undefined = (() => {
         if (!chartConfig || !pieSeriesOption) return undefined;
 
@@ -271,7 +268,6 @@ export const buildPieEchartsOption = ({
                           )}...`
                         : name;
                 },
-                tooltip: legendDoubleClickTooltip,
                 selected: selectedLegends,
                 ...(legendPosition === 'vertical'
                     ? {

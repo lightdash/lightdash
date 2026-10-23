@@ -6,61 +6,65 @@ import { renderWithProviders } from '../../../../../../testing/testUtils';
 import { ToolCallRow, type ToolCallRowStatus } from './ToolCallRow';
 import { type ToolCallSummary } from './utils/types';
 
-const toolCall: ToolCallSummary = {
-    toolCallId: 'call-1',
-    toolName: 'runComposerQueries',
-    toolArgs: {
-        queries: [
-            {
-                sourceType: QuerySourceType.SQL,
-                nodeId: 'orders',
-                title: 'Orders by status',
-                description: null,
-                sql: 'select 1',
-                limit: 500,
-            },
-        ],
-    },
-};
+describe.each([
+    { toolName: 'query', label: /ran query/i },
+    // Calls persisted before the rename keep their name and label.
+    { toolName: 'runComposerQueries', label: /ran composer queries/i },
+] as const)('ToolCallRow for $toolName', ({ toolName, label }) => {
+    const toolCall: ToolCallSummary = {
+        toolCallId: 'call-1',
+        toolName,
+        toolArgs: {
+            queries: [
+                {
+                    sourceType: QuerySourceType.SQL,
+                    nodeId: 'orders',
+                    title: 'Orders by status',
+                    description: null,
+                    sql: 'select 1',
+                    limit: 500,
+                },
+            ],
+        },
+    };
 
-const result = (status: 'success' | 'error'): AiAgentToolResult =>
-    status === 'success'
-        ? {
-              uuid: 'result-1',
-              promptUuid: 'prompt-1',
-              createdAt: new Date(),
-              toolCallId: 'call-1',
-              toolType: 'built-in',
-              toolName: 'runComposerQueries',
-              result: '',
-              metadata: { status: 'success' },
-          }
-        : {
-              uuid: 'result-1',
-              promptUuid: 'prompt-1',
-              createdAt: new Date(),
-              toolCallId: 'call-1',
-              toolType: 'built-in',
-              toolName: 'runComposerQueries',
-              result: '',
-              metadata: { status: 'error' },
-          };
+    const result = (status: 'success' | 'error'): AiAgentToolResult =>
+        status === 'success'
+            ? {
+                  uuid: 'result-1',
+                  promptUuid: 'prompt-1',
+                  createdAt: new Date(),
+                  toolCallId: 'call-1',
+                  toolType: 'built-in',
+                  toolName,
+                  result: '',
+                  metadata: { status: 'success' },
+              }
+            : {
+                  uuid: 'result-1',
+                  promptUuid: 'prompt-1',
+                  createdAt: new Date(),
+                  toolCallId: 'call-1',
+                  toolType: 'built-in',
+                  toolName,
+                  result: '',
+                  metadata: { status: 'error' },
+              };
 
-const renderRow = (props: {
-    status: ToolCallRowStatus;
-    toolResults?: AiAgentToolResult[];
-    call?: ToolCallSummary;
-}) =>
-    renderWithProviders(
-        <ToolCallRow
-            toolName="runComposerQueries"
-            toolCalls={[props.call ?? toolCall]}
-            status={props.status}
-            toolResults={props.toolResults}
-        />,
-    );
+    const renderRow = (props: {
+        status: ToolCallRowStatus;
+        toolResults?: AiAgentToolResult[];
+        call?: ToolCallSummary;
+    }) =>
+        renderWithProviders(
+            <ToolCallRow
+                toolName={toolName}
+                toolCalls={[props.call ?? toolCall]}
+                status={props.status}
+                toolResults={props.toolResults}
+            />,
+        );
 
-describe('ToolCallRow for runComposerQueries', () => {
     it('keeps the pipeline card while running', () => {
         renderRow({ status: 'running' });
         expect(screen.getByRole('button', { expanded: false })).toBeVisible();
@@ -73,7 +77,7 @@ describe('ToolCallRow for runComposerQueries', () => {
 
     it('keeps the pipeline expandable once the run produced an artifact', async () => {
         renderRow({ status: 'done', toolResults: [result('success')] });
-        const row = screen.getByRole('button', { name: /composer/i });
+        const row = screen.getByRole('button', { name: label });
         expect(row).toHaveAttribute('aria-expanded', 'false');
         await userEvent.click(row);
         expect(row).toHaveAttribute('aria-expanded', 'true');
@@ -93,8 +97,9 @@ describe('ToolCallRow for runComposerQueries', () => {
                 isPreliminary: false,
             },
         });
-        expect(
-            screen.getByRole('button', { name: /composer/i }),
-        ).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.getByRole('button', { name: label })).toHaveAttribute(
+            'aria-expanded',
+            'false',
+        );
     });
 });

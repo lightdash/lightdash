@@ -2,7 +2,6 @@ import {
     ApiErrorPayload,
     assertRegisteredAccount,
     FeatureFlag,
-    isJwtUser,
 } from '@lightdash/common';
 import {
     Body,
@@ -19,7 +18,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../../auth/account';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
@@ -76,13 +74,9 @@ export class FeatureFlagController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.services.getFeatureFlagService().get({
-                user:
-                    req.account && !isJwtUser(req.account)
-                        ? toSessionUser(req.account)
-                        : undefined,
-                featureFlagId,
-            }),
+            results: await this.services
+                .getFeatureFlagService()
+                .getForAccount({ account: req.account, featureFlagId }),
         };
     }
 

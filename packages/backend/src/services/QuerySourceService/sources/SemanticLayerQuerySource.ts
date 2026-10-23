@@ -156,7 +156,7 @@ export class SemanticLayerQuerySource implements QuerySourceClient {
             metricQuery,
             context,
             querySurface,
-            parameters,
+            parameters: { ...parameters, ...sourceQuery.parameters },
             userAttributeOverrides,
             invalidateCache,
             pivotConfiguration: pivotConfiguration ?? undefined,

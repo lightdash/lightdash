@@ -580,14 +580,21 @@ const renderDateOrTimestampFilterSql = ({
 
     const settings = isDateFilterRule(filter) ? filter.settings : undefined;
 
+    // A blank value is a filter the user has not finished; it must never be
+    // formatted, because moment(undefined) is "now" and moment('') is invalid.
+    const dateValues = (filter.values ?? []).filter(
+        (value) => value !== null && value !== undefined && value !== '',
+    );
+    const hasDateValues = dateValues.length > 0;
+
     if (
         settings?.selectedPeriod &&
-        filter.values?.length &&
+        hasDateValues &&
         (filter.operator === FilterOperator.EQUALS ||
             filter.operator === FilterOperator.NOT_EQUALS)
     ) {
         const period = settings.selectedPeriod;
-        const ranges = filter.values.map((value: string) => {
+        const ranges = dateValues.map((value) => {
             const start = getMomentDateWithCustomStartOfWeek(
                 effectiveStartOfWeek,
                 moment.tz(formatDate(value, TimeFrames.DAY, true), timezone),
@@ -637,38 +644,44 @@ const renderDateOrTimestampFilterSql = ({
 
     switch (filter.operator) {
         case FilterOperator.EQUALS:
-            return filter.values && filter.values.length > 1
-                ? `(${dimensionSql}) IN (${castValues(filter.values)})`
+            if (!hasDateValues) return 'true';
+            return dateValues.length > 1
+                ? `(${dimensionSql}) IN (${castValues(dateValues)})`
                 : `(${dimensionSql}) = ${castValue(
-                      literalFormatter(filter.values?.[0]),
+                      literalFormatter(dateValues[0]),
                   )}`;
         case FilterOperator.NOT_EQUALS:
-            return filter.values && filter.values.length > 1
+            if (!hasDateValues) return 'true';
+            return dateValues.length > 1
                 ? `((${dimensionSql}) NOT IN (${castValues(
-                      filter.values,
+                      dateValues,
                   )}) OR (${dimensionSql}) IS NULL)`
                 : `((${dimensionSql}) != ${castValue(
-                      literalFormatter(filter.values?.[0]),
+                      literalFormatter(dateValues[0]),
                   )} OR (${dimensionSql}) IS NULL)`;
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
         case FilterOperator.NOT_NULL:
             return `(${dimensionSql}) IS NOT NULL`;
         case FilterOperator.GREATER_THAN:
+            if (!hasDateValues) return 'true';
             return `(${dimensionSql}) > ${castValue(
-                literalFormatter(filter.values?.[0]),
+                literalFormatter(dateValues[0]),
             )}`;
         case FilterOperator.GREATER_THAN_OR_EQUAL:
+            if (!hasDateValues) return 'true';
             return `(${dimensionSql}) >= ${castValue(
-                literalFormatter(filter.values?.[0]),
+                literalFormatter(dateValues[0]),
             )}`;
         case FilterOperator.LESS_THAN:
+            if (!hasDateValues) return 'true';
             return `(${dimensionSql}) < ${castValue(
-                literalFormatter(filter.values?.[0]),
+                literalFormatter(dateValues[0]),
             )}`;
         case FilterOperator.LESS_THAN_OR_EQUAL:
+            if (!hasDateValues) return 'true';
             return `(${dimensionSql}) <= ${castValue(
-                literalFormatter(filter.values?.[0]),
+                literalFormatter(dateValues[0]),
             )}`;
         case FilterOperator.NOT_IN_THE_PAST:
         case FilterOperator.IN_THE_PAST: {
@@ -840,8 +853,9 @@ const renderDateOrTimestampFilterSql = ({
             }
         }
         case FilterOperator.IN_BETWEEN: {
-            const startDate = literalFormatter(filter.values?.[0]);
-            const endDate = literalFormatter(filter.values?.[1]);
+            if (dateValues.length < 2) return 'true';
+            const startDate = literalFormatter(dateValues[0]);
+            const endDate = literalFormatter(dateValues[1]);
 
             return `((${dimensionSql}) >= ${castValue(
                 startDate,

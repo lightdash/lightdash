@@ -59,6 +59,7 @@ import {
     AnonymousAccount,
     AnyType,
     ApiAiAgentArtifactVizQuery,
+    ApiAiAgentComposerArtifactChartStage,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadDataAppRestoreRequest,
     ApiAiAgentThreadDataAppRestoreResponse,
@@ -111,6 +112,8 @@ import {
     getAgentConnectionGrantRef,
     getAiAgentSkillListingText,
     getAppDisplayName,
+    getComposerChartStage,
+    getComposerSlackEchartsConfig,
     getDataAppVizChartFromArtifact,
     getEmbedWriteSpaceUuids,
     getErrorMessage,
@@ -137,6 +140,7 @@ import {
     isAiMergeChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     isAiWritebackRunInProgress,
+    isComposerQueryToolName,
     isDashboardChartTileType,
     isGithubMcpServerUrl,
     isGitProjectType,
@@ -168,7 +172,6 @@ import {
     QuerySourceType,
     QuerySurface,
     ReadinessScore,
-    runComposerQueriesToolDefinition,
     serializeDashboardFiltersForAiContext,
     ShareUrl,
     SlackPrompt,
@@ -190,11 +193,13 @@ import {
     type AgentToolName,
     type AgentWorkMarker,
     type AiAgentEditDbtProjectPipelineJobPayload,
+    type AiAgentMessageQueryPipeline,
     type AiAgentModelConfig,
     type AiAgentSkill,
     type AiArtifact,
     type AiChartRuntimeOverrides,
     type AiClonedThreadCreatedFrom,
+    type AiComposerChartArtifactConfigV2,
     type AiDashboardRuntimeOverrides,
     type AiDeepResearchBudget,
     type AiDeepResearchEventPayloadMap,
@@ -206,9 +211,12 @@ import {
     type AiSemanticChartArtifactConfig,
     type AiThreadCreatedFrom,
     type AiWebAppThreadCreatedFrom,
+    type ApiAiAgentComposerArtifactVizQuery,
     type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
+    type ComposerStoredChartVizConfig,
     type DataAppVizChart,
+    type DuckdbSourceQuery,
     type ItemsMap,
     type MetricQuery,
     type PivotConfiguration,
@@ -219,6 +227,7 @@ import {
     type SqlApprovalToolName,
     type SuggestionValidationCatalog,
     type ThreadComposerQueryNode,
+    type ToolComposerQueriesSuccessMetadata,
     type ToolGenerateDataAppTerminalResult,
     type ToolRunQueryArgsTransformed,
     type VerifiedContentListItem,
@@ -247,6 +256,7 @@ import {
 } from 'ai';
 import { createCanvas, loadImage } from 'canvas';
 import { randomBytes, randomUUID } from 'crypto';
+import { type EChartsOption } from 'echarts';
 import { EventEmitter } from 'events';
 import fs from 'fs/promises';
 import _ from 'lodash';
@@ -370,6 +380,7 @@ import {
     type DbAiPromptTurnDecisionOutcome,
 } from '../../database/entities/ai';
 import { type DbAiDeepResearchEvent } from '../../database/entities/aiDeepResearch';
+import { toSlackArtifactRenderInput } from '../../database/entities/aiSlackArtifactDeliveries';
 import { threadComposerQueryScope } from '../../database/entities/composerQueryNodes';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import {
@@ -489,6 +500,7 @@ import {
     getModel,
     getOrgModelOptions,
     MODEL_PRESETS,
+    reconcileInheritedModelConfig,
     resolveKeyManagement,
     resolveModelConfigForPrompt,
 } from '../ai/models';
@@ -583,13 +595,6 @@ import {
     GIT_WRITE_PERMISSION_AGENT_MESSAGE,
 } from '../ai/utils/classifyWritebackError';
 import {
-    buildComposerPresentations,
-    hasComposerPresentations,
-    resolveComposerPresentations,
-    type ComposerPresentationSelection,
-    type TurnToolResult,
-} from '../ai/utils/composerPresentation';
-import {
     createUserFacingErrorResolver,
     getUserFacingErrorMessage,
 } from '../ai/utils/errorMessages';
@@ -625,12 +630,18 @@ import {
     parseMemoryCitations,
     stripMemoryCitations,
 } from '../ai/utils/memoryCitation';
+import { buildMessageQueryPipelines } from '../ai/utils/messageQueryPipelines';
 import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../ai/utils/renderEcharts';
 import { getSlackArtifactCardVersions } from '../ai/utils/slackArtifactImages';
+import {
+    getSlackImageSource,
+    type SlackImageSource,
+} from '../ai/utils/slackArtifactImageSources';
+import { getSlackBigNumbers } from '../ai/utils/slackBigNumbers';
 import { getSlackSelectedCardArtifacts } from '../ai/utils/slackChartSelection';
 import {
     getSlackTableBlocks,
@@ -674,7 +685,10 @@ import {
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import { deriveAiAgentThreadLiveStatus } from './aiAgentThreadLiveStatus';
 import { isComposerQueriesEnabled } from './composerQueriesGate';
-import { resolveStandardToolAllowlist } from './dataAppThreadPolicy';
+import {
+    isAnalysisInvestigationThread,
+    resolveStandardToolAllowlist,
+} from './dataAppThreadPolicy';
 import {
     redactStreamToolOutputs,
     redactThreadToolResults,
@@ -896,6 +910,14 @@ export const assertDeepResearchPromptExecution = ({
 
 // Set where a user action starts; null where the run continues one that was already checked.
 export type AiCreditCheck = { isEmbedViewer: boolean };
+
+type MessageQueryPipelineRef = {
+    agentUuid: string;
+    threadUuid: string;
+    messageUuid: string;
+    /** The pipeline's terminal queryUuid from its `query` call. */
+    queryUuid: string;
+};
 
 type EmbedAiAgentRuntimeOptions = {
     // A thread belongs to every write space of the token that created it.
@@ -1455,20 +1477,26 @@ export class AiAgentService extends BaseService {
         requestedModelConfig: AiAgentModelConfig | null;
     }): Promise<AiAgentModelConfig | null> {
         if (threadModelConfig) return threadModelConfig;
+        const pickedModelConfig = requestedModelConfig ?? agentModelConfig;
         const modelConfig =
-            requestedModelConfig ??
-            agentModelConfig ??
+            pickedModelConfig ??
             (await this.aiOrganizationSettingsService.getDefaultModelConfig(
                 organizationUuid,
             ));
         if (!modelConfig) return null;
-        const { catalogue } =
+        const { catalogue, copilotConfig } =
             await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
                 projectUuid,
                 credentialUuid,
             });
-        return resolveModelConfigForPrompt(catalogue, modelConfig);
+        const resolved = resolveModelConfigForPrompt(catalogue, modelConfig);
+        // An org-default model inherited into a scope the org default does not
+        // serve (a project pinned to a Bedrock credential) is repointed at the
+        // scoped config's own default; explicit picks fail closed instead.
+        return pickedModelConfig
+            ? resolved
+            : reconcileInheritedModelConfig(copilotConfig, resolved);
     }
 
     private static getPinnedContextAnalyticsProperties(
@@ -1802,13 +1830,6 @@ export class AiAgentService extends BaseService {
                 }
 
                 if (item.type === 'document') {
-                    const { enabled } = await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.Documents,
-                    });
-                    if (!enabled) {
-                        throw new ForbiddenError('Documents are not enabled');
-                    }
                     // Checks project and space access for this user.
                     const document = await this.documentService.get(
                         fromSession(user),
@@ -2218,7 +2239,10 @@ export class AiAgentService extends BaseService {
         const client = await this.slackClient.getWebClient(
             prompt.organizationUuid,
         );
-        const artifacts = new Map<string, AiArtifact>();
+        const artifacts = new Map<
+            string,
+            { artifact: AiArtifact; source: SlackImageSource }
+        >();
         return {
             resultReader,
             findMessage: async (messageTs, versions) => {
@@ -2276,26 +2300,15 @@ export class AiAgentService extends BaseService {
                 );
                 if (
                     artifact.promptUuid !== promptUuid ||
-                    artifact.threadUuid !== prompt.threadUuid ||
-                    !artifact.chartConfig ||
-                    !['semantic', 'merge', 'customChartType'].includes(
-                        artifact.chartConfig.source,
-                    )
+                    artifact.threadUuid !== prompt.threadUuid
                 )
                     throw new ForbiddenError(
                         'Slack image does not belong to this prompt',
                     );
-                const queries = input.queryTool.mergeConfig
-                    ? buildAiMergeSourceConfigs(input.queryTool).map(
-                          ({ queryConfig }) => queryConfig,
-                      )
-                    : [input.queryTool.queryConfig];
+                const source = getSlackImageSource(input, artifact.chartConfig);
+                if (!source) return false;
                 await Promise.all(
-                    [
-                        ...new Set(
-                            queries.map(({ exploreName }) => exploreName),
-                        ),
-                    ].map((exploreName) =>
+                    source.exploreNames.map((exploreName) =>
                         this.getExplore(
                             user,
                             prompt.projectUuid,
@@ -2310,15 +2323,42 @@ export class AiAgentService extends BaseService {
                     projectUuid: prompt.projectUuid,
                     queryUuid: input.queryUuid,
                 });
-                artifacts.set(input.versionUuid, artifact);
+                artifacts.set(input.versionUuid, { artifact, source });
+                return true;
             },
             render: async (input) => {
                 signal?.throwIfAborted();
-                const artifact = artifacts.get(input.versionUuid);
-                if (!artifact)
+                const authorized = artifacts.get(input.versionUuid);
+                if (!authorized)
                     throw new ForbiddenError(
                         'Slack image has not been authorized',
                     );
+                const { artifact, source } = authorized;
+                const uploadImage = (image: Buffer) =>
+                    this.uploadSlackAgentCardImage(
+                        {
+                            organizationUuid: prompt.organizationUuid,
+                            image,
+                        },
+                        ...(agentWork.status === 'valid'
+                            ? ([deliveryGuard] as const)
+                            : []),
+                    );
+                if (source.source === 'composer') {
+                    const options = await this.getSlackComposerChartOptions({
+                        user,
+                        reader: resultReader,
+                        projectUuid: prompt.projectUuid,
+                        queryUuid: input.queryUuid,
+                        rowLimit: input.rowLimit,
+                        artifact,
+                        vizConfig: source.vizConfig,
+                    });
+                    return options
+                        ? uploadImage(await renderEcharts(options))
+                        : null;
+                }
+                if (input.source !== 'runQuery') return null;
                 if (artifact.chartConfig?.source === 'customChartType') {
                     const { imageUrl } =
                         await this.unfurlService.exportAiAgentArtifact(
@@ -2356,16 +2396,7 @@ export class AiAgentService extends BaseService {
                     getPivotedResults,
                 });
                 if (!options) return null;
-                const image = await renderEcharts(options);
-                return this.uploadSlackAgentCardImage(
-                    {
-                        organizationUuid: prompt.organizationUuid,
-                        image,
-                    },
-                    ...(agentWork.status === 'valid'
-                        ? ([deliveryGuard] as const)
-                        : []),
-                );
+                return uploadImage(await renderEcharts(options));
             },
             isImageReachable: AiAgentService.isCardImageUrlReachable,
             updateMessage: async (message) => {
@@ -2379,6 +2410,65 @@ export class AiAgentService extends BaseService {
                 });
             },
         };
+    }
+
+    /** Null leaves the card's link: an incomplete result or a chart the result cannot draw. */
+    private async getSlackComposerChartOptions({
+        user,
+        reader,
+        projectUuid,
+        queryUuid,
+        rowLimit,
+        artifact,
+        vizConfig,
+    }: {
+        user: SessionUser;
+        reader: QueryResultReader;
+        projectUuid: string;
+        queryUuid: string;
+        rowLimit: number;
+        artifact: AiArtifact;
+        vizConfig: ComposerStoredChartVizConfig;
+    }): Promise<EChartsOption | null> {
+        const account = fromSession(user);
+        const history = await this.asyncQueryService.getAsyncQueryHistory({
+            account,
+            reader,
+            projectUuid,
+            queryUuid,
+        });
+        const results = await this.asyncQueryService.getRawAsyncQueryResults({
+            account,
+            reader,
+            projectUuid,
+            queryUuid,
+            aiAccessOnly: true,
+            maxRows: rowLimit,
+        });
+        if (
+            !history.columns ||
+            results.truncated ||
+            results.rows.length !== rowLimit
+        )
+            return null;
+        try {
+            return await getComposerSlackEchartsConfig({
+                columns: Object.values(history.columns),
+                rows: results.rows,
+                vizConfig,
+                metadata: {
+                    title: artifact.title ?? '',
+                    description: artifact.description ?? '',
+                },
+                getPivotedResults,
+            });
+        } catch (error) {
+            this.logger.warn('Composer Slack chart cannot be drawn', {
+                versionUuid: artifact.versionUuid,
+                error: getErrorMessage(error),
+            });
+            return null;
+        }
     }
 
     private async uploadSlackAgentCardImage(
@@ -3717,13 +3807,7 @@ export class AiAgentService extends BaseService {
             !threadContext.latestAssistantTurn.askedClarifyingQuestion &&
             agent.enableDataAccess &&
             canManageContent &&
-            shouldSuggestDocument(threadMessages) &&
-            (
-                await this.featureFlagService.get({
-                    user,
-                    featureFlagId: FeatureFlags.Documents,
-                })
-            ).enabled;
+            shouldSuggestDocument(threadMessages);
         if (documentChipShown) {
             chips = withDocumentSuggestion(chips);
         }
@@ -4984,6 +5068,7 @@ export class AiAgentService extends BaseService {
         const ability = this.createAuditedAbility(user);
         switch (toolName) {
             case 'runSql':
+            case 'query':
             case 'runComposerQueries':
             case 'runContentQuery':
                 if (
@@ -5497,7 +5582,7 @@ export class AiAgentService extends BaseService {
     }
 
     /**
-     * Any new user input on a thread that began as a data-app investigation
+     * Any new user input on a thread that began as an analysis investigation
      * (a message, a steer) is "continuing" it, so all of them honour the
      * org setting.
      */
@@ -5505,14 +5590,14 @@ export class AiAgentService extends BaseService {
         thread: { createdFrom: AiThreadCreatedFrom },
         organizationUuid: string,
     ): Promise<void> {
-        if (thread.createdFrom !== 'data_app') return;
+        if (!isAnalysisInvestigationThread(thread.createdFrom)) return;
         if (
             !(await this.aiOrganizationSettingsService.isDataAppContinueInAskAiEnabled(
                 organizationUuid,
             ))
         ) {
             throw new ForbiddenError(
-                'Continuing a data-app investigation in Ask AI is turned off for this organization',
+                'Continuing an investigation in Ask AI is turned off for this organization',
             );
         }
     }
@@ -8441,47 +8526,6 @@ export class AiAgentService extends BaseService {
         }
     }
 
-    /** One composer artifact version per presented node, in answer order. */
-    private async saveComposerPresentations({
-        prompt,
-        presented,
-        onArtifactReady,
-    }: {
-        prompt: AiPrompt;
-        presented: ComposerPresentationSelection;
-        onArtifactReady: (artifact: AiArtifact) => void;
-    }): Promise<void> {
-        if (!hasComposerPresentations(presented)) return;
-        const { threadUuid, promptUuid } = prompt;
-        try {
-            const threadNodes = await this.aiAgentModel.listComposerQueryNodes(
-                threadComposerQueryScope(threadUuid),
-            );
-            const presentations = buildComposerPresentations({
-                presented,
-                threadNodes,
-            });
-            await presentations.reduce<Promise<void>>(
-                (previous, presentation) =>
-                    previous.then(async () => {
-                        const artifact =
-                            await this.aiAgentModel.createOrUpdateArtifact({
-                                threadUuid,
-                                promptUuid,
-                                ...presentation,
-                            });
-                        onArtifactReady(artifact);
-                    }),
-                Promise.resolve(),
-            );
-        } catch (error) {
-            this.logger.error(
-                `Failed to save composer presentations for prompt ${promptUuid}`,
-                error,
-            );
-        }
-    }
-
     private persistTrackedPromptUpdate(
         update: UpdateSlackResponse | UpdateWebAppResponse,
         classificationContext?: {
@@ -9274,6 +9318,38 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    async getEmbedMessageQueryPipelines(
+        account: AnonymousAccount,
+        projectUuid: string,
+        args: { agentUuid: string; threadUuid: string; messageUuid: string },
+    ): Promise<AiAgentMessageQueryPipeline[]> {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            args.agentUuid,
+        );
+        await this.assertEmbedThreadInSpace(args.threadUuid, runtimeOptions);
+        return this.getMessageQueryPipelines(user, { ...args, projectUuid });
+    }
+
+    async getEmbedMessageQueryPipelineVizQuery(
+        account: AnonymousAccount,
+        projectUuid: string,
+        args: MessageQueryPipelineRef,
+    ): Promise<ApiAiAgentComposerArtifactVizQuery> {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            args.agentUuid,
+        );
+        await this.assertEmbedThreadInSpace(args.threadUuid, runtimeOptions);
+        return this.getMessageQueryPipelineVizQuery(user, {
+            ...args,
+            projectUuid,
+            runtimeOptions,
+        });
+    }
+
     async updateEmbedHumanScoreForMessage(
         account: AnonymousAccount,
         projectUuid: string,
@@ -9761,7 +9837,10 @@ export class AiAgentService extends BaseService {
         const delivery = await this.aiAgentModel.slackArtifactDeliveries.get(
             artifact.promptUuid,
         );
-        const input = delivery?.render_inputs[versionUuid];
+        const storedInput = delivery?.render_inputs[versionUuid];
+        const input = storedInput
+            ? toSlackArtifactRenderInput(storedInput)
+            : undefined;
         const prompt = await this.aiAgentModel.findSlackPrompt(
             artifact.promptUuid,
         );
@@ -9770,6 +9849,7 @@ export class AiAgentService extends BaseService {
             !delivery ||
             delivery.finished_at ||
             !input ||
+            input.source !== 'runQuery' ||
             input.queryUuid !== queryUuid ||
             input.artifactUuid !== artifactUuid ||
             input.versionUuid !== versionUuid ||
@@ -9854,7 +9934,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         agentUuid: string,
-        artifact: AiArtifact,
+        artifact: Pick<AiArtifact, 'threadUuid' | 'promptUuid'>,
         authMethod: QueryResultReader['authMethod'],
     ): Promise<QueryResultReader> {
         const thread = await this.aiAgentModel.getThread({
@@ -10033,12 +10113,43 @@ export class AiAgentService extends BaseService {
             artifactUuid,
             versionUuid,
         );
+        return this.executeQueriesAsOwner(
+            user,
+            { projectUuid, agentUuid, source: artifact },
+            execute,
+            getQueryUuids,
+            (account, queryUuid) =>
+                this.asyncQueryService.bindQueryToArtifact(
+                    account,
+                    projectUuid,
+                    queryUuid,
+                    { agentUuid, artifactUuid, versionUuid },
+                ),
+        );
+    }
+
+    /** Runs as the source's owner when the reader allows, then binds every query it produced. */
+    private async executeQueriesAsOwner<T>(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            source,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            source: Pick<AiArtifact, 'threadUuid' | 'promptUuid'>;
+        },
+        execute: () => Promise<T>,
+        getQueryUuids: (result: T) => string[],
+        bind: (account: RegisteredAccount, queryUuid: string) => Promise<void>,
+    ): Promise<T> {
         const account = fromSession(user);
         const reader = await this.getArtifactOwnerResultReader(
             user,
             projectUuid,
             agentUuid,
-            artifact,
+            source,
             account.authentication.type,
         );
         const result =
@@ -10055,14 +10166,7 @@ export class AiAgentService extends BaseService {
                   )
                 : await execute();
         await Promise.all(
-            getQueryUuids(result).map((queryUuid) =>
-                this.asyncQueryService.bindQueryToArtifact(
-                    account,
-                    projectUuid,
-                    queryUuid,
-                    { agentUuid, artifactUuid, versionUuid },
-                ),
-            ),
+            getQueryUuids(result).map((queryUuid) => bind(account, queryUuid)),
         );
         return result;
     }
@@ -10086,9 +10190,49 @@ export class AiAgentService extends BaseService {
             () => this.executeArtifactVizQuery(user, options),
             (vizQuery) =>
                 isAiAgentComposerArtifactVizQuery(vizQuery)
-                    ? Object.values(vizQuery.nodeQueryUuids)
+                    ? [
+                          ...Object.values(vizQuery.nodeQueryUuids),
+                          ...(vizQuery.chartStage?.status === 'ok'
+                              ? [vizQuery.chartStage.queryUuid]
+                              : []),
+                      ]
                     : [vizQuery.query.queryUuid],
         );
+    }
+
+    /** The v2 series split stage over the terminal node; a config the stage cannot be derived from is reported, not thrown. */
+    private async getComposerArtifactChartStage(
+        projectUuid: string,
+        config: AiComposerChartArtifactConfigV2,
+    ): Promise<
+        | { status: 'ok'; query: DuckdbSourceQuery }
+        | { status: 'error'; message: string }
+        | null
+    > {
+        const { vizConfig, queries, terminalNodeId } = config;
+        if (!vizConfig) return null;
+        try {
+            const slots =
+                vizConfig.type === 'custom'
+                    ? await this.getDataAppVizSchemaFields(
+                          projectUuid,
+                          vizConfig.dataAppVizUuid,
+                          vizConfig.dataAppVizVersion ?? undefined,
+                      )
+                    : null;
+            const nodeIds = new Set(queries.map(({ nodeId }) => nodeId));
+            let nodeId = 'chart_stage';
+            while (nodeIds.has(nodeId)) nodeId = `_${nodeId}`;
+            const query = getComposerChartStage({
+                vizConfig,
+                customChartTypeSlots: slots ?? [],
+                nodeId,
+                source: terminalNodeId,
+            });
+            return query ? { status: 'ok', query } : null;
+        } catch (error) {
+            return { status: 'error', message: getErrorMessage(error) };
+        }
     }
 
     private async executeArtifactVizQuery(
@@ -10246,12 +10390,24 @@ export class AiAgentService extends BaseService {
                 );
             }
 
+            const stage =
+                artifact.chartConfig.schemaVersion === 2
+                    ? await this.getComposerArtifactChartStage(
+                          projectUuid,
+                          artifact.chartConfig,
+                      )
+                    : null;
+            const stageNodeId =
+                stage?.status === 'ok' ? stage.query.nodeId : null;
             const account = fromSession(user);
-            const { queries: submissions } =
+            const { queries: allSubmissions } =
                 await this.querySourceService.submitQueries({
                     account,
                     projectUuid,
-                    queries,
+                    queries:
+                        stage?.status === 'ok'
+                            ? [...queries, stage.query]
+                            : queries,
                     context: QueryExecutionContext.AI,
                     querySurface: await this.getArtifactQuerySurface(
                         artifact.promptUuid,
@@ -10262,9 +10418,26 @@ export class AiAgentService extends BaseService {
                     invalidateCache: false,
                     plans: {},
                 });
+            const submissions = allSubmissions.filter(
+                ({ nodeId }) => nodeId !== stageNodeId,
+            );
             const nodeQueryUuids = Object.fromEntries(
                 submissions.map(({ nodeId, queryUuid }) => [nodeId, queryUuid]),
             );
+            const chartStage =
+                ((): ApiAiAgentComposerArtifactChartStage | null => {
+                    if (stage === null || stage.status === 'error')
+                        return stage;
+                    const submission = allSubmissions.find(
+                        ({ nodeId }) => nodeId === stageNodeId,
+                    );
+                    if (!submission) {
+                        throw new UnexpectedServerError(
+                            'Composer chart stage was not submitted',
+                        );
+                    }
+                    return { status: 'ok', queryUuid: submission.queryUuid };
+                })();
 
             const durationMs = Date.now() - vizQueryStartedAt;
             // A DuckDB or Python node only learns it was cached when it runs,
@@ -10309,6 +10482,7 @@ export class AiAgentService extends BaseService {
                     title: artifact.title,
                     description: artifact.description,
                 },
+                chartStage,
             };
         }
 
@@ -10765,6 +10939,226 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    async getMessageQueryPipelines(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        },
+    ): Promise<AiAgentMessageQueryPipeline[]> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError(`Organization not found`);
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled)
+            throw new ForbiddenError(`Copilot is not enabled`);
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent || agent.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to view this thread',
+            );
+        }
+
+        // Throws unless the message belongs to this thread
+        await this.aiAgentModel.findThreadMessage('assistant', {
+            organizationUuid,
+            threadUuid,
+            messageUuid,
+        });
+
+        const [toolCalls, threadNodes] = await Promise.all([
+            this.aiAgentModel.getToolCallsAndResultsForPrompt(messageUuid),
+            this.aiAgentModel.listComposerQueryNodes(
+                threadComposerQueryScope(threadUuid),
+            ),
+        ]);
+        return buildMessageQueryPipelines({ toolCalls, threadNodes });
+    }
+
+    private async getMessageQueryPipeline(
+        user: SessionUser,
+        args: MessageQueryPipelineRef & { projectUuid: string },
+    ): Promise<AiAgentMessageQueryPipeline> {
+        const pipelines = await this.getMessageQueryPipelines(user, args);
+        const pipeline = pipelines.find(
+            ({ queryUuid }) => queryUuid === args.queryUuid,
+        );
+        if (!pipeline) {
+            throw new NotFoundError(`Query not found: ${args.queryUuid}`);
+        }
+        return pipeline;
+    }
+
+    /** Runs a message's `query` pipeline for the preview panel, like an artifact's viz query. */
+    async getMessageQueryPipelineVizQuery(
+        user: SessionUser,
+        {
+            projectUuid,
+            runtimeOptions,
+            ...args
+        }: MessageQueryPipelineRef & {
+            projectUuid: string;
+            runtimeOptions: EmbedAiAgentRuntimeOptions | null;
+        },
+    ): Promise<ApiAiAgentComposerArtifactVizQuery> {
+        const pipeline = await this.getMessageQueryPipeline(user, {
+            ...args,
+            projectUuid,
+        });
+        // Embed viewers are scoped by user attributes, which raw SQL bypasses.
+        if (
+            runtimeOptions &&
+            pipeline.nodes.some(
+                (node) => node.sourceType === QuerySourceType.SQL,
+            )
+        ) {
+            throw new ForbiddenError(
+                'Pipelines with warehouse SQL are not available in embedded AI agents',
+            );
+        }
+        const execute =
+            async (): Promise<ApiAiAgentComposerArtifactVizQuery> => {
+                const { queries } = await this.querySourceService.submitQueries(
+                    {
+                        account: fromSession(user),
+                        projectUuid,
+                        queries: pipeline.nodes,
+                        context: QueryExecutionContext.AI,
+                        querySurface: await this.getArtifactQuerySurface(
+                            args.messageUuid,
+                        ),
+                        parameters: {},
+                        userAttributeOverrides:
+                            runtimeOptions?.userAttributeOverrides ?? {},
+                        invalidateCache: false,
+                        plans: {},
+                    },
+                );
+                return {
+                    source: 'composer',
+                    terminalNodeId: pipeline.terminalNodeId,
+                    nodeQueryUuids: Object.fromEntries(
+                        queries.map(({ nodeId, queryUuid }) => [
+                            nodeId,
+                            queryUuid,
+                        ]),
+                    ),
+                    metadata: { title: pipeline.title, description: null },
+                    chartStage: null,
+                };
+            };
+        if (runtimeOptions) return execute();
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        if (!enabled) return execute();
+        return this.executeQueriesAsOwner(
+            user,
+            {
+                projectUuid,
+                agentUuid: args.agentUuid,
+                source: {
+                    threadUuid: args.threadUuid,
+                    promptUuid: args.messageUuid,
+                },
+            },
+            execute,
+            (vizQuery) => Object.values(vizQuery.nodeQueryUuids),
+            (account, queryUuid) =>
+                this.asyncQueryService.bindQueryToMessageQuery(
+                    account,
+                    projectUuid,
+                    queryUuid,
+                    {
+                        agentUuid: args.agentUuid,
+                        promptUuid: args.messageUuid,
+                        queryUuid: args.queryUuid,
+                    },
+                ),
+        );
+    }
+
+    async getMessageQueryPipelineQueryResults(
+        user: SessionUser,
+        {
+            projectUuid,
+            resultQueryUuid,
+            page,
+            pageSize,
+            ...args
+        }: MessageQueryPipelineRef & {
+            projectUuid: string;
+            resultQueryUuid: string;
+            page: number | null;
+            pageSize: number | null;
+        },
+        account: RegisteredAccount = fromSession(user),
+    ): Promise<ApiGetAsyncQueryResults> {
+        await this.getMessageQueryPipeline(user, { ...args, projectUuid });
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        const reader: QueryResultReader = enabled
+            ? await this.getArtifactOwnerResultReader(
+                  user,
+                  projectUuid,
+                  args.agentUuid,
+                  { threadUuid: args.threadUuid, promptUuid: args.messageUuid },
+                  account.authentication.type,
+              )
+            : { kind: 'person', authMethod: account.authentication.type };
+        const resultsArgs = {
+            account,
+            reader,
+            projectUuid,
+            queryUuid: resultQueryUuid,
+            page: page ?? undefined,
+            pageSize: pageSize ?? undefined,
+        };
+        if (!enabled)
+            return this.asyncQueryService.getAsyncQueryResults(resultsArgs);
+        return this.asyncQueryService.getMessageQueryBoundQueryResults(
+            resultsArgs,
+            {
+                agentUuid: args.agentUuid,
+                promptUuid: args.messageUuid,
+                queryUuid: args.queryUuid,
+            },
+        );
+    }
+
     async updateArtifactVersion(
         user: SessionUser,
         {
@@ -10916,9 +11310,12 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        if (!isAiComposerChartArtifactConfig(artifact.chartConfig)) {
+        if (
+            !isAiComposerChartArtifactConfig(artifact.chartConfig) ||
+            artifact.chartConfig.schemaVersion !== 1
+        ) {
             throw new ParameterError(
-                'Viz config can only be updated on composer artifacts',
+                'Viz config can only be updated on v1 composer artifacts',
             );
         }
 
@@ -11186,6 +11583,7 @@ export class AiAgentService extends BaseService {
             if (
                 await this.orgAiCopilotConfigResolver.isOrgBedrockRouted(
                     payload.organizationUuid,
+                    payload.projectUuid,
                 )
             ) {
                 return;
@@ -12104,7 +12502,7 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                             table.tableUuid,
                         ]),
                     );
-                    return `- External source "${item.displayName}" (sourceUuid: ${item.sourceUuid}) exposes ${item.tables.length} queryable table${item.tables.length === 1 ? '' : 's'}: ${tables}. Query any subset with runComposerQueries using an \`external\` node and the corresponding entries from \`tables: ${JSON.stringify(tableMap)}\`. One external node may read multiple tables from this source; use a downstream \`duckdb\` node to join its result with semantic-layer, warehouse, or other external-source results.`;
+                    return `- External source "${item.displayName}" (sourceUuid: ${item.sourceUuid}) exposes ${item.tables.length} queryable table${item.tables.length === 1 ? '' : 's'}: ${tables}. Query any subset with the \`query\` tool using an \`external\` node and the corresponding entries from \`tables: ${JSON.stringify(tableMap)}\`. One external node may read multiple tables from this source; use a downstream \`duckdb\` node to join its result with semantic-layer, warehouse, or other external-source results.`;
                 }
                 case 'pull_request': {
                     const number = item.prNumber ? ` #${item.prNumber}` : '';
@@ -15584,15 +15982,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
         ) {
             return null;
         }
-        const { enabled: documentsEnabled } = await this.featureFlagService.get(
-            {
-                user,
-                featureFlagId: FeatureFlags.Documents,
-            },
-        );
-        if (!documentsEnabled) {
-            return null;
-        }
         const runtime = this.aiAgentToolsService.createRuntime({
             user,
             account: fromSession(user),
@@ -15890,8 +16279,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
         // the agent's stream starts pulling.
         const stepProgressEmitter =
             stream && !isSlackPrompt(prompt) ? new EventEmitter() : undefined;
-        // This turn's tool results, so the final answer can present composer nodes.
-        const turnToolResults: TurnToolResult[] = [];
         const aiAgentMemoryEnabled =
             await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
                 user,
@@ -16711,11 +17098,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         user,
                         projectUuid: promptProject.projectUuid,
                     }));
-                const { enabled: documentsEnabled } =
-                    await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.Documents,
-                    });
                 const {
                     listExplores,
                     getExplore,
@@ -16808,7 +17190,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     suppressWritebackPreview: options.suppressWritebackPreview,
                     dbtSourceUuid: options.dbtSourceUuid,
                     onWarehouseQuery: responseExecution.onWarehouseQuery,
-                    enableDocuments: canUseContentTools && documentsEnabled,
+                    enableDocuments: canUseContentTools,
                     enableRuntimeCache: !!decisions,
                     // Battle sides must not warm one another's result cache. Normal
                     // threads retain production cache behavior.
@@ -17067,7 +17449,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     enableDataAccess: agentSettings.enableDataAccess,
                     enableSelfImprovement: agentSettings.enableSelfImprovement,
                     enableContentTools: canUseContentTools,
-                    enableDocuments: canUseContentTools && documentsEnabled,
+                    enableDocuments: canUseContentTools,
                     enableGenerateDataApp,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
@@ -17276,18 +17658,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     updateSlackMessage,
                     storeToolCall,
                     storeToolCallError,
-                    storeToolResults: (results) => {
-                        turnToolResults.push(
-                            ...results.map(
-                                ({ promptUuid, toolName, metadata }) => ({
-                                    promptUuid,
-                                    toolName,
-                                    metadata,
-                                }),
-                            ),
-                        );
-                        return storeToolResults(results);
-                    },
+                    storeToolResults,
                     storeReasoning,
                     storeLoadout,
                     isPromptInterrupted,
@@ -17323,28 +17694,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         // Generation saves step and terminal responses before Slack
                         // delivery. Keep presentation markers out of stored history and
                         // classifiers while returning the original text for selection.
-                        const composerPresentation =
-                            update.response !== undefined
-                                ? resolveComposerPresentations(
-                                      isSlackPrompt(prompt)
-                                          ? {
-                                                channel: 'slack',
-                                                response: update.response,
-                                                promptUuid: prompt.promptUuid,
-                                                toolResults: turnToolResults,
-                                            }
-                                          : {
-                                                channel: 'web',
-                                                response: update.response,
-                                            },
-                                  )
-                                : null;
-                        const visibleUpdate = composerPresentation
-                            ? {
-                                  ...update,
-                                  response: composerPresentation.response,
-                              }
-                            : update;
+                        const visibleUpdate =
+                            update.response !== undefined &&
+                            isSlackPrompt(prompt)
+                                ? {
+                                      ...update,
+                                      response:
+                                          stripSlackVisualizationSelection(
+                                              update.response,
+                                          ),
+                                  }
+                                : update;
                         const updatePromise = this.persistTrackedPromptUpdate(
                             visibleUpdate,
                             {
@@ -17359,30 +17719,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         if (!updatePromise) {
                             return Promise.resolve();
                         }
-                        const presentationPromise = updatePromise.then(
-                            async (persisted) => {
-                                if (!persisted || !composerPresentation) return;
-                                await this.saveComposerPresentations({
-                                    prompt,
-                                    presented: composerPresentation.presented,
-                                    onArtifactReady: (artifact) => {
-                                        if (decisions) {
-                                            stepProgressEmitter?.emit(
-                                                'artifactReady',
-                                                {
-                                                    promptUuid:
-                                                        prompt.promptUuid,
-                                                    artifactUuid:
-                                                        artifact.artifactUuid,
-                                                    versionUuid:
-                                                        artifact.versionUuid,
-                                                },
-                                            );
-                                        }
-                                    },
-                                });
-                            },
-                        );
                         const updateWithCitationTelemetryPromise =
                             aiAgentMemoryEnabled &&
                             update.response !== undefined &&
@@ -17518,10 +17854,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 });
                         }
 
-                        return Promise.all([
-                            updateWithCitationTelemetryPromise,
-                            presentationPromise,
-                        ]).then(() => undefined);
+                        return updateWithCitationTelemetryPromise.then(
+                            () => undefined,
+                        );
                     },
                     trackEvent: (event) => this.analytics.track(event),
 
@@ -17546,10 +17881,20 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         this.aiAgentModel.listComposerQueryNodes(
                             threadComposerQueryScope(threadUuid),
                         ),
-                    registerThreadComposerQueryNodes: ({ threadUuid, nodes }) =>
+                    getThreadComposerNodeColumns: ({ threadUuid, nodeId }) =>
+                        this.aiAgentModel.findComposerQueryNodeColumns({
+                            scope: threadComposerQueryScope(threadUuid),
+                            nodeId,
+                        }),
+                    registerThreadComposerQueryNodes: ({
+                        threadUuid,
+                        nodes,
+                        nodeColumns,
+                    }) =>
                         this.aiAgentModel.registerComposerQueryNodes({
                             scope: threadComposerQueryScope(threadUuid),
                             nodes,
+                            nodeColumns,
                         }),
 
                     waitForSqlApproval: (toolCallId, timeoutMs) =>
@@ -18069,28 +18414,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
     }
 
-    /** Composer previews need the thread's nodes; without them the answer still goes out, minus those previews. */
-    private async getSlackComposerThreadNodes(
-        slackPrompt: Pick<SlackPrompt, 'promptUuid' | 'threadUuid'>,
-        toolCalls: { tool_name: string }[],
-    ): Promise<ThreadComposerQueryNode[]> {
-        const hasComposerCall = toolCalls.some(
-            (call) => call.tool_name === runComposerQueriesToolDefinition.name,
-        );
-        if (!hasComposerCall) return [];
-        try {
-            return await this.aiAgentModel.listComposerQueryNodes(
-                threadComposerQueryScope(slackPrompt.threadUuid),
-            );
-        } catch (error) {
-            this.logger.error(
-                `Failed to load composer nodes for Slack previews of prompt ${slackPrompt.promptUuid}`,
-                error,
-            );
-            return [];
-        }
-    }
-
     // TODO: user permissions
     private async getSlackAgentFinalBlocks({
         user,
@@ -18174,7 +18497,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       slackPrompt.organizationUuid,
                   )
                 : undefined;
-        const selection = parseSlackVisualizationSelection(response);
+        // Composer turns present with visualize, so markers select nothing there.
+        const isComposerTurn = toolCalls.some(
+            (call) =>
+                isComposerQueryToolName(call.tool_name) ||
+                call.tool_name === 'visualize',
+        );
+        const selection = isComposerTurn
+            ? { tableQueryUuids: [], chartVersionUuids: [] }
+            : parseSlackVisualizationSelection(response);
         const slackResultReader: QueryResultReader = {
             kind: 'agent',
             authMethod: 'session',
@@ -18185,10 +18516,39 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 agentUuid: agent?.uuid ?? null,
             }),
         };
-        const threadNodes = await this.getSlackComposerThreadNodes(
-            slackPrompt,
-            toolCalls,
-        );
+        const authorizeSlackResults = async ({
+            queryUuid,
+            exploreNames,
+        }: {
+            queryUuid: string;
+            exploreNames: string[];
+        }) => {
+            const history = await this.asyncQueryService.getAsyncQueryHistory({
+                account: fromSession(user),
+                reader: slackResultReader,
+                projectUuid: slackPrompt.projectUuid,
+                queryUuid,
+            });
+            if (
+                history.status !== QueryHistoryStatus.READY ||
+                (history.resultsExpiresAt &&
+                    history.resultsExpiresAt < new Date())
+            ) {
+                throw new UnexpectedServerError(
+                    'Query results are no longer available',
+                );
+            }
+            await Promise.all(
+                exploreNames.map((exploreName) =>
+                    this.getExplore(
+                        user,
+                        slackPrompt.projectUuid,
+                        agent?.tags ?? null,
+                        exploreName,
+                    ),
+                ),
+            );
+        };
         const tablePreviews = await getSlackTablePreviews({
             enableDataAccess: agent?.enableDataAccess === true,
             slackLinksOnly: slackSettings?.aiLinksOnly === true,
@@ -18196,37 +18556,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
             toolCalls,
             toolResults,
             artifacts: artifactVersions,
-            threadNodes,
             url: this.getAgentThreadUrl(slackPrompt, agent?.uuid),
             runtimeResults: runtimeTableResults,
-            authorize: async ({ queryUuid, exploreNames }) => {
-                const history =
-                    await this.asyncQueryService.getAsyncQueryHistory({
-                        account: fromSession(user),
-                        reader: slackResultReader,
-                        projectUuid: slackPrompt.projectUuid,
-                        queryUuid,
-                    });
-                if (
-                    history.status !== QueryHistoryStatus.READY ||
-                    (history.resultsExpiresAt &&
-                        history.resultsExpiresAt < new Date())
-                ) {
-                    throw new UnexpectedServerError(
-                        'Query results are no longer available',
-                    );
-                }
-                await Promise.all(
-                    exploreNames.map((exploreName) =>
-                        this.getExplore(
-                            user,
-                            slackPrompt.projectUuid,
-                            agent?.tags ?? null,
-                            exploreName,
-                        ),
-                    ),
-                );
-            },
+            authorize: authorizeSlackResults,
             getResults: ({ queryUuid, maxRows }) =>
                 this.asyncQueryService.getRawAsyncQueryResults({
                     account: fromSession(user),
@@ -18243,6 +18575,41 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 }),
         });
         const tableBlocks = getSlackTableBlocks(tablePreviews);
+        const bigNumbers = await getSlackBigNumbers({
+            enableDataAccess: agent?.enableDataAccess === true,
+            slackLinksOnly: slackSettings?.aiLinksOnly === true,
+            toolResults,
+            artifacts: artifactVersions,
+            authorize: authorizeSlackResults,
+            getResult: async ({ queryUuid }) => {
+                const account = fromSession(user);
+                const history =
+                    await this.asyncQueryService.getAsyncQueryHistory({
+                        account,
+                        reader: slackResultReader,
+                        projectUuid: slackPrompt.projectUuid,
+                        queryUuid,
+                    });
+                const { rows } =
+                    await this.asyncQueryService.getRawAsyncQueryResults({
+                        account,
+                        reader: slackResultReader,
+                        projectUuid: slackPrompt.projectUuid,
+                        queryUuid,
+                        aiAccessOnly: true,
+                        maxRows: 1,
+                    });
+                return {
+                    columns: Object.values(history.columns ?? {}),
+                    rows,
+                };
+            },
+            onLoadError: (versionUuid) =>
+                this.logger.warn('Could not load Slack big number', {
+                    promptUuid: slackPrompt.promptUuid,
+                    versionUuid,
+                }),
+        });
         // Selecting no table must also omit its artifact card. Links-only and
         // data-access-disabled agents keep their existing link presentation.
         const canShowInlineTables =
@@ -18278,6 +18645,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     dataAppVizVersion,
                 ),
             !!(await this.getDecisionClient(user, slackPrompt.projectUuid)),
+            bigNumbers,
         );
         const sqlArtifactBlocks = await getSqlArtifactCardBlocks(
             slackPrompt.promptUuid,
@@ -19150,8 +19518,10 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     return 'Reviewing the semantic layer...';
                 case 'generateVisualization':
                 case 'generateDashboard':
+                case 'visualize':
                     return 'Preparing the answer...';
                 case 'runSql':
+                case 'query':
                 case 'runComposerQueries':
                 case 'runContentQuery':
                 case 'runSavedChart':

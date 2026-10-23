@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type ToolDescriptionContext } from '../defineTool';
+import { type ToolDescriptionContext, type ToolRuntime } from '../defineTool';
 import {
     baseOutputMetadataSchema,
     structuredToolOutputSchema,
@@ -11,10 +11,19 @@ type FindContentDashboardDetailsToolName =
     | 'readContent'
     | 'read_content';
 
+// Agent only: the MCP instructions have no verified-content policy to pair it with.
+const verifiedMarkupGuidanceByRuntime = {
+    agent: `- A result carrying a \`<verified by="..." at="..." />\` element was approved by an organization or project admin as canonical, trustworthy content; \`by\` names who verified it and \`at\` says when. Verification is per item: a chart inside a verified dashboard is verified only when it carries its own \`<verified>\` element.
+`,
+    mcp: '',
+} satisfies Record<ToolRuntime, string>;
+
 export const getFindContentToolDescription = ({
+    runtime,
     toolName,
     dashboardDetailsToolName,
 }: {
+    runtime: ToolRuntime;
     toolName: string;
     dashboardDetailsToolName: FindContentDashboardDetailsToolName;
 }): string => `Tool: "${toolName}"
@@ -22,57 +31,49 @@ Purpose:
 Finds spaces, charts, dashboards, or Data Apps by name or description within a project, returning detailed information about each.
 
 Usage tips:
-- IMPORTANT: Pass the user's full query or relevant portion directly (e.g., "revenue based on campaigns" instead of just "campaigns").
-- The search engine understands natural language and context — more descriptive queries yield better results.
-- You can provide multiple search queries to look for different topics simultaneously (e.g., ["monthly revenue", "user acquisition trends"]).
-- Pass spaceSlug to search only inside that space and its descendants.
-- verifiedOnly=true searches only admin-verified charts/dashboards (spaces omitted). Data Apps have no verification state and remain included. Verification is a status, not text — search topic keywords, never the word "verified". If nothing matches, verified content may still exist under other terms, so never claim the project has none from one query. Re-run with verifiedOnly=false only if unverified charts or dashboards are acceptable.
 - If results aren't relevant, retry with the full user query or more specific terms.
-- Dashboards with validation errors will be deprioritized.
-- Returns space breadcrumb/path metadata and canonical chart, dashboard, and Data App URLs when available.
-- Dashboards show a preview of the first 5 charts and the total chart count. Use "${dashboardDetailsToolName}" to see all charts for a specific dashboard.
-${
-    dashboardDetailsToolName === 'getDashboardCharts'
-        ? ''
-        : `- Data Apps are readable: call "${dashboardDetailsToolName}" with type "data_app" and the app slug to see what the app shows, the charts and dashboard it was generated from, and the explores, fields, filters, parameters and external connections it queries.
-`
-}- It doesn't provide summaries for dashboards yet, so don't suggest this capability.`;
+${verifiedMarkupGuidanceByRuntime[runtime]}- A dashboard result previews at most its first 5 charts; use "${dashboardDetailsToolName}" to see all of them.`;
 
 export const TOOL_FIND_CONTENT_DESCRIPTION = ({
     runtime,
     toolName,
 }: ToolDescriptionContext): string =>
     getFindContentToolDescription({
+        runtime,
         toolName,
         dashboardDetailsToolName:
             runtime === 'mcp' ? 'read_content' : 'readContent',
     }) +
     (runtime === 'mcp'
-        ? '\n- If neither run_metric_query nor run_sql is available, search here FIRST: saved charts/dashboards may answer the question. Search before claiming information is unavailable or suggesting raw SQL or elevated permissions.'
+        ? '\n- If neither run_metric_query nor run_sql is available, search here first: saved charts/dashboards may answer the question. Search before claiming information is unavailable or suggesting raw SQL or elevated permissions.'
         : '');
 
 export const toolFindContentArgsSchema = createToolSchema()
     .extend({
-        searchQueries: z.array(
-            z.object({
-                label: z
-                    .string()
-                    .describe(
-                        'Full search query from the user (e.g., "revenue based on campaigns" not just "campaigns"). Include full context for better results.',
-                    ),
-            }),
-        ),
+        searchQueries: z
+            .array(
+                z.object({
+                    label: z
+                        .string()
+                        .describe(
+                            'The user\'s full request or its relevant part ("revenue based on campaigns", not just "campaigns"): the search understands natural language, so more context matches better.',
+                        ),
+                }),
+            )
+            .describe(
+                'Searches run together; pass several to cover different topics at once (e.g. "monthly revenue" and "user acquisition trends").',
+            ),
         spaceSlug: z
             .string()
             .nullable()
             .describe(
-                'Optional space slug/path. Use null to search the whole project. When set, only content in this space and descendants is returned.',
+                'Space slug or path to search only inside that space and its descendants, or null to search the whole project.',
             ),
         verifiedOnly: z
             .boolean()
             .nullish()
             .describe(
-                'Set to true to search only admin-verified charts and dashboards; matching Data Apps remain included because they have no verification state. Null or false searches all content.',
+                'True searches only admin-verified charts and dashboards; spaces are omitted, and Data Apps stay included because they have no verification state. Verification is a status, not text, so search topic keywords rather than the word "verified". Null or false searches all content.',
             ),
     })
     .build();

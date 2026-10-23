@@ -1,15 +1,10 @@
-import {
-    FeatureFlags,
-    type Space,
-    type SpaceDeleteImpact,
-} from '@lightdash/common';
+import { type Space, type SpaceDeleteImpact } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconFolderX } from '@tabler/icons-react';
 import { render, screen } from '@testing-library/react';
 import { DeleteSpaceModal } from './DeleteSpaceModal';
 
-const mocks = vi.hoisted(() => ({ enabled: true, isError: false }));
 const space: Space = {
     organizationUuid: 'org',
     projectUuid: 'project',
@@ -60,9 +55,9 @@ vi.mock('../../../providers/App/useApp', () => ({
     }),
 }));
 vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: (flag: FeatureFlags) => ({
-        data: { enabled: flag === FeatureFlags.Documents && mocks.enabled },
-        isError: mocks.isError,
+    useServerFeatureFlag: () => ({
+        data: { enabled: false },
+        isError: false,
     }),
 }));
 const Modal = () => {
@@ -81,8 +76,6 @@ const Modal = () => {
 };
 describe('Space delete Document impact', () => {
     it('warns when documents are the only affected content', () => {
-        mocks.enabled = true;
-        mocks.isError = false;
         render(
             <MantineProvider env="test">
                 <Modal />
@@ -95,24 +88,4 @@ describe('Space delete Document impact', () => {
             ),
         ).toBeInTheDocument();
     });
-    it.each([
-        { enabled: false, isError: false },
-        { enabled: true, isError: true },
-    ])(
-        'hides the document contribution when flag is unavailable %j',
-        (flag) => {
-            Object.assign(mocks, flag);
-            render(
-                <MantineProvider env="test">
-                    <Modal />
-                </MantineProvider>,
-            );
-            expect(screen.queryByText('1 document')).not.toBeInTheDocument();
-            expect(
-                screen.queryByText(
-                    'This will also delete content within this space:',
-                ),
-            ).not.toBeInTheDocument();
-        },
-    );
 });

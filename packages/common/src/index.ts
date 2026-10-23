@@ -408,6 +408,7 @@ export * from './utils/bigNumber';
 export * from './utils/awsWebIdentity';
 export * from './utils/bigqueryKeyfile';
 export * from './utils/charts';
+export * from './utils/cellUrls';
 export * from './utils/chartValidation';
 export * from './utils/colors';
 export * from './utils/conditionalFormatExpressions';

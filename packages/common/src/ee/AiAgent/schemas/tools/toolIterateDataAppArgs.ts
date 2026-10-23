@@ -2,89 +2,66 @@ import { z } from 'zod';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 import {
-    DATA_APP_BUILD_POLL_INTERVAL_MS,
-    DATA_APP_EXTERNAL_CONNECTIONS_AGENT_GUIDANCE,
-    DATA_APP_THEME_SLUG_DESCRIPTION,
+    DATA_APP_BRIEF_AUDIENCE,
+    DATA_APP_BRIEF_QUERY_GUIDANCE,
+    DATA_APP_CONNECTION_LINKING,
+    DATA_APP_THEME_SLUG_SOURCE,
     dataAppBuildWarningsSchema,
     externalConnectionSlugsInput,
     isToolGenerateDataAppResult,
     MCP_DATA_APP_AGENT_SCOPE_GUIDANCE,
-    MCP_DATA_APP_EXTERNAL_CONNECTIONS_GUIDANCE,
     toolGenerateDataAppOutputSchema,
     type ToolGenerateDataAppOutput,
 } from './toolGenerateDataAppArgs';
 
-export const TOOL_ITERATE_DATA_APP_DESCRIPTION = [
-    'Start a build that adds a version to an existing data app from a follow-up brief.',
-    'Use it when the user wants to change, fix, or extend a data app that already exists — one built earlier in this thread, or one found with findContent; use generateDataApp only for a brand-new app.',
-    "The coding agent works from the app's current source, so the brief should describe the change, not restate the whole app.",
-    'The build runs in the background for several minutes, so the call returns as soon as it has started (status: "pending") and the outcome lands on this result for a later turn. One request, one call — never wait, poll, or call this tool again for the same request: tell the user the build has started and end your turn.',
-    'While a version is already building for the app, the call fails — relay that the user should wait for the current build to finish.',
-    'When the attached context lists element references for this app (bracketed `[tag "text" @path:line]` strings), copy every one of them verbatim into the brief — the coding agent resolves them by source location and cannot see them otherwise.',
-    DATA_APP_EXTERNAL_CONNECTIONS_AGENT_GUIDANCE,
-].join(' ');
+export const TOOL_ITERATE_DATA_APP_DESCRIPTION =
+    'Start a background build that adds a version to an existing data app from a brief describing the change. While a version of the app is already building, this call and every retry fail until that build ends: tell the user to wait for it to finish.';
 
 export const MCP_TOOL_ITERATE_DATA_APP_DESCRIPTION = `Tool: iterate_data_app
 
 Purpose:
-Start a build that adds a version to an existing data app from a follow-up brief. Use it to change, fix, or extend an app that already exists; generate_data_app is the tool for a brand-new app.
+Start a build that adds a version to an existing data app from a brief describing the change. The app's name and slug stay as they are. Use generate_data_app for a brand-new app, and iterate_custom_chart_type, if available, for a custom chart type.
 
 Important:
-- The coding agent works from the app's current source, so the brief describes the change rather than restating the whole app.
-- The app's name and slug stay as they are. The build adds a version to the app named by appSlug.
-- The build runs in the background for several minutes. This call returns as soon as the build has started. Poll get_data_app_build_status with the same appSlug every ${
-    DATA_APP_BUILD_POLL_INTERVAL_MS / 1000
-} seconds until its status is "ready", "error", or "cancelled". Call this tool once per request.
-- While a version is already building for the app, this call fails with "A version is already building for this app". Poll get_data_app_build_status until that build reaches a terminal status, then call this tool again.
+- The build runs in the background for several minutes, and this call returns once it starts. Call it once per request, then poll get_data_app_build_status with the same appSlug until the build ends.
+- While a version of the app is already building, this call fails. Poll get_data_app_build_status until that build ends, then call this tool again.
 ${MCP_DATA_APP_AGENT_SCOPE_GUIDANCE}
-- Pass themeSlug only when the user asks to switch the app's theme; omitting it keeps the current one. An unknown themeSlug fails before the build starts and lists the valid slugs, which list_data_app_themes also returns.
-${MCP_DATA_APP_EXTERNAL_CONNECTIONS_GUIDANCE}
-
-Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<confirmation that the build started>" }]
-- structuredContent: {
-    slug:     string,  // the app's slug, unchanged by this build
-    version:  number,  // the version of the app this build produces
-    warnings: string[] // e.g. a connection the brief names but does not link
-  }
-
-Errors: an unknown appSlug, themeSlug, dashboardSlug, chartSlug, or externalConnectionSlug returns an error and starts no build. So does a custom chart type's slug: use iterate_custom_chart_type for those, if available.
 `;
 
 export const toolIterateDataAppArgsSchema = z.object({
     appSlug: z
         .string()
         .describe(
-            'Slug of the data app to change — from an earlier generateDataApp or iterateDataApp result, findContent, or readContent.',
+            'Slug of the app to change: from an earlier build result, findContent or readContent (find_content, read_content over MCP).',
         ),
     prompt: z
         .string()
         .describe(
-            "A self-contained brief of the change for the coding agent, which works from the app's current source and explores the semantic layer itself, but sees neither this conversation nor its query results. Describe what to change and the outcome you expect; carry over any analysis this thread already settled as queries — a number pasted into the brief gets hardcoded into the app.",
+            `Self-contained brief of the change for the coding agent, which works from the app's current source. ${DATA_APP_BRIEF_AUDIENCE} Describe what to change and the outcome to expect, leaving out what stays the same; for a failed build, name what went wrong. ${DATA_APP_BRIEF_QUERY_GUIDANCE}`,
         ),
     dashboardSlug: z
         .string()
         .nullish()
         .default(null)
         .describe(
-            "Pull in an existing dashboard: its slug (from findContent). The coding agent gets the dashboard's layout and charts as context; the dashboard itself stays unchanged. Omit when the change does not reference a dashboard.",
+            "Existing dashboard to pull in: its slug, from findContent (find_content over MCP). The coding agent gets the dashboard's layout and charts; the dashboard stays unchanged.",
         ),
     chartSlugs: z
         .array(z.string())
         .nullish()
         .default(null)
         .describe(
-            'Saved charts (slugs from findContent) whose queries the change builds on; the charts themselves stay unchanged. Omit when the change does not reference saved charts.',
+            'Saved charts whose queries the change builds on: slugs from findContent (find_content over MCP). The charts stay unchanged.',
         ),
     themeSlug: z
         .string()
         .nullish()
         .default(null)
         .describe(
-            `${DATA_APP_THEME_SLUG_DESCRIPTION} On an existing app, passing it switches the app's theme; omit it unless the user asked to switch the theme in this request, so the app keeps its current theme.`,
+            `${DATA_APP_THEME_SLUG_SOURCE} Passing it switches the app's theme, so pass it only when the user asks to switch the theme in this request; omit it to keep the current one.`,
         ),
     externalConnectionSlugs: externalConnectionSlugsInput.describe(
-        'External connections to link to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). Adds to the connections the app already links; none are removed. An unknown or unlinkable slug fails and starts no build. Omit when the change needs no new external API.',
+        `External connections to add to the app before the build: slugs from listDataAppConnections (list_data_app_connections over MCP). Connections the app already links stay. ${DATA_APP_CONNECTION_LINKING} Omit when the change needs no new outside API.`,
     ),
 });
 

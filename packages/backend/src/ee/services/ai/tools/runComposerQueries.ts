@@ -4,11 +4,13 @@ import {
     getSourceQueryResultReferences,
     getSqlApprovalSql,
     getToolComposerQueriesDescription,
-    isSlackPrompt,
     QuerySourceType,
-    runComposerQueriesToolDefinition,
+    queryToolDefinition,
+    toComposerNodeColumns,
     toolComposerQueryNodeToSourceQuery,
     type AnyType,
+    type ParameterDefinitions,
+    type SemanticLayerSourceQuery,
     type SourceQuery,
     type SubmittedSourceQuery,
     type ToolComposerQueriesStructuredContent,
@@ -16,7 +18,12 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
-import { type QueryReviewer } from '../decisions/queryReview';
+import { type AiDecisionClient } from '../decisions/AiDecisionClient';
+import { getEmptyFilterHints } from '../decisions/queryChecks';
+import {
+    preferFilterValueHints,
+    type QueryReviewer,
+} from '../decisions/queryReview';
 import type {
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
@@ -25,18 +32,24 @@ import type {
     RecordSqlApprovalFn,
     RegisterThreadComposerQueryNodesFn,
     RunComposerQueriesFn,
+    SearchFieldValuesFn,
     StoreToolResultsFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
     WaitForSqlApprovalFn,
 } from '../types/aiAgentDependencies';
 import { type AgentContext } from '../utils/AgentContext';
+import {
+    getAppliedParameters,
+    renderAppliedParameters,
+} from '../utils/appliedParameters';
 import { serializeData } from '../utils/serializeData';
 import type {
     ExecuteStructuredToolResult,
     ExecuteToolErrorResult,
 } from '../utils/structuredToolResult';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
+import { validateQueryParameters } from '../utils/validators';
 import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
 import { validateSelectOnly } from './runSql';
 import { getSqlApprovalSteps } from './slackSqlAggregate';
@@ -48,9 +61,15 @@ import {
     type TrackSqlApprovalTimeoutFn,
 } from './sqlApprovals';
 
+export type FilterValueHintDependencies = {
+    decisions: Pick<AiDecisionClient, 'evaluate'>;
+    searchFieldValues: SearchFieldValuesFn;
+};
+
 type Dependencies = {
     agentContext: AgentContext;
     reviewQuery?: QueryReviewer;
+    filterValueHints: FilterValueHintDependencies | null;
     updateProgress: UpdateProgressFn;
     runComposerQueries: RunComposerQueriesFn;
     getPrompt: GetPromptFn;
@@ -71,9 +90,11 @@ type Dependencies = {
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
+    // Model-level definitions come from the explore.
+    projectParameterDefinitions: ParameterDefinitions;
 };
 
-const toolDefinition = runComposerQueriesToolDefinition.for('agent');
+const toolDefinition = queryToolDefinition.for('agent');
 
 const PREVIEW_ROW_LIMIT = 50;
 
@@ -86,7 +107,7 @@ const COMPOSER_SQL_APPROVAL_COPY: SqlApprovalCopy = {
     timeoutResult:
         'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
     previousTimeoutResult:
-        'A previous SQL approval timed out in this response. Do not call runComposerQueries again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
+        'A previous SQL approval timed out in this response. Do not call query again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
 };
 
 type ComposerQueriesOutput =
@@ -145,9 +166,49 @@ export const resolveTerminalNodeId = (
     return sinks[0];
 };
 
+/** Semantic layer nodes the terminal node reads from, itself included. */
+const getSemanticLayerAncestors = (
+    pipeline: SourceQuery[],
+    terminalNodeId: string,
+): SemanticLayerSourceQuery[] => {
+    const byId = new Map(pipeline.map((node) => [node.nodeId, node]));
+    const visited = new Set<string>();
+    const visit = (nodeId: string): SemanticLayerSourceQuery[] => {
+        const node = byId.get(nodeId);
+        if (!node || visited.has(nodeId)) return [];
+        visited.add(nodeId);
+        return node.sourceType === QuerySourceType.SEMANTIC_LAYER
+            ? [node]
+            : Object.values(getSourceQueryResultReferences(node)).flatMap(
+                  visit,
+              );
+    };
+    return visit(terminalNodeId);
+};
+
+const getComposerEmptyFilterHints = async (
+    { decisions, searchFieldValues }: FilterValueHintDependencies,
+    nodes: SemanticLayerSourceQuery[],
+): Promise<string> => {
+    const hints = await Promise.all(
+        nodes.map((node) =>
+            getEmptyFilterHints({
+                decisions,
+                query: {
+                    exploreName: node.exploreName,
+                    filters: node.filters ?? {},
+                },
+                searchFieldValues,
+            }),
+        ),
+    );
+    return hints.filter(Boolean).join(' ');
+};
+
 export const getRunComposerQueries = ({
     agentContext,
     reviewQuery,
+    filterValueHints,
     updateProgress,
     runComposerQueries,
     getPrompt,
@@ -168,6 +229,7 @@ export const getRunComposerQueries = ({
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
+    projectParameterDefinitions,
 }: Dependencies) => {
     const approvalGate = createSqlApprovalGate(
         {
@@ -185,7 +247,7 @@ export const getRunComposerQueries = ({
             autoApproveSqlUserUuid,
             useSlackStreamCard,
         },
-        'runComposerQueries',
+        'query',
         COMPOSER_SQL_APPROVAL_COPY,
     );
 
@@ -239,6 +301,19 @@ export const getRunComposerQueries = ({
                     );
                 }
 
+                queryNodes.forEach((node) => {
+                    if (
+                        node.sourceType !== QuerySourceType.SEMANTIC_LAYER ||
+                        node.parameters === null
+                    )
+                        return;
+                    validateQueryParameters(
+                        node.parameters,
+                        agentContext.getExplore(node.exploreName),
+                        projectParameterDefinitions,
+                    );
+                });
+
                 const prompt = await getPrompt();
                 // Filters resolve against the explore before anything runs.
                 const submitted = queryNodes.map((node) =>
@@ -254,6 +329,22 @@ export const getRunComposerQueries = ({
                     threadNodes: await listThreadComposerQueryNodes(
                         prompt.threadUuid,
                     ),
+                });
+                // Reused nodes run with the values they were defined with.
+                const appliedParameters = queries.flatMap((node) => {
+                    if (node.sourceType !== QuerySourceType.SEMANTIC_LAYER)
+                        return [];
+                    const explore = agentContext
+                        .getAvailableExplores()
+                        .find(({ name }) => name === node.exploreName);
+                    const applied = explore
+                        ? getAppliedParameters(
+                              explore,
+                              projectParameterDefinitions,
+                              node.parameters ?? null,
+                          )
+                        : null;
+                    return applied ? [{ nodeId: node.nodeId, ...applied }] : [];
                 });
                 const resolvedTerminalNodeId = resolveTerminalNodeId(
                     submitted,
@@ -292,12 +383,8 @@ export const getRunComposerQueries = ({
                     try {
                         await approveSql({
                             sql: approvalSql,
-                            heading:
-                                getSqlApprovalHeading('runComposerQueries'),
-                            steps: getSqlApprovalSteps(
-                                'runComposerQueries',
-                                args,
-                            ),
+                            heading: getSqlApprovalHeading('query'),
+                            steps: getSqlApprovalSteps('query', args),
                         });
                     } catch (e) {
                         if (e instanceof SqlNotApprovedError) {
@@ -340,7 +427,7 @@ export const getRunComposerQueries = ({
                             }
                             void updateProgress(
                                 message,
-                                'runComposerQueries',
+                                'query',
                                 `${toolCallId}:${nodeId}`,
                                 progressStatus,
                             ).catch(() => {});
@@ -365,15 +452,7 @@ export const getRunComposerQueries = ({
                     });
                 }
 
-                // Slack renders composer results as a native table.
-                const isSlack = isSlackPrompt(prompt);
                 const artifactTitle = title ?? 'Composer query results';
-                if (isSlack && enableDataAccess) {
-                    agentContext.registerSlackTableResults(terminal.queryUuid, {
-                        rows: terminal.rows,
-                        fields: {},
-                    });
-                }
                 const metadata: ToolComposerQueriesSuccessMetadata = {
                     status: 'success',
                     queryUuid: terminal.queryUuid,
@@ -403,9 +482,10 @@ export const getRunComposerQueries = ({
                 const columnSummary = columns
                     .map((column) => `${column.reference} (${column.type})`)
                     .join(', ');
-                const emptyReview =
-                    enableDataAccess && reviewQuery && terminal.rowCount === 0
-                        ? await reviewQuery(
+                const isEmpty = enableDataAccess && terminal.rowCount === 0;
+                const [diagnosis, valueHints] = await Promise.all([
+                    isEmpty && reviewQuery
+                        ? reviewQuery(
                               {
                                   kind: 'composer',
                                   queries,
@@ -413,14 +493,34 @@ export const getRunComposerQueries = ({
                               },
                               { emptyResult: true, review },
                           )
-                        : null;
+                        : null,
+                    isEmpty && filterValueHints
+                        ? getComposerEmptyFilterHints(
+                              filterValueHints,
+                              getSemanticLayerAncestors(
+                                  queries,
+                                  resolvedTerminalNodeId,
+                              ),
+                          )
+                        : '',
+                ]);
+                const emptyReview =
+                    diagnosis === null && !valueHints
+                        ? null
+                        : preferFilterValueHints({
+                              diagnosis: diagnosis ?? '',
+                              valueHints,
+                              review,
+                          });
                 const resultSummary = [
                     `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.`,
-                    `Nodes in this pipeline (a later call can read any of them by node id without resubmitting it):\n${nodeSummary}`,
+                    `Nodes in this pipeline:\n${nodeSummary}`,
                     `Terminal columns: ${columnSummary}.`,
-                    isSlack
-                        ? `Not shared with the user yet. To include this table, write <slack-table queryUuid="${terminal.queryUuid}" /> in your final answer.`
-                        : `Not presented to the user yet. To present it, write <show node="${resolvedTerminalNodeId}"/> in your final answer; the same marker presents it again in a later message without rerunning it.`,
+                    ...appliedParameters.map(
+                        ({ nodeId, ...applied }) =>
+                            `Node "${nodeId}":${renderAppliedParameters(applied)}`,
+                    ),
+                    `Not visualized yet. To present it to the user, call visualize with nodeId "${resolvedTerminalNodeId}".`,
                     ...(review && terminal.rowCount !== 0 ? [review] : []),
                     ...(emptyReview !== null ? [emptyReview] : []),
                 ].join('\n');
@@ -429,6 +529,7 @@ export const getRunComposerQueries = ({
                     rowCount: terminal.rowCount,
                     nodes,
                     columns,
+                    parameters: appliedParameters,
                     review:
                         terminal.rowCount === 0 ? emptyReview : review || null,
                 };
@@ -478,6 +579,11 @@ export const getRunComposerQueries = ({
                 await registerThreadComposerQueryNodes({
                     threadUuid: prompt.threadUuid,
                     nodes: queries,
+                    nodeColumns: {
+                        [resolvedTerminalNodeId]: toComposerNodeColumns(
+                            terminal.columns,
+                        ),
+                    },
                 });
 
                 return await persistIfResumed(output);

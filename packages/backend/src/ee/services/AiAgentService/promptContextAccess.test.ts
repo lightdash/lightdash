@@ -313,18 +313,6 @@ describe('validatePromptContextAccess for Documents', () => {
         ).rejects.toThrow(NotFoundError);
     });
 
-    it('rejects Documents when the Documents flag is off', async () => {
-        const { validate, documentService } = buildService([], [], {
-            documents: [document],
-            documentsEnabled: false,
-        });
-
-        await expect(
-            validate([{ type: 'document', documentUuid: 'doc-uuid' }]),
-        ).rejects.toThrow(ForbiddenError);
-        expect(documentService.get).not.toHaveBeenCalled();
-    });
-
     it('rejects a Document outside the embedded space', async () => {
         const { validate } = buildService([], [], { documents: [document] });
 

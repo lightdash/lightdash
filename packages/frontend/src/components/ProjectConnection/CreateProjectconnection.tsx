@@ -101,9 +101,12 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
 
     const warehouseType = selectedWarehouse ?? WarehouseTypes.BIGQUERY;
     const dbtType = health.data?.defaultProject?.type ?? dbtDefaults.dbtType;
+    // The first project is named after the organization; every later one
+    // needs its own name, otherwise its slug becomes "<org>-2", "<org>-3".
+    const asksForProjectName = !isCreatingFirstProject;
     const form = useForm({
         initialValues: {
-            name: user.data?.organizationName || '',
+            name: asksForProjectName ? '' : user.data?.organizationName || '',
             dbt: warehouseOnly
                 ? noneDefaultValues
                 : {
@@ -114,6 +117,10 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             dbtVersion: dbtDefaults.dbtVersion,
         },
         validate: {
+            name: (value) =>
+                asksForProjectName && value.trim() === ''
+                    ? 'Project name is required'
+                    : null,
             warehouse: createWarehouseValueValidators[warehouseType],
             dbt: warehouseOnly ? {} : dbtFormValidators,
         },
@@ -144,7 +151,10 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
         if (selectedWarehouse) {
             try {
                 const data = await mutateAsync({
-                    name: name || user.data?.organizationName || 'My project',
+                    name:
+                        name.trim() ||
+                        user.data?.organizationName ||
+                        'My project',
                     type: ProjectType.DEFAULT,
                     dbtConnection,
                     dbtVersion,
@@ -258,10 +268,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                         {!hideForm && (
                             <>
                                 <ProjectForm
-                                    showGeneralSettings={
-                                        !isCreatingFirstProject &&
-                                        !warehouseOnly
-                                    }
+                                    showGeneralSettings={asksForProjectName}
                                     disabled={isSavingProject}
                                     defaultType={
                                         health.data?.defaultProject?.type

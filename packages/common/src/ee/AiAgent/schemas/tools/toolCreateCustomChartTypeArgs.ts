@@ -20,9 +20,8 @@ export const MCP_TOOL_CREATE_CUSTOM_CHART_TYPE_DESCRIPTION = `Tool: create_custo
 
 Build a custom chart type: a reusable visualization for saved charts in the project, when built-in chart types cannot draw what the user wants. For a whole interactive app, use generate_data_app, if available.
 
-- Describe the expected data by role (a date, a category, a value), not by a query's fields. Pass queryUuid to share sample rows from a completed run_metric_query.
-- Poll get_data_app_build_status with the returned slug as appSlug until "ready", "error" or "cancelled", then send the user to Chart Studio. Call this tool once per request.
-- Use the returned slug: a taken name gets a numeric suffix.
+- Describe the expected data by role (a date, a category, a value), not by a query's fields.
+- Poll get_data_app_build_status with the returned slug as appSlug (a taken name gets a numeric suffix) until "ready", "error" or "cancelled", then send the user to Chart Studio. Call this tool once per request.
 - For a named theme, brand or look, find its themeSlug with list_data_app_themes.
 ${MCP_CUSTOM_CHART_TYPE_AGENT_SCOPE_GUIDANCE}
 `;

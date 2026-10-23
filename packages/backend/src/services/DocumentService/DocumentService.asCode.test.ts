@@ -316,20 +316,19 @@ describe('DocumentService.upsertAsCode', () => {
         );
     });
 
-    it.each([
-        ['a viewer', () => makeAccount(OrganizationMemberRole.VIEWER)],
-        ['a disabled Documents flag', () => makeAccount()],
-    ])('writes nothing for %s', async (label, account) => {
-        const { service, documentModel, featureFlagModel } = setup();
-        if (label === 'a disabled Documents flag') {
-            featureFlagModel.get.mockResolvedValue({ enabled: false });
-        }
+    it('writes nothing for a viewer', async () => {
+        const { service, documentModel } = setup();
 
         await expect(
-            service.upsertAsCode(account(), projectUuid, 'review', {
-                ...asCode,
-                name: 'Renamed',
-            }),
+            service.upsertAsCode(
+                makeAccount(OrganizationMemberRole.VIEWER),
+                projectUuid,
+                'review',
+                {
+                    ...asCode,
+                    name: 'Renamed',
+                },
+            ),
         ).rejects.toThrow(ForbiddenError);
 
         writes(documentModel).forEach((write) =>

@@ -164,6 +164,7 @@ import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import { useRegisterTileQuery } from '../../providers/Dashboard/useRegisterTileQuery';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -1071,8 +1072,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             () => ({
                 ...chart,
                 metricQuery: metricQuery ?? chart.metricQuery,
+                parameters: usedParametersValues,
             }),
-            [chart, metricQuery],
+            [chart, metricQuery, usedParametersValues],
         );
         const cannotUseCustomDimensions =
             !userCanUseCustomFields &&
@@ -2076,7 +2078,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
     const {
         chart,
         explore,
-        executeQueryResponse: { metricQuery },
+        executeQueryResponse: { metricQuery, usedParametersValues },
     } = dashboardChartReadyQuery;
     const showEditChart =
         onEditChart !== undefined &&
@@ -2096,8 +2098,16 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
     // Explorer can open, so a merged chart reopens from its own primary query.
     const handleExploreFromHere = useCallback(() => {
         if (!onExplore) return;
-        onExplore({ chart: chart.merge ? chart : { ...chart, metricQuery } });
-    }, [onExplore, chart, metricQuery]);
+        onExplore({
+            chart: chart.merge
+                ? chart
+                : {
+                      ...chart,
+                      metricQuery,
+                      parameters: usedParametersValues,
+                  },
+        });
+    }, [onExplore, chart, metricQuery, usedParametersValues]);
 
     const canExplore = canViewExploreOverride ?? canViewExplore;
 
@@ -2677,6 +2687,31 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         resultsData.isFetchingFirstPage,
         resultsData.error,
     ]);
+
+    // Publish this tile's query as an AI analysis source once it settles.
+    const queryUuid = readyQuery.data?.executeQueryResponse.queryUuid ?? null;
+    const tileError =
+        orphanedChartError ?? readyQuery.error ?? resultsData.error;
+    const registration = useMemo(() => {
+        if (isLoading || (!queryUuid && !tileError)) return null;
+        return {
+            tileUuid: props.tile.uuid,
+            queryUuid,
+            label:
+                props.tile.properties.title ||
+                readyQuery.data?.chart.name ||
+                'Chart',
+            status: (tileError ? 'error' : 'ready') as 'ready' | 'error',
+        };
+    }, [
+        queryUuid,
+        isLoading,
+        props.tile.uuid,
+        props.tile.properties.title,
+        readyQuery.data?.chart.name,
+        tileError,
+    ]);
+    useRegisterTileQuery(registration);
 
     return (
         <GenericDashboardChartTile

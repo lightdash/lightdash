@@ -362,6 +362,38 @@ export const getOrgModelOptions = (
         presetToModelOption(preset, defaultModel, catalogue),
     );
 
+/**
+ * An inherited organization-default model can name a provider the scoped
+ * config does not serve — a project pinned to a Bedrock credential while the
+ * organization default model points at the instance provider. An explicit
+ * agent or thread pick must fail closed in `getModelPreset`, but an inherited
+ * default was never a deliberate choice for this scope, so it falls back to
+ * the scoped config's own default model and the prompt runs inside the
+ * pinned provider.
+ */
+export const reconcileInheritedModelConfig = (
+    config: LightdashConfig['ai']['copilot'],
+    modelConfig: AiAgentModelConfig,
+): AiAgentModelConfig => {
+    if (
+        config.providers[
+            modelConfig.modelProvider as keyof typeof config.providers
+        ]
+    ) {
+        return modelConfig;
+    }
+    const fallback = getDefaultModel(config);
+    if (!fallback) return modelConfig;
+    Logger.info(
+        `Inherited default model provider "${modelConfig.modelProvider}" is not served by the resolved config, running the prompt on "${fallback.provider}/${fallback.name}"`,
+    );
+    return {
+        ...modelConfig,
+        modelProvider: fallback.provider,
+        modelName: fallback.name,
+    };
+};
+
 // The returned config is what gets recorded on the prompt, so the swap must
 // happen before the prompt is stored.
 export const resolveModelConfigForPrompt = (

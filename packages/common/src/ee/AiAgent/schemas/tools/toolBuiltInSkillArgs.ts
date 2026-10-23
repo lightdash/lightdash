@@ -4,10 +4,10 @@ export const TOOL_LIST_SKILLS_DESCRIPTION =
     'List Lightdash built-in skills available to this MCP server. Use this when the client does not expose MCP resources directly.';
 
 export const TOOL_LOAD_SKILL_DESCRIPTION_MCP =
-    'Read the main SKILL.md instructions for a Lightdash built-in skill. Call list_skills first to discover available skill names.';
+    'Read the main SKILL.md instructions of a Lightdash built-in skill named by list_skills.';
 
 export const TOOL_LOAD_SKILL_RESOURCE_DESCRIPTION =
-    'Read a supporting resource file for a Lightdash built-in skill. Use the resource path returned by list_skills.';
+    'Read a supporting resource file of a Lightdash built-in skill.';
 
 export const toolListSkillsArgsSchema = z.object({});
 

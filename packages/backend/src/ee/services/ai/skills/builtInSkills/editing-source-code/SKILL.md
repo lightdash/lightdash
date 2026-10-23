@@ -1,62 +1,14 @@
 ---
 name: editing-source-code
-description: Use when changing a repository other than the dbt project through a pull request (`editRepo`) or managing those pull requests.
+description: Workflow for the pull requests `editRepo` opens in repositories other than the dbt project, covering splitting, continuing, inspecting and closing them. Load it when changing such a repository or managing its pull requests.
 availability: [agent]
 ---
 
 # Editing source code in connected repositories (`editRepo`)
 
-You can make a code change to a repository your organization can write to and
-open a pull request, using the `editRepo` tool. This is the general-purpose
-counterpart to `editDbtProject`:
+`editRepo` changes a repository other than this project's dbt project through a pull request; its description and parameters cover the call. This skill covers the pull requests it leaves in the thread.
 
-- Use `editDbtProject` for changes to THIS project's dbt / semantic-layer repo
-  (it also runs `lightdash compile`).
-- Use `editRepo` for changes to ANY other writable repository — e.g. fix a typo,
-  edit a config file, make a small code change. `editRepo` does NOT run a build;
-  the change is verified by the pull request's own CI, not in the sandbox.
-
-When to use it:
-
-- Only when the user explicitly asks to CHANGE code in a repository and have a
-  pull request raised. For read-only questions about a repo, use `exploreRepo`
-  and `discoverRepos` instead.
-- Resolve the exact `owner/repo` first (use `discoverRepos` if unsure) and pass
-  it as `repoTarget`. Do not guess repository names.
-- Compose a focused, self-contained `prompt` describing exactly which files to
-  change and how — the sandbox does not see this conversation.
-
-The tool applies the change on your behalf and may take a few minutes. A "View
-pull request" button is shown to the user, so when it succeeds, summarise the
-change and which repository it targeted — do NOT paste the pull request URL or
-number into your reply.
-
-Choosing which pull request a change goes to:
-
-- If you are unsure whether this conversation already has a pull request open on
-  the repository, call `listWorkstreams` first to see them (with their URLs and
-  summaries) before deciding.
-- By default the change continues the most recent pull request this conversation
-  opened on that repository — use the default when the user is iterating on or
-  following up the work you just did.
-- To target a SPECIFIC existing pull request (one the user pasted, or one of
-  several you opened earlier on the repo), pass its URL as `prUrl`.
-- When the user asks for a SEPARATE, unrelated change to a repo you already have
-  an open pull request on, set `startNewPullRequest: true` so it opens a new pull
-  request instead of piling an unrelated commit onto the existing one. When in
-  doubt between continuing and starting fresh, prefer a new pull request — a
-  spare PR is easy to close, but mixing unrelated changes into one is not.
-- To see what a pull request actually contains, call `getPullRequestDiff` with
-  its URL rather than relying on your own summary of it.
-
-Closing a pull request (`closePullRequest`):
-
-- When the user asks to close, discard, abandon, or drop one of the pull requests
-  this conversation opened, call `closePullRequest` with its URL (get the URL from
-  `listWorkstreams` or a previous `editRepo` result).
-- A common pattern is consolidating work: fold one pull request's change into
-  another with `editRepo` (continue the keeper via `prUrl`, describing the extra
-  change), then `closePullRequest` the now-redundant one(s).
-- Closing is reversible (the pull request can be reopened on the provider) and
-  does NOT merge anything. Only close pull requests this conversation owns, and
-  only when the user has asked you to.
+- Set `startNewPullRequest` for a change unrelated to the open pull request on that repository; when unsure, prefer a new one, since a spare pull request is easy to close and mixed changes are not easy to separate.
+- When you are unsure which pull requests the thread has open, call `listWorkstreams` and pass the one to continue as `prUrl`.
+- To consolidate, continue the pull request you keep with `prUrl`, describing the extra change, then close the redundant one with `closePullRequest` once the user asks.
+- `getPullRequestDiff` reads diffs only in this project's dbt repository; for other repositories, the agent summary in the `editRepo` result describes the change.

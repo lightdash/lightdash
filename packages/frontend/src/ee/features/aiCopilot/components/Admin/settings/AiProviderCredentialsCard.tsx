@@ -91,10 +91,16 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                 allowedModels: values.allowedModels,
                 apiKey: values.apiKey ?? '',
                 inferenceGeography: values.inferenceGeography,
+                setAsDefault: values.setAsDefault,
             },
             { onSuccess: () => setModalState(null) },
         );
     };
+
+    // Legacy blob counts: it serves the organization until adopted.
+    const defaultExists =
+        credentials.some((credential) => credential.isDefault) ||
+        legacyBedrock !== null;
 
     return (
         <Stack gap="xs">
@@ -260,7 +266,16 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                 </Callout>
             )}
 
-            {(credentials.length > 0 || legacyBedrock !== null) && (
+            {credentials.length > 0 && !defaultExists && (
+                <Text c="dimmed" fz="xs">
+                    No credential is the organization default, so anything
+                    without a project-level selection runs on the
+                    instance-managed provider. Make a credential the default to
+                    route all AI traffic through it.
+                </Text>
+            )}
+
+            {defaultExists && (
                 <Text c="dimmed" fz="xs">
                     While Bedrock is configured it is the only provider Ask AI
                     uses, so agents pinned to another provider stop working
@@ -275,6 +290,7 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                     opened
                     credential={modalState.credential}
                     isReplacement={Boolean(modalState.replaceUuid)}
+                    defaultExists={defaultExists}
                     models={models}
                     isSaving={
                         createCredential.isLoading ||
