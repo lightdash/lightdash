@@ -400,9 +400,6 @@ export const AgentChatInput = ({
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
     );
-    const { data: multiSourceQueryFlag } = useServerFeatureFlag(
-        FeatureFlags.MultiSourceQuery,
-    );
     const { data: composeSqlRunnerFlag } = useServerFeatureFlag(
         FeatureFlags.ComposeSqlRunner,
     );
@@ -861,7 +858,6 @@ export const AgentChatInput = ({
         projectUuid &&
         externalSourcesFlag?.enabled &&
         app.health.data?.externalSources.engineAvailable &&
-        multiSourceQueryFlag?.enabled &&
         composeSqlRunnerFlag?.enabled &&
         // Hidden only when the agent is known to have composer queries off.
         agent?.enableComposerQueries !== false &&

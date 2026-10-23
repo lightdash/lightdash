@@ -15,7 +15,8 @@ Shipped on `claude/composer-queries-agent-plan-oyckgn` (PR #27792; plan doc:
 [composer-queries-agent-plan.md](composer-queries-agent-plan.md)):
 
 - **Agent chat surface** — done (v0): the `runComposerQueries` agent tool wraps
-  `QuerySourceService.executeSourceQueries` behind the `multi-source-query` flag (standard web
+  `QuerySourceService.executeSourceQueries` behind the composer flag (`multi-source-query` at the
+  time; folded into `compose-sql-runner` in 2026-10, which now gates the whole composer) (standard web
   chat only — not Slack, not deep research). `sql` nodes go through the per-thread human approval
   gate and inherit the agent SQL scope via the AI execution context; semanticLayer/duckdb-only
   pipelines need no approval. Results return to the model as the terminal `ResultColumns` + CSV

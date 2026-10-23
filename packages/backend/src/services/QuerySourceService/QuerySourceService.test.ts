@@ -796,7 +796,7 @@ describe('python query source gating', () => {
         },
     ];
 
-    it('lists python only when the compose SQL runner flag is on', async () => {
+    it('lists python when the compose SQL runner flag is on and refuses the listing when it is off', async () => {
         const { registry } = createRegistry();
         const { service, mocks } = createService(registry);
         const listed = async () =>
@@ -808,10 +808,12 @@ describe('python query source gating', () => {
         mocks.featureFlagModel.get.mockImplementation(
             flagsOnExcept(FeatureFlags.ComposeSqlRunner),
         );
-        expect(await listed()).not.toContain(QuerySourceType.PYTHON);
+        await expect(listed()).rejects.toThrow(
+            'Composer queries are not enabled',
+        );
     });
 
-    it('refuses a python pipeline before submitting any node when python is off', async () => {
+    it('refuses a python pipeline before submitting any node when the compose SQL runner flag is off', async () => {
         const { registry, sqlSource, executeAsyncPythonQuery } =
             createRegistry();
         const { service, mocks } = createService(registry);
@@ -827,7 +829,7 @@ describe('python query source gating', () => {
                 queries: pipeline,
                 context: QueryExecutionContext.AI,
             }),
-        ).rejects.toThrow('python queries are not enabled');
+        ).rejects.toThrow('Composer queries are not enabled');
         expect(sqlSource.submitQuery).not.toHaveBeenCalled();
         expect(executeAsyncPythonQuery).not.toHaveBeenCalled();
     });

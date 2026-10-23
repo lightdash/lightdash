@@ -195,7 +195,7 @@ export class QuerySourceService extends BaseService {
         }
     }
 
-    private async throwIfMultiSourceQueryDisabled(
+    private async throwIfComposerQueriesDisabled(
         account: Account,
     ): Promise<void> {
         assertIsAccountWithOrg(account);
@@ -204,10 +204,10 @@ export class QuerySourceService extends BaseService {
                 userUuid: account.user.id,
                 organizationUuid: account.organization.organizationUuid,
             },
-            featureFlagId: FeatureFlags.MultiSourceQuery,
+            featureFlagId: FeatureFlags.ComposeSqlRunner,
         });
         if (!enabled) {
-            throw new ForbiddenError('Multi-source queries are not enabled');
+            throw new ForbiddenError('Composer queries are not enabled');
         }
     }
 
@@ -237,7 +237,7 @@ export class QuerySourceService extends BaseService {
         account: Account,
         projectUuid: string,
     ): Promise<ApiListQuerySourcesResults> {
-        await this.throwIfMultiSourceQueryDisabled(account);
+        await this.throwIfComposerQueriesDisabled(account);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const ability = this.createAuditedAbility(account);
@@ -265,7 +265,7 @@ export class QuerySourceService extends BaseService {
         projectUuid: string,
         sourceType: QuerySourceType,
     ): Promise<ApiScanQuerySourceSchemaResults> {
-        await this.throwIfMultiSourceQueryDisabled(account);
+        await this.throwIfComposerQueriesDisabled(account);
         const source = this.registry.get(sourceType);
         await this.throwIfSourcesDisabled(account, [source]);
         if (source.definition.sourceType === QuerySourceType.SQL) {
@@ -423,7 +423,7 @@ export class QuerySourceService extends BaseService {
         queries: SourceQuery[];
         context: QueryExecutionContext;
     }): Promise<ApiExecuteSourceQueriesResults> {
-        await this.throwIfMultiSourceQueryDisabled(account);
+        await this.throwIfComposerQueriesDisabled(account);
         await this.throwIfCannotRunQueries(account, projectUuid);
 
         const submitted = await this.submitQueries({
@@ -553,7 +553,7 @@ export class QuerySourceService extends BaseService {
         projectUuid: string,
         queryUuids: string[],
     ): Promise<ApiGetSourceQueryStatusResults> {
-        await this.throwIfMultiSourceQueryDisabled(account);
+        await this.throwIfComposerQueriesDisabled(account);
         if (queryUuids.length === 0) {
             throw new ParameterError('Provide at least one query uuid');
         }

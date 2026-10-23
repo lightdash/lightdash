@@ -17,7 +17,8 @@ It aligns with the shipped execution seam (`executeAsyncComposeSqlQuery`, the
 
 - New agent tool `runComposerQueries` wrapping
   `QuerySourceService.executeSourceQueries` (service call, not HTTP), gated by
-  the `multi-source-query` feature flag (`FeatureFlags.MultiSourceQuery`).
+  the composer feature flag (`compose-sql-runner`, `FeatureFlags.ComposeSqlRunner`;
+  originally `multi-source-query`, folded into it in 2026-10).
 - The tool submits with `context: QueryExecutionContext.AI`, so `sql` nodes
   inherit the project's agent SQL scope with no new enforcement code — the
   scope check keys on context inside `AsyncQueryService.executeAsyncSqlQuery`
@@ -106,7 +107,7 @@ artifact migration. Never ship a shape that is only `{ lastQueryUuid }`.
    error carries upstream failures) with the same bounded timeout as
    `runSqlJob` → fetch the first page via the standard async results path.
    Feature-flag check happens inside `executeSourceQueries` already
-   (`throwIfMultiSourceQueryDisabled`); the CASL check for `sql` nodes
+   (`throwIfComposerQueriesDisabled`); the CASL check for `sql` nodes
    (`manage SqlRunner`) is enforced by the source's wrapped execution path.
 6. **Tool file** — `services/ai/tools/runComposerQueries.ts`
    (`getRunComposerQueries(deps)` factory, standard `tool({...})` shape):
@@ -135,7 +136,7 @@ artifact migration. Never ship a shape that is only `{ lastQueryUuid }`.
 7. **Assembly** — `services/ai/agents/agentV2.ts` `getAgentTools()`:
    construct with deps and spread gated on a new `enableComposerQueries`
    boolean on `AiAgentArgs`, resolved where the other flags are
-   (`FeatureFlags.MultiSourceQuery` + agent settings toggle). Pipelines
+   (`FeatureFlags.ComposeSqlRunner` + agent settings toggle). Pipelines
    containing `sql` nodes additionally require the existing `canRunSql`;
    enforce at tool validation (reject `sql` nodes with a clear message when
    SQL is disabled) rather than hiding the whole tool.

@@ -105,8 +105,8 @@ materializes.
 
 ## API
 
-All endpoints require the `multi-source-query` feature flag (on by default in
-preview environments) and live under
+All endpoints require the `compose-sql-runner` feature flag (the composer
+switch, on by default in preview environments) and live under
 `/api/v2/projects/{projectUuid}/query-sources`:
 
 | Endpoint                             | Purpose                                                                                                                                                                                  |

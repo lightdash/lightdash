@@ -307,23 +307,17 @@ export enum FeatureFlags {
     AiFilterExpressions = 'ai-filter-expressions',
 
     /**
-     * Enable the async compose SQL endpoint
-     * (POST /api/v2/projects/{projectUuid}/query/compose-sql), which runs
-     * DuckDB SQL over other queries' results, exposed as named tables via
-     * the request's references map ({"orders": "<queryUuid>"}).
-     * Off by default; on in preview/dev environments via
-     * PREVIEW_ENABLED_FEATURE_FLAGS.
+     * The composer switch. Enables the query-sources API
+     * (/api/v2/projects/{projectUuid}/query-sources/*: source discovery,
+     * schema scans, source-query submission and batch status), the async
+     * compose SQL endpoint (POST /api/v2/projects/{projectUuid}/query/compose-sql),
+     * which runs DuckDB SQL over other queries' results exposed as named
+     * tables via the request's references map ({"orders": "<queryUuid>"}),
+     * python nodes, the AI agent composer tools and external-source
+     * attachments in agent chat. Off by default; on in preview/dev
+     * environments via PREVIEW_ENABLED_FEATURE_FLAGS.
      */
     ComposeSqlRunner = 'compose-sql-runner',
-
-    /**
-     * Enable the multi-source query endpoints
-     * (/api/v2/projects/{projectUuid}/query-sources/*): source discovery,
-     * schema scans, source-query submission and batch status. Off by
-     * default; on in preview/dev environments via
-     * PREVIEW_ENABLED_FEATURE_FLAGS.
-     */
-    MultiSourceQuery = 'multi-source-query',
 
     /**
      * Enable the "My query history" page
