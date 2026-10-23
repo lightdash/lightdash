@@ -1,3 +1,10 @@
+# [3.52.0](https://github.com/lightdash/lightdash/compare/3.51.0...3.52.0) (2026-10-23)
+
+
+### Features
+
+* make url values clickable in results tables ([#31529](https://github.com/lightdash/lightdash/issues/31529)) ([03b096c](https://github.com/lightdash/lightdash/commit/03b096c0c5828b98bb5ab2d96998d2f2681418f1))
+
 # [3.51.0](https://github.com/lightdash/lightdash/compare/3.50.2...3.51.0) (2026-10-23)
 
 
