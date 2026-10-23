@@ -442,8 +442,10 @@ In `FilterConfiguration/`:
   a closed `FilterRow` (a `PolymorphicGroupButton`: type icon, name, one
   line: the pill's value, then the shipped lock wording on this tab
   (`filters.filterIsLockedOnTab`, `filters.filterIsLocked` without tabs) and
-  "Required" in yellow; a required filter with no value reads the shipped
-  `filters.required.setValueTooltip`). The edited filter is open in its
+  "Required" in yellow; a filter whose requirement is unmet reads the
+  pill's wording instead, from the shipped `useFilterChipRequirementState`:
+  `filters.required.setValueTooltip`, or the group's for a group member, and
+  a group member whose alternative has a value is met). The edited filter is open in its
   place, a placeholder last; with nothing expanded every filter is a row,
   and with no filters the rail is only its header and footer. A row opens
   with `open`. Strings are in `railSummaries.ts`.

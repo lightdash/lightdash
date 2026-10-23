@@ -1,5 +1,6 @@
 import {
     DashboardTileTypes,
+    DEFAULT_UI_STRINGS,
     type DashboardFilters,
     type DashboardFilterRule,
     type DashboardTab,
@@ -274,6 +275,37 @@ describe('ControlSidebar', () => {
                 /Required: set a value to run this dashboard$/,
             );
             expect(row).not.toHaveTextContent('done');
+        });
+
+        it('reads a group member as met while its alternative has a value', () => {
+            setSidebar({ isNew: false });
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([
+                    makeRule({ requiredGroupId: 'group-1' }),
+                    other({ requiredGroupId: 'group-1', values: [] }),
+                ]),
+            );
+
+            const row = screen.getByRole('button', { name: /Order status/ });
+            expect(row).toHaveTextContent(/· Required$/);
+            expect(row).not.toHaveTextContent(/set a value/);
+        });
+
+        it('gives an unmet group member the group wording', () => {
+            setSidebar({ isNew: false });
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([
+                    makeRule({ requiredGroupId: 'group-1', values: [] }),
+                    other({ requiredGroupId: 'group-1', values: [] }),
+                ]),
+            );
+
+            const row = screen.getByRole('button', { name: /Order status/ });
+            expect(row).toHaveTextContent(
+                DEFAULT_UI_STRINGS['filters.required.setValueGroupTooltip'],
+            );
         });
 
         it('opens the filter of a row on click', () => {

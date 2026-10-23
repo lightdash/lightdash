@@ -14,10 +14,9 @@ import {
     selectSqlChartTilesMetadata,
     useDashboardSelector,
 } from '../dashboard/store';
-import { hasFilterValueSet } from '../dashboardFilters/FilterConfiguration/utils';
+import { useFilterChipRequirementState } from '../dashboardFilters/FilterRequirements/useFilterChipRequirementState';
 import classes from './ControlSidebar.module.css';
 import { getFilterRuleSummary } from './railSummaries';
-import { isRuleRequired } from './requirements';
 
 export const FilterTypeIcon: FC<{ field: DashboardFilterableField | null }> = ({
     field,
@@ -75,8 +74,12 @@ export const FilterRow: FC<Props> = ({
         getUiString,
     );
     const isLocked = isFilterLockedOnTab(rule, activeTabUuid, hasTabs);
-    const isRequired = isRuleRequired(rule);
-    const isMissingValue = isRequired && !hasFilterValueSet(rule);
+    // As the pill reads it: a group member whose alternative is set is met
+    const {
+        showRequirementIcon: isRequired,
+        isRequirementUnmet,
+        requirementTooltip,
+    } = useFilterChipRequirementState(rule);
 
     const lockedLabel = getUiString(
         hasTabs ? 'filters.filterIsLockedOnTab' : 'filters.filterIsLocked',
@@ -90,13 +93,11 @@ export const FilterRow: FC<Props> = ({
                     {summary.name}
                 </Text>
                 <Text fz="xs" c="dimmed" truncate>
-                    {isMissingValue ? (
+                    {isRequirementUnmet ? (
                         <>
                             {isLocked && `${lockedLabel} · `}
                             <Text span inherit className={classes.required}>
-                                {getUiString(
-                                    'filters.required.setValueTooltip',
-                                )}
+                                {requirementTooltip}
                             </Text>
                         </>
                     ) : (
