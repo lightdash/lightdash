@@ -518,17 +518,74 @@ describe('MCP tool catalogue activity', () => {
 describe('project-scoped MCP route', () => {
     it('extracts and validates the project UUID from the route', () => {
         expect(
-            extractMcpProjectUuid({
-                headers: {},
-                params: { projectUuid: PROJECT_UUID },
-            }),
+            extractMcpProjectUuid(
+                {
+                    headers: {},
+                    params: { projectUuid: PROJECT_UUID },
+                },
+                'ignore',
+            ),
         ).toBe(PROJECT_UUID);
         expect(() =>
-            extractMcpProjectUuid({
-                headers: {},
-                params: { projectUuid: 'not-a-uuid' },
-            }),
+            extractMcpProjectUuid(
+                {
+                    headers: {},
+                    params: { projectUuid: 'not-a-uuid' },
+                },
+                'ignore',
+            ),
         ).toThrow('Invalid project UUID in MCP URL');
+    });
+
+    it.each(['ignore', 'reject'] satisfies Array<'ignore' | 'reject'>)(
+        'extracts project headers with the %s policy',
+        (invalidHeader) => {
+            expect(
+                extractMcpProjectUuid(
+                    { headers: {}, params: {} },
+                    invalidHeader,
+                ),
+            ).toBeUndefined();
+            expect(
+                extractMcpProjectUuid(
+                    {
+                        headers: { 'x-lightdash-project': PROJECT_UUID },
+                        params: {},
+                    },
+                    invalidHeader,
+                ),
+            ).toBe(PROJECT_UUID);
+            expect(
+                extractMcpProjectUuid(
+                    {
+                        headers: { 'x-lightdash-project': 'bad' },
+                        params: { projectUuid: PROJECT_UUID },
+                    },
+                    invalidHeader,
+                ),
+            ).toBe(PROJECT_UUID);
+        },
+    );
+
+    it('ignores malformed project headers with the ignore policy', () => {
+        expect(
+            extractMcpProjectUuid(
+                { headers: { 'x-lightdash-project': 'bad' }, params: {} },
+                'ignore',
+            ),
+        ).toBeUndefined();
+    });
+
+    it('rejects malformed project headers with the reject policy', () => {
+        const extract = () =>
+            extractMcpProjectUuid(
+                { headers: { 'x-lightdash-project': 'bad' }, params: {} },
+                'reject',
+            );
+        expect(extract).toThrow(ParameterError);
+        expect(extract).toThrow(
+            'Invalid X-Lightdash-Project header: expected a project UUID',
+        );
     });
 
     it('accepts the project-specific MCP endpoint', async () => {
@@ -1034,6 +1091,63 @@ describe('agent-pinned MCP route', () => {
         });
         expect(response.status).toBe(status);
         expect(mcpService.createServer).not.toHaveBeenCalled();
+    });
+
+    it('passes the project header to agent authorization', async () => {
+        transport.handleRequest.mockImplementation(async (_request, response) =>
+            response.status(200).json({}),
+        );
+        const { response, mcpService } = await requestMcp({
+            account: createAccount({ type: 'pat' }),
+            method: 'POST',
+            headers: {
+                'x-lightdash-agent': AGENT_UUID,
+                'x-lightdash-project': PROJECT_UUID,
+            },
+            requestBody: initializeBody,
+        });
+        expect(response.status).toBe(200);
+        expect(mcpService.getPinnedAgent).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: 'user-uuid' }),
+            { agentUuid: AGENT_UUID, projectUuid: PROJECT_UUID },
+        );
+    });
+
+    it('rejects malformed project headers when an agent is pinned', async () => {
+        const { response, mcpService } = await requestMcp({
+            account: createAccount({ type: 'pat' }),
+            method: 'POST',
+            headers: {
+                'x-lightdash-agent': AGENT_UUID,
+                'x-lightdash-project': 'bad',
+            },
+            requestBody: initializeBody,
+        });
+        expect(response.status).toBe(400);
+        expect(mcpService.getPinnedAgent).not.toHaveBeenCalled();
+        expect(mcpService.createServer).not.toHaveBeenCalled();
+    });
+
+    it('ignores malformed project headers without an agent pin', async () => {
+        transport.handleRequest.mockImplementation(async (_request, response) =>
+            response.status(200).json({}),
+        );
+        const { response, mcpService } = await requestMcp({
+            account: createAccount({ type: 'pat' }),
+            method: 'POST',
+            headers: { 'x-lightdash-project': 'bad' },
+            requestBody: initializeBody,
+        });
+        expect(response.status).toBe(200);
+        expect(mcpService.getPinnedAgent).not.toHaveBeenCalled();
+        expect(mcpService.createServer).toHaveBeenCalledWith(
+            expect.objectContaining({
+                req: expect.objectContaining({
+                    pinnedProjectUuid: undefined,
+                    pinnedAgent: null,
+                }),
+            }),
+        );
     });
 
     it('passes the route project to agent authorization', async () => {
