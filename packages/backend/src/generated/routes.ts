@@ -219,6 +219,8 @@ import { ContentReviewRequestController } from './../ee/controllers/ContentRevie
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { CustomRolesController } from './../ee/controllers/CustomRolesController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { DashboardAnalysisController } from './../ee/controllers/dashboardAnalysisController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { DataAppAnalysisController } from './../ee/controllers/dataAppAnalysisController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { DatabricksSSOController } from './../ee/controllers/databricksSSOController';
@@ -19999,6 +20001,39 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AnalysisTargetRef: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        appVersion: { dataType: 'double', required: true },
+                        appUuid: { dataType: 'string', required: true },
+                        kind: {
+                            dataType: 'enum',
+                            enums: ['app'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dashboardUuid: { dataType: 'string', required: true },
+                        kind: {
+                            dataType: 'enum',
+                            enums: ['dashboard'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DataAppAnalysisSource: {
         dataType: 'refAlias',
         type: {
@@ -20036,8 +20071,7 @@ const models: TsoaRoute.Models = {
                             },
                             required: true,
                         },
-                        appVersion: { dataType: 'double', required: true },
-                        appUuid: { dataType: 'string', required: true },
+                        target: { ref: 'AnalysisTargetRef', required: true },
                         analysisId: { dataType: 'string', required: true },
                     },
                 },
@@ -20109,8 +20143,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         generatedAt: { dataType: 'datetime', required: true },
-                        appVersion: { dataType: 'double', required: true },
-                        appUuid: { dataType: 'string', required: true },
+                        target: { ref: 'AnalysisTargetRef', required: true },
                         analysisId: { dataType: 'string', required: true },
                         investigationId: { dataType: 'string', required: true },
                     },
@@ -20223,8 +20256,7 @@ const models: TsoaRoute.Models = {
                             },
                             required: true,
                         },
-                        appVersion: { dataType: 'double', required: true },
-                        appUuid: { dataType: 'string', required: true },
+                        target: { ref: 'AnalysisTargetRef', required: true },
                         promptId: { dataType: 'string', required: true },
                     },
                 },
@@ -28504,6 +28536,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['api'] },
                 { dataType: 'enum', enums: ['evals'] },
                 { dataType: 'enum', enums: ['scheduler'] },
+                { dataType: 'enum', enums: ['dashboard_analysis'] },
             ],
             validators: {},
         },
@@ -51379,6 +51412,7 @@ const models: TsoaRoute.Models = {
                             { dataType: 'enum', enums: ['api'] },
                             { dataType: 'enum', enums: ['evals'] },
                             { dataType: 'enum', enums: ['scheduler'] },
+                            { dataType: 'enum', enums: ['dashboard_analysis'] },
                         ],
                         required: true,
                     },
@@ -91305,6 +91339,304 @@ export function RegisterRoutes(app: Router) {
                 const controller: any =
                     await container.get<DataAppAnalysisController>(
                         DataAppAnalysisController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getAnalysis',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDashboardAnalysisController_detect: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        dashboardUuid: {
+            in: 'path',
+            name: 'dashboardUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'DataAppDetectRequest',
+        },
+    };
+    app.post(
+        '/api/v2/projects/:projectUuid/dashboards/:dashboardUuid/analysis/detect',
+        ...fetchMiddlewares<RequestHandler>(DashboardAnalysisController),
+        ...fetchMiddlewares<RequestHandler>(
+            DashboardAnalysisController.prototype.detect,
+        ),
+
+        async function DashboardAnalysisController_detect(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDashboardAnalysisController_detect,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DashboardAnalysisController>(
+                        DashboardAnalysisController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'detect',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDashboardAnalysisController_lookup: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        dashboardUuid: {
+            in: 'path',
+            name: 'dashboardUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'DataAppLookupRequest',
+        },
+    };
+    app.post(
+        '/api/v2/projects/:projectUuid/dashboards/:dashboardUuid/analysis/lookup',
+        ...fetchMiddlewares<RequestHandler>(DashboardAnalysisController),
+        ...fetchMiddlewares<RequestHandler>(
+            DashboardAnalysisController.prototype.lookup,
+        ),
+
+        async function DashboardAnalysisController_lookup(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDashboardAnalysisController_lookup,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DashboardAnalysisController>(
+                        DashboardAnalysisController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'lookup',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDashboardAnalysisController_investigate: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        dashboardUuid: {
+            in: 'path',
+            name: 'dashboardUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        analysisId: {
+            in: 'path',
+            name: 'analysisId',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'DataAppInvestigateRequest',
+        },
+    };
+    app.post(
+        '/api/v2/projects/:projectUuid/dashboards/:dashboardUuid/analysis/:analysisId/investigate',
+        ...fetchMiddlewares<RequestHandler>(DashboardAnalysisController),
+        ...fetchMiddlewares<RequestHandler>(
+            DashboardAnalysisController.prototype.investigate,
+        ),
+
+        async function DashboardAnalysisController_investigate(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDashboardAnalysisController_investigate,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DashboardAnalysisController>(
+                        DashboardAnalysisController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'investigate',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 202,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsDashboardAnalysisController_getAnalysis: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        dashboardUuid: {
+            in: 'path',
+            name: 'dashboardUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        analysisId: {
+            in: 'path',
+            name: 'analysisId',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v2/projects/:projectUuid/dashboards/:dashboardUuid/analysis/:analysisId',
+        ...fetchMiddlewares<RequestHandler>(DashboardAnalysisController),
+        ...fetchMiddlewares<RequestHandler>(
+            DashboardAnalysisController.prototype.getAnalysis,
+        ),
+
+        async function DashboardAnalysisController_getAnalysis(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsDashboardAnalysisController_getAnalysis,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<DashboardAnalysisController>(
+                        DashboardAnalysisController,
                     );
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);

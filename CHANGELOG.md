@@ -1,3 +1,15 @@
+# [3.51.0](https://github.com/lightdash/lightdash/compare/3.50.2...3.51.0) (2026-10-23)
+
+
+### Features
+
+* **analysis:** dashboard copy, settings reachability and isolation tests ([#31511](https://github.com/lightdash/lightdash/issues/31511)) ([c7dff4e](https://github.com/lightdash/lightdash/commit/c7dff4ee0a2c3f7458920b4dc96054c2afbf1d28))
+* **analysis:** dashboard-target investigations and thread policy ([#31510](https://github.com/lightdash/lightdash/issues/31510)) ([af37b87](https://github.com/lightdash/lightdash/commit/af37b879823be27d64b3ac77397e4aba03a774a3))
+* **analysis:** store analyses against an app-or-dashboard target union ([#31498](https://github.com/lightdash/lightdash/issues/31498)) ([4c728d6](https://github.com/lightdash/lightdash/commit/4c728d6d5cedd8b7525e43de45b561883186baee)), closes [#31474](https://github.com/lightdash/lightdash/issues/31474)
+* **analysis:** target-aware analysis service + dashboard analysis endpoints ([#31504](https://github.com/lightdash/lightdash/issues/31504)) ([2db4ea9](https://github.com/lightdash/lightdash/commit/2db4ea9b19375ab4eb842984d297bf9bd27377ed))
+* **dashboard:** register the analysis adapter from the dashboard page ([#31508](https://github.com/lightdash/lightdash/issues/31508)) ([9b9c187](https://github.com/lightdash/lightdash/commit/9b9c187a7f265e119cbf5b170b0a8f15d2ae3faf))
+* **dashboard:** tile query registry for AI analysis sources ([#31507](https://github.com/lightdash/lightdash/issues/31507)) ([68861e1](https://github.com/lightdash/lightdash/commit/68861e16313bc8b43ac6d9be55bd91259e42f43e))
+
 ## [3.50.2](https://github.com/lightdash/lightdash/compare/3.50.1...3.50.2) (2026-10-23)
 
 

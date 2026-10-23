@@ -1,14 +1,31 @@
 {
   "schemaVersion": "2",
-  "version": "3.50.2",
-  "previousVersion": "3.50.1",
-  "releaseDate": "2026-10-23T17:29:34.270Z",
+  "version": "3.51.0",
+  "previousVersion": "3.50.2",
+  "releaseDate": "2026-10-23T19:10:12.343Z",
   "migrations": {
-    "present": false,
-    "count": 0,
+    "present": true,
+    "count": 1,
     "coreCount": 0,
-    "eeCount": 0,
-    "files": []
+    "eeCount": 1,
+    "files": [
+      {
+        "name": "20261023141209_analysis_target_union.ts",
+        "edition": "ee",
+        "tables": [
+          "data_app_analyses",
+          "data_app_analysis_rate_counters",
+          "pg_class",
+          "pg_constraint",
+          "pg_index"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -20,8 +37,17 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [],
-      "advisoryCount": 0
+      "advisories": [
+        "GET /api/v1/aiAgents/admin/threads — added the new `dashboard_analysis` enum value to the `results/data/threads/items/allOf[#/components/schemas/ThreadSummary]/createdFrom` response property for the response status `200`",
+        "GET /api/v1/aiAgents/admin/threads/{threadUuid}/dump — added the new `dashboard_analysis` enum value to the `results/createdFrom` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/thread-shares/{aiThreadShareUuid}/clone — added the new `dashboard_analysis` enum value to the `results/createdFrom` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/threads — added the new `dashboard_analysis` enum value to the `results/data/items/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/createdFrom` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — added the new `dashboard_analysis` enum value to the `results/items/createdFrom` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — added the new `dashboard_analysis` enum value to the `results/createdFrom` response property for the response status `200`",
+        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `dashboard_analysis` enum value to the `results/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/createdFrom` response property for the response status `200`",
+        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/clone/{promptUuid} — added the new `dashboard_analysis` enum value to the `results/createdFrom` response property for the response status `200`"
+      ],
+      "advisoryCount": 8
     },
     "mcp": {
       "checked": true,

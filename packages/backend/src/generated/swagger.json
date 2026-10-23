@@ -21306,6 +21306,43 @@
                 ],
                 "type": "object"
             },
+            "AnalysisTargetRef": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "appVersion": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "appUuid": {
+                                "type": "string"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["app"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["appVersion", "appUuid", "kind"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "dashboardUuid": {
+                                "type": "string"
+                            },
+                            "kind": {
+                                "type": "string",
+                                "enum": ["dashboard"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["dashboardUuid", "kind"],
+                        "type": "object"
+                    }
+                ],
+                "description": "The concrete thing one stored analysis ran over. Apps carry their version\nbecause results are cached per build; dashboards have no version — the\ncontent hash alone decides reuse."
+            },
             "DataAppAnalysisSource": {
                 "properties": {
                     "label": {
@@ -21336,12 +21373,8 @@
                                 },
                                 "type": "array"
                             },
-                            "appVersion": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "appUuid": {
-                                "type": "string"
+                            "target": {
+                                "$ref": "#/components/schemas/AnalysisTargetRef"
                             },
                             "analysisId": {
                                 "type": "string"
@@ -21350,8 +21383,7 @@
                         "required": [
                             "generatedAt",
                             "sources",
-                            "appVersion",
-                            "appUuid",
+                            "target",
                             "analysisId"
                         ],
                         "type": "object"
@@ -21438,12 +21470,8 @@
                                 "type": "string",
                                 "format": "date-time"
                             },
-                            "appVersion": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "appUuid": {
-                                "type": "string"
+                            "target": {
+                                "$ref": "#/components/schemas/AnalysisTargetRef"
                             },
                             "analysisId": {
                                 "type": "string"
@@ -21454,8 +21482,7 @@
                         },
                         "required": [
                             "generatedAt",
-                            "appVersion",
-                            "appUuid",
+                            "target",
                             "analysisId",
                             "investigationId"
                         ],
@@ -21553,12 +21580,8 @@
                                 },
                                 "type": "array"
                             },
-                            "appVersion": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "appUuid": {
-                                "type": "string"
+                            "target": {
+                                "$ref": "#/components/schemas/AnalysisTargetRef"
                             },
                             "promptId": {
                                 "type": "string"
@@ -21567,8 +21590,7 @@
                         "required": [
                             "generatedAt",
                             "sources",
-                            "appVersion",
-                            "appUuid",
+                            "target",
                             "promptId"
                         ],
                         "type": "object"
@@ -30105,7 +30127,8 @@
                     "web_app",
                     "api",
                     "evals",
-                    "scheduler"
+                    "scheduler",
+                    "dashboard_analysis"
                 ]
             },
             "AiAgentBattleProfile": {
@@ -46484,7 +46507,8 @@
                             "web_app",
                             "api",
                             "evals",
-                            "scheduler"
+                            "scheduler",
+                            "dashboard_analysis"
                         ]
                     }
                 },
@@ -73904,7 +73928,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.50.2",
+        "version": "3.51.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
