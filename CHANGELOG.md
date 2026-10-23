@@ -1,3 +1,10 @@
+## [3.48.2](https://github.com/lightdash/lightdash/compare/3.48.1...3.48.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* show scheduled delivery next runs in the project timezone when none is set ([#31497](https://github.com/lightdash/lightdash/issues/31497)) ([a6fa241](https://github.com/lightdash/lightdash/commit/a6fa241f839c0cc2b68e8cf39b4973f6a1ced30e))
+
 ## [3.48.1](https://github.com/lightdash/lightdash/compare/3.48.0...3.48.1) (2026-10-23)
 
 
