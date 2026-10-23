@@ -1,5 +1,7 @@
 import {
+    DateGranularity,
     DimensionType,
+    EMPTY_DATE_ZOOM_CONFIG,
     FieldType,
     FilterOperator,
     FilterType,
@@ -8,6 +10,7 @@ import {
     type DashboardFilterRule,
     type DashboardFilters,
     type DashboardTile,
+    type DateZoomConfig,
     type ResultColumn,
 } from '@lightdash/common';
 import { act, render, renderHook } from '@testing-library/react';
@@ -29,6 +32,8 @@ import {
     dashboardEditActions,
     dashboardFiltersActions,
     selectDashboardFilters,
+    selectDateZoomConfig,
+    selectHasDateZoomConfigChanged,
     selectHaveFiltersChanged,
     selectRawTemporaryFilters,
     useDashboardSelector,
@@ -41,6 +46,7 @@ import {
     getFilterRuleWithRequired,
 } from '../dashboardFilters/FilterConfiguration/utils';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
+import { getEditedControlId } from './editedControl';
 import {
     getFieldCount,
     getTileField,
@@ -68,6 +74,11 @@ const mockTiles = vi.hoisted(() => ({
 const mockFieldsByTile = vi.hoisted(() => ({
     current: {} as Record<string, unknown[]>,
 }));
+// The date zoom config the dashboard starts with
+const mockZoomConfig = vi.hoisted(() => ({
+    current: { controls: [], tileTargets: {} } as DateZoomConfig,
+}));
+const mockSetControlGranularity = vi.hoisted(() => vi.fn());
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -129,10 +140,14 @@ const latest: {
     filters: DashboardFilters;
     temporaryFilters: DashboardFilters;
     changed: boolean;
+    zoomConfig: DateZoomConfig;
+    zoomChanged: boolean;
 } = {
     filters: initialFilters,
     temporaryFilters: NO_TEMPORARY_FILTERS,
     changed: false,
+    zoomConfig: EMPTY_DATE_ZOOM_CONFIG,
+    zoomChanged: false,
 };
 
 // What the dashboard holds when the test starts
@@ -160,6 +175,27 @@ const storeSetters = (store: DashboardStore) => ({
                     : value,
             ),
         ),
+    // As the dashboard provider writes them, against the saved (empty) config
+    setDateZoomConfig: (value: DateZoomConfig) =>
+        store.dispatch(
+            dashboardEditActions.setDateZoomConfig({
+                value,
+                changed: true,
+                saved: EMPTY_DATE_ZOOM_CONFIG,
+            }),
+        ),
+    setHasDateZoomConfigChanged: (value: boolean) =>
+        store.dispatch(
+            dashboardEditActions.setDateZoomConfig({
+                value: selectDateZoomConfig(
+                    store.getState(),
+                    EMPTY_DATE_ZOOM_CONFIG,
+                ),
+                changed: value,
+                saved: EMPTY_DATE_ZOOM_CONFIG,
+            }),
+        ),
+    setControlGranularity: mockSetControlGranularity,
     setDashboardTemporaryFilters: (value: SetStateAction<DashboardFilters>) =>
         store.dispatch(
             dashboardFiltersActions.setTemporaryFilters(
@@ -196,6 +232,12 @@ const DashboardState: FC<
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
     const temporaryFilters = useDashboardSelector(selectRawTemporaryFilters);
+    latest.zoomConfig = useDashboardSelector((state) =>
+        selectDateZoomConfig(state, EMPTY_DATE_ZOOM_CONFIG),
+    );
+    latest.zoomChanged = useDashboardSelector((state) =>
+        selectHasDateZoomConfigChanged(state, EMPTY_DATE_ZOOM_CONFIG),
+    );
     mockDashboardContext.current = {
         ...setters,
         filterableFieldsByTileUuid: mockFieldsByTile.current,
@@ -217,7 +259,10 @@ const Wrapper: FC<PropsWithChildren> = ({ children }) => {
     const [store] = useState(() =>
         seedDashboardEditState(
             createDashboardTestStore({ dashboardFilters: saved.filters }),
-            { dashboardTiles: mockTiles.current } as DashboardEditTestValues,
+            {
+                dashboardTiles: mockTiles.current,
+                dateZoomConfig: mockZoomConfig.current,
+            } as DashboardEditTestValues,
         ),
     );
     const [setters] = useState(() => storeSetters(store));
@@ -263,6 +308,8 @@ describe('ControlsSidebarProvider', () => {
         providerMode.isEditMode = undefined;
         mockTiles.current = [{ uuid: 't1' }];
         mockFieldsByTile.current = {};
+        mockZoomConfig.current = EMPTY_DATE_ZOOM_CONFIG;
+        mockSetControlGranularity.mockClear();
         mockTrack.mockClear();
     });
 
@@ -271,7 +318,10 @@ describe('ControlsSidebarProvider', () => {
         expect(result.current.editing).toBeNull();
 
         act(() => result.current.open('a'));
-        expect(result.current.editing).toEqual({ filterId: 'a' });
+        expect(result.current.editing).toEqual({
+            kind: 'filter',
+            filterId: 'a',
+        });
         expect(result.current.isDirty).toBe(false);
 
         act(() => result.current.updateFilter(rule('a', ['9'])));
@@ -345,7 +395,10 @@ describe('ControlsSidebarProvider', () => {
             act(() => result.current.open('a'));
             act(() => result.current.collapse());
             act(() => result.current.open('b'));
-            expect(result.current.editing).toEqual({ filterId: 'b' });
+            expect(result.current.editing).toEqual({
+                kind: 'filter',
+                filterId: 'b',
+            });
             expect(result.current.isSidebarOpen).toBe(true);
 
             act(() => result.current.collapse());
@@ -447,7 +500,10 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.open('a'));
         act(() => result.current.updateFilter(rule('a', ['9'])));
         act(() => result.current.open('b'));
-        expect(result.current.editing).toEqual({ filterId: 'b' });
+        expect(result.current.editing).toEqual({
+            kind: 'filter',
+            filterId: 'b',
+        });
 
         act(() => result.current.discard());
         expect(latest.filters.dimensions[0].values).toEqual(['9']);
@@ -761,9 +817,12 @@ describe('ControlsSidebarProvider', () => {
     it('Add on an untouched placeholder leaves it open', () => {
         const { result } = setup();
         act(() => result.current.openNew());
-        const id = result.current.editing?.filterId;
+        const id = getEditedControlId(result.current.editing);
         act(() => result.current.openNew());
-        expect(result.current.editing).toEqual({ filterId: id });
+        expect(result.current.editing).toEqual({
+            kind: 'filter',
+            filterId: id,
+        });
         expect(result.current.isNew).toBe(true);
         expect(result.current.isPlaceholder).toBe(true);
         expect(result.current.isSidebarOpen).toBe(true);
@@ -778,7 +837,7 @@ describe('ControlsSidebarProvider', () => {
 
         act(() => result.current.openNew());
         expect(result.current.isPlaceholder).toBe(true);
-        expect(result.current.editing?.filterId).toBe(placeholder.id);
+        expect(getEditedControlId(result.current.editing)).toBe(placeholder.id);
         expect(result.current.editingRule?.label).toBe('S');
         expect(latest.filters).toEqual(initialFilters);
         expect(latest.changed).toBe(false);
@@ -795,7 +854,7 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.openNew());
         expect(result.current.isNew).toBe(true);
         expect(result.current.isPlaceholder).toBe(true);
-        expect(result.current.editing?.filterId).not.toBe('a');
+        expect(getEditedControlId(result.current.editing)).not.toBe('a');
         expect(result.current.activeSection).toBeNull();
         expect(result.current.activeFieldId).toBeNull();
         expect(latest.filters.dimensions[0].values).toEqual(['9']);
@@ -821,14 +880,14 @@ describe('ControlsSidebarProvider', () => {
     it('Add keeps a new filter that has a field but no label', () => {
         const { result } = setup();
         act(() => result.current.openNew());
-        const id = result.current.editing?.filterId;
+        const id = getEditedControlId(result.current.editing);
         act(() => result.current.addFirstField(statusField));
         expect(latest.filters.dimensions).toHaveLength(3);
 
         act(() => result.current.openNew());
         expect(result.current.isNew).toBe(true);
         expect(result.current.isPlaceholder).toBe(true);
-        expect(result.current.editing?.filterId).not.toBe(id);
+        expect(getEditedControlId(result.current.editing)).not.toBe(id);
         expect(latest.filters.dimensions).toHaveLength(3);
         expect(latest.filters.dimensions[2].id).toBe(id);
         expect(latest.filters.dimensions[2].label).toBeUndefined();
@@ -849,7 +908,7 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.openNew());
         expect(result.current.isNew).toBe(true);
         expect(result.current.isPlaceholder).toBe(true);
-        expect(result.current.editing?.filterId).not.toBe(added.id);
+        expect(getEditedControlId(result.current.editing)).not.toBe(added.id);
         expect(latest.filters.dimensions).toHaveLength(3);
         expect(latest.filters.dimensions[2].label).toBe('S');
 
@@ -866,7 +925,10 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.updateFilter({ ...placeholder, label: 'S' }));
 
         act(() => result.current.open('a'));
-        expect(result.current.editing).toEqual({ filterId: 'a' });
+        expect(result.current.editing).toEqual({
+            kind: 'filter',
+            filterId: 'a',
+        });
         expect(result.current.isNew).toBe(false);
         expect(result.current.isPlaceholder).toBe(false);
         expect(latest.filters).toEqual(initialFilters);
@@ -879,7 +941,10 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.addFirstField(statusField));
 
         act(() => result.current.open('a'));
-        expect(result.current.editing).toEqual({ filterId: 'a' });
+        expect(result.current.editing).toEqual({
+            kind: 'filter',
+            filterId: 'a',
+        });
         expect(result.current.isNew).toBe(false);
         expect(latest.filters.dimensions).toHaveLength(3);
 
@@ -899,7 +964,10 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.updateFilter({ ...added, label: 'S' }));
 
         act(() => result.current.open('a'));
-        expect(result.current.editing).toEqual({ filterId: 'a' });
+        expect(result.current.editing).toEqual({
+            kind: 'filter',
+            filterId: 'a',
+        });
         expect(latest.filters.dimensions).toHaveLength(3);
         expect(latest.filters.dimensions[2].label).toBe('S');
 
@@ -976,7 +1044,10 @@ describe('ControlsSidebarProvider', () => {
             // The next open starts over, and the rule that was taken away
             // stays away
             act(() => result.current.open('b'));
-            expect(result.current.editing).toEqual({ filterId: 'b' });
+            expect(result.current.editing).toEqual({
+                kind: 'filter',
+                filterId: 'b',
+            });
             expect(result.current.isSidebarOpen).toBe(true);
             expect(latest.filters.dimensions).toEqual([rule('b', ['2'])]);
             expect(latest.changed).toBe(true);
@@ -1007,7 +1078,7 @@ describe('ControlsSidebarProvider', () => {
     it('the first field keeps the sidebar open on the rule it wrote, until something removes it', () => {
         const { result } = setup();
         act(() => result.current.openNew());
-        const id = result.current.editing?.filterId;
+        const id = getEditedControlId(result.current.editing);
 
         act(() => result.current.addFirstField(statusField));
         expect(result.current.isPlaceholder).toBe(false);
@@ -1260,7 +1331,10 @@ describe('ControlsSidebarProvider', () => {
 
         act(() => result.current.open('b'));
 
-        expect(result.current.editing).toEqual({ filterId: 'b' });
+        expect(result.current.editing).toEqual({
+            kind: 'filter',
+            filterId: 'b',
+        });
         expect(latest.filters.dimensions[0].disabled).toBe(true);
     });
 
@@ -1290,7 +1364,10 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.open(id));
 
         expect(result.current.isNew).toBe(true);
-        expect(result.current.editing).toEqual({ filterId: id });
+        expect(result.current.editing).toEqual({
+            kind: 'filter',
+            filterId: id,
+        });
         // Still a control that Discard drops
         act(() => result.current.discard());
         expect(latest.filters).toEqual(initialFilters);
@@ -1369,7 +1446,10 @@ describe('ControlsSidebarProvider', () => {
             const { result } = openEmptied();
 
             expect(result.current.isSidebarOpen).toBe(true);
-            expect(result.current.editing).toEqual({ filterId: 'a' });
+            expect(result.current.editing).toEqual({
+                kind: 'filter',
+                filterId: 'a',
+            });
             expect(result.current.isPlaceholder).toBe(true);
             expect(result.current.isNew).toBe(false);
             expect(result.current.isDirty).toBe(true);
@@ -1406,7 +1486,10 @@ describe('ControlsSidebarProvider', () => {
             act(() => result.current.addFirstField(statusField));
 
             expect(result.current.isPlaceholder).toBe(false);
-            expect(result.current.editing).toEqual({ filterId: 'a' });
+            expect(result.current.editing).toEqual({
+                kind: 'filter',
+                filterId: 'a',
+            });
             expect(latest.filters.dimensions.map((r) => r.id)).toEqual([
                 'a',
                 'b',
@@ -1569,7 +1652,10 @@ describe('ControlsSidebarProvider', () => {
             const { result } = openEmptied();
             act(() => result.current.open('b'));
 
-            expect(result.current.editing).toEqual({ filterId: 'b' });
+            expect(result.current.editing).toEqual({
+                kind: 'filter',
+                filterId: 'b',
+            });
             expect(result.current.isPlaceholder).toBe(false);
             expect(result.current.emptiedFieldLabel).toBeNull();
             expect(latest.filters.dimensions).toEqual([rule('b', ['2'])]);
@@ -1611,7 +1697,10 @@ describe('ControlsSidebarProvider', () => {
         it('opening another control, or Add, drops it as Done does', () => {
             const first = openEmptied();
             act(() => first.result.current.open('b'));
-            expect(first.result.current.editing).toEqual({ filterId: 'b' });
+            expect(first.result.current.editing).toEqual({
+                kind: 'filter',
+                filterId: 'b',
+            });
             expect(first.result.current.isPlaceholder).toBe(false);
             expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['b']);
             first.unmount();
@@ -1619,14 +1708,16 @@ describe('ControlsSidebarProvider', () => {
             const second = openEmptied();
             act(() => second.result.current.openNew());
             expect(second.result.current.isNew).toBe(true);
-            expect(second.result.current.editing?.filterId).not.toBe('a');
+            expect(getEditedControlId(second.result.current.editing)).not.toBe(
+                'a',
+            );
             expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['b']);
         });
 
         it('a new control goes back to "pick a field" and is dropped on Done', () => {
             const { result } = setup();
             act(() => result.current.openNew());
-            const id = result.current.editing?.filterId;
+            const id = getEditedControlId(result.current.editing);
             act(() => result.current.addFirstField(statusField));
             mockTrack.mockClear();
             act(() => result.current.removeLastField('A'));
@@ -2319,7 +2410,9 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(24);
+        expect(Object.keys(initial)).toHaveLength(28);
+        expect(initial).toHaveProperty('openZoom');
+        expect(initial).toHaveProperty('updateDateZoomConfig');
         expect(initial).toHaveProperty('updateOtherFilters');
         expect(initial).toHaveProperty('removeLastField');
         expect(initial).toHaveProperty('addFirstSqlColumn');
@@ -2669,6 +2762,8 @@ describe('ControlsSidebarProvider in view mode', () => {
         providerMode.isEditMode = undefined;
         mockTiles.current = [{ uuid: 't1' }];
         mockFieldsByTile.current = {};
+        mockZoomConfig.current = EMPTY_DATE_ZOOM_CONFIG;
+        mockSetControlGranularity.mockClear();
         mockTrack.mockClear();
     });
 
@@ -2978,5 +3073,202 @@ describe('ControlsSidebarProvider in view mode', () => {
         rerender();
         expect(result.current.isRailOpen).toBe(false);
         expect(result.current.isViewer).toBe(false);
+    });
+});
+
+describe('ControlsSidebarProvider date zoom', () => {
+    const zoom = (
+        uuid: string,
+        name: string,
+        tiles: string[],
+    ): DateZoomConfig => ({
+        controls: [{ uuid, name, granularity: DateGranularity.MONTH }],
+        tileTargets: Object.fromEntries(
+            tiles.map((tile) => [
+                tile,
+                {
+                    controlUuid: uuid,
+                    fieldId: 'orders_date',
+                    tableName: 'orders',
+                },
+            ]),
+        ),
+    });
+    const twoZooms = (): DateZoomConfig => {
+        const first = zoom('z1', 'Order trend', ['t1']);
+        const second = zoom('z2', 'Ship trend', ['t2']);
+        return {
+            controls: [...first.controls, ...second.controls],
+            tileTargets: { ...first.tileTargets, ...second.tileTargets },
+        };
+    };
+    const targetOn = (controlUuid: string) => ({
+        controlUuid,
+        fieldId: 'orders_date',
+        tableName: 'orders',
+    });
+
+    beforeEach(() => {
+        saved.filters = initialFilters;
+        latest.filters = initialFilters;
+        latest.changed = false;
+        mockParams.current = { mode: 'edit' };
+        providerMode.isEditMode = undefined;
+        mockTiles.current = [{ uuid: 't1' }, { uuid: 't2' }];
+        mockFieldsByTile.current = {};
+        mockZoomConfig.current = twoZooms();
+        mockSetControlGranularity.mockClear();
+        mockTrack.mockClear();
+    });
+
+    it('opens a zoom as the one edited control and closes it with Done', () => {
+        const { result } = setup();
+
+        act(() => result.current.openZoom('z1'));
+        expect(result.current.editing).toEqual({
+            kind: 'dateZoom',
+            controlUuid: 'z1',
+        });
+        expect(result.current.editingZoom?.name).toBe('Order trend');
+        expect(result.current.editingRule).toBeNull();
+        expect(result.current.isSidebarOpen).toBe(true);
+        expect(result.current.isRailOpen).toBe(true);
+
+        act(() => result.current.close());
+        expect(result.current.editing).toBeNull();
+        expect(result.current.isRailOpen).toBe(false);
+        expect(latest.zoomConfig).toEqual(twoZooms());
+    });
+
+    it('keeps one control open: a filter collapses the zoom and back', () => {
+        const { result } = setup();
+
+        act(() => result.current.openZoom('z1'));
+        act(() => result.current.open('a'));
+        expect(result.current.editing).toEqual({
+            kind: 'filter',
+            filterId: 'a',
+        });
+        expect(result.current.editingZoom).toBeNull();
+
+        act(() => result.current.openZoom('z2'));
+        expect(result.current.editing).toEqual({
+            kind: 'dateZoom',
+            controlUuid: 'z2',
+        });
+        expect(result.current.editingRule).toBeNull();
+        expect(result.current.isRailOpen).toBe(true);
+    });
+
+    it('previews writes live and discard puts the zoom and its tiles back', () => {
+        const { result } = setup();
+        act(() => result.current.openZoom('z1'));
+        expect(result.current.isDirty).toBe(false);
+
+        // Renamed, re-grained, and t2 moved here from the other zoom
+        act(() =>
+            result.current.updateDateZoomConfig({
+                controls: [
+                    {
+                        uuid: 'z1',
+                        name: 'Renamed',
+                        granularity: DateGranularity.WEEK,
+                    },
+                    twoZooms().controls[1],
+                ],
+                tileTargets: { t1: targetOn('z1'), t2: targetOn('z1') },
+            }),
+        );
+        expect(latest.zoomConfig.controls[0].name).toBe('Renamed');
+        expect(latest.zoomChanged).toBe(true);
+        expect(result.current.isDirty).toBe(true);
+
+        act(() => result.current.discard());
+        expect(latest.zoomConfig).toEqual(twoZooms());
+        // Back to what it was opened on: unchanged again
+        expect(latest.zoomChanged).toBe(false);
+        expect(result.current.editing).toBeNull();
+        expect(result.current.isRailOpen).toBe(true);
+    });
+
+    it('adds a new zoom seeded as the bar does and drops it on close with no tiles', () => {
+        mockZoomConfig.current = EMPTY_DATE_ZOOM_CONFIG;
+        const { result } = setup();
+        act(() => result.current.openNewZoom());
+        expect(result.current.editingZoom?.name).toBe('Date zoom');
+        expect(result.current.isNew).toBe(true);
+        expect(latest.zoomConfig.controls).toHaveLength(1);
+
+        act(() => result.current.close());
+        expect(latest.zoomConfig).toEqual(EMPTY_DATE_ZOOM_CONFIG);
+        expect(latest.zoomChanged).toBe(false);
+        expect(result.current.isRailOpen).toBe(false);
+    });
+
+    it('keeps a new zoom once it has a tile', () => {
+        mockZoomConfig.current = EMPTY_DATE_ZOOM_CONFIG;
+        const { result } = setup();
+        act(() => result.current.openNewZoom());
+        const uuid = result.current.editingZoom?.uuid ?? '';
+        act(() =>
+            result.current.updateDateZoomConfig({
+                ...latest.zoomConfig,
+                tileTargets: { t1: targetOn(uuid) },
+            }),
+        );
+        act(() => result.current.collapse());
+        expect(
+            latest.zoomConfig.controls.map((control) => control.uuid),
+        ).toEqual([uuid]);
+        expect(result.current.editing).toBeNull();
+        expect(result.current.isRailOpen).toBe(true);
+    });
+
+    it('removes an existing zoom emptied of tiles when it closes', () => {
+        const { result } = setup();
+        act(() => result.current.openZoom('z1'));
+        act(() =>
+            result.current.updateDateZoomConfig({
+                ...latest.zoomConfig,
+                tileTargets: { t2: targetOn('z2') },
+            }),
+        );
+        act(() => result.current.collapse());
+        expect(latest.zoomConfig).toEqual(zoom('z2', 'Ship trend', ['t2']));
+    });
+
+    it('writes the starting name back when the name is left empty', () => {
+        const { result } = setup();
+        act(() => result.current.openZoom('z1'));
+        act(() =>
+            result.current.updateDateZoomConfig({
+                ...latest.zoomConfig,
+                controls: latest.zoomConfig.controls.map((control) =>
+                    control.uuid === 'z1'
+                        ? { ...control, name: '  ' }
+                        : control,
+                ),
+            }),
+        );
+        act(() => result.current.close());
+        expect(latest.zoomConfig.controls[0].name).toBe('Date zoom');
+    });
+
+    it('removes the zoom with its tiles and keeps the rail on the other rows', () => {
+        const { result } = setup();
+        act(() => result.current.openZoom('z1'));
+        act(() => result.current.removeZoom());
+        expect(latest.zoomConfig).toEqual(zoom('z2', 'Ship trend', ['t2']));
+        expect(result.current.isRailOpen).toBe(true);
+        expect(result.current.editing).toBeNull();
+    });
+
+    it('opens no zoom for a viewer', () => {
+        mockParams.current = { mode: 'view' };
+        const { result } = setup();
+        act(() => result.current.openZoom('z1'));
+        act(() => result.current.openNewZoom());
+        expect(result.current.editing).toBeNull();
+        expect(latest.zoomConfig).toEqual(twoZooms());
     });
 });

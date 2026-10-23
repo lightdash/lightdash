@@ -28,6 +28,7 @@ import {
     selectDashboardFilters,
     selectDashboardTabs,
     selectDashboardTiles,
+    useDashboardDateZoomConfig,
     useDashboardSelector,
     useDashboardTemporaryFilters,
 } from '../dashboard/store';
@@ -48,6 +49,9 @@ import { useAppliedTileCount } from './useAppliedTileCount';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFilterRuleField } from './useFilterRuleField';
 import { useFocusLabelOnMount, useLabelDraft } from './useLabelDraft';
+import { ZoomEditor } from './ZoomEditor';
+import { ZoomRow } from './ZoomRow';
+import { getZoomTileUuids } from './zoomState';
 
 type FilterEditorProps = {
     rule: DashboardFilterRule;
@@ -244,13 +248,17 @@ export const CONTROLS_RAIL_LAYOUT = classes.layout;
 const GROUPS: FilterGroup[] = ['dimensions', 'metrics'];
 
 export const ControlSidebar: FC = () => {
-    const filterId = useControlsSidebarSelector(
-        (c) => c.editing?.filterId ?? null,
+    const filterId = useControlsSidebarSelector((c) =>
+        c.editing?.kind === 'filter' ? c.editing.filterId : null,
     );
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
+    const editingZoom = useControlsSidebarSelector((c) => c.editingZoom);
+    const isNew = useControlsSidebarSelector((c) => c.isNew);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
     const open = useControlsSidebarSelector((c) => c.open);
+    const openZoom = useControlsSidebarSelector((c) => c.openZoom);
+    const dateZoomConfig = useDashboardDateZoomConfig();
     const setHoveredFilterId = useControlsSidebarSelector(
         (c) => c.setHoveredFilterId,
     );
@@ -345,26 +353,56 @@ export const ControlSidebar: FC = () => {
     // A placeholder is not in the dashboard filters yet: it comes last. One
     // keyed list, so the editor keeps its state when its rule joins them
     const isListed = editor === null || rows.includes(editor);
+    // Date zooms are the dashboard's: an editor's rail lists them last
+    const zooms = isViewer ? [] : dateZoomConfig.controls;
+    const zoomRows = zooms.map((control) =>
+        control.uuid === editingZoom?.uuid ? (
+            <ZoomEditor key={control.uuid} control={editingZoom} />
+        ) : (
+            <ZoomRow
+                key={control.uuid}
+                control={control}
+                tileCount={
+                    getZoomTileUuids(dateZoomConfig, control.uuid).length
+                }
+                onOpen={openZoom}
+                onHover={setHoveredFilterId}
+                onUnhover={clearHoveredFilterId}
+            />
+        ),
+    );
+    const isZoomEmpty =
+        editingZoom !== null &&
+        getZoomTileUuids(dateZoomConfig, editingZoom.uuid).length === 0;
     // Closing keeps the edits, so the footer says what closing would drop
-    const footerStatus =
-        editingRule === null || editor === null
-            ? null
-            : isPlaceholder
-              ? getUiString('filters.rail.selectFieldToKeep')
-              : !isViewer && isDefaultValueIncomplete(editingRule)
-                ? 'No default value set, so the default stays off'
-                : null;
+    const footerStatus = isZoomEmpty
+        ? 'Select a tile to keep this zoom'
+        : editingRule === null || editor === null
+          ? null
+          : isPlaceholder
+            ? getUiString('filters.rail.selectFieldToKeep')
+            : !isViewer && isDefaultValueIncomplete(editingRule)
+              ? 'No default value set, so the default stays off'
+              : null;
 
     return (
         <EditorShell
-            filterCount={
-                listedFilters.dimensions.length + listedFilters.metrics.length
+            controlCount={
+                listedFilters.dimensions.length +
+                listedFilters.metrics.length +
+                zooms.length -
+                (isNew && isZoomEmpty ? 1 : 0)
             }
             onClose={close}
-            onCancel={editor !== null && isPlaceholder ? discard : null}
+            onCancel={
+                (editor !== null && isPlaceholder) || isZoomEmpty
+                    ? discard
+                    : null
+            }
             footerStatus={footerStatus}
         >
             {isListed ? rows : [...rows, editor]}
+            {zoomRows}
         </EditorShell>
     );
 };

@@ -4,13 +4,14 @@ import {
     selectRawTemporaryFilters,
     useDashboardSelector,
 } from '../dashboard/store';
+import { getEditedControlId } from './editedControl';
 import { findFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
 /** The rail row hovered or focused, unless it is the filter being edited. */
 export const useHoveredFilterRule = (): DashboardFilterRule | null => {
     const filterId = useControlsSidebarSelector((c) =>
-        c.hoveredFilterId === (c.editing?.filterId ?? null)
+        c.hoveredFilterId === getEditedControlId(c.editing)
             ? null
             : c.hoveredFilterId,
     );

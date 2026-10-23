@@ -1033,6 +1033,62 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - Rendered only in edit mode while the rail is closed, so it never stacks
   on `TileOverlays` or a hovered row's rings.
 
+## Date zooms
+
+A *date zoom* is the other control the rail edits: one of the dashboard's
+named zooms (`DashboardConfig.dateZoomConfig`, saved shape unchanged; one
+zoom per tile). The "Default zoom" pill stays the shipped one. Zooms are the
+dashboard's, so only an editor's rail lists them; a viewer keeps the shipped
+pills.
+
+- Provider: `editing` is `EditedControl` (`editedControl.ts`): `{ kind:
+  'filter', filterId }` or `{ kind: 'dateZoom', controlUuid }`;
+  `getEditedControlId` reads either. A zoom edit is its own state
+  (`ZoomEditState`: uuid, `isNew`, a `ZoomSnapshot` of the config and its
+  "changed" flag), never beside a filter edit: `openZoom(uuid)` and
+  `openNewZoom()` call `collapse()` first, and `open`/`openNew` collapse a
+  zoom through the same `closeEdited`. `editingZoom` is the control as the
+  config holds it now; `isSidebarOpen` is on while it exists, so the header
+  guard locks for a zoom as for a filter. Both are no-ops for a viewer.
+- `openNewZoom()` adds the control to the config at once, seeded as the
+  bar's "Add date zoom" seeds one (`createZoomControl`: "Date zoom", the
+  default grain, else the first enabled one, else month).
+- Writes are live: `updateDateZoomConfig(next)` is the shipped
+  `setDateZoomConfig`, through the `latest` ref like every other write, and
+  only while a zoom is edited. The pure helpers are in `zoomState.ts`. The
+  dashboard's Save is the only save, and it prunes zooms with no tiles.
+- `close()` and `collapse()` on a zoom: one with no tiles cannot be kept (as
+  a filter with no field): a new one is discarded, an existing one removed.
+  An empty name is written back as "Date zoom". `discard()` is
+  `restoreZoom`: the control as the snapshot holds it (out when new) and
+  every tile that was in it then or is now goes back to its snapshot entry,
+  so a tile moved here goes back to its zoom; every other write stays.
+  `removeZoom()` takes the control and its tiles out. All of them settle
+  `hasDateZoomConfigChanged` back to the snapshot's when the config equals
+  the snapshot again, and keep the rail on its rows (`endEdit` counts the
+  zooms as rows).
+- `isDirty` on a zoom: discarding would change the config (`isZoomDirty`).
+- Rail: `ControlSidebar` lists the zooms after the filters, edit mode only.
+  A closed `ZoomRow` (`data-controls-row` is the uuid): name, then grain and
+  "N tiles", "Hidden from viewers", and "No tiles · removed on save" in
+  yellow. Hovering sets `hoveredFilterId` to the uuid. The open
+  `ZoomEditor` (keyed by uuid) has the name input (a `useLabelDraft`; blur
+  on an empty name sets "Date zoom"), discard, the shipped
+  `ConfirmDeleteButton` ("Remove date zoom", not on a new zoom) and the
+  chevron; a "Granularity" select of the enabled grains
+  (`useGranularityOptions`, lifted with `useEligibleZoomTiles` out of the
+  shipped `DateZoomControlConfig` into `dateZoom/hooks.ts`); and a "Tiles"
+  `Disclosure` (moved out of `FilterSettings`) listing its tiles with the
+  field each is zoomed on ("Parameter" for a param-only tile) and the tab.
+  Zoom copy is editor-only and literal.
+- `EditorShell`: an editor's title is "Controls" (`filters.rail.controlsTitle`),
+  counting filters and zooms, a new zoom with no tiles left out
+  (`filters.rail.controlSingular` / `controlPlural`); a viewer's and an embed's stays "Filters"
+  (`filters.rail.title`, `filters.summary.filterSingular` / `filterPlural`). The footer has "Add
+  date zoom" (the shipped dashed `addControl` look, edit mode only) beside
+  "Add filter". While the edited zoom has no tiles it has the status "Select
+  a tile to keep this zoom" and "Cancel" (`discard`).
+
 ## Motion
 
 Values are the homepage builder's (`ee/features/homepageBuilder/HomepageEditor.module.css`),

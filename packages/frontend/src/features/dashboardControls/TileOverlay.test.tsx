@@ -157,6 +157,7 @@ const groupLabels = () =>
 
 const setSidebar = (overrides: Record<string, unknown> = {}) => {
     mockSidebar.current = {
+        editing: null,
         editingRule: rule(),
         isPlaceholder: false,
         activeFieldId: null,
@@ -276,7 +277,7 @@ describe('TileOverlays', () => {
 
         it('rings the tiles its filter is on, over the edited filter', () => {
             setSidebar({
-                editing: { filterId: 'control' },
+                editing: { kind: 'filter', filterId: 'control' },
                 hoveredFilterId: 'hovered',
             });
             renderWithProviders(<TileOverlays />);
@@ -296,12 +297,12 @@ describe('TileOverlays', () => {
 
         it('clears once the row is left', () => {
             setSidebar({
-                editing: { filterId: 'control' },
+                editing: { kind: 'filter', filterId: 'control' },
                 hoveredFilterId: 'hovered',
             });
             const { rerender } = renderWithProviders(<TileOverlays />);
             setSidebar({
-                editing: { filterId: 'control' },
+                editing: { kind: 'filter', filterId: 'control' },
                 hoveredFilterId: null,
             });
             rerender(<TileOverlays />);
