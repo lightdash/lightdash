@@ -1,5 +1,4 @@
 import { subject } from '@casl/ability';
-import { CommercialFeatureFlags } from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -25,7 +24,6 @@ import {
     useUpdateOrganizationSettings,
 } from '../../../hooks/organization/useOrganizationSettings';
 import { useProject } from '../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import Callout from '../../common/Callout';
 import { CopyActionIcon } from '../../common/CopyActionIcon';
@@ -192,7 +190,7 @@ const TokenAddedCard: FC<{
 };
 
 const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
-    const { user } = useApp();
+    const { health, user } = useApp();
     const { data: organization } = useOrganization();
     const { data: project } = useProject(projectUuid);
     const { data: settings, isLoading: isSettingsLoading } =
@@ -214,10 +212,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
         settings?.semanticLayerPgwireEnabled ??
         false;
 
-    const { data: serviceAccountsFlag } = useServerFeatureFlag(
-        CommercialFeatureFlags.ServiceAccounts,
-    );
-    const isServiceAccountsEnabled = serviceAccountsFlag?.enabled ?? false;
+    const isServiceAccountsEnabled = health.data?.license?.valid === true;
 
     // The plaintext token is only returned once, when a service account is
     // generated on the spot. `manualToken` holds a token the user pasted;

@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     AlreadyExistsError,
     AuthTokenPrefix,
-    CommercialFeatureFlags,
     CreateServiceAccount,
     ForbiddenError,
     getAllScopesForRole,
@@ -50,11 +49,6 @@ function isSameMinute(a: Date | null, b: Date): boolean {
     if (!a) return false;
     return Math.floor(a.getTime() / 60000) === Math.floor(b.getTime() / 60000);
 }
-
-// SCIM tokens share this service and table but are gated by SCIM, not by
-// the service-accounts flag. Same shape check as the auth middleware.
-const isScimOnlyScopes = (scopes: ServiceAccountScope[] | undefined) =>
-    scopes?.length === 1 && scopes[0] === ServiceAccountScope.SCIM_MANAGE;
 
 export type ScimAuthentication =
     | { result: 'authenticated'; serviceAccount: ServiceAccount }
@@ -194,26 +188,6 @@ export class ServiceAccountService extends BaseService {
         });
     }
 
-    private async isServiceAccountsEnabled(
-        organizationUuid: string,
-    ): Promise<boolean> {
-        const { enabled } = await this.commercialFeatureFlagModel.get({
-            user: { organizationUuid },
-            featureFlagId: CommercialFeatureFlags.ServiceAccounts,
-        });
-        return enabled;
-    }
-
-    private async throwForbiddenErrorOnServiceAccountsDisabled(
-        organizationUuid: string,
-    ) {
-        if (!(await this.isServiceAccountsEnabled(organizationUuid))) {
-            throw new ForbiddenError(
-                'Service accounts are not enabled for this organization',
-            );
-        }
-    }
-
     private throwForbiddenErrorOnNoPermission(user: SessionUser) {
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -264,14 +238,6 @@ export class ServiceAccountService extends BaseService {
 
         try {
             this.throwForbiddenErrorOnNoPermission(user);
-            if (
-                prefix !== AuthTokenPrefix.SCIM ||
-                !isScimOnlyScopes(tokenDetails.scopes)
-            ) {
-                await this.throwForbiddenErrorOnServiceAccountsDisabled(
-                    tokenDetails.organizationUuid,
-                );
-            }
             if (projectAccess.length > 0) {
                 await this.validateProjectAccessGrantsOrThrow(
                     projectAccess,
@@ -390,11 +356,6 @@ export class ServiceAccountService extends BaseService {
                     "Token doesn't belong to organization",
                 );
             }
-            if (!isScimOnlyScopes(token.scopes)) {
-                await this.throwForbiddenErrorOnServiceAccountsDisabled(
-                    organizationUuid,
-                );
-            }
             await this.serviceAccountModel.delete(tokenUuid);
             this.analytics.track<ScimAccessTokenEvent>({
                 event: 'scim_access_token.deleted',
@@ -452,14 +413,6 @@ export class ServiceAccountService extends BaseService {
         if (existingToken.organizationUuid !== user.organizationUuid) {
             throw new ForbiddenError("Token doesn't belong to organization");
         }
-        if (
-            prefix !== AuthTokenPrefix.SCIM ||
-            !isScimOnlyScopes(existingToken.scopes)
-        ) {
-            await this.throwForbiddenErrorOnServiceAccountsDisabled(
-                existingToken.organizationUuid,
-            );
-        }
 
         // Business decision, we don't want to rotate tokens that don't expire. Rotation is a security feature that should be used with tokens that expire.
         if (!existingToken.expiresAt) {
@@ -515,9 +468,6 @@ export class ServiceAccountService extends BaseService {
         if (existingToken.organizationUuid !== user.organizationUuid) {
             throw new ForbiddenError("Token doesn't belong to organization");
         }
-        await this.throwForbiddenErrorOnServiceAccountsDisabled(
-            existingToken.organizationUuid,
-        );
 
         // The SA's scope mode is fixed: a `system:member` SA is project-scoped
         // (access comes from project grants), anything else is org-scoped. Each
@@ -699,11 +649,6 @@ export class ServiceAccountService extends BaseService {
         if (existingToken.organizationUuid !== user.organizationUuid) {
             throw new ForbiddenError("Token doesn't belong to organization");
         }
-        if (!isScimOnlyScopes(existingToken.scopes)) {
-            await this.throwForbiddenErrorOnServiceAccountsDisabled(
-                existingToken.organizationUuid,
-            );
-        }
         return existingToken;
     }
 
@@ -714,11 +659,6 @@ export class ServiceAccountService extends BaseService {
         try {
             this.throwForbiddenErrorOnNoPermission(user);
             const organizationUuid = user.organizationUuid as string;
-            if (!isScimOnlyScopes(scopes)) {
-                await this.throwForbiddenErrorOnServiceAccountsDisabled(
-                    organizationUuid,
-                );
-            }
             const tokens = await this.serviceAccountModel.getAllForOrganization(
                 organizationUuid,
                 scopes,
@@ -772,9 +712,6 @@ export class ServiceAccountService extends BaseService {
                 `Service account ${serviceAccountUuid} not found`,
             );
         }
-        await this.throwForbiddenErrorOnServiceAccountsDisabled(
-            sa.organizationUuid,
-        );
         return this.projectModel.getServiceAccountProjectGrants(
             serviceAccountUuid,
         );
@@ -840,24 +777,6 @@ export class ServiceAccountService extends BaseService {
             if (dbToken) {
                 // return null if expired
                 if (dbToken.expiresAt && dbToken.expiresAt < new Date()) {
-                    return null;
-                }
-
-                // SCIM-only tokens are rejected by the callers with their own
-                // message; every other token needs the flag on for its org.
-                if (
-                    !isScimOnlyScopes(dbToken.scopes) &&
-                    !(await this.isServiceAccountsEnabled(
-                        dbToken.organizationUuid,
-                    ))
-                ) {
-                    this.logger.info(
-                        'Service account token rejected: service accounts are not enabled for this organization',
-                        {
-                            serviceAccountUuid: dbToken.uuid,
-                            organizationUuid: dbToken.organizationUuid,
-                        },
-                    );
                     return null;
                 }
 

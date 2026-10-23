@@ -14,7 +14,6 @@ import {
     AuthorizationError,
     AzureAdSsoConfig,
     BigqueryAuthenticationType,
-    CommercialFeatureFlags,
     CompleteUserArgs,
     CreateInviteLink,
     CreatePasswordResetLink,
@@ -2411,18 +2410,7 @@ export class UserService extends BaseService {
                 sessionUser.userUuid,
             );
 
-        // Billing flag, resolved for the service account's org so that
-        // DB-enabled orgs (Cloud) get the same attribution as env-enabled
-        // instances (self-host).
-        if (
-            serviceAccount &&
-            (
-                await this.featureFlagModel.get({
-                    user: { organizationUuid: serviceAccount.organizationUuid },
-                    featureFlagId: CommercialFeatureFlags.ServiceAccounts,
-                })
-            ).enabled
-        ) {
+        if (serviceAccount) {
             return AccountFactory.fromServiceAccount(
                 {
                     ...sessionUser,

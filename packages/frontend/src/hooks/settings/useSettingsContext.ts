@@ -45,12 +45,6 @@ export const useSettingsContext = (): SettingsContext => {
     const shouldShowAiAgentReviews =
         aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;
 
-    const { data: serviceAccountsFlag } = useServerFeatureFlag(
-        CommercialFeatureFlags.ServiceAccounts,
-    );
-    // Billing flag; self-host turns it on through env vars, which feed the flag.
-    const isServiceAccountsEnabled = serviceAccountsFlag?.enabled ?? false;
-
     const {
         health: {
             data: health,
@@ -101,6 +95,7 @@ export const useSettingsContext = (): SettingsContext => {
 
     // The roadmap proxy is only registered behind a validated enterprise license.
     const isOrganizationRoadmapEnabled = health?.license?.valid === true;
+    const isServiceAccountsEnabled = health?.license?.valid === true;
 
     const { data: ssoOrganizationSettingsFlag } = useServerFeatureFlag(
         FeatureFlags.SsoOrganizationSettings,
