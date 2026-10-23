@@ -34,6 +34,7 @@ import {
     selectDashboardTiles,
     useDashboardSelector,
 } from '../dashboard/store';
+import { DropdownClass } from './DropdownClass';
 import {
     getCandidateOptions,
     getTileFieldCandidateIds,
@@ -55,6 +56,7 @@ import {
     toSqlColumnTarget,
     type SqlColumn,
 } from './peers';
+import { useRailContractClasses } from './railContractClasses';
 import classes from './TileOverlay.module.css';
 import {
     areTilePropsEqual,
@@ -371,7 +373,13 @@ const TileOverlay = memo<TileOverlayProps>(
 // Mounted while a control is edited, so what it remembers ends with the editor
 export const TileOverlays: FC = () => {
     const isEditing = useControlsSidebarSelector((c) => c.editingRule !== null);
-    return isEditing ? <EditedTileOverlays /> : <HoveredFilterReach />;
+    const contractClasses = useRailContractClasses();
+    // The tile cards' lists, as an embed's stylesheet targets them
+    return (
+        <DropdownClass className={contractClasses?.filterDropdown ?? null}>
+            {isEditing ? <EditedTileOverlays /> : <HoveredFilterReach />}
+        </DropdownClass>
+    );
 };
 
 // Nothing is edited: the tiles on this tab that the hovered rail row's filter

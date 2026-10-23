@@ -64,29 +64,32 @@ const AddFieldSearch: FC<AddFieldSearchProps> = ({
 }) => {
     const root = useRef<HTMLDivElement>(null);
     const getUiString = useUiStrings();
+    const contractClasses = useRailContractClasses();
     useEffect(() => {
         root.current?.querySelector('input')?.focus();
     }, []);
     return (
-        <Box
-            ref={root}
-            className={classes.addFieldSelect}
-            // Escape hands focus back to the button
-            onKeyDown={(event) => {
-                if (event.key === 'Escape') onDismiss(true);
-            }}
-        >
-            <FilterFieldSelect
-                {...picker}
-                selectedField={undefined}
-                withLabel={false}
-                placeholder={getUiString('filters.rail.searchFields')}
-                withinPortal
-                onChange={onPick}
-                defaultOpened
-                popoverProps={{ onClose: () => onDismiss(false) }}
-            />
-        </Box>
+        <DropdownClass className={contractClasses?.addFilterDropdown ?? null}>
+            <Box
+                ref={root}
+                className={classes.addFieldSelect}
+                // Escape hands focus back to the button
+                onKeyDown={(event) => {
+                    if (event.key === 'Escape') onDismiss(true);
+                }}
+            >
+                <FilterFieldSelect
+                    {...picker}
+                    selectedField={undefined}
+                    withLabel={false}
+                    placeholder={getUiString('filters.rail.searchFields')}
+                    withinPortal
+                    onChange={onPick}
+                    defaultOpened
+                    popoverProps={{ onClose: () => onDismiss(false) }}
+                />
+            </Box>
+        </DropdownClass>
     );
 };
 

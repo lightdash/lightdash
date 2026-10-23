@@ -236,8 +236,10 @@ In `FilterConfiguration/`:
   contract test finds them there) and `useRailContractClasses`:
   `ld-dashboard-filter-rail` on `EditorShell`'s root,
   `ld-dashboard-add-filter-dropdown` on the placeholder's field or column
-  search list, and `ld-dashboard-filter-dropdown` on the portalled lists of
-  the edited filter's value (`FilterValueSettings`). The lists get theirs
+  search list and on "Add another field" (`AddFieldSearch`), and
+  `ld-dashboard-filter-dropdown` on the portalled lists of the edited
+  filter's value (`FilterValueSettings`) and of the tile cards' selects
+  (`LazySelect`, wrapped at `TileOverlays`). The lists get theirs
   from `DropdownClass`: a nested
   `MantineThemeProvider` that gives `ComboboxDropdown` and `PopoverDropdown`
   a default `className`, so no shared input takes a prop for it. Outside an
