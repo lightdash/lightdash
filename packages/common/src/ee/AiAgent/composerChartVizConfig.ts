@@ -623,7 +623,8 @@ export const getComposerChartStage = ({
 type ReferenceCheck = {
     has: (reference: string) => boolean;
     isNumeric: (reference: string) => boolean;
-    typeOf: (reference: string) => string;
+    typeOf: (reference: string) => DimensionType | null;
+    numericReferences: string[];
 };
 
 const toReferenceCheck = (columns: ComposerNodeColumn[]): ReferenceCheck => {
@@ -633,7 +634,10 @@ const toReferenceCheck = (columns: ComposerNodeColumn[]): ReferenceCheck => {
     return {
         has: (reference) => types.has(reference),
         isNumeric: (reference) => types.get(reference) === DimensionType.NUMBER,
-        typeOf: (reference) => types.get(reference) ?? 'unknown',
+        typeOf: (reference) => types.get(reference) ?? null,
+        numericReferences: columns
+            .filter(({ type }) => type === DimensionType.NUMBER)
+            .map(({ reference }) => reference),
     };
 };
 
@@ -661,7 +665,7 @@ const getNonNumericErrors = (
         )
         .map(
             (reference) =>
-                `${label}: column "${reference}" is ${check.typeOf(reference)}, not numeric`,
+                `${label}: column "${reference}" is ${check.typeOf(reference) ?? 'untyped'}, not numeric`,
         );
 
 const getBuiltinReferenceErrors = (
@@ -678,6 +682,11 @@ const getBuiltinReferenceErrors = (
         type === 'area' ||
         type === 'scatter';
     const usesY2 = type === 'bar' || type === 'line' || type === 'area';
+    // big_number, pie and funnel draw y[0] only.
+    const drawnY = isCartesian ? y : y.slice(0, 1);
+    const hasDefaultY = check.numericReferences.some(
+        (reference) => reference !== x && !groupBy.includes(reference),
+    );
     return [
         ...getMissingReferenceErrors(check, [
             ['x', x === null ? [] : [x]],
@@ -685,7 +694,10 @@ const getBuiltinReferenceErrors = (
             ['groupBy', groupBy],
             ['y2', y2],
         ]),
-        ...(type === 'table' ? [] : getNonNumericErrors(check, 'y', y)),
+        ...(type === 'table' ? [] : getNonNumericErrors(check, 'y', drawnY)),
+        ...(type !== 'table' && vizConfig.y === null && !hasDefaultY
+            ? ['y: no numeric column to draw; set y to a numeric column']
+            : []),
         ...(usesY2 ? getNonNumericErrors(check, 'y2', y2) : []),
         ...(usesY2 && y2.some((reference) => y.includes(reference))
             ? [`y2: column "${y2[0]}" must not also be in y`]
@@ -706,7 +718,6 @@ const getBuiltinReferenceErrors = (
     ];
 };
 
-/** A custom chart type slot as validation reads it. */
 export type ComposerCustomChartTypeSlotSpec = Pick<
     DataAppVizField,
     'name' | 'type' | 'required' | 'multiple'

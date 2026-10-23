@@ -634,6 +634,33 @@ describe('visualize', () => {
             expect(versions).toEqual([]);
         });
 
+        it('rejects a default y when no numeric column is left to draw', async () => {
+            const { visualize, versions } = makeTool({
+                nodeColumns: { orders: ordersColumns.slice(0, 2) },
+            });
+
+            const output = await visualize({
+                vizConfig: { ...tableConfig, type: 'big_number' },
+            });
+
+            expect(output.result).toContain(
+                'y: no numeric column to draw; set y to a numeric column',
+            );
+            expect(versions).toEqual([]);
+        });
+
+        it('checks only y[0] where a chart draws one value', async () => {
+            const { output, versions } = visualizeOrders({
+                ...barConfig,
+                type: 'funnel',
+                x: 'orders_status',
+                y: ['orders_total_order_amount', 'orders_order_date_month'],
+            });
+
+            expect((await output).metadata.status).toBe('success');
+            expect(versions).toHaveLength(1);
+        });
+
         it('writes a config whose references match the node columns', async () => {
             const { output, versions } = visualizeOrders({
                 ...barConfig,

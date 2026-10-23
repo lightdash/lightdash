@@ -106,7 +106,7 @@ const assertVizConfigReferences = ({
 };
 
 // A custom chart type pins the version resolved now, so later edits to the type leave this card as drawn.
-const toStoredVizConfig = async (
+const resolveVizConfig = async (
     vizConfig: ComposerChartVizConfig,
     resolveCustomChartType: ResolveCustomChartTypeFn,
 ): Promise<{
@@ -240,7 +240,7 @@ export const getVisualize = ({
                 });
 
                 const { storedVizConfig, customChartTypeSlots } =
-                    await toStoredVizConfig(vizConfig, resolveCustomChartType);
+                    await resolveVizConfig(vizConfig, resolveCustomChartType);
 
                 await updateProgress('Visualizing result...');
                 const needsHints = composerChartQualityHintsNeedRows(vizConfig);
@@ -261,7 +261,6 @@ export const getVisualize = ({
                               terminalNodeId: nodeId,
                           }).catch(() => null)
                         : null;
-                // Without stored or run columns the config is written unchecked.
                 const columns = run
                     ? toComposerNodeColumns(run.terminal.columns)
                     : await getThreadComposerNodeColumns({
