@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
+import { type AnalysisController } from '../../../../../features/analysis/useAnalysisController';
 import { type DataAppAnalysisAvailability } from '../../../../../features/apps/analysis/useDataAppAnalysisAvailability';
-import { type DataAppAnalysisController } from '../../../../../features/apps/analysis/useDataAppAnalysisController';
 
 /**
  * What a page must provide for the launcher to offer AI analysis of the
@@ -12,7 +12,8 @@ export type LauncherAnalysisAdapter = {
     /** Shown next to "Analysis" in the panel header. */
     targetName: string | null;
     availability: DataAppAnalysisAvailability;
-    controller: DataAppAnalysisController;
+    /** The generic analysis controller; a page may pass a richer superset. */
+    controller: AnalysisController;
     /** True when hovering a finding can highlight its source on the page. */
     highlightAvailable: boolean;
     onHoverQuery: (queryUuid: string | null) => void;

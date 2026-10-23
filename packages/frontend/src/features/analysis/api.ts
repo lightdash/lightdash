@@ -1,4 +1,5 @@
 import {
+    type AnalysisTargetLocator,
     type ApiDataAppAnalysisLookupResponse,
     type ApiDataAppAnalysisResponse,
     type ApiDataAppDetectResponse,
@@ -7,25 +8,27 @@ import {
     type DataAppAnalysisSource,
     type DataAppInvestigation,
 } from '@lightdash/common';
-import { type LightdashApi } from '../../../api';
-import { pollJobStatus } from '../../scheduler/hooks/useScheduler';
+import { type LightdashApi } from '../../api';
+import { pollJobStatus } from '../scheduler/hooks/useScheduler';
 
-const analysisBase = (projectUuid: string, appUuid: string) =>
-    `/projects/${projectUuid}/apps/${appUuid}/analysis`;
+const analysisBase = (projectUuid: string, target: AnalysisTargetLocator) =>
+    target.kind === 'app'
+        ? `/projects/${projectUuid}/apps/${target.appUuid}/analysis`
+        : `/projects/${projectUuid}/dashboards/${target.dashboardUuid}/analysis`;
 
-export const detectDataAppAnomalies = (
+export const detectAnalysisAnomalies = (
     lightdashApi: LightdashApi,
     {
         projectUuid,
-        appUuid,
+        target,
         sources,
         instructions,
         force,
     }: {
         projectUuid: string;
-        appUuid: string;
+        target: AnalysisTargetLocator;
         sources: DataAppAnalysisSource[];
-        /** App-author guidance for the model; part of the analysis identity. */
+        /** Author guidance for the model; part of the analysis identity. */
         instructions: string | null;
         /** Run the model even when an analysis of identical rows is stored. */
         force: boolean;
@@ -33,7 +36,7 @@ export const detectDataAppAnomalies = (
 ) =>
     lightdashApi<ApiDataAppDetectResponse['results']>({
         version: 'v2',
-        url: `${analysisBase(projectUuid, appUuid)}/detect`,
+        url: `${analysisBase(projectUuid, target)}/detect`,
         method: 'POST',
         body: JSON.stringify({
             sources,
@@ -43,23 +46,23 @@ export const detectDataAppAnomalies = (
     });
 
 /** A stored analysis of exactly these rows, or null. Never runs the model. */
-export const lookupDataAppAnalysis = (
+export const lookupAnalysis = (
     lightdashApi: LightdashApi,
     {
         projectUuid,
-        appUuid,
+        target,
         sources,
         instructions,
     }: {
         projectUuid: string;
-        appUuid: string;
+        target: AnalysisTargetLocator;
         sources: DataAppAnalysisSource[];
         instructions: string | null;
     },
 ) =>
     lightdashApi<ApiDataAppAnalysisLookupResponse['results']>({
         version: 'v2',
-        url: `${analysisBase(projectUuid, appUuid)}/lookup`,
+        url: `${analysisBase(projectUuid, target)}/lookup`,
         method: 'POST',
         body: JSON.stringify({
             sources,
@@ -67,21 +70,21 @@ export const lookupDataAppAnalysis = (
         }),
     });
 
-const getDataAppAnalysis = (
+const getAnalysis = (
     lightdashApi: LightdashApi,
     {
         projectUuid,
-        appUuid,
+        target,
         analysisId,
     }: {
         projectUuid: string;
-        appUuid: string;
+        target: AnalysisTargetLocator;
         analysisId: string;
     },
 ) =>
     lightdashApi<ApiDataAppAnalysisResponse['results']>({
         version: 'v2',
-        url: `${analysisBase(projectUuid, appUuid)}/${analysisId}`,
+        url: `${analysisBase(projectUuid, target)}/${analysisId}`,
         method: 'GET',
         body: undefined,
     });
@@ -90,17 +93,17 @@ const getDataAppAnalysis = (
  * Queues the investigation, waits for the job, then reads the persisted
  * result. The job's completion details carry the investigation id.
  */
-export const investigateDataAppAnomaly = async (
+export const investigateAnalysisAnomaly = async (
     lightdashApi: LightdashApi,
     {
         projectUuid,
-        appUuid,
+        target,
         analysisId,
         anomalyId,
         agentUuid,
     }: {
         projectUuid: string;
-        appUuid: string;
+        target: AnalysisTargetLocator;
         analysisId: string;
         anomalyId: string;
         agentUuid: string;
@@ -110,7 +113,7 @@ export const investigateDataAppAnomaly = async (
         ApiDataAppInvestigateResponse['results']
     >({
         version: 'v2',
-        url: `${analysisBase(projectUuid, appUuid)}/${analysisId}/investigate`,
+        url: `${analysisBase(projectUuid, target)}/${analysisId}/investigate`,
         method: 'POST',
         body: JSON.stringify({ anomalyId, agentUuid }),
     });
@@ -119,14 +122,11 @@ export const investigateDataAppAnomaly = async (
     if (typeof investigationId !== 'string') {
         throw new Error('The investigation finished without a result');
     }
-    const record: DataAppAnalysisRecord = await getDataAppAnalysis(
-        lightdashApi,
-        {
-            projectUuid,
-            appUuid,
-            analysisId: investigationId,
-        },
-    );
+    const record: DataAppAnalysisRecord = await getAnalysis(lightdashApi, {
+        projectUuid,
+        target,
+        analysisId: investigationId,
+    });
     if (record.operation !== 'investigate') {
         throw new Error('Unexpected analysis type');
     }

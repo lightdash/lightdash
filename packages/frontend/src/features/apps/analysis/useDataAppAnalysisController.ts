@@ -1,24 +1,21 @@
 import {
-    type AiAgentSummary,
     type DataAppAutoAnalysis,
     type DataAppInsightAction,
     type DataAppInsightsPayload,
 } from '@lightdash/common';
-import { useLocalStorage } from '@mantine/hooks';
-import { useCallback, useContext, useMemo, useState } from 'react';
-import { LauncherDockContext } from '../../../ee/features/aiCopilot/components/Launcher/LauncherDockContext';
-import { useProjectAiAgents } from '../../../ee/features/aiCopilot/hooks/useProjectAiAgents';
-import { useGetUserAgentPreferences } from '../../../ee/features/aiCopilot/hooks/useUserAgentPreferences';
-import { store as aiAgentStore } from '../../../ee/features/aiCopilot/store';
-import { openPanel } from '../../../ee/features/aiCopilot/store/aiAgentLauncherSlice';
+import { useCallback, useMemo, useState } from 'react';
+import {
+    useAnalysisController,
+    type AnalysisController,
+} from '../../analysis/useAnalysisController';
+import { type InvestigationState } from '../../analysis/useAnalysisCore';
 import { type QueryEvent } from '../hooks/useAppSdkBridge';
 import {
-    useDataAppAnalysis,
-    type InvestigationState,
-} from './useDataAppAnalysis';
+    hasInFlightQueries,
+    selectCurrentViewSources,
+    selectMountedViewSources,
+} from './currentViewSources';
 import { type DataAppAnalysisAvailability } from './useDataAppAnalysisAvailability';
-
-const AGENT_STORAGE_KEY = 'data-apps:analysis-agent';
 
 const toInvestigation = (
     state: InvestigationState | undefined,
@@ -61,8 +58,9 @@ const toInvestigation = (
 
 /**
  * One analysis per app page, shared by the host panel and the app itself:
- * the panel renders it, and the same state is pushed into the iframe so an
- * app on a current SDK can render it inline and fire actions back.
+ * the generic controller drives the panel, and the same state is pushed into
+ * the iframe so an app on a current SDK can render it inline and fire
+ * actions back.
  */
 export const useDataAppAnalysisController = ({
     projectUuid,
@@ -85,131 +83,54 @@ export const useDataAppAnalysisController = ({
     instructions?: string | null;
     /** Called when the app asks to investigate but no agent is picked yet. */
     onNeedsAgent: () => void;
-    /** Reload the app so its queries re-run; see `useDataAppAnalysis`. */
+    /** Reload the app so its queries re-run; see `useAnalysisCore`. */
     onSourcesExpired?: () => void;
     /** Where "Continue in Ask AI" goes; defaults to the launcher panel. */
     openThread?: (thread: { threadUuid: string; agentUuid: string }) => void;
 }) => {
-    // The page hosting this may render without the launcher providers (tests,
-    // headless renders), so reach the store directly and treat the dock as
-    // optional rather than requiring a Provider above.
-    const launcherDock = useContext(LauncherDockContext);
     const [mountedQueryUuids, setMountedQueryUuids] = useState<string[] | null>(
         null,
     );
+    const sources = useMemo(
+        () =>
+            mountedQueryUuids === null
+                ? selectCurrentViewSources(queries)
+                : selectMountedViewSources(queries, mountedQueryUuids),
+        [queries, mountedQueryUuids],
+    );
+    const inFlight = useMemo(() => hasInFlightQueries(queries), [queries]);
     const autoAnalyseResolved =
         availability.status === 'available' &&
         (autoAnalyse === 'inherit'
             ? availability.autoAnalyseDefault
             : autoAnalyse === 'on');
-    // Route params resolve before anything renders; empty ids are never sent.
-    const analysis = useDataAppAnalysis({
-        projectUuid: projectUuid ?? '',
-        appUuid: appUuid ?? '',
-        queries,
-        mountedQueryUuids,
-        enabled: availability.status === 'available',
+    // Route params resolve before anything renders; without an app the
+    // controller stays disabled and never sends a request.
+    const target = useMemo(
+        () => (appUuid ? { kind: 'app' as const, appUuid } : null),
+        [appUuid],
+    );
+    const controller: AnalysisController = useAnalysisController({
+        projectUuid,
+        target,
+        sources,
+        inFlight,
+        availability,
         autoAnalyse: autoAnalyseResolved,
         instructions,
+        onNeedsAgent,
         onSourcesExpired,
+        openThread,
     });
 
-    const agentsQuery = useProjectAiAgents({
-        projectUuid,
-        redirectOnUnauthorized: false,
-        options: { enabled: availability.status === 'available' },
-    });
-    const agents: AiAgentSummary[] = useMemo(
-        () => agentsQuery.data ?? [],
-        [agentsQuery.data],
-    );
-    const [agentByApp, setAgentByApp] = useLocalStorage<Record<string, string>>(
-        { key: AGENT_STORAGE_KEY, defaultValue: {} },
-    );
-    // Investigations need a concrete agent, so the launcher's "auto" router
-    // can't apply here; the user's default-agent preference is its anchor.
-    const preferencesQuery = useGetUserAgentPreferences(projectUuid, {
-        enabled: availability.status === 'available',
-    });
-    const preferredAgentUuid = preferencesQuery.data?.defaultAgentUuid;
-    const rememberedAgent = appUuid ? agentByApp[appUuid] : undefined;
-    // An agent that disappeared or lost access shows as unavailable rather
-    // than silently falling back to another one.
-    const rememberedIsUsable = agents.some((a) => a.uuid === rememberedAgent);
-    const selectedAgentUuid = rememberedAgent
-        ? rememberedIsUsable
-            ? rememberedAgent
-            : null
-        : (agents.find((a) => a.uuid === preferredAgentUuid)?.uuid ??
-          agents[0]?.uuid ??
-          null);
-    const rememberedAgentMissing =
-        !!rememberedAgent &&
-        !rememberedIsUsable &&
-        !agentsQuery.isInitialLoading;
-    // No agent the viewer can use (none pinned, or no Ask AI access): detect
-    // still runs, investigations are hidden with an explanation.
-    const agentAccess: 'loading' | 'none' | 'available' =
-        agentsQuery.isInitialLoading
-            ? 'loading'
-            : agents.length === 0
-              ? 'none'
-              : 'available';
-    const selectAgent = useCallback(
-        (agentUuid: string) => {
-            if (!appUuid) return;
-            setAgentByApp({ ...agentByApp, [appUuid]: agentUuid });
-        },
-        [agentByApp, appUuid, setAgentByApp],
-    );
-
-    const { state, investigations, analyse, investigate } = analysis;
-
-    const investigateAnomaly = useCallback(
-        (anomalyId: string) => {
-            if (!selectedAgentUuid) {
-                onNeedsAgent();
-                return;
-            }
-            void investigate(anomalyId, selectedAgentUuid);
-        },
-        [investigate, onNeedsAgent, selectedAgentUuid],
-    );
-
-    // The launcher only shows threads it knows about, so dock it first.
-    const canContinueInAskAi =
-        availability.status === 'available' && availability.canContinueInAskAi;
-    const continueInAskAi = useCallback(
-        (anomalyId: string) => {
-            if (!canContinueInAskAi) return;
-            const investigation = investigations[anomalyId];
-            if (investigation?.status !== 'ready') return;
-            const { threadUuid, agentUuid, anomaly } =
-                investigation.investigation;
-            if (openThread) {
-                openThread({ threadUuid, agentUuid });
-                return;
-            }
-            if (projectUuid) {
-                launcherDock?.addItem(projectUuid, {
-                    threadId: threadUuid,
-                    agentUuid,
-                    title: anomaly.text,
-                    createdAt: Date.now(),
-                });
-            }
-            aiAgentStore.dispatch(
-                openPanel({ threadId: threadUuid, agentUuid }),
-            );
-        },
-        [
-            canContinueInAskAi,
-            investigations,
-            launcherDock,
-            openThread,
-            projectUuid,
-        ],
-    );
+    const {
+        state,
+        investigations,
+        analyse,
+        investigateAnomaly,
+        continueInAskAi,
+        selectedAgentUuid,
+    } = controller;
 
     const handleAction = useCallback(
         (action: DataAppInsightAction) => {
@@ -286,16 +207,7 @@ export const useDataAppAnalysisController = ({
     }, [availability, investigations, selectedAgentUuid, state]);
 
     return {
-        ...analysis,
-        agents,
-        agentsLoading: agentsQuery.isInitialLoading,
-        agentAccess,
-        selectedAgentUuid,
-        rememberedAgentMissing,
-        selectAgent,
-        investigateAnomaly,
-        continueInAskAi,
-        canContinueInAskAi,
+        ...controller,
         handleAction,
         insightsPayload,
         setMountedQueryUuids,
