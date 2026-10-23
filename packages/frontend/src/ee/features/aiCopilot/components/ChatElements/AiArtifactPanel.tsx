@@ -28,7 +28,10 @@ import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeat
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
-import { useAiAgentArtifact } from '../../hooks/useAiAgentArtifacts';
+import {
+    useAiAgentArtifact,
+    useUpdateComposerVizConfig,
+} from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
 import {
     getAiArtifactChartSource,
@@ -136,6 +139,8 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
             !isEmbed &&
             !!thread &&
             (thread.user.uuid === user.data?.userUuid || !!canManageAgent);
+        const { mutate: saveComposerVizConfig } =
+            useUpdateComposerVizConfig(artifact);
         const artifactChartConfig = artifactData?.chartConfig;
         const composerConfig = isAiComposerChartArtifactConfig(
             artifactChartConfig,
@@ -346,9 +351,14 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
                     key={artifact.versionUuid}
                     projectUuid={artifact.projectUuid}
                     agentUuid={artifact.agentUuid}
-                    artifactUuid={artifact.artifactUuid}
-                    versionUuid={artifact.versionUuid}
-                    canEdit={canEditThread}
+                    source={{
+                        kind: 'artifact',
+                        artifactUuid: artifact.artifactUuid,
+                        versionUuid: artifact.versionUuid,
+                    }}
+                    onSaveVizConfig={
+                        canEditThread ? saveComposerVizConfig : null
+                    }
                     title={artifactData.title ?? 'Composer query results'}
                     description={artifactData.description ?? null}
                     config={composerConfig}

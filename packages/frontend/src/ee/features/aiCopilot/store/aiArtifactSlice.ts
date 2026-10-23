@@ -38,6 +38,15 @@ export interface DocumentPreviewData {
     agentUuid: string;
 }
 
+/** A pipeline a message's `query` call ran, shown without an artifact. */
+export interface QueryPipelinePreviewData {
+    queryUuid: string;
+    messageUuid: string;
+    threadUuid: string;
+    projectUuid: string;
+    agentUuid: string;
+}
+
 export type DataAppPreviewVersion = Pick<
     DataAppPreviewData,
     'version' | 'latestReadyVersionAtOpen'
@@ -47,7 +56,8 @@ export type AiPreview =
     | ({ type: 'artifact' } & ArtifactData)
     | ({ type: 'savedChart' } & SavedChartPreviewData)
     | ({ type: 'dataApp' } & DataAppPreviewData)
-    | ({ type: 'document' } & DocumentPreviewData);
+    | ({ type: 'document' } & DocumentPreviewData)
+    | ({ type: 'queryPipeline' } & QueryPipelinePreviewData);
 
 export interface AiArtifactState {
     preview: AiPreview | null;
@@ -133,6 +143,11 @@ export const selectDataAppPreview = (state: StateWithAiArtifact) =>
 
 export const selectDocumentPreview = (state: StateWithAiArtifact) =>
     state.aiArtifact.preview?.type === 'document'
+        ? state.aiArtifact.preview
+        : null;
+
+export const selectQueryPipelinePreview = (state: StateWithAiArtifact) =>
+    state.aiArtifact.preview?.type === 'queryPipeline'
         ? state.aiArtifact.preview
         : null;
 

@@ -57,6 +57,7 @@ import { type StreamPart } from '../../store/aiAgentThreadStreamSlice';
 import {
     clearPreview,
     selectArtifactPreview,
+    selectQueryPipelinePreview,
     setPreview,
 } from '../../store/aiArtifactSlice';
 import {
@@ -1069,9 +1070,37 @@ export const AssistantBubble: FC<Props> = memo(
             : [];
         const [queriesExpanded, { toggle: toggleQueries }] =
             useDisclosure(false);
+        const openPipeline = useAiAgentStoreSelector(
+            selectQueryPipelinePreview,
+        );
         const handleQueryPipelineSelect = useCallback(
-            (_pipeline: AiAgentMessageQueryPipeline) => {},
-            [],
+            ({ queryUuid }: AiAgentMessageQueryPipeline) => {
+                if (
+                    openPipeline?.messageUuid === message.uuid &&
+                    openPipeline.queryUuid === queryUuid
+                ) {
+                    dispatch(clearPreview());
+                    return;
+                }
+                dispatch(
+                    setPreview({
+                        type: 'queryPipeline',
+                        queryUuid,
+                        messageUuid: message.uuid,
+                        threadUuid: message.threadUuid,
+                        projectUuid,
+                        agentUuid,
+                    }),
+                );
+            },
+            [
+                openPipeline,
+                dispatch,
+                message.uuid,
+                message.threadUuid,
+                projectUuid,
+                agentUuid,
+            ],
         );
 
         // A restore turn is deterministic (no LLM): the card is the whole

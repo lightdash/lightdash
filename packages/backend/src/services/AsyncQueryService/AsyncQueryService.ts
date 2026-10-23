@@ -2408,6 +2408,47 @@ export class AsyncQueryService extends ProjectService {
         return this.getAsyncQueryResults(args);
     }
 
+    async bindQueryToMessageQuery(
+        account: Account,
+        projectUuid: string,
+        queryUuid: string,
+        messageQuery: NonNullable<
+            QueryHistory['requestParameters']['resultMessageQuery']
+        >,
+    ): Promise<void> {
+        await this.queryHistoryModel.recordResultMessageQuery(
+            queryUuid,
+            projectUuid,
+            account.user.id,
+            messageQuery,
+        );
+    }
+
+    async getMessageQueryBoundQueryResults(
+        args: GetAsyncQueryResultsArgs,
+        messageQuery: NonNullable<
+            QueryHistory['requestParameters']['resultMessageQuery']
+        >,
+    ): Promise<ApiGetAsyncQueryResults> {
+        const history = await this.queryHistoryModel.get(
+            args.queryUuid,
+            args.projectUuid,
+            args.account,
+        );
+        const binding = history.requestParameters.resultMessageQuery;
+        if (!binding)
+            throw new ForbiddenError(
+                'These results are not compatible with your current access. Run the query again.',
+            );
+        if (
+            binding.agentUuid !== messageQuery.agentUuid ||
+            binding.promptUuid !== messageQuery.promptUuid ||
+            binding.queryUuid !== messageQuery.queryUuid
+        )
+            throw new ForbiddenError('Query results are unavailable');
+        return this.getAsyncQueryResults(args);
+    }
+
     async getAsyncQueryResults({
         account,
         projectUuid,

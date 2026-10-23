@@ -60,6 +60,7 @@ export const getQueryResultRequestParameters = (
     aiSignInCredentialUuid: undefined,
     resultProducer: undefined,
     resultArtifact: undefined,
+    resultMessageQuery: undefined,
     resultResearchRunUuid: undefined,
     resultSource: undefined,
     resultEntitlementFingerprint: undefined,
