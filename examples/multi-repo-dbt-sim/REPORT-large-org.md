@@ -393,8 +393,10 @@ on this same `healthy` profile, plus the full 22-source generator. It did
 not refresh a server project. The recorded command is
 `examples/multi-repo-dbt-sim/run-last-good-scale --fixture both`. RSS is
 `/usr/bin/time -v` maximum resident set size in kilobytes, times 1024, for
-one process at a time. The timed climb injects only models with
-`access: public`. On `healthy` that was 19 sources, 49 models, 10321720
+one process at a time. The timed climb injects models, seeds, and
+snapshots with `access: public`. Fixture seeds have no access and there
+are no snapshots, so the recorded inject counts are unchanged. On `healthy`
+that was 19 sources, 49 models, 10321720
 artefact bytes, climb RSS 133611520 bytes, and climb parse 2.53 seconds,
 with 0 non-public models omitted. The serial stubbed parse of the same
 checkouts took 48.577 seconds, with peak RSS 133357568 bytes and 125473

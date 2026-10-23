@@ -131,6 +131,10 @@ def case_report(measurement):
         "injected_payload_bytes": measurement["injected_payload_bytes"],
         "public_injected_node_count": measurement["public_injected_node_count"],
         "non_public_models_omitted": measurement["non_public_models_omitted"],
+        "non_public_seeds_omitted": measurement.get("non_public_seeds_omitted", 0),
+        "non_public_snapshots_omitted": measurement.get(
+            "non_public_snapshots_omitted", 0
+        ),
         "ref_filtered_node_count": measurement["ref_filtered_node_count"],
         "ref_filtered_payload_bytes": measurement["ref_filtered_payload_bytes"],
         "peak_rss_bytes": climb_row["dbt_peak_rss_bytes"],
@@ -191,11 +195,11 @@ def report_document(cases, pins, command, prior):
         "rss_measurement": RSS_MEASUREMENT,
         "injection_policy": INJECTION_POLICY,
         "injection_policy_note": (
-            "Injected nodes are real models with access public. Protected and "
-            "private models are omitted, including when access is unset. This "
-            "is the dbt Mesh and dbt-loom share surface. The climb does not "
-            "inject every real model and then filter by ref. ref_filtered_* "
-            "is recorded and was not applied to the timed parse."
+            "Injected nodes are real models, seeds, and snapshots with access "
+            "public. Seeds and snapshots use config.access when the node has "
+            "no access. Protected and private nodes are omitted. depends_on "
+            "edges are kept only when the target is also injected. "
+            "ref_filtered_* is recorded and was not applied to the timed parse."
         ),
         "previous_inject_all": prior,
         "not_measured": NOT_MEASURED,
@@ -246,21 +250,30 @@ def _parse(dbt, project_dir, target, fixture_root, **kwargs):
 
 
 def write_injection(store, upstreams, nodes_path):
-    nodes = []
-    omitted = 0
+    omitted = {"model": 0, "seed": 0, "snapshot": 0}
     for upstream in upstreams:
         manifest = json.loads(climb.manifest_path(store, upstream).read_text())
-        selected = climb.external_nodes(manifest)
-        if any(node.get("access") != "public" for node in selected):
-            raise RuntimeError(f"Non-public model injected from {upstream}")
-        nodes.extend(selected)
         for node in manifest["nodes"].values():
-            if node.get("resource_type") != "model":
+            if not climb._is_real_resource(node):
                 continue
-            if not (node.get("path") or node.get("original_file_path")):
-                continue
-            if node.get("access") != "public":
-                omitted += 1
+            if climb.resolved_access(node) != "public":
+                omitted[node["resource_type"]] += 1
+    nodes = climb.injection_for(store, upstreams)
+    if any(node.get("access") != "public" for node in nodes):
+        raise RuntimeError("Non-public node injected")
+    injected_ids = set()
+    for node in nodes:
+        version = node.get("version")
+        suffix = "" if version is None else f".v{version}"
+        resource_type = node.get("resource_type") or "model"
+        injected_ids.add(
+            f"{resource_type}.{node['package_name']}.{node['name']}{suffix}"
+        )
+    for node in nodes:
+        if any(
+            dependency not in injected_ids for dependency in node["depends_on_nodes"]
+        ):
+            raise RuntimeError("Injected depends_on points outside the injection set")
     nodes.sort(
         key=lambda node: (
             node["package_name"],
@@ -276,7 +289,9 @@ def write_injection(store, upstreams, nodes_path):
             {
                 "injection_policy": INJECTION_POLICY,
                 "injected_node_count": len(nodes),
-                "non_public_models_omitted": omitted,
+                "non_public_models_omitted": omitted["model"],
+                "non_public_seeds_omitted": omitted["seed"],
+                "non_public_snapshots_omitted": omitted["snapshot"],
             }
         ),
         encoding="utf-8",
@@ -424,6 +439,8 @@ def measure_fixture(dbt, work, name):
         "injected_payload_bytes": nodes_path.stat().st_size,
         "public_injected_node_count": summary["injected_node_count"],
         "non_public_models_omitted": summary["non_public_models_omitted"],
+        "non_public_seeds_omitted": summary["non_public_seeds_omitted"],
+        "non_public_snapshots_omitted": summary["non_public_snapshots_omitted"],
         "ref_filtered_node_count": len(filtered),
         "ref_filtered_payload_bytes": payload_bytes(filtered),
         "climb": {

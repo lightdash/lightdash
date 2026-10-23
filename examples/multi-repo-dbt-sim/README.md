@@ -233,9 +233,9 @@ store. The contract, withhold rule, and expected errors are in
 [last-good-climb/README.md](last-good-climb/README.md).
 
 The scale probe reuses that venv and the large-org / full generators. It
-injects only `access: public` models from the other sources, records GNU
-time RSS, and compares that climb with a serial stubbed parse of every
-checkout:
+injects only `access: public` models, seeds, and snapshots from the other
+sources, records GNU time RSS, and compares that climb with a serial
+stubbed parse of every checkout:
 
 ```bash
 examples/multi-repo-dbt-sim/run-last-good-scale --fixture both

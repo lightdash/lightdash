@@ -129,17 +129,38 @@ def find_cycle(edges):
     return next((found for node in edges if (found := visit(node))), None)
 
 
-def external_nodes(manifest):
-    models = [
-        node
-        for node in manifest["nodes"].values()
-        if node.get("resource_type") == "model"
-        and (node.get("path") or node.get("original_file_path"))
-        and node.get("access") == "public"
-    ]
-    model_ids = {node["unique_id"] for node in models}
-    return [
-        {
+INJECTED_RESOURCE_TYPES = ("model", "seed", "snapshot")
+
+
+def resolved_access(node):
+    access = node.get("access")
+    if access is None and node.get("resource_type") != "model":
+        access = (node.get("config") or {}).get("access")
+    return access
+
+
+def _is_real_resource(node):
+    return node.get("resource_type") in INJECTED_RESOURCE_TYPES and bool(
+        node.get("path") or node.get("original_file_path")
+    )
+
+
+def _injected_ids(node):
+    version = node.get("version")
+    suffix = "" if version is None else f".v{version}"
+    resource_type = node.get("resource_type") or "model"
+    return {
+        node["unique_id"],
+        f"{resource_type}.{node['package_name']}.{node['name']}{suffix}",
+    }
+
+
+def _public_payloads(nodes):
+    payloads = []
+    for node in nodes:
+        if not _is_real_resource(node) or resolved_access(node) != "public":
+            continue
+        payload = {
             "name": node["name"],
             "package_name": node["package_name"],
             "identifier": node.get("alias") or node["name"],
@@ -148,15 +169,34 @@ def external_nodes(manifest):
             "relation_name": node.get("relation_name"),
             "version": node.get("version"),
             "latest_version": node.get("latest_version"),
-            "access": node.get("access"),
-            "depends_on_nodes": [
-                dependency
-                for dependency in node.get("depends_on", {}).get("nodes", [])
-                if dependency in model_ids
-            ],
+            "access": "public",
+            "depends_on_nodes": list((node.get("depends_on") or {}).get("nodes") or []),
+            "ids": _injected_ids(node),
         }
-        for node in models
-    ]
+        if node.get("resource_type") != "model":
+            payload["resource_type"] = node["resource_type"]
+        payloads.append(payload)
+    return payloads
+
+
+def _restrict_depends_on(payloads):
+    injected_ids = set()
+    for payload in payloads:
+        injected_ids.update(payload["ids"])
+    restricted = []
+    for payload in payloads:
+        item = {key: value for key, value in payload.items() if key != "ids"}
+        item["depends_on_nodes"] = [
+            dependency
+            for dependency in payload["depends_on_nodes"]
+            if dependency in injected_ids
+        ]
+        restricted.append(item)
+    return restricted
+
+
+def external_nodes(manifest):
+    return _restrict_depends_on(_public_payloads(manifest["nodes"].values()))
 
 
 def model_edges(manifest, real_only):
@@ -302,13 +342,15 @@ def publish_manifest(target, store, project):
 
 
 def injection_for(store, upstreams):
-    nodes = []
+    payloads = []
     for upstream in upstreams:
         path = manifest_path(store, upstream)
         if not path.is_file():
             raise FileNotFoundError(path)
-        nodes.extend(external_nodes(json.loads(path.read_text())))
-    return nodes
+        payloads.extend(
+            _public_payloads(json.loads(path.read_text())["nodes"].values())
+        )
+    return _restrict_depends_on(payloads)
 
 
 def binding(manifest, project, model):

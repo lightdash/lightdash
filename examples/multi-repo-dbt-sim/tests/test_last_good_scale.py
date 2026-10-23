@@ -47,6 +47,108 @@ class LastGoodScaleTests(unittest.TestCase):
         selected = climb.external_nodes(manifest)
         self.assertEqual([node["name"] for node in selected], ["pub"])
         self.assertEqual(selected[0]["depends_on_nodes"], [])
+        self.assertNotIn("resource_type", selected[0])
+
+    def test_public_seeds_and_snapshots_join_the_inject_surface(self):
+        def resource(name, resource_type, access, depends=(), config_access=None):
+            node = _node(name, access)
+            node["resource_type"] = resource_type
+            node["unique_id"] = f"{resource_type}.pkg.{name}"
+            node["package_name"] = "pkg"
+            node["path"] = f"{name}.sql"
+            node["depends_on"] = {"nodes": list(depends)}
+            if config_access is not None:
+                node["config"] = {"access": config_access}
+            return node["unique_id"], node
+
+        lookup_id, lookup = resource("lookup", "seed", None, config_access="public")
+        secret_id, secret = resource("secret", "seed", "private")
+        history_id, history = resource(
+            "history",
+            "snapshot",
+            None,
+            depends=(lookup_id, secret_id, "model.other.public_base"),
+            config_access="public",
+        )
+        _, internal = resource("internal", "snapshot", "protected")
+        _, unset_seed = resource("unset_seed", "seed", None)
+        _, overridden = resource(
+            "overridden", "seed", "protected", config_access="public"
+        )
+        report_id, report = resource(
+            "report",
+            "model",
+            "public",
+            depends=(
+                lookup_id,
+                history_id,
+                secret_id,
+                "model.other.public_base",
+                "model.pkg.hidden",
+            ),
+        )
+        _, hidden = resource("hidden", "model", "protected")
+        manifest = {
+            "nodes": {
+                lookup_id: lookup,
+                secret_id: secret,
+                history_id: history,
+                internal["unique_id"]: internal,
+                unset_seed["unique_id"]: unset_seed,
+                overridden["unique_id"]: overridden,
+                report_id: report,
+                hidden["unique_id"]: hidden,
+            }
+        }
+        selected = {node["name"]: node for node in climb.external_nodes(manifest)}
+        self.assertEqual(set(selected), {"lookup", "history", "report"})
+        self.assertEqual(selected["lookup"]["resource_type"], "seed")
+        self.assertEqual(selected["history"]["resource_type"], "snapshot")
+        self.assertEqual(selected["lookup"]["access"], "public")
+        self.assertEqual(selected["history"]["depends_on_nodes"], [lookup_id])
+        self.assertEqual(
+            selected["report"]["depends_on_nodes"], [lookup_id, history_id]
+        )
+        self.assertNotIn("resource_type", selected["report"])
+
+    def test_depends_on_keeps_only_ids_injected_from_any_upstream(self):
+        def model(package, name, depends):
+            node = _node(name, "public")
+            node["package_name"] = package
+            node["unique_id"] = f"model.{package}.{name}"
+            node["depends_on"] = {"nodes": list(depends)}
+            return node["unique_id"], node
+
+        base_id, base = model("proj_b", "public_base", ())
+        other_id, other = model("proj_c", "public_base", ())
+        report_id, report = model(
+            "proj_a",
+            "report",
+            (base_id, other_id, "model.proj_a.hidden"),
+        )
+        hidden_id, hidden = model("proj_a", "hidden", ())
+        hidden["access"] = "protected"
+        with tempfile.TemporaryDirectory() as directory:
+            store = Path(directory)
+
+            def publish(project, nodes):
+                path = store / project / "manifest.json"
+                path.parent.mkdir()
+                path.write_text(json.dumps({"nodes": nodes}), encoding="utf-8")
+
+            publish(
+                "proj_a",
+                {report_id: report, hidden_id: hidden},
+            )
+            publish("proj_b", {base_id: base})
+            publish("proj_c", {other_id: other})
+            injected = {
+                node["name"]: node
+                for node in climb.injection_for(store, ["proj_a", "proj_b"])
+            }
+            self.assertEqual(set(injected), {"report", "public_base"})
+            self.assertEqual(injected["report"]["depends_on_nodes"], [base_id])
+            self.assertEqual(injected["public_base"]["package_name"], "proj_b")
 
     def test_tree_bytes_ignore_parse_output(self):
         with tempfile.TemporaryDirectory() as directory:

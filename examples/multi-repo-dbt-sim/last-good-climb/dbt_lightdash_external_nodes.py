@@ -1,10 +1,23 @@
 import hashlib
 import json
 import os
+from dataclasses import dataclass
 
 from dbt.contracts.graph.node_args import ModelNodeArgs
 from dbt.plugins.manager import dbt_hook, dbtPlugin
 from dbt.plugins.manifest import PluginNodes
+
+
+@dataclass
+class ExternalNodeArgs(ModelNodeArgs):
+    resource_type: str = "model"
+
+    @property
+    def unique_id(self) -> str:
+        unique_id = f"{self.resource_type}.{self.package_name}.{self.name}"
+        if self.version is not None:
+            unique_id = f"{unique_id}.v{self.version}"
+        return unique_id
 
 
 class LightdashExternalNodes(dbtPlugin):
@@ -23,7 +36,8 @@ class LightdashExternalNodes(dbtPlugin):
             if raw["package_name"] == self.project_name:
                 continue
             nodes.add_model(
-                ModelNodeArgs(
+                ExternalNodeArgs(
+                    resource_type=raw.get("resource_type") or "model",
                     name=raw["name"],
                     package_name=raw["package_name"],
                     identifier=(

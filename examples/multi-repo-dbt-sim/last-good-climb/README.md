@@ -61,8 +61,11 @@ python3 -m unittest examples/multi-repo-dbt-sim/tests/test_last_good_climb.py
 ## Present
 
 Upstream last-good manifests are present. For each disk project the runner
-injects public models from the other project's stored manifest, then runs
-`dbt parse`.
+injects public models, seeds, and snapshots from the other project's stored
+manifest, then runs `dbt parse`. Seeds and snapshots take `config.access`
+when the node itself has no access. `depends_on` edges are kept only when
+the target is also injected. This fixture's cross-project nodes are public
+models, so the bindings below are unchanged.
 
 Pass:
 
@@ -151,10 +154,13 @@ reproduce that. It also does not start the loopback Git server, so
 `checkout_bytes` is the materialized project tree (`target/`, `logs/`,
 `dbt_packages/`, and `.git` excluded), not pack transfer or a disk eviction.
 
-The timed climb injects public models from every other source. It does
-not apply the ref filter. These fixtures set `access: public` on every
-model, so the omitted non-public count is 0 and the injected count matches
-the earlier inject-all run. `ref_filtered_*` is the smaller payload that a
+The timed climb injects public models, seeds, and snapshots from every
+other source. It does not apply the ref filter. These fixtures set
+`access: public` on every model. Their seeds have no access, and they have
+no snapshots, so seeds and snapshots stay out of the inject surface. The
+omitted non-public model count is 0 and the injected node count matches
+the earlier public-only run. The recorded scale numbers below were not
+re-run for this inject-surface change. `ref_filtered_*` is the smaller payload that a
 ref filter would keep. The withheld parse injects nothing, must exit
 non-zero with `which was not found`, and must not create a manifest.
 
