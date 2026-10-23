@@ -1,5 +1,6 @@
 import argparse
 import hashlib
+import importlib.metadata
 import importlib.util
 import json
 import os
@@ -33,6 +34,30 @@ REF = re.compile(
 CYCLE_TEXT = "Found a cycle"
 UNRESOLVED_TEXT = "which was not found"
 GNU_TIME_RSS = re.compile(r"Maximum resident set size \(kbytes\): (\d+)")
+PROJECT_UUID = "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a"
+CONNECTION_GROUP = "original"
+CONFIRMED_EVENT = "dbt.compile.crossSourceLastGoodConfirmed"
+RESOLVED_EVENT = "dbt.compile.crossSourceRefsResolved"
+CONFIRMED_PATTERN = re.compile(
+    r"^dbt\.compile\.crossSourceLastGoodConfirmed rowsWritten=(\d+) "
+    r"projectUuid=(\S+) connectionGroup=(\S+)$"
+)
+RESOLVED_PATTERN = re.compile(
+    r"^dbt\.compile\.crossSourceRefsResolved diskEvictions=(\d+) "
+    r"diskRecreations=(\d+) ownedInjected=(\d+) packageNodesOmitted=(\d+)$"
+)
+EXPECTED_OWNED_INJECTED = {"proj_alpha": 3, "proj_beta": 1}
+PACKAGE = FIXTURE / "package"
+PACKAGE_NAME = "shared_pkg"
+PACKAGE_OWNERS = ("proj_owner_one", "proj_owner_two")
+PACKAGE_CONSUMER = "proj_consumer"
+PACKAGE_BINDINGS = {
+    "report": [
+        "model.proj_owner_one.shared_model",
+        "model.proj_owner_two.owned_other",
+    ]
+}
+PACKAGE_NODE_ID = f"model.{PACKAGE_NAME}.shared_model"
 
 
 def cold_start_warning(consumer, upstreams):
@@ -139,6 +164,64 @@ class DuplicateInjectedIdError(RuntimeError):
     """Two upstreams would hand dbt the same injected unique id."""
 
 
+def owner_identity(manifest):
+    return (manifest.get("metadata") or {}).get("project_name") or None
+
+
+def confirmed_message(
+    rows_written, project_uuid=PROJECT_UUID, connection_group=CONNECTION_GROUP
+):
+    message = (
+        f"{CONFIRMED_EVENT} rowsWritten={rows_written} "
+        f"projectUuid={project_uuid} connectionGroup={connection_group}"
+    )
+    return (
+        message,
+        {
+            "event": CONFIRMED_EVENT,
+            "projectUuid": project_uuid,
+            "connectionGroup": connection_group,
+            "rowsWritten": rows_written,
+        },
+    )
+
+
+def resolved_message(
+    owned_injected, package_nodes_omitted, sources, project_uuid=PROJECT_UUID
+):
+    message = (
+        f"{RESOLVED_EVENT} diskEvictions=0 diskRecreations=0 "
+        f"ownedInjected={owned_injected} packageNodesOmitted={package_nodes_omitted}"
+    )
+    return (
+        message,
+        {
+            "event": RESOLVED_EVENT,
+            "projectUuid": project_uuid,
+            "diskEvictions": 0,
+            "diskRecreations": 0,
+            "cacheRowsLoaded": len(
+                {name for source in sources for name in source["injectedFrom"]}
+            ),
+            "ownedInjected": owned_injected,
+            "packageNodesOmitted": package_nodes_omitted,
+            "sources": sources,
+        },
+    )
+
+
+class EventLog:
+    def __init__(self):
+        self.entries = []
+
+    def info(self, message, meta):
+        print(message, flush=True)
+        self.entries.append({"message": message, "meta": meta})
+
+    def named(self, event):
+        return [entry for entry in self.entries if entry["meta"]["event"] == event]
+
+
 def resolved_access(node):
     access = node.get("access")
     if access is None and node.get("resource_type") != "model":
@@ -162,10 +245,14 @@ def _injected_ids(node):
     }
 
 
-def _public_payloads(nodes):
+def _public_payloads(nodes, project_name):
     payloads = []
+    if project_name is None:
+        return payloads
     for node in nodes:
-        if not _is_real_resource(node) or resolved_access(node) != "public":
+        if not _is_real_resource(node) or node.get("package_name") != project_name:
+            continue
+        if resolved_access(node) != "public":
             continue
         payload = {
             "name": node["name"],
@@ -209,8 +296,24 @@ def _restrict_depends_on(payloads):
     return restricted
 
 
-def external_nodes(manifest):
-    return _restrict_depends_on(_public_payloads(manifest["nodes"].values()))
+def package_nodes_omitted(manifest):
+    owner = owner_identity(manifest)
+    if owner is None:
+        return 0
+    return sum(
+        1
+        for node in manifest["nodes"].values()
+        if _is_real_resource(node) and node.get("package_name") != owner
+    )
+
+
+def projection(manifest, project_name=None):
+    owner = owner_identity(manifest) if project_name is None else project_name
+    return _public_payloads(manifest["nodes"].values(), owner)
+
+
+def external_nodes(manifest, project_name=None):
+    return _restrict_depends_on(projection(manifest, project_name))
 
 
 def model_edges(manifest, real_only):
@@ -232,10 +335,10 @@ def model_edges(manifest, real_only):
     }
 
 
-def store_digest(store):
+def store_digest(store, projects=PROJECTS):
     return {
         project: hashlib.sha256(manifest_path(store, project).read_bytes()).hexdigest()
-        for project in PROJECTS
+        for project in projects
         if manifest_path(store, project).is_file()
     }
 
@@ -378,14 +481,19 @@ def publish_manifest(target, store, project):
     shutil.copyfile(target / "manifest.json", destination)
 
 
-def injection_for(store, upstreams):
+def injection_report(store, upstreams):
     payloads = []
     owners = {}
+    identities = {}
+    omitted = 0
     for upstream in upstreams:
         path = manifest_path(store, upstream)
         if not path.is_file():
             raise FileNotFoundError(path)
-        for payload in _public_payloads(json.loads(path.read_text())["nodes"].values()):
+        manifest = json.loads(path.read_text())
+        identities[upstream] = owner_identity(manifest)
+        omitted += package_nodes_omitted(manifest)
+        for payload in projection(manifest):
             node_id = canonical_injected_id(payload)
             previous = owners.get(node_id)
             if previous is not None and previous != upstream:
@@ -400,7 +508,17 @@ def injection_for(store, upstreams):
                 ]
             owners[node_id] = upstream
             payloads.append(payload)
-    return _restrict_depends_on(payloads)
+    nodes = _restrict_depends_on(payloads)
+    return {
+        "nodes": nodes,
+        "owners": identities,
+        "owned_injected": len(nodes),
+        "package_nodes_omitted": omitted,
+    }
+
+
+def injection_for(store, upstreams):
+    return injection_report(store, upstreams)["nodes"]
 
 
 def binding(manifest, project, model):
@@ -410,7 +528,14 @@ def binding(manifest, project, model):
     return list(node.get("depends_on", {}).get("nodes", []))
 
 
-def seed_last_good(dbt, work):
+def confirm_store(store, published, events):
+    for project in published:
+        if not manifest_path(store, project).is_file():
+            raise RuntimeError(f"last-good store has no manifest for {project}")
+    events.info(*confirmed_message(len(published)))
+
+
+def seed_last_good(dbt, work, events):
     store = work / "last-good"
     if store.exists():
         shutil.rmtree(store)
@@ -426,19 +551,33 @@ def seed_last_good(dbt, work):
     if beta["returncode"] != 0:
         raise RuntimeError(beta["output"])
     publish_manifest(beta_target, store, "proj_beta")
+    confirm_store(store, PROJECTS, events)
     return store
 
 
-def present_case(dbt, work, store):
+def present_case(dbt, work, store, events):
     before = store_digest(store)
     results = {}
+    sources = []
+    owned_injected = 0
+    omitted = 0
     for project in PROJECTS:
         missing = missing_upstreams(store, UPSTREAMS[project])
         if missing:
             raise RuntimeError(cold_start_warning(project, missing))
         nodes_path = work / "present" / f"{project}-nodes.json"
         nodes_path.parent.mkdir(parents=True, exist_ok=True)
-        nodes = injection_for(store, UPSTREAMS[project])
+        injection = injection_report(store, UPSTREAMS[project])
+        nodes = injection["nodes"]
+        owned_injected += injection["owned_injected"]
+        omitted += injection["package_nodes_omitted"]
+        sources.append(
+            {
+                "name": project,
+                "injectedFrom": list(UPSTREAMS[project]),
+                "injectedStubs": injection["owned_injected"],
+            }
+        )
         nodes_path.write_text(json.dumps(nodes))
         parsed = run_parse(
             dbt,
@@ -461,6 +600,8 @@ def present_case(dbt, work, store):
             or find_cycle(model_edges(parsed["manifest"], True)) is not None
             or find_cycle(model_edges(parsed["manifest"], False)) is not None,
             "bindings": bindings,
+            "owned_injected": injection["owned_injected"],
+            "package_nodes_omitted": injection["package_nodes_omitted"],
             "injected": sorted(
                 (
                     {
@@ -478,6 +619,7 @@ def present_case(dbt, work, store):
                 ),
             ),
         }
+    events.info(*resolved_message(owned_injected, omitted, sources))
     return {
         "command": list(REFRESH_COMMAND),
         "success": all(
@@ -487,11 +629,14 @@ def present_case(dbt, work, store):
             for project, row in results.items()
         ),
         "store_unchanged": store_digest(store) == before,
+        "owned_injected": owned_injected,
+        "package_nodes_omitted": omitted,
         "projects": results,
     }
 
 
-def withheld_case(dbt, work, store):
+def withheld_case(dbt, work, store, events):
+    confirmed_before = len(events.named(CONFIRMED_EVENT))
     empty = work / "withheld-store"
     if empty.exists():
         shutil.rmtree(empty)
@@ -541,6 +686,7 @@ def withheld_case(dbt, work, store):
         "projects": projects,
         "withheld_store_unchanged": manifest_files(empty) == before_files,
         "seeded_store_unchanged": store_digest(store) == before_store,
+        "confirmations_logged": len(events.named(CONFIRMED_EVENT)) - confirmed_before,
         "passed": all(
             not row["success"] and row["unresolved"] and not row["cycle_error"]
             for row in projects.values()
@@ -553,20 +699,12 @@ def withheld_case(dbt, work, store):
 def toolchain(dbt):
     if not Path(dbt).is_file():
         raise RuntimeError(f"dbt executable is missing: {dbt}")
-    shown = subprocess.run(
-        [sys.executable, "-m", "pip", "show", "dbt-core", "dbt-postgres"],
-        text=True,
-        capture_output=True,
-        timeout=60,
-        check=True,
-    )
     packages = {}
-    name = None
-    for line in shown.stdout.splitlines():
-        if line.startswith("Name: "):
-            name = line.removeprefix("Name: ")
-        elif line.startswith("Version: ") and name:
-            packages[name] = line.removeprefix("Version: ")
+    for name in ("dbt-core", "dbt-postgres"):
+        try:
+            packages[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            continue
     requirements = (FIXTURE / "requirements.txt").read_text().splitlines()
     return {
         "requirements": requirements,
@@ -656,7 +794,196 @@ def refresh_cycle_probe(dbt, work):
     }
 
 
-def assert_contract(present, withheld, fidelity, pins):
+def run_deps(dbt, project_dir, logs):
+    if logs.exists():
+        shutil.rmtree(logs)
+    completed = subprocess.run(
+        [
+            dbt,
+            "--no-use-colors",
+            "deps",
+            "--project-dir",
+            str(project_dir),
+            "--profiles-dir",
+            str(PROFILES),
+            "--profile",
+            "last_good_climb",
+            "--target",
+            "dev",
+            "--log-path",
+            str(logs),
+        ],
+        cwd=project_dir,
+        env=dbt_environment(),
+        text=True,
+        capture_output=True,
+        timeout=180,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(f"{completed.stdout}\n{completed.stderr}")
+    return sorted(path.name for path in (Path(project_dir) / "dbt_packages").iterdir())
+
+
+def package_case(dbt, work, events):
+    root = work / "package-share"
+    if root.exists():
+        shutil.rmtree(root)
+    projects = root / "projects"
+    shutil.copytree(PACKAGE, projects)
+    store = root / "last-good"
+    owners = {}
+    for owner in PACKAGE_OWNERS:
+        installed = run_deps(dbt, projects / owner, root / f"{owner}-deps-logs")
+        target = root / "seed-target" / owner
+        parsed = run_parse(dbt, projects / owner, target)
+        if parsed["returncode"] != 0:
+            raise RuntimeError(parsed["output"])
+        publish_manifest(target, store, owner)
+        manifest = parsed["manifest"]
+        owners[owner] = {
+            "installed_packages": installed,
+            "owner": owner_identity(manifest),
+            "nodes": sorted(
+                key
+                for key, node in manifest["nodes"].items()
+                if _is_real_resource(node)
+            ),
+            "package_nodes": sorted(
+                key
+                for key, node in manifest["nodes"].items()
+                if _is_real_resource(node) and node["package_name"] == PACKAGE_NAME
+            ),
+            "projection": [
+                {
+                    "id": canonical_injected_id(payload),
+                    "depends_on_nodes": payload["depends_on_nodes"],
+                }
+                for payload in projection(manifest)
+            ],
+            "package_nodes_omitted": package_nodes_omitted(manifest),
+        }
+    confirm_store(store, PACKAGE_OWNERS, events)
+    before = store_digest(store, PACKAGE_OWNERS)
+    injection = injection_report(store, PACKAGE_OWNERS)
+    nodes_path = root / f"{PACKAGE_CONSUMER}-nodes.json"
+    nodes_path.write_text(json.dumps(injection["nodes"]))
+    parsed = run_parse(
+        dbt,
+        projects / PACKAGE_CONSUMER,
+        root / "present" / PACKAGE_CONSUMER,
+        nodes_path,
+        command=REFRESH_COMMAND,
+    )
+    if parsed["manifest"] is None:
+        raise RuntimeError(parsed["output"])
+    manifest = parsed["manifest"]
+    ownerless_manifest = json.loads(manifest_path(store, PACKAGE_OWNERS[0]).read_text())
+    ownerless_manifest["metadata"].pop("project_name", None)
+    events.info(
+        *resolved_message(
+            injection["owned_injected"],
+            injection["package_nodes_omitted"],
+            [
+                {
+                    "name": PACKAGE_CONSUMER,
+                    "injectedFrom": list(PACKAGE_OWNERS),
+                    "injectedStubs": injection["owned_injected"],
+                }
+            ],
+        )
+    )
+    injected_ids = sorted(canonical_injected_id(node) for node in injection["nodes"])
+    consumer = {
+        "returncode": parsed["returncode"],
+        "cycle_error": parsed["cycle_error"]
+        or find_cycle(model_edges(manifest, True)) is not None
+        or find_cycle(model_edges(manifest, False)) is not None,
+        "bindings": {
+            model: binding(manifest, PACKAGE_CONSUMER, model)
+            for model in PACKAGE_BINDINGS
+        },
+        "package_node_in_manifest": PACKAGE_NODE_ID in manifest["nodes"],
+        "injected": injected_ids,
+        "injected_depends_on": {
+            canonical_injected_id(node): node["depends_on_nodes"]
+            for node in injection["nodes"]
+        },
+    }
+    ownerless = {
+        "owner": owner_identity(ownerless_manifest),
+        "nodes": len(external_nodes(ownerless_manifest)),
+        "package_nodes_omitted": package_nodes_omitted(ownerless_manifest),
+    }
+    return {
+        "command": list(REFRESH_COMMAND),
+        "package": PACKAGE_NAME,
+        "owners": owners,
+        "consumer": consumer,
+        "owned_injected": injection["owned_injected"],
+        "package_nodes_omitted": injection["package_nodes_omitted"],
+        "ownerless_projection": ownerless,
+        "store_unchanged": store_digest(store, PACKAGE_OWNERS) == before,
+        "success": consumer["returncode"] == 0
+        and not consumer["cycle_error"]
+        and consumer["bindings"] == PACKAGE_BINDINGS
+        and not consumer["package_node_in_manifest"]
+        and injected_ids == sorted(PACKAGE_BINDINGS["report"])
+        and all(not deps for deps in consumer["injected_depends_on"].values())
+        and all(row["package_nodes"] == [PACKAGE_NODE_ID] for row in owners.values()),
+    }
+
+
+def assert_markers(events, present, package, withheld):
+    errors = []
+    confirmed = events.named(CONFIRMED_EVENT)
+    if [entry["meta"]["rowsWritten"] for entry in confirmed] != [
+        len(PROJECTS),
+        len(PACKAGE_OWNERS),
+    ]:
+        errors.append("last-good confirmations were not logged once per seeded store")
+    for entry in confirmed:
+        match = CONFIRMED_PATTERN.match(entry["message"])
+        meta = entry["meta"]
+        if (
+            match is None
+            or int(match.group(1)) != meta["rowsWritten"]
+            or match.group(2) != meta["projectUuid"]
+            or match.group(3) != meta["connectionGroup"]
+            or set(meta) != {"event", "projectUuid", "connectionGroup", "rowsWritten"}
+        ):
+            errors.append(
+                "crossSourceLastGoodConfirmed marker does not match the product"
+            )
+    if withheld["confirmations_logged"] != 0:
+        errors.append("withheld run logged a last-good confirmation")
+    resolved = events.named(RESOLVED_EVENT)
+    expected = [
+        (present["owned_injected"], present["package_nodes_omitted"]),
+        (package["owned_injected"], package["package_nodes_omitted"]),
+    ]
+    if [
+        (entry["meta"]["ownedInjected"], entry["meta"]["packageNodesOmitted"])
+        for entry in resolved
+    ] != expected:
+        errors.append("crossSourceRefsResolved counts do not match the resolutions")
+    for entry in resolved:
+        match = RESOLVED_PATTERN.match(entry["message"])
+        meta = entry["meta"]
+        if (
+            match is None
+            or int(match.group(3)) != meta["ownedInjected"]
+            or int(match.group(4)) != meta["packageNodesOmitted"]
+            or not entry["message"].endswith(
+                f" ownedInjected={meta['ownedInjected']} "
+                f"packageNodesOmitted={meta['packageNodesOmitted']}"
+            )
+        ):
+            errors.append("crossSourceRefsResolved marker does not match the product")
+    return errors
+
+
+def assert_contract(present, withheld, fidelity, pins, package, events):
     errors = []
     if pins["packages"].get("dbt-core") != "1.12.0":
         errors.append("dbt-core is not pinned to 1.12.0")
@@ -695,6 +1022,34 @@ def assert_contract(present, withheld, fidelity, pins):
         errors.append("withheld run was partially green")
     if withheld["invented_manifests"]:
         errors.append("withheld run invented a manifest")
+    if {
+        project: row["owned_injected"] for project, row in present["projects"].items()
+    } != EXPECTED_OWNED_INJECTED:
+        errors.append("present climb did not inject every owned public node")
+    if present["package_nodes_omitted"] != 0:
+        errors.append("the project ring omitted a node it does not install")
+    if not package["success"] or not package["store_unchanged"]:
+        errors.append("package share did not keep the installed package local")
+    if package["consumer"]["bindings"] != PACKAGE_BINDINGS:
+        errors.append("package consumer did not bind the owned public models")
+    if package["consumer"]["package_node_in_manifest"]:
+        errors.append("an installed-package node crossed into the consumer")
+    if package["owned_injected"] != len(PACKAGE_OWNERS):
+        errors.append("package share injected a node that is not project-owned")
+    if package["package_nodes_omitted"] != len(PACKAGE_OWNERS):
+        errors.append("package share did not omit every installed-package node")
+    if any(
+        row["projection"]
+        != [{"id": f"model.{owner}.{model}", "depends_on_nodes": [PACKAGE_NODE_ID]}]
+        for owner, model, row in (
+            (owner, model, package["owners"][owner])
+            for owner, model in zip(PACKAGE_OWNERS, ("shared_model", "owned_other"))
+        )
+    ):
+        errors.append("owner projection did not export exactly its own public model")
+    if package["ownerless_projection"]["nodes"] != 0:
+        errors.append("a manifest without an owner identity exported nodes")
+    errors.extend(assert_markers(events, present, package, withheld))
     return errors
 
 
@@ -720,7 +1075,8 @@ def main():
         f"loom {pins['dbt_loom_installed']}",
         flush=True,
     )
-    store = seed_last_good(args.dbt, args.work)
+    events = EventLog()
+    store = seed_last_good(args.dbt, args.work, events)
     seeded = {
         project: {
             "latest_version": json.loads(manifest_path(store, project).read_text())[
@@ -739,10 +1095,11 @@ def main():
         }
         for project in PROJECTS
     }
-    present = present_case(args.dbt, args.work, store)
-    withheld = withheld_case(args.dbt, args.work, store)
+    present = present_case(args.dbt, args.work, store, events)
+    withheld = withheld_case(args.dbt, args.work, store, events)
     fidelity = refresh_cycle_probe(args.dbt, args.work)
-    errors = assert_contract(present, withheld, fidelity, pins)
+    package = package_case(args.dbt, args.work, events)
+    errors = assert_contract(present, withheld, fidelity, pins, package, events)
     report = relative_output(
         {
             "case": "last-good-manifest-climb",
@@ -753,8 +1110,11 @@ def main():
             "seed_command": list(MANIFEST_COMMAND),
             "refresh_command": list(REFRESH_COMMAND),
             "seeded_manifests": seeded,
+            "share_policy": "project-owned public models, seeds and snapshots",
             "present": present,
             "refresh_command_fidelity": fidelity,
+            "package_share": package,
+            "markers": events.entries,
             "withheld": {
                 key: value for key, value in withheld.items() if key != "projects"
             }
@@ -780,7 +1140,7 @@ def main():
         for error in errors:
             print(error, file=sys.stderr, flush=True)
         return 1
-    print("present PASS withheld PASS", flush=True)
+    print("present PASS withheld PASS package-share PASS", flush=True)
     return 0
 
 

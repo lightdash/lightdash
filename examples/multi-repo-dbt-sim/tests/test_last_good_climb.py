@@ -148,10 +148,14 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             store = Path(directory)
 
-            def publish(project, nodes):
+            def publish(project, nodes, owner=None):
                 path = store / project / "manifest.json"
                 path.parent.mkdir(exist_ok=True)
-                path.write_text(json.dumps({"nodes": nodes}), encoding="utf-8")
+                metadata = {} if owner is None else {"project_name": owner}
+                path.write_text(
+                    json.dumps({"metadata": metadata, "nodes": nodes}),
+                    encoding="utf-8",
+                )
 
             shared = model("shared_pkg", "shared_model")
             publish(
@@ -160,6 +164,7 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
                     "model.proj_a.local": model("proj_a", "local"),
                     shared["unique_id"]: shared,
                 },
+                "proj_a",
             )
             publish(
                 "proj_b",
@@ -167,7 +172,23 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
                     "model.proj_b.local": model("proj_b", "local"),
                     shared["unique_id"]: shared,
                 },
+                "proj_b",
             )
+            package_shared = climb.injection_report(store, ["proj_a", "proj_b"])
+            self.assertEqual(
+                sorted(
+                    climb.canonical_injected_id(node)
+                    for node in package_shared["nodes"]
+                ),
+                ["model.proj_a.local", "model.proj_b.local"],
+            )
+            self.assertEqual(package_shared["owned_injected"], 2)
+            self.assertEqual(package_shared["package_nodes_omitted"], 2)
+            self.assertEqual(
+                package_shared["owners"], {"proj_a": "proj_a", "proj_b": "proj_b"}
+            )
+            publish("proj_a", {shared["unique_id"]: shared}, "shared_pkg")
+            publish("proj_b", {shared["unique_id"]: shared}, "shared_pkg")
             with self.assertRaises(climb.DuplicateInjectedIdError) as caught:
                 climb.injection_for(store, ["proj_a", "proj_b"])
             self.assertEqual(
@@ -177,23 +198,23 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
                 "source for this model.",
             )
             versioned = model("shared_pkg", "shared_model", 3)
-            publish("proj_a", {versioned["unique_id"]: versioned})
-            publish("proj_b", {versioned["unique_id"]: versioned})
+            publish("proj_a", {versioned["unique_id"]: versioned}, "shared_pkg")
+            publish("proj_b", {versioned["unique_id"]: versioned}, "shared_pkg")
             with self.assertRaises(climb.DuplicateInjectedIdError) as versioned_hit:
                 climb.injection_for(store, ["proj_a", "proj_b"])
             self.assertIn(
                 "model.shared_pkg.shared_model.v3", str(versioned_hit.exception)
             )
             lookup = seed("lookup")
-            publish("proj_a", {lookup["unique_id"]: lookup})
-            publish("proj_b", {lookup["unique_id"]: lookup})
+            publish("proj_a", {lookup["unique_id"]: lookup}, "shared_pkg")
+            publish("proj_b", {lookup["unique_id"]: lookup}, "shared_pkg")
             with self.assertRaises(climb.DuplicateInjectedIdError) as seed_hit:
                 climb.injection_for(store, ["proj_a", "proj_b"])
             self.assertIn("seed.shared_pkg.lookup", str(seed_hit.exception))
             older = model("shared_pkg", "shared_model", 2)
             newer = model("shared_pkg", "shared_model", 3)
-            publish("proj_a", {older["unique_id"]: older})
-            publish("proj_b", {newer["unique_id"]: newer})
+            publish("proj_a", {older["unique_id"]: older}, "shared_pkg")
+            publish("proj_b", {newer["unique_id"]: newer}, "shared_pkg")
             injected = climb.injection_for(store, ["proj_a", "proj_b"])
             self.assertEqual(
                 sorted(node["version"] for node in injected),
@@ -202,16 +223,183 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
             publish(
                 "proj_a",
                 {"model.proj_a.orders": model("proj_a", "orders")},
+                "proj_a",
             )
             publish(
                 "proj_b",
                 {"model.proj_b.orders": model("proj_b", "orders")},
+                "proj_b",
             )
             distinct = climb.injection_for(store, ["proj_a", "proj_b"])
             self.assertEqual(
                 sorted(climb.canonical_injected_id(node) for node in distinct),
                 ["model.proj_a.orders", "model.proj_b.orders"],
             )
+
+    def test_projection_exports_only_project_owned_public_nodes(self):
+        def node(package, name, access="public", resource_type="model"):
+            return {
+                "resource_type": resource_type,
+                "path": f"{name}.sql",
+                "original_file_path": f"models/{name}.sql",
+                "access": access,
+                "name": name,
+                "package_name": package,
+                "unique_id": f"{resource_type}.{package}.{name}",
+                "alias": name,
+                "schema": "analytics",
+                "database": None,
+                "relation_name": None,
+                "version": None,
+                "latest_version": None,
+                "depends_on": {"nodes": ["model.shared_pkg.shared_model"]},
+            }
+
+        manifest = {
+            "metadata": {"project_name": "proj_owner"},
+            "nodes": {
+                "model.proj_owner.shared_model": node("proj_owner", "shared_model"),
+                "seed.proj_owner.lookup": node(
+                    "proj_owner", "lookup", resource_type="seed"
+                ),
+                "model.proj_owner.hidden": node("proj_owner", "hidden", "protected"),
+                "model.shared_pkg.shared_model": node("shared_pkg", "shared_model"),
+                "seed.shared_pkg.pkg_lookup": node(
+                    "shared_pkg", "pkg_lookup", resource_type="seed"
+                ),
+                "model.proj_other.external": {
+                    **node("proj_other", "external"),
+                    "path": None,
+                    "original_file_path": None,
+                },
+            },
+        }
+        self.assertEqual(climb.owner_identity(manifest), "proj_owner")
+        projected = {
+            climb.canonical_injected_id(payload): payload
+            for payload in climb.projection(manifest)
+        }
+        self.assertEqual(
+            sorted(projected),
+            ["model.proj_owner.shared_model", "seed.proj_owner.lookup"],
+        )
+        self.assertEqual(
+            projected["model.proj_owner.shared_model"]["depends_on_nodes"],
+            ["model.shared_pkg.shared_model"],
+        )
+        injected = climb.external_nodes(manifest)
+        self.assertEqual([node["depends_on_nodes"] for node in injected], [[], []])
+        self.assertEqual(climb.package_nodes_omitted(manifest), 2)
+        self.assertEqual(
+            [
+                climb.canonical_injected_id(payload)
+                for payload in climb.projection(manifest, "shared_pkg")
+            ],
+            ["model.shared_pkg.shared_model", "seed.shared_pkg.pkg_lookup"],
+        )
+        ownerless = {"metadata": {}, "nodes": manifest["nodes"]}
+        self.assertIsNone(climb.owner_identity(ownerless))
+        self.assertEqual(climb.external_nodes(ownerless), [])
+        self.assertEqual(climb.package_nodes_omitted(ownerless), 0)
+        self.assertEqual(climb.external_nodes({"nodes": manifest["nodes"]}), [])
+
+    def test_package_fixture_installs_one_local_package_in_both_owners(self):
+        for owner in climb.PACKAGE_OWNERS:
+            packages = (climb.PACKAGE / owner / "packages.yml").read_text()
+            self.assertEqual(packages, "packages:\n    - local: ../shared_pkg\n")
+            project = (climb.PACKAGE / owner / "dbt_project.yml").read_text()
+            self.assertIn(f"name: {owner}\n", project)
+        self.assertFalse(
+            (climb.PACKAGE / climb.PACKAGE_CONSUMER / "packages.yml").exists()
+        )
+        self.assertFalse((climb.PACKAGE / climb.PACKAGE_NAME / "packages.yml").exists())
+        package_schema = (
+            climb.PACKAGE / climb.PACKAGE_NAME / "models/schema.yml"
+        ).read_text()
+        self.assertIn("access: public", package_schema)
+        for owner, model in zip(climb.PACKAGE_OWNERS, ("shared_model", "owned_other")):
+            sql = (climb.PACKAGE / owner / "models" / f"{model}.sql").read_text()
+            self.assertIn("ref('shared_pkg', 'shared_model')", sql)
+        report = (
+            climb.PACKAGE / climb.PACKAGE_CONSUMER / "models/report.sql"
+        ).read_text()
+        self.assertIn("ref('proj_owner_one', 'shared_model')", report)
+        self.assertIn("ref('proj_owner_two', 'owned_other')", report)
+        self.assertNotIn("shared_pkg", report)
+        self.assertEqual(
+            climb.PACKAGE_BINDINGS,
+            {
+                "report": [
+                    "model.proj_owner_one.shared_model",
+                    "model.proj_owner_two.owned_other",
+                ]
+            },
+        )
+
+    def test_markers_match_the_product_text_and_meta(self):
+        message, meta = climb.confirmed_message(2, "project", "original")
+        self.assertEqual(
+            message,
+            "dbt.compile.crossSourceLastGoodConfirmed rowsWritten=2 "
+            "projectUuid=project connectionGroup=original",
+        )
+        self.assertEqual(
+            meta,
+            {
+                "event": "dbt.compile.crossSourceLastGoodConfirmed",
+                "projectUuid": "project",
+                "connectionGroup": "original",
+                "rowsWritten": 2,
+            },
+        )
+        self.assertIsNotNone(climb.CONFIRMED_PATTERN.match(message))
+        sources = [{"name": "consumer", "injectedFrom": ["a", "b"], "injectedStubs": 2}]
+        message, meta = climb.resolved_message(2, 2, sources)
+        self.assertEqual(
+            message,
+            "dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 "
+            "ownedInjected=2 packageNodesOmitted=2",
+        )
+        self.assertTrue(message.endswith(" ownedInjected=2 packageNodesOmitted=2"))
+        self.assertEqual(meta["event"], "dbt.compile.crossSourceRefsResolved")
+        self.assertEqual(meta["ownedInjected"], 2)
+        self.assertEqual(meta["packageNodesOmitted"], 2)
+        self.assertEqual(meta["sources"], sources)
+        self.assertIsNotNone(climb.RESOLVED_PATTERN.match(message))
+        events = climb.EventLog()
+        events.info(*climb.confirmed_message(2))
+        events.info(*climb.resolved_message(4, 0, []))
+        self.assertEqual(len(events.named(climb.CONFIRMED_EVENT)), 1)
+        self.assertEqual(len(events.named(climb.RESOLVED_EVENT)), 1)
+        self.assertEqual(climb.CONNECTION_GROUP, "original")
+
+    def test_marker_assertions_reject_a_drifted_message(self):
+        events = climb.EventLog()
+        events.info(*climb.confirmed_message(2))
+        events.info(*climb.confirmed_message(2))
+        events.info(*climb.resolved_message(4, 0, []))
+        events.info(*climb.resolved_message(2, 2, []))
+        present = {"owned_injected": 4, "package_nodes_omitted": 0}
+        package = {"owned_injected": 2, "package_nodes_omitted": 2}
+        withheld = {"confirmations_logged": 0}
+        self.assertEqual(climb.assert_markers(events, present, package, withheld), [])
+        drifted = climb.EventLog()
+        drifted.entries = json.loads(json.dumps(events.entries))
+        drifted.entries[0]["message"] = drifted.entries[0]["message"].replace(
+            "rowsWritten=2", "rows=2"
+        )
+        drifted.entries[3]["meta"]["packageNodesOmitted"] = 0
+        errors = climb.assert_markers(drifted, present, package, withheld)
+        self.assertIn(
+            "crossSourceLastGoodConfirmed marker does not match the product", errors
+        )
+        self.assertIn(
+            "crossSourceRefsResolved counts do not match the resolutions", errors
+        )
+        self.assertEqual(
+            climb.assert_markers(events, present, package, {"confirmations_logged": 1}),
+            ["withheld run logged a last-good confirmation"],
+        )
 
 
 if __name__ == "__main__":

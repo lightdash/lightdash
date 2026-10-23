@@ -34,10 +34,11 @@ def _node(name, access):
 class LastGoodScaleTests(unittest.TestCase):
     def test_present_contract_stays_public_only(self):
         manifest = {
+            "metadata": {"project_name": "pkg"},
             "nodes": {
                 "model.pkg.pub": _node("pub", "public"),
                 "model.pkg.priv": _node("priv", "protected"),
-            }
+            },
         }
         manifest["nodes"]["model.pkg.hidden"] = _node("hidden", "private")
         manifest["nodes"]["model.pkg.unset"] = _node("unset", None)
@@ -89,6 +90,7 @@ class LastGoodScaleTests(unittest.TestCase):
         )
         _, hidden = resource("hidden", "model", "protected")
         manifest = {
+            "metadata": {"project_name": "pkg"},
             "nodes": {
                 lookup_id: lookup,
                 secret_id: secret,
@@ -98,7 +100,7 @@ class LastGoodScaleTests(unittest.TestCase):
                 overridden["unique_id"]: overridden,
                 report_id: report,
                 hidden["unique_id"]: hidden,
-            }
+            },
         }
         selected = {node["name"]: node for node in climb.external_nodes(manifest)}
         self.assertEqual(set(selected), {"lookup", "history", "report"})
@@ -134,7 +136,10 @@ class LastGoodScaleTests(unittest.TestCase):
             def publish(project, nodes):
                 path = store / project / "manifest.json"
                 path.parent.mkdir()
-                path.write_text(json.dumps({"nodes": nodes}), encoding="utf-8")
+                path.write_text(
+                    json.dumps({"metadata": {"project_name": project}, "nodes": nodes}),
+                    encoding="utf-8",
+                )
 
             publish(
                 "proj_a",

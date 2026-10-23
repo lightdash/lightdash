@@ -56,6 +56,7 @@
       ]
     }
   },
+  "share_policy": "project-owned public models, seeds and snapshots",
   "present": {
     "command": [
       "ls",
@@ -66,6 +67,8 @@
     ],
     "success": true,
     "store_unchanged": true,
+    "owned_injected": 4,
+    "package_nodes_omitted": 0,
     "projects": {
       "proj_alpha": {
         "returncode": 0,
@@ -75,6 +78,8 @@
             "model.proj_beta.measure.v3"
           ]
         },
+        "owned_injected": 3,
+        "package_nodes_omitted": 0,
         "injected": [
           {
             "package_name": "proj_beta",
@@ -104,6 +109,8 @@
             "model.proj_alpha.alpha_base"
           ]
         },
+        "owned_injected": 1,
+        "package_nodes_omitted": 0,
         "injected": [
           {
             "package_name": "proj_alpha",
@@ -135,6 +142,160 @@
       "cycle_error": false
     }
   },
+  "package_share": {
+    "command": [
+      "ls",
+      "--output",
+      "json",
+      "--output-keys",
+      "unique_id"
+    ],
+    "package": "shared_pkg",
+    "owners": {
+      "proj_owner_one": {
+        "installed_packages": [
+          "shared_pkg"
+        ],
+        "owner": "proj_owner_one",
+        "nodes": [
+          "model.proj_owner_one.shared_model",
+          "model.shared_pkg.shared_model"
+        ],
+        "package_nodes": [
+          "model.shared_pkg.shared_model"
+        ],
+        "projection": [
+          {
+            "id": "model.proj_owner_one.shared_model",
+            "depends_on_nodes": [
+              "model.shared_pkg.shared_model"
+            ]
+          }
+        ],
+        "package_nodes_omitted": 1
+      },
+      "proj_owner_two": {
+        "installed_packages": [
+          "shared_pkg"
+        ],
+        "owner": "proj_owner_two",
+        "nodes": [
+          "model.proj_owner_two.owned_other",
+          "model.shared_pkg.shared_model"
+        ],
+        "package_nodes": [
+          "model.shared_pkg.shared_model"
+        ],
+        "projection": [
+          {
+            "id": "model.proj_owner_two.owned_other",
+            "depends_on_nodes": [
+              "model.shared_pkg.shared_model"
+            ]
+          }
+        ],
+        "package_nodes_omitted": 1
+      }
+    },
+    "consumer": {
+      "returncode": 0,
+      "cycle_error": false,
+      "bindings": {
+        "report": [
+          "model.proj_owner_one.shared_model",
+          "model.proj_owner_two.owned_other"
+        ]
+      },
+      "package_node_in_manifest": false,
+      "injected": [
+        "model.proj_owner_one.shared_model",
+        "model.proj_owner_two.owned_other"
+      ],
+      "injected_depends_on": {
+        "model.proj_owner_one.shared_model": [],
+        "model.proj_owner_two.owned_other": []
+      }
+    },
+    "owned_injected": 2,
+    "package_nodes_omitted": 2,
+    "ownerless_projection": {
+      "owner": null,
+      "nodes": 0,
+      "package_nodes_omitted": 0
+    },
+    "store_unchanged": true,
+    "success": true
+  },
+  "markers": [
+    {
+      "message": "dbt.compile.crossSourceLastGoodConfirmed rowsWritten=2 projectUuid=7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a connectionGroup=original",
+      "meta": {
+        "event": "dbt.compile.crossSourceLastGoodConfirmed",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "connectionGroup": "original",
+        "rowsWritten": 2
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=4 packageNodesOmitted=0",
+      "meta": {
+        "event": "dbt.compile.crossSourceRefsResolved",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "diskEvictions": 0,
+        "diskRecreations": 0,
+        "cacheRowsLoaded": 2,
+        "ownedInjected": 4,
+        "packageNodesOmitted": 0,
+        "sources": [
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 3
+          },
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
+            ],
+            "injectedStubs": 1
+          }
+        ]
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceLastGoodConfirmed rowsWritten=2 projectUuid=7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a connectionGroup=original",
+      "meta": {
+        "event": "dbt.compile.crossSourceLastGoodConfirmed",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "connectionGroup": "original",
+        "rowsWritten": 2
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=2 packageNodesOmitted=2",
+      "meta": {
+        "event": "dbt.compile.crossSourceRefsResolved",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "diskEvictions": 0,
+        "diskRecreations": 0,
+        "cacheRowsLoaded": 2,
+        "ownedInjected": 2,
+        "packageNodesOmitted": 2,
+        "sources": [
+          {
+            "name": "proj_consumer",
+            "injectedFrom": [
+              "proj_owner_one",
+              "proj_owner_two"
+            ],
+            "injectedStubs": 2
+          }
+        ]
+      }
+    }
+  ],
   "withheld": {
     "command": [
       "ls",
@@ -156,6 +317,7 @@
     ],
     "withheld_store_unchanged": true,
     "seeded_store_unchanged": true,
+    "confirmations_logged": 0,
     "passed": true,
     "projects": {
       "proj_alpha": {
