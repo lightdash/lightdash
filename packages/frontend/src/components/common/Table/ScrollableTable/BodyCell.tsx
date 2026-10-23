@@ -1,4 +1,5 @@
 import {
+    getCellUrls,
     isField,
     isMetric,
     isRawResultRow,
@@ -90,7 +91,6 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
         500,
     );
     const item = cell.column.columnDef.meta?.item;
-    const hasUrls = isField(item) && item.urls ? item.urls.length > 0 : false;
 
     const shouldRenderMenu = canHaveMenu && isMenuOpen && elementRef.current;
     const shouldRenderTooltip =
@@ -122,6 +122,18 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
             return null;
         }
     }, [hasData, cell]);
+
+    const hasUrls = useMemo(() => {
+        if (!canHaveMenu) return false;
+        const cellValue = cell.getValue();
+        const rawValue = isResultValue(cellValue)
+            ? cellValue.value.raw
+            : cellValue;
+        return (
+            getCellUrls(isField(item) ? item.urls : undefined, rawValue)
+                .length > 0
+        );
+    }, [canHaveMenu, cell, item]);
 
     const handleCopy = useCallback(() => {
         if (!isMenuOpen) return;

@@ -1,5 +1,7 @@
 import {
+    AUTO_DETECTED_URL_LABEL,
     DimensionType,
+    isUrlValue,
     SortByDirection,
     type IResultsRunner,
     type RawResultRow,
@@ -14,7 +16,12 @@ import {
     Badge,
     useMantineTheme,
 } from '@mantine/core';
-import { IconArrowDown, IconArrowUp, IconCopy } from '@tabler/icons-react';
+import {
+    IconArrowDown,
+    IconArrowUp,
+    IconCopy,
+    IconLink,
+} from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { clsx } from 'clsx';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -60,6 +67,19 @@ const SqlRunnerCellContextMenu = ({
 
     return (
         <>
+            {isUrlValue(value) ? (
+                <>
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconLink} />}
+                        onClick={() =>
+                            window.open(value, '_blank', 'noopener,noreferrer')
+                        }
+                    >
+                        {AUTO_DETECTED_URL_LABEL}
+                    </Menu.Item>
+                    <Menu.Divider />
+                </>
+            ) : null}
             <Menu.Item
                 leftSection={<MantineIcon icon={IconCopy} />}
                 onClick={() => {
