@@ -396,8 +396,8 @@ not refresh a server project. The recorded command is
 one process at a time. The timed climb injects models, seeds, and
 snapshots with `access: public`. Fixture seeds have no access and there
 are no snapshots, so the recorded inject counts are unchanged. On `healthy`
-that was 19 sources, 49 models, 10321720
-artefact bytes, climb RSS 133611520 bytes, and climb parse 2.53 seconds,
+that was 19 sources, 49 models, 10321720 artefact bytes, climb RSS
+133611520 bytes, and climb parse 2.53 seconds,
 with 0 non-public models omitted. The serial stubbed parse of the same
 checkouts took 48.577 seconds, with peak RSS 133357568 bytes and 125473
 checkout bytes. The full fixture was 22 sources, 3000 logical models,
