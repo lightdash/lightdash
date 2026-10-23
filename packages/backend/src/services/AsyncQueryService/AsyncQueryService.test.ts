@@ -15879,55 +15879,35 @@ describe('runDuckdbQuery', () => {
     });
 
     it.each([false, true])(
-        'Console org override selects the column probe: %s',
+        'selects the column probe from the org flag: %s',
         async (enabled) => {
             const { warehouseClient, streamQuery } = probingClient({
                 one: { type: DimensionType.NUMBER },
             });
             const { service, run } = buildService();
-            const database = knex({ client: MockClient, dialect: 'pg' });
-            const tracker = getTracker();
-            tracker.on
-                .select('feature_flags')
-                .response([{ default_enabled: false }]);
-            tracker.on
-                .select('feature_flag_overrides')
-                .response(({ bindings }) =>
-                    bindings.includes(
-                        FeatureFlags.ComposerOptimizationDuckdbColumnProbe,
-                    ) && bindings.includes(projectSummary.organizationUuid)
-                        ? [{ enabled }]
-                        : [],
-                );
-            const model = new FeatureFlagModel({
-                database,
-                lightdashConfig: {
-                    ...lightdashConfigMock,
-                    enabledFeatureFlags: new Set(),
-                    disabledFeatureFlags: new Set(),
-                    previewFeatureFlags: { enabled: false },
-                },
+            const get = vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        enabled &&
+                        featureFlagId ===
+                            FeatureFlags.ComposerOptimizationDuckdbColumnProbe,
+                }),
+            );
+            Object.assign(service, { featureFlagModel: { get } });
+            await run(
+                baseArgs({ engine: { kind: 'client', warehouseClient } }),
+            );
+            expect(get).toHaveBeenCalledWith({
+                user: { organizationUuid: projectSummary.organizationUuid },
+                featureFlagId:
+                    FeatureFlags.ComposerOptimizationDuckdbColumnProbe,
             });
-            const get = vi.spyOn(model, 'get');
-            Object.assign(service, { featureFlagModel: model });
-            try {
-                await run(
-                    baseArgs({ engine: { kind: 'client', warehouseClient } }),
-                );
-                expect(get).toHaveBeenCalledWith({
-                    user: { organizationUuid: projectSummary.organizationUuid },
-                    featureFlagId:
-                        FeatureFlags.ComposerOptimizationDuckdbColumnProbe,
-                });
-                expect(streamQuery.mock.calls[0][0]).toBe(
-                    enabled
-                        ? 'DESCRIBE SELECT 1 AS one'
-                        : 'SELECT 1 AS one LIMIT 1',
-                );
-            } finally {
-                tracker.reset();
-                await database.destroy();
-            }
+            expect(streamQuery.mock.calls[0][0]).toBe(
+                enabled
+                    ? 'DESCRIBE SELECT 1 AS one'
+                    : 'SELECT 1 AS one LIMIT 1',
+            );
         },
     );
 

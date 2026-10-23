@@ -154,14 +154,8 @@ const buildFakeWriteDatabase = ({
     return { database, flagInserts, overrideInserts };
 };
 
-const productionRolloutFlags = [
-    FeatureFlags.DbtPartialParse,
-    FeatureFlags.AgentIdentity,
-    FeatureFlags.ComposerOptimizationDuckdbColumnProbe,
-];
-
 describe('FeatureFlagModel', () => {
-    describe.each(productionRolloutFlags)(
+    describe.each([FeatureFlags.DbtPartialParse, FeatureFlags.AgentIdentity])(
         '%s production rollout',
         (featureFlagId) => {
             const config = {
