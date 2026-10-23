@@ -54,9 +54,12 @@ fields. User-facing copy says *tile*, never *chart*.
 
 ## Openings in shipped files
 
-Each is a pure move or an optional prop that defaults to today's behaviour.
-All are in `features/dashboardFilters/`.
+Each is a pure move, an optional prop or a variable that defaults to today's
+behaviour. All but the first are in `features/dashboardFilters/`.
 
+- `dashboardTabs/Tab.tsx` and the embed's tabs in `EmbedDashboard.tsx`: the
+  inline `maw` reads `--dashboard-tab-max-width` first, falling back to
+  today's share of the viewport. Nothing sets it outside the tab counts.
 - `AddFilterButton`: `isVisibilityToggleHidden` (default false), which leaves out the eye in
   the rail's footer.
 - `DashboardFiltersBar`: `filterArea`, which replaces the shipped filters and
@@ -885,8 +888,11 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - A selected row keeps Mantine's `:focus-visible` ring; it only drops the
   outline it would get without keyboard focus.
 - A waiting field's row carries `data-waiting` and a dashed border.
-- A tab with a count badge keeps its natural width (`TabCounts.module.css`),
-  so the tab strip scrolls instead of cutting the names.
+- A tab with a count badge keeps its natural width (`TabCounts.module.css`
+  sets `--dashboard-tab-max-width: none` on it), so the tab strip scrolls instead of
+  cutting the names. When the edited filter (not a hovered row) or the
+  active tab changes, `TabCounts` scrolls the tab strip, and only the strip,
+  horizontally until the active tab is in view.
 - The per-tile cards (`TileOverlay`) are memoised with `areTilePropsEqual`
   and read no context. The list component derives each
   tile's props, the highlight string included, and passes primitives, stable

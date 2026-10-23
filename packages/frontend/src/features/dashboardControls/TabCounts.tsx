@@ -1,10 +1,11 @@
 import { interpolateUiString } from '@lightdash/common';
 import { Badge, Tooltip } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    selectActiveTabUuid,
     selectDashboardTabs,
     selectDashboardTiles,
     useDashboardSelector,
@@ -21,6 +22,22 @@ import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 // Mantine renders each tab with id "<tabsId>-tab-<value>"; value is the tab uuid
 const getTabSelector = (tabUuid: string) =>
     `[role="tab"][id$="-tab-${tabUuid}"]`;
+
+// Horizontal only: the page, an embed's container and its host keep their scroll
+const scrollTabIntoList = (tab: Element) => {
+    const list = tab.closest('[role="tablist"]');
+    if (!list) return;
+    const tabBox = tab.getBoundingClientRect();
+    const listBox = list.getBoundingClientRect();
+    if (tabBox.left < listBox.left) {
+        list.scrollLeft -= listBox.left - tabBox.left;
+    } else if (tabBox.right > listBox.right) {
+        list.scrollLeft += Math.min(
+            tabBox.right - listBox.right,
+            tabBox.left - listBox.left,
+        );
+    }
+};
 
 export const TabCounts: FC = () => {
     const getUiString = useUiStrings();
@@ -59,6 +76,19 @@ export const TabCounts: FC = () => {
         isEnabled,
         false,
     );
+
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    // The edited filter's badges, never a hovered row's: a hover scrolls nothing
+    const editedRuleId =
+        editedRule !== null && !isEditedPlaceholder ? editedRule.id : null;
+    const activeTabElement =
+        editedRuleId === null || activeTabUuid === undefined
+            ? undefined
+            : targets[activeTabUuid];
+    // The badges widen the tabs past a narrow screen: keep the active one seen
+    useEffect(() => {
+        if (activeTabElement) scrollTabIntoList(activeTabElement);
+    }, [activeTabElement, editedRuleId]);
 
     const counts = useMemo(() => {
         const tiles = dashboardTiles ?? [];
