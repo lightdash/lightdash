@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
+import {
+    CommercialFeatureFlags,
+    FeatureFlags,
+    isAiAdminScopedProjectType,
+} from '@lightdash/common';
 import { matchPath, useLocation } from 'react-router';
 import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks';
 import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
@@ -151,7 +155,7 @@ export const useSettingsContext = (): SettingsContext => {
     // project-scoped AI admins (only the projects they can reach). These are
     // administration surfaces, so visibility mirrors the backend MANAGE gate
     // (resolveReadScope): `manage:OrganizationAiAgent` org-wide, else
-    // `manage:AiAgent` over the access-filtered project list. Using `manage`
+    // `manage:AiAgent` over the access-filtered non-preview projects. Using `manage`
     // (not `view`) keeps interactive_viewers — who hold org-wide view:AiAgent —
     // out, matching what the backend actually authorizes.
     const { data: projects } = useProjects();
@@ -186,14 +190,16 @@ export const useSettingsContext = (): SettingsContext => {
         ) ?? false;
     const hasAnyAiAgentAccess =
         canManageOrgAiAgent ||
-        (projects ?? []).some((p) =>
-            user?.ability?.can(
-                'manage',
-                subject('AiAgent', {
-                    organizationUuid,
-                    projectUuid: p.projectUuid,
-                }),
-            ),
+        (projects ?? []).some(
+            (p) =>
+                isAiAdminScopedProjectType(p.type) &&
+                user?.ability?.can(
+                    'manage',
+                    subject('AiAgent', {
+                        organizationUuid,
+                        projectUuid: p.projectUuid,
+                    }),
+                ),
         );
 
     const allowPasswordAuthentication =

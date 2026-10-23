@@ -233,6 +233,7 @@ export {
     PROJECT_DBT_SOURCE_NAME_MAX_LENGTH,
     PROJECT_DBT_SOURCE_NAME_PATTERN,
     validateProjectDbtSourceName,
+    isAiAdminScopedProjectType,
     isGitProjectType,
     isSafeDbtEnvironmentVariableKey,
     isWarehouseSupportedByDbtVersion,
