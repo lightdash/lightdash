@@ -10,6 +10,7 @@ import {
     toolComposerQueryNodeToSourceQuery,
     type AnyType,
     type ParameterDefinitions,
+    type SemanticLayerSourceQuery,
     type SourceQuery,
     type SubmittedSourceQuery,
     type ToolComposerQueriesStructuredContent,
@@ -17,7 +18,12 @@ import {
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
-import { type QueryReviewer } from '../decisions/queryReview';
+import { type AiDecisionClient } from '../decisions/AiDecisionClient';
+import { getEmptyFilterHints } from '../decisions/queryChecks';
+import {
+    preferFilterValueHints,
+    type QueryReviewer,
+} from '../decisions/queryReview';
 import type {
     GetPromptFn,
     IsThreadSqlAutoApprovedFn,
@@ -26,6 +32,7 @@ import type {
     RecordSqlApprovalFn,
     RegisterThreadComposerQueryNodesFn,
     RunComposerQueriesFn,
+    SearchFieldValuesFn,
     StoreToolResultsFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
@@ -54,9 +61,15 @@ import {
     type TrackSqlApprovalTimeoutFn,
 } from './sqlApprovals';
 
+export type FilterValueHintDependencies = {
+    decisions: Pick<AiDecisionClient, 'evaluate'>;
+    searchFieldValues: SearchFieldValuesFn;
+};
+
 type Dependencies = {
     agentContext: AgentContext;
     reviewQuery?: QueryReviewer;
+    filterValueHints: FilterValueHintDependencies | null;
     updateProgress: UpdateProgressFn;
     runComposerQueries: RunComposerQueriesFn;
     getPrompt: GetPromptFn;
@@ -153,9 +166,49 @@ export const resolveTerminalNodeId = (
     return sinks[0];
 };
 
+/** Semantic layer nodes the terminal node reads from, itself included. */
+const getSemanticLayerAncestors = (
+    pipeline: SourceQuery[],
+    terminalNodeId: string,
+): SemanticLayerSourceQuery[] => {
+    const byId = new Map(pipeline.map((node) => [node.nodeId, node]));
+    const visited = new Set<string>();
+    const visit = (nodeId: string): SemanticLayerSourceQuery[] => {
+        const node = byId.get(nodeId);
+        if (!node || visited.has(nodeId)) return [];
+        visited.add(nodeId);
+        return node.sourceType === QuerySourceType.SEMANTIC_LAYER
+            ? [node]
+            : Object.values(getSourceQueryResultReferences(node)).flatMap(
+                  visit,
+              );
+    };
+    return visit(terminalNodeId);
+};
+
+const getComposerEmptyFilterHints = async (
+    { decisions, searchFieldValues }: FilterValueHintDependencies,
+    nodes: SemanticLayerSourceQuery[],
+): Promise<string> => {
+    const hints = await Promise.all(
+        nodes.map((node) =>
+            getEmptyFilterHints({
+                decisions,
+                query: {
+                    exploreName: node.exploreName,
+                    filters: node.filters ?? {},
+                },
+                searchFieldValues,
+            }),
+        ),
+    );
+    return hints.filter(Boolean).join(' ');
+};
+
 export const getRunComposerQueries = ({
     agentContext,
     reviewQuery,
+    filterValueHints,
     updateProgress,
     runComposerQueries,
     getPrompt,
@@ -437,9 +490,10 @@ export const getRunComposerQueries = ({
                 const columnSummary = columns
                     .map((column) => `${column.reference} (${column.type})`)
                     .join(', ');
-                const emptyReview =
-                    enableDataAccess && reviewQuery && terminal.rowCount === 0
-                        ? await reviewQuery(
+                const isEmpty = enableDataAccess && terminal.rowCount === 0;
+                const [diagnosis, valueHints] = await Promise.all([
+                    isEmpty && reviewQuery
+                        ? reviewQuery(
                               {
                                   kind: 'composer',
                                   queries,
@@ -447,7 +501,25 @@ export const getRunComposerQueries = ({
                               },
                               { emptyResult: true, review },
                           )
-                        : null;
+                        : null,
+                    isEmpty && filterValueHints
+                        ? getComposerEmptyFilterHints(
+                              filterValueHints,
+                              getSemanticLayerAncestors(
+                                  queries,
+                                  resolvedTerminalNodeId,
+                              ),
+                          )
+                        : '',
+                ]);
+                const emptyReview =
+                    diagnosis === null && !valueHints
+                        ? null
+                        : preferFilterValueHints({
+                              diagnosis: diagnosis ?? '',
+                              valueHints,
+                              review,
+                          });
                 const resultSummary = [
                     `Composer query complete. Terminal node "${resolvedTerminalNodeId}" returned ${terminal.rowCount} rows.`,
                     `Nodes in this pipeline:\n${nodeSummary}`,

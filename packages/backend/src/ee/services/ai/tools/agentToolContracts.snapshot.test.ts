@@ -223,6 +223,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         }),
         query: getRunComposerQueries({
             agentContext: new AgentContext([]),
+            filterValueHints: null,
             listThreadComposerQueryNodes: noop,
             registerThreadComposerQueryNodes: noop,
             enableDataAccess: true,

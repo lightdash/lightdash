@@ -19,6 +19,7 @@ import {
 import type { ZodType } from 'zod';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
+import type { SearchFieldValuesFn } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { getSlackTablePreviews } from '../utils/slackTablePreviews';
 import { mockOrdersExplore } from '../utils/validationExplore.mock';
@@ -26,6 +27,7 @@ import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
 import {
     getRunComposerQueries,
     resolveTerminalNodeId,
+    type FilterValueHintDependencies,
 } from './runComposerQueries';
 
 type ComposerTool = ReturnType<typeof getRunComposerQueries>;
@@ -207,6 +209,7 @@ const makeTool = ({
     agentContext = new AgentContext([mockOrdersExplore]),
     useSlackStreamCard = false,
     registry = makeNodeRegistry(),
+    filterValueHints = null,
     projectParameterDefinitions = {},
 }: {
     reviewQuery?: QueryReviewer;
@@ -220,11 +223,13 @@ const makeTool = ({
     agentContext?: AgentContext;
     useSlackStreamCard?: boolean;
     registry?: ReturnType<typeof makeNodeRegistry>;
+    filterValueHints?: FilterValueHintDependencies | null;
     projectParameterDefinitions?: ParameterDefinitions;
 } = {}) => {
     const dependencies = {
         agentContext,
         reviewQuery,
+        filterValueHints,
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runComposerQueries: vi.fn().mockResolvedValue({
             submissions: [
@@ -1376,6 +1381,124 @@ describe('semanticLayer node filters', () => {
 
         expect(secondOutput.metadata.status).toBe('success');
         expect(registry.nodes('thread-uuid')).toHaveLength(1);
+    });
+
+    describe('empty result filter value hints', () => {
+        const EMPTY_DIAGNOSIS = 'Possible empty-result cause: filter value.';
+        const filteredNode = ordersNodeWithFilters({
+            dimensions: 'orders_customer_name equals=Alic',
+            metrics: null,
+        });
+        const emptyTool = (
+            searchFieldValues: SearchFieldValuesFn,
+            queries: ComposerNode[] = [filteredNode],
+        ) => {
+            const reviewQuery = vi.fn<QueryReviewer>(async (_plan, result) =>
+                result?.emptyResult
+                    ? EMPTY_DIAGNOSIS
+                    : ' Query/question review: check conditions.',
+            );
+            const made = makeTool({
+                reviewQuery,
+                filterValueHints: {
+                    decisions: {
+                        evaluate: vi.fn().mockResolvedValue({
+                            value: {
+                                type: 'choice',
+                                choice: '0',
+                                confidence: 0.99,
+                                probabilities: { '0': 1 },
+                            },
+                        }),
+                    },
+                    searchFieldValues,
+                },
+            });
+            made.dependencies.runComposerQueries.mockResolvedValue({
+                submissions: [],
+                terminal: {
+                    queryUuid: 'empty',
+                    columns: {},
+                    rows: [],
+                    rowCount: 0,
+                },
+            });
+            return {
+                ...made,
+                run: (terminalNodeId: string | null = null) =>
+                    executeTool(
+                        made.tool,
+                        makeArgs({ queries, terminalNodeId }),
+                    ),
+            };
+        };
+
+        it('suggests a stored value equivalent to a filter literal that matched nothing, in place of the diagnosis', async () => {
+            const searchFieldValues = vi.fn().mockResolvedValue(['Alice']);
+            const output = await emptyTool(searchFieldValues).run();
+
+            expect(output.result).toContain(
+                `${EMPTY_QUERY_GUIDANCE} For orders_customer_name, "Alice" is a likely equivalent of "Alic"`,
+            );
+            expect(output.result).toContain('check conditions');
+            expect(output.result).not.toContain(EMPTY_DIAGNOSIS);
+            expect(output.structuredContent).toMatchObject({
+                review: expect.stringContaining('"Alice"'),
+            });
+            expect(searchFieldValues).toHaveBeenCalledWith({
+                table: mockOrdersExplore.name,
+                fieldId: 'orders_customer_name',
+                query: 'Alic',
+            });
+        });
+
+        it('suggests values for a semanticLayer node feeding an empty transform', async () => {
+            const searchFieldValues = vi.fn().mockResolvedValue(['Alice']);
+            const output = await emptyTool(searchFieldValues, [
+                filteredNode,
+                { ...duckdbNode, references: ['revenue'] },
+            ]).run();
+
+            expect(output.result).toContain('"Alice" is a likely equivalent');
+            expect(output.result).not.toContain(EMPTY_DIAGNOSIS);
+        });
+
+        it('keeps the diagnosis when no semanticLayer node feeds the empty terminal', async () => {
+            const searchFieldValues = vi.fn().mockResolvedValue(['Alice']);
+            const output = await emptyTool(searchFieldValues, [
+                filteredNode,
+                sqlNode,
+                { ...duckdbNode, references: ['signups'] },
+            ]).run('joined');
+
+            expect(output.result).toContain(EMPTY_DIAGNOSIS);
+            expect(searchFieldValues).not.toHaveBeenCalled();
+        });
+
+        it('keeps the diagnosis when the value lookup fails', async () => {
+            const output = await emptyTool(
+                vi.fn().mockRejectedValue(new Error('denied')),
+            ).run();
+
+            expect(output.metadata.status).toBe('success');
+            expect(output.result).toContain(EMPTY_DIAGNOSIS);
+        });
+
+        it('stops waiting for a slow value lookup and keeps the diagnosis', async () => {
+            vi.useFakeTimers();
+            try {
+                const pending = emptyTool(
+                    vi.fn().mockReturnValue(new Promise(() => {})),
+                ).run();
+                await vi.advanceTimersByTimeAsync(1_000);
+                const output = await pending;
+
+                expect(output.metadata.status).toBe('success');
+                expect(output.result).toContain(EMPTY_DIAGNOSIS);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
     });
 
     it('rejects a metric placed in the dimension expression', async () => {

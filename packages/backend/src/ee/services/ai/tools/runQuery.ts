@@ -50,7 +50,7 @@ import {
     getEmptyFilterHints,
     queryReviewNote,
 } from '../decisions/queryChecks';
-import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
+import { preferFilterValueHints } from '../decisions/queryReview';
 import { joinedMeasureGuidance } from '../decisions/sourceEvidence';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
@@ -882,14 +882,16 @@ export const getRunQuery = ({
                         decisions && enableDataAccess && searchFieldValues
                             ? getEmptyFilterHints({
                                   decisions,
-                                  query: queryTool,
+                                  query: queryTool.queryConfig,
                                   searchFieldValues,
                               })
                             : '',
                     ]);
-                    const emptyResultText = valueHints
-                        ? `${EMPTY_QUERY_GUIDANCE} ${valueHints}${intentNote}`
-                        : diagnosis;
+                    const emptyResultText = preferFilterValueHints({
+                        diagnosis,
+                        valueHints,
+                        review: intentNote,
+                    });
                     return {
                         result:
                             emptyResultText +
