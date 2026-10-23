@@ -46,6 +46,26 @@ export const groupRulesBySection = (
     ];
 };
 
+/**
+ * Whether a rule belongs to the pass `sectionId` names: `undefined` is every
+ * rule, `null` the unsectioned ones (a dangling id counts), a string that
+ * section's members
+ */
+export const isRuleInSection = (
+    rule: DashboardFilterRule,
+    sectionId: string | null | undefined,
+    sections: DashboardControlSection[],
+): boolean => {
+    if (sectionId === undefined) return true;
+    if (sectionId === null) {
+        return (
+            rule.sectionId === undefined ||
+            !sections.some((section) => section.id === rule.sectionId)
+        );
+    }
+    return rule.sectionId === sectionId;
+};
+
 const withSection = (
     rule: DashboardFilterRule,
     sectionId: string | null,

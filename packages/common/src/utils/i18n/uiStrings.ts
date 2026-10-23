@@ -64,6 +64,7 @@ export const DEFAULT_UI_STRINGS = {
     'page.closeSidebar': 'Close sidebar',
     'page.closeDetails': 'Close details',
     'filters.closeFacet': 'Close {filter} filter',
+    'filters.sectionSummary': '{set} of {total} set',
     'metrics.previous': 'Previous metric',
     'metrics.next': 'Next metric',
     'metrics.closeExploration': 'Close metric exploration',
