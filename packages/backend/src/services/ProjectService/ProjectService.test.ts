@@ -1300,7 +1300,7 @@ describe('ProjectService', () => {
         );
     });
 
-    describe('Learn flag guards', () => {
+    describe('Learn guards', () => {
         const learnUser: SessionUser = {
             ...user,
             organizationUuid: 'organization-uuid',
@@ -1308,7 +1308,7 @@ describe('ProjectService', () => {
             organizationCreatedAt: new Date('2026-09-01'),
         };
 
-        test('provisions training for an org admin when Learn is enabled', async () => {
+        test('provisions training for an org admin with no feature flag set', async () => {
             const provisionTrainingProject = vi.fn(async () => ({
                 projectUuid: 'training-project',
                 created: true,
@@ -1316,12 +1316,6 @@ describe('ProjectService', () => {
             const learnService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
                 {
-                    featureFlagModel: {
-                        get: vi.fn(async () => ({
-                            id: FeatureFlags.EnableLearn,
-                            enabled: true,
-                        })),
-                    } as unknown as FeatureFlagModel,
                     provisionTrainingProject,
                 },
             );
@@ -1342,42 +1336,35 @@ describe('ProjectService', () => {
             });
         });
         test.each(['enable', 'copy', 'delete'] as const)(
-            'blocks %s when the requesting org has Learn disabled',
+            'blocks %s when the user cannot view Learn',
             async (operation) => {
-                const get = vi.fn(async () => ({
-                    id: FeatureFlags.EnableLearn,
-                    enabled: false,
-                }));
                 const provisionTrainingProject = vi.fn();
                 const learnService = getMockedProjectService(
                     lightdashConfigWithGoogleOAuthMock,
-                    {
-                        featureFlagModel: {
-                            get,
-                        } as unknown as FeatureFlagModel,
-                        provisionTrainingProject,
-                    },
+                    { provisionTrainingProject },
                 );
+                const noLearnUser = {
+                    ...learnUser,
+                    ability: new Ability<PossibleAbilities>([
+                        { action: 'manage', subject: 'Organization' },
+                    ]),
+                };
                 const operations = {
-                    enable: () => learnService.enableLearn(learnUser),
+                    enable: () => learnService.enableLearn(noLearnUser),
                     copy: () =>
                         learnService.createTrainingPreview(
-                            learnUser,
+                            noLearnUser,
                             'training-project',
                         ),
                     delete: () =>
                         learnService.deleteTrainingPreviews(
-                            learnUser,
+                            noLearnUser,
                             'training-project',
                         ),
                 };
                 await expect(operations[operation]()).rejects.toThrow(
-                    'Learn is not enabled for this organization',
+                    new ForbiddenError('You do not have access to Learn'),
                 );
-                expect(get).toHaveBeenCalledExactlyOnceWith({
-                    user: learnUser,
-                    featureFlagId: FeatureFlags.EnableLearn,
-                });
                 expect(provisionTrainingProject).not.toHaveBeenCalled();
             },
         );
@@ -1522,17 +1509,11 @@ describe('ProjectService', () => {
             );
         });
 
-        test('still requires org admin permissions when Learn is enabled', async () => {
+        test('still requires org admin permissions', async () => {
             const provisionTrainingProject = vi.fn();
             const learnService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
                 {
-                    featureFlagModel: {
-                        get: vi.fn(async () => ({
-                            id: FeatureFlags.EnableLearn,
-                            enabled: true,
-                        })),
-                    } as unknown as FeatureFlagModel,
                     provisionTrainingProject,
                 },
             );
@@ -3807,14 +3788,7 @@ describe('ProjectService', () => {
             ...overrides,
         });
         const learnService = () =>
-            getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {
-                featureFlagModel: {
-                    get: vi.fn(async () => ({
-                        id: FeatureFlags.EnableLearn,
-                        enabled: true,
-                    })),
-                } as unknown as FeatureFlagModel,
-            });
+            getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {});
 
         beforeEach(() => {
             projectModel.updateExpiresAt.mockClear();
@@ -4060,14 +4034,7 @@ describe('ProjectService', () => {
             async ({ credentials, organizationWarehouseCredentialsUuid }) => {
                 const learnService = getMockedProjectService(
                     lightdashConfigWithGoogleOAuthMock,
-                    {
-                        featureFlagModel: {
-                            get: vi.fn(async () => ({
-                                id: FeatureFlags.EnableLearn,
-                                enabled: true,
-                            })),
-                        } as unknown as FeatureFlagModel,
-                    },
+                    {},
                 );
                 projectModel.get.mockResolvedValueOnce({
                     ...trainingProject,

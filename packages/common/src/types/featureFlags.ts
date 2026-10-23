@@ -108,10 +108,6 @@ export enum FeatureFlags {
      * sandbox provider, but still keeps installed chart types usable.
      */
     EnableDataApps = 'enable-data-apps',
-    // Enable the Learn library, walkthroughs and training project per org.
-    // On by default on Lightdash Cloud, off by default for self-hosted.
-    EnableLearn = 'enable-learn',
-
     /**
      * Keeps a preview's copied BigQuery SSO credential in step with its
      * upstream project. On by default; the flag is a kill switch only.

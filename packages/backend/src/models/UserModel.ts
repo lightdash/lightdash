@@ -8,7 +8,6 @@ import {
     CommercialFeatureFlags,
     CreateUserArgs,
     CreateUserWithRole,
-    FeatureFlags,
     ForbiddenError,
     getAllScopesForRole,
     getTrainingProjectLockedSubjects,
@@ -1358,35 +1357,25 @@ export class UserModel {
         ].filter((roleUuid): roleUuid is string => Boolean(roleUuid));
         const isEnterprise =
             this.lightdashConfig.license.licenseKey !== undefined;
-        const [
-            customRoleScopes,
-            customRolesFlag,
-            patScopeAuthoritativeFlag,
-            learnFlag,
-        ] = await Promise.all([
-            this.customRoleScopes(customRoleUuids, trx),
-            this.featureFlagModel.get(
-                {
-                    user: lightdashUser,
-                    featureFlagId: CommercialFeatureFlags.CustomRoles,
-                },
-                { trx },
-            ),
-            this.featureFlagModel.get(
-                {
-                    user: lightdashUser,
-                    featureFlagId: CommercialFeatureFlags.PatScopeAuthoritative,
-                },
-                { trx },
-            ),
-            this.featureFlagModel.get(
-                {
-                    user: lightdashUser,
-                    featureFlagId: FeatureFlags.EnableLearn,
-                },
-                { trx },
-            ),
-        ]);
+        const [customRoleScopes, customRolesFlag, patScopeAuthoritativeFlag] =
+            await Promise.all([
+                this.customRoleScopes(customRoleUuids, trx),
+                this.featureFlagModel.get(
+                    {
+                        user: lightdashUser,
+                        featureFlagId: CommercialFeatureFlags.CustomRoles,
+                    },
+                    { trx },
+                ),
+                this.featureFlagModel.get(
+                    {
+                        user: lightdashUser,
+                        featureFlagId:
+                            CommercialFeatureFlags.PatScopeAuthoritative,
+                    },
+                    { trx },
+                ),
+            ]);
 
         // Narrow empty-role resolution: only the flagged enterprise human's
         // primary org role uuid is checked for existence when it has no
@@ -1438,7 +1427,6 @@ export class UserModel {
             user.user_uuid,
             isEnterprise,
             abilityBuilder,
-            learnFlag.enabled,
             UserModel.trainingProjectFromUserDetails(user),
             trx,
         );
@@ -1560,7 +1548,6 @@ export class UserModel {
         userUuid: string,
         isEnterprise: boolean,
         builder: AbilityBuilder<MemberAbility>,
-        learnEnabled: boolean,
         knownTrainingProject: OrganizationTrainingProject | null | undefined,
         trx: Knex = this.database,
     ): Promise<void> {
@@ -1568,12 +1555,10 @@ export class UserModel {
             knownTrainingProject === undefined
                 ? await this.getOrganizationTrainingProject(organizationId, trx)
                 : (knownTrainingProject ?? undefined);
-        // Learn off for the org, or this user may not see Learn: no trainee
-        // scopes, so switching off also closes the sandbox. The lock still
-        // applies, so the seed cannot be edited meanwhile and then cloned
-        // once Learn is back.
+        // This user may not see Learn: no trainee scopes, so the sandbox is
+        // closed too. The lock still applies, so the seed cannot be edited
+        // meanwhile and then cloned once they can.
         if (
-            !learnEnabled ||
             !organizationUuid ||
             builder
                 .build()

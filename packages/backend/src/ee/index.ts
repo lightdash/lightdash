@@ -1384,7 +1384,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         provisionTrainingProject({
                             user,
                             projectService,
-                            featureFlagModel: models.getFeatureFlagModel(),
                             projectModel: models.getProjectModel(),
                             onboardingModel: models.getOnboardingModel(),
                             catalogService: repository.getCatalogService(),

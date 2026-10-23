@@ -86,7 +86,7 @@ const build = (mode: 'log' | 'enforce') => {
     } as unknown as ConstructorParameters<typeof OnboardingAgentService>[0]);
     const learn = new LearnSandboxService({
         lightdashConfig: lightdashConfigMock,
-        featureFlagModel: { get: read },
+        projectModel: { getSummary: read },
         learnWorkspaceModel: { createCommand: write },
         schedulerClient: { learnSandboxCommand: write },
     } as unknown as ConstructorParameters<typeof LearnSandboxService>[0]);
