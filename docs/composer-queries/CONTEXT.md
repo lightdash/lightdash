@@ -28,8 +28,9 @@ thread composer query nodes, a title, a description and a viz config. Each
 call writes one artifact version; several calls in a turn show several cards.
 A lone semantic-layer node writes a classic semantic artifact version (the viz
 config mapped onto runQuery's chart config), keeping underlying data, drill,
-explore from here and save; a big number, or a node the runQuery payload cannot
-carry, writes a composer version like every other node. A pie or series split
+explore from here and save; a big number, an area with a secondary axis, or a
+node the runQuery payload cannot carry writes a composer version like every
+other node. A pie or series split
 runs the node through the results cache to return readability hints.
 _Avoid_: present tool, show, render
 

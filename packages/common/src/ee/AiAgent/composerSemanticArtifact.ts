@@ -102,8 +102,10 @@ const toRunQueryVizType = (
         case 'bar':
             return vizConfig.horizontal ? 'horizontal' : 'bar';
         case 'line':
-        case 'area':
             return 'line';
+        // Classic areas stack the secondary axis with the primary one.
+        case 'area':
+            return vizConfig.y2 === null ? 'line' : null;
         case 'table':
         case 'scatter':
         case 'pie':

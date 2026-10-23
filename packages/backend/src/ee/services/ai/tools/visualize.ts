@@ -94,8 +94,7 @@ const toStoredVizConfig = async (
     };
 };
 
-// A lone semantic-layer node presents as a classic semantic version, keeping its interactions.
-const toArtifactVersion = ({
+const toPresentedArtifactVersion = ({
     title,
     description,
     queries,
@@ -203,7 +202,7 @@ export const getVisualize = ({
                 const artifact = await createOrUpdateArtifact({
                     threadUuid,
                     promptUuid,
-                    ...toArtifactVersion({
+                    ...toPresentedArtifactVersion({
                         title,
                         description,
                         queries,

@@ -154,14 +154,19 @@ describe('toComposerSemanticArtifactVersion', () => {
         ).toBeNull();
     });
 
+    it('is null for an area with a secondary axis, which classic charts stack', () => {
+        expect(
+            present({}, { ...line, type: 'area', y2: 'orders_count' }),
+        ).toBeNull();
+    });
+
     it('draws an area as a filled line and a horizontal bar as horizontal', () => {
-        const area = present({}, { ...line, type: 'area', y2: 'orders_count' });
+        const area = present({}, { ...line, type: 'area' });
         const bar = present({}, { ...line, type: 'bar', horizontal: true });
 
         expect(area?.vizConfig.config.chartConfig).toMatchObject({
             defaultVizType: 'line',
             lineType: 'area',
-            secondaryYAxisMetric: 'orders_count',
         });
         expect(bar?.vizConfig.config.chartConfig).toMatchObject({
             defaultVizType: 'horizontal',
