@@ -1993,6 +1993,7 @@ describe('getRunQuery Slack links only', () => {
         purpose = 'visualization',
         artifactVersionUuid = 'version-uuid',
         documentsEnabled = false,
+        prompt = makeSlackPrompt(),
     }: {
         enableDataAccess: boolean;
         slackLinksOnly: boolean;
@@ -2001,6 +2002,7 @@ describe('getRunQuery Slack links only', () => {
         purpose?: 'answer' | 'visualization';
         artifactVersionUuid?: string;
         documentsEnabled?: boolean;
+        prompt?: AiWebAppPrompt | SlackPrompt;
     }) => {
         const runAsyncQuery = vi.fn().mockResolvedValue({
             queryUuid: 'query-uuid',
@@ -2026,7 +2028,7 @@ describe('getRunQuery Slack links only', () => {
             runAsyncQuery,
             enableFilterExpressions: false,
             projectParameterDefinitions: {},
-            getPrompt: vi.fn().mockResolvedValue(makeSlackPrompt()),
+            getPrompt: vi.fn().mockResolvedValue(prompt),
             sendFile,
             deferSlackVisualization,
             createOrUpdateArtifact,
@@ -2318,26 +2320,22 @@ describe('getRunQuery Slack links only', () => {
         expect(toolRunQueryOutputSchema.safeParse(output).success).toBe(true);
     });
 
-    it.each([
-        [false, ''],
-        [true, '<artifact-chart version="version-uuid">'],
-    ])(
-        'tells the model how to place the chart in a Document when Documents are %s',
-        async (documentsEnabled, reference) => {
+    it.each([false, true])(
+        'tells the model the Slack chart marker and no Document tag (documentsEnabled=%s)',
+        async (documentsEnabled) => {
             const { output } = await executeLinksOnly({
                 enableDataAccess: true,
                 slackLinksOnly: false,
                 documentsEnabled,
             });
-            if (reference) {
-                expect(output.result).toContain(reference);
-            } else {
-                expect(output.result).not.toContain('<artifact-chart');
-            }
+            expect(output.result).toContain(
+                '<slack-chart versionUuid="version-uuid" />',
+            );
+            expect(output.result).not.toContain('<artifact-chart');
         },
     );
 
-    it('offers a table result as a Document query result', async () => {
+    it('keeps the Slack table result free of Document tags', async () => {
         const { output } = await executeLinksOnly({
             enableDataAccess: true,
             slackLinksOnly: false,
@@ -2351,10 +2349,35 @@ describe('getRunQuery Slack links only', () => {
             } as ToolRunQueryArgs,
         });
         expect(output.result).toContain(
-            '<query-result version="version-uuid" display="table">',
+            "This execution's queryUuid is query-uuid",
         );
-        expect(output.result).not.toContain('<artifact-chart');
+        expect(output.result).not.toContain('<query-result');
+        expect(output.structuredContent).toMatchObject({
+            queryUuid: 'query-uuid',
+            chartVersionUuid: null,
+        });
     });
+
+    it.each([
+        ['bar', '<artifact-chart version="version-uuid">'],
+        ['table', '<query-result version="version-uuid" display="table">'],
+    ] as const)(
+        'offers web prompts the Document tag for a %s result',
+        async (defaultVizType, tag) => {
+            const { output } = await executeLinksOnly({
+                enableDataAccess: true,
+                slackLinksOnly: false,
+                documentsEnabled: true,
+                prompt: makePrompt(),
+                input: {
+                    ...toolInput,
+                    chartConfig: { ...toolInput.chartConfig, defaultVizType },
+                } as ToolRunQueryArgs,
+            });
+            expect(output.result).toContain(tag);
+            expect(output.result).not.toContain('<slack-chart');
+        },
+    );
 
     it('never uploads an image before the final answer selects a chart', async () => {
         const { output, sendFile } = await executeLinksOnly({
