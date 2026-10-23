@@ -9,11 +9,15 @@ import { store as aiAgentStore } from '../../ee/features/aiCopilot/store';
 import { openAnalysisPanel } from '../../ee/features/aiCopilot/store/aiAgentLauncherSlice';
 import { useAnalysisController } from '../../features/analysis/useAnalysisController';
 import { useAnalysisAvailability } from '../../features/apps/analysis/useDataAppAnalysisAvailability';
-import { selectDashboardAnalysisSources } from '../../features/dashboard/store/analysisSourceSelectors';
+import {
+    findActiveTileForQuery,
+    selectDashboardAnalysisSources,
+} from '../../features/dashboard/store/analysisSourceSelectors';
 import {
     useDashboardSelector,
     useDashboardStore,
 } from '../../features/dashboard/store/hooks';
+import { useDashboardRefresh } from '../../hooks/dashboard/useDashboardRefresh';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from './useDashboardContext';
 import useDashboardTileStatusContext from './useDashboardTileStatusContext';
@@ -39,6 +43,25 @@ const DashboardAnalysisAdapterBridge = () => {
     const clearCacheAndFetch = useDashboardTileStatusContext(
         (c) => c.clearCacheAndFetch,
     );
+    const {
+        invalidateDashboardRelatedQueries,
+        invalidateDashboardResultsQueries,
+        removeDashboardResultsQueries,
+    } = useDashboardRefresh();
+    // Same sequence as the refresh button: invalidateCache is sticky once
+    // true, so clearCacheAndFetch alone would clear the registry without
+    // refetching anything and the analysis would wait forever.
+    const onSourcesExpired = useCallback(() => {
+        removeDashboardResultsQueries();
+        clearCacheAndFetch();
+        void invalidateDashboardRelatedQueries();
+        void invalidateDashboardResultsQueries();
+    }, [
+        removeDashboardResultsQueries,
+        clearCacheAndFetch,
+        invalidateDashboardRelatedQueries,
+        invalidateDashboardResultsQueries,
+    ]);
     const dashboardStore = useDashboardStore();
 
     const target = useMemo(
@@ -63,7 +86,7 @@ const DashboardAnalysisAdapterBridge = () => {
         // analyses of the current view for free.
         autoAnalyse: false,
         onNeedsAgent,
-        onSourcesExpired: clearCacheAndFetch,
+        onSourcesExpired,
     });
 
     // Hovering a finding scrolls its source tile into view with the shared
@@ -72,11 +95,13 @@ const DashboardAnalysisAdapterBridge = () => {
     const onHoverQuery = useCallback(
         (queryUuid: string | null) => {
             if (!queryUuid) return;
-            const { tileQueries } = dashboardStore.getState().tileStatus;
-            const match = Object.values(tileQueries).find(
-                (registration) => registration.queryUuid === queryUuid,
+            // Active-view tiles only: a retained hidden tab's duplicate of
+            // the same chart shares the queryUuid and must not be targeted.
+            const tileUuid = findActiveTileForQuery(
+                dashboardStore.getState(),
+                queryUuid,
             );
-            if (match) scrollToDashboardTile(match.tileUuid);
+            if (tileUuid) scrollToDashboardTile(tileUuid);
         },
         [dashboardStore],
     );

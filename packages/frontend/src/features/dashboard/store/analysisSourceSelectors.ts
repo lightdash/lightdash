@@ -50,6 +50,22 @@ const selectActiveAnalysableTiles = createSelector(
     },
 );
 
+/**
+ * The active view's tile showing this query, for hover-highlighting a
+ * finding. Scoped to active analysable tiles so a retained hidden tab's
+ * duplicate of the same chart (sharing the queryUuid) is never targeted.
+ */
+export const findActiveTileForQuery = (
+    state: DashboardStoreState,
+    queryUuid: string,
+): string | null => {
+    const tileQueries = selectTileQueries(state);
+    const match = selectActiveAnalysableTiles(state).find(
+        (tile) => tileQueries[tile.uuid]?.queryUuid === queryUuid,
+    );
+    return match?.uuid ?? null;
+};
+
 export type DashboardAnalysisSources = {
     /** Ready queries of the active tab's tiles, deduped by queryUuid. */
     sources: DataAppAnalysisSource[];
