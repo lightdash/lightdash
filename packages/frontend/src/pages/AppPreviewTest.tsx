@@ -163,6 +163,7 @@ export default function AppPreviewTest() {
             projectUuid && showAnalysis
                 ? {
                       projectUuid,
+                      targetKind: 'app' as const,
                       targetName: appName || null,
                       availability: analysisAvailability,
                       controller: analysisController,

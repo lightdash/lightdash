@@ -117,6 +117,7 @@ const DashboardAnalysisAdapterBridge = () => {
             projectUuid && target && showAnalysis && !isEditMode
                 ? {
                       projectUuid,
+                      targetKind: 'dashboard' as const,
                       targetName: dashboard?.name ?? null,
                       availability,
                       controller,

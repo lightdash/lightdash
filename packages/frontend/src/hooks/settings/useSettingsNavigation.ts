@@ -98,6 +98,7 @@ export const useSettingsNavigation = (
         embeddingEnabled,
         dataAppsFlag,
         dataAppAnalysisFlag,
+        dashboardAnalysisFlag,
         isChartStudioAvailable,
         externalSourcesFlag,
         isResultsCacheEnabled,
@@ -110,6 +111,7 @@ export const useSettingsNavigation = (
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const isDataAppAnalysisEnabled = dataAppAnalysisFlag?.enabled ?? false;
+    const isDashboardAnalysisEnabled = dashboardAnalysisFlag?.enabled ?? false;
     const isExternalSourcesEnabled =
         (externalSourcesFlag?.enabled ?? false) &&
         (health?.externalSources.engineAvailable ?? false);
@@ -379,7 +381,7 @@ export const useSettingsNavigation = (
             }
 
             if (
-                isDataAppAnalysisEnabled &&
+                (isDataAppAnalysisEnabled || isDashboardAnalysisEnabled) &&
                 ability?.can('manage', 'Organization')
             ) {
                 dataAppChildren.push({
@@ -408,18 +410,42 @@ export const useSettingsNavigation = (
                     children: dataAppChildren,
                 });
             }
-        } else if (
-            isChartStudioAvailable &&
-            ability?.can('manage', 'OrganizationDesign')
-        ) {
-            organizationItems.push({
-                label: 'Themes',
-                to: '/generalSettings/dataApps/themes',
-                icon: IconBrush,
-                keywords: ['design', 'colors', 'charts', 'chart types'],
-                children: [],
-                exact: true,
-            });
+        } else {
+            if (
+                isChartStudioAvailable &&
+                ability?.can('manage', 'OrganizationDesign')
+            ) {
+                organizationItems.push({
+                    label: 'Themes',
+                    to: '/generalSettings/dataApps/themes',
+                    icon: IconBrush,
+                    keywords: ['design', 'colors', 'charts', 'chart types'],
+                    children: [],
+                    exact: true,
+                });
+            }
+            // Dashboard analysis shares the consent toggle that lives on the
+            // data-apps AI-analysis page; surface it even without data apps.
+            if (
+                isDashboardAnalysisEnabled &&
+                ability?.can('manage', 'Organization')
+            ) {
+                organizationItems.push({
+                    label: 'AI analysis',
+                    to: '/generalSettings/dataApps/aiAnalysis',
+                    icon: IconSparkles,
+                    keywords: [
+                        'ai',
+                        'analysis',
+                        'insights',
+                        'anomalies',
+                        'investigate',
+                        'dashboards',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
         }
 
         if (ability?.can('manage', 'Organization')) {
@@ -1352,6 +1378,7 @@ export const useSettingsNavigation = (
         isEmbeddingEnabled,
         isDataAppsEnabled,
         isDataAppAnalysisEnabled,
+        isDashboardAnalysisEnabled,
         isChartStudioAvailable,
         isExternalSourcesEnabled,
         isResultsCacheEnabled,

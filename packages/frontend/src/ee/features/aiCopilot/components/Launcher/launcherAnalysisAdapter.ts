@@ -1,3 +1,4 @@
+import { type AnalysisTarget } from '@lightdash/common';
 import { useEffect, useSyncExternalStore } from 'react';
 import { type AnalysisController } from '../../../../../features/analysis/useAnalysisController';
 import { type DataAppAnalysisAvailability } from '../../../../../features/apps/analysis/useDataAppAnalysisAvailability';
@@ -9,6 +10,8 @@ import { type DataAppAnalysisAvailability } from '../../../../../features/apps/a
  */
 export type LauncherAnalysisAdapter = {
     projectUuid: string;
+    /** Drives per-target panel copy (source scoping differs). */
+    targetKind: AnalysisTarget;
     /** Shown next to "Analysis" in the panel header. */
     targetName: string | null;
     availability: DataAppAnalysisAvailability;

@@ -222,7 +222,7 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
     return (
         <SettingsPage
             title="AI analysis"
-            description="Let viewers analyse what a data app shows and investigate notable data points."
+            description="Let viewers analyse what a data app or dashboard shows and investigate notable data points."
             actions={
                 <SettingsPageDocumentationLink href="https://docs.lightdash.com/data-apps/ai-analysis" />
             }
@@ -255,7 +255,7 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
                             <SettingRow
                                 icon={IconSparkles}
                                 name="AI analysis"
-                                description="Lets viewers analyse the current view of any data app. Sends query results a viewer already has access to, to your configured AI provider."
+                                description="Lets viewers analyse the current view of any data app or dashboard. Sends query results a viewer already has access to, to your configured AI provider."
                                 checked={analysisOn}
                                 disabled={isUpdating || !aiOn}
                                 onChange={(checked) =>
