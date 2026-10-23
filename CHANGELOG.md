@@ -1,3 +1,10 @@
+## [3.48.1](https://github.com/lightdash/lightdash/compare/3.48.0...3.48.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **composer-queries:** label duckdb override runs by their real source ([#31503](https://github.com/lightdash/lightdash/issues/31503)) ([f5a7618](https://github.com/lightdash/lightdash/commit/f5a7618c73c6fdcd52d42697837b75038904e69a))
+
 # [3.48.0](https://github.com/lightdash/lightdash/compare/3.47.1...3.48.0) (2026-10-23)
 
 
