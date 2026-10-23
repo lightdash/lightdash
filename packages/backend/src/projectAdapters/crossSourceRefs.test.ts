@@ -1,5 +1,6 @@
 import {
     DbtError,
+    getExternalDbtNodeUniqueId,
     getExternalModelNodesFromManifest,
     type DbtManifest,
     type DbtRawModelNode,
@@ -73,6 +74,32 @@ const seed = (key: string, nodes = [model(key)]): CrossSourceCatalog => ({
         nodes: Object.fromEntries(nodes.map((node) => [node.unique_id, node])),
     }),
 });
+const taskFromCatalog = (catalogue: CrossSourceCatalog) => {
+    const source = task(catalogue.key);
+    source.fetch.mockResolvedValue({
+        ...result(catalogue.projectName),
+        manifest: {
+            ...manifest(catalogue.projectName),
+            nodes: Object.fromEntries(
+                catalogue.nodes.map((node) => {
+                    const id = getExternalDbtNodeUniqueId(node);
+                    return [
+                        id,
+                        {
+                            ...model(node.package_name, node.name),
+                            ...node,
+                            access: node.access,
+                            alias: node.identifier,
+                            unique_id: id,
+                            depends_on: { nodes: node.depends_on_nodes },
+                        } as DbtRawModelNode & DbtManifest['nodes'][string],
+                    ];
+                }),
+            ),
+        },
+    });
+    return source;
+};
 const externalNode = ({
     packageName,
     name,
@@ -323,7 +350,7 @@ describe('cross-source hygiene', () => {
         controller.abort(reason);
         expect(await rejected).toBe(reason);
         expect(settled).toHaveBeenCalledOnce();
-        expect(dependent.fetch).toHaveBeenCalledTimes(1);
+        expect(dependent.fetch).not.toHaveBeenCalled();
     });
 
     it('does not pass an already-aborted caller signal to disabled work', async () => {
@@ -569,7 +596,7 @@ it('allows declared project cycles', async () => {
     expect((await resolve([a, b])).rounds).toBe(1);
 });
 
-it('uses confirmed relation metadata during the single parse', async () => {
+it('uses fresh relation metadata during the single parse', async () => {
     const consumer = withRefs('b', [ref('a')]);
     consumer.fetch.mockImplementation(async ({ externalNodes }) =>
         boundResult('b', externalNodes, [ref('a')]),
@@ -598,7 +625,7 @@ it('uses confirmed relation metadata during the single parse', async () => {
     });
     expect(resolved.rounds).toBe(1);
     expect(consumer.fetch.mock.calls[0][0].externalNodes[0].schema).toBe(
-        'real_schema',
+        'public',
     );
 });
 
@@ -636,7 +663,7 @@ it('ignores cache rows whose project name no longer matches the scan', async () 
     expect(consumer.fetch).toHaveBeenCalledOnce();
 });
 
-it('retains the seeded latest version when fresh disk changes it', async () => {
+it('uses the fresh latest version when the provider parses before its consumer', async () => {
     const provider = scannedTask('a');
     const provided = result('a');
     provided.manifest.nodes = Object.fromEntries(
@@ -652,13 +679,9 @@ it('retains the seeded latest version when fresh disk changes it', async () => {
     );
     provider.fetch.mockResolvedValue(provided);
     const consumer = withRefs('b', [ref('a')]);
-    consumer.fetch
-        .mockImplementationOnce(async ({ externalNodes }) =>
-            boundResult('b', externalNodes, [ref('a')], ['model.a.orders.v1']),
-        )
-        .mockImplementationOnce(async ({ externalNodes }) =>
-            boundResult('b', externalNodes, [ref('a')], ['model.a.orders.v2']),
-        );
+    consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+        boundResult('b', externalNodes, [ref('a')]),
+    );
     const cache = [
         {
             key: 'a',
@@ -680,6 +703,9 @@ it('retains the seeded latest version when fresh disk changes it', async () => {
         concurrency: 2,
         cache,
     });
+    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(
+        getExternalModelNodesFromManifest(provided.manifest),
+    );
     expect(resolved.rounds).toBe(1);
     expect(consumer.fetch).toHaveBeenCalledTimes(1);
     expect(provider.fetch).toHaveBeenCalledTimes(1);
@@ -689,11 +715,11 @@ it('retains the seeded latest version when fresh disk changes it', async () => {
                 'model.b.orders'
             ] as DbtRawModelNode
         ).depends_on?.nodes,
-    ).toEqual(['model.a.orders.v1']);
+    ).toEqual(['model.a.orders.v2']);
 });
 
 it.each(['deleted', 'private'])(
-    'keeps the seed authoritative when the fresh provider model is %s',
+    'rejects the old seed when the fresh provider model is %s',
     async (condition) => {
         const consumer = withRefs('b', [ref('a')]);
         consumer.fetch.mockImplementation(async ({ externalNodes }) =>
@@ -707,13 +733,12 @@ it.each(['deleted', 'private'])(
             ).access = 'private';
         const provider = scannedTask('a');
         provider.fetch.mockResolvedValue(provided);
-        const resolution = await resolve([consumer, provider], true, 2, [
-            seed('a'),
-        ]);
-        expect(resolution.rounds).toBe(1);
-        expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(
-            seed('a').nodes,
+        await expect(
+            resolve([consumer, provider], true, 2, [seed('a')]),
+        ).rejects.toThrow(
+            condition === 'deleted' ? 'fresh manifest' : 'access: public',
         );
+        expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual([]);
         expect(consumer.fetch).toHaveBeenCalledTimes(1);
     },
 );
@@ -729,17 +754,15 @@ it('uses a declared provider whole surface for a hidden versioned ref in one par
             ref('provider', 'orders', '2'),
         ]),
     );
-    const provider = scannedTask('provider');
-    await resolve([consumer, provider], true, 2, [
-        seed('provider', [
-            {
-                ...model('provider'),
-                unique_id: 'model.provider.orders.v2',
-                version: 2,
-                latest_version: 2,
-            },
-        ]),
+    const cached = seed('provider', [
+        {
+            ...model('provider'),
+            unique_id: 'model.provider.orders.v2',
+            version: 2,
+            latest_version: 2,
+        },
     ]);
+    await resolve([consumer, taskFromCatalog(cached)], true, 2, [cached]);
     expect(consumer.fetch).toHaveBeenCalledOnce();
     expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual([
         expect.objectContaining({ version: 2 }),
@@ -955,24 +978,20 @@ describe('one-argument refs with same-named models in several sources', () => {
         },
     );
 
-    it('does not let a newly discovered disk model change a seeded one-argument binding', async () => {
+    it('rejects a one-argument binding made ambiguous by a freshly discovered model', async () => {
         const source = consumer([ref(null, 'm')]);
         const hidden = provider('primary');
         hidden.prepare.mockResolvedValue({
             ...(await hidden.prepare()),
             localModels: [],
         });
-        const resolution = await resolve(
-            [source, provider('up_one'), hidden],
-            true,
-            2,
-            [seed('primary', []), seed('up_one', [model('up_one', 'm')])],
-        );
-        expect(resolution.rounds).toBe(1);
+        await expect(
+            resolve([source, provider('up_one'), hidden], true, 2, [
+                seed('primary', []),
+                seed('up_one', [model('up_one', 'm')]),
+            ]),
+        ).rejects.toThrow('defined by several dbt sources');
         expect(source.fetch).toHaveBeenCalledOnce();
-        expect(source.fetch.mock.calls[0][0].externalNodes).toEqual(
-            seed('up_one', [model('up_one', 'm')]).nodes,
-        );
     });
 });
 
@@ -1096,7 +1115,9 @@ it('never creates an unseeded version alongside a seeded versioned model', async
         version,
         latest_version: 2,
     }));
-    await resolve([consumer, scannedTask('a')], true, 2, [seed('a', nodes)]);
+    await resolve([consumer, taskFromCatalog(seed('a', nodes))], true, 2, [
+        seed('a', nodes),
+    ]);
     expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(
         seed('a', nodes).nodes,
     );
@@ -1309,7 +1330,7 @@ it('detects a cycle through a seeded version that is missing from the disk manif
     consumer.fetch.mockImplementation(async ({ externalNodes }) =>
         boundResult('consumer', externalNodes, refs),
     );
-    const provider = withRefs('provider', [], ['measure']);
+    const provider = withRefs('provider', [ref('consumer')], ['measure']);
     const cached = seed('provider', [
         {
             ...model('provider', 'measure'),
@@ -1391,7 +1412,7 @@ it('does not resolve an installed package through a legacy provider snapshot', a
     expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual([]);
 });
 
-it('preserves a seeded ancestor link when fresh disk dependencies disagree', async () => {
+it('uses fresh dependency links when they differ from the confirmed seed', async () => {
     const consumer = withRefs('consumer', [ref('provider')]);
     consumer.fetch.mockImplementation(async ({ externalNodes }) =>
         boundResult('consumer', externalNodes, [ref('provider')]),
@@ -1404,7 +1425,9 @@ it('preserves a seeded ancestor link when fresh disk dependencies disagree', asy
     cache.nodes[0].depends_on_nodes = ['model.provider.base'];
     const resolution = await resolve([consumer, provider], true, 2, [cache]);
     expect(resolution.rounds).toBe(1);
-    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(cache.nodes);
+    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(
+        seed('provider').nodes,
+    );
 });
 
 it('freezes seed rows before callbacks publish new models and dependencies', async () => {
@@ -1435,7 +1458,7 @@ it('freezes seed rows before callbacks publish new models and dependencies', asy
     expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(original);
 });
 
-it('keeps seeded bindings during the single parse', async () => {
+it('rejects a protected fresh model instead of restoring its public seed', async () => {
     const consumer = withRefs('b', [ref('a')]);
     consumer.fetch.mockImplementation(async ({ externalNodes }) =>
         boundResult('b', externalNodes, [ref('a')]),
@@ -1445,12 +1468,14 @@ it('keeps seeded bindings during the single parse', async () => {
     (provided.manifest.nodes['model.a.orders'] as DbtRawModelNode).access =
         'protected';
     provider.fetch.mockResolvedValue(provided);
-    const resolution = await resolveCrossSourceManifests({
-        tasks: [consumer, provider],
-        enabled: true,
-        concurrency: 2,
-        cache: [seed('a')],
-    });
+    await expect(
+        resolveCrossSourceManifests({
+            tasks: [consumer, provider],
+            enabled: true,
+            concurrency: 2,
+            cache: [seed('a')],
+        }),
+    ).rejects.toThrow('access: public');
     expect(consumer.fetch).toHaveBeenCalledOnce();
 });
 
@@ -1647,15 +1672,9 @@ it('injects the whole public surface of the selected one-argument provider', asy
         ],
     });
     expect(resolution.rounds).toBe(1);
-    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual([
-        ...nodes,
-        externalNode({
-            packageName: 'provider',
-            name: 'extra',
-            version: null,
-            latestVersion: null,
-        }),
-    ]);
+    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(
+        getExternalModelNodesFromManifest(provided.manifest),
+    );
 });
 
 it('accepts a shared installed package with the same model name as an explicit provider ref', async () => {
@@ -1693,7 +1712,7 @@ it('accepts a shared installed package with the same model name as an explicit p
 });
 
 it.each(['deleted', 'private'])(
-    'retains a snapshot binding when the fresh provider model is %s',
+    'rejects a snapshot binding when the fresh provider model is %s',
     async (condition) => {
         const refs = [ref('p', 'm')];
         const consumer = withRefs('c', refs);
@@ -1721,9 +1740,13 @@ it.each(['deleted', 'private'])(
                       }),
                   };
         provider.fetch.mockResolvedValue(provided);
-        const resolution = await resolve([consumer, provider], true, 2, [
-            seed('p', [model('p', 'm')]),
-        ]);
+        await expect(
+            resolve([consumer, provider], true, 2, [
+                seed('p', [model('p', 'm')]),
+            ]),
+        ).rejects.toThrow(
+            condition === 'deleted' ? 'fresh manifest' : 'access: public',
+        );
         expect(consumer.fetch).toHaveBeenCalledTimes(1);
     },
 );
@@ -1797,16 +1820,17 @@ it('does not retry independent seeded refs when one fresh access changes', async
             nodes: { 'model.q.stable': model('q', 'stable') },
         },
     });
-    const resolution = await resolveCrossSourceManifests({
-        tasks: [consumer, p, q],
-        enabled: true,
-        concurrency: 2,
-        cache: [
-            seed('p', [model('p', 'm')]),
-            seed('q', [model('q', 'stable')]),
-        ],
-    });
-    expect(resolution.rounds).toBe(1);
+    await expect(
+        resolveCrossSourceManifests({
+            tasks: [consumer, p, q],
+            enabled: true,
+            concurrency: 2,
+            cache: [
+                seed('p', [model('p', 'm')]),
+                seed('q', [model('q', 'stable')]),
+            ],
+        }),
+    ).rejects.toThrow('access: public');
     expect(consumer.fetch).toHaveBeenCalledOnce();
 });
 
@@ -1836,7 +1860,7 @@ it('groups each missing provider ref by its source', async () => {
     );
 });
 
-it('keeps both seeded explicit versions when fresh access differs', async () => {
+it('rejects an explicit version that is no longer public in the fresh provider', async () => {
     const refs = [ref('p', 'm', '1'), ref('p', 'm', '2')];
     const consumer = withRefs('c', refs);
     consumer.fetch.mockImplementation(async ({ externalNodes }) =>
@@ -1865,15 +1889,22 @@ it('keeps both seeded explicit versions when fresh access differs', async () => 
             latestVersion: '2',
         }),
     );
-    const resolution = await resolveCrossSourceManifests({
-        tasks: [consumer, provider],
-        enabled: true,
-        concurrency: 2,
-        cache: [{ key: 'p', projectName: 'p', nodes, referencedProjects: [] }],
-    });
-    expect(resolution.rounds).toBe(1);
+    await expect(
+        resolveCrossSourceManifests({
+            tasks: [consumer, provider],
+            enabled: true,
+            concurrency: 2,
+            cache: [
+                { key: 'p', projectName: 'p', nodes, referencedProjects: [] },
+            ],
+        }),
+    ).rejects.toThrow();
     expect(consumer.fetch).toHaveBeenCalledOnce();
-    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(nodes);
+    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(
+        getExternalModelNodesFromManifest(provided.manifest).filter(
+            (node) => node.access === 'public',
+        ),
+    );
 });
 
 describe('source final callback', () => {
@@ -1882,7 +1913,7 @@ describe('source final callback', () => {
         const provided = result('provider');
         (
             provided.manifest.nodes['model.provider.orders'] as DbtRawModelNode
-        ).access = 'protected';
+        ).access = 'public';
         provider.fetch.mockResolvedValue(provided);
         const consumer = withRefs('consumer', [ref('provider')]);
         consumer.fetch.mockImplementation(async ({ externalNodes }) =>
@@ -1921,10 +1952,10 @@ describe('source final callback', () => {
             },
         });
         expect(resolution.rounds).toBe(1);
-        expect(rounds).toEqual([['consumer', 'provider']]);
+        expect(rounds).toEqual([['provider', 'consumer']]);
         expect(final.mock.calls).toEqual([
-            ['consumer', 1, 1],
             ['provider', 1, 1],
+            ['consumer', 1, 1],
         ]);
     });
 
@@ -2079,6 +2110,7 @@ it.each(['scanned', 'declared'])(
             nodes: ['model.p.base'],
         };
         provided.manifest.nodes['model.p.base'] = model('p', 'base');
+        provided.manifest.nodes['model.p.unrelated'] = model('p', 'unrelated');
         provider.fetch.mockResolvedValue(provided);
         if (origin === 'declared')
             consumer.prepare.mockResolvedValue({
@@ -2148,9 +2180,12 @@ it.each([
         else if (access === undefined)
             Reflect.set(cached.nodes[0], 'access', undefined);
         else cached.nodes[0].access = access;
-        const resolution = resolve([consumer, scannedTask('p')], true, 2, [
-            cached,
-        ]);
+        const resolution = resolve(
+            [consumer, taskFromCatalog(cached)],
+            true,
+            2,
+            [cached],
+        );
         if (access === 'public') {
             expect((await resolution).rounds).toBe(1);
             expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(
@@ -2194,7 +2229,7 @@ it('traverses only public dependencies and preserves the complete stored project
     cached.nodes[4].access = null;
     Reflect.deleteProperty(cached.nodes[5], 'access');
     const original = structuredClone(cached);
-    await resolve([consumer, scannedTask('p')], true, 2, [cached]);
+    await resolve([consumer, taskFromCatalog(cached)], true, 2, [cached]);
     expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual([
         { ...cached.nodes[0], depends_on_nodes: ['model.p.public_base'] },
         { ...cached.nodes[1], depends_on_nodes: [] },
@@ -2213,7 +2248,7 @@ it('ignores non-public providers when resolving a one-argument public ref', asyn
     hidden.nodes[0].access = 'protected';
     const visible = seed('visible');
     await resolve(
-        [consumer, scannedTask('hidden'), scannedTask('visible')],
+        [consumer, taskFromCatalog(hidden), taskFromCatalog(visible)],
         true,
         2,
         [hidden, visible],
@@ -2348,7 +2383,7 @@ describe('source failure isolation', () => {
         ).rejects.toThrow('primary failed');
     });
 
-    it('drops consumers of a failed provider even when cached stubs let dbt parse', async () => {
+    it('keeps consumers bound to a confirmed seed when its provider fails', async () => {
         const primary = scannedTask('primary');
         const provider = scannedTask('provider');
         provider.fetch.mockRejectedValue(new Error('parse failed'));
@@ -2369,11 +2404,14 @@ describe('source failure isolation', () => {
         );
         expect(
             (await resolution).results.map((entry) => entry.task.key),
-        ).toEqual(['primary']);
-        expect(onSourceFailure).toHaveBeenCalledWith(
-            consumer,
-            expect.objectContaining({ name: 'DbtSourceDependencyError' }),
-            'dependency',
+        ).toEqual(['primary', 'consumer']);
+        expect(onSourceFailure).toHaveBeenCalledExactlyOnceWith(
+            provider,
+            expect.any(Error),
+            'manifest',
+        );
+        expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(
+            seed('provider').nodes,
         );
     });
 
@@ -2454,7 +2492,43 @@ describe('source failure isolation', () => {
     });
 });
 
-it('does not replace an empty confirmed snapshot with a fresh disk catalogue', async () => {
+it.each([1, 3])(
+    'injects a newly added public model on the first refresh at concurrency %i',
+    async (concurrency) => {
+        const refs = [ref('provider', 'added')];
+        const consumer = withRefs('consumer', refs);
+        const provider = withRefs('provider', [], ['orders', 'added']);
+        const provided = result('provider');
+        const added = model('provider', 'added');
+        provided.manifest.nodes[added.unique_id] = added;
+        provider.fetch.mockResolvedValue(provided);
+        consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+            boundResult('consumer', externalNodes, refs),
+        );
+        const cached = seed('provider');
+        const before = structuredClone(cached);
+        const resolution = await resolve(
+            [consumer, provider],
+            true,
+            concurrency,
+            [cached],
+        );
+        expect(resolution.results).toHaveLength(2);
+        expect(
+            consumer.fetch.mock.calls[0][0].externalNodes.map(
+                (node) => node.name,
+            ),
+        ).toEqual(['orders', 'added']);
+        expect(provider.fetch.mock.invocationCallOrder[0]).toBeLessThan(
+            consumer.fetch.mock.invocationCallOrder[0],
+        );
+        expect(consumer.fetch).toHaveBeenCalledOnce();
+        expect(provider.fetch).toHaveBeenCalledOnce();
+        expect(cached).toEqual(before);
+    },
+);
+
+it('uses a fresh catalogue when the confirmed snapshot is empty', async () => {
     const consumer = withRefs('consumer', [ref('provider')]);
     consumer.fetch.mockImplementation(async ({ externalNodes }) =>
         boundResult('consumer', externalNodes, [ref('provider')]),
@@ -2464,12 +2538,12 @@ it('does not replace an empty confirmed snapshot with a fresh disk catalogue', a
         resolve([provider, consumer], true, 1, [
             { ...seed('provider'), nodes: [] },
         ]),
-    ).rejects.toThrow(
-        'confirmed last-good manifest of dbt source "provider" does not define',
-    );
+    ).resolves.toMatchObject({ attempts: 2 });
     expect(provider.fetch).toHaveBeenCalledOnce();
     expect(consumer.fetch).toHaveBeenCalledOnce();
-    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual([]);
+    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(
+        seed('provider').nodes,
+    );
 });
 
 it('fails a cold ring after one parse per source without creating substitute nodes', async () => {
@@ -2507,7 +2581,7 @@ it('filters dependencies to the exact injected surface even when other public ca
     ];
     const original = structuredClone(cache);
     await resolve(
-        [consumer, scannedTask('provider'), scannedTask('unreferenced')],
+        [consumer, taskFromCatalog(cache[0]), scannedTask('unreferenced')],
         true,
         3,
         cache,
@@ -2532,7 +2606,7 @@ it('injects explicit public seeds and snapshots with their native IDs', async ()
         },
     );
     cached.nodes[0].depends_on_nodes = ['snapshot.provider.history'];
-    await resolve([consumer, scannedTask('provider')], true, 2, [cached]);
+    await resolve([consumer, taskFromCatalog(cached)], true, 2, [cached]);
     expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(cached.nodes);
 });
 
@@ -2553,13 +2627,19 @@ it('excludes duplicate installed public IDs between scan-less sources', async ()
 
 it('rejects two sources that claim the same project-owned public model', async () => {
     const consumer = withRefs('consumer', [ref('shared')]);
-    const first = task('first');
-    const second = task('second');
+    const first = task(
+        'first',
+        vi.fn(async () => result('shared')),
+    );
+    const second = task(
+        'second',
+        vi.fn(async () => result('shared')),
+    );
     const firstSeed = { ...seed('shared'), key: 'first' };
     const secondSeed = { ...seed('shared'), key: 'second' };
     await expect(
         resolve([consumer, first, second], true, 2, [firstSeed, secondSeed]),
-    ).rejects.toThrow('External model');
+    ).rejects.toThrow('both use the dbt project name');
     expect(consumer.fetch).not.toHaveBeenCalled();
 });
 

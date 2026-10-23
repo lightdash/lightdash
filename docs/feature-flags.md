@@ -148,13 +148,20 @@ errors provide diagnostics and never trigger retries or placeholder injection.
 Dynamic refs must identify their provider through a declaration or stored reference
 when the scan cannot identify it.
 
-A confirmed snapshot always wins over fresh disk output during the refresh. If an
-upstream has no confirmed snapshot, the resolver warns with its name and compiles
-unseeded providers in dependency order. Their successful parse results supply the
-missing seeds in memory. A cold dependency cycle that cannot bootstrap still
-fails loudly; it does not invent a snapshot. New snapshots become confirmed only
-after successful publication. Failed work retains the previous snapshots. If any
-explore has a compile error, no source snapshot advances in that compile.
+A provider's successful parse in the current refresh takes precedence over its
+confirmed snapshot. Providers parse before their consumers where dependencies
+allow it, so a new public model can be used in the same refresh. A confirmed
+snapshot supplies the fallback if a provider has not parsed yet or its parse
+failed. Each consumer keeps the bindings used for its single parse. In a seeded
+ring, the first source can use a confirmed fallback before the other source parses.
+
+If an upstream has no confirmed snapshot, the resolver warns with its name and
+compiles unseeded providers in dependency order. A cold dependency cycle that
+cannot bootstrap still fails loudly. New snapshots stay in memory until their
+provider's work publishes successfully. An explore error blocks confirmation for
+its own source; errors in unrelated sources do not block healthy providers. If an
+error cannot be attributed to a source, confirmation is withheld. A publication
+or required artefact write failure retains the previous snapshots.
 
 Successful selective CLI deploys also seed: `-s` selects explores, but the parsed
 manifest is complete. Existing restrictions on selective explore publication in

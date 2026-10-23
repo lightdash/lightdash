@@ -14756,6 +14756,9 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 },
             ]);
             upstream.metadata.project_name = 'shared';
+            Object.assign(upstream.nodes['model.shared.calendar'], {
+                access: 'public',
+            });
             Object.assign(projectService, {
                 dbtSourceRefCatalogModel: {
                     get: vi.fn(async () => [

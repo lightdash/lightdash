@@ -4666,9 +4666,11 @@ export class ProjectService
             onCompiled?: (summary: ExploreCompilationSummary) => void;
             multiConnection: PreparedMultiConnectionSave | null;
             exploreNaming?: ExploreNaming;
+            stagedMergedManifest?: Buffer;
         },
     ) {
         const {
+            stagedMergedManifest,
             exploreStream: incomingStream,
             onCompiled,
             multiConnection: preparedMultiConnection,
@@ -4706,6 +4708,11 @@ export class ProjectService
                   incomingStream,
               )
             : incomingStream;
+        const sourceConfirmation = stagedMergedManifest
+            ? this.sourceRefCatalogConfirmations.get(stagedMergedManifest)
+            : undefined;
+        const failedConfirmationSourceUuids = new Set<string>();
+        let hasUnattributedExploreError = false;
         const saving = this.saveExploresAndIndexCatalog({
             ...metadata,
             complete: true,
@@ -4713,6 +4720,26 @@ export class ProjectService
             saveExplores: async (summary) => {
                 async function* observedExplores() {
                     for await (const explore of exploreStream) {
+                        if (isExploreError(explore)) {
+                            const sourceUuid =
+                                explore.dbtModelIdentity?.sourceUuid ??
+                                explore.tables?.[
+                                    explore.baseTable ?? explore.name
+                                ]?.dbtSourceUuid ??
+                                (
+                                    explore as ExploreError & {
+                                        dbtSourceUuid?: string;
+                                    }
+                                ).dbtSourceUuid;
+                            if (sourceUuid) {
+                                failedConfirmationSourceUuids.add(sourceUuid);
+                                sourceConfirmation?.cache.discard(sourceUuid);
+                            } else {
+                                hasUnattributedExploreError = true;
+                                if (sourceConfirmation)
+                                    sourceConfirmation.successfulCompile = false;
+                            }
+                        }
                         if (!multiConnection?.naming)
                             summary.add(explore, onCompiled !== undefined);
                         yield explore;
@@ -4781,7 +4808,10 @@ export class ProjectService
             );
             await multiConnection.persistArtifacts({
                 exploresCommitted: true,
-                ...(result.errorCount > 0 ? { successfulCompile: false } : {}),
+                failedSourceUuids: [...failedConfirmationSourceUuids],
+                ...(hasUnattributedExploreError
+                    ? { successfulCompile: false }
+                    : {}),
             });
             return result;
         }
@@ -7238,6 +7268,7 @@ export class ProjectService
                                         userUuid: user.userUuid,
                                         projectUuid,
                                         exploreStream,
+                                        stagedMergedManifest,
                                         multiConnection,
                                         connectionWarnings,
                                         failedDbtSourceUuids,
@@ -7252,7 +7283,6 @@ export class ProjectService
                             await this.persistMergedManifest(
                                 projectUuid,
                                 stagedMergedManifest,
-                                result.errorCount === 0,
                             );
                             timings.cacheExplores.end = performance.now();
 
@@ -8662,13 +8692,12 @@ export class ProjectService
 
     private readonly sourceRefCatalogConfirmations = new WeakMap<
         Buffer,
-        CrossSourceCatalogCache
+        { cache: CrossSourceCatalogCache; successfulCompile: boolean }
     >();
 
     private async persistMergedManifest(
         projectUuid: string,
         stagedMergedManifest: Buffer | undefined,
-        successfulCompile = true,
     ): Promise<void> {
         if (!stagedMergedManifest) {
             return;
@@ -8678,10 +8707,10 @@ export class ProjectService
                 projectUuid,
                 stagedMergedManifest,
             );
-            if (successfulCompile)
-                await this.sourceRefCatalogConfirmations
-                    .get(stagedMergedManifest)
-                    ?.confirm();
+            const confirmation =
+                this.sourceRefCatalogConfirmations.get(stagedMergedManifest);
+            if (confirmation?.successfulCompile)
+                await confirmation.cache.confirm();
         } catch (error) {
             this.logger.warn(
                 `Failed to persist merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
@@ -9386,10 +9415,10 @@ export class ProjectService
             mergedManifest,
         );
         if (stagedMergedManifest && catalogCache)
-            this.sourceRefCatalogConfirmations.set(
-                stagedMergedManifest,
-                catalogCache,
-            );
+            this.sourceRefCatalogConfirmations.set(stagedMergedManifest, {
+                cache: catalogCache,
+                successfulCompile: true,
+            });
 
         return {
             adapter: await projectAdapterFromConfig(
@@ -14516,6 +14545,7 @@ export class ProjectService
                                             userUuid: user.userUuid,
                                             projectUuid,
                                             exploreStream,
+                                            stagedMergedManifest,
                                             onCompiled,
                                             multiConnection,
                                             connectionWarnings,
@@ -14550,7 +14580,6 @@ export class ProjectService
                                 await this.persistMergedManifest(
                                     projectUuid,
                                     stagedMergedManifest,
-                                    result.errorCount === 0,
                                 );
                                 timings.cacheExplores.end = performance.now();
 

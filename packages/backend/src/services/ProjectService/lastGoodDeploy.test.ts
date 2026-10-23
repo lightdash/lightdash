@@ -3,6 +3,8 @@ import {
     type DbtSourceManifest,
     type ExploreError,
 } from '@lightdash/common';
+import { type DbtSourceRefCatalogModel } from '../../models/DbtSourceRefCatalogModel';
+import { CrossSourceCatalogCache } from '../../projectAdapters/crossSourceCatalogCache';
 import { ProjectService } from './ProjectService';
 
 const manifest: DbtSourceManifest = {
@@ -155,24 +157,122 @@ it('does not seed with the cross-source flag off', async () => {
     expect(replaceConfirmed).not.toHaveBeenCalled();
 });
 
-it('retains the snapshot when a server compile publishes error explores', async () => {
-    const confirm = vi.fn(async () => undefined);
-    const staged = Buffer.from('manifest');
-    const upsertMergedManifest = vi.fn(async () => undefined);
-    const service = Object.assign(Object.create(ProjectService.prototype), {
-        projectModel: { upsertMergedManifest },
-        sourceRefCatalogConfirmations: new WeakMap([[staged, { confirm }]]),
-    }) as {
-        persistMergedManifest: (
-            projectUuid: string,
-            manifest: Buffer,
-            successfulCompile: boolean,
-        ) => Promise<void>;
-    };
-    await service.persistMergedManifest('project', staged, false);
-    expect(upsertMergedManifest).toHaveBeenCalledWith('project', staged);
-    expect(confirm).not.toHaveBeenCalled();
-});
+it.each([
+    'other-source',
+    'provider',
+    'unattributed',
+    'publication-failed',
+    'artifact-failed',
+])(
+    'confirms only published healthy providers after %s errors',
+    async (failure) => {
+        const replaceConfirmed = vi.fn(async () => undefined);
+        const cache = new CrossSourceCatalogCache(
+            { replaceConfirmed } as unknown as DbtSourceRefCatalogModel,
+            'project',
+            'original',
+            '1.12.0',
+            'job',
+        );
+        await cache.resolved('provider-a', manifest.nodes, 'provider', []);
+        await cache.resolved('source-c', manifest.nodes, 'other', []);
+        const staged = Buffer.from('manifest');
+        const upsertMergedManifest = vi.fn(async () => {
+            if (failure === 'artifact-failed')
+                throw new Error('artifact failed');
+        });
+        const publish = vi.fn(
+            async (_project: string, stream: AsyncIterable<ExploreError>) => {
+                for await (const explore of stream)
+                    expect(explore.errors).toBeDefined();
+                if (failure === 'publication-failed')
+                    throw new Error('publication failed');
+                return { cachedExploreUuids: [] };
+            },
+        );
+        const service = Object.assign(Object.create(ProjectService.prototype), {
+            projectModel: {
+                upsertMergedManifest,
+                saveExploreStreamToCache: publish,
+            },
+            sourceRefCatalogConfirmations: new WeakMap([
+                [staged, { cache, successfulCompile: true }],
+            ]),
+            getConnectionStagedWriteChecks: vi.fn(() => []),
+            saveExploresAndIndexCatalog: vi.fn(async ({ saveExplores }) =>
+                saveExplores({ add: vi.fn() }),
+            ),
+            logger: { warn: vi.fn() },
+        }) as {
+            saveExploreStreamToCacheAndIndexCatalog: (
+                args: unknown,
+            ) => Promise<unknown>;
+            persistMergedManifest: (
+                projectUuid: string,
+                manifest: Buffer,
+            ) => Promise<void>;
+        };
+        const errorSource = failure === 'provider' ? 'provider-a' : 'source-c';
+        const run = async () => {
+            await service.saveExploreStreamToCacheAndIndexCatalog({
+                userUuid: 'user',
+                projectUuid: 'project',
+                compilationSource: 'refresh_dbt',
+                multiConnection: null,
+                stagedMergedManifest: staged,
+                exploreStream: (async function* explores() {
+                    yield {
+                        name: 'broken',
+                        label: 'Broken',
+                        errors: [],
+                        ...(failure === 'unattributed'
+                            ? {}
+                            : {
+                                  dbtModelIdentity: {
+                                      sourceUuid: errorSource,
+                                      sourceName: errorSource,
+                                      packageName: 'project',
+                                      uniqueId: 'model.project.broken',
+                                      modelName: 'broken',
+                                  },
+                              }),
+                    };
+                })(),
+            });
+            expect(replaceConfirmed).not.toHaveBeenCalled();
+            await service.persistMergedManifest('project', staged);
+        };
+        if (failure === 'publication-failed')
+            await expect(run()).rejects.toThrow('publication failed');
+        else await run();
+        if (
+            ['unattributed', 'publication-failed', 'artifact-failed'].includes(
+                failure,
+            )
+        ) {
+            expect(replaceConfirmed).not.toHaveBeenCalled();
+        } else {
+            expect(replaceConfirmed).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    entries: [
+                        expect.objectContaining({
+                            dbtSourceUuid:
+                                failure === 'provider'
+                                    ? 'source-c'
+                                    : 'provider-a',
+                        }),
+                    ],
+                }),
+            );
+            expect(publish.mock.invocationCallOrder[0]).toBeLessThan(
+                replaceConfirmed.mock.invocationCallOrder[0],
+            );
+            expect(
+                upsertMergedManifest.mock.invocationCallOrder[0],
+            ).toBeLessThan(replaceConfirmed.mock.invocationCallOrder[0]);
+        }
+    },
+);
 
 it('stores an additional source under its warehouse connection', async () => {
     const { service, deploy, replaceConfirmed } = setup('multi');

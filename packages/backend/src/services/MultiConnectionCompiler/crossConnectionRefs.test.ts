@@ -18,6 +18,7 @@ import {
 } from '@lightdash/common';
 import { type DbtProjectScan } from '../../dbt/dbtProjectScan';
 import Logger from '../../logging/logger';
+import { type DbtSourceRefCatalogModel } from '../../models/DbtSourceRefCatalogModel';
 import { type ExploreNaming } from '../../models/ProjectModel/exploreNameAllocation';
 import {
     type BoundExplore,
@@ -298,7 +299,13 @@ const harness = ({
                   ]
                 : []),
         ]),
-        replaceConfirmed: vi.fn(async () => undefined),
+        replaceConfirmed: vi.fn(
+            async (
+                _replacement: Parameters<
+                    DbtSourceRefCatalogModel['replaceConfirmed']
+                >[0],
+            ) => undefined,
+        ),
     };
     const projectModel = {
         countCachedExploresForDbtSource: vi.fn(async () => 2),
@@ -737,6 +744,65 @@ describe('cross-connection dbt ref diagnostics', () => {
         for (const confirmed of h.dbtSourceRefCatalogModel.replaceConfirmed.mock
             .invocationCallOrder)
             expect(confirmed).toBeGreaterThan(artifactsPersisted);
+    });
+
+    it.each(['primary-uuid', 'shared-uuid', 'analytics-uuid'])(
+        'confirms healthy providers when source %s has an explore error',
+        async (failedSourceUuid) => {
+            const h = harness({ providerGroup: 'extra' });
+            const compilation = await h.compiler.compile(h.input);
+            const parsedExplores = compilation.exploreStream;
+            compilation.exploreStream = (async function* withExploreError() {
+                for await (const explore of parsedExplores) {
+                    yield explore.dbtModelIdentity?.sourceUuid ===
+                    failedSourceUuid
+                        ? ({
+                              ...explore,
+                              errors: [{ message: 'Invalid model metadata' }],
+                          } as ExploreError)
+                        : explore;
+                }
+            })();
+
+            await h.compiler.save('project', compilation);
+
+            expect(
+                h.saved.filter(({ explore }) => isExploreError(explore)),
+            ).toHaveLength(1);
+            const confirmedSourceUuids =
+                h.dbtSourceRefCatalogModel.replaceConfirmed.mock.calls.flatMap(
+                    ([replacement]) =>
+                        replacement.entries.map((entry) => entry.dbtSourceUuid),
+                );
+            expect(confirmedSourceUuids.sort()).toEqual(
+                ['primary-uuid', 'shared-uuid', 'analytics-uuid']
+                    .filter((sourceUuid) => sourceUuid !== failedSourceUuid)
+                    .sort(),
+            );
+            const artifactsPersisted = Math.max(
+                ...h.projectModel.deleteMergedManifest.mock.invocationCallOrder,
+                ...h.saveCompileArtifacts.mock.invocationCallOrder,
+            );
+            for (const confirmed of h.dbtSourceRefCatalogModel.replaceConfirmed
+                .mock.invocationCallOrder)
+                expect(confirmed).toBeGreaterThan(artifactsPersisted);
+        },
+    );
+
+    it('does not confirm any provider when explore publication fails', async () => {
+        const h = harness({ providerGroup: 'extra' });
+        const compilation = await h.compiler.compile(h.input);
+        const failure = new Error('Explore publication failed');
+        h.saveMultiConnectionExplores.mockRejectedValueOnce(failure);
+
+        await expect(h.compiler.save('project', compilation)).rejects.toBe(
+            failure,
+        );
+
+        expect(
+            h.dbtSourceRefCatalogModel.replaceConfirmed,
+        ).not.toHaveBeenCalled();
+        expect(h.saveCompileArtifacts).not.toHaveBeenCalled();
     });
 
     it.each(['original', 'extra'] as const)(
@@ -1311,10 +1377,10 @@ describe('multi-connection source disk lifecycle', () => {
                 enabled
                     ? [
                           'primary release',
-                          'fetch analytics',
                           'fetch shared',
-                          'release analytics',
+                          'fetch analytics',
                           'release shared',
+                          'release analytics',
                       ]
                     : [
                           'primary release',

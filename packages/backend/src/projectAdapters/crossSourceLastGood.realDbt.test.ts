@@ -159,7 +159,7 @@ describe.skipIf(!executable)('last-good manifests with real dbt 1.12', () => {
     const dependencies = (manifest: DbtManifest, id: string) =>
         (manifest.nodes[id] as DbtRawModelNode).depends_on?.nodes;
 
-    it('keeps seeded v3 authoritative over disk v2 in an acyclic project ring', async () => {
+    it('uses seeded v3 before its provider parses in an acyclic project ring', async () => {
         const original = JSON.stringify(cache);
         expect(
             cache
@@ -196,6 +196,118 @@ describe.skipIf(!executable)('last-good manifests with real dbt 1.12', () => {
             ).latest_version,
         ).toBe(2);
         expect(JSON.stringify(cache)).toBe(original);
+    }, 120000);
+
+    it('uses a newly added public model on the first coordinated refresh', async () => {
+        const provider = await createTask(
+            'release_provider',
+            { existing: 'select 1 as id' },
+            'version: 2\nmodels:\n  - name: existing\n    access: public\n',
+        );
+        const root = clients[clients.length - 1].dbtProjectDirectory;
+        const nodes = getExternalModelNodesFromManifest(
+            (await provider.fetch({ externalNodes: [] })).manifest,
+        );
+        await fs.writeFile(
+            path.join(root, 'models', 'added.sql'),
+            'select 2 as id',
+        );
+        await fs.appendFile(
+            path.join(root, 'models', 'schema.yml'),
+            '  - name: added\n    access: public\n',
+        );
+        const consumer = await createTask(
+            'release_consumer',
+            { report: "select * from {{ ref('release_provider', 'added') }}" },
+            'version: 2\nmodels:\n  - name: report\n',
+        );
+        const fetched: string[] = [];
+        const tasks = [consumer, provider].map((task) => ({
+            ...task,
+            fetch: vi.fn(async (options: Parameters<typeof task.fetch>[0]) => {
+                fetched.push(task.key);
+                return task.fetch(options);
+            }),
+        }));
+        const resolution = await resolveCrossSourceManifests({
+            tasks,
+            enabled: true,
+            concurrency: 2,
+            cache: [
+                {
+                    key: provider.key,
+                    projectName: provider.key,
+                    nodes,
+                    referencedProjects: [],
+                },
+            ],
+        });
+        expect(fetched).toEqual(['release_provider', 'release_consumer']);
+        expect(resolution.results).toHaveLength(2);
+        expect(
+            dependencies(
+                resolution.results[0].result.manifest,
+                'model.release_consumer.report',
+            ),
+        ).toEqual(['model.release_provider.added']);
+        for (const task of tasks) expect(task.fetch).toHaveBeenCalledOnce();
+        expect(nodes.map((node) => node.name)).toEqual(['existing']);
+    }, 120000);
+
+    it('keeps a consumer bound to the confirmed seed when its provider fails to parse', async () => {
+        const provider = await createTask(
+            'failed_provider',
+            { shared: 'select 1 as id' },
+            'version: 2\nmodels:\n  - name: shared\n    access: public\n',
+        );
+        const root = clients[clients.length - 1].dbtProjectDirectory;
+        const nodes = getExternalModelNodesFromManifest(
+            (await provider.fetch({ externalNodes: [] })).manifest,
+        );
+        await fs.writeFile(
+            path.join(root, 'models', 'shared.sql'),
+            "select * from {{ ref('missing_model') }}",
+        );
+        const consumer = await createTask(
+            'fallback_consumer',
+            { report: "select * from {{ ref('failed_provider', 'shared') }}" },
+            'version: 2\nmodels:\n  - name: report\n',
+        );
+        const onSourceFailure = vi.fn(
+            async (task: CrossSourceFetchTask<string>) =>
+                task.key === provider.key,
+        );
+        const onSourceResolved = vi.fn();
+        const resolution = await resolveCrossSourceManifests({
+            tasks: [consumer, provider],
+            enabled: true,
+            concurrency: 2,
+            cache: [
+                {
+                    key: provider.key,
+                    projectName: provider.key,
+                    nodes,
+                    referencedProjects: [],
+                },
+            ],
+            onSourceFailure,
+            onSourceResolved,
+        });
+        expect(onSourceFailure).toHaveBeenCalledExactlyOnceWith(
+            provider,
+            expect.any(DbtError),
+            'manifest',
+        );
+        expect(resolution.results).toHaveLength(1);
+        expect(
+            dependencies(
+                resolution.results[0].result.manifest,
+                'model.fallback_consumer.report',
+            ),
+        ).toEqual(['model.failed_provider.shared']);
+        expect(onSourceResolved).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ task: consumer }),
+        );
     }, 120000);
 
     it('warns with unseeded upstream names and rejects an empty store', async () => {

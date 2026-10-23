@@ -760,7 +760,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 ).rejects.toThrow(/private_model.*access: public/);
             }, 120_000);
 
-            it('injects the complete cached public provider surface on every refresh', async () => {
+            it('injects the complete public provider surface on every refresh', async () => {
                 const tasks = [
                     await task('dyn_downstream', null, false, true, true),
                     await task('dyn_upstream'),
@@ -1133,7 +1133,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 );
             }, 120_000);
 
-            it('rejects a private seed when the disk provider is public', async () => {
+            it('uses a fresh public provider despite a private confirmed seed', async () => {
                 const tasks = await Promise.all(
                     ['access_downstream', 'access_upstream'].map((name) =>
                         task(name),
@@ -1162,9 +1162,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     concurrency: 2,
                     cache,
                 });
-                await expect(resolution).rejects.toThrow(
-                    /public_model.*access: public/,
-                );
+                expect((await resolution).results).toHaveLength(2);
             }, 120_000);
 
             it('source failure isolation keeps real dbt work after a Git clone failure', async () => {
@@ -1239,7 +1237,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 );
             }, 120_000);
 
-            it('source failure isolation drops real dbt consumers of a failed provider despite cached nodes', async () => {
+            it('source failure isolation keeps real dbt consumers bound to a confirmed seed', async () => {
                 const consumer = await task('analytics');
                 const provider = await task('shared_dimensions');
                 const healthy = await task('access_upstream');
@@ -1276,17 +1274,15 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 });
                 expect(
                     resolution.results.map((entry) => entry.task.key),
-                ).toEqual(['access_upstream']);
-                expect(skipped).toHaveBeenCalledWith(
-                    consumer,
-                    expect.objectContaining({
-                        name: 'DbtSourceDependencyError',
-                    }),
-                    'dependency',
+                ).toEqual(['access_upstream', 'analytics']);
+                expect(skipped).toHaveBeenCalledExactlyOnceWith(
+                    provider,
+                    expect.any(DbtError),
+                    'manifest',
                 );
             }, 120_000);
 
-            it('retains a cached binding when the model is deleted from disk', async () => {
+            it('rejects a cached binding when a successful fresh parse removes the model', async () => {
                 const tasks = [
                     await task('analytics'),
                     await task('shared_dimensions'),
@@ -1316,15 +1312,9 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     concurrency: 2,
                     cache,
                 });
-                const resolved = await resolution;
-                expect(resolved.rounds).toBe(1);
-                expect(
-                    (
-                        resolved.results[0].result.manifest.nodes[
-                            'model.analytics.fct_orders'
-                        ] as DbtRawModelNode
-                    ).depends_on?.nodes,
-                ).toEqual(['model.shared_dimensions.dim_calendar']);
+                await expect(resolution).rejects.toThrow(
+                    /fresh manifest.*does not define/,
+                );
             }, 120_000);
 
             it('keeps the explicit version dependency on dim_product v1', async () => {

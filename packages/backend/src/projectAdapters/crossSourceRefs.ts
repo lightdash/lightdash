@@ -242,7 +242,7 @@ export const resolveCrossSourceManifests = async <T>({
             CrossSourceFetchTask<T>,
             CrossSourceResolution<T>['results'][number]
         >();
-        const bootstrapCatalogs = new Map<
+        const freshCatalogs = new Map<
             CrossSourceFetchTask<T>,
             DbtExternalModelNode[]
         >();
@@ -250,6 +250,14 @@ export const resolveCrossSourceManifests = async <T>({
         const supplied = new Map<
             CrossSourceFetchTask<T>,
             Map<CrossSourceFetchTask<T>, DbtExternalModelNode[]>
+        >();
+        const suppliedConfirmed = new Map<
+            CrossSourceFetchTask<T>,
+            Set<CrossSourceFetchTask<T>>
+        >();
+        const bindingCatalogs = new Map<
+            CrossSourceFetchTask<T>,
+            DbtExternalModelNode[]
         >();
         const stats = new Map(
             tasks.map((task) => [
@@ -271,7 +279,7 @@ export const resolveCrossSourceManifests = async <T>({
                         row.projectName === projectName(task)),
             );
         const catalog = (task: CrossSourceFetchTask<T>) =>
-            cachedCatalog(task)?.nodes ?? bootstrapCatalogs.get(task) ?? [];
+            freshCatalogs.get(task) ?? cachedCatalog(task)?.nodes ?? [];
         const providers = (name: string) =>
             tasks.filter(
                 (task) =>
@@ -303,8 +311,8 @@ export const resolveCrossSourceManifests = async <T>({
                         (node) =>
                             node.access === 'public' && matchesRef(node, ref),
                     ) ||
-                        (!cachedCatalog(provider) &&
-                            !bootstrapCatalogs.has(provider) &&
+                        (!resolved.has(provider) &&
+                            !skipped.has(provider) &&
                             scans
                                 .get(provider)
                                 ?.localModels.includes(ref.name))),
@@ -443,6 +451,22 @@ export const resolveCrossSourceManifests = async <T>({
                 ]);
             }
             supplied.set(consumer, byProvider);
+            suppliedConfirmed.set(
+                consumer,
+                new Set(
+                    [...byProvider.keys()].filter(
+                        (provider) =>
+                            !freshCatalogs.has(provider) &&
+                            cachedCatalog(provider) !== undefined,
+                    ),
+                ),
+            );
+            bindingCatalogs.set(
+                consumer,
+                tasks
+                    .filter((provider) => provider !== consumer)
+                    .flatMap(catalog),
+            );
             return [...byProvider.values()].flat();
         };
         const failureReason = (
@@ -490,7 +514,7 @@ export const resolveCrossSourceManifests = async <T>({
                     if (
                         provider &&
                         !cachedCatalog(provider) &&
-                        !bootstrapCatalogs.has(provider)
+                        !freshCatalogs.has(provider)
                     )
                         return `${missingSeedReports(task).join(' ')} dbt source "${task.key}" could not resolve ${refLabel(ref)} during its single parse.`;
                     if (provider && failures.has(provider)) {
@@ -514,7 +538,7 @@ export const resolveCrossSourceManifests = async <T>({
                         cachedCatalog(provider) &&
                         !catalog(provider).some((node) => matchesRef(node, ref))
                     )
-                        return `dbt source "${task.key}" references ${refLabel(ref)}, but the confirmed last-good manifest of dbt source "${provider.key}" does not define that model (or version).`;
+                        return `dbt source "${task.key}" references ${refLabel(ref)}, but the ${freshCatalogs.has(provider) ? 'fresh manifest' : 'confirmed last-good manifest'} of dbt source "${provider.key}" does not define that model (or version).`;
                     if (!provider && ref.packageName !== null)
                         return `dbt source "${task.key}" references ${refLabel(ref)}, but no connected dbt source provides project "${ref.packageName}".`;
                     return `dbt source "${task.key}" references ${refLabel(ref)}, which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model').`;
@@ -622,7 +646,7 @@ export const resolveCrossSourceManifests = async <T>({
                         (provider) => provider.key,
                     ),
                 });
-                if (!cachedCatalog(task)) bootstrapCatalogs.set(task, nodes);
+                freshCatalogs.set(task, nodes);
                 const injectedPackages = new Map(
                     externalNodes.map((node) => [
                         getExternalDbtNodeUniqueId(node),
@@ -661,7 +685,7 @@ export const resolveCrossSourceManifests = async <T>({
                 cancellation.controller.signal.throwIfAborted();
                 failures.set(task, error);
                 resolved.delete(task);
-                bootstrapCatalogs.delete(task);
+                freshCatalogs.delete(task);
                 if (isFatalSourceFailure(error) || hasAmbiguousRef(task))
                     throw new ParameterError(failureReason(task, error));
                 if (onSourceFailure) {
@@ -689,12 +713,17 @@ export const resolveCrossSourceManifests = async <T>({
         let ordered = 0;
         const fetchPendingSources = async (): Promise<void> => {
             if (pending.size === 0) return;
-            const ready = [...pending].filter((consumer) =>
-                [...referencedProviders(consumer)].every(
-                    (provider) =>
-                        cachedCatalog(provider) || !pending.has(provider),
-                ),
-            );
+            const ready = [...pending].filter((consumer) => {
+                const dependencies = new Set([
+                    ...referencedProviders(consumer),
+                    ...refsOf(consumer)
+                        .filter((ref) => ref.packageName === null)
+                        .flatMap((ref) => oneArgProviders(consumer, ref)),
+                ]);
+                return [...dependencies].every(
+                    (provider) => !pending.has(provider),
+                );
+            });
             const batch = ready.length > 0 ? ready : [[...pending][0]];
             if (batch.length < pending.size) ordered += batch.length;
             await runWithConcurrency(batch, concurrency, fetchSource);
@@ -728,6 +757,7 @@ export const resolveCrossSourceManifests = async <T>({
                 return [...(supplied.get(consumer) ?? [])].some(
                     ([provider, nodes]) =>
                         skipped.has(provider) &&
+                        !suppliedConfirmed.get(consumer)?.has(provider) &&
                         nodes.some((node) =>
                             dependencies.has(getExternalDbtNodeUniqueId(node)),
                         ),
@@ -740,7 +770,7 @@ export const resolveCrossSourceManifests = async <T>({
                     if (!(await skip(consumer, error, 'dependency')))
                         throw error;
                     resolved.delete(consumer);
-                    bootstrapCatalogs.delete(consumer);
+                    freshCatalogs.delete(consumer);
                 }),
             );
             await discardFailedConsumers();
@@ -748,19 +778,9 @@ export const resolveCrossSourceManifests = async <T>({
         await discardFailedConsumers();
         for (const [consumer, { result: fetched }] of resolved) {
             const available = new Map(
-                tasks
-                    .filter((provider) => provider !== consumer)
-                    .flatMap((provider) =>
-                        catalog(provider)
-                            .filter((node) => node.access === 'public')
-                            .map(
-                                (node) =>
-                                    [
-                                        getExternalDbtNodeUniqueId(node),
-                                        node,
-                                    ] as const,
-                            ),
-                    ),
+                (bindingCatalogs.get(consumer) ?? [])
+                    .filter((node) => node.access === 'public')
+                    .map((node) => [getExternalDbtNodeUniqueId(node), node]),
             );
             const graph = new Map<
                 string,
@@ -775,9 +795,11 @@ export const resolveCrossSourceManifests = async <T>({
                 });
                 node.depends_on_nodes.forEach(includeDependency);
             };
-            selectedSurface(consumer).forEach(({ node }) =>
-                includeDependency(getExternalDbtNodeUniqueId(node)),
-            );
+            [...(supplied.get(consumer)?.values() ?? [])]
+                .flat()
+                .forEach((node) =>
+                    includeDependency(getExternalDbtNodeUniqueId(node)),
+                );
             const localNodes = Object.values(fetched.manifest.nodes)
                 .map((raw) => raw as DbtRawModelNode)
                 .filter(

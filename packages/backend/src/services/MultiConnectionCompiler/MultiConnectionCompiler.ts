@@ -147,6 +147,7 @@ export type MultiConnectionSave = {
     persistArtifacts: (options?: {
         exploresCommitted: true;
         successfulCompile?: boolean;
+        failedSourceUuids?: readonly string[];
     }) => Promise<void>;
     signal?: AbortSignal;
     naming?: ExploreNaming;
@@ -1434,9 +1435,12 @@ export class MultiConnectionCompiler {
                     );
                     if (options?.successfulCompile !== false)
                         await Promise.all(
-                            [...catalogCaches.values()].map((cache) =>
-                                cache.confirm(),
-                            ),
+                            [...catalogCaches.values()].map((cache) => {
+                                for (const sourceUuid of options?.failedSourceUuids ??
+                                    [])
+                                    cache.discard(sourceUuid);
+                                return cache.confirm();
+                            }),
                         );
                 },
             };
@@ -1460,11 +1464,24 @@ export class MultiConnectionCompiler {
                   }
                 : beforeWrite;
         let successfulCompile = true;
+        const failedSourceUuids = new Set<string>();
         const saved = await this.projectModel.saveMultiConnectionExplores(
             projectUuid,
             (async function* boundExplores(): AsyncIterable<BoundExplore> {
                 for await (const explore of compilation.exploreStream) {
-                    if (isExploreError(explore)) successfulCompile = false;
+                    if (isExploreError(explore)) {
+                        const sourceUuid =
+                            explore.dbtModelIdentity?.sourceUuid ??
+                            explore.tables?.[explore.baseTable ?? explore.name]
+                                ?.dbtSourceUuid ??
+                            (
+                                explore as ExploreError & {
+                                    dbtSourceUuid?: string;
+                                }
+                            ).dbtSourceUuid;
+                        if (sourceUuid) failedSourceUuids.add(sourceUuid);
+                        else successfulCompile = false;
+                    }
                     yield {
                         explore,
                         warehouseConnectionUuid: compilation.bindingOf(
@@ -1481,6 +1498,9 @@ export class MultiConnectionCompiler {
         await compilation.persistArtifacts({
             exploresCommitted: true,
             ...(successfulCompile ? {} : { successfulCompile: false }),
+            ...(failedSourceUuids.size > 0
+                ? { failedSourceUuids: [...failedSourceUuids] }
+                : {}),
         });
         return saved;
     }
