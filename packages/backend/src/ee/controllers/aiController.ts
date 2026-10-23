@@ -3,6 +3,7 @@ import {
     ApiAiGenerateCustomDimensionResponse,
     ApiAiGenerateCustomVizResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
+    ApiAiGenerateSqlRunnerQueryResponse,
     ApiAiGenerateTableCalculationResponse,
     ApiAiGenerateTooltipResponse,
     ApiAiSuggestChartTypeExploreResponse,
@@ -12,6 +13,7 @@ import {
     GenerateChartMetadataRequest,
     GenerateCustomDimensionRequest,
     GenerateFormulaTableCalculationRequest,
+    GenerateSqlRunnerQueryRequest,
     GenerateTableCalculationRequest,
     GenerateTooltipRequest,
     ItemsMap,
@@ -184,6 +186,32 @@ export class AiController extends BaseController {
         return {
             status: 'ok',
             results: await this.getAiService().generateFormulaTableCalculation(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            ),
+        };
+    }
+
+    /**
+     * Write or revise a SQL runner query from a natural-language prompt,
+     * looking up the warehouse's tables and columns without running a query.
+     * @summary Generate SQL runner query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/sql-runner/generate')
+    @OperationId('generateSqlRunnerQuery')
+    async generateSqlRunnerQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: GenerateSqlRunnerQueryRequest,
+    ): Promise<ApiAiGenerateSqlRunnerQueryResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiService().generateSqlRunnerQuery(
                 toSessionUser(req.account),
                 projectUuid,
                 body,

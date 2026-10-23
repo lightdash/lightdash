@@ -1,3 +1,4 @@
+import { type UUID } from '../../types/api/uuid';
 import {
     type CustomSqlDimension,
     type Field,
@@ -114,6 +115,46 @@ export type GeneratedFormulaTableCalculation = {
 export type ApiAiGenerateFormulaTableCalculationResponse = {
     status: 'ok';
     results: GeneratedFormulaTableCalculation;
+};
+
+export type SqlRunnerAiColumnContext = {
+    name: string;
+    type: string;
+};
+
+export type SqlRunnerAiTableContext = {
+    schema: string;
+    table: string;
+    columns: SqlRunnerAiColumnContext[];
+};
+
+/** The warehouse the editor queries: the project's, or a selected connection. */
+export type SqlRunnerAiTarget =
+    | { kind: 'project' }
+    | {
+          kind: 'connection';
+          warehouseConnectionUuid: UUID;
+          /** Name in the connection's database listing, used to list tables. */
+          listedDatabase: string;
+          /** Warehouse database name, used to read a table's columns. */
+          database: string;
+      };
+
+export type GenerateSqlRunnerQueryRequest = {
+    prompt: string;
+    currentSql: string | null;
+    target: SqlRunnerAiTarget;
+    /** Tables whose columns the editor has already loaded. */
+    knownTables: SqlRunnerAiTableContext[];
+};
+
+export type GeneratedSqlRunnerQuery = {
+    sql: string;
+};
+
+export type ApiAiGenerateSqlRunnerQueryResponse = {
+    status: 'ok';
+    results: GeneratedSqlRunnerQuery;
 };
 
 export type TooltipFieldContext = {

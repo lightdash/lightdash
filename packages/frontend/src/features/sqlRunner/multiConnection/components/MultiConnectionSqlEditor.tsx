@@ -1,4 +1,7 @@
-import { type WarehouseTablesCatalog } from '@lightdash/common';
+import {
+    type SqlRunnerAiTarget,
+    type WarehouseTablesCatalog,
+} from '@lightdash/common';
 import { useMemo, type FC } from 'react';
 import {
     SqlEditorView,
@@ -107,6 +110,19 @@ export const MultiConnectionSqlEditor: FC<SqlEditorProps> = (props) => {
         [currentTableSchema],
     );
 
+    const aiTarget = useMemo(
+        (): SqlRunnerAiTarget | null =>
+            activeConnectionUuid && listedDatabaseName && database
+                ? {
+                      kind: 'connection',
+                      warehouseConnectionUuid: activeConnectionUuid,
+                      listedDatabase: listedDatabaseName,
+                      database,
+                  }
+                : null,
+        [activeConnectionUuid, listedDatabaseName, database],
+    );
+
     const { data: detectedTablesFieldData } = useDetectedTableFields({
         sql,
         quoteChar,
@@ -125,6 +141,7 @@ export const MultiConnectionSqlEditor: FC<SqlEditorProps> = (props) => {
                 detectedTablesFieldData,
                 currentTable: currentTableIdentity?.table,
                 currentSchema: currentTableIdentity?.schema,
+                aiTarget,
             }}
         />
     );

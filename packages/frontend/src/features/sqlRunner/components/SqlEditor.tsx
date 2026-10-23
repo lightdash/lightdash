@@ -1,9 +1,21 @@
+import { type SqlRunnerAiTarget } from '@lightdash/common';
 import { Box, Center, Loader } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import debounce from 'lodash/debounce';
 import isEmpty from 'lodash/isEmpty';
 import { type editor } from 'monaco-editor';
-import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
+import {
+    AiGenerationStatus,
+    aiInlineHintClasses,
+} from '../../../components/common/AiInlineHint';
 import { type TourEditable } from '../../../components/common/GuidedTour/GuidedTour';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import Editor, {
@@ -13,10 +25,12 @@ import Editor, {
     type OnChange,
     type OnMount,
 } from '../../../components/MonacoEditor';
+import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import '../../../styles/monaco.css';
 import { useParameters } from '../../../hooks/parameters/useParameters';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useDetectedTableFields } from '../hooks/useDetectedTableFields';
+import { useSqlAiAutocomplete } from '../hooks/useSqlAiAutocomplete';
 import {
     useTableFields,
     type WarehouseTableField,
@@ -32,6 +46,7 @@ import {
     registerCustomCompletionProvider,
     registerMonacoLanguage,
 } from '../utils/monaco';
+import { buildSqlAiKnownTables } from '../utils/sqlAiPrompt';
 import { getSqlFunctions } from '../utils/sqlCompletion/vocabulary';
 import { inferSqlEditorPreferences } from '../utils/sqlEditorPreferences';
 import styles from './SqlEditor.module.css';
@@ -59,6 +74,11 @@ const SQL_RUNNER_MONACO_OPTIONS: EditorProps['options'] = {
     wordBasedSuggestions: 'off',
 };
 
+const SQL_RUNNER_AI_MONACO_OPTIONS: EditorProps['options'] = {
+    ...SQL_RUNNER_MONACO_OPTIONS,
+    placeholder: 'Write SQL, or describe a query in a -- comment and press Tab',
+};
+
 export type SqlEditorProps = {
     onSubmit?: (sql: string) => void;
     highlightText?: MonacoHighlightLine;
@@ -74,7 +94,11 @@ export type SqlEditorCatalog = {
     detectedTablesFieldData: WarehouseTableFieldWithContext[] | undefined;
     currentTable: string | undefined;
     currentSchema: string | undefined;
+    /** The warehouse AI generates SQL for; null while it isn't known yet. */
+    aiTarget: SqlRunnerAiTarget | null;
 };
+
+const PROJECT_AI_TARGET: SqlRunnerAiTarget = { kind: 'project' };
 
 export const SqlEditor: FC<SqlEditorProps> = (props) => {
     const sql = useAppSelector((state) => state.sqlRunner.sql);
@@ -133,6 +157,7 @@ export const SqlEditor: FC<SqlEditorProps> = (props) => {
                 detectedTablesFieldData,
                 currentTable,
                 currentSchema,
+                aiTarget: PROJECT_AI_TARGET,
             }}
         />
     );
@@ -148,6 +173,7 @@ export const SqlEditorView: FC<
         detectedTablesFieldData,
         currentTable,
         currentSchema,
+        aiTarget,
     } = catalog;
     const { monaco: monacoTheme } = useEditorTheme();
     const sql = useAppSelector((state) => state.sqlRunner.sql);
@@ -173,6 +199,9 @@ export const SqlEditorView: FC<
     const { data: availableParameters } = useParameters(projectUuid, undefined);
 
     const editorRef = useRef<Parameters<OnMount>['0'] | null>(null);
+    const [codeEditor, setCodeEditor] = useState<
+        Parameters<OnMount>['0'] | null
+    >(null);
     const wrapperRef = useRef<HTMLDivElement & TourEditable>(null);
 
     const language = useMemo(
@@ -205,6 +234,7 @@ export const SqlEditorView: FC<
     const onMount: OnMount = useCallback(
         (editorObj, monacoObj) => {
             editorRef.current = editorObj;
+            setCodeEditor(editorObj);
             if (wrapperRef.current) {
                 wrapperRef.current.tourEditor = {
                     getValue: () => editorObj.getValue(),
@@ -242,6 +272,26 @@ export const SqlEditorView: FC<
         },
         [onSubmit],
     );
+
+    const isAiEnabled = !!useAmbientAiEnabled(projectUuid);
+    const aiKnownTables = useMemo(
+        () =>
+            buildSqlAiKnownTables({
+                tableFieldsData,
+                detectedTablesFieldData,
+                currentTable,
+                currentSchema,
+            }),
+        [tableFieldsData, detectedTablesFieldData, currentTable, currentSchema],
+    );
+    const aiStatus = useSqlAiAutocomplete({
+        codeEditor,
+        monaco,
+        enabled: isAiEnabled && aiTarget !== null,
+        projectUuid,
+        target: aiTarget,
+        knownTables: aiKnownTables,
+    });
 
     // Register completion provider reactively when data changes
     useEffect(() => {
@@ -411,6 +461,7 @@ export const SqlEditorView: FC<
         <Box
             ref={wrapperRef}
             h="100%"
+            className={`${styles.wrapper} ${aiInlineHintClasses.host}`}
             // Typed anchor for scope walkthroughs: the query. The card
             // suggests a query over the sample warehouse; the editor is
             // handed to the tour on mount (tourEditor).
@@ -424,17 +475,26 @@ export const SqlEditorView: FC<
             data-tour-label="Write a query, then run it"
             data-tour-docs="explore/sql-runner.mdx#getting-started-with-the-sql-runner:p3:1"
         >
-            <Editor
-                className={styles.editor}
-                loading={<Loader color="gray" size="xs" />}
-                beforeMount={beforeMount}
-                onMount={onMount}
-                language={language}
-                value={sql}
-                onChange={onChange}
-                options={SQL_RUNNER_MONACO_OPTIONS}
-                theme={monacoTheme}
-            />
+            <Box className={styles.editorArea}>
+                <Editor
+                    className={styles.editor}
+                    loading={<Loader color="gray" size="xs" />}
+                    beforeMount={beforeMount}
+                    onMount={onMount}
+                    language={language}
+                    value={sql}
+                    onChange={onChange}
+                    options={
+                        isAiEnabled
+                            ? SQL_RUNNER_AI_MONACO_OPTIONS
+                            : SQL_RUNNER_MONACO_OPTIONS
+                    }
+                    theme={monacoTheme}
+                />
+            </Box>
+            <Box className={styles.aiStatus}>
+                <AiGenerationStatus {...aiStatus} />
+            </Box>
         </Box>
     );
 };

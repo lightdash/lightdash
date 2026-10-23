@@ -754,6 +754,16 @@ type FormulaTableCalculationAiGenerateClickedEvent = {
     };
 };
 
+type SqlRunnerAiGenerateClickedEvent = {
+    name: EventName.SQL_RUNNER_AI_GENERATE_CLICKED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        isEdit: boolean;
+    };
+};
+
 type DashboardUiVersionToggledEvent = {
     name: EventName.DASHBOARD_UI_VERSION_TOGGLED;
     properties: {
@@ -1299,6 +1309,7 @@ export type EventData =
     | DashboardUiVersionToggledEvent
     | TableCalculationSaveEvent
     | FormulaTableCalculationAiGenerateClickedEvent
+    | SqlRunnerAiGenerateClickedEvent
     | DashboardFilterLockToggledEvent
     | LearnLibraryViewedEvent
     | LearnWalkthroughStartedEvent

@@ -456,6 +456,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiController.generateGoogleSheetsExtensionReportDraft': [
         AgentCapability.Administration,
     ],
+    'AiController.generateSqlRunnerQuery': [AgentCapability.Query],
     'AiController.generateTableCalculation': [AgentCapability.Query],
     'AiController.generateTooltip': [AgentCapability.Query],
     'AiController.suggestChartTypeExplore': [AgentCapability.Query],
