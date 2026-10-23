@@ -241,7 +241,7 @@ describe('FilterPills', () => {
         const user = userEvent.setup();
         mockSidebar.current = {
             ...mockSidebar.current,
-            editing: { filterId: 'saved' },
+            editing: { kind: 'filter', filterId: 'saved' },
             isSidebarOpen: true,
         };
         renderWithProviders(<FilterPills activeTabUuid={undefined} />);
@@ -267,7 +267,7 @@ describe('FilterPills', () => {
     it('marks the pill being edited as selected', () => {
         mockSidebar.current = {
             ...mockSidebar.current,
-            editing: { filterId: 'saved' },
+            editing: { kind: 'filter', filterId: 'saved' },
             isSidebarOpen: true,
         };
         renderWithProviders(<FilterPills activeTabUuid={undefined} />);

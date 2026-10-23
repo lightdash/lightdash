@@ -15,14 +15,31 @@ import { IconX } from '@tabler/icons-react';
 import { useRef, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
+import dateZoomClasses from '../dateZoom/components/DateZoom.module.css';
 import { AddControl } from './AddControl';
 import classes from './ControlSidebar.module.css';
 import { useRailContractClasses } from './railContractClasses';
+import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useRailTop } from './useRailTop';
 
+// The bar's "Add date zoom", which opens a new zoom in the rail. Editor only
+const AddZoomControl: FC = () => {
+    const openNewZoom = useControlsSidebarSelector((c) => c.openNewZoom);
+    return (
+        <Button
+            size="xs"
+            variant="default"
+            classNames={{ root: dateZoomClasses.addControl }}
+            onClick={openNewZoom}
+        >
+            Add date zoom
+        </Button>
+    );
+};
+
 type Props = {
-    /** The dashboard's filters, listed in the rail. */
-    filterCount: number;
+    /** The filters (and, for an editor, date zooms) listed in the rail. */
+    controlCount: number;
     onClose: () => void;
     /** Set while the filter cannot be kept: the footer offers only this. */
     onCancel: (() => void) | null;
@@ -32,7 +49,7 @@ type Props = {
 
 // The rail: a card next to the grid, stuck under the tabs and filter bar
 export const EditorShell: FC<Props> = ({
-    filterCount,
+    controlCount,
     onClose,
     onCancel,
     footerStatus,
@@ -42,6 +59,7 @@ export const EditorShell: FC<Props> = ({
     useRailTop(ref);
     const getUiString = useUiStrings();
     const contractClasses = useRailContractClasses();
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     return (
         <Paper
             ref={ref}
@@ -60,15 +78,25 @@ export const EditorShell: FC<Props> = ({
                 className={classes.header}
             >
                 <Group gap="xs" wrap="nowrap">
-                    <Title order={5}>{getUiString('filters.rail.title')}</Title>
-                    {filterCount > 0 && (
+                    <Title order={5}>
+                        {getUiString(
+                            isViewer
+                                ? 'filters.rail.title'
+                                : 'filters.rail.controlsTitle',
+                        )}
+                    </Title>
+                    {controlCount > 0 && (
                         <Badge size="sm">
-                            {filterCount}
+                            {controlCount}
                             <VisuallyHidden>
                                 {` ${getUiString(
-                                    filterCount === 1
-                                        ? 'filters.summary.filterSingular'
-                                        : 'filters.summary.filterPlural',
+                                    isViewer
+                                        ? controlCount === 1
+                                            ? 'filters.summary.filterSingular'
+                                            : 'filters.summary.filterPlural'
+                                        : controlCount === 1
+                                          ? 'filters.rail.controlSingular'
+                                          : 'filters.rail.controlPlural',
                                 )}`}
                             </VisuallyHidden>
                         </Badge>
@@ -123,7 +151,10 @@ export const EditorShell: FC<Props> = ({
                         </>
                     ) : (
                         <>
-                            <AddControl placement="rail" />
+                            <Group gap="xs">
+                                <AddControl placement="rail" />
+                                {!isViewer && <AddZoomControl />}
+                            </Group>
                             <Button
                                 size="xs"
                                 className={classes.done}

@@ -106,12 +106,17 @@ const makeRule = (
 
 const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
     const value: ControlsSidebarContextValue = {
-        editing: { filterId: 'filter-1' },
+        editing: { kind: 'filter', filterId: 'filter-1' },
         isViewer: false,
         canAddFilters: true,
         isNew: true,
         isPlaceholder: false,
         editingRule: makeRule({}),
+        editingZoom: null,
+        openZoom: vi.fn(),
+        openNewZoom: vi.fn(),
+        updateDateZoomConfig: vi.fn(),
+        removeZoom: vi.fn(),
         isSidebarOpen: true,
         isRailOpen: true,
         hoveredFilterId: null,
@@ -504,7 +509,7 @@ describe('ControlSidebar', () => {
         expect(close).not.toHaveBeenCalled();
     });
 
-    it('counts the filters in the header from 1, with no badge at 0', () => {
+    it('counts the controls in the header from 1, with no badge at 0', () => {
         setSidebar({ editing: null, editingRule: null });
         const { container, unmount } = renderWithProviders(
             <ControlSidebar />,
@@ -518,7 +523,7 @@ describe('ControlSidebar', () => {
             filters([makeRule({})]),
         );
         expect(withOne.querySelector('.mantine-Badge-root')).toHaveTextContent(
-            /^1 filter$/,
+            /^1 control$/,
         );
         unmountOne();
 
@@ -527,8 +532,34 @@ describe('ControlSidebar', () => {
             filters([makeRule({}), makeRule({ id: 'filter-2' })]),
         );
         expect(withTwo.querySelector('.mantine-Badge-root')).toHaveTextContent(
-            /^2 filters$/,
+            /^2 controls$/,
         );
+    });
+
+    it('titles the rail Controls for an editor and Filters for a viewer', () => {
+        setSidebar({ editing: null, editingRule: null });
+        const { unmount } = renderWithProviders(
+            <ControlSidebar />,
+            filters([makeRule({})]),
+        );
+        expect(
+            screen.getByRole('heading', { name: 'Controls' }),
+        ).toBeInTheDocument();
+        unmount();
+
+        setSidebar({ editing: null, editingRule: null, isViewer: true });
+        const { container } = renderWithProviders(
+            <ControlSidebar />,
+            filters([]),
+            filters([makeRule({})]),
+        );
+        expect(
+            screen.getByRole('heading', { name: 'Filters' }),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('heading', { name: 'Controls' })).toBeNull();
+        expect(
+            container.querySelector('.mantine-Badge-root'),
+        ).toHaveTextContent(/^1 filter$/);
     });
 
     it('shows no type icon in the head until the new filter has a field', () => {
@@ -717,12 +748,12 @@ describe('ControlSidebar', () => {
             filters([makeRule({ label: 'Order status' })]),
         );
 
-        expect(screen.getByRole('heading', { name: 'Filters' })).toBeVisible();
+        expect(screen.getByRole('heading', { name: 'Controls' })).toBeVisible();
         // The count badge reads as words, not a bare number
         expect(
-            screen.getByRole('heading', { name: 'Filters' }).nextElementSibling
+            screen.getByRole('heading', { name: 'Controls' }).nextElementSibling
                 ?.textContent,
-        ).toMatch(/^1 filter$/);
+        ).toMatch(/^1 control$/);
         fireEvent.click(screen.getByRole('button', { name: 'Done' }));
         expect(close).toHaveBeenCalledTimes(1);
 
@@ -925,7 +956,7 @@ describe('ControlSidebar', () => {
 
             const second = setSidebar({
                 isNew: false,
-                editing: { filterId: 'filter-2' },
+                editing: { kind: 'filter', filterId: 'filter-2' },
                 editingRule: makeRule({ id: 'filter-2', label: 'Region' }),
             });
             rerender(<ControlSidebar />);
@@ -1030,7 +1061,7 @@ describe('ControlSidebar', () => {
                 isViewer: true,
                 isNew: true,
                 isPlaceholder: true,
-                editing: { filterId: 'own' },
+                editing: { kind: 'filter', filterId: 'own' },
                 editingRule: {
                     ...own,
                     target: { fieldId: '', tableName: '' },
@@ -1041,7 +1072,7 @@ describe('ControlSidebar', () => {
                 isViewer: true,
                 isNew: true,
                 isPlaceholder: false,
-                editing: { filterId: 'own' },
+                editing: { kind: 'filter', filterId: 'own' },
                 editingRule: own,
             });
             rerender(<ControlSidebar />);
@@ -1052,7 +1083,7 @@ describe('ControlSidebar', () => {
             setSidebar({
                 isViewer: true,
                 isNew: false,
-                editing: { filterId: 'own' },
+                editing: { kind: 'filter', filterId: 'own' },
                 editingRule: own,
             });
             renderWithProviders(
@@ -1069,7 +1100,7 @@ describe('ControlSidebar', () => {
             setSidebar({
                 isViewer: true,
                 isNew: false,
-                editing: { filterId: 'own' },
+                editing: { kind: 'filter', filterId: 'own' },
                 editingRule: own,
             });
             renderWithProviders(
@@ -1083,6 +1114,131 @@ describe('ControlSidebar', () => {
             expect(
                 screen.getByRole('button', { name: 'Remove filter' }),
             ).toBeInTheDocument();
+        });
+    });
+
+    describe('date zooms', () => {
+        const zoomConfig = {
+            controls: [
+                { uuid: 'z1', name: 'Order trend', granularity: 'Month' },
+                { uuid: 'z2', name: 'Empty zoom', granularity: 'Week' },
+            ],
+            tileTargets: {
+                a: {
+                    controlUuid: 'z1',
+                    fieldId: FIELD_ID,
+                    tableName: 'orders',
+                },
+                b: { controlUuid: 'z1', fieldId: null, tableName: null },
+            },
+        };
+
+        beforeEach(() => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dateZoomConfig: zoomConfig,
+            };
+        });
+
+        it('does not count a new zoom with no tiles', () => {
+            const badgeText = () =>
+                document.querySelector('.mantine-Badge-label')?.textContent;
+            const base = {
+                editing: { kind: 'dateZoom' as const, controlUuid: 'z2' },
+                editingRule: null,
+                editingZoom: zoomConfig.controls[1],
+            };
+            setSidebar({ ...base, isNew: true });
+            const { unmount } = renderWithProviders(<ControlSidebar />);
+            expect(badgeText()).toBe('1 control');
+            unmount();
+            setSidebar({ ...base, isNew: false });
+            renderWithProviders(<ControlSidebar />);
+            expect(badgeText()).toBe('2 controls');
+        });
+
+        it('lists the zooms after the filters in edit mode, and opens one', () => {
+            const { openZoom } = setSidebar({
+                editing: null,
+                editingRule: null,
+            });
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([makeRule({ label: 'Order status' })]),
+            );
+            const rows = screen
+                .getAllByRole('button', { expanded: false })
+                .filter((row) => row.hasAttribute('data-controls-row'));
+            expect(rows.map((row) => row.textContent)).toEqual([
+                expect.stringContaining('Order status'),
+                'Order trendMonth · 2 tiles',
+                'Empty zoomWeek · No tiles · removed on save',
+            ]);
+            fireEvent.click(rows[1]);
+            expect(openZoom).toHaveBeenCalledWith('z1');
+            expect(
+                screen.getByRole('heading', { name: 'Controls' })
+                    .nextElementSibling?.textContent,
+            ).toMatch(/^3 controls$/);
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Add date zoom' }),
+            );
+            expect(mockSidebar.current.openNewZoom).toHaveBeenCalledTimes(1);
+        });
+
+        it('lists no zoom and no "Add date zoom" for a viewer', () => {
+            setSidebar({ editing: null, editingRule: null, isViewer: true });
+            renderWithProviders(<ControlSidebar />);
+            expect(screen.queryByText('Order trend')).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Add date zoom' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('edits the open zoom in place and writes its name back when emptied', () => {
+            const { updateDateZoomConfig } = setSidebar({
+                editing: { kind: 'dateZoom', controlUuid: 'z1' },
+                editingRule: null,
+                editingZoom: zoomConfig.controls[0],
+                isNew: false,
+                isDirty: false,
+            });
+            renderWithProviders(<ControlSidebar />);
+            const name = screen.getByRole('textbox', {
+                name: 'Date zoom name',
+            });
+            expect(name).toHaveValue('Order trend');
+            expect(screen.getByText('2 tiles')).toBeInTheDocument();
+            expect(screen.getByLabelText('Remove date zoom')).toBeVisible();
+
+            fireEvent.change(name, { target: { value: ' ' } });
+            fireEvent.blur(name);
+            expect(updateDateZoomConfig).toHaveBeenLastCalledWith({
+                ...zoomConfig,
+                controls: [
+                    { ...zoomConfig.controls[0], name: 'Date zoom' },
+                    zoomConfig.controls[1],
+                ],
+            });
+            expect(name).toHaveValue('Date zoom');
+        });
+
+        it('says closing drops a zoom with no tiles, with Cancel in the footer', () => {
+            const { discard } = setSidebar({
+                editing: { kind: 'dateZoom', controlUuid: 'z2' },
+                editingRule: null,
+                editingZoom: zoomConfig.controls[1],
+                isNew: true,
+            });
+            renderWithProviders(<ControlSidebar />);
+            expect(
+                screen.getByText('Select a tile to keep this zoom'),
+            ).toBeVisible();
+            expect(
+                screen.queryByRole('button', { name: 'Done' }),
+            ).not.toBeInTheDocument();
+            fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+            expect(discard).toHaveBeenCalledTimes(1);
         });
     });
 });

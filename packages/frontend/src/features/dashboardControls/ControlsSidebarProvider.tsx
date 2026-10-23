@@ -7,6 +7,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DateZoomConfig,
     type ResultColumn,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
@@ -39,14 +40,19 @@ import {
     selectDashboardTiles,
     selectHaveFiltersChanged,
     selectRawTemporaryFilters,
+    useDashboardDateZoomConfig,
+    useDashboardDateZoomGranularities,
     useDashboardSelector,
     useDashboardTemporaryFilters,
+    useDefaultDateZoomGranularity,
+    useHasDateZoomConfigChanged,
 } from '../dashboard/store';
 import {
     getFilterRuleWithDisabledState,
     hasFilterValueSet,
     isLockedRequiredMissingValue,
 } from '../dashboardFilters/FilterConfiguration/utils';
+import { type EditedControl } from './editedControl';
 import { getLinkKey } from './linkCandidates';
 import {
     getFieldCount,
@@ -83,6 +89,18 @@ import {
     type ControlsSidebarSection,
 } from './useControlsSidebar';
 import { useEditorDismiss } from './useEditorDismiss';
+import {
+    addZoomControl,
+    createZoomControl,
+    DEFAULT_ZOOM_NAME,
+    findZoomControl,
+    getZoomTileUuids,
+    isZoomDirty,
+    removeZoomControl,
+    replaceZoomControl,
+    restoreZoom,
+    type ZoomSnapshot,
+} from './zoomState';
 
 // The bar's "Add", and the pills, which carry their filter id. The pills are
 // off the bar while the editor is open, so the pill is found once it is back
@@ -155,6 +173,13 @@ type SidebarState = {
     touchedFilterIds: string[];
 };
 
+// A date zoom expanded in the rail. Filters and zooms are never open together
+type ZoomEditState = {
+    controlUuid: string;
+    isNew: boolean;
+    snapshot: ZoomSnapshot;
+};
+
 const createPlaceholder = (id: string): DashboardFilterRule => ({
     id,
     target: PLACEHOLDER_TARGET,
@@ -194,6 +219,15 @@ type Latest = {
     undo: ApplyUndo | null;
     waiting: Waiting | null;
     activeTabUuid: string | undefined;
+    zoomEdit: ZoomEditState | null;
+    dateZoomConfig: DateZoomConfig;
+    hasDateZoomConfigChanged: boolean;
+    defaultDateZoomGranularity: ReturnType<
+        typeof useDefaultDateZoomGranularity
+    >;
+    dateZoomGranularities: ReturnType<typeof useDashboardDateZoomGranularities>;
+    setDateZoomConfig: DashboardContextType['setDateZoomConfig'];
+    setHasDateZoomConfigChanged: DashboardContextType['setHasDateZoomConfigChanged'];
 };
 
 // Fields of the filter on no tile yet, keyed by filter so a stale entry
@@ -328,6 +362,14 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const savedTiles = useDashboardContext((c) => c.dashboard?.tiles);
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    const dateZoomConfig = useDashboardDateZoomConfig();
+    const hasDateZoomConfigChanged = useHasDateZoomConfigChanged();
+    const defaultDateZoomGranularity = useDefaultDateZoomGranularity();
+    const dateZoomGranularities = useDashboardDateZoomGranularities();
+    const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
+    const setHasDateZoomConfigChanged = useDashboardContext(
+        (c) => c.setHasDateZoomConfigChanged,
+    );
     const { track } = useTracking();
     const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
 
@@ -363,6 +405,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const [undo, setUndo] = useState<ApplyUndo | null>(null);
     const [hoveredFieldId, setHoveredFieldId] = useState<string | null>(null);
     const [waiting, setWaiting] = useState<Waiting | null>(null);
+    const [zoomEdit, setZoomEdit] = useState<ZoomEditState | null>(null);
 
     const rendered: Latest = {
         state,
@@ -384,6 +427,13 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         undo,
         waiting,
         activeTabUuid,
+        zoomEdit,
+        dateZoomConfig,
+        hasDateZoomConfigChanged,
+        defaultDateZoomGranularity,
+        dateZoomGranularities,
+        setDateZoomConfig,
+        setHasDateZoomConfigChanged,
     };
     const latest = useRef(rendered);
     useLayoutEffect(() => {
@@ -483,16 +533,27 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         setUndo(next);
     }, []);
 
+    const writeZoomEdit = useCallback((next: ZoomEditState | null) => {
+        latest.current.zoomEdit = next;
+        setZoomEdit(next);
+    }, []);
+
+    const writeZoomConfig = useCallback((next: DateZoomConfig) => {
+        latest.current.dateZoomConfig = next;
+        latest.current.setDateZoomConfig(next);
+    }, []);
+
     // Ends the edit; the rail stays open on its rows
     const resetEdit = useCallback(() => {
         writeUndo(null);
+        writeZoomEdit(null);
         writeState(null);
         writePlaceholder(null);
         setActiveSection(null);
         setHighlightedFieldId(null);
         setHoveredFieldId(null);
         setWaiting(null);
-    }, [writeState, writePlaceholder, writeUndo]);
+    }, [writeState, writePlaceholder, writeUndo, writeZoomEdit]);
 
     const reset = useCallback(() => {
         resetEdit();
@@ -958,9 +1019,14 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                       current.activeTabUuid,
                   ).filters
                 : current.dashboardFilters;
+            // An editor's rail lists the date zooms too
+            const zoomCount = current.isViewer
+                ? 0
+                : current.dateZoomConfig.controls.length;
             if (
                 keepRail &&
-                filters.dimensions.length + filters.metrics.length > 0
+                filters.dimensions.length + filters.metrics.length + zoomCount >
+                    0
             ) {
                 resetEdit();
                 return;
@@ -1020,7 +1086,113 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         },
         [writeFilters, settleFiltersChanged, endEdit, rememberFocusReturn],
     );
-    const discard = useCallback(() => discardEdited(true), [discardEdited]);
+
+    // A zoom's edit is done: the "changed" flag goes back to what it was when
+    // the zoom opened, but only when the config is back to that too
+    const settleZoomChanged = useCallback((snapshot: ZoomSnapshot) => {
+        const current = latest.current;
+        if (!isEqual(current.dateZoomConfig, snapshot.dateZoomConfig)) return;
+        current.hasDateZoomConfigChanged = snapshot.hasDateZoomConfigChanged;
+        current.setHasDateZoomConfigChanged(snapshot.hasDateZoomConfigChanged);
+    }, []);
+
+    // The edited zoom goes with its tiles; every other write stays
+    const removeEditedZoom = useCallback(
+        (keepRail: boolean) => {
+            const { zoomEdit: edit, dateZoomConfig: config } = latest.current;
+            if (edit === null) return;
+            // Its row is gone: the rail's "Add" takes focus
+            focusReturn.current = { filterIds: [], inRail: keepRail };
+            writeZoomConfig(removeZoomControl(config, edit.controlUuid));
+            settleZoomChanged(edit.snapshot);
+            endEdit(keepRail);
+        },
+        [writeZoomConfig, settleZoomChanged, endEdit],
+    );
+
+    // The edited zoom and its tiles go back to the snapshot, or out when new
+    const discardEditedZoom = useCallback(
+        (keepRail: boolean) => {
+            const { zoomEdit: edit, dateZoomConfig: config } = latest.current;
+            if (edit === null) return;
+            focusReturn.current = {
+                filterIds: edit.isNew ? [] : [edit.controlUuid],
+                inRail: keepRail,
+            };
+            writeZoomConfig(
+                restoreZoom(
+                    config,
+                    edit.snapshot.dateZoomConfig,
+                    edit.controlUuid,
+                ),
+            );
+            settleZoomChanged(edit.snapshot);
+            endEdit(keepRail);
+        },
+        [writeZoomConfig, settleZoomChanged, endEdit],
+    );
+
+    // As a filter with no field: a zoom with no tiles cannot be kept, and an
+    // emptied name goes back to the one a new zoom starts with
+    const closeEditedZoom = useCallback(
+        (keepRail: boolean) => {
+            const { zoomEdit: edit, dateZoomConfig: config } = latest.current;
+            if (edit === null) return;
+            const control = findZoomControl(config, edit.controlUuid);
+            // Something outside took it away: that write is kept
+            if (control === null) {
+                if (keepRail) resetEdit();
+                else reset();
+                return;
+            }
+            if (getZoomTileUuids(config, edit.controlUuid).length === 0) {
+                if (edit.isNew) discardEditedZoom(keepRail);
+                else removeEditedZoom(keepRail);
+                return;
+            }
+            if (control.name.trim() === '') {
+                writeZoomConfig(
+                    replaceZoomControl(config, {
+                        ...control,
+                        name: DEFAULT_ZOOM_NAME,
+                    }),
+                );
+            }
+            focusReturn.current = {
+                filterIds: [edit.controlUuid],
+                inRail: keepRail,
+            };
+            settleZoomChanged(edit.snapshot);
+            if (keepRail) resetEdit();
+            else reset();
+        },
+        [
+            discardEditedZoom,
+            removeEditedZoom,
+            writeZoomConfig,
+            settleZoomChanged,
+            reset,
+            resetEdit,
+        ],
+    );
+
+    const discard = useCallback(() => {
+        if (latest.current.zoomEdit !== null) discardEditedZoom(true);
+        else discardEdited(true);
+    }, [discardEdited, discardEditedZoom]);
+    const removeZoom = useCallback(
+        () => removeEditedZoom(true),
+        [removeEditedZoom],
+    );
+
+    // Live writes, so tiles preview the zoom; only while one is edited
+    const updateDateZoomConfig = useCallback(
+        (next: DateZoomConfig) => {
+            if (latest.current.zoomEdit === null) return;
+            writeZoomConfig(next);
+        },
+        [writeZoomConfig],
+    );
 
     const isPlaceholder =
         state !== null && placeholder !== null && !isOtherModeEdit;
@@ -1070,6 +1242,10 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const closeEdited = useCallback(
         (keepRail: boolean) => {
             const current = latest.current;
+            if (current.zoomEdit !== null) {
+                closeEditedZoom(keepRail);
+                return;
+            }
             if (current.state === null) {
                 // Nothing is edited: Done, the X and Escape close the rail itself
                 if (!keepRail && current.isRailOpen) {
@@ -1127,6 +1303,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             else reset();
         },
         [
+            closeEditedZoom,
             discardEdited,
             removeEdited,
             reset,
@@ -1174,9 +1351,70 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [collapse, openExisting],
     );
 
-    // Derived, not reset: a rule that left the dashboard filters closes the
+    const openZoomEdit = useCallback(
+        (controlUuid: string, isNew: boolean, snapshot: ZoomSnapshot) => {
+            writeUndo(null);
+            focusReturn.current = null;
+            setActiveSection(null);
+            setHoveredFilterId(null);
+            writeRailOpen(true);
+            writeZoomEdit({ controlUuid, isNew, snapshot });
+        },
+        [writeUndo, writeRailOpen, writeZoomEdit],
+    );
+
+    // As `open`: whatever else is edited is closed first, as "Done" would.
+    // Date zooms are the dashboard's: a viewer's rail never edits one
+    const openZoom = useCallback(
+        (controlUuid: string) => {
+            const current = latest.current;
+            if (
+                current.isPageViewer ||
+                current.zoomEdit?.controlUuid === controlUuid ||
+                findZoomControl(current.dateZoomConfig, controlUuid) === null
+            )
+                return;
+            collapse();
+            openZoomEdit(controlUuid, false, {
+                dateZoomConfig: latest.current.dateZoomConfig,
+                hasDateZoomConfigChanged:
+                    latest.current.hasDateZoomConfigChanged,
+            });
+        },
+        [collapse, openZoomEdit],
+    );
+
+    // Seeded as the bar's "Add date zoom" seeds one; kept once it has a tile
+    const openNewZoom = useCallback(() => {
+        if (latest.current.isPageViewer) return;
+        collapse();
+        const current = latest.current;
+        const snapshot: ZoomSnapshot = {
+            dateZoomConfig: current.dateZoomConfig,
+            hasDateZoomConfigChanged: current.hasDateZoomConfigChanged,
+        };
+        const control = createZoomControl(
+            uuidv4(),
+            current.defaultDateZoomGranularity,
+            current.dateZoomGranularities,
+        );
+        writeZoomConfig(addZoomControl(current.dateZoomConfig, control));
+        openZoomEdit(control.uuid, true, snapshot);
+    }, [collapse, openZoomEdit, writeZoomConfig]);
+
+    // A zoom's edit belongs to edit mode: hidden once the mode has changed
+    const editingZoom = useMemo(
+        () =>
+            zoomEdit === null || isViewer
+                ? null
+                : findZoomControl(dateZoomConfig, zoomEdit.controlUuid),
+        [zoomEdit, isViewer, dateZoomConfig],
+    );
+
+    // Derived, not reset: a rule or zoom that left the dashboard closes the
     // sidebar, and the next open or Add starts over
-    const isSidebarOpen = state !== null && editingRule !== null;
+    const isSidebarOpen =
+        (state !== null && editingRule !== null) || editingZoom !== null;
 
     // Derived: only while Undo can still take it back
     const fieldUndo = useMemo(
@@ -1230,20 +1468,26 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
 
     // Its own memo so a hover does not hand selectors a new object
     const editingFilterId = isOtherModeEdit ? null : (state?.filterId ?? null);
-    const editing = useMemo(
-        () => (editingFilterId === null ? null : { filterId: editingFilterId }),
-        [editingFilterId],
-    );
+    const editingZoomUuid =
+        zoomEdit === null || isViewer ? null : zoomEdit.controlUuid;
+    const editing = useMemo<EditedControl | null>(() => {
+        if (editingFilterId !== null)
+            return { kind: 'filter', filterId: editingFilterId };
+        if (editingZoomUuid !== null)
+            return { kind: 'dateZoom', controlUuid: editingZoomUuid };
+        return null;
+    }, [editingFilterId, editingZoomUuid]);
 
     const value = useMemo<ControlsSidebarContextValue>(
         () => ({
             editing,
             isViewer,
             canAddFilters,
-            isNew: state?.isNew ?? false,
+            isNew: state?.isNew ?? zoomEdit?.isNew ?? false,
             emptiedFieldLabel: state?.emptiedAt?.fieldLabel ?? null,
             isPlaceholder,
             editingRule,
+            editingZoom,
             isSidebarOpen,
             isRailOpen,
             hoveredFilterId,
@@ -1256,6 +1500,10 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             setActiveSection,
             open,
             openNew,
+            openZoom,
+            openNewZoom,
+            updateDateZoomConfig,
+            removeZoom,
             addFirstField,
             addFirstSqlColumn,
             addFirstFieldOnTile,
@@ -1280,20 +1528,26 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             close,
             collapse,
             isDirty:
-                state !== null &&
-                (isPlaceholder ||
-                    isFilterRuleDirty(
-                        state.snapshot.dashboardFilters,
-                        dashboardFilters,
-                        state.filterId,
-                        toSavedRule,
-                    ) ||
-                    haveOtherFilterRulesChanged(
-                        state.snapshot.dashboardFilters,
-                        dashboardFilters,
-                        state.touchedFilterIds,
-                        toSavedRule,
-                    )),
+                (zoomEdit !== null &&
+                    isZoomDirty(
+                        dateZoomConfig,
+                        zoomEdit.snapshot.dateZoomConfig,
+                        zoomEdit.controlUuid,
+                    )) ||
+                (state !== null &&
+                    (isPlaceholder ||
+                        isFilterRuleDirty(
+                            state.snapshot.dashboardFilters,
+                            dashboardFilters,
+                            state.filterId,
+                            toSavedRule,
+                        ) ||
+                        haveOtherFilterRulesChanged(
+                            state.snapshot.dashboardFilters,
+                            dashboardFilters,
+                            state.touchedFilterIds,
+                            toSavedRule,
+                        ))),
         }),
         [
             state,
@@ -1306,9 +1560,16 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             editing,
             isPlaceholder,
             editingRule,
+            editingZoom,
+            zoomEdit,
+            dateZoomConfig,
             activeSection,
             open,
             openNew,
+            openZoom,
+            openNewZoom,
+            updateDateZoomConfig,
+            removeZoom,
             addFirstField,
             addFirstSqlColumn,
             addFirstFieldOnTile,

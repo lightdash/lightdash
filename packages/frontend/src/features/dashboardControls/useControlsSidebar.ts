@@ -1,6 +1,8 @@
 import {
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DateZoomConfig,
+    type DateZoomControl,
     type ResultColumn,
 } from '@lightdash/common';
 import {
@@ -8,6 +10,7 @@ import {
     useContext,
     useContextSelector,
 } from 'use-context-selector';
+import { type EditedControl } from './editedControl';
 
 /** The disclosure open under the edited filter's default value. */
 export type ControlsSidebarSection = 'tiles' | 'rules';
@@ -24,8 +27,8 @@ export type FieldApply = {
 };
 
 export type ControlsSidebarContextValue = {
-    /** The filter control being edited, or null when the sidebar is closed. */
-    editing: { filterId: string } | null;
+    /** The control being edited, or null when none is expanded. */
+    editing: EditedControl | null;
     /**
      * Outside edit mode: the editor writes the viewer's own temporary
      * filters only; saved filters keep the bar's shipped popover.
@@ -38,14 +41,19 @@ export type ControlsSidebarContextValue = {
     /** The edited control has no mapping yet, so it cannot be kept. */
     isPlaceholder: boolean;
     editingRule: DashboardFilterRule | null;
+    /** The date zoom being edited, as the dashboard holds it now. */
+    editingZoom: DateZoomControl | null;
     /**
-     * A filter is being edited: false as soon as the edited filter is no
-     * longer in the dashboard. The rail can be open without it.
+     * A control is being edited: false as soon as the edited filter or zoom
+     * is no longer in the dashboard. The rail can be open without it.
      */
     isSidebarOpen: boolean;
     /** The rail is open, with a filter expanded in it or every filter a row. */
     isRailOpen: boolean;
-    /** The rail row under the pointer or focus: its tiles are highlighted. */
+    /**
+     * The rail row under the pointer or focus: its tiles are highlighted. A
+     * zoom row sets it with the zoom's uuid.
+     */
     hoveredFilterId: string | null;
     setHoveredFilterId: (filterId: string | null) => void;
     /** Clears the hover only while it is this filter's, so leaving one row keeps another's. */
@@ -57,6 +65,14 @@ export type ControlsSidebarContextValue = {
     open: (filterId: string) => void;
     /** Opens a placeholder control; the first mapping decides what it is. */
     openNew: () => void;
+    /** Opens a date zoom, closing any other control first; edit mode only. */
+    openZoom: (controlUuid: string) => void;
+    /** Adds a date zoom with no tiles and opens it; edit mode only. */
+    openNewZoom: () => void;
+    /** Writes the dashboard's date zoom config while a zoom is edited. */
+    updateDateZoomConfig: (next: DateZoomConfig) => void;
+    /** Removes the edited zoom and its tiles; the rail stays open. */
+    removeZoom: () => void;
     /** Turns the placeholder into a filter control on the given field. */
     addFirstField: (field: DashboardFilterableField) => void;
     /**
@@ -120,7 +136,7 @@ export type ControlsSidebarContextValue = {
     /**
      * Puts the edited filter back as it was when it was opened, or removes it
      * when it was new, and undoes the editor's own writes to other filters.
-     * The rail stays open.
+     * A zoom goes back with its tiles. The rail stays open.
      */
     discard: () => void;
     /**

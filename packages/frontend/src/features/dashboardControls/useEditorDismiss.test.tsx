@@ -18,6 +18,7 @@ import {
     type DashboardStore,
 } from '../dashboard/store';
 import { ControlsSidebarProvider } from './ControlsSidebarProvider';
+import { getEditedControlId } from './editedControl';
 import {
     useControlsSidebar,
     type ControlsSidebarContextValue,
@@ -97,7 +98,10 @@ const Page: FC = () => {
             {isRailOpen && (
                 <div data-controls-editor data-testid="editor">
                     {filters.dimensions
-                        .filter((filter) => filter.id !== editing?.filterId)
+                        .filter(
+                            (filter) =>
+                                filter.id !== getEditedControlId(editing),
+                        )
                         .map((filter) => (
                             <button
                                 key={filter.id}
@@ -219,7 +223,10 @@ describe('dismissing in the controls editor', () => {
         it('lets the label commit before it closes', () => {
             escape(label());
             // Blurred while the editor was still open on the filter
-            expect(onLabelBlur).toHaveBeenCalledWith({ filterId: 'a' });
+            expect(onLabelBlur).toHaveBeenCalledWith({
+                kind: 'filter',
+                filterId: 'a',
+            });
         });
 
         it('clears a clicked field first and closes on the next press', () => {
@@ -428,7 +435,7 @@ describe('dismissing in the controls editor', () => {
                     hidden: false,
                 }),
             );
-            const newId = value().editing?.filterId;
+            const newId = getEditedControlId(value().editing);
             fireEvent.click(screen.getByRole('button', { name: 'Done' }));
 
             expect(pill(newId ?? '')).toHaveFocus();
@@ -459,7 +466,7 @@ describe('dismissing in the controls editor', () => {
 
         it('is not moved when another control opens', () => {
             act(() => value().open('b'));
-            expect(value().editing).toEqual({ filterId: 'b' });
+            expect(value().editing).toEqual({ kind: 'filter', filterId: 'b' });
             expect(label()).toHaveFocus();
         });
     });
