@@ -1068,6 +1068,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dataAppAnalysisModel:
                         models.getDataAppAnalysisModel<DataAppAnalysisModel>(),
                     appModel: models.getAppModel(),
+                    dashboardModel: models.getDashboardModel(),
                     userModel: models.getUserModel(),
                     schedulerService: repository.getSchedulerService(),
                     schedulerClient:

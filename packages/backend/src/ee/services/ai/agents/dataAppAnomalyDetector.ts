@@ -105,7 +105,7 @@ const toDimensionValues = (
         rowIdentity.map(({ fieldId, value }) => [fieldId, value]),
     );
 
-const SYSTEM_PROMPT = `You are an analyst reading the query results behind a data app the viewer has open.
+const SYSTEM_PROMPT = `You are an analyst reading the query results behind a page of charts the viewer has open.
 Find what is out of the ordinary and describe it so an executive understands it without the charts.
 
 Rules:

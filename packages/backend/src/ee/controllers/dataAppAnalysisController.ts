@@ -65,7 +65,7 @@ export class DataAppAnalysisController extends BaseController {
         const results = await this.getService().detect(
             req.account,
             projectUuid,
-            appUuid,
+            { kind: 'app', appUuid },
             body,
         );
         return { status: 'ok', results };
@@ -98,7 +98,7 @@ export class DataAppAnalysisController extends BaseController {
         const results = await this.getService().lookup(
             req.account,
             projectUuid,
-            appUuid,
+            { kind: 'app', appUuid },
             body,
         );
         return { status: 'ok', results };
@@ -196,7 +196,7 @@ export class DataAppAnalysisController extends BaseController {
         const results = await this.getService().getAnalysis(
             req.account,
             projectUuid,
-            appUuid,
+            { kind: 'app', appUuid },
             analysisId,
         );
         return { status: 'ok', results };

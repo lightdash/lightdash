@@ -28,6 +28,7 @@ import {
     SuggestedChartTypeFields,
     TableCalculationType,
     UnexpectedServerError,
+    type AnalysisTargetRef,
 } from '@lightdash/common';
 import { generateText, Output } from 'ai';
 import NodeCache from 'node-cache';
@@ -965,12 +966,12 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
             content,
             instructions,
             projectUuid,
-            appUuid,
+            target,
         }: {
             content: string;
             instructions: string | null;
             projectUuid: string;
-            appUuid: string;
+            target: AnalysisTargetRef;
         },
     ): Promise<{
         detection: DataAppDetection;
@@ -983,7 +984,12 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
         const { detection, usage } = await detectDataAppAnomalies(
             {
                 ...modelOptions,
-                telemetry: { ...modelOptions.telemetry, appUuid },
+                telemetry: {
+                    ...modelOptions.telemetry,
+                    ...(target.kind === 'app'
+                        ? { appUuid: target.appUuid }
+                        : { dashboardUuid: target.dashboardUuid }),
+                },
             },
             {
                 content,

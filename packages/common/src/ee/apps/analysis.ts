@@ -18,6 +18,14 @@ export type AnalysisTargetRef =
     | { kind: 'app'; appUuid: string; appVersion: number }
     | { kind: 'dashboard'; dashboardUuid: string };
 
+/**
+ * What a request names. The viewer check resolves it to a full
+ * `AnalysisTargetRef` (apps gain their latest ready version).
+ */
+export type AnalysisTargetLocator =
+    | { kind: 'app'; appUuid: string }
+    | { kind: 'dashboard'; dashboardUuid: string };
+
 /** Whether an app analyses on load: its own choice, or the org default. */
 export type DataAppAutoAnalysis = 'inherit' | 'on' | 'off';
 

@@ -290,6 +290,7 @@ export type AiCallRuntimeContextKey =
     | 'channel'
     | 'externalUserId'
     | 'appUuid'
+    | 'dashboardUuid'
     | 'runUuid'
     | 'deepResearchRunUuid'
     | 'deepResearchPhase';

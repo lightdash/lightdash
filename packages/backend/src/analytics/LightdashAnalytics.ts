@@ -2361,14 +2361,16 @@ export type DataAppAnalysisOutcome =
     /** Anything unexpected, from the model call to storing the row. */
     | 'error';
 
-/** One per AI analysis operation on a data app, whatever the outcome. */
+/** One per AI analysis operation on a data app or dashboard, whatever the outcome. */
 export type DataAppAnalysisCompletedEvent = BaseTrack & {
     event: 'data_app_analysis.completed';
     userId: string;
     properties: {
         organizationId: string;
         projectId: string;
-        appUuid: string;
+        targetKind: 'app' | 'dashboard';
+        appUuid: string | null;
+        dashboardUuid: string | null;
         appVersion: number | null;
         operation: 'detect' | 'prompt' | 'investigate';
         outcome: DataAppAnalysisOutcome;
