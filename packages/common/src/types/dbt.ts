@@ -972,6 +972,13 @@ export type DbtExternalModelNode = {
     depends_on_nodes: string[];
 };
 
+export type DbtSourceManifest = {
+    projectName: string;
+    dbtVersion: string;
+    nodes: DbtExternalModelNode[];
+    referencedProjects: string[];
+};
+
 export const getExternalModelNodesFromManifest = (
     manifest: DbtManifest,
 ): DbtExternalModelNode[] => {
@@ -979,7 +986,11 @@ export const getExternalModelNodesFromManifest = (
         .filter((node) => node.resource_type === 'model')
         .map((node) => node as DbtRawModelNode)
         .filter((node) => !isExternalDbtNode(node));
-    const modelIds = new Set(models.map((node) => node.unique_id));
+    const modelIds = new Set(
+        Object.values(manifest.nodes)
+            .filter((node) => node.resource_type === 'model')
+            .map((node) => node.unique_id),
+    );
     return models.map((node) => ({
         name: node.name,
         package_name: node.package_name,

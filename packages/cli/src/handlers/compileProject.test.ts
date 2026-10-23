@@ -1,5 +1,6 @@
 import {
     DimensionType,
+    InlineErrorType,
     LightdashError,
     projectMergedManifest,
     SupportedDbtVersions,
@@ -300,7 +301,217 @@ describe('compileProject completeness', () => {
         const result = await compileProject(compileOptions(tempDir));
 
         expect(result.dbtModelNames).toBeUndefined();
+        expect(result.dbtSourceManifest).toBeUndefined();
         expect(loadManifest).not.toHaveBeenCalled();
+    });
+
+    test('seeds every real model version before explore selection without filtering access', async () => {
+        vi.mocked(loadManifest).mockResolvedValue(
+            manifest({
+                'model.test.orders.v2': dbtNode(
+                    'model.test.orders.v2',
+                    'model',
+                    true,
+                    {
+                        name: 'orders',
+                        alias: 'orders_v2',
+                        version: 2,
+                        latest_version: 3,
+                        access: 'protected',
+                        relation_name: '"db"."public"."orders_v2"',
+                    },
+                ),
+                'model.test.orders.v3': dbtNode(
+                    'model.test.orders.v3',
+                    'model',
+                    false,
+                    {
+                        name: 'orders',
+                        alias: 'orders_v3',
+                        version: 3,
+                        latest_version: 3,
+                        access: 'private',
+                        relation_name: '"db"."public"."orders_v3"',
+                        depends_on: {
+                            nodes: [
+                                'model.test.orders.v2',
+                                'seed.test.countries',
+                                'model.remote.placeholder',
+                                'model.remote.placeholder',
+                            ],
+                        },
+                    },
+                ),
+                'seed.test.countries': dbtNode(
+                    'seed.test.countries',
+                    'seed',
+                    false,
+                ),
+                'model.test.helper': dbtNode(
+                    'model.test.helper',
+                    'model',
+                    true,
+                    {
+                        config: { materialized: 'ephemeral' },
+                        access: 'public',
+                        relation_name: null,
+                        database: null,
+                    },
+                ),
+                'model.remote.placeholder': dbtNode(
+                    'model.remote.placeholder',
+                    'model',
+                    false,
+                    {
+                        path: '',
+                        original_file_path: '',
+                        access: 'public',
+                        package_name: 'remote',
+                    },
+                ),
+            }),
+        );
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.test.orders.v2'],
+            originallySelectedModelIds: ['model.test.orders.v2'],
+        });
+
+        const result = await compileProject(compileOptions(tempDir));
+
+        expect(result.explores).toHaveLength(1);
+        expect(result.dbtSourceManifest).toEqual({
+            projectName: 'test_project',
+            dbtVersion: '1.10.19',
+            referencedProjects: ['remote'],
+            nodes: [
+                {
+                    name: 'orders',
+                    package_name: 'test',
+                    identifier: 'orders_v2',
+                    database: 'db',
+                    schema: 'public',
+                    relation_name: '"db"."public"."orders_v2"',
+                    version: 2,
+                    latest_version: 3,
+                    access: 'protected',
+                    depends_on_nodes: [],
+                },
+                {
+                    name: 'orders',
+                    package_name: 'test',
+                    identifier: 'orders_v3',
+                    database: 'db',
+                    schema: 'public',
+                    relation_name: '"db"."public"."orders_v3"',
+                    version: 3,
+                    latest_version: 3,
+                    access: 'private',
+                    depends_on_nodes: [
+                        'model.test.orders.v2',
+                        'model.remote.placeholder',
+                        'model.remote.placeholder',
+                    ],
+                },
+                {
+                    name: 'helper',
+                    package_name: 'test',
+                    identifier: 'helper',
+                    database: null,
+                    schema: 'public',
+                    relation_name: null,
+                    version: null,
+                    latest_version: null,
+                    access: 'public',
+                    depends_on_nodes: [],
+                },
+            ],
+        });
+    });
+
+    test('seeds only the local source before combining another manifest', async () => {
+        const localManifest = manifest({
+            'model.test.orders': dbtNode('model.test.orders', 'model', true, {
+                lightdash_source_name: 'alpha',
+                lightdash_source_uuid: 'alpha-uuid',
+            }),
+        });
+        localManifest.metadata.project_name = 'alpha';
+        vi.mocked(loadManifest).mockResolvedValue(localManifest);
+        vi.mocked(loadCombineManifest).mockResolvedValue(
+            manifest({
+                'model.beta.customers': dbtNode(
+                    'model.beta.customers',
+                    'model',
+                    false,
+                    {
+                        package_name: 'beta',
+                        lightdash_source_name: 'beta',
+                        access: 'private',
+                        version: 3,
+                        latest_version: 3,
+                    },
+                ),
+            }),
+        );
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.test.orders'],
+            originallySelectedModelIds: undefined,
+        });
+
+        const result = await compileProject({
+            ...compileOptions(tempDir),
+            combineManifest: 'combined.json',
+        });
+
+        expect(result.dbtModelNames).toBeUndefined();
+        expect(result.dbtSourceManifest).toEqual({
+            projectName: 'alpha',
+            dbtVersion: '1.10.19',
+            referencedProjects: [],
+            nodes: [expect.objectContaining({ name: 'orders' })],
+        });
+    });
+
+    test('omits the source manifest when compilation returns errors', async () => {
+        vi.mocked(loadManifest).mockResolvedValue(
+            manifest({
+                'model.test.orders': dbtNode(
+                    'model.test.orders',
+                    'model',
+                    true,
+                ),
+            }),
+        );
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.test.orders'],
+            originallySelectedModelIds: undefined,
+        });
+        vi.mocked(validateDbtModel).mockResolvedValue({
+            valid: [],
+            invalid: [
+                {
+                    name: 'orders',
+                    label: 'Orders',
+                    errors: [
+                        {
+                            type: InlineErrorType.METADATA_PARSE_ERROR,
+                            message: 'Invalid metadata',
+                        },
+                    ],
+                },
+            ],
+            skipped: [],
+        });
+
+        const result = await compileProject(compileOptions(tempDir));
+
+        expect(result.explores).toEqual([
+            expect.objectContaining({
+                name: 'orders',
+                errors: expect.any(Array),
+            }),
+        ]);
+        expect(result.dbtSourceManifest).toBeUndefined();
     });
 
     test.each(['lightdash_source_name', 'lightdash_source_uuid'])(

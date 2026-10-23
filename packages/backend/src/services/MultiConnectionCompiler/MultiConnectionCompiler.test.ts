@@ -4,6 +4,7 @@ import {
     DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
+    getExternalModelNodesFromManifest,
     InlineErrorType,
     JobStepStatusType,
     JobStepType,
@@ -319,8 +320,18 @@ describe('cross-source compilation', () => {
                 'resolveCrossSourceManifests',
             );
             const log = vi.spyOn(Logger, 'info');
+            const cacheRows: crossSourceRefs.CrossSourceCatalog[] = [];
             const compiler = new MultiConnectionCompiler({
-                dbtSourceRefCatalogModel: {} as never,
+                dbtSourceRefCatalogModel: {
+                    get: vi.fn(async () =>
+                        cacheRows.map((row) => ({
+                            dbt_source_uuid: 'shared-uuid',
+                            project_name: row.projectName,
+                            referenced_projects: row.referencedProjects,
+                            nodes: row.nodes,
+                        })),
+                    ),
+                } as never,
                 projectModel: {
                     getDbtSourceIdentity: vi.fn().mockResolvedValue({
                         dbtSourceName: 'primary',
@@ -379,6 +390,14 @@ describe('cross-source compilation', () => {
                 metadata: { ...manifest.metadata, project_name: 'shared' },
                 nodes: { [sharedNode.unique_id]: sharedNode },
             };
+            cacheRows.push({
+                key: 'shared',
+                projectName: 'shared',
+                referencedProjects: [],
+                nodes: getExternalModelNodesFromManifest(
+                    upstream as unknown as DbtManifest,
+                ),
+            });
             const primaryManifest = {
                 ...manifest,
                 metadata: { ...manifest.metadata, project_name: 'analytics' },

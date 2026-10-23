@@ -75,6 +75,10 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
             let directory: string;
             let originalPath: string | undefined;
             const clients: DbtCliClient[] = [];
+            const sourceClients = new Map<
+                CrossSourceFetchTask<string>['fetch'],
+                DbtCliClient
+            >();
             let accessResolution: Promise<
                 CrossSourceResolution<string>
             > | null = null;
@@ -203,7 +207,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     partialParseBaselinePath: null,
                 });
                 clients.push(client);
-                return {
+                const source: CrossSourceFetchTask<string> = {
                     prepare: scan
                         ? async (options) => {
                               await client.installDeps(options?.signal);
@@ -225,10 +229,89 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         };
                     },
                 };
+                sourceClients.set(source.fetch, client);
+                return source;
             };
 
-            const resolve = async (projects: string[], enabled = true) =>
+            const createSeeds = async (
+                tasks: CrossSourceFetchTask<string>[],
+            ): Promise<CrossSourceCatalog[]> => {
+                const seeds = await Promise.all(
+                    tasks.map(async (source) => {
+                        const client = sourceClients.get(source.fetch);
+                        if (!client) return null;
+                        const filenames = await fs.readdir(
+                            path.join(client.dbtProjectDirectory, 'models'),
+                            { recursive: true },
+                        );
+                        const sql = await Promise.all(
+                            filenames
+                                .filter((name) => name.endsWith('.sql'))
+                                .map(async (filename) => {
+                                    const fullPath = path.join(
+                                        client.dbtProjectDirectory,
+                                        'models',
+                                        filename,
+                                    );
+                                    return [
+                                        fullPath,
+                                        await fs.readFile(fullPath, 'utf8'),
+                                    ] as const;
+                                }),
+                        );
+                        try {
+                            await Promise.all(
+                                sql.map(([filename, content]) => {
+                                    const config =
+                                        content.match(
+                                            /\{\{\s*config\([\s\S]*?\)\s*\}\}/g,
+                                        ) ?? [];
+                                    return fs.writeFile(
+                                        filename,
+                                        `${config.join('\n')}\nselect 1 as id`,
+                                    );
+                                }),
+                            );
+                            await client.installDeps();
+                            const fetched = await client.getDbtManifest({
+                                externalNodes: [],
+                            });
+                            return {
+                                key: source.key,
+                                projectName:
+                                    fetched.manifest.metadata.project_name!,
+                                referencedProjects: [],
+                                nodes: getExternalModelNodesFromManifest(
+                                    fetched.manifest,
+                                ),
+                            };
+                        } finally {
+                            await Promise.all(
+                                sql.map(([filename, content]) =>
+                                    fs.writeFile(filename, content),
+                                ),
+                            );
+                        }
+                    }),
+                );
+                return seeds.filter((seed) => seed !== null);
+            };
+            const resolveSeeded = async (
+                options: Parameters<
+                    typeof resolveCrossSourceManifests<string>
+                >[0],
+            ) =>
                 resolveCrossSourceManifests({
+                    ...options,
+                    cache:
+                        options.cache ??
+                        (options.enabled
+                            ? await createSeeds(options.tasks)
+                            : []),
+                });
+
+            const resolve = async (projects: string[], enabled = true) =>
+                resolveSeeded({
                     tasks: await Promise.all(
                         projects.map((project) => task(project)),
                     ),
@@ -315,7 +398,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                                 : {}),
                         }),
                     ];
-                    const resolution = resolveCrossSourceManifests({
+                    const resolution = resolveSeeded({
                         tasks,
                         enabled: true,
                         concurrency: 1,
@@ -355,6 +438,33 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 return accessResolution;
             };
 
+            it.each(['comment', 'disabled model'])(
+                'allows an unseeded ref scanned from a %s when dbt does not use it',
+                async (kind) => {
+                    const consumer = await task('shared_dimensions');
+                    const copy =
+                        clients[clients.length - 1].dbtProjectDirectory;
+                    await fs.writeFile(
+                        path.join(copy, 'models', 'unused.sql'),
+                        kind === 'comment'
+                            ? "{# {{ ref('access_upstream', 'public_model') }} #}\nselect 1 as id"
+                            : "{{ config(enabled=false) }}\nselect * from {{ ref('access_upstream', 'public_model') }}",
+                    );
+                    const provider = await task('access_upstream');
+                    const resolution = await resolveCrossSourceManifests({
+                        tasks: [consumer, provider],
+                        enabled: true,
+                        concurrency: 2,
+                    });
+                    expect(resolution.results).toHaveLength(2);
+                    expect(resolution.warnings).toEqual([
+                        expect.stringContaining('Cold start:'),
+                    ]);
+                    expect(resolution.results[0].injectedFrom).toEqual([]);
+                },
+                120_000,
+            );
+
             it('cancels a slow dbt ls without leaving a dbt process', async () => {
                 const source = await task('shared_dimensions');
                 const client = clients[clients.length - 1];
@@ -367,7 +477,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     `{% for j in range(100000) %}{% for i in range(100000) %}{% set x = i * j %}{% endfor %}{% endfor %} select 1`,
                 );
                 await expect(
-                    resolveCrossSourceManifests({
+                    resolveSeeded({
                         tasks: [source],
                         enabled: true,
                         concurrency: 1,
@@ -391,7 +501,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
             }, 30000);
 
             it('resolves a scanned chain with one dbt ls per source', async () => {
-                const resolution = await resolveCrossSourceManifests({
+                const resolution = await resolveSeeded({
                     tasks: await Promise.all(
                         ['chain_c', 'analytics', 'shared_dimensions'].map(
                             (name) => task(name, null, false, true),
@@ -410,7 +520,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
             }, 120_000);
 
             it('resolves dynamic var, macro and set refs missed by the scan with a retry', async () => {
-                const resolution = await resolveCrossSourceManifests({
+                const resolution = await resolveSeeded({
                     tasks: [
                         await task('dyn_downstream', null, false, true, true),
                         await task('dyn_upstream', null, false, true),
@@ -419,8 +529,8 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     enabled: true,
                     concurrency: 1,
                 });
-                expect(resolution.passes).toBe(2);
-                expect(resolution.attempts).toBe(4);
+                expect(resolution.passes).toBe(3);
+                expect(resolution.attempts).toBe(5);
                 for (const name of ['m_var', 'm_set', 'm_macro'])
                     expect(
                         resolution.results[0].result.manifest.nodes[
@@ -506,11 +616,51 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 120_000,
             );
 
-            it('rejects a real node cycle with an ordered path', async () => {
+            it('rejects a new local edge that closes a cycle through a parsed seed', async () => {
+                const tasks = await Promise.all(
+                    ['node_cycle_a', 'node_cycle_b'].map((name) => task(name)),
+                );
+                const cache = await createSeeds(tasks);
+                const parsed = await tasks[1].fetch({
+                    externalNodes: cache[0].nodes,
+                });
+                cache[1].nodes = getExternalModelNodesFromManifest(
+                    parsed.manifest,
+                );
+                expect(
+                    cache[1].nodes.find((node) => node.name === 'model_b')!
+                        .depends_on_nodes,
+                ).toContain('model.node_cycle_a.model_a');
+                const { fetch } = tasks[0];
+                let output = '';
+                tasks[0].fetch = async (options) => {
+                    try {
+                        return await fetch(options);
+                    } catch (error) {
+                        if (error instanceof DbtError)
+                            output = (error.logs ?? [])
+                                .map((log) => log.info.msg)
+                                .join('\n');
+                        throw error;
+                    }
+                };
                 await expect(
-                    resolve(['node_cycle_a', 'node_cycle_b']),
-                ).rejects.toThrow(
-                    'model.node_cycle_a.model_a -> model.node_cycle_b.model_b -> model.node_cycle_a.model_a',
+                    resolveSeeded({
+                        tasks,
+                        enabled: true,
+                        concurrency: 1,
+                        cache,
+                    }),
+                ).rejects.toThrow();
+                const cycle = output
+                    .match(/Found a cycle: ([^\n]+)/)?.[1]
+                    .split(' --> ');
+                expect(cycle).toHaveLength(2);
+                expect(new Set(cycle)).toEqual(
+                    new Set([
+                        'model.node_cycle_a.model_a',
+                        'model.node_cycle_b.model_b',
+                    ]),
                 );
             }, 120_000);
 
@@ -594,7 +744,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
             it.each([false, true])(
                 'resolves a protected cross-project ref through injected nodes with consumer restrict-access=%s',
                 async (restrictAccess) => {
-                    const resolution = await resolveCrossSourceManifests({
+                    const resolution = await resolveSeeded({
                         tasks: await Promise.all([
                             task('access_upstream'),
                             task(
@@ -606,7 +756,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         enabled: true,
                         concurrency: 1,
                     });
-                    expect(resolution.passes).toBe(2);
+                    expect(resolution.passes).toBe(1);
                     expect(
                         resolution.results[1].result.manifest.nodes[
                             'model.access_downstream.uses_protected'
@@ -627,7 +777,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 ]);
                 expect(
                     await dbtErrorOutput(
-                        resolveCrossSourceManifests({
+                        resolveSeeded({
                             tasks,
                             enabled: true,
                             concurrency: 1,
@@ -638,28 +788,30 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 );
             }, 120_000);
 
-            it('rejects a private ref through placeholders before another dbt ls', async () => {
+            it('lets dbt reject a private ref from the confirmed seed', async () => {
                 const tasks = await Promise.all([
                     task('access_downstream', 'uses_private'),
                     task('access_upstream'),
                 ]);
-                await expect(
-                    resolveCrossSourceManifests({
-                        tasks,
-                        enabled: true,
-                        concurrency: 2,
-                    }),
-                ).rejects.toThrow('defines that model as private');
+                expect(
+                    await dbtErrorOutput(
+                        resolveSeeded({
+                            tasks,
+                            enabled: true,
+                            concurrency: 2,
+                        }),
+                    ),
+                ).toContain('private');
             }, 120_000);
 
-            it('uses a cached catalogue in a single pass for dynamic refs', async () => {
+            it('learns dynamic refs against a cached catalogue on every refresh', async () => {
                 const tasks = [
                     await task('dyn_downstream', null, false, true, true),
                     await task('dyn_upstream'),
                     await task('dyn_upstream2'),
                 ];
                 const referenced = new Map<string, string[]>();
-                const first = await resolveCrossSourceManifests({
+                const first = await resolveSeeded({
                     tasks,
                     enabled: true,
                     concurrency: 2,
@@ -670,20 +822,20 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         referenced.set(source.key, referencedProjects);
                     },
                 });
-                expect(first.passes).toBe(2);
+                expect(first.passes).toBe(3);
                 const cache = first.results.map(({ task: source, result }) => ({
                     key: source.key,
                     referencedProjects: referenced.get(source.key) ?? [],
                     projectName: result.manifest.metadata.project_name!,
                     nodes: getExternalModelNodesFromManifest(result.manifest),
                 }));
-                const second = await resolveCrossSourceManifests({
+                const second = await resolveSeeded({
                     tasks,
                     enabled: true,
                     concurrency: 2,
                     cache,
                 });
-                expect(second.passes).toBe(1);
+                expect(second.passes).toBe(3);
                 expect(referenced.get('dyn_downstream')).toEqual([
                     'dyn_upstream',
                 ]);
@@ -691,14 +843,14 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     (row) => row.key === 'dyn_upstream',
                 )!.nodes.length;
                 expect(providerNodes).toBeGreaterThan(0);
-                expect(second.stubs!.cached).toBe(providerNodes);
+                expect(second.stubs!.cached).toBe(3);
                 expect(
                     second.sources?.map(({ key, injectedStubs }) => ({
                         key,
                         injectedStubs,
                     })),
                 ).toEqual([
-                    { key: 'dyn_downstream', injectedStubs: providerNodes },
+                    { key: 'dyn_downstream', injectedStubs: 3 },
                     { key: 'dyn_upstream', injectedStubs: 0 },
                     { key: 'dyn_upstream2', injectedStubs: 0 },
                 ]);
@@ -706,13 +858,13 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
             }, 120_000);
 
             it.each([false, true])(
-                'binds versioned refs with cached=%s',
+                'binds versioned refs with a prior refresh=%s',
                 async (cached) => {
                     const tasks = [
                         await task('access_downstream'),
                         await task('access_upstream'),
                     ];
-                    const first = await resolveCrossSourceManifests({
+                    const first = await resolveSeeded({
                         tasks,
                         enabled: true,
                         concurrency: 2,
@@ -727,8 +879,8 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                                   result.manifest,
                               ),
                           }))
-                        : [];
-                    const resolution = await resolveCrossSourceManifests({
+                        : await createSeeds(tasks);
+                    const resolution = await resolveSeeded({
                         tasks,
                         enabled: true,
                         concurrency: 2,
@@ -802,7 +954,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 const refresh = async (
                     cache: CrossSourceCatalog[],
                 ): Promise<CrossSourceCatalog[]> => {
-                    const resolution = await resolveCrossSourceManifests({
+                    const resolution = await resolveSeeded({
                         tasks,
                         enabled: true,
                         concurrency: 1,
@@ -880,19 +1032,19 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         }),
                     );
                 };
-                const cache = await refresh([]);
+                const cache = await refresh(await createSeeds(tasks));
                 await refresh(cache);
             }, 120_000);
 
             it.each([false, true])(
-                'resolves a versioned project cycle with cached=%s',
+                'resolves a versioned project cycle with a prior refresh=%s',
                 async (cached) => {
                     const tasks = await Promise.all(
                         ['versioned_ring_a', 'versioned_ring_b'].map((name) =>
                             task(name),
                         ),
                     );
-                    const first = await resolveCrossSourceManifests({
+                    const first = await resolveSeeded({
                         tasks,
                         enabled: true,
                         concurrency: 2,
@@ -909,7 +1061,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                           }))
                         : [];
                     const resolution = cached
-                        ? await resolveCrossSourceManifests({
+                        ? await resolveSeeded({
                               tasks,
                               enabled: true,
                               concurrency: 2,
@@ -948,7 +1100,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     await task('versioned_ring_a'),
                     await task('versioned_ring_b'),
                 ];
-                const first = await resolveCrossSourceManifests({
+                const first = await resolveSeeded({
                     tasks,
                     enabled: true,
                     concurrency: 2,
@@ -990,7 +1142,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         ),
                     ),
                 ).toBe(true);
-                const resolution = await resolveCrossSourceManifests({
+                const resolution = await resolveSeeded({
                     tasks,
                     enabled: true,
                     concurrency: 2,
@@ -1017,24 +1169,24 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     "select * from {{ ref('versioned_ring_b', 'dim', v=4) }}\n",
                 );
                 const provider = await task('versioned_ring_b');
-                const resolution = resolveCrossSourceManifests({
+                const resolution = resolveSeeded({
                     tasks: [consumer, provider],
                     enabled: true,
                     concurrency: 2,
                 });
                 await expect(resolution).rejects.toBeInstanceOf(ParameterError);
                 await expect(resolution).rejects.toThrow(
-                    `Model "uses_missing" in dbt source "versioned_ring_a" references ref('versioned_ring_b', 'dim', v=4), but dbt source "versioned_ring_b" does not define that model (or version).`,
+                    `dbt source "versioned_ring_a" references ref('versioned_ring_b', 'dim', v=4), but the confirmed last-good manifest of dbt source "versioned_ring_b" does not define that model (or version).`,
                 );
             }, 120_000);
 
-            it('allows a public provider after an older cache marked it private', async () => {
+            it('keeps private seed access when the disk provider is public', async () => {
                 const tasks = await Promise.all(
                     ['access_downstream', 'access_upstream'].map((name) =>
                         task(name),
                     ),
                 );
-                const first = await resolveCrossSourceManifests({
+                const first = await resolveSeeded({
                     tasks,
                     enabled: true,
                     concurrency: 2,
@@ -1051,20 +1203,13 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                             : node,
                     ),
                 }));
-                const resolution = await resolveCrossSourceManifests({
+                const resolution = resolveSeeded({
                     tasks,
                     enabled: true,
                     concurrency: 2,
                     cache,
                 });
-                expect(resolution.passes).toBe(1);
-                expect(
-                    (
-                        resolution.results[0].result.manifest.nodes[
-                            'model.access_downstream.uses_public'
-                        ] as DbtRawModelNode
-                    ).depends_on?.nodes,
-                ).toEqual(['model.access_upstream.public_model']);
+                expect(await dbtErrorOutput(resolution)).toContain('private');
             }, 120_000);
 
             it('source failure isolation keeps real dbt work after a Git clone failure', async () => {
@@ -1090,7 +1235,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     async (source: CrossSourceFetchTask<string>) =>
                         source.key !== healthy.key,
                 );
-                const resolution = await resolveCrossSourceManifests({
+                const resolution = await resolveSeeded({
                     tasks: [healthy, broken],
                     enabled: true,
                     concurrency: 1,
@@ -1123,7 +1268,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     async (source: CrossSourceFetchTask<string>) =>
                         source.key !== healthy.key,
                 );
-                const resolution = await resolveCrossSourceManifests({
+                const resolution = await resolveSeeded({
                     tasks: [healthy, broken],
                     enabled: true,
                     concurrency: 1,
@@ -1143,7 +1288,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 const consumer = await task('analytics');
                 const provider = await task('shared_dimensions');
                 const healthy = await task('access_upstream');
-                const first = await resolveCrossSourceManifests({
+                const first = await resolveSeeded({
                     tasks: [consumer, provider],
                     enabled: true,
                     concurrency: 1,
@@ -1167,7 +1312,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     async (source: CrossSourceFetchTask<string>) =>
                         source.key !== healthy.key,
                 );
-                const resolution = await resolveCrossSourceManifests({
+                const resolution = await resolveSeeded({
                     tasks: [healthy, consumer, provider],
                     cache,
                     enabled: true,
@@ -1186,12 +1331,12 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 );
             }, 120_000);
 
-            it('rejects a cached model deleted from the provider fixture', async () => {
+            it('retains a cached binding when the model is deleted from disk', async () => {
                 const tasks = [
                     await task('analytics'),
                     await task('shared_dimensions'),
                 ];
-                const first = await resolveCrossSourceManifests({
+                const first = await resolveSeeded({
                     tasks,
                     enabled: true,
                     concurrency: 2,
@@ -1210,18 +1355,21 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         'dim_calendar.sql',
                     ),
                 );
-                const resolution = resolveCrossSourceManifests({
+                const resolution = resolveSeeded({
                     tasks,
                     enabled: true,
                     concurrency: 2,
                     cache,
                 });
-                await expect(resolution).rejects.toBeInstanceOf(ParameterError);
-                await expect(resolution).rejects.toThrow('fct_orders');
-                await expect(resolution).rejects.toThrow('shared_dimensions');
-                await expect(resolution).rejects.toThrow(
-                    'does not define that model (or version)',
-                );
+                const resolved = await resolution;
+                expect(resolved.passes).toBe(1);
+                expect(
+                    (
+                        resolved.results[0].result.manifest.nodes[
+                            'model.analytics.fct_orders'
+                        ] as DbtRawModelNode
+                    ).depends_on?.nodes,
+                ).toEqual(['model.shared_dimensions.dim_calendar']);
             }, 120_000);
 
             it('keeps the explicit version dependency on dim_product v1', async () => {

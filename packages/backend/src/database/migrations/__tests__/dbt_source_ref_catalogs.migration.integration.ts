@@ -2,6 +2,7 @@ import { DbtProjectType, ProjectType } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import { placeholderExternalNode } from '../../../dbt/dbtExternalNodes';
 import { DbtSourceRefCatalogModel } from '../../../models/DbtSourceRefCatalogModel';
+import { CrossSourceCatalogCache } from '../../../projectAdapters/crossSourceCatalogCache';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
@@ -61,6 +62,26 @@ const write = (
         compileJobUuid: 'job-fixture',
     });
 
+const publish = (
+    dbtSourceUuid: string,
+    connectionGroup = 'original',
+    nodes = [node('3')],
+) =>
+    model.replaceConfirmed({
+        projectUuid,
+        connectionGroup,
+        dbtVersion: 'v1.12',
+        compileJobUuid: null,
+        entries: [
+            {
+                dbtSourceUuid,
+                projectName: 'provider',
+                nodes,
+                referencedProjects: [],
+            },
+        ],
+    });
+
 test('creates the cache on the real schema and reverses the migration', async () => {
     await migrated.database.transaction(async (trx) => {
         await down(trx);
@@ -78,11 +99,14 @@ test('creates the cache on the real schema and reverses the migration', async ()
     });
 });
 
-test('replaces the full catalogue and returns both provisional and confirmed rows', async () => {
+test('loads only confirmed catalogues and replaces provisional rows before confirmation', async () => {
     const source = randomUUID();
     await write(source, 'original', [node('1'), node('2')], ['old_provider']);
     const digest = await write(source, 'original', [node('2')], ['upstream']);
-    const rows = await model.get(projectUuid, 'original');
+    expect(await model.get(projectUuid, 'original')).toEqual([]);
+    const rows = await migrated
+        .database('dbt_source_ref_catalogs')
+        .where({ project_uuid: projectUuid, connection_group: 'original' });
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
         status: 'provisional',
@@ -110,7 +134,13 @@ test('does not confirm a concurrent run with a different digest', async () => {
         connectionGroup: 'original',
         entries: [{ dbtSourceUuid: source, nodesDigest: first }],
     });
-    expect((await model.get(projectUuid, 'original'))[0]).toMatchObject({
+    expect(await model.get(projectUuid, 'original')).toEqual([]);
+    expect(
+        await migrated
+            .database('dbt_source_ref_catalogs')
+            .where({ dbt_source_uuid: source })
+            .first(),
+    ).toMatchObject({
         status: 'provisional',
         nodes_digest: second,
     });
@@ -119,9 +149,9 @@ test('does not confirm a concurrent run with a different digest', async () => {
 test('isolates connection groups and deletes all source rows on invalidation', async () => {
     const source = randomUUID();
     const other = randomUUID();
-    await write(source);
-    await write(source, 'extra');
-    await write(other, 'extra');
+    await publish(source);
+    await publish(source, 'extra');
+    await publish(other, 'extra');
     expect(await model.get(projectUuid, 'original')).toHaveLength(1);
     await model.deleteForSource(projectUuid, source);
     expect(await model.get(projectUuid, 'original')).toEqual([]);
@@ -135,10 +165,10 @@ test('isolates connection groups and deletes all source rows on invalidation', a
 test('deletes only the requested connection group across all its sources', async () => {
     const source = randomUUID();
     const other = randomUUID();
-    await write(source);
-    await write(source, 'extra');
-    await write(other, 'extra');
-    await write(other, 'retained');
+    await publish(source);
+    await publish(source, 'extra');
+    await publish(other, 'extra');
+    await publish(other, 'retained');
     await model.deleteForProject(projectUuid, 'extra');
     expect(await model.get(projectUuid, 'extra')).toEqual([]);
     expect(await model.get(projectUuid, 'original')).toHaveLength(1);
@@ -183,7 +213,12 @@ test('stores an empty referenced-project list by default and rejects null', asyn
     };
     await migrated.database('dbt_source_ref_catalogs').insert(row);
     expect(
-        (await model.get(projectUuid, 'original'))[0].referenced_projects,
+        (
+            await migrated
+                .database('dbt_source_ref_catalogs')
+                .where({ dbt_source_uuid: source })
+                .first()
+        )?.referenced_projects,
     ).toEqual([]);
     await expect(
         migrated.database.raw(
@@ -203,9 +238,119 @@ test('does not confirm a concurrent run with changed references but identical no
         connectionGroup: 'original',
         entries: [{ dbtSourceUuid: source, nodesDigest: first }],
     });
-    expect((await model.get(projectUuid, 'original'))[0]).toMatchObject({
+    expect(await model.get(projectUuid, 'original')).toEqual([]);
+    expect(
+        await migrated
+            .database('dbt_source_ref_catalogs')
+            .where({ dbt_source_uuid: source })
+            .first(),
+    ).toMatchObject({
         status: 'provisional',
         referenced_projects: ['new_provider'],
         nodes_digest: second,
     });
+});
+
+test('preserves the last-good catalogue when a later compile stages or discards nodes', async () => {
+    const source = randomUUID();
+    await publish(source);
+    const previous = await model.get(projectUuid, 'original');
+    const cache = new CrossSourceCatalogCache(
+        model,
+        projectUuid,
+        'original',
+        'v1.12',
+        'failed-job',
+    );
+    await cache.resolved(source, [node('2')], 'provider', ['changed']);
+    expect(await model.get(projectUuid, 'original')).toEqual(previous);
+    cache.discard(source);
+    await cache.confirm();
+    expect(await model.get(projectUuid, 'original')).toEqual(previous);
+    const restarted = new CrossSourceCatalogCache(
+        new DbtSourceRefCatalogModel({ database: migrated.database }),
+        projectUuid,
+        'original',
+        'v1.12',
+        null,
+    );
+    expect(
+        await restarted.load([{ key: 'renamed provider', uuid: source }]),
+    ).toEqual([
+        {
+            key: 'renamed provider',
+            projectName: 'provider',
+            nodes: [node('3')],
+            referencedProjects: [],
+        },
+    ]);
+});
+
+test('publishes complete replacement nodes only on successful confirmation', async () => {
+    const source = randomUUID();
+    await publish(source);
+    const cache = new CrossSourceCatalogCache(
+        model,
+        projectUuid,
+        'original',
+        'v1.12',
+        'successful-job',
+    );
+    const nodes = [
+        {
+            ...node('4'),
+            access: 'private' as const,
+            schema: 'analytics',
+            relation_name: 'sim.analytics.orders_v4',
+            identifier: 'orders_v4',
+            depends_on_nodes: ['model.provider.base'],
+        },
+    ];
+    await cache.resolved(source, nodes, 'provider', ['upstream']);
+    expect((await model.get(projectUuid, 'original'))[0].nodes).toEqual([
+        node('3'),
+    ]);
+    await cache.confirm();
+    expect(await model.get(projectUuid, 'original')).toMatchObject([
+        {
+            status: 'confirmed',
+            nodes,
+            referenced_projects: ['upstream'],
+            compile_job_uuid: 'successful-job',
+        },
+    ]);
+});
+
+test('does not let a provisional write replace an already confirmed snapshot', async () => {
+    const source = randomUUID();
+    await publish(source);
+    const previous = await model.get(projectUuid, 'original');
+    const digest = await write(source, 'original', [node('2')]);
+    await model.confirm({
+        projectUuid,
+        connectionGroup: 'original',
+        entries: [{ dbtSourceUuid: source, nodesDigest: digest }],
+    });
+    expect(await model.get(projectUuid, 'original')).toEqual(previous);
+});
+
+test('rolls back the complete publication batch when one source cannot be stored', async () => {
+    const source = randomUUID();
+    await publish(source);
+    const previous = await model.get(projectUuid, 'original');
+    await expect(
+        model.replaceConfirmed({
+            projectUuid,
+            connectionGroup: 'original',
+            dbtVersion: 'v1.12',
+            compileJobUuid: null,
+            entries: [source, 'invalid-source-uuid'].map((dbtSourceUuid) => ({
+                dbtSourceUuid,
+                projectName: 'provider',
+                nodes: [node('2')],
+                referencedProjects: [],
+            })),
+        }),
+    ).rejects.toMatchObject({ code: '22P02' });
+    expect(await model.get(projectUuid, 'original')).toEqual(previous);
 });

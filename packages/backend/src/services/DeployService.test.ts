@@ -249,10 +249,22 @@ describe('DeployService', () => {
                 sourceUuid: 'finance-source-uuid',
                 target: { database: 'finance' },
             },
+            {
+                projectName: 'finance',
+                dbtVersion: '1.12.0',
+                nodes: [],
+                referencedProjects: [],
+            },
         );
 
         expect(saveDeployExplores).toHaveBeenCalledWith(
             expect.objectContaining({
+                dbtSourceManifest: {
+                    projectName: 'finance',
+                    dbtVersion: '1.12.0',
+                    nodes: [],
+                    referencedProjects: [],
+                },
                 cliDeploy: {
                     sourceUuid: 'finance-source-uuid',
                     target: { database: 'finance' },

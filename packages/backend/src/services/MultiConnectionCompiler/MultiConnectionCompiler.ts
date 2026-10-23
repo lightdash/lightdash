@@ -144,7 +144,10 @@ export type MultiConnectionSave = {
     exploreStream: AsyncIterable<Explore | ExploreError>;
     bindingOf: (exploreName: string) => string | null;
     carry: MultiConnectionCarry;
-    persistArtifacts: (options?: { exploresCommitted: true }) => Promise<void>;
+    persistArtifacts: (options?: {
+        exploresCommitted: true;
+        successfulCompile?: boolean;
+    }) => Promise<void>;
     signal?: AbortSignal;
     naming?: ExploreNaming;
 };
@@ -1422,7 +1425,6 @@ export class MultiConnectionCompiler {
                             originalManifest,
                         );
                     }
-                    await catalogCaches.get('original')?.confirm();
                     await Promise.all(
                         compiledExtraGroups.map(async (group) => {
                             await this.warehouseConnectionCompileModel.saveCompileArtifacts(
@@ -1433,11 +1435,14 @@ export class MultiConnectionCompiler {
                                     catalog: group.catalog,
                                 },
                             );
-                            await catalogCaches
-                                .get(group.plan.warehouseConnectionUuid)
-                                ?.confirm();
                         }),
                     );
+                    if (options?.successfulCompile !== false)
+                        await Promise.all(
+                            [...catalogCaches.values()].map((cache) =>
+                                cache.confirm(),
+                            ),
+                        );
                 },
             };
         } catch (error) {
@@ -1459,10 +1464,12 @@ export class MultiConnectionCompiler {
                       compilation.signal?.throwIfAborted();
                   }
                 : beforeWrite;
+        let successfulCompile = true;
         const saved = await this.projectModel.saveMultiConnectionExplores(
             projectUuid,
             (async function* boundExplores(): AsyncIterable<BoundExplore> {
                 for await (const explore of compilation.exploreStream) {
+                    if (isExploreError(explore)) successfulCompile = false;
                     yield {
                         explore,
                         warehouseConnectionUuid: compilation.bindingOf(
@@ -1476,7 +1483,10 @@ export class MultiConnectionCompiler {
             compilation.naming,
         );
         markCompilePublished();
-        await compilation.persistArtifacts({ exploresCommitted: true });
+        await compilation.persistArtifacts({
+            exploresCommitted: true,
+            ...(successfulCompile ? {} : { successfulCompile: false }),
+        });
         return saved;
     }
 

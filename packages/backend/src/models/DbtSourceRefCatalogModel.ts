@@ -14,6 +14,7 @@ export class DbtSourceRefCatalogModel {
         return this.database(DbtSourceRefCatalogsTableName).where({
             project_uuid: projectUuid,
             connection_group: connectionGroup,
+            status: 'confirmed',
         });
     }
 
@@ -21,6 +22,51 @@ export class DbtSourceRefCatalogModel {
         return this.database(DbtSourceRefCatalogsTableName)
             .select('dbt_source_uuid', 'project_name')
             .where('project_uuid', projectUuid);
+    }
+
+    async replaceConfirmed({
+        projectUuid,
+        connectionGroup,
+        dbtVersion,
+        compileJobUuid,
+        entries,
+    }: {
+        projectUuid: string;
+        connectionGroup: string;
+        dbtVersion: string;
+        compileJobUuid: string | null;
+        entries: {
+            dbtSourceUuid: string;
+            projectName: string;
+            nodes: DbtExternalModelNode[];
+            referencedProjects: string[];
+        }[];
+    }): Promise<void> {
+        if (entries.length === 0) return;
+        const rows = entries.map((entry) => ({
+            project_uuid: projectUuid,
+            dbt_source_uuid: entry.dbtSourceUuid,
+            connection_group: connectionGroup,
+            project_name: entry.projectName,
+            dbt_version: dbtVersion,
+            status: 'confirmed' as const,
+            nodes: JSON.stringify(entry.nodes),
+            referenced_projects: JSON.stringify(entry.referencedProjects),
+            nodes_digest: createHash('sha256')
+                .update(
+                    JSON.stringify({
+                        nodes: entry.nodes,
+                        referencedProjects: entry.referencedProjects,
+                    }),
+                )
+                .digest('hex'),
+            compile_job_uuid: compileJobUuid,
+            updated_at: new Date(),
+        }));
+        await this.database(DbtSourceRefCatalogsTableName)
+            .insert(rows)
+            .onConflict(['project_uuid', 'dbt_source_uuid', 'connection_group'])
+            .merge();
     }
 
     async upsertProvisional({
@@ -69,7 +115,8 @@ export class DbtSourceRefCatalogModel {
                 nodes_digest: digest,
                 compile_job_uuid: compileJobUuid,
                 updated_at: new Date(),
-            });
+            })
+            .where(`${DbtSourceRefCatalogsTableName}.status`, 'provisional');
         return digest;
     }
 

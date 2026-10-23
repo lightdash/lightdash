@@ -1314,6 +1314,26 @@ describe('Multi-connection compile on the real schema', () => {
                     ).toBe(JobStatusType.DONE);
                 };
                 await refresh();
+                const legacyExplores = (
+                    await cachedExplores(fixture.projectUuid)
+                ).map((row) => row.explore);
+                for (const cachedExplore of legacyExplores) {
+                    delete cachedExplore.dbtModelIdentity;
+                    for (const table of Object.values(
+                        cachedExplore.tables ?? {},
+                    )) {
+                        delete table.dbtSourceUuid;
+                        delete table.dbtSourceName;
+                        delete table.dbtModelUniqueId;
+                    }
+                }
+                await projectModel.saveExploresToCache(
+                    fixture.projectUuid,
+                    legacyExplores,
+                );
+                await database('explore_name_allocations')
+                    .where('project_uuid', fixture.projectUuid)
+                    .delete();
                 const legacy = await projectModel.getExploreFromCache(
                     fixture.projectUuid,
                     'ledger',
@@ -2325,15 +2345,19 @@ Sources in this project: Core models, marketing, finance.`;
                 const parent = await setup();
                 await new DbtSourceRefCatalogModel({
                     database,
-                }).upsertProvisional({
+                }).replaceConfirmed({
                     projectUuid: parent.fixture.projectUuid,
-                    dbtSourceUuid: parent.primary.dbtSourceUuid,
                     connectionGroup: 'original',
-                    projectName: 'analytics',
                     dbtVersion: '1.7.0',
-                    nodes: [],
-                    referencedProjects: [],
                     compileJobUuid: null,
+                    entries: [
+                        {
+                            dbtSourceUuid: parent.primary.dbtSourceUuid,
+                            projectName: 'analytics',
+                            nodes: [],
+                            referencedProjects: [],
+                        },
+                    ],
                 });
                 await database('cached_explore')
                     .where('project_uuid', parent.fixture.projectUuid)
@@ -3213,15 +3237,19 @@ Sources in this project: Core models, marketing, finance.`;
                     });
                 await new DbtSourceRefCatalogModel({
                     database,
-                }).upsertProvisional({
+                }).replaceConfirmed({
                     projectUuid: fixture.projectUuid,
-                    dbtSourceUuid: primary.dbtSourceUuid,
                     connectionGroup: 'original',
-                    projectName: 'analytics',
                     dbtVersion: '1.7.0',
-                    nodes: [],
-                    referencedProjects: [],
                     compileJobUuid: null,
+                    entries: [
+                        {
+                            dbtSourceUuid: primary.dbtSourceUuid,
+                            projectName: 'analytics',
+                            nodes: [],
+                            referencedProjects: [],
+                        },
+                    ],
                 });
                 await deploy();
                 expect(
@@ -4199,6 +4227,7 @@ Sources in this project: Core models, marketing, finance.`;
                     })
                     .first();
                 expect(sourceCatalog?.project_name).toBe('marketing');
+                expect(sourceCatalog?.status).toBe('confirmed');
                 expect(
                     sourceCatalog?.nodes.map((node) => node.package_name),
                 ).toEqual(
@@ -4467,25 +4496,23 @@ Sources in this project: Core models, marketing, finance.`;
                     const identity = await projectModel.getDbtSourceIdentity(
                         fixture.projectUuid,
                     );
-                    await Promise.all(
-                        [
+                    await new DbtSourceRefCatalogModel({
+                        database,
+                    }).replaceConfirmed({
+                        projectUuid: fixture.projectUuid,
+                        connectionGroup: 'original',
+                        dbtVersion: '1.7.0',
+                        compileJobUuid: null,
+                        entries: [
                             ['primary', identity.dbtSourceUuid],
                             ['finance', fixture.sourceUuids.finance],
-                        ].map(async ([projectName, dbtSourceUuid]) => {
-                            await new DbtSourceRefCatalogModel({
-                                database,
-                            }).upsertProvisional({
-                                projectUuid: fixture.projectUuid,
-                                dbtSourceUuid,
-                                connectionGroup: 'original',
-                                projectName,
-                                dbtVersion: '1.7.0',
-                                nodes: [],
-                                referencedProjects: [],
-                                compileJobUuid: null,
-                            });
-                        }),
-                    );
+                        ].map(([projectName, dbtSourceUuid]) => ({
+                            dbtSourceUuid,
+                            projectName,
+                            nodes: [],
+                            referencedProjects: [],
+                        })),
+                    });
                     const user = await compilingUser(fixture.projectUuid);
                     const service = deployService(fixture.projectUuid);
                     const { deploySessionUuid } =
@@ -5519,7 +5546,7 @@ Sources in this project: Core models, marketing, finance.`;
                             })
                             .update({
                                 project_name: 'marketing',
-                                status: 'provisional',
+                                status: 'confirmed',
                             });
                     }
                     if (ownership === 'no-catalog') {

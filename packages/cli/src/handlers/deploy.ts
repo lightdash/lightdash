@@ -13,6 +13,7 @@ import {
     ProjectType,
     WarehouseTypes,
     type ConnectionRoute,
+    type DbtSourceManifest,
     type DeployTarget,
     type LightdashProjectConfig,
     type Tag,
@@ -89,6 +90,7 @@ type DeployArgs = DeployHandlerOptions & {
     projectUuid: string;
     complete?: boolean;
     dbtModelNames?: string[];
+    dbtSourceManifest?: DbtSourceManifest;
     sourceUuid?: string;
     deployTarget?: DeployTarget;
 };
@@ -439,6 +441,7 @@ const deployBatched = async (
             dbtModelNames: options.dbtModelNames,
             sourceUuid: options.sourceUuid,
             target: options.deployTarget,
+            dbtSourceManifest: options.dbtSourceManifest,
         }),
     });
 
@@ -504,8 +507,11 @@ export const deploy = async (
         !(await deployBatched(deployableExplores, options));
     if (shouldUseLegacyDeploy) {
         const deployStartTime = Date.now();
+        const useV2Deploy =
+            options.dbtModelNames !== undefined ||
+            options.dbtSourceManifest !== undefined;
         const deployPayload = JSON.stringify(
-            options.dbtModelNames === undefined
+            !useV2Deploy
                 ? deployableExplores
                 : {
                       explores: deployableExplores,
@@ -513,30 +519,41 @@ export const deploy = async (
                       complete: options.complete === true,
                       sourceUuid: options.sourceUuid,
                       target: options.deployTarget,
+                      dbtSourceManifest: options.dbtSourceManifest,
                   },
         );
         try {
             const deployResponse = await lightdashApi<ApiDeployExploresResults>(
                 {
                     method: 'PUT',
-                    url:
-                        options.dbtModelNames === undefined
-                            ? `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${deployDestinationQuery(options)}`
-                            : `/api/v2/projects/${options.projectUuid}/deploy`,
+                    url: !useV2Deploy
+                        ? `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${deployDestinationQuery(options)}`
+                        : `/api/v2/projects/${options.projectUuid}/deploy`,
                     body: deployPayload,
                 },
             ).catch(async (error: unknown) => {
                 if (getAgentConnectionSelection() !== null) throw error;
+                const missingLegacyInventory =
+                    error instanceof LightdashError &&
+                    options.dbtModelNames === undefined &&
+                    options.dbtSourceManifest !== undefined &&
+                    error.statusCode === 422 &&
+                    error.name === 'ValidateError' &&
+                    Object.keys(error.data).length === 1 &&
+                    error.data['body.dbtModelNames']?.message ===
+                        "'dbtModelNames' is required";
                 if (
-                    options.dbtModelNames === undefined ||
+                    !useV2Deploy ||
                     !(error instanceof LightdashError) ||
-                    error.statusCode !== 404
+                    (error.statusCode !== 404 && !missingLegacyInventory)
                 ) {
                     throw error;
                 }
                 GlobalState.log(
                     styles.warning(
-                        'This server does not support deleted dbt model cleanup; deploying without cleanup. Upgrade the server to enable it.',
+                        options.dbtSourceManifest === undefined
+                            ? 'This server does not support deleted dbt model cleanup; deploying without cleanup. Upgrade the server to enable it.'
+                            : 'This server does not support deploy metadata; deploying without source manifest seeds or deleted dbt model cleanup. Upgrade the server to enable it.',
                     ),
                 );
                 return lightdashApi<ApiDeployExploresResults>({
@@ -863,7 +880,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         connectionRoute = projectSettings.connectionRoute;
     }
 
-    const { explores, isProjectComplete, dbtModelNames } =
+    const { explores, isProjectComplete, dbtModelNames, dbtSourceManifest } =
         await compileProject(options);
 
     let projectUuid: string;
@@ -903,6 +920,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         projectUuid,
         complete: isProjectComplete,
         dbtModelNames,
+        dbtSourceManifest,
         sourceUuid,
         deployTarget: await getDeployTarget(
             options,

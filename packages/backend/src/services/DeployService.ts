@@ -11,6 +11,7 @@ import {
     SessionUser,
     type AgentConnectionTaskEffect,
     type ApiDeployExploresResults,
+    type DbtSourceManifest,
     type ProjectDefaults,
     type WeekDay,
 } from '@lightdash/common';
@@ -56,6 +57,7 @@ type ProjectServiceInterface = {
         complete?: boolean;
         dbtModelNames?: string[];
         cliDeploy: CliDeploySelection;
+        dbtSourceManifest?: DbtSourceManifest;
     }) => Promise<string>;
     getDeployStartOfWeekByExplore: (args: {
         userUuid: string;
@@ -249,6 +251,7 @@ export class DeployService extends BaseService {
         cliVersion?: string | null,
         dbtModelNames?: string[],
         cliDeploy: CliDeploySelection = NO_CLI_DEPLOY_SELECTION,
+        dbtSourceManifest?: DbtSourceManifest,
     ): Promise<ApiDeployExploresResults & { status: DeploySessionStatus }> {
         const deployAnalytics = {
             userUuid: user.userUuid,
@@ -357,6 +360,7 @@ export class DeployService extends BaseService {
                 complete: deployData.complete,
                 dbtModelNames,
                 cliDeploy,
+                dbtSourceManifest,
             });
 
             // Schedule validation (same as in original finalizeDeploy)

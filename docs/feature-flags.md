@@ -123,6 +123,32 @@ For a temporary Cloud ENV workaround, record its removal: once the normal
 Console-controlled path is deployed, remove the forced ENV setting and restart
 so Console can turn the feature off again.
 
+### Cross-source dbt refs and last-good manifests
+
+`cross-source-dbt-refs` is off by default. Server compilation resolves it for the
+project's organisation and requesting user through the standard resolver. Console
+overrides apply on the next compile or deploy; ENV changes require API and worker
+restarts. Connected-source compilation also requires `multi-dbt-sources`.
+
+With the flag on, each refresh captures the confirmed ref catalogue for each
+connected source in its warehouse connection group. This manifest projection
+contains all real models, their relation, version, access and dependency fields.
+The stitcher injects models needed by refs. dbt still enforces private access.
+Fresh disk parsing cannot replace these bindings during the refresh.
+
+A successful server compile or complete CLI deploy confirms the next snapshot.
+Failed or incomplete work retains the previous snapshot. If any explore has a
+compile error, no source snapshot advances in that compile. Provisional catalogue
+rows do not count as seeds. An unseeded upstream causes a warning naming the
+source and a compile failure; the resolver does not invent nodes or use a fresh
+disk parse as a seed.
+
+Use a CLI that sends source manifest metadata to seed existing connected sources.
+`--combine-manifest` keeps the local source's seed separate from the models added
+for compilation. Older CLI uploads do not seed the store. Deploy the updated API
+and workers before enabling this policy. With the flag off, ordinary compilation
+and deploy behaviour applies, and stored snapshots remain unused by the stitcher.
+
 ## Refresh, caching, and restart expectations
 
 - The standard backend `FeatureFlagModel.get` does not cache database flag

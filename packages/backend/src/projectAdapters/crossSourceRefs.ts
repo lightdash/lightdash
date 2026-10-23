@@ -1,6 +1,5 @@
 import {
     findDbtNodeCycle,
-    getDbtManifestPackageNames,
     getExternalModelNodesFromManifest,
     isExternalDbtNode,
     ParameterError,
@@ -8,10 +7,7 @@ import {
     type DbtExternalModelNode,
     type DbtRawModelNode,
 } from '@lightdash/common';
-import {
-    getMissingDbtNodeReferences,
-    placeholderExternalNode,
-} from '../dbt/dbtExternalNodes';
+import { getMissingDbtNodeReferences } from '../dbt/dbtExternalNodes';
 import { type DbtProjectScan, type ScannedDbtRef } from '../dbt/dbtProjectScan';
 import Logger from '../logging/logger';
 import {
@@ -118,24 +114,6 @@ const matchesRef = (node: DbtExternalModelNode, ref: ScannedDbtRef) =>
     node.name === ref.name &&
     (ref.packageName === null || node.package_name === ref.packageName) &&
     (ref.version === null || String(node.version) === ref.version);
-const bindingProjection = (
-    nodes: DbtExternalModelNode[],
-    refs: ScannedDbtRef[],
-) =>
-    JSON.stringify(
-        nodes
-            .filter((node) => refs.some((ref) => matchesRef(node, ref)))
-            .map((node) => [
-                node.package_name,
-                node.name,
-                node.version === null ? null : String(node.version),
-                node.latest_version === null
-                    ? null
-                    : String(node.latest_version),
-                node.access ?? 'protected',
-            ])
-            .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
-    );
 
 export const resolveCrossSourceManifests = async <T>({
     tasks,
@@ -213,6 +191,14 @@ export const resolveCrossSourceManifests = async <T>({
             firstAttemptInjected: 0,
         };
     }
+    const seededCatalogs = cache.map((row) => ({
+        ...row,
+        referencedProjects: [...row.referencedProjects],
+        nodes: row.nodes.map((node) => ({
+            ...node,
+            depends_on_nodes: [...node.depends_on_nodes],
+        })),
+    }));
     const cancellation = new CrossSourceCancellation(
         signal,
         timeouts,
@@ -298,27 +284,22 @@ export const resolveCrossSourceManifests = async <T>({
         const projectName = (task: CrossSourceFetchTask<T>) =>
             scans.get(task)?.projectName ??
             resolved.get(task)?.result.manifest.metadata.project_name ??
-            (skipped.has(task)
-                ? cache.find((row) => row.key === task.key)?.projectName
-                : null) ??
+            seededCatalogs.find((row) => row.key === task.key)?.projectName ??
             null;
         const cachedCatalog = (task: CrossSourceFetchTask<T>) =>
-            cache.find(
+            seededCatalogs.find(
                 (row) =>
                     row.key === task.key &&
                     (skipped.has(task) ||
-                        row.projectName === scans.get(task)?.projectName),
+                        row.projectName === projectName(task)),
             );
         const catalog = (task: CrossSourceFetchTask<T>) =>
-            fresh.get(task) ?? cachedCatalog(task)?.nodes ?? [];
+            cachedCatalog(task)?.nodes ?? [];
         const providers = (name: string) =>
             tasks.filter(
                 (task) =>
                     projectName(task) === name ||
-                    (resolved.has(task) &&
-                        getDbtManifestPackageNames(
-                            resolved.get(task)!.result.manifest,
-                        ).includes(name)),
+                    catalog(task).some((node) => node.package_name === name),
             );
         const refsOf = (task: CrossSourceFetchTask<T>) => [
             ...(scans.get(task)?.refs ?? []),
@@ -350,14 +331,128 @@ export const resolveCrossSourceManifests = async <T>({
                 (provider) =>
                     provider !== consumer &&
                     (catalog(provider).some((node) => matchesRef(node, ref)) ||
-                        (!fresh.has(provider) &&
-                            !catalog(provider).some(
-                                (node) => node.name === ref.name,
-                            ) &&
+                        (!catalog(provider).some(
+                            (node) => node.name === ref.name,
+                        ) &&
                             scans
                                 .get(provider)
                                 ?.localModels.includes(ref.name))),
             );
+        };
+        const isLocalPackage = (
+            consumer: CrossSourceFetchTask<T>,
+            name: string,
+        ) =>
+            name === projectName(consumer) ||
+            scans.get(consumer)?.installedPackages.includes(name) === true;
+        const selectedSeeds = (consumer: CrossSourceFetchTask<T>) => {
+            const refs = refsOf(consumer);
+            const all = tasks.flatMap((provider) =>
+                provider === consumer
+                    ? []
+                    : catalog(provider)
+                          .filter(
+                              (node) =>
+                                  !isLocalPackage(consumer, node.package_name),
+                          )
+                          .map((node) => ({ provider, node })),
+            );
+            const byId = new Map<string, typeof all>();
+            for (const entry of all) {
+                const id = nodeId(entry.node);
+                byId.set(id, [...(byId.get(id) ?? []), entry]);
+            }
+            const selected = new Map<
+                string,
+                {
+                    provider: CrossSourceFetchTask<T>;
+                    node: DbtExternalModelNode;
+                }
+            >();
+            const include = (id: string) => {
+                const candidates = byId.get(id) ?? [];
+                if (candidates.length > 1)
+                    throw new ParameterError(
+                        `External model "${id}" is provided by several dbt sources: ${candidates.map(({ provider }) => `"${provider.key}"`).join(', ')}. Connect only one source for this model.`,
+                    );
+                const entry = candidates[0];
+                if (entry && !selected.has(id)) {
+                    selected.set(id, entry);
+                    entry.node.depends_on_nodes.forEach(include);
+                }
+            };
+            for (const { provider, node } of all) {
+                if (
+                    refs.some((ref) => {
+                        if (ref.name !== node.name) return false;
+                        if (ref.packageName !== null)
+                            return ref.packageName === node.package_name;
+                        const candidates = oneArgProviders(consumer, ref);
+                        return (
+                            matchesRef(node, ref) &&
+                            ((candidates.length === 1 &&
+                                candidates[0] === provider) ||
+                                refs.some(
+                                    (explicit) =>
+                                        explicit.packageName ===
+                                            node.package_name &&
+                                        explicit.name === node.name,
+                                ))
+                        );
+                    })
+                )
+                    include(nodeId(node));
+            }
+            return [...selected.values()];
+        };
+        const missingSeedReports = (
+            consumer: CrossSourceFetchTask<T>,
+            actualOnly = false,
+        ) => {
+            const missing = new Set<CrossSourceFetchTask<T>>();
+            const refs = actualOnly
+                ? [...(learned.get(consumer)?.values() ?? [])]
+                : refsOf(consumer);
+            for (const ref of refs.filter(
+                (reference) =>
+                    reference.packageName === null ||
+                    !isLocalPackage(consumer, reference.packageName),
+            )) {
+                const candidates =
+                    ref.packageName === null
+                        ? oneArgProviders(consumer, ref)
+                        : providers(ref.packageName).filter(
+                              (provider) => provider !== consumer,
+                          );
+                if (ref.packageName !== null || candidates.length === 1) {
+                    for (const provider of candidates) {
+                        if (!cachedCatalog(provider)) missing.add(provider);
+                    }
+                }
+            }
+            return [...missing].map(
+                (provider) =>
+                    `Cold start: dbt source "${consumer.key}" references dbt source "${provider.key}" (project "${projectName(provider)}"), but that upstream source has no confirmed last-good manifest. Seed this upstream with a successful compile or deploy before refreshing this consumer.`,
+            );
+        };
+        const warnMissingSeeds = (
+            consumer: CrossSourceFetchTask<T>,
+            actualOnly = false,
+        ) => {
+            const reports = missingSeedReports(consumer, actualOnly);
+            for (const warning of reports) {
+                if (!warnings.has(warning))
+                    Logger.warn(
+                        `dbt.compile.crossSourceMissingSeed ${warning}`,
+                        {
+                            event: 'dbt.compile.crossSourceMissingSeed',
+                            source: consumer.key,
+                            warning,
+                        },
+                    );
+                warnings.add(warning);
+            }
+            return reports;
         };
         for (const task of tasks) {
             for (const name of scans.get(task)?.referencedProjects ?? []) {
@@ -384,6 +479,7 @@ export const resolveCrossSourceManifests = async <T>({
                 }
             }
         }
+        tasks.forEach((task) => warnMissingSeeds(task));
         const preflightWarnings = warnings.size;
         const buildPayload = (consumer: CrossSourceFetchTask<T>) => {
             const byProvider = new Map<
@@ -391,162 +487,17 @@ export const resolveCrossSourceManifests = async <T>({
                 DbtExternalModelNode[]
             >();
             const sideMap = new Map<string, CrossSourceStubOrigin>();
-            const refs = refsOf(consumer);
-            const referenced = referencedProviders(consumer);
-            const oneArgs = new Map(
-                refs
-                    .filter((ref) => ref.packageName === null)
-                    .map((ref) => [
-                        refKey(ref),
-                        oneArgProviders(consumer, ref),
-                    ]),
-            );
-            for (const provider of tasks.filter(
-                (source) => source !== consumer,
-            )) {
-                const name = projectName(provider);
-                const nodes = new Map<string, DbtExternalModelNode>();
-                const add = (
-                    node: DbtExternalModelNode,
-                    origin: CrossSourceStubOrigin,
-                ) => {
-                    if (
-                        node.package_name === projectName(consumer) ||
-                        scans
-                            .get(consumer)
-                            ?.installedPackages.includes(node.package_name)
-                    )
-                        return;
-                    if (
-                        refs.some(
-                            (ref) =>
-                                ref.packageName === null &&
-                                matchesRef(node, ref) &&
-                                oneArgs.get(refKey(ref))?.length !== 1,
-                        ) &&
-                        !refs.some(
-                            (ref) =>
-                                ref.packageName === node.package_name &&
-                                ref.name === node.name,
-                        )
-                    )
-                        return;
-                    nodes.set(
-                        nodeKey(node),
-                        origin === 'fresh'
-                            ? node
-                            : { ...node, access: 'public' },
-                    );
-                    sideMap.set(nodeKey(node), origin);
-                };
-                catalog(provider)
-                    .filter(
-                        (node) =>
-                            referenced.has(provider) ||
-                            refs.some(
-                                (ref) =>
-                                    ref.packageName === null &&
-                                    matchesRef(node, ref) &&
-                                    oneArgs.get(refKey(ref))?.length === 1 &&
-                                    oneArgs.get(refKey(ref))?.[0] === provider,
-                            ),
-                    )
-                    .forEach((node) =>
-                        add(node, fresh.has(provider) ? 'fresh' : 'cached'),
-                    );
-                if (name !== null) {
-                    for (const ref of refs.filter(
-                        (candidate) =>
-                            (candidate.packageName === name ||
-                                (candidate.packageName === null &&
-                                    oneArgs.get(refKey(candidate))?.length ===
-                                        1 &&
-                                    oneArgs.get(refKey(candidate))?.[0] ===
-                                        provider)) &&
-                            ![...nodes.values()].some((node) =>
-                                matchesRef(node, candidate),
-                            ),
-                    )) {
-                        const error =
-                            learned.get(consumer)?.has(JSON.stringify(ref)) ??
-                            false;
-                        add(
-                            placeholderExternalNode({
-                                packageName: name,
-                                name: ref.name,
-                                version: ref.version,
-                                latestVersion: ref.version,
-                            }),
-                            error ? 'error' : 'placeholder',
-                        );
-                    }
-                }
-                const groups = new Map<string, DbtExternalModelNode[]>();
-                nodes.forEach((node) => {
-                    const key = `${node.package_name}.${node.name}`;
-                    groups.set(key, [...(groups.get(key) ?? []), node]);
-                });
-                for (const group of groups.values()) {
-                    const versioned = group.filter(
-                        (node) => node.version !== null,
-                    );
-                    if (versioned.length > 0) {
-                        const realLatest = versioned.find(
-                            (node) =>
-                                ['fresh', 'cached'].includes(
-                                    sideMap.get(nodeKey(node))!,
-                                ) && node.latest_version !== null,
-                        )?.latest_version;
-                        const latest =
-                            realLatest ??
-                            versioned
-                                .map((node) => String(node.version))
-                                .sort((a, b) =>
-                                    a.localeCompare(b, undefined, {
-                                        numeric: true,
-                                    }),
-                                )
-                                .at(-1)!;
-                        for (const node of group) {
-                            if (node.version === null) {
-                                nodes.delete(nodeKey(node));
-                                sideMap.delete(nodeKey(node));
-                            } else
-                                nodes.set(nodeKey(node), {
-                                    ...node,
-                                    latest_version: latest,
-                                });
-                        }
-                    }
-                }
-                if (nodes.size > 0)
-                    byProvider.set(provider, [...nodes.values()]);
+            for (const { provider, node } of selectedSeeds(consumer)) {
+                byProvider.set(provider, [
+                    ...(byProvider.get(provider) ?? []),
+                    node,
+                ]);
+                sideMap.set(nodeKey(node), 'cached');
             }
-            const injectedIds = new Set(
-                [...byProvider.values()].flat().map(nodeId),
-            );
-            for (const [provider, nodes] of byProvider)
-                byProvider.set(
-                    provider,
-                    nodes.map((node) => ({
-                        ...node,
-                        depends_on_nodes: node.depends_on_nodes.filter((id) =>
-                            injectedIds.has(id),
-                        ),
-                    })),
-                );
             supplied.set(consumer, byProvider);
             origins.set(consumer, sideMap);
             return [...byProvider.values()].flat();
         };
-        const contradictedRefs = new Map<
-            CrossSourceFetchTask<T>,
-            {
-                provider: CrossSourceFetchTask<T>;
-                boundProvider: CrossSourceFetchTask<T> | null;
-                ref: ScannedDbtRef;
-            }[]
-        >();
         const hiddenRefReason = (
             task: CrossSourceFetchTask<T>,
             project: string,
@@ -554,11 +505,8 @@ export const resolveCrossSourceManifests = async <T>({
             `dbt source "${task.key}" references a model in project "${project}" that could not be found before compiling (for example a ref built in a macro or var()). Use the literal form ref('${project}', 'model').`;
         const unresolvedError = (queued: Set<CrossSourceFetchTask<T>>) => {
             const reports = [...queued].flatMap((task) => {
-                if (resolved.has(task))
-                    return (contradictedRefs.get(task) ?? []).map(
-                        ({ provider, boundProvider, ref }) =>
-                            `dbt source "${task.key}" was compiled against an out-of-date version of model "${ref.name}"${ref.version === null ? '' : ` (version ${JSON.stringify(ref.version)})`} from dbt source "${(boundProvider ?? provider).key}" and the compile ran out of retries.`,
-                    );
+                const seeds = warnMissingSeeds(task, true);
+                if (seeds.length > 0) return seeds;
                 const missing = getMissingDbtNodeReferences(failures.get(task));
                 const refs =
                     missing.length > 0
@@ -595,6 +543,12 @@ export const resolveCrossSourceManifests = async <T>({
                         const failure = failures.get(provider);
                         return `dbt source "${task.key}" references ${refLabel(ref)}, but dbt source "${provider.key}" failed: ${failure instanceof Error ? failure.message : String(failure)}`;
                     }
+                    if (
+                        provider &&
+                        cachedCatalog(provider) &&
+                        !catalog(provider).some((node) => matchesRef(node, ref))
+                    )
+                        return `dbt source "${task.key}" references ${refLabel(ref)}, but the confirmed last-good manifest of dbt source "${provider.key}" does not define that model (or version).`;
                     if (!provider && ref.packageName !== null)
                         return `dbt source "${task.key}" references ${refLabel(ref)}, but no connected dbt source provides project "${ref.packageName}".`;
                     return `dbt source "${task.key}" references ${refLabel(ref)}. ${hiddenRefReason(task, ref.packageName ?? 'project')}`;
@@ -658,7 +612,6 @@ export const resolveCrossSourceManifests = async <T>({
             );
             await skipFailedConsumers(queued);
         };
-        let contradictions = 0;
         let firstAttemptInjected = 0;
         const runPass = async (
             passTasks: CrossSourceFetchTask<T>[],
@@ -870,6 +823,7 @@ export const resolveCrossSourceManifests = async <T>({
                         known.set(key, ref);
                     }
                     learned.set(task, known);
+                    warnMissingSeeds(task);
                     failures.set(task, error);
                     resolved.delete(task);
                     fresh.delete(task);
@@ -902,17 +856,6 @@ export const resolveCrossSourceManifests = async <T>({
                     ...given.keys(),
                 ]);
                 finalDependencies.set(consumer, requiredProviders);
-                const actualRefs: (ScannedDbtRef & {
-                    boundProvider: CrossSourceFetchTask<T> | null;
-                })[] = [];
-                const injectedById = new Map(
-                    [...given.entries()].flatMap(([provider, nodes]) =>
-                        nodes.map(
-                            (node) =>
-                                [nodeId(node), { provider, node }] as const,
-                        ),
-                    ),
-                );
                 for (const raw of Object.values(
                     entry.result.manifest.nodes,
                 ).filter(
@@ -921,66 +864,11 @@ export const resolveCrossSourceManifests = async <T>({
                         !isExternalDbtNode(node as DbtRawModelNode),
                 )) {
                     const model = raw as DbtRawModelNode;
-                    const dependencies = (
-                        model.depends_on?.nodes ?? []
-                    ).flatMap((id) => {
-                        const injected = injectedById.get(id);
-                        return injected ? [injected] : [];
-                    });
-                    for (const injected of dependencies) {
-                        const { provider, node: stub } = injected;
-                        requiredProviders.add(provider);
-                        const ref: ScannedDbtRef = {
-                            packageName: stub.package_name,
-                            name: stub.name,
-                            version:
-                                stub.version === null
-                                    ? null
-                                    : String(stub.version),
-                        };
-                        const requested = (model.refs ?? []).filter(
-                            (reference) =>
-                                reference.name === stub.name &&
-                                (reference.package == null ||
-                                    reference.package === stub.package_name),
-                        );
-                        const requestedVersion =
-                            requested.length > 0 &&
-                            !requested.some(
-                                (reference) =>
-                                    reference.version != null &&
-                                    String(reference.version) === ref.version,
-                            )
-                                ? null
-                                : ref.version;
-                        actualRefs.push({
-                            ...ref,
-                            version: requestedVersion,
-                            boundProvider: provider,
-                        });
-                        if (fresh.has(provider)) {
-                            const candidates = fresh
-                                .get(provider)!
-                                .filter((node) =>
-                                    matchesRef(node, {
-                                        ...ref,
-                                        version: requestedVersion,
-                                    }),
-                                );
-                            const real =
-                                requestedVersion === null
-                                    ? (candidates.find(
-                                          (node) =>
-                                              node.version === null ||
-                                              String(node.version) ===
-                                                  String(node.latest_version),
-                                      ) ?? candidates[0])
-                                    : candidates[0];
-                            if (!real || real.access === 'private')
-                                throw new ParameterError(
-                                    `Model "${model.name}" in dbt source "${consumer.key}" references ${refLabel({ ...ref, version: requestedVersion })}, but dbt source "${provider.key}" ${real ? 'defines that model as private' : 'does not define that model (or version)'}.`,
-                                );
-                        }
+                    for (const id of model.depends_on?.nodes ?? []) {
+                        const provider = [...given].find(([, nodes]) =>
+                            nodes.some((node) => nodeId(node) === id),
+                        )?.[0];
+                        if (provider) requiredProviders.add(provider);
                     }
                     for (const ref of model.refs ?? []) {
                         if (ref.package == null) {
@@ -1027,24 +915,6 @@ export const resolveCrossSourceManifests = async <T>({
                                     ? preferred[0]
                                     : undefined);
                             if (dependency && isExternalDbtNode(dependency)) {
-                                actualRefs.push({
-                                    packageName: refsOf(consumer).some(
-                                        (candidate) =>
-                                            candidate.packageName ===
-                                                dependency.package_name &&
-                                            candidate.name === ref.name,
-                                    )
-                                        ? dependency.package_name
-                                        : null,
-                                    name: ref.name,
-                                    version:
-                                        ref.version == null
-                                            ? null
-                                            : String(ref.version),
-                                    boundProvider:
-                                        injectedById.get(dependency.unique_id)
-                                            ?.provider ?? null,
-                                });
                                 const versionArg =
                                     ref.version == null
                                         ? ''
@@ -1063,49 +933,6 @@ export const resolveCrossSourceManifests = async <T>({
                             }
                         }
                     }
-                }
-                const changed: {
-                    provider: CrossSourceFetchTask<T>;
-                    boundProvider: CrossSourceFetchTask<T> | null;
-                    ref: ScannedDbtRef;
-                }[] = [];
-                for (const provider of tasks.filter(
-                    (source) => source !== consumer && fresh.has(source),
-                )) {
-                    const visible = (nodes: DbtExternalModelNode[]) =>
-                        nodes.filter(
-                            (node) =>
-                                node.package_name !== projectName(consumer) &&
-                                !scans
-                                    .get(consumer)
-                                    ?.installedPackages.includes(
-                                        node.package_name,
-                                    ),
-                        );
-                    const previous = visible(given.get(provider) ?? []);
-                    const current = visible(fresh.get(provider)!);
-                    for (const ref of actualRefs) {
-                        if (
-                            bindingProjection(previous, [ref]) !==
-                                bindingProjection(current, [ref]) &&
-                            !changed.some(
-                                (changedRef) =>
-                                    changedRef.provider === provider &&
-                                    changedRef.ref.name === ref.name &&
-                                    changedRef.ref.version === ref.version,
-                            )
-                        )
-                            changed.push({
-                                provider,
-                                boundProvider: ref.boundProvider,
-                                ref,
-                            });
-                    }
-                }
-                contradictedRefs.set(consumer, changed);
-                if (changed.length > 0 && !queued.has(consumer)) {
-                    queued.add(consumer);
-                    contradictions += 1;
                 }
             }
             await skipFailedConsumers(queued);
@@ -1143,22 +970,23 @@ export const resolveCrossSourceManifests = async <T>({
             onRoundComplete?.(pass);
             const canLearn = [...queued].some(
                 (task) =>
-                    !failures.has(task) ||
-                    getMissingDbtNodeReferences(failures.get(task)).some(
-                        (missing) =>
-                            missing.packageName === null
-                                ? oneArgProviders(task, {
-                                      packageName: null,
-                                      name: missing.model,
-                                      version: missing.version,
-                                  }).length === 1
-                                : providers(missing.packageName).length > 0,
-                    ) ||
-                    tasks.some(
-                        (provider) =>
-                            scans.get(provider) === null &&
-                            !resolved.has(provider),
-                    ),
+                    missingSeedReports(task, true).length === 0 &&
+                    (!failures.has(task) ||
+                        getMissingDbtNodeReferences(failures.get(task)).some(
+                            (missing) =>
+                                missing.packageName === null
+                                    ? oneArgProviders(task, {
+                                          packageName: null,
+                                          name: missing.model,
+                                          version: missing.version,
+                                      }).length === 1
+                                    : providers(missing.packageName).length > 0,
+                        ) ||
+                        tasks.some(
+                            (provider) =>
+                                scans.get(provider) === null &&
+                                !resolved.has(provider),
+                        )),
             );
             if (
                 queued.size > 0 &&
@@ -1215,41 +1043,56 @@ export const resolveCrossSourceManifests = async <T>({
                       1,
                   );
         cancellation.controller.signal.throwIfAborted();
-        const realNodes = new Map<string, DbtRawModelNode>();
-        resolved.forEach(({ result }) =>
-            Object.values(result.manifest.nodes).forEach((raw) => {
-                const node = raw as DbtRawModelNode;
-                if (
-                    ['model', 'seed', 'snapshot'].includes(
-                        node.resource_type,
-                    ) &&
-                    !isExternalDbtNode(node)
-                )
-                    realNodes.set(node.unique_id, node);
-            }),
-        );
-        const realIds = new Map(
-            [...realNodes.values()]
-                .filter((node) => node.resource_type === 'model')
-                .map((node) => [
-                    nodeId({
-                        package_name: node.package_name,
-                        name: node.name,
-                        version: node.version ?? null,
-                    }),
-                    node.unique_id,
+        let cycle: string[] | null = null;
+        for (const [consumer, { result }] of resolved) {
+            if (cycle) break;
+            const graph = new Map(
+                selectedSeeds(consumer).map(({ node }) => [
+                    nodeId(node),
+                    {
+                        unique_id: nodeId(node),
+                        depends_on: { nodes: node.depends_on_nodes },
+                    },
                 ]),
-        );
-        const cycle = findDbtNodeCycle(
-            [...realNodes.values()].map((node) => ({
-                unique_id: node.unique_id,
-                depends_on: {
-                    nodes: (node.depends_on?.nodes ?? []).map(
-                        (id) => realIds.get(id) ?? id,
-                    ),
-                },
-            })),
-        );
+            );
+            const localModels = Object.values(result.manifest.nodes)
+                .map((raw) => raw as DbtRawModelNode)
+                .filter(
+                    (node) =>
+                        ['model', 'seed', 'snapshot'].includes(
+                            node.resource_type,
+                        ) && !isExternalDbtNode(node),
+                );
+            const realIds = new Map(
+                localModels
+                    .filter((node) => node.resource_type === 'model')
+                    .map((node) => [
+                        nodeId({
+                            package_name: node.package_name,
+                            name: node.name,
+                            version: node.version ?? null,
+                        }),
+                        node.unique_id,
+                    ]),
+            );
+            for (const node of localModels)
+                graph.set(node.unique_id, {
+                    unique_id: node.unique_id,
+                    depends_on: { nodes: node.depends_on?.nodes ?? [] },
+                });
+            cycle = findDbtNodeCycle(
+                [...graph.values()]
+                    .sort((a, b) => a.unique_id.localeCompare(b.unique_id))
+                    .map((node) => ({
+                        ...node,
+                        depends_on: {
+                            nodes: node.depends_on.nodes.map(
+                                (id) => realIds.get(id) ?? id,
+                            ),
+                        },
+                    })),
+            );
+        }
         if (cycle)
             throw new ParameterError(
                 `dbt models form a cycle across dbt sources: ${cycle.join(' -> ')}. Break the cycle in one of these models.`,
@@ -1270,7 +1113,7 @@ export const resolveCrossSourceManifests = async <T>({
                 }),
                 emptyOrigins(),
             ),
-            contradictions,
+            contradictions: 0,
             sources,
             firstAttemptInjected,
             preflightWarnings,

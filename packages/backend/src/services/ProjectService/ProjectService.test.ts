@@ -14568,11 +14568,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         return (await adapter).adapter;
     };
 
-    it('writes provisional source catalogues and confirms only when the merged artifact is saved', async () => {
+    it('publishes staged source catalogues only when the merged artifact is saved', async () => {
         const cacheModel = {
             get: vi.fn(async () => []),
-            upsertProvisional: vi.fn(async () => 'digest'),
-            confirm: vi.fn(async () => undefined),
+            replaceConfirmed: vi.fn(async () => undefined),
         };
         const projectService = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
@@ -14618,35 +14617,24 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             jobUuid: 'compile-job',
         });
         expect(cacheModel.get).toHaveBeenCalledWith('project-uuid', 'original');
-        expect(cacheModel.upsertProvisional).toHaveBeenCalledTimes(2);
-        expect(cacheModel.upsertProvisional).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: 'project-uuid',
-                connectionGroup: 'original',
-                compileJobUuid: 'compile-job',
-                dbtSourceUuid: 'primary-source-uuid',
-                projectName: 'catalogue_a',
-                referencedProjects: [],
-            }),
-        );
-        expect(cacheModel.upsertProvisional).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: 'project-uuid',
-                connectionGroup: 'original',
-                dbtSourceUuid: 'source-b-uuid',
-            }),
-        );
-        expect(cacheModel.confirm).not.toHaveBeenCalled();
+        expect(cacheModel.replaceConfirmed).not.toHaveBeenCalled();
         await projectService.persistMergedManifest(
             'project-uuid',
             built.stagedMergedManifest,
         );
-        expect(cacheModel.confirm).toHaveBeenCalledWith(
+        expect(cacheModel.replaceConfirmed).toHaveBeenCalledWith(
             expect.objectContaining({
                 projectUuid: 'project-uuid',
                 connectionGroup: 'original',
                 entries: expect.arrayContaining([
-                    expect.objectContaining({ nodesDigest: 'digest' }),
+                    expect.objectContaining({
+                        dbtSourceUuid: 'primary-source-uuid',
+                        projectName: 'catalogue_a',
+                    }),
+                    expect.objectContaining({
+                        dbtSourceUuid: 'source-b-uuid',
+                        projectName: 'catalogue_b',
+                    }),
                 ]),
             }),
         );
@@ -14764,6 +14752,31 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 },
             ]);
             upstream.metadata.project_name = 'shared';
+            Object.assign(projectService, {
+                dbtSourceRefCatalogModel: {
+                    get: vi.fn(async () => [
+                        {
+                            dbt_source_uuid: 'primary-source-uuid',
+                            project_name: 'shared',
+                            referenced_projects: [],
+                            nodes: [
+                                {
+                                    name: 'calendar',
+                                    package_name: 'shared',
+                                    identifier: 'calendar',
+                                    schema: 'public',
+                                    database: null,
+                                    relation_name: null,
+                                    version: null,
+                                    latest_version: null,
+                                    access: 'public',
+                                    depends_on_nodes: [],
+                                },
+                            ],
+                        },
+                    ]),
+                },
+            });
             const downstream = buildManifest([
                 {
                     uniqueId: 'model.analytics.orders',

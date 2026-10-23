@@ -1,4 +1,8 @@
-import { DbtError, type DbtManifest } from '@lightdash/common';
+import {
+    DbtError,
+    getExternalModelNodesFromManifest,
+    type DbtManifest,
+} from '@lightdash/common';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -266,6 +270,14 @@ describe('DbtSourceDiskPool', () => {
         try {
             const resolved = await resolveCrossSourceManifests({
                 tasks,
+                cache: tasks.map((task) => ({
+                    key: task.key,
+                    projectName: task.key,
+                    referencedProjects: [],
+                    nodes: getExternalModelNodesFromManifest(
+                        result(task.key).manifest,
+                    ),
+                })),
                 concurrency: 2,
                 enabled: true,
                 onSourceFinal: (task) => pool.release(task.key),

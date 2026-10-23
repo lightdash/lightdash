@@ -15,7 +15,14 @@ export class CrossSourceCatalogCache {
 
     rowsWritten = 0;
 
-    private readonly entries = new Map<string, string>();
+    private readonly entries = new Map<
+        string,
+        {
+            nodes: DbtExternalModelNode[];
+            projectName: string;
+            referencedProjects: string[];
+        }
+    >();
 
     constructor(
         private readonly model: DbtSourceRefCatalogModel,
@@ -63,22 +70,11 @@ export class CrossSourceCatalogCache {
         referencedProjects: string[],
     ): Promise<void> {
         if (projectName === null) return;
-        try {
-            const digest = await this.model.upsertProvisional({
-                projectUuid: this.projectUuid,
-                dbtSourceUuid,
-                connectionGroup: this.connectionGroup,
-                projectName,
-                dbtVersion: this.dbtVersion,
-                nodes,
-                referencedProjects,
-                compileJobUuid: this.compileJobUuid,
-            });
-            this.entries.set(dbtSourceUuid, digest);
-            this.rowsWritten += 1;
-        } catch (error) {
-            logCrossSourceCacheError(error);
-        }
+        this.entries.set(dbtSourceUuid, {
+            nodes,
+            projectName,
+            referencedProjects,
+        });
     }
 
     discard(dbtSourceUuid: string): void {
@@ -87,16 +83,18 @@ export class CrossSourceCatalogCache {
 
     async confirm(): Promise<void> {
         try {
-            await this.model.confirm({
+            await this.model.replaceConfirmed({
                 projectUuid: this.projectUuid,
                 connectionGroup: this.connectionGroup,
-                entries: [...this.entries].map(
-                    ([dbtSourceUuid, nodesDigest]) => ({
-                        dbtSourceUuid,
-                        nodesDigest,
-                    }),
-                ),
+                dbtVersion: this.dbtVersion,
+                compileJobUuid: this.compileJobUuid,
+                entries: [...this.entries].map(([dbtSourceUuid, entry]) => ({
+                    dbtSourceUuid,
+                    ...entry,
+                })),
             });
+            this.rowsWritten += this.entries.size;
+            this.entries.clear();
         } catch (error) {
             logCrossSourceCacheError(error);
         }

@@ -3,6 +3,7 @@ import {
     DbtProjectType,
     DimensionType,
     getDeferredExploreName,
+    getExternalModelNodesFromManifest,
     isExploreError,
     SupportedDbtAdapter,
     SupportedDbtVersions,
@@ -261,12 +262,26 @@ const harness = ({
         },
     );
     const dbtSourceRefCatalogModel = {
-        get: vi.fn(async () => []),
-        upsertProvisional: vi.fn(
-            async ({ dbtSourceUuid }: { dbtSourceUuid: string }) =>
-                `digest-${dbtSourceUuid}`,
+        get: vi.fn(async (_projectUuid: string, connectionGroup: string) =>
+            connectionGroup === providerGroup
+                ? [
+                      {
+                          dbt_source_uuid: 'shared-uuid',
+                          project_name: 'shared_dimensions',
+                          status: 'confirmed',
+                          nodes: getExternalModelNodesFromManifest(
+                              manifest(
+                                  'shared_dimensions',
+                                  'calendar',
+                                  SupportedDbtAdapter.POSTGRES,
+                              ),
+                          ),
+                          referenced_projects: [],
+                      },
+                  ]
+                : [],
         ),
-        confirm: vi.fn(async () => undefined),
+        replaceConfirmed: vi.fn(async () => undefined),
     };
     const projectModel = {
         countCachedExploresForDbtSource: vi.fn(async () => 2),
@@ -605,7 +620,7 @@ describe('cross-connection dbt ref diagnostics', () => {
         },
     );
 
-    it('writes provisional catalogues in each group and confirms them after artifact publication', async () => {
+    it('stages fresh catalogues in each group and replaces confirmed rows after all artifacts persist', async () => {
         const h = harness({ providerGroup: 'extra' });
         const compilation = await h.compiler.compile(h.input);
         expect(h.dbtSourceRefCatalogModel.get).toHaveBeenCalledWith(
@@ -617,62 +632,129 @@ describe('cross-connection dbt ref diagnostics', () => {
             'extra',
         );
         expect(
-            h.dbtSourceRefCatalogModel.upsertProvisional,
-        ).toHaveBeenCalledTimes(3);
-        expect(
-            h.dbtSourceRefCatalogModel.upsertProvisional,
-        ).toHaveBeenCalledWith(
-            expect.objectContaining({
-                dbtSourceUuid: 'analytics-uuid',
-                connectionGroup: 'extra',
-            }),
-        );
-        expect(
-            h.dbtSourceRefCatalogModel.upsertProvisional,
-        ).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: 'project',
-                connectionGroup: 'original',
-                dbtSourceUuid: 'primary-uuid',
-            }),
-        );
-        expect(h.dbtSourceRefCatalogModel.confirm).not.toHaveBeenCalled();
+            h.dbtSourceRefCatalogModel.replaceConfirmed,
+        ).not.toHaveBeenCalled();
         await h.compiler.save('project', compilation);
-        expect(h.dbtSourceRefCatalogModel.confirm).toHaveBeenCalledWith(
-            expect.objectContaining({
-                connectionGroup: 'original',
-                entries: [
-                    {
-                        dbtSourceUuid: 'primary-uuid',
-                        nodesDigest: 'digest-primary-uuid',
-                    },
-                ],
-            }),
+        expect(
+            h.dbtSourceRefCatalogModel.replaceConfirmed,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            h.dbtSourceRefCatalogModel.replaceConfirmed,
+        ).toHaveBeenCalledWith({
+            projectUuid: 'project',
+            connectionGroup: 'original',
+            dbtVersion: SupportedDbtVersions.V1_8,
+            compileJobUuid: null,
+            entries: [
+                {
+                    dbtSourceUuid: 'primary-uuid',
+                    projectName: 'primary_project',
+                    nodes: getExternalModelNodesFromManifest(
+                        manifest(
+                            'primary_project',
+                            'primary_orders',
+                            SupportedDbtAdapter.POSTGRES,
+                        ),
+                    ),
+                    referencedProjects: [],
+                },
+            ],
+        });
+        expect(
+            h.dbtSourceRefCatalogModel.replaceConfirmed,
+        ).toHaveBeenCalledWith({
+            projectUuid: 'project',
+            connectionGroup: 'extra',
+            dbtVersion: SupportedDbtVersions.V1_8,
+            compileJobUuid: null,
+            entries: expect.arrayContaining([
+                {
+                    dbtSourceUuid: 'analytics-uuid',
+                    projectName: 'analytics_project',
+                    nodes: getExternalModelNodesFromManifest(
+                        manifest(
+                            'analytics_project',
+                            'orders',
+                            SupportedDbtAdapter.TRINO,
+                        ),
+                    ).map((node) => ({
+                        ...node,
+                        depends_on_nodes: ['model.shared_dimensions.calendar'],
+                    })),
+                    referencedProjects: ['shared_dimensions'],
+                },
+                {
+                    dbtSourceUuid: 'shared-uuid',
+                    projectName: 'shared_dimensions',
+                    nodes: getExternalModelNodesFromManifest(
+                        manifest(
+                            'shared_dimensions',
+                            'calendar',
+                            SupportedDbtAdapter.TRINO,
+                        ),
+                    ),
+                    referencedProjects: [],
+                },
+            ]),
+        });
+        const artifactsPersisted = Math.max(
+            ...h.projectModel.deleteMergedManifest.mock.invocationCallOrder,
+            ...h.saveCompileArtifacts.mock.invocationCallOrder,
         );
-        expect(h.dbtSourceRefCatalogModel.confirm).toHaveBeenCalledWith(
-            expect.objectContaining({
-                connectionGroup: 'extra',
-                entries: expect.arrayContaining([
-                    {
-                        dbtSourceUuid: 'analytics-uuid',
-                        nodesDigest: 'digest-analytics-uuid',
-                    },
-                    {
-                        dbtSourceUuid: 'shared-uuid',
-                        nodesDigest: 'digest-shared-uuid',
-                    },
-                ]),
-            }),
-        );
+        for (const confirmed of h.dbtSourceRefCatalogModel.replaceConfirmed.mock
+            .invocationCallOrder)
+            expect(confirmed).toBeGreaterThan(artifactsPersisted);
     });
 
-    it('does not confirm cache rows for a group that fails to compile', async () => {
+    it.each(['original', 'extra'] as const)(
+        'does not confirm any catalogue if %s artifact persistence fails',
+        async (group) => {
+            const h = harness({ providerGroup: 'extra' });
+            const compilation = await h.compiler.compile(h.input);
+            const failure = new Error(`${group} artifact persistence failed`);
+            if (group === 'original')
+                h.projectModel.deleteMergedManifest.mockRejectedValueOnce(
+                    failure,
+                );
+            else h.saveCompileArtifacts.mockRejectedValueOnce(failure);
+
+            await expect(h.compiler.save('project', compilation)).rejects.toBe(
+                failure,
+            );
+
+            expect(h.saveMultiConnectionExplores).toHaveBeenCalledOnce();
+            expect(h.projectModel.deleteMergedManifest).toHaveBeenCalledOnce();
+            expect(h.saveCompileArtifacts).toHaveBeenCalledTimes(
+                group === 'extra' ? 1 : 0,
+            );
+            expect(
+                h.dbtSourceRefCatalogModel.replaceConfirmed,
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    it('leaves the confirmed store unchanged for a group that fails to compile', async () => {
         const h = harness({ referencedProject: 'not_connected' });
         const compilation = await h.compiler.compile(h.input);
         await h.compiler.save('project', compilation);
-        expect(h.dbtSourceRefCatalogModel.confirm).toHaveBeenCalledTimes(1);
-        expect(h.dbtSourceRefCatalogModel.confirm).toHaveBeenCalledWith(
-            expect.objectContaining({ connectionGroup: 'original' }),
+        expect(
+            h.dbtSourceRefCatalogModel.replaceConfirmed,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            h.dbtSourceRefCatalogModel.replaceConfirmed,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                connectionGroup: 'original',
+                entries: expect.arrayContaining([
+                    expect.objectContaining({ dbtSourceUuid: 'primary-uuid' }),
+                    expect.objectContaining({ dbtSourceUuid: 'shared-uuid' }),
+                ]),
+            }),
+        );
+        expect(
+            h.dbtSourceRefCatalogModel.replaceConfirmed,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ connectionGroup: 'extra', entries: [] }),
         );
     });
 
@@ -788,9 +870,8 @@ describe('cross-connection dbt ref diagnostics', () => {
         expect(h.prepareSourceManifest).not.toHaveBeenCalled();
         expect(h.dbtSourceRefCatalogModel.get).not.toHaveBeenCalled();
         expect(
-            h.dbtSourceRefCatalogModel.upsertProvisional,
+            h.dbtSourceRefCatalogModel.replaceConfirmed,
         ).not.toHaveBeenCalled();
-        expect(h.dbtSourceRefCatalogModel.confirm).not.toHaveBeenCalled();
     });
 });
 

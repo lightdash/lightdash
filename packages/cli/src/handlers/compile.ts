@@ -10,10 +10,12 @@ import {
     getCompiledModels,
     getDbtManifestVersion,
     getErrorMessage,
+    getExternalModelNodesFromManifest,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
     InlineErrorType,
     isExploreError,
+    isExternalDbtNode,
     isSupportedDbtAdapter,
     LightdashError,
     LightdashProjectConfig,
@@ -22,6 +24,8 @@ import {
     QueryExecutionContext,
     stripExternalDbtNodes,
     WarehouseCatalog,
+    type DbtRawModelNode,
+    type DbtSourceManifest,
     type WarehouseClient,
 } from '@lightdash/common';
 import {
@@ -67,6 +71,7 @@ export type CompileHandlerOptions = DbtCompileOptions & {
 
 export type CompileProjectResult = {
     dbtModelNames?: string[];
+    dbtSourceManifest?: DbtSourceManifest;
     explores: (Explore | ExploreError)[];
     isProjectComplete: boolean;
 };
@@ -114,6 +119,35 @@ const getManifestModelIds = (manifest: DbtManifest): string[] =>
     Object.entries(manifest.nodes)
         .filter(([, node]) => node.resource_type === 'model')
         .map(([uniqueId]) => uniqueId);
+
+const getReferencedProjects = (manifest: DbtManifest): string[] => {
+    const externalPackages = new Map(
+        Object.entries(manifest.nodes).flatMap(([id, node]) =>
+            node.resource_type === 'model' &&
+            isExternalDbtNode(node as DbtRawModelNode)
+                ? [[id, (node as DbtRawModelNode).package_name] as const]
+                : [],
+        ),
+    );
+    return [
+        ...new Set(
+            Object.values(manifest.nodes)
+                .filter(
+                    (node) =>
+                        ['model', 'snapshot'].includes(node.resource_type) &&
+                        !isExternalDbtNode(node as DbtRawModelNode),
+                )
+                .flatMap((node) =>
+                    ((node as DbtRawModelNode).depends_on?.nodes ?? []).flatMap(
+                        (id) => {
+                            const project = externalPackages.get(id);
+                            return project === undefined ? [] : [project];
+                        },
+                    ),
+                ),
+        ),
+    ].sort();
+};
 
 const getCompiledManifestModelIds = (manifest: DbtManifest): string[] =>
     Object.entries(manifest.nodes)
@@ -436,6 +470,7 @@ export const compileProject = async (
     let dbtMetrics: DbtManifest['metrics'] | null = null;
     let isProjectComplete = true;
     let dbtModelNames: string[] | undefined;
+    let dbtSourceManifest: DbtSourceManifest | undefined;
 
     explores = await getExploresFromLightdashYmlProject({
         projectDir: absoluteProjectPath,
@@ -477,9 +512,17 @@ export const compileProject = async (
                 { targetDir: context.targetDir },
                 options,
             );
-        let manifest = stripExternalDbtNodes(
-            await loadManifest({ targetDir: context.targetDir }),
-        );
+        const sourceManifest = await loadManifest({
+            targetDir: context.targetDir,
+        });
+        dbtSourceManifest = {
+            projectName:
+                sourceManifest.metadata.project_name ?? context.projectName,
+            dbtVersion: dbtVersionResult.version.verboseVersion,
+            nodes: getExternalModelNodesFromManifest(sourceManifest),
+            referencedProjects: getReferencedProjects(sourceManifest),
+        };
+        let manifest = stripExternalDbtNodes(sourceManifest);
         const projectManifestModels = getModelsFromManifest(manifest);
         if (
             !options.combineManifest &&
@@ -855,7 +898,12 @@ export const compileProject = async (
             durationMs: Date.now() - startTime,
         },
     });
-    return { explores, isProjectComplete, dbtModelNames };
+    return {
+        explores,
+        isProjectComplete,
+        dbtModelNames,
+        dbtSourceManifest: errors === 0 ? dbtSourceManifest : undefined,
+    };
 };
 
 export const compile = async (

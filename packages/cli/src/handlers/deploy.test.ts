@@ -481,6 +481,26 @@ describe('deploy completeness transport', () => {
 });
 
 describe('deploy dbt source and target transport', () => {
+    const dbtSourceManifest = {
+        projectName: 'alpha',
+        dbtVersion: '1.10.19',
+        referencedProjects: ['beta'],
+        nodes: [
+            {
+                name: 'orders',
+                package_name: 'alpha',
+                identifier: 'orders_v3',
+                database: 'db',
+                schema: 'public',
+                relation_name: '"db"."public"."orders_v3"',
+                version: 3,
+                latest_version: 3,
+                access: 'private',
+                depends_on_nodes: [],
+            },
+        ],
+    };
+
     const batchedResponses = async ({ url }: { url: string }) => {
         if (url.endsWith('/deploy')) {
             return { deploySessionUuid: 'deploy-session-uuid' } as never;
@@ -505,6 +525,141 @@ describe('deploy dbt source and target transport', () => {
         });
         vi.mocked(LightdashAnalytics.track).mockResolvedValue(undefined);
     });
+
+    test.each([
+        { batchedDeploy: true, dbtModelNames: undefined },
+        { batchedDeploy: false, dbtModelNames: undefined },
+        { batchedDeploy: true, dbtModelNames: ['orders'] },
+        { batchedDeploy: false, dbtModelNames: ['orders'] },
+    ])(
+        'sends the source manifest on the final write: %j',
+        async ({ batchedDeploy, dbtModelNames }) => {
+            vi.mocked(lightdashApi).mockImplementation(batchedResponses);
+
+            await deploy([compiledExplore], {
+                ...deployOptions,
+                batchedDeploy,
+                complete: true,
+                dbtModelNames,
+                sourceUuid: 'alpha-uuid',
+                deployTarget: { database: 'alpha' },
+                dbtSourceManifest,
+            });
+
+            const writes = vi
+                .mocked(lightdashApi)
+                .mock.calls.map(([call]) => call);
+            const finalWrite = writes.find(({ url }) =>
+                batchedDeploy
+                    ? url.endsWith('/finalize')
+                    : url.endsWith('/deploy'),
+            );
+            expect(finalWrite).toMatchObject({
+                method: batchedDeploy ? 'POST' : 'PUT',
+                url: batchedDeploy
+                    ? '/api/v2/projects/project-uuid/deploy/deploy-session-uuid/finalize'
+                    : '/api/v2/projects/project-uuid/deploy',
+            });
+            expect(JSON.parse(String(finalWrite?.body))).toEqual({
+                ...(batchedDeploy
+                    ? {}
+                    : { explores: [compiledExplore], complete: true }),
+                ...(dbtModelNames === undefined ? {} : { dbtModelNames }),
+                sourceUuid: 'alpha-uuid',
+                target: { database: 'alpha' },
+                dbtSourceManifest,
+            });
+            expect(
+                writes.filter(
+                    ({ body }) =>
+                        typeof body === 'string' &&
+                        body.includes('dbtSourceManifest'),
+                ),
+            ).toHaveLength(1);
+            expect(
+                writes.some(({ url }) =>
+                    url.includes('/api/v1/projects/project-uuid/explores'),
+                ),
+            ).toBe(false);
+        },
+    );
+
+    test('falls back without a source manifest when the v2 endpoint is unavailable', async () => {
+        vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+            if (url.endsWith('/deploy'))
+                throw new LightdashError({
+                    name: 'NotFoundError',
+                    message: 'Not found',
+                    statusCode: 404,
+                    data: {},
+                });
+            return null as never;
+        });
+
+        await deploy([compiledExplore], {
+            ...deployOptions,
+            batchedDeploy: false,
+            complete: true,
+            sourceUuid: 'alpha-uuid',
+            dbtSourceManifest,
+        });
+
+        expect(lightdashApi).toHaveBeenCalledWith({
+            method: 'PUT',
+            url: '/api/v2/projects/project-uuid/deploy',
+            body: JSON.stringify({
+                explores: [compiledExplore],
+                complete: true,
+                sourceUuid: 'alpha-uuid',
+                dbtSourceManifest,
+            }),
+        });
+        expect(lightdashApi).toHaveBeenCalledWith({
+            method: 'PUT',
+            url: '/api/v1/projects/project-uuid/explores?complete=true&sourceUuid=alpha-uuid',
+            body: JSON.stringify([compiledExplore]),
+        });
+    });
+
+    test.each([true, false])(
+        'falls back only for an old server missing inventory validation: %s',
+        async (onlyMissingInventory) => {
+            const error = new LightdashError({
+                name: 'ValidateError',
+                statusCode: 422,
+                message: "body.dbtModelNames: 'dbtModelNames' is required",
+                data: {
+                    'body.dbtModelNames': {
+                        message: "'dbtModelNames' is required",
+                    },
+                    ...(onlyMissingInventory
+                        ? {}
+                        : { 'body.explores': { message: 'invalid explores' } }),
+                },
+            });
+            vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
+                if (url.endsWith('/deploy')) throw error;
+                return null as never;
+            });
+            const deploying = deploy([compiledExplore], {
+                ...deployOptions,
+                batchedDeploy: false,
+                complete: true,
+                dbtSourceManifest,
+            });
+            if (onlyMissingInventory) {
+                await deploying;
+                expect(lightdashApi).toHaveBeenCalledWith({
+                    method: 'PUT',
+                    url: '/api/v1/projects/project-uuid/explores?complete=true',
+                    body: JSON.stringify([compiledExplore]),
+                });
+            } else {
+                await expect(deploying).rejects.toThrow();
+                expect(lightdashApi).toHaveBeenCalledTimes(1);
+            }
+        },
+    );
 
     test('sends the dbt source and the dbt target when the batched deploy finalizes', async () => {
         vi.mocked(lightdashApi).mockImplementation(batchedResponses);
