@@ -1,4 +1,5 @@
 import {
+    getComposerSemanticExploreNames,
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
     parseToolVisualizeSuccessMetadata,
@@ -62,15 +63,7 @@ const getTableArtifact = (
         }
         return {
             title,
-            exploreNames: [
-                ...new Set(
-                    chartConfig.queries.flatMap((node) =>
-                        node.sourceType === QuerySourceType.SEMANTIC_LAYER
-                            ? [node.exploreName]
-                            : [],
-                    ),
-                ),
-            ],
+            exploreNames: getComposerSemanticExploreNames(chartConfig.queries),
         };
     }
     const args = tableCallArgsSchema.safeParse(chartConfig.config);

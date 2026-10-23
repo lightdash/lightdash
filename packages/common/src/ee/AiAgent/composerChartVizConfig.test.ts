@@ -9,9 +9,9 @@ import {
 } from '../../visualizations/types';
 import { type DataAppVizFieldType } from '../apps/types';
 import {
+    getComposerBigNumber,
     getComposerChartStage,
     getComposerRunQueryChart,
-    getComposerSlackBigNumber,
     toComposerResultRows,
 } from './composerChartVizConfig';
 import {
@@ -445,7 +445,7 @@ describe('getComposerRunQueryChart', () => {
     });
 });
 
-describe('getComposerSlackBigNumber', () => {
+describe('getComposerBigNumber', () => {
     const formatted: ResultColumn[] = [
         { reference: 'status', type: DimensionType.STRING },
         {
@@ -459,7 +459,7 @@ describe('getComposerSlackBigNumber', () => {
         config: Partial<ComposerBuiltinChartVizConfig>,
         rows: Record<string, unknown>[] = [{ status: 'all', revenue: 1234.5 }],
     ) =>
-        getComposerSlackBigNumber({
+        getComposerBigNumber({
             columns: formatted,
             rows,
             vizConfig: viz({ type: 'big_number', ...config }),
@@ -472,10 +472,14 @@ describe('getComposerSlackBigNumber', () => {
         });
     });
 
-    test('labels.y replaces the column label', () => {
+    test('labels.y replaces the column label unless empty', () => {
         expect(
             bigNumber({ labels: { x: null, y: 'Revenue', y2: null } }),
         ).toEqual({ value: '$1,234.50', label: 'Revenue' });
+        expect(bigNumber({ labels: { x: null, y: '', y2: null } })).toEqual({
+            value: '$1,234.50',
+            label: 'Total revenue',
+        });
     });
 
     test('null without a value to show', () => {
@@ -485,7 +489,7 @@ describe('getComposerSlackBigNumber', () => {
 
     test('null for other viz types', () => {
         expect(
-            getComposerSlackBigNumber({
+            getComposerBigNumber({
                 columns: formatted,
                 rows: [{ status: 'all', revenue: 1 }],
                 vizConfig: viz({ type: 'table' }),

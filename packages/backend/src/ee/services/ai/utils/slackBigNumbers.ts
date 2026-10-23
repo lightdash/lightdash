@@ -1,16 +1,15 @@
 import {
-    getComposerSlackBigNumber,
+    getComposerBigNumber,
+    getComposerSemanticExploreNames,
     isAiComposerChartArtifactConfig,
     parseToolVisualizeSuccessMetadata,
-    QuerySourceType,
     type AiAgentToolResult,
     type AiArtifact,
+    type ComposerBigNumber,
     type ResultColumn,
 } from '@lightdash/common';
 
-export type SlackBigNumber = { value: string; label: string };
-
-/** Big numbers visualize presented, by artifact version; versions missing here keep their link card. */
+/** Values of the big numbers visualize presented, by artifact version; a missing version keeps its link card. */
 export const getSlackBigNumbers = async ({
     enableDataAccess,
     slackLinksOnly,
@@ -37,7 +36,7 @@ export const getSlackBigNumbers = async ({
         rows: Record<string, unknown>[];
     }>;
     onLoadError: (versionUuid: string) => void;
-}): Promise<Map<string, SlackBigNumber>> => {
+}): Promise<Map<string, ComposerBigNumber>> => {
     if (!enableDataAccess || slackLinksOnly) return new Map();
     const artifactsByVersion = new Map(
         artifacts.map((artifact) => [artifact.versionUuid, artifact]),
@@ -61,15 +60,9 @@ export const getSlackBigNumbers = async ({
                 versionUuid: metadata.versionUuid,
                 queryUuid: metadata.queryUuid,
                 vizConfig: chartConfig.vizConfig,
-                exploreNames: [
-                    ...new Set(
-                        chartConfig.queries.flatMap((node) =>
-                            node.sourceType === QuerySourceType.SEMANTIC_LAYER
-                                ? [node.exploreName]
-                                : [],
-                        ),
-                    ),
-                ],
+                exploreNames: getComposerSemanticExploreNames(
+                    chartConfig.queries,
+                ),
             },
         ];
     });
@@ -79,7 +72,7 @@ export const getSlackBigNumbers = async ({
                 try {
                     await authorize({ queryUuid, exploreNames });
                     const { columns, rows } = await getResult({ queryUuid });
-                    const bigNumber = getComposerSlackBigNumber({
+                    const bigNumber = getComposerBigNumber({
                         columns,
                         rows,
                         vizConfig,

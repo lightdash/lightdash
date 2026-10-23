@@ -21,6 +21,7 @@ import {
     parseVizConfig,
     SlackPrompt,
     type ChartConfig,
+    type ComposerBigNumber,
     type DataAppVizField,
     type Explore,
 } from '@lightdash/common';
@@ -34,7 +35,6 @@ import {
     getLegacySlackArtifactImage,
 } from './slackArtifactIdentity';
 import { getSlackArtifactCardBlockId } from './slackArtifactImages';
-import { type SlackBigNumber } from './slackBigNumbers';
 
 const isEligibleSlackAiAccessRefusal = (refusal: AiAccessRefusal): boolean =>
     (refusal.action === AiAccessRefusalAction.SIGN_IN &&
@@ -559,6 +559,9 @@ const parseGithubPrUrl = (prUrl: string) => {
     }
 };
 
+export const escapeMrkdwn = (text: string) =>
+    text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
 const buildSlackCardBlock = ({
     blockId,
     title,
@@ -658,7 +661,7 @@ export async function getModernArtifactCardBlocks(
         dataAppVizVersion?: number,
     ) => Promise<DataAppVizField[] | null>,
     enableFastDecisions = false,
-    bigNumbers: ReadonlyMap<string, SlackBigNumber> = new Map(),
+    bigNumbers: ReadonlyMap<string, ComposerBigNumber> = new Map(),
 ): Promise<(Block | KnownBlock)[]> {
     if (!artifacts || artifacts.length === 0) {
         return [];
@@ -960,7 +963,7 @@ export async function getModernArtifactCardBlocks(
                         blockId: `ai_agent_composer_card_${artifact.versionUuid}`,
                         title: getArtifactTitle(artifact),
                         subtitle: 'Big number',
-                        body: `*${bigNumber.value}*\n${bigNumber.label}`,
+                        body: `*${escapeMrkdwn(bigNumber.value)}*\n${escapeMrkdwn(bigNumber.label)}`,
                         subtext: artifact.description || undefined,
                         actions: [threadButton],
                     });

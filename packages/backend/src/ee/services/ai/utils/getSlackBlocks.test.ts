@@ -561,7 +561,7 @@ describe('Slack AI agent blocks', () => {
         ]);
     });
 
-    it('shows a visualized big number value on its card', async () => {
+    it('shows a visualized big number value on its card, escaped for mrkdwn', async () => {
         const blocks = await getModernArtifactCardBlocks(
             {
                 promptUuid: 'prompt-1',
@@ -603,14 +603,14 @@ describe('Slack AI agent blocks', () => {
             [],
             undefined,
             false,
-            new Map([['kpi', { value: '$48,210', label: 'Revenue' }]]),
+            new Map([['kpi', { value: '$48,210', label: 'Net & gross' }]]),
         );
 
         expect(blocks).toMatchObject([
             {
                 type: 'card',
                 title: { text: 'Total revenue' },
-                body: { text: '*$48,210*\nRevenue' },
+                body: { text: '*$48,210*\nNet &amp; gross' },
                 subtext: { text: 'All paid orders' },
                 actions: [
                     {

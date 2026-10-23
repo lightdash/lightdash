@@ -389,7 +389,7 @@ describe('visualize', () => {
         });
     });
 
-    it('runs a Slack big number of a lone semantic node so its value can post, unless links-only', async () => {
+    it('runs a Slack big number so its value can post, unless links-only; a lone semantic node stays a composer version', async () => {
         const slack = makeTool({
             currentPrompt: slackPrompt,
             rows: [{ orders_total_order_amount: 42 }],

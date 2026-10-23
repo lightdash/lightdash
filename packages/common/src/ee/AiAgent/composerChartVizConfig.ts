@@ -231,7 +231,7 @@ const getBigNumberReferences = (
         vizConfig.y?.[0] ??
         columns.references.find((ref) => columns.isNumeric(ref));
     if (!value) throw new Error('big_number needs a numeric column');
-    return { value, label: vizConfig.labels?.y ?? null };
+    return { value, label: vizConfig.labels?.y || null };
 };
 
 const getBigNumberChart = (
@@ -478,8 +478,10 @@ export const toComposerResultRows = <Value>(
     );
 };
 
-/** A big number's first-row value, formatted as the web card draws it; null without a value. */
-export const getComposerSlackBigNumber = ({
+export type ComposerBigNumber = { value: string; label: string };
+
+/** A big number's first-row value, formatted as the web card draws it; null when that value is empty. */
+export const getComposerBigNumber = ({
     columns,
     rows,
     vizConfig,
@@ -487,7 +489,7 @@ export const getComposerSlackBigNumber = ({
     columns: ResultColumn[];
     rows: Record<string, unknown>[];
     vizConfig: ComposerStoredChartVizConfig;
-}): { value: string; label: string } | null => {
+}): ComposerBigNumber | null => {
     if (vizConfig.type !== 'big_number') return null;
     const composerColumns = new ComposerColumns(columns);
     const { value: reference, label } = getBigNumberReferences(

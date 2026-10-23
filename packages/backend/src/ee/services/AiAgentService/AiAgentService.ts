@@ -18305,7 +18305,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 };
             },
             onLoadError: (versionUuid) =>
-                Logger.warn('Could not load Slack big number', {
+                this.logger.warn('Could not load Slack big number', {
                     promptUuid: slackPrompt.promptUuid,
                     versionUuid,
                 }),
