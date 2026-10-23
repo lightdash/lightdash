@@ -501,6 +501,23 @@ describe('ControlSidebar', () => {
         expect(close).not.toHaveBeenCalled();
     });
 
+    it('shows no type icon in the head until the new filter has a field', () => {
+        setSidebar({
+            isPlaceholder: true,
+            editingRule: makeRule({
+                target: { fieldId: '', tableName: '' },
+            }),
+        });
+        const { container, rerender } = renderWithProviders(<ControlSidebar />);
+        const headIcon = () =>
+            container.querySelector('[class*="editedHead"] [class*="rowIcon"]');
+        expect(headIcon()).toBeNull();
+
+        setSidebar({ isPlaceholder: false, editingRule: makeRule({}) });
+        rerender(<ControlSidebar />);
+        expect(headIcon()).not.toBeNull();
+    });
+
     it('keeps the name of an existing control left with no field', () => {
         setSidebar({
             isNew: false,

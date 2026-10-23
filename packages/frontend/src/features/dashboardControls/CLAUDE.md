@@ -491,7 +491,8 @@ In `FilterConfiguration/`:
   `HoveredFilterReach` portals only a `.reach` ring into those tiles: no
   veil, card or lock. The tab badges count the hovered filter as a whole,
   blue where it reaches.
-- The open row sits on the muted fill (`ldGray-1`). Type icon, the label
+- The open row sits on the muted fill (`ldGray-1`). Type icon (none while
+  the filter has no field: no placeholder funnel), the label
   input in place (placeholder: the field's name), borderless until hovered
   or focused, an `IconArrowBackUp` action icon while there is something to
   discard ("Discard filter" for a new one, "Discard changes" once dirty; the

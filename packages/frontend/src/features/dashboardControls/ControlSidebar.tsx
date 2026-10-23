@@ -122,7 +122,8 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                     collapse();
                 }}
             >
-                <FilterTypeIcon field={field} />
+                {/* No field yet: no type to show */}
+                {!isPlaceholder && <FilterTypeIcon field={field} />}
                 {isPlaceholder && isNew ? (
                     <Text fz="sm" fw={600} flex={1}>
                         {getUiString('filters.rail.newFilter')}
