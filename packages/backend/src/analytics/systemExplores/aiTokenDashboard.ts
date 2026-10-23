@@ -1,5 +1,6 @@
 import {
     AI_BILLABLE_FEATURES,
+    ANALYTICS_AI_USAGE_DASHBOARD_SLUG,
     ChartType,
     Compact,
     DashboardTileTypes,
@@ -11,7 +12,7 @@ import {
 } from '@lightdash/common';
 import type { AnalyticsContentBundle } from './usageDashboardTypes';
 
-const dashboardSlug = 'lightdash-analytics-ai-tokens';
+const dashboardSlug = ANALYTICS_AI_USAGE_DASHBOARD_SLUG;
 const spaceSlug = 'lightdash-usage-overview';
 const tokens = 'ai_usage_total_tokens_used';
 const day = 'ai_usage_event_ts_day';
