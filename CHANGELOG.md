@@ -1,3 +1,10 @@
+# [3.42.0](https://github.com/lightdash/lightdash/compare/3.41.1...3.42.0) (2026-10-23)
+
+
+### Features
+
+* **sdk:** add disableNavigation option to the AI agent ([#31472](https://github.com/lightdash/lightdash/issues/31472)) ([358ee23](https://github.com/lightdash/lightdash/commit/358ee239f9f83c0eeecb0671e9eb65821fb62cf9))
+
 ## [3.41.1](https://github.com/lightdash/lightdash/compare/3.41.0...3.41.1) (2026-10-23)
 
 
