@@ -89,7 +89,7 @@ describe.skipIf(!executable)('last-good manifests with real dbt 1.12', () => {
                     alpha_report:
                         "select * from {{ ref('proj_beta', 'measure') }}",
                 },
-                'version: 2\nmodels:\n  - name: alpha_base\n    access: protected\n  - name: alpha_report\n    access: protected\n',
+                'version: 2\nmodels:\n  - name: alpha_base\n    access: public\n  - name: alpha_report\n    access: protected\n',
             ),
             createTask(
                 'proj_beta',
@@ -99,7 +99,7 @@ describe.skipIf(!executable)('last-good manifests with real dbt 1.12', () => {
                     beta_report:
                         "select * from {{ ref('proj_alpha', 'alpha_base') }}",
                 },
-                'version: 2\nmodels:\n  - name: measure\n    access: protected\n    latest_version: 2\n    versions:\n      - v: 2\n      - v: 3\n  - name: beta_report\n    access: protected\n',
+                'version: 2\nmodels:\n  - name: measure\n    access: public\n    latest_version: 2\n    versions:\n      - v: 2\n      - v: 3\n  - name: beta_report\n    access: protected\n',
             ),
         ]);
 
@@ -119,12 +119,12 @@ describe.skipIf(!executable)('last-good manifests with real dbt 1.12', () => {
             createTask(
                 'proj_alpha',
                 { alpha_base: 'select 1 as id' },
-                'version: 2\nmodels:\n  - name: alpha_base\n    access: protected\n',
+                'version: 2\nmodels:\n  - name: alpha_base\n    access: public\n',
             ),
             createTask(
                 'proj_beta',
                 { measure_v3: 'select 3 as id' },
-                'version: 2\nmodels:\n  - name: measure\n    access: protected\n    latest_version: 3\n    versions:\n      - v: 3\n',
+                'version: 2\nmodels:\n  - name: measure\n    access: public\n    latest_version: 3\n    versions:\n      - v: 3\n',
             ),
         ]);
         cache = await Promise.all(
@@ -154,7 +154,7 @@ describe.skipIf(!executable)('last-good manifests with real dbt 1.12', () => {
         expect(
             cache
                 .flatMap((entry) => entry.nodes)
-                .every((node) => node.access === 'protected'),
+                .every((node) => node.access === 'public'),
         ).toBe(true);
         const result = await resolveCrossSourceManifests({
             tasks: await ring(),
@@ -220,41 +220,108 @@ describe.skipIf(!executable)('last-good manifests with real dbt 1.12', () => {
         }
     }, 120000);
 
-    it('preserves dbt access checks for private stored models', async () => {
-        const errors: DbtError[] = [];
-        const tasks = (await ring()).map((task) => ({
-            ...task,
-            fetch: async (options: Parameters<typeof task.fetch>[0]) => {
-                try {
-                    return await task.fetch(options);
-                } catch (error) {
-                    if (error instanceof DbtError) errors.push(error);
-                    throw error;
-                }
-            },
-        }));
-        await expect(
-            resolveCrossSourceManifests({
-                tasks,
-                enabled: true,
-                concurrency: 2,
-                cache: cache.map((entry) => ({
-                    ...entry,
-                    nodes: entry.nodes.map((node) => ({
-                        ...node,
-                        access:
-                            node.name === 'measure' ? 'private' : node.access,
+    it.each(['protected', 'private', undefined] as const)(
+        'does not inject a stored model with access=%s',
+        async (access) => {
+            const errors: DbtError[] = [];
+            const tasks = (await ring()).map((task) => ({
+                ...task,
+                fetch: async (options: Parameters<typeof task.fetch>[0]) => {
+                    try {
+                        return await task.fetch(options);
+                    } catch (error) {
+                        if (error instanceof DbtError) errors.push(error);
+                        throw error;
+                    }
+                },
+            }));
+            await expect(
+                resolveCrossSourceManifests({
+                    tasks,
+                    enabled: true,
+                    concurrency: 2,
+                    cache: cache.map((entry) => ({
+                        ...entry,
+                        nodes: entry.nodes.map((node) => {
+                            const storedNode = { ...node };
+                            if (storedNode.name === 'measure') {
+                                if (access === undefined)
+                                    Reflect.deleteProperty(
+                                        storedNode,
+                                        'access',
+                                    );
+                                else storedNode.access = access;
+                            }
+                            return storedNode;
+                        }),
                     })),
-                })),
-            }),
-        ).rejects.toThrow();
+                }),
+            ).rejects.toThrow();
+            expect(
+                errors
+                    .flatMap((error) =>
+                        (error.logs ?? []).map((log) => log.info.msg),
+                    )
+                    .join('\n'),
+            ).toMatch(/which was not found/);
+        },
+        120000,
+    );
+
+    it('injects only public dependencies from a parsed seed', async () => {
+        const provider = await createTask(
+            'public_upstream',
+            {
+                public_base: 'select 1 as id',
+                protected_base: 'select 2 as id',
+                private_base: 'select 3 as id',
+                shared_model:
+                    "select * from {{ ref('public_base') }} union all select * from {{ ref('protected_base') }} union all select * from {{ ref('private_base') }}",
+            },
+            'version: 2\ngroups:\n  - name: core\n    owner:\n      name: Test owner\nmodels:\n  - name: public_base\n    access: public\n  - name: protected_base\n  - name: private_base\n    access: private\n    group: core\n  - name: shared_model\n    access: public\n    group: core\n',
+        );
+        const nodes = getExternalModelNodesFromManifest(
+            (await provider.fetch({ externalNodes: [] })).manifest,
+        );
+        const storedRoot = nodes.find((node) => node.name === 'shared_model')!;
+        expect(storedRoot.depends_on_nodes).toEqual([
+            'model.public_upstream.public_base',
+            'model.public_upstream.protected_base',
+            'model.public_upstream.private_base',
+        ]);
+        const consumer = await createTask(
+            'public_consumer',
+            {
+                report: "select * from {{ ref('public_upstream', 'shared_model') }}",
+            },
+            'version: 2\nmodels:\n  - name: report\n',
+        );
+        const fetch = vi.fn(consumer.fetch);
+        const resolution = await resolveCrossSourceManifests({
+            tasks: [{ ...consumer, fetch }, provider],
+            enabled: true,
+            concurrency: 2,
+            cache: [
+                {
+                    key: provider.key,
+                    projectName: provider.key,
+                    referencedProjects: [],
+                    nodes,
+                },
+            ],
+        });
+        expect(resolution.results).toHaveLength(2);
+        const injected = fetch.mock.calls[0][0]?.externalNodes ?? [];
+        expect(injected.map((node) => node.name).sort()).toEqual([
+            'public_base',
+            'shared_model',
+        ]);
+        expect(injected.every((node) => node.access === 'public')).toBe(true);
         expect(
-            errors
-                .flatMap((error) =>
-                    (error.logs ?? []).map((log) => log.info.msg),
-                )
-                .join('\n'),
-        ).toMatch(/referenced node is private/);
+            injected.find((node) => node.name === 'shared_model')!
+                .depends_on_nodes,
+        ).toEqual(['model.public_upstream.public_base']);
+        expect(storedRoot.depends_on_nodes).toHaveLength(3);
     }, 120000);
 
     it('ignores the store and keeps ordinary dbt failure with the flag off', async () => {

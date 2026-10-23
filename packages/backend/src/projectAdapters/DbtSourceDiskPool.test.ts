@@ -22,6 +22,7 @@ const result = (key: string) => ({
                 original_file_path: 'models/orders.sql',
                 schema: 'public',
                 resource_type: 'model',
+                access: 'public',
                 package_name: key,
                 config: { materialized: 'table' },
             },

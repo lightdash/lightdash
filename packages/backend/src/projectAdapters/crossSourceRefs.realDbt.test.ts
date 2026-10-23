@@ -742,66 +742,38 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
             }, 120_000);
 
             it.each([false, true])(
-                'resolves a protected cross-project ref through injected nodes with consumer restrict-access=%s',
+                'rejects a protected cross-project ref with consumer restrict-access=%s',
                 async (restrictAccess) => {
-                    const resolution = await resolveSeeded({
-                        tasks: await Promise.all([
-                            task('access_upstream'),
-                            task(
-                                'access_downstream',
-                                'uses_protected',
-                                restrictAccess,
-                            ),
-                        ]),
-                        enabled: true,
-                        concurrency: 1,
-                    });
-                    expect(resolution.passes).toBe(1);
-                    expect(
-                        resolution.results[1].result.manifest.nodes[
-                            'model.access_downstream.uses_protected'
-                        ],
-                    ).toMatchObject({
-                        depends_on: {
-                            nodes: ['model.access_upstream.protected_model'],
-                        },
-                    });
+                    await expect(
+                        resolveSeeded({
+                            tasks: await Promise.all([
+                                task('access_upstream'),
+                                task(
+                                    'access_downstream',
+                                    'uses_protected',
+                                    restrictAccess,
+                                ),
+                            ]),
+                            enabled: true,
+                            concurrency: 1,
+                        }),
+                    ).rejects.toThrow(/protected_model.*access: public/);
                 },
                 120_000,
             );
 
-            it.skip(`rejects a protected upstream ref (unsupported in dbt ${version}: protected access is not enforced for injected external nodes)`, async () => {
-                const tasks = await Promise.all([
-                    task('access_upstream'),
-                    task('access_downstream', 'uses_protected', true),
-                ]);
-                expect(
-                    await dbtErrorOutput(
-                        resolveSeeded({
-                            tasks,
-                            enabled: true,
-                            concurrency: 1,
-                        }),
-                    ),
-                ).toContain(
-                    'not allowed because the referenced node is protected',
-                );
-            }, 120_000);
-
-            it('lets dbt reject a private ref from the confirmed seed', async () => {
+            it('rejects a private ref from the confirmed seed without injection', async () => {
                 const tasks = await Promise.all([
                     task('access_downstream', 'uses_private'),
                     task('access_upstream'),
                 ]);
-                expect(
-                    await dbtErrorOutput(
-                        resolveSeeded({
-                            tasks,
-                            enabled: true,
-                            concurrency: 2,
-                        }),
-                    ),
-                ).toContain('private');
+                await expect(
+                    resolveSeeded({
+                        tasks,
+                        enabled: true,
+                        concurrency: 2,
+                    }),
+                ).rejects.toThrow(/private_model.*access: public/);
             }, 120_000);
 
             it('learns dynamic refs against a cached catalogue on every refresh', async () => {
@@ -1180,7 +1152,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 );
             }, 120_000);
 
-            it('keeps private seed access when the disk provider is public', async () => {
+            it('rejects a private seed when the disk provider is public', async () => {
                 const tasks = await Promise.all(
                     ['access_downstream', 'access_upstream'].map((name) =>
                         task(name),
@@ -1209,7 +1181,9 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     concurrency: 2,
                     cache,
                 });
-                expect(await dbtErrorOutput(resolution)).toContain('private');
+                await expect(resolution).rejects.toThrow(
+                    /public_model.*access: public/,
+                );
             }, 120_000);
 
             it('source failure isolation keeps real dbt work after a Git clone failure', async () => {

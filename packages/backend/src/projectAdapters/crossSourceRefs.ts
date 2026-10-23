@@ -330,7 +330,10 @@ export const resolveCrossSourceManifests = async <T>({
             return tasks.filter(
                 (provider) =>
                     provider !== consumer &&
-                    (catalog(provider).some((node) => matchesRef(node, ref)) ||
+                    (catalog(provider).some(
+                        (node) =>
+                            node.access === 'public' && matchesRef(node, ref),
+                    ) ||
                         (!catalog(provider).some(
                             (node) => node.name === ref.name,
                         ) &&
@@ -347,15 +350,32 @@ export const resolveCrossSourceManifests = async <T>({
             scans.get(consumer)?.installedPackages.includes(name) === true;
         const selectedSeeds = (consumer: CrossSourceFetchTask<T>) => {
             const refs = refsOf(consumer);
+            const publicNodeIds = new Set(
+                tasks.flatMap((provider) =>
+                    catalog(provider)
+                        .filter((node) => node.access === 'public')
+                        .map(nodeId),
+                ),
+            );
             const all = tasks.flatMap((provider) =>
                 provider === consumer
                     ? []
                     : catalog(provider)
                           .filter(
                               (node) =>
+                                  node.access === 'public' &&
                                   !isLocalPackage(consumer, node.package_name),
                           )
-                          .map((node) => ({ provider, node })),
+                          .map((node) => ({
+                              provider,
+                              node: {
+                                  ...node,
+                                  depends_on_nodes:
+                                      node.depends_on_nodes.filter((id) =>
+                                          publicNodeIds.has(id),
+                                      ),
+                              },
+                          })),
             );
             const byId = new Map<string, typeof all>();
             for (const entry of all) {
@@ -543,6 +563,18 @@ export const resolveCrossSourceManifests = async <T>({
                         const failure = failures.get(provider);
                         return `dbt source "${task.key}" references ${refLabel(ref)}, but dbt source "${provider.key}" failed: ${failure instanceof Error ? failure.message : String(failure)}`;
                     }
+                    if (
+                        provider &&
+                        catalog(provider).some((node) =>
+                            matchesRef(node, ref),
+                        ) &&
+                        !catalog(provider).some(
+                            (node) =>
+                                node.access === 'public' &&
+                                matchesRef(node, ref),
+                        )
+                    )
+                        return `dbt source "${task.key}" references ${refLabel(ref)}, but the confirmed last-good manifest of dbt source "${provider.key}" does not expose that model (or version) with access: public.`;
                     if (
                         provider &&
                         cachedCatalog(provider) &&

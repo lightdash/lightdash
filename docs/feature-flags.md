@@ -132,9 +132,14 @@ restarts. Connected-source compilation also requires `multi-dbt-sources`.
 
 With the flag on, each refresh captures the confirmed ref catalogue for each
 connected source in its warehouse connection group. This manifest projection
-contains all real models, their relation, version, access and dependency fields.
-The stitcher injects models needed by refs. dbt still enforces private access.
-Fresh disk parsing cannot replace these bindings during the refresh.
+stores all real models, their relation, version, access and dependency fields.
+The stitcher uses the public-only share surface of dbt Mesh and loom: only models
+with explicit `access: public` can cross sources, then refs select the models to
+inject. Protected and private models cannot cross, including models with missing
+or null access, which default to protected. Dependency traversal includes only
+public models and removes non-public dependency links from injected nodes.
+Fresh disk parsing cannot replace these bindings during the refresh. This does
+not add a loom dependency to the API or worker image.
 
 A successful server compile or complete CLI deploy confirms the next snapshot.
 Failed or incomplete work retains the previous snapshot. If any explore has a

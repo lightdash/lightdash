@@ -1064,7 +1064,7 @@ it('does not inject cached copies of the consumer or its installed packages', as
 });
 
 it.each([1, 2])(
-    'keeps a protected version-three seed across a project ring at concurrency %i',
+    'keeps a public version-three seed across a project ring at concurrency %i',
     async (concurrency) => {
         const alphaRefs = [ref('beta', 'measure')];
         const betaRefs = [ref('alpha', 'alpha_base')];
@@ -1106,7 +1106,7 @@ it.each([1, 2])(
                     unique_id: `model.beta.measure.v${version}`,
                     version,
                     latest_version: 3,
-                    access: 'protected',
+                    access: 'public',
                 })),
             ),
         ];
@@ -1225,7 +1225,7 @@ it('detects a cycle through a seeded version that is missing from the disk manif
     ]);
     cached.nodes[0].depends_on_nodes = ['model.consumer.orders'];
     await expect(
-        resolve([consumer, provider], true, 2, [cached]),
+        resolve([consumer, provider], true, 2, [cached, seed('consumer')]),
     ).rejects.toThrow(
         'model.consumer.orders -> model.provider.measure.v3 -> model.consumer.orders',
     );
@@ -2061,54 +2061,99 @@ it.each(['scanned', 'learned'])(
     },
 );
 
-it.each(['private', 'protected', 'public'] as const)(
-    'retains %s seed access for dbt to enforce',
-    async (cachedAccess) => {
+it.each([
+    'private',
+    'protected',
+    'public',
+    null,
+    undefined,
+    'missing',
+] as const)(
+    'injects a stored model with access %s only when explicitly public',
+    async (access) => {
         const refs = [ref('p')];
         const consumer = withRefs('consumer', refs, ['uses']);
-        consumer.fetch.mockImplementation(async ({ externalNodes }) => {
-            if (externalNodes.some((node) => node.access === 'private'))
-                throw new DbtError('dbt rejected a private stub');
-            return boundResult('consumer', externalNodes, refs);
-        });
-        const provider = scannedTask('p');
-        const provided = result('p');
-        (provided.manifest.nodes['model.p.orders'] as DbtRawModelNode).access =
-            cachedAccess === 'private' ? 'public' : 'private';
-        provider.fetch.mockResolvedValue(provided);
-        const resolution = resolveCrossSourceManifests({
-            tasks: [consumer, provider],
-            enabled: true,
-            concurrency: 2,
-            cache: [
-                {
-                    key: 'p',
-                    projectName: 'p',
-                    referencedProjects: [],
-                    nodes: [
-                        {
-                            ...placeholderExternalNode({
-                                packageName: 'p',
-                                name: 'orders',
-                                version: null,
-                                latestVersion: null,
-                            }),
-                            access: cachedAccess,
-                        },
-                    ],
-                },
-            ],
-        });
-        if (cachedAccess === 'private')
-            await expect(resolution).rejects.toThrow(
-                'dbt rejected a private stub',
-            );
-        else expect((await resolution).passes).toBe(1);
-        expect(consumer.fetch.mock.calls[0][0].externalNodes[0].access).toBe(
-            cachedAccess,
+        consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+            boundResult('consumer', externalNodes, refs),
         );
+        const cached = seed('p');
+        if (access === 'missing')
+            Reflect.deleteProperty(cached.nodes[0], 'access');
+        else if (access === undefined)
+            Reflect.set(cached.nodes[0], 'access', undefined);
+        else cached.nodes[0].access = access;
+        const resolution = resolve([consumer, scannedTask('p')], true, 2, [
+            cached,
+        ]);
+        if (access === 'public') {
+            expect((await resolution).passes).toBe(1);
+            expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(
+                cached.nodes,
+            );
+        } else {
+            await expect(resolution).rejects.toThrow('access: public');
+            for (const [options] of consumer.fetch.mock.calls)
+                expect(options.externalNodes).toEqual([]);
+        }
     },
 );
+
+it('traverses only public dependencies and preserves the complete stored projection', async () => {
+    const consumer = withRefs('consumer', [ref('p')]);
+    consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+        boundResult('consumer', externalNodes, [ref('p')]),
+    );
+    const cached = seed('p', [
+        model('p'),
+        model('p', 'public_base'),
+        model('p', 'protected_base'),
+        model('p', 'private_base'),
+        model('p', 'default_base'),
+        model('p', 'missing_access_base'),
+        model('p', 'hidden_public_ancestor'),
+        model('p', 'unused_public'),
+    ]);
+    cached.nodes[0].depends_on_nodes = [
+        'model.p.public_base',
+        'model.p.protected_base',
+        'model.p.private_base',
+        'model.p.default_base',
+        'model.p.missing_access_base',
+        'model.p.unknown',
+    ];
+    cached.nodes[1].depends_on_nodes = ['model.p.private_base'];
+    cached.nodes[2].access = 'protected';
+    cached.nodes[2].depends_on_nodes = ['model.p.hidden_public_ancestor'];
+    cached.nodes[3].access = 'private';
+    cached.nodes[4].access = null;
+    Reflect.deleteProperty(cached.nodes[5], 'access');
+    const original = structuredClone(cached);
+    await resolve([consumer, scannedTask('p')], true, 2, [cached]);
+    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual([
+        { ...cached.nodes[0], depends_on_nodes: ['model.p.public_base'] },
+        { ...cached.nodes[1], depends_on_nodes: [] },
+    ]);
+    expect(cached).toEqual(original);
+});
+
+it('ignores non-public providers when resolving a one-argument public ref', async () => {
+    const consumer = withRefs('consumer', [ref(null)], ['uses']);
+    consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+        boundResult('consumer', externalNodes, [ref(null)]),
+    );
+    const hidden = seed('hidden');
+    hidden.nodes[0].access = 'protected';
+    const visible = seed('visible');
+    await resolve(
+        [consumer, scannedTask('hidden'), scannedTask('visible')],
+        true,
+        2,
+        [hidden, visible],
+    );
+    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(
+        visible.nodes,
+    );
+});
 
 it('selects different one-argument providers for disjoint requested versions', async () => {
     const refs = [ref(null, 'orders', '1'), ref(null, 'orders', '2')];
