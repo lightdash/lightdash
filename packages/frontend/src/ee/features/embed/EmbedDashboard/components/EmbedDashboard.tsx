@@ -1257,9 +1257,10 @@ const EmbedDashboard: FC<{
                                         <Tabs.Tab
                                             key={tab.uuid}
                                             value={tab.uuid}
-                                            maw={`${
+                                            // A stylesheet may lift the cap; unset, it is a share of the viewport
+                                            maw={`var(--dashboard-tab-max-width, ${
                                                 100 / (visibleTabs.length || 1)
-                                            }vw`}
+                                            }vw)`}
                                         >
                                             {translatedTabNames.get(tab.uuid)}
                                         </Tabs.Tab>
