@@ -33,6 +33,7 @@ import { type TrackingContextType } from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import {
+    getSafeTemporaryFilters,
     selectActiveTabUuid,
     selectDashboardFilters,
     selectDashboardTiles,
@@ -176,6 +177,8 @@ type Latest = {
     // The other set, which shipped code writes: the temporary filters in edit
     // mode, the saved ones in view mode
     otherFilters: DashboardFilters;
+    // A viewer's rail lists their lock-safe filters only
+    temporaryFilterLocks: DashboardContextType['temporaryFilterLocks'];
     // The edit's mode, else the page's
     isViewer: boolean;
     // The page's mode, which a new edit starts in
@@ -318,6 +321,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
+    const temporaryFilterLocks = useDashboardContext(
+        (c) => c.temporaryFilterLocks,
+    );
     const savedTiles = useDashboardContext((c) => c.dashboard?.tiles);
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
@@ -363,6 +369,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         placeholder,
         dashboardFilters,
         otherFilters,
+        temporaryFilterLocks,
         isViewer: isEditViewer,
         isPageViewer: isViewer,
         haveFiltersChanged,
@@ -940,7 +947,15 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     // Done does, focus going back to the bar's "Add"
     const endEdit = useCallback(
         (keepRail: boolean) => {
-            const { dashboardFilters: filters } = latest.current;
+            const current = latest.current;
+            // The rows the rail lists: a viewer's are the lock-safe ones
+            const filters = current.isViewer
+                ? getSafeTemporaryFilters(
+                      current.dashboardFilters,
+                      current.temporaryFilterLocks,
+                      current.activeTabUuid,
+                  ).filters
+                : current.dashboardFilters;
             if (
                 keepRail &&
                 filters.dimensions.length + filters.metrics.length > 0

@@ -34,6 +34,7 @@ import {
     useDashboardSelector,
     type DashboardStore,
 } from '../dashboard/store';
+import { type TemporaryFilterLocks } from '../dashboard/store/selectors';
 import { getFilterLockToggle } from '../dashboardFilters/ActiveFilters/filterLock';
 import {
     getFilterRuleWithDisabledState,
@@ -136,6 +137,10 @@ const latest: {
 
 // What the dashboard holds when the test starts
 const saved = { filters: initialFilters };
+// The saved locks a viewer's own filters are made safe against
+const locks: { current: TemporaryFilterLocks | undefined } = {
+    current: undefined,
+};
 
 // The provider's setters, backed by the store
 const storeSetters = (store: DashboardStore) => ({
@@ -194,6 +199,7 @@ const DashboardState: FC<
     mockDashboardContext.current = {
         ...setters,
         filterableFieldsByTileUuid: mockFieldsByTile.current,
+        temporaryFilterLocks: locks.current,
         dashboard: { tiles: mockTiles.saved },
     };
     latest.filters = dashboardFilters;
@@ -2739,6 +2745,27 @@ describe('ControlsSidebarProvider in view mode', () => {
             'own',
         ]);
         expect(result.current.isRailOpen).toBe(true);
+    });
+
+    it('closes the rail when only own filters hidden by a lock on this tab are left', () => {
+        locks.current = {
+            savedFilters: {
+                ...initialFilters,
+                dimensions: [{ ...rule('a', ['1']), lockedTabUuids: ['d'] }],
+            },
+            hasTabs: false,
+        };
+        const { result } = setup();
+        // The rail never lists it: a saved filter on its field is locked
+        seedOwn([rule('a', ['x'])]);
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+        act(() => result.current.discard());
+        expect(latest.temporaryFilters.dimensions.map((r) => r.id)).toEqual([
+            'a',
+        ]);
+        expect(result.current.isRailOpen).toBe(false);
+        locks.current = undefined;
     });
 
     it('removing their last filter closes the rail; with another left it stays', () => {

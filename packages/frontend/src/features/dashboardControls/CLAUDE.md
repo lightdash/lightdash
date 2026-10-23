@@ -334,8 +334,9 @@ In `FilterConfiguration/`:
   expanded filter or not. The one exception: when none are left (the last
   filter removed, or a new one dropped with no other filter), these close
   the rail as `close()` would, focus going to the bar's "Add" (`endEdit`).
-  The rows are the dashboard's filters in edit mode and the viewer's own
-  for a viewer. With nothing expanded the rail lists rows with
+  The rows are the dashboard's filters in edit mode and, for a viewer,
+  their own as the rail lists them: lock-safe on this tab
+  (`getSafeTemporaryFilters` with the dashboard's `temporaryFilterLocks`). With nothing expanded the rail lists rows with
   "Add filter" and "Done" in the footer, the tiles have no overlay or veil,
   the header is not locked, and the tab badges are gone. Leaving edit mode
   closes both. Internally `closeEdited`, `discardEdited` and `removeEdited`
