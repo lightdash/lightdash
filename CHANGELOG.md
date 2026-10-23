@@ -1,3 +1,10 @@
+## [3.42.2](https://github.com/lightdash/lightdash/compare/3.42.1...3.42.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* wait for guided tour highlights in detour test ([#31478](https://github.com/lightdash/lightdash/issues/31478)) ([8289598](https://github.com/lightdash/lightdash/commit/82895986fa442bae705fedcb02d0c2348ca6aefe))
+
 ## [3.42.1](https://github.com/lightdash/lightdash/compare/3.42.0...3.42.1) (2026-10-23)
 
 
