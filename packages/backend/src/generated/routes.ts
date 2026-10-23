@@ -75229,6 +75229,7 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 pivotConfiguration: { ref: 'PivotConfiguration' },
+                parameters: { ref: 'ParametersValuesMap' },
                 timezone: { dataType: 'string' },
                 dimensionOverrides: { ref: 'DimensionOverrides' },
                 metricOverrides: { ref: 'MetricOverrides' },

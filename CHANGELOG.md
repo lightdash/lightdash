@@ -1,3 +1,10 @@
+# [3.37.0](https://github.com/lightdash/lightdash/compare/3.36.0...3.37.0) (2026-10-23)
+
+
+### Features
+
+* **ai:** explore parameters on query semantic-layer nodes ([#31433](https://github.com/lightdash/lightdash/issues/31433)) ([3a44f66](https://github.com/lightdash/lightdash/commit/3a44f6652f7bdb21624897bfa55b8f36f6151953))
+
 # [3.36.0](https://github.com/lightdash/lightdash/compare/3.35.2...3.36.0) (2026-10-22)
 
 
