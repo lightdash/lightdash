@@ -54,6 +54,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { useStore } from 'react-redux';
 import { ConditionalVisibility } from '../../../components/common/ConditionalVisibility';
 import MantineIcon from '../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../components/common/ResizableSplitter';
@@ -95,6 +96,7 @@ import { Parameters, useParameters } from '../../parameters';
 import { DEFAULT_SQL_LIMIT } from '../constants';
 import { useRunQueryOnLoad } from '../hooks/useRunQueryOnLoad';
 import { useSqlRunnerSignInReady } from '../hooks/useSqlRunnerSignInReady';
+import { type RootState } from '../store';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { startAppListening } from '../store/listenerMiddleware';
 import { addAutomaticPivotFailureListener } from '../store/sqlRunnerListeners';
@@ -273,6 +275,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
     );
     // So we can dispatch to redux
     const dispatch = useAppDispatch();
+    const reduxStore = useStore<RootState>();
     // The in-flight SQL run, so Cancel can abort it
     const runPromiseRef = useRef<{ abort: () => void } | null>(null);
     const lastFailedRun = useRef<
@@ -495,12 +498,17 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                 const result = await dispatch(
                     prepareAndFetchChartData({ forceRefresh: true }),
                 );
+                if (
+                    sequence !== runSequence.current ||
+                    result.meta.requestId !==
+                        reduxStore.getState().sqlRunner.pivotRequestId ||
+                    (scope && !isCurrentSharedSignInQueryScope(scope))
+                )
+                    return;
                 lastFailedRun.current =
                     prepareAndFetchChartData.rejected.match(result) &&
                     result.payload &&
-                    isWarehouseSignInQueryErrorDetail(result.payload) &&
-                    sequence === runSequence.current &&
-                    (!scope || isCurrentSharedSignInQueryScope(scope))
+                    isWarehouseSignInQueryErrorDetail(result.payload)
                         ? {
                               kind: 'visualization',
                               executionIntent: result.meta.executionIntent!,
@@ -535,12 +543,17 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
                     const vizResult = await dispatch(
                         prepareAndFetchChartData({ forceRefresh: true }),
                     );
+                    if (
+                        sequence !== runSequence.current ||
+                        vizResult.meta.requestId !==
+                            reduxStore.getState().sqlRunner.pivotRequestId ||
+                        (scope && !isCurrentSharedSignInQueryScope(scope))
+                    )
+                        return;
                     lastFailedRun.current =
                         prepareAndFetchChartData.rejected.match(vizResult) &&
                         vizResult.payload &&
-                        isWarehouseSignInQueryErrorDetail(vizResult.payload) &&
-                        sequence === runSequence.current &&
-                        (!scope || isCurrentSharedSignInQueryScope(scope))
+                        isWarehouseSignInQueryErrorDetail(vizResult.payload)
                             ? {
                                   kind: 'visualization',
                                   executionIntent:
@@ -569,6 +582,7 @@ export const ContentPanel: FC<{ toolbarActions?: ReactNode }> = ({
             hasQueryResults,
             currentVizConfig,
             runSqlAndRememberFailure,
+            reduxStore,
         ],
     );
 

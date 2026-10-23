@@ -47,6 +47,14 @@ const withResults = (connectionRoute: SqlRunnerConnectionRoute) => {
             ? connectionRoute.connection?.warehouseConnectionUuid
             : undefined;
     store.dispatch(
+        runSqlQuery.pending('request-id', {
+            sql: store.getState().sqlRunner.sql,
+            limit: 10,
+            projectUuid: store.getState().sqlRunner.projectUuid!,
+            parameterValues: {},
+        }),
+    );
+    store.dispatch(
         runSqlQuery.fulfilled(
             {
                 queryUuid: 'query-uuid',
@@ -68,6 +76,7 @@ const withResults = (connectionRoute: SqlRunnerConnectionRoute) => {
 };
 
 const create = async () => {
+    expect(store.getState().sqlRunner.sqlRows).toEqual([{ id: 1 }]);
     renderWithProviders(
         <Provider store={store}>
             <CreateVirtualViewModal opened onClose={vi.fn()} />

@@ -23,6 +23,7 @@ export type WarehouseSignInCheck = {
     settled: boolean;
     blocked: boolean;
     status: SharedSignInStatus | null;
+    retiredExpiry: string | null;
 };
 export type WarehouseSignInExecutionIdentity = WarehouseSignInIdentity & {
     binding: WarehouseSignInBinding;
@@ -134,6 +135,22 @@ export class WarehouseSignInStatusCache {
     }
 }
 
+const signInStatusIdentity = (status: SharedSignInStatus) =>
+    JSON.stringify(
+        status.personalSignIn
+            ? [
+                  'personal',
+                  status.personalSignIn.provider,
+                  status.personalSignIn.userWarehouseCredentialsUuid,
+              ]
+            : [
+                  'shared',
+                  status.provider,
+                  status.subject?.userUuid,
+                  status.subjectBasis,
+              ],
+    );
+
 export class WarehouseSignInPreflight {
     readonly checks = new Map<string, WarehouseSignInCheck>();
     private readonly sources = new Map<
@@ -191,6 +208,7 @@ export class WarehouseSignInPreflight {
                 settled: false,
                 blocked: false,
                 status: null,
+                retiredExpiry: null,
             });
         else check.priority = Math.max(check.priority, priority);
         if (priority > 0) this.lastPreferredBinding = binding;
@@ -254,6 +272,8 @@ export class WarehouseSignInPreflight {
             this.target = null;
             this.modalOpen = false;
         }
+        if (status && !status.statusUnknown && !expired)
+            check.retiredExpiry = null;
         check.status = status;
         check.settled = true;
         check.blocked = !!(status?.personalSignIn?.expired ?? status?.expired);
@@ -270,6 +290,8 @@ export class WarehouseSignInPreflight {
             !this.isCurrent(execution) ||
             execution.recoveryGeneration !== this.recoveryGeneration ||
             !this.hasPreferredBinding(execution.binding) ||
+            this.checks.get(warehouseSignInBindingKey(execution.binding))
+                ?.retiredExpiry === signInStatusIdentity(status) ||
             this.target
         )
             return false;
@@ -362,6 +384,16 @@ export class WarehouseSignInPreflight {
             target.binding,
             !target.status.personalSignIn,
         );
+        for (const sibling of this.checks.values()) {
+            if (sibling === check) sibling.retiredExpiry = null;
+            else if (
+                sibling.status &&
+                !sibling.status.statusUnknown &&
+                (sibling.status.personalSignIn?.expired ??
+                    sibling.status.expired)
+            )
+                sibling.retiredExpiry = signInStatusIdentity(sibling.status);
+        }
         check.requestVersion += 1;
         check.status = null;
         check.settled = true;

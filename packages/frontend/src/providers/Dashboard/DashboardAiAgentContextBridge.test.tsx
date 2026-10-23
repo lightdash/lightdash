@@ -172,7 +172,12 @@ beforeEach(() => {
                 : publishedChart;
         }
         if (url === `/projects/${projectUuid}/explores/orders`) {
-            return { name: 'orders', tables: {}, baseTable: 'orders' };
+            return {
+                name: 'orders',
+                tables: {},
+                baseTable: 'orders',
+                warehouseConnection: { warehouseConnectionUuid: null },
+            };
         }
         if (url === `/projects/${projectUuid}/query/dashboard-chart`) {
             const queriedChart =

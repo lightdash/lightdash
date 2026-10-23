@@ -1,7 +1,13 @@
 import { PersonSignInProvider } from '@lightdash/common';
-import { MantineProvider } from '@mantine/core';
+import { Button, MantineProvider } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, waitFor } from '@testing-library/react';
+import {
+    act,
+    fireEvent,
+    render,
+    screen,
+    waitFor,
+} from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, expect, it, vi } from 'vitest';
@@ -27,6 +33,7 @@ import { store } from '../store';
 import * as sqlRunnerSelectors from '../store/sqlRunnerSlice';
 import {
     initialState,
+    EditorTabs,
     resetState,
     setState,
     setSql,
@@ -58,7 +65,26 @@ vi.mock('../../parameters', () => ({
     useParameters: () => ({}),
 }));
 vi.mock('../../../components/SqlRunner/RunSqlQueryButton', () => ({
-    default: () => null,
+    default: ({
+        onSubmit,
+        onLimitChange,
+        disabled,
+        isLoading,
+    }: {
+        onSubmit: () => void;
+        onLimitChange?: (limit: number) => void;
+        disabled: boolean;
+        isLoading: boolean;
+    }) => (
+        <>
+            <Button disabled={disabled || isLoading} onClick={onSubmit}>
+                Run query
+            </Button>
+            <Button disabled={disabled} onClick={() => onLimitChange?.(20)}>
+                Change limit
+            </Button>
+        </>
+    ),
 }));
 vi.mock('./SqlRunnerEditor', () => ({ SqlRunnerEditor: () => null }));
 vi.mock('./SqlRunnerChart', () => ({ SqlRunnerChart: () => null }));
@@ -450,6 +476,150 @@ it.each(['unchanged', 'after-failure', 'before-failure-return'])(
             window.removeEventListener(SHARED_SIGN_IN_QUERY_FAILED, reported);
             model.mockRestore();
             runner.mockRestore();
+        }
+    },
+);
+
+it.each([
+    [true, 'new-first'],
+    [true, 'old-first'],
+    [false, 'new-first'],
+    [false, 'old-first'],
+] as const)(
+    'retains the latest automatic pivot after an obsolete manual completion: existing=%s order=%s',
+    async (existing, order) => {
+        store.dispatch(
+            setState({
+                ...store.getState().sqlRunner,
+                fetchResultsOnLoad: false,
+                activeEditorTab: EditorTabs.VISUALIZATION,
+                ...(existing ? { sqlColumns: [], sqlRows: [] } : {}),
+            }),
+        );
+        const preflight = new WarehouseSignInPreflight(
+            {
+                projectUuid: 'project_a',
+                userUuid: 'user_a',
+                pageGeneration: 'page_a',
+            },
+            true,
+            false,
+        );
+        const stop = activateWarehouseSignInPreflight(preflight);
+        const client = new QueryClient();
+        const pendingA = Promise.withResolvers<never>();
+        const pendingB = Promise.withResolvers<never>();
+        const pivot = vi
+            .fn()
+            .mockReturnValueOnce(pendingA.promise)
+            .mockReturnValueOnce(pendingB.promise)
+            .mockResolvedValue({});
+        const runners = [10, 20].map(() => ({
+            invalidatePivotCache: vi.fn(),
+            getRows: () => [],
+            getColumnNames: () => [],
+        }));
+        const runner = vi
+            .spyOn(sqlRunnerSelectors, 'selectSqlRunnerResultsRunner')
+            .mockImplementation(
+                (state) =>
+                    runners[state.sqlRunner.limit === 20 ? 1 : 0] as never,
+            );
+        const model = vi.spyOn(chartDataModel, 'default').mockReturnValue({
+            getPivotedChartData: pivot,
+            getSpec: vi.fn(),
+            getPivotedTableData: vi.fn(),
+            getDataDownloadUrl: vi.fn(),
+        } as never);
+        vi.mocked(executeSqlQuery).mockResolvedValue({
+            queryUuid: 'query_a',
+            results: [],
+            columns: [],
+            durationMs: null,
+            fileUrl: undefined,
+        });
+        const reported = vi.fn();
+        window.addEventListener(SHARED_SIGN_IN_QUERY_FAILED, reported);
+        const { unmount } = render(
+            <MantineProvider env="test">
+                <QueryClientProvider client={client}>
+                    <Provider store={store}>
+                        <MemoryRouter>
+                            <WarehouseSignInPreflightContext.Provider
+                                value={preflight}
+                            >
+                                <ReadyContent />
+                            </WarehouseSignInPreflightContext.Provider>
+                        </MemoryRouter>
+                    </Provider>
+                </QueryClientProvider>
+            </MantineProvider>,
+        );
+        try {
+            act(() => {
+                preflight.settle(
+                    null,
+                    preflight.checks.get('original')!.generation,
+                    status,
+                );
+                preflight.dismiss(preflight.target!);
+            });
+            fireEvent.click(screen.getByRole('button', { name: 'Run query' }));
+            await waitFor(() => expect(pivot).toHaveBeenCalledTimes(1));
+            const firstRequest = store.getState().sqlRunner.pivotRequestId;
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Change limit' }),
+            );
+            await waitFor(() => expect(pivot).toHaveBeenCalledTimes(2));
+            const latestRequest = store.getState().sqlRunner.pivotRequestId;
+            expect(latestRequest).not.toBe(firstRequest);
+            expect(model.mock.calls[0][0]).not.toBe(model.mock.calls[1][0]);
+            const error = getAsyncQueryError(
+                'Your BigQuery sign-in has expired. Sign in with Google again to load this.',
+            );
+            if (order === 'old-first')
+                await act(async () => {
+                    pendingA.reject(error);
+                });
+            await act(async () => {
+                pendingB.reject(error);
+            });
+            act(() => {
+                preflight.modalOpen = true;
+                preflight.notify();
+            });
+            if (order === 'new-first')
+                await act(async () => {
+                    pendingA.reject(error);
+                });
+            expect(reported).toHaveBeenCalledOnce();
+            expect(store.getState().sqlRunner.pivotRequestId).toBe(
+                latestRequest,
+            );
+            await act(async () => {
+                const receipt = await completeSharedSignInRestoration(
+                    client,
+                    preflight.target!,
+                );
+                expect(receipt).not.toBeNull();
+                window.dispatchEvent(
+                    new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
+                        detail: receipt,
+                    }),
+                );
+            });
+            await waitFor(() => expect(pivot).toHaveBeenCalledTimes(3));
+            expect(pivot.mock.calls.map(([args]) => args.limit)).toEqual([
+                10, 20, 20,
+            ]);
+            expect(executeSqlQuery).toHaveBeenCalledTimes(existing ? 0 : 1);
+        } finally {
+            unmount();
+            stop();
+            client.clear();
+            window.removeEventListener(SHARED_SIGN_IN_QUERY_FAILED, reported);
+            runner.mockRestore();
+            model.mockRestore();
         }
     },
 );

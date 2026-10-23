@@ -1280,3 +1280,71 @@ test('a current persisted query rejection bypasses a cached healthy preflight wi
         (await f.credentials.getByUuid(f.selected, true)).needsSignIn,
     ).toBeNull();
 });
+
+test('another current persisted rejection reprobes an unknown marked status without waiting for cache expiry', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now());
+    const f = await connectionStatusFixture();
+    const access = vi
+        .spyOn(GoogleAuth.prototype, 'getAccessToken')
+        .mockResolvedValue('access_a');
+    expect((await f.status())?.personalSignIn?.expired).toBe(false);
+    const selected = await f.service.resolveForTest(
+        f.projectUuid,
+        f.user.userUuid,
+        { kind: 'original' },
+    );
+    const snapshot = (await f.credentials.getSignInSnapshot(
+        f.selected,
+        selected,
+    ))!;
+    const factory = new WarehouseClientFactory({
+        lightdashConfig,
+        featureFlagModel: f.featureFlagModel,
+        userWarehouseCredentialsModel: f.credentials,
+        logger: { warn: vi.fn() },
+    } as never);
+    const rejection = new BigqueryTokenError('query_failure_a', {
+        rejection: WarehouseSignInRejection.INVALID_GRANT,
+    });
+    const rejectCurrent = () =>
+        expect(
+            factory.attributeSharedSignInExpiry(
+                f.projectUuid,
+                selected,
+                rejection,
+                { snapshot, organizationUuid: null },
+            ),
+        ).rejects.toMatchObject({
+            data: {
+                personalSignIn: { userWarehouseCredentialsUuid: f.selected },
+            },
+        });
+    await rejectCurrent();
+    access.mockRejectedValueOnce({
+        response: { status: 503, data: { error: 'invalid_grant' } },
+    });
+    expect(await f.status()).toMatchObject({
+        statusUnknown: true,
+        personalSignIn: { expired: true },
+    });
+    const firstMark = (await f.credentials.getByUuid(f.selected, true))
+        .needsSignIn;
+    expect(access).toHaveBeenCalledTimes(2);
+    await rejectCurrent();
+    const pending = Promise.withResolvers<never>();
+    access.mockReturnValueOnce(pending.promise);
+    const statuses = [f.status(), f.status()];
+    await vi.waitFor(() => expect(access).toHaveBeenCalledTimes(3));
+    pending.reject({
+        response: { status: 400, data: { error: 'invalid_grant' } },
+    });
+    for (const current of await Promise.all(statuses)) {
+        expect(current?.personalSignIn?.expired).toBe(true);
+        expect(current?.statusUnknown).not.toBe(true);
+    }
+    expect(
+        (await f.credentials.getByUuid(f.selected, true)).needsSignIn,
+    ).toEqual(firstMark);
+    expect((await f.status())?.statusUnknown).not.toBe(true);
+    expect(access).toHaveBeenCalledTimes(3);
+});

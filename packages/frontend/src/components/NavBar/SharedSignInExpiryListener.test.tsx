@@ -60,6 +60,7 @@ const state = vi.hoisted(() => ({
     deferPopup: false,
     popupCallback: null as (() => void) | null,
     realQueries: false,
+    boundRoots: null as string[] | null,
     showRemoved: true,
     deliberateDisabled: true,
     toastError: vi.fn(),
@@ -78,9 +79,15 @@ vi.mock('../../providers/LightdashApi/useLightdashApi', () => ({
     useLightdashApi: () => state.api,
 }));
 vi.mock('../../hooks/useExplore', () => ({
-    useExploreByProjectUuid: () => ({
+    useExploreByProjectUuid: (tableId: string) => ({
         data: {
-            warehouseConnection: { warehouseConnectionUuid: state.binding },
+            warehouseConnection: {
+                warehouseConnectionUuid: state.boundRoots
+                    ? tableId === 'original'
+                        ? null
+                        : `connection_${tableId}`
+                    : state.binding,
+            },
         },
     }),
 }));
@@ -192,13 +199,15 @@ const RealRoot = ({
     name,
     disabled = false,
     projectUuid = 'project_a',
+    tableId = 'table_a',
 }: {
+    tableId?: string;
     name: string;
     disabled?: boolean;
     projectUuid?: string;
 }) => {
     const result = useGetReadyQueryResults(
-        { projectUuid, tableId: 'table_a', chartUuid: name },
+        { projectUuid, tableId, chartUuid: name },
         disabled ? ['required'] : [],
     );
     useInfiniteQueryResults(projectUuid, result.data?.queryUuid);
@@ -247,7 +256,13 @@ const Harness = () => {
             >
                 Query route
             </Button>
-            <PageQuery />
+            {state.boundRoots ? (
+                state.boundRoots.map((name) => (
+                    <RealRoot key={name} name={name} tableId={name} />
+                ))
+            ) : (
+                <PageQuery />
+            )}
             {state.realQueries && <RealRoots />}
         </SharedSignInQueryBoundary>
     );
@@ -286,6 +301,7 @@ beforeEach(() => {
     state.deferPopup = false;
     state.popupCallback = null;
     state.realQueries = false;
+    state.boundRoots = null;
     state.showRemoved = true;
     state.deliberateDisabled = true;
     state.api.mockImplementation(
@@ -1532,4 +1548,189 @@ test('a second shared episode waits for its healthy-status cooldown and then acc
         view.client.clear();
         vi.useRealTimers();
     }
+});
+
+test.each([
+    ['original', 'extra', 'expired-first'],
+    ['original', 'extra', 'healthy-first'],
+    ['extra', 'original', 'expired-first'],
+    ['extra', 'original', 'healthy-first'],
+])(
+    'does not queue the known expired mounted sibling after repairing %s with %s and %s completion',
+    async (first, sibling, order) => {
+        state.boundRoots = [first, sibling, 'healthy'];
+        const expired = new Set([first, sibling]);
+        const calls = new Map<string, number>();
+        const lateSibling = Promise.withResolvers<unknown>();
+        const lateRepaired = Promise.withResolvers<unknown>();
+        const lateHealthy = Promise.withResolvers<unknown>();
+        const statusFor = (name: string): SharedSignInStatus => ({
+            ...personal,
+            personalSelection: {
+                warehouseConnectionUuid:
+                    name === 'original' ? null : `connection_${name}`,
+            },
+            personalSignIn: {
+                ...personal.personalSignIn!,
+                userWarehouseCredentialsUuid: `credential_${name}`,
+                expired: expired.has(name),
+            },
+        });
+        const response = (name: string) => ({
+            status: 'error',
+            error: {
+                ...personalError,
+                data: { personalSignIn: statusFor(name).personalSignIn },
+            },
+        });
+        state.api.mockImplementation(
+            async ({
+                url,
+                method,
+                body,
+            }: {
+                url: string;
+                method: string;
+                body?: string;
+            }) => {
+                if (url.includes('shared-sign-in')) {
+                    const binding = new URLSearchParams(url.split('?')[1]).get(
+                        'warehouseConnectionUuid',
+                    );
+                    return statusFor(
+                        binding?.replace('connection_', '') ?? 'original',
+                    );
+                }
+                if (method === 'POST') {
+                    const name = JSON.parse(body!).chartUuid;
+                    const count = (calls.get(name) ?? 0) + 1;
+                    calls.set(name, count);
+                    if (count === 2 && name === sibling)
+                        return lateSibling.promise;
+                    if (count === 2 && name === first)
+                        return lateRepaired.promise;
+                    if (count === 2 && name === 'healthy')
+                        return lateHealthy.promise;
+                    if (expired.has(name)) throw response(name);
+                    return { queryUuid: `${name}_${count}` };
+                }
+                if (url.includes('/query/'))
+                    return {
+                        status: QueryHistoryStatus.READY,
+                        rows: [],
+                        columns: {},
+                        totalResults: 0,
+                        metadata: { performance: {} },
+                    };
+                return [];
+            },
+        );
+        const { client } = mount('/projects/project_a/dashboards/dashboard_a');
+        await screen.findByRole('dialog');
+        const preflight = getActiveWarehouseSignInPreflight()!;
+        expect(
+            [...preflight.checks.values()].map((check) => check.priority),
+        ).toEqual([0, 0, 0]);
+        expect(
+            preflight.target?.status.personalSignIn
+                ?.userWarehouseCredentialsUuid,
+        ).toBe(`credential_${first}`);
+        await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+        await waitFor(() => expect([...calls.values()]).toEqual([1, 1, 1]));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Reconnect' }),
+        );
+        expired.delete(first);
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Sign in with Google' }),
+        );
+        await waitFor(() => expect(calls.get(sibling)).toBe(2));
+        if (order === 'healthy-first')
+            await act(async () => {
+                lateRepaired.resolve({ queryUuid: `${first}_2` });
+                lateHealthy.resolve({ queryUuid: 'healthy_2' });
+            });
+        await act(async () => {
+            lateSibling.reject(response(sibling));
+        });
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(preflight.target).toBeNull();
+        if (order === 'expired-first')
+            await act(async () => {
+                lateRepaired.resolve({ queryUuid: `${first}_2` });
+                lateHealthy.resolve({ queryUuid: 'healthy_2' });
+            });
+        await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
+        expect([...calls.values()]).toEqual([2, 2, 2]);
+        const clock = vi
+            .spyOn(Date, 'now')
+            .mockReturnValue(Date.now() + 60_001);
+        try {
+            expired.add(first);
+            await act(async () => {
+                await client.refetchQueries({
+                    predicate: (query) =>
+                        query.queryKey[0] === 'create-query' &&
+                        (query.queryKey[1] as { chartUuid?: string })
+                            ?.chartUuid === first,
+                });
+            });
+            expect(await screen.findByRole('dialog')).toBeVisible();
+            expect(
+                preflight.target?.status.personalSignIn
+                    ?.userWarehouseCredentialsUuid,
+            ).toBe(`credential_${first}`);
+            expired.delete(first);
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Sign in with Google' }),
+            );
+            await waitFor(() => expect(state.success).toHaveBeenCalledTimes(2));
+            await waitFor(() => expect(calls.get(first)).toBe(4));
+            expect(calls.get(sibling)).toBe(3);
+            expect(calls.get('healthy')).toBe(3);
+            expect(screen.queryByRole('dialog')).toBeNull();
+            expect(
+                screen.queryByRole('button', { name: 'Reconnect' }),
+            ).toBeNull();
+        } finally {
+            clock.mockRestore();
+        }
+    },
+);
+
+test('a later current personal rejection presents recovery after an unknown status without reusing the healthy preflight', async () => {
+    let statusReads = 0;
+    state.api.mockImplementation(async ({ url }: { url: string }) => {
+        if (!url.includes('shared-sign-in')) return [];
+        statusReads += 1;
+        return {
+            ...personal,
+            statusUnknown: statusReads === 2,
+            personalSignIn: {
+                ...personal.personalSignIn!,
+                expired: statusReads > 1,
+            },
+        };
+    });
+    mount();
+    await waitFor(() => expect(state.executed).toHaveBeenCalledOnce());
+    const reject = () =>
+        reportSharedSignInQueryFailure(
+            'project_a',
+            { status: 'error', error: personalError },
+            captureSharedSignInQueryScope('project_a', null),
+        );
+    await act(async () => {
+        reject();
+    });
+    expect(statusReads).toBe(2);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull();
+    await act(async () => {
+        reject();
+    });
+    expect(await screen.findByRole('dialog')).toBeVisible();
+    expect(statusReads).toBe(3);
 });
