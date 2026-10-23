@@ -1,5 +1,9 @@
 # Observed results
 
+The separate [large-org report](../REPORT-large-org.md) records the later
+19-source service-account refresh comparison. The matrices below retain the
+original deploy, join and scale baseline.
+
 These runs use the product code at main revision `b7dd419f98`, seed 42,
 on a local ldenv instance with Postgres. The CLI is built from that checkout.
 The normal server runs use dbt 1.12.0. The dedicated 1.9 server project uses 1.9.10 for its whole graph. CLI dbt is 1.12.3 with dbt-loom 0.9.6. The older repo
@@ -98,8 +102,9 @@ do not test inference after that refresh. They also do not establish collision
 protection or chart survival after a successful initial deploy. Those outcomes
 remain unverified on this head. The empty-selector comparison on the
 [#31283 head](https://github.com/lightdash/lightdash/pull/31283) and the historical
-pre-[#31313](https://github.com/lightdash/lightdash/pull/31313) run are not performed;
-the completed main and deploy-head matrices bound this run.
+pre-[#31313](https://github.com/lightdash/lightdash/pull/31313) run are not part of
+this original matrix. The later [large-org report](../REPORT-large-org.md)
+adds the historical server-refresh comparison.
 
 ## Findings
 

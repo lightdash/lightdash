@@ -7,6 +7,15 @@ are synthetic. It contains no customer inputs.
 See the [observed matrix and Findings](reports/README.md) for the recorded
 main-build results, including the three cross-repo join comparisons.
 
+The separate [large-org multi-source scenario](REPORT-large-org.md) tests
+19 connected sources, a closed model loop through a versioned model, and
+mixed and one-argument-only stale bindings. It uses service-account server
+refreshes on four pinned builds with cross-source refs disabled and enabled.
+Additional probes test a fourteen-model closed control, an ambiguous version
+binding, and an unpushed local integration of the cycle draft with main.
+The image-faithful comparisons record the shipped core pin and absence of
+server-side dbt-loom separately from the publication parser.
+
 The small fixture has six hand-written repos: payments, merchants, finance,
 risk, growth and marketing. They have 19 logical models and 20 model nodes.
 The full fixture has 22 repos, 3,000 logical models and 3,001 model nodes.

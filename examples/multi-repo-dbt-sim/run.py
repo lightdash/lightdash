@@ -291,11 +291,14 @@ class ApiError(RuntimeError):
 
 
 class Api:
-    def __init__(self, url, env):
+    def __init__(self, url, env, auth_scheme="ApiKey"):
         parsed = urllib.parse.urlsplit(url)
         if parsed.hostname not in ("localhost", "127.0.0.1", "::1"):
             raise ValueError("This fixture accepts loopback development instances only")
         self.url = url.rstrip("/")
+        if auth_scheme not in ("ApiKey", "Bearer"):
+            raise ValueError("Unsupported fixture authentication scheme")
+        self.auth_scheme = auth_scheme
         self.token = env.get("LIGHTDASH_API_KEY", "")
         self.jar = http.cookiejar.CookieJar()
         self.opener = urllib.request.build_opener(
@@ -318,7 +321,7 @@ class Api:
             "User-Agent": "Lightdash synthetic fixture",
         }
         if self.token:
-            headers["Authorization"] = "ApiKey " + self.token
+            headers["Authorization"] = self.auth_scheme + " " + self.token
         request = urllib.request.Request(
             self.url + path,
             method=method,

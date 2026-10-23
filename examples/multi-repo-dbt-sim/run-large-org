@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+fixture_root=$(cd -- "$(dirname -- "$0")" && pwd)
+mkdir -p "$fixture_root/.work"
+exec 9>"$fixture_root/.work/run.lock"
+flock -n 9 || { echo 'Another fixture run holds this worktree lock.' >&2; exit 1; }
+exec timeout --signal=INT --kill-after=30s 1800s \
+  "$fixture_root/.work/venvs/dbt12/bin/python" "$fixture_root/large_org.py" "$@"

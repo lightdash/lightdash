@@ -1,0 +1,3261 @@
+{
+    "scenario": "integrated-image",
+    "seed": 42,
+    "runs": [
+        {
+            "build": "integrated",
+            "sha": "4fdf8527df6f7edc064e4494e37bc2068af3c7fe",
+            "flag": "on",
+            "runtime_flags": {
+                "multi-dbt-sources": {
+                    "enabled": true,
+                    "evidence": "api"
+                },
+                "cross-source-dbt-refs": {
+                    "enabled": true,
+                    "evidence": "api"
+                }
+            },
+            "variant": "prod-cycle",
+            "source_count": 19,
+            "counter_evidence": {
+                "method": "inspector",
+                "point": "sourceFetchFailed",
+                "agrees_with_product_log": true
+            },
+            "cycle_error": true,
+            "stale_retry_error": false,
+            "cross_source_warning": false,
+            "disk_evictions": 32,
+            "disk_refetches": 18,
+            "fetch_concurrency": 4,
+            "disk_derived_limit": 11,
+            "disk_budget_bytes": 3221225472,
+            "disk_budget_source": "env",
+            "messages": [
+                "dbt models form a cycle across dbt sources: model.proj_bank.int_bank_accounts -> model.proj_bank.stg_bank_accounts -> model.proj_payments.transactions.v3 -> model.proj_payments.int_payment_events -> model.proj_payments.stg_payment_events -> model.proj_payments.mart_payment_accounts -> model.proj_analyst.segment_cohort.v3 -> model.proj_analyst.segment_activity.v3 -> model.proj_analyst.segment_value.v3 -> model.proj_analyst.int_segment_members -> model.proj_analyst.stg_segment_members -> model.proj_analyst.mart_segment_accounts -> model.proj_analyst.reporting_bank -> model.proj_bank.mart_bank_summary -> model.proj_bank.int_bank_accounts. Break the cycle in one of these models.",
+                "dbt.compile.failed projectUuid=<id> jobUuid=<id> elapsedMs=36602 error=dbt models form a cycle across dbt sources: model.proj_bank.int_bank_accounts -> model.proj_bank.stg_bank_accounts -> model.proj_payments.transactions.v3 -> model.proj_payments.int_payment_events -> model.proj_payments.stg_payment_events -> model.proj_payments.mart_payment_accounts -> model.proj_analyst.segment_cohort.v3 -> model.proj_analyst.segment_activity.v3 -> model.proj_analyst.segment_value.v3 -> model.proj_analyst.int_segment_members -> model.proj_analyst.stg_segment_members -> model.proj_analyst.mart_segment_accounts -> model.proj_analyst.reporting_bank -> model.proj_bank.mart_bank_summary -> model.proj_bank.int_bank_accounts. Break the cycle in one of these models."
+            ],
+            "assertions": {
+                "expectation_basis": "Post-2.631.0 stale-binding fix",
+                "expected": {
+                    "refresh_success": false,
+                    "cycle_present": true,
+                    "warning_present": false,
+                    "error_present": true,
+                    "stale_error_present": false,
+                    "exact_trailing_guidance_present": false,
+                    "warning_before_stale_error": false
+                },
+                "observed": {
+                    "refresh_success": false,
+                    "cycle_present": true,
+                    "warning_present": false,
+                    "error_present": true,
+                    "stale_error_present": false,
+                    "exact_trailing_guidance_present": false,
+                    "warning_before_stale_error": false
+                },
+                "checks": {
+                    "refresh_success": {
+                        "expected": false,
+                        "observed": false,
+                        "pass": true
+                    },
+                    "cycle_present": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "warning_present": {
+                        "expected": false,
+                        "observed": false,
+                        "pass": true
+                    },
+                    "error_present": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "stale_error_present": {
+                        "expected": false,
+                        "observed": false,
+                        "pass": true
+                    },
+                    "exact_trailing_guidance_present": {
+                        "expected": false,
+                        "observed": false,
+                        "pass": true
+                    },
+                    "warning_before_stale_error": {
+                        "expected": false,
+                        "observed": false,
+                        "pass": true
+                    },
+                    "service_account_actor": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "source_count": {
+                        "expected": 19,
+                        "observed": 19,
+                        "pass": true
+                    },
+                    "flag_on": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "multi_source_on": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "inspector_counters": {
+                        "expected": "inspector",
+                        "observed": "inspector",
+                        "pass": true
+                    },
+                    "counters_agree": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "single_compile_window": {
+                        "expected": 1,
+                        "observed": 1,
+                        "pass": true
+                    },
+                    "compile_window_correlated": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "exact_warning": {
+                        "expected": [],
+                        "observed": [],
+                        "pass": true
+                    },
+                    "exact_stale_message": {
+                        "expected": [],
+                        "observed": [],
+                        "pass": true
+                    },
+                    "guidance_absent_from_all_messages": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "exact_closed_cycle_message": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "parsed_model_count": {
+                        "expected": 41,
+                        "observed": 41,
+                        "pass": true
+                    },
+                    "parsed_versions": {
+                        "expected": [
+                            "model.proj_analyst.segment_activity.v3",
+                            "model.proj_analyst.segment_cohort.v3",
+                            "model.proj_analyst.segment_value.v3",
+                            "model.proj_payments.transactions.v3"
+                        ],
+                        "observed": [
+                            "model.proj_analyst.segment_activity.v3",
+                            "model.proj_analyst.segment_cohort.v3",
+                            "model.proj_analyst.segment_value.v3",
+                            "model.proj_payments.transactions.v3"
+                        ],
+                        "pass": true
+                    },
+                    "parsed_unversioned_decoys": {
+                        "expected": [
+                            "model.proj_analyst.decoy_v2",
+                            "model.proj_bank.decoy_v3"
+                        ],
+                        "observed": [
+                            "model.proj_analyst.decoy_v2",
+                            "model.proj_bank.decoy_v3"
+                        ],
+                        "pass": true
+                    }
+                },
+                "pass": true,
+                "sequence": {
+                    "index_basis": "zero-based captured compile events in timestamp order; adjacency is not required",
+                    "scope": "log offsets after project setup, around one serial service-account refresh",
+                    "starts": [
+                        {
+                            "index": 0,
+                            "timestamp": "2026-10-23 00:07:35",
+                            "event": "dbt.compile.sourceFetchStart",
+                            "message": "dbt.compile.sourceFetchStart projectUuid=<id> sources=18 concurrency=4 cores=8 memoryDerivedLimit=none envOverride=4 diskAvailableBytes=3221225472 diskBudgetSource=env diskDerivedLimit=11 diskEvictions=0 diskRecreations=0"
+                        }
+                    ],
+                    "warnings": [],
+                    "errors": [
+                        {
+                            "index": 21,
+                            "timestamp": "2026-10-23 00:08:12",
+                            "event": "dbt.compile.failed",
+                            "message": "dbt.compile.failed projectUuid=<id> jobUuid=<id> elapsedMs=36602 error=dbt models form a cycle across dbt sources: model.proj_bank.int_bank_accounts -> model.proj_bank.stg_bank_accounts -> model.proj_payments.transactions.v3 -> model.proj_payments.int_payment_events -> model.proj_payments.stg_payment_events -> model.proj_payments.mart_payment_accounts -> model.proj_analyst.segment_cohort.v3 -> model.proj_analyst.segment_activity.v3 -> model.proj_analyst.segment_value.v3 -> model.proj_analyst.int_segment_members -> model.proj_analyst.stg_segment_members -> model.proj_analyst.mart_segment_accounts -> model.proj_analyst.reporting_bank -> model.proj_bank.mart_bank_summary -> model.proj_bank.int_bank_accounts. Break the cycle in one of these models."
+                        }
+                    ],
+                    "terminal": [
+                        {
+                            "index": 22,
+                            "timestamp": "2026-10-23 00:08:12",
+                            "event": "dbt.compile.end.failed",
+                            "message": "compileProject failed after 36603.73ms projectUuid=<id> jobUuid=<id>"
+                        }
+                    ],
+                    "ordered": false
+                },
+                "exact_strings": {
+                    "warnings": [],
+                    "stale_errors": [],
+                    "cycle_errors": [
+                        "dbt models form a cycle across dbt sources: model.proj_bank.int_bank_accounts -> model.proj_bank.stg_bank_accounts -> model.proj_payments.transactions.v3 -> model.proj_payments.int_payment_events -> model.proj_payments.stg_payment_events -> model.proj_payments.mart_payment_accounts -> model.proj_analyst.segment_cohort.v3 -> model.proj_analyst.segment_activity.v3 -> model.proj_analyst.segment_value.v3 -> model.proj_analyst.int_segment_members -> model.proj_analyst.stg_segment_members -> model.proj_analyst.mart_segment_accounts -> model.proj_analyst.reporting_bank -> model.proj_bank.mart_bank_summary -> model.proj_bank.int_bank_accounts. Break the cycle in one of these models."
+                    ],
+                    "required_trailing_text": "Refresh again; the next compile usually succeeds."
+                }
+            },
+            "compile_window": {
+                "correlated": true,
+                "warning_scope": "serial refresh log window; warning events do not carry a project or job ID"
+            },
+            "integration": {
+                "revision": "4fdf8527df6f7edc064e4494e37bc2068af3c7fe",
+                "tree": "e3201e56e3b5f0d61172fdc0e75e1b2bd980a656",
+                "base_sha": "66a39c038857c709a1d628dbd0c530c5f558ab35",
+                "pr_head_sha": "6e35424935013c5c2fc5ceb7174b4abca62a0014",
+                "includes_31313": true,
+                "method": "Local merge-tree and signed commit-tree; no branch update or push",
+                "conflict_resolution": "Keep both upstream function additions unchanged; call source skipping before cycle validation",
+                "resolved_source_sha256": "e11e9c9333e2623687a94a111b01a698a8b8babb789ee191f5b3b9c36cd816d9"
+            },
+            "dbt_toolchain": {
+                "executable": "<local-path>",
+                "versions": {
+                    "dbt-core": "1.12.0",
+                    "dbt-postgres": "1.10.2",
+                    "dbt-loom": null
+                },
+                "live_api_path_resolution": {
+                    "dbt1.12": "<local-path>",
+                    "dbt": "<local-path>"
+                },
+                "evidence": "live API process environment and selected venv package metadata",
+                "source_provenance": {
+                    "build": "integrated",
+                    "sha": "4fdf8527df6f7edc064e4494e37bc2068af3c7fe",
+                    "files": {
+                        "dockerfile": {
+                            "sha256": "f5a1d0f03147fe3aa35a245328f3db233820eda082d6e45cd015abd4457db2e4",
+                            "lines": [
+                                {
+                                    "line": 16,
+                                    "text": "FROM python:3.11-slim-trixie AS pnpm-base"
+                                },
+                                {
+                                    "line": 163,
+                                    "text": "    && python3 -m venv /usr/local/dbt1.12 \\"
+                                },
+                                {
+                                    "line": 164,
+                                    "text": "# dbt-databricks 1.12 requires dbt-core below 1.12.1."
+                                },
+                                {
+                                    "line": 165,
+                                    "text": "    && /usr/local/dbt1.12/bin/pip install \\"
+                                },
+                                {
+                                    "line": 166,
+                                    "text": "    \"dbt-core==1.12.0\" \\"
+                                },
+                                {
+                                    "line": 167,
+                                    "text": "    \"dbt-postgres~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 168,
+                                    "text": "    \"dbt-redshift~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 169,
+                                    "text": "    \"dbt-snowflake~=1.12.0\" \\"
+                                },
+                                {
+                                    "line": 170,
+                                    "text": "    \"dbt-bigquery~=1.12.0\" \\"
+                                },
+                                {
+                                    "line": 171,
+                                    "text": "    \"dbt-databricks~=1.12.3\" \\"
+                                },
+                                {
+                                    "line": 172,
+                                    "text": "    \"dbt-trino~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 173,
+                                    "text": "    \"dbt-clickhouse~=1.9.0\" \\"
+                                },
+                                {
+                                    "line": 174,
+                                    "text": "    \"dbt-athena~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 175,
+                                    "text": "    \"dbt-duckdb~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 176,
+                                    "text": "    && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12"
+                                }
+                            ],
+                            "contains_dbt_loom": false
+                        },
+                        "dockerfile-prs": {
+                            "sha256": "68cc02b31a495d41f90d7582207017b7768b70f31fa752af4cd3ff0f045f6d7b",
+                            "lines": [
+                                {
+                                    "line": 22,
+                                    "text": "FROM python:3.11-slim-trixie AS pnpm-base"
+                                },
+                                {
+                                    "line": 61,
+                                    "text": "# Okteto previews only execute the latest fully supported dbt version."
+                                },
+                                {
+                                    "line": 62,
+                                    "text": "RUN --mount=type=cache,target=<local-path> \\"
+                                },
+                                {
+                                    "line": 63,
+                                    "text": "    python3 -m venv /usr/local/dbt1.12 \\"
+                                },
+                                {
+                                    "line": 64,
+                                    "text": "    && /usr/local/dbt1.12/bin/pip install \\"
+                                },
+                                {
+                                    "line": 65,
+                                    "text": "    \"dbt-core==1.12.0\" \\"
+                                },
+                                {
+                                    "line": 66,
+                                    "text": "    \"dbt-postgres~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 67,
+                                    "text": "    \"dbt-snowflake~=1.12.0\" \\"
+                                },
+                                {
+                                    "line": 68,
+                                    "text": "    \"dbt-bigquery~=1.12.0\" \\"
+                                },
+                                {
+                                    "line": 69,
+                                    "text": "    \"dbt-databricks~=1.12.3\" \\"
+                                },
+                                {
+                                    "line": 70,
+                                    "text": "    \"dbt-trino~=1.10.0\""
+                                }
+                            ],
+                            "contains_dbt_loom": false
+                        },
+                        "scripts/dbt-versions.json": {
+                            "sha256": "1859b27e9cea8613b6e0fb08d5c36a6610cd67c271a4c19098067d21b986adae",
+                            "lines": [],
+                            "contains_dbt_loom": false
+                        }
+                    },
+                    "integration": {
+                        "revision": "4fdf8527df6f7edc064e4494e37bc2068af3c7fe",
+                        "tree": "e3201e56e3b5f0d61172fdc0e75e1b2bd980a656",
+                        "base_sha": "66a39c038857c709a1d628dbd0c530c5f558ab35",
+                        "pr_head_sha": "6e35424935013c5c2fc5ceb7174b4abca62a0014",
+                        "includes_31313": true,
+                        "method": "Local merge-tree and signed commit-tree; no branch update or push",
+                        "conflict_resolution": "Keep both upstream function additions unchanged; call source skipping before cycle validation",
+                        "resolved_source_sha256": "e11e9c9333e2623687a94a111b01a698a8b8babb789ee191f5b3b9c36cd816d9"
+                    },
+                    "production_requirements": [
+                        "dbt-core==1.12.0",
+                        "dbt-postgres~=1.10.0",
+                        "dbt-redshift~=1.10.0",
+                        "dbt-snowflake~=1.12.0",
+                        "dbt-bigquery~=1.12.0",
+                        "dbt-databricks~=1.12.3",
+                        "dbt-trino~=1.10.0",
+                        "dbt-clickhouse~=1.9.0",
+                        "dbt-athena~=1.10.0",
+                        "dbt-duckdb~=1.10.0"
+                    ],
+                    "preview_requirements": [
+                        "dbt-core==1.12.0",
+                        "dbt-postgres~=1.10.0",
+                        "dbt-snowflake~=1.12.0",
+                        "dbt-bigquery~=1.12.0",
+                        "dbt-databricks~=1.12.3",
+                        "dbt-trino~=1.10.0"
+                    ],
+                    "loom": {
+                        "installed_by_recipe": false,
+                        "version": null
+                    },
+                    "limitations": [
+                        "Adapter patch versions and transitive dependencies are ranges, not exact locks; historical image resolutions cannot be established from Git alone.",
+                        "Python image specifies 3.11 without an exact patch digest."
+                    ],
+                    "selected_recipe": "production dockerfile dbt1.12 venv stanza",
+                    "runtime": {
+                        "python": "3.11.16",
+                        "executable": "<local-path>",
+                        "freeze_sha256": "b0712b4019a908f4a4b4a6f0842dc2c11de7215ab32d6533c07591f7ccd3f6ab",
+                        "dbt_loom": null
+                    },
+                    "publication_toolchain": {
+                        "dbt-core": "1.12.3",
+                        "dbt-postgres": "1.10.0",
+                        "dbt-loom": "0.9.6",
+                        "role": "fixture publication and consumer control parses only"
+                    }
+                },
+                "publication_executable": "<local-path>"
+            },
+            "started_at": "2026-10-23T00:07:35.510Z",
+            "finished_at": "2026-10-23T00:08:12.143Z",
+            "refresh_success": false,
+            "actor_is_service_account": true,
+            "errors": [
+                "dbt models form a cycle across dbt sources: model.proj_bank.int_bank_accounts -> model.proj_bank.stg_bank_accounts -> model.proj_payments.transactions.v3 -> model.proj_payments.int_payment_events -> model.proj_payments.stg_payment_events -> model.proj_payments.mart_payment_accounts -> model.proj_analyst.segment_cohort.v3 -> model.proj_analyst.segment_activity.v3 -> model.proj_analyst.segment_value.v3 -> model.proj_analyst.int_segment_members -> model.proj_analyst.stg_segment_members -> model.proj_analyst.mart_segment_accounts -> model.proj_analyst.reporting_bank -> model.proj_bank.mart_bank_summary -> model.proj_bank.int_bank_accounts. Break the cycle in one of these models."
+            ],
+            "connection_warnings": [],
+            "git_discovery_requests": 37,
+            "elapsed_ms": 38078,
+            "scenario": {
+                "name": "prod-shaped independent probe",
+                "variant": "prod-cycle",
+                "edgeDirection": "consumer_depends_on_provider",
+                "cycle": {
+                    "closedPath": [
+                        "proj_bank.mart_bank_summary",
+                        "proj_bank.int_bank_accounts",
+                        "proj_bank.stg_bank_accounts",
+                        "proj_payments.transactions",
+                        "proj_payments.int_payment_events",
+                        "proj_payments.stg_payment_events",
+                        "proj_payments.mart_payment_accounts",
+                        "proj_analyst.segment_cohort",
+                        "proj_analyst.segment_activity",
+                        "proj_analyst.segment_value",
+                        "proj_analyst.int_segment_members",
+                        "proj_analyst.stg_segment_members",
+                        "proj_analyst.mart_segment_accounts",
+                        "proj_analyst.reporting_bank",
+                        "proj_bank.mart_bank_summary"
+                    ],
+                    "closedUniqueIds": [
+                        "model.proj_bank.mart_bank_summary",
+                        "model.proj_bank.int_bank_accounts",
+                        "model.proj_bank.stg_bank_accounts",
+                        "model.proj_payments.transactions.v3",
+                        "model.proj_payments.int_payment_events",
+                        "model.proj_payments.stg_payment_events",
+                        "model.proj_payments.mart_payment_accounts",
+                        "model.proj_analyst.segment_cohort.v3",
+                        "model.proj_analyst.segment_activity.v3",
+                        "model.proj_analyst.segment_value.v3",
+                        "model.proj_analyst.int_segment_members",
+                        "model.proj_analyst.stg_segment_members",
+                        "model.proj_analyst.mart_segment_accounts",
+                        "model.proj_analyst.reporting_bank",
+                        "model.proj_bank.mart_bank_summary"
+                    ],
+                    "modelCount": 14,
+                    "edgeCount": 14,
+                    "projectCount": 3,
+                    "sourceRing": [
+                        "proj_bank",
+                        "proj_payments",
+                        "proj_analyst",
+                        "proj_bank"
+                    ],
+                    "edges": [
+                        {
+                            "from": "proj_bank.mart_bank_summary",
+                            "to": "proj_bank.int_bank_accounts",
+                            "fromUniqueId": "model.proj_bank.mart_bank_summary",
+                            "toUniqueId": "model.proj_bank.int_bank_accounts",
+                            "ref": ["int_bank_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_bank.int_bank_accounts",
+                            "to": "proj_bank.stg_bank_accounts",
+                            "fromUniqueId": "model.proj_bank.int_bank_accounts",
+                            "toUniqueId": "model.proj_bank.stg_bank_accounts",
+                            "ref": ["stg_bank_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_bank.stg_bank_accounts",
+                            "to": "proj_payments.transactions",
+                            "fromUniqueId": "model.proj_bank.stg_bank_accounts",
+                            "toUniqueId": "model.proj_payments.transactions.v3",
+                            "ref": ["proj_payments", "transactions"],
+                            "refArgumentCount": 2,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_payments.transactions",
+                            "to": "proj_payments.int_payment_events",
+                            "fromUniqueId": "model.proj_payments.transactions.v3",
+                            "toUniqueId": "model.proj_payments.int_payment_events",
+                            "ref": ["int_payment_events"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.int_payment_events",
+                            "to": "proj_payments.stg_payment_events",
+                            "fromUniqueId": "model.proj_payments.int_payment_events",
+                            "toUniqueId": "model.proj_payments.stg_payment_events",
+                            "ref": ["stg_payment_events"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.stg_payment_events",
+                            "to": "proj_payments.mart_payment_accounts",
+                            "fromUniqueId": "model.proj_payments.stg_payment_events",
+                            "toUniqueId": "model.proj_payments.mart_payment_accounts",
+                            "ref": ["mart_payment_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.mart_payment_accounts",
+                            "to": "proj_analyst.segment_cohort",
+                            "fromUniqueId": "model.proj_payments.mart_payment_accounts",
+                            "toUniqueId": "model.proj_analyst.segment_cohort.v3",
+                            "ref": ["proj_analyst", "segment_cohort"],
+                            "refArgumentCount": 2,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_cohort",
+                            "to": "proj_analyst.segment_activity",
+                            "fromUniqueId": "model.proj_analyst.segment_cohort.v3",
+                            "toUniqueId": "model.proj_analyst.segment_activity.v3",
+                            "ref": ["segment_activity"],
+                            "refArgumentCount": 1,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_activity",
+                            "to": "proj_analyst.segment_value",
+                            "fromUniqueId": "model.proj_analyst.segment_activity.v3",
+                            "toUniqueId": "model.proj_analyst.segment_value.v3",
+                            "ref": ["segment_value"],
+                            "refArgumentCount": 1,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_value",
+                            "to": "proj_analyst.int_segment_members",
+                            "fromUniqueId": "model.proj_analyst.segment_value.v3",
+                            "toUniqueId": "model.proj_analyst.int_segment_members",
+                            "ref": ["int_segment_members"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.int_segment_members",
+                            "to": "proj_analyst.stg_segment_members",
+                            "fromUniqueId": "model.proj_analyst.int_segment_members",
+                            "toUniqueId": "model.proj_analyst.stg_segment_members",
+                            "ref": ["stg_segment_members"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.stg_segment_members",
+                            "to": "proj_analyst.mart_segment_accounts",
+                            "fromUniqueId": "model.proj_analyst.stg_segment_members",
+                            "toUniqueId": "model.proj_analyst.mart_segment_accounts",
+                            "ref": ["mart_segment_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.mart_segment_accounts",
+                            "to": "proj_analyst.reporting_bank",
+                            "fromUniqueId": "model.proj_analyst.mart_segment_accounts",
+                            "toUniqueId": "model.proj_analyst.reporting_bank",
+                            "ref": ["reporting_bank"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.reporting_bank",
+                            "to": "proj_bank.mart_bank_summary",
+                            "fromUniqueId": "model.proj_analyst.reporting_bank",
+                            "toUniqueId": "model.proj_bank.mart_bank_summary",
+                            "ref": ["proj_bank", "mart_bank_summary"],
+                            "refArgumentCount": 2,
+                            "version": null
+                        }
+                    ],
+                    "evidence": "Invented generic closed loop; not an original customer graph"
+                },
+                "proposedCycle": {
+                    "closedPath": [
+                        "proj_bank.mart_bank_summary",
+                        "proj_bank.int_bank_accounts",
+                        "proj_bank.stg_bank_accounts",
+                        "proj_payments.transactions",
+                        "proj_payments.int_payment_events",
+                        "proj_payments.stg_payment_events",
+                        "proj_payments.mart_payment_accounts",
+                        "proj_analyst.segment_cohort",
+                        "proj_analyst.segment_activity",
+                        "proj_analyst.segment_value",
+                        "proj_analyst.int_segment_members",
+                        "proj_analyst.stg_segment_members",
+                        "proj_analyst.mart_segment_accounts",
+                        "proj_analyst.reporting_bank",
+                        "proj_bank.mart_bank_summary"
+                    ],
+                    "closedUniqueIds": [
+                        "model.proj_bank.mart_bank_summary",
+                        "model.proj_bank.int_bank_accounts",
+                        "model.proj_bank.stg_bank_accounts",
+                        "model.proj_payments.transactions.v3",
+                        "model.proj_payments.int_payment_events",
+                        "model.proj_payments.stg_payment_events",
+                        "model.proj_payments.mart_payment_accounts",
+                        "model.proj_analyst.segment_cohort.v3",
+                        "model.proj_analyst.segment_activity.v3",
+                        "model.proj_analyst.segment_value.v3",
+                        "model.proj_analyst.int_segment_members",
+                        "model.proj_analyst.stg_segment_members",
+                        "model.proj_analyst.mart_segment_accounts",
+                        "model.proj_analyst.reporting_bank",
+                        "model.proj_bank.mart_bank_summary"
+                    ],
+                    "modelCount": 14,
+                    "edgeCount": 14,
+                    "projectCount": 3,
+                    "sourceRing": [
+                        "proj_bank",
+                        "proj_payments",
+                        "proj_analyst",
+                        "proj_bank"
+                    ],
+                    "edges": [
+                        {
+                            "from": "proj_bank.mart_bank_summary",
+                            "to": "proj_bank.int_bank_accounts",
+                            "fromUniqueId": "model.proj_bank.mart_bank_summary",
+                            "toUniqueId": "model.proj_bank.int_bank_accounts",
+                            "ref": ["int_bank_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_bank.int_bank_accounts",
+                            "to": "proj_bank.stg_bank_accounts",
+                            "fromUniqueId": "model.proj_bank.int_bank_accounts",
+                            "toUniqueId": "model.proj_bank.stg_bank_accounts",
+                            "ref": ["stg_bank_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_bank.stg_bank_accounts",
+                            "to": "proj_payments.transactions",
+                            "fromUniqueId": "model.proj_bank.stg_bank_accounts",
+                            "toUniqueId": "model.proj_payments.transactions.v3",
+                            "ref": ["proj_payments", "transactions"],
+                            "refArgumentCount": 2,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_payments.transactions",
+                            "to": "proj_payments.int_payment_events",
+                            "fromUniqueId": "model.proj_payments.transactions.v3",
+                            "toUniqueId": "model.proj_payments.int_payment_events",
+                            "ref": ["int_payment_events"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.int_payment_events",
+                            "to": "proj_payments.stg_payment_events",
+                            "fromUniqueId": "model.proj_payments.int_payment_events",
+                            "toUniqueId": "model.proj_payments.stg_payment_events",
+                            "ref": ["stg_payment_events"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.stg_payment_events",
+                            "to": "proj_payments.mart_payment_accounts",
+                            "fromUniqueId": "model.proj_payments.stg_payment_events",
+                            "toUniqueId": "model.proj_payments.mart_payment_accounts",
+                            "ref": ["mart_payment_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.mart_payment_accounts",
+                            "to": "proj_analyst.segment_cohort",
+                            "fromUniqueId": "model.proj_payments.mart_payment_accounts",
+                            "toUniqueId": "model.proj_analyst.segment_cohort.v3",
+                            "ref": ["proj_analyst", "segment_cohort"],
+                            "refArgumentCount": 2,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_cohort",
+                            "to": "proj_analyst.segment_activity",
+                            "fromUniqueId": "model.proj_analyst.segment_cohort.v3",
+                            "toUniqueId": "model.proj_analyst.segment_activity.v3",
+                            "ref": ["segment_activity"],
+                            "refArgumentCount": 1,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_activity",
+                            "to": "proj_analyst.segment_value",
+                            "fromUniqueId": "model.proj_analyst.segment_activity.v3",
+                            "toUniqueId": "model.proj_analyst.segment_value.v3",
+                            "ref": ["segment_value"],
+                            "refArgumentCount": 1,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_value",
+                            "to": "proj_analyst.int_segment_members",
+                            "fromUniqueId": "model.proj_analyst.segment_value.v3",
+                            "toUniqueId": "model.proj_analyst.int_segment_members",
+                            "ref": ["int_segment_members"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.int_segment_members",
+                            "to": "proj_analyst.stg_segment_members",
+                            "fromUniqueId": "model.proj_analyst.int_segment_members",
+                            "toUniqueId": "model.proj_analyst.stg_segment_members",
+                            "ref": ["stg_segment_members"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.stg_segment_members",
+                            "to": "proj_analyst.mart_segment_accounts",
+                            "fromUniqueId": "model.proj_analyst.stg_segment_members",
+                            "toUniqueId": "model.proj_analyst.mart_segment_accounts",
+                            "ref": ["mart_segment_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.mart_segment_accounts",
+                            "to": "proj_analyst.reporting_bank",
+                            "fromUniqueId": "model.proj_analyst.mart_segment_accounts",
+                            "toUniqueId": "model.proj_analyst.reporting_bank",
+                            "ref": ["reporting_bank"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.reporting_bank",
+                            "to": "proj_bank.mart_bank_summary",
+                            "fromUniqueId": "model.proj_analyst.reporting_bank",
+                            "toUniqueId": "model.proj_bank.mart_bank_summary",
+                            "ref": ["proj_bank", "mart_bank_summary"],
+                            "refArgumentCount": 2,
+                            "version": null
+                        }
+                    ],
+                    "evidence": "Invented generic closed loop; not an original customer graph"
+                },
+                "versionedModels": [
+                    "model.proj_payments.transactions.v3",
+                    "model.proj_analyst.segment_cohort.v3",
+                    "model.proj_analyst.segment_activity.v3",
+                    "model.proj_analyst.segment_value.v3"
+                ],
+                "unversionedDecoys": [
+                    "model.proj_bank.decoy_v3",
+                    "model.proj_analyst.decoy_v2"
+                ],
+                "refs": [
+                    {
+                        "model": "proj_bank.mart_bank_summary",
+                        "ref": ["int_bank_accounts"],
+                        "version": null,
+                        "providerProject": "proj_bank",
+                        "providerModel": "int_bank_accounts",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_bank.int_bank_accounts",
+                        "ref": ["stg_bank_accounts"],
+                        "version": null,
+                        "providerProject": "proj_bank",
+                        "providerModel": "stg_bank_accounts",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_bank.stg_bank_accounts",
+                        "ref": ["proj_payments", "transactions"],
+                        "version": 3,
+                        "providerProject": "proj_payments",
+                        "providerModel": "transactions",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_payments.transactions",
+                        "ref": ["int_payment_events"],
+                        "version": null,
+                        "providerProject": "proj_payments",
+                        "providerModel": "int_payment_events",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_payments.int_payment_events",
+                        "ref": ["stg_payment_events"],
+                        "version": null,
+                        "providerProject": "proj_payments",
+                        "providerModel": "stg_payment_events",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_payments.stg_payment_events",
+                        "ref": ["mart_payment_accounts"],
+                        "version": null,
+                        "providerProject": "proj_payments",
+                        "providerModel": "mart_payment_accounts",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_payments.mart_payment_accounts",
+                        "ref": ["proj_analyst", "segment_cohort"],
+                        "version": 3,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "segment_cohort",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_analyst.segment_cohort",
+                        "ref": ["segment_activity"],
+                        "version": 3,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "segment_activity",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_analyst.segment_activity",
+                        "ref": ["segment_value"],
+                        "version": 3,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "segment_value",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_analyst.segment_value",
+                        "ref": ["int_segment_members"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "int_segment_members",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_analyst.int_segment_members",
+                        "ref": ["stg_segment_members"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "stg_segment_members",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_analyst.stg_segment_members",
+                        "ref": ["mart_segment_accounts"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "mart_segment_accounts",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_analyst.mart_segment_accounts",
+                        "ref": ["reporting_bank"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "reporting_bank",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_analyst.reporting_bank",
+                        "ref": ["proj_bank", "mart_bank_summary"],
+                        "version": null,
+                        "providerProject": "proj_bank",
+                        "providerModel": "mart_bank_summary",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_growth.consumer_one_arg",
+                        "ref": ["proj_analyst", "mart_merchant__merchants"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "mart_merchant__merchants",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_growth.consumer_explicit",
+                        "ref": ["proj_analyst", "mart_merchant__merchants"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "mart_merchant__merchants",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_growth.consumer_primary",
+                        "ref": ["proj_bank", "model_other"],
+                        "version": null,
+                        "providerProject": "proj_bank",
+                        "providerModel": "model_other",
+                        "refArgumentCount": 2
+                    }
+                ],
+                "consumerRefs": [
+                    {
+                        "model": "proj_growth.consumer_one_arg",
+                        "ref": ["proj_analyst", "mart_merchant__merchants"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "mart_merchant__merchants",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_growth.consumer_explicit",
+                        "ref": ["proj_analyst", "mart_merchant__merchants"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "mart_merchant__merchants",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_growth.consumer_primary",
+                        "ref": ["proj_bank", "model_other"],
+                        "version": null,
+                        "providerProject": "proj_bank",
+                        "providerModel": "model_other",
+                        "refArgumentCount": 2
+                    }
+                ],
+                "duplicatedModel": {
+                    "name": "mart_merchant__merchants",
+                    "primaryProvider": "proj_bank",
+                    "explicitProvider": "proj_analyst",
+                    "consumer": "proj_growth"
+                }
+            },
+            "publication": {
+                "elapsed_ms": 63175,
+                "exit_code": 0,
+                "full": false,
+                "projects_total": 19,
+                "projects_built": 0,
+                "bootstrap_signature": "2e3183d8a16f5806d5c0d3864cec2cac4da6d0c6b0f7b52905ae709067374690",
+                "parsed_manifest_validation": {
+                    "model_count": 41,
+                    "versioned_ids": [
+                        "model.proj_analyst.segment_activity.v3",
+                        "model.proj_analyst.segment_cohort.v3",
+                        "model.proj_analyst.segment_value.v3",
+                        "model.proj_payments.transactions.v3"
+                    ],
+                    "decoy_ids": [
+                        "model.proj_analyst.decoy_v2",
+                        "model.proj_bank.decoy_v3"
+                    ],
+                    "method": "actual dbt bootstrap manifest nodes"
+                },
+                "filtered_import": []
+            },
+            "dbt_diagnostics": [],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "proj_payments": 0,
+                    "proj_analyst": 0,
+                    "proj_growth": 0,
+                    "proj_a": 0,
+                    "proj_b": 0,
+                    "proj_c": 0,
+                    "proj_d": 0,
+                    "proj_e": 0,
+                    "proj_f": 0,
+                    "proj_g": 0,
+                    "proj_h": 0,
+                    "proj_i": 0,
+                    "proj_j": 0,
+                    "proj_k": 0,
+                    "proj_l": 0,
+                    "proj_m": 0,
+                    "proj_n": 0,
+                    "proj_o": 0
+                },
+                "total_explores": 0,
+                "explore_errors": [],
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {},
+                "defaults": null,
+                "connection_mode": "single"
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "proj_payments": 0,
+                    "proj_analyst": 0,
+                    "proj_growth": 0,
+                    "proj_a": 0,
+                    "proj_b": 0,
+                    "proj_c": 0,
+                    "proj_d": 0,
+                    "proj_e": 0,
+                    "proj_f": 0,
+                    "proj_g": 0,
+                    "proj_h": 0,
+                    "proj_i": 0,
+                    "proj_j": 0,
+                    "proj_k": 0,
+                    "proj_l": 0,
+                    "proj_m": 0,
+                    "proj_n": 0,
+                    "proj_o": 0
+                },
+                "total_explores": 0,
+                "explore_errors": [],
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {},
+                "defaults": null,
+                "connection_mode": "single"
+            }
+        },
+        {
+            "build": "integrated",
+            "sha": "4fdf8527df6f7edc064e4494e37bc2068af3c7fe",
+            "flag": "on",
+            "runtime_flags": {
+                "multi-dbt-sources": {
+                    "enabled": true,
+                    "evidence": "api"
+                },
+                "cross-source-dbt-refs": {
+                    "enabled": true,
+                    "evidence": "api"
+                }
+            },
+            "variant": "prod-mixed",
+            "source_count": 19,
+            "counter_evidence": {
+                "method": "inspector",
+                "point": "sourceFetchComplete",
+                "agrees_with_product_log": true
+            },
+            "cycle_error": false,
+            "stale_retry_error": false,
+            "cross_source_warning": true,
+            "disk_evictions": 32,
+            "disk_refetches": 18,
+            "fetch_concurrency": 4,
+            "disk_derived_limit": 11,
+            "disk_budget_bytes": 3221225472,
+            "disk_budget_source": "env",
+            "messages": [
+                "Model \"consumer_one_arg\" in dbt source \"proj_growth\" uses ref('mart_merchant__merchants'), which resolved to external model model.proj_analyst.mart_merchant__merchants from another dbt source. Use ref('proj_analyst', 'mart_merchant__merchants') to make the cross-source reference explicit.",
+                "Model \"mart_merchant__merchants\" (model.proj_bank.mart_merchant__merchants) is assigned explore name \"dbt_project__mart_merchant__merchants\". The plain name \"mart_merchant__merchants\" is reserved because of an unresolved collision. Qualified explore names: \"dbt_project__mart_merchant__merchants\", \"proj_analyst__mart_merchant__merchants\".",
+                "Model \"mart_merchant__merchants\" (model.proj_analyst.mart_merchant__merchants) is assigned explore name \"proj_analyst__mart_merchant__merchants\". The plain name \"mart_merchant__merchants\" is reserved because of an unresolved collision. Qualified explore names: \"dbt_project__mart_merchant__merchants\", \"proj_analyst__mart_merchant__merchants\".",
+                "dbt.compile.crossSourceRefWarning Model \"consumer_one_arg\" in dbt source \"proj_growth\" uses ref('mart_merchant__merchants'), which resolved to external model model.proj_analyst.mart_merchant__merchants from another dbt source. Use ref('proj_analyst', 'mart_merchant__merchants') to make the cross-source reference explicit."
+            ],
+            "assertions": {
+                "expectation_basis": "Post-2.631.0 stale-binding fix",
+                "expected": {
+                    "refresh_success": true,
+                    "cycle_present": false,
+                    "warning_present": true,
+                    "error_present": false,
+                    "stale_error_present": false,
+                    "exact_trailing_guidance_present": false,
+                    "warning_before_stale_error": false
+                },
+                "observed": {
+                    "refresh_success": true,
+                    "cycle_present": false,
+                    "warning_present": true,
+                    "error_present": false,
+                    "stale_error_present": false,
+                    "exact_trailing_guidance_present": false,
+                    "warning_before_stale_error": false
+                },
+                "checks": {
+                    "refresh_success": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "cycle_present": {
+                        "expected": false,
+                        "observed": false,
+                        "pass": true
+                    },
+                    "warning_present": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "error_present": {
+                        "expected": false,
+                        "observed": false,
+                        "pass": true
+                    },
+                    "stale_error_present": {
+                        "expected": false,
+                        "observed": false,
+                        "pass": true
+                    },
+                    "exact_trailing_guidance_present": {
+                        "expected": false,
+                        "observed": false,
+                        "pass": true
+                    },
+                    "warning_before_stale_error": {
+                        "expected": false,
+                        "observed": false,
+                        "pass": true
+                    },
+                    "service_account_actor": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "source_count": {
+                        "expected": 19,
+                        "observed": 19,
+                        "pass": true
+                    },
+                    "flag_on": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "multi_source_on": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "inspector_counters": {
+                        "expected": "inspector",
+                        "observed": "inspector",
+                        "pass": true
+                    },
+                    "counters_agree": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "single_compile_window": {
+                        "expected": 1,
+                        "observed": 1,
+                        "pass": true
+                    },
+                    "compile_window_correlated": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "exact_warning": {
+                        "expected": [
+                            "Model \"consumer_one_arg\" in dbt source \"proj_growth\" uses ref('mart_merchant__merchants'), which resolved to external model model.proj_analyst.mart_merchant__merchants from another dbt source. Use ref('proj_analyst', 'mart_merchant__merchants') to make the cross-source reference explicit."
+                        ],
+                        "observed": [
+                            "Model \"consumer_one_arg\" in dbt source \"proj_growth\" uses ref('mart_merchant__merchants'), which resolved to external model model.proj_analyst.mart_merchant__merchants from another dbt source. Use ref('proj_analyst', 'mart_merchant__merchants') to make the cross-source reference explicit."
+                        ],
+                        "pass": true
+                    },
+                    "exact_stale_message": {
+                        "expected": [],
+                        "observed": [],
+                        "pass": true
+                    },
+                    "guidance_absent_from_all_messages": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "exact_closed_cycle_message": {
+                        "expected": false,
+                        "observed": false,
+                        "pass": true
+                    },
+                    "parsed_model_count": {
+                        "expected": 41,
+                        "observed": 41,
+                        "pass": true
+                    },
+                    "parsed_versions": {
+                        "expected": [
+                            "model.proj_analyst.segment_activity.v3",
+                            "model.proj_analyst.segment_cohort.v3",
+                            "model.proj_analyst.segment_value.v3",
+                            "model.proj_payments.transactions.v3"
+                        ],
+                        "observed": [
+                            "model.proj_analyst.segment_activity.v3",
+                            "model.proj_analyst.segment_cohort.v3",
+                            "model.proj_analyst.segment_value.v3",
+                            "model.proj_payments.transactions.v3"
+                        ],
+                        "pass": true
+                    },
+                    "parsed_unversioned_decoys": {
+                        "expected": [
+                            "model.proj_analyst.decoy_v2",
+                            "model.proj_bank.decoy_v3"
+                        ],
+                        "observed": [
+                            "model.proj_analyst.decoy_v2",
+                            "model.proj_bank.decoy_v3"
+                        ],
+                        "pass": true
+                    }
+                },
+                "pass": true,
+                "sequence": {
+                    "index_basis": "zero-based captured compile events in timestamp order; adjacency is not required",
+                    "scope": "log offsets after project setup, around one serial service-account refresh",
+                    "starts": [
+                        {
+                            "index": 0,
+                            "timestamp": "2026-10-23 00:09:48",
+                            "event": "dbt.compile.sourceFetchStart",
+                            "message": "dbt.compile.sourceFetchStart projectUuid=<id> sources=18 concurrency=4 cores=8 memoryDerivedLimit=none envOverride=4 diskAvailableBytes=3221225472 diskBudgetSource=env diskDerivedLimit=11 diskEvictions=0 diskRecreations=0"
+                        }
+                    ],
+                    "warnings": [
+                        {
+                            "index": 20,
+                            "timestamp": "2026-10-23 00:10:24",
+                            "event": "dbt.compile.crossSourceRefWarning",
+                            "message": "dbt.compile.crossSourceRefWarning Model \"consumer_one_arg\" in dbt source \"proj_growth\" uses ref('mart_merchant__merchants'), which resolved to external model model.proj_analyst.mart_merchant__merchants from another dbt source. Use ref('proj_analyst', 'mart_merchant__merchants') to make the cross-source reference explicit.",
+                            "warning": "Model \"consumer_one_arg\" in dbt source \"proj_growth\" uses ref('mart_merchant__merchants'), which resolved to external model model.proj_analyst.mart_merchant__merchants from another dbt source. Use ref('proj_analyst', 'mart_merchant__merchants') to make the cross-source reference explicit."
+                        }
+                    ],
+                    "errors": [],
+                    "terminal": [
+                        {
+                            "index": 26,
+                            "timestamp": "2026-10-23 00:10:25",
+                            "event": "dbt.compile.end.ok",
+                            "message": "compileProject completed in 36753.95ms projectUuid=<id> jobUuid=<id>"
+                        }
+                    ],
+                    "ordered": false
+                },
+                "exact_strings": {
+                    "warnings": [
+                        "Model \"consumer_one_arg\" in dbt source \"proj_growth\" uses ref('mart_merchant__merchants'), which resolved to external model model.proj_analyst.mart_merchant__merchants from another dbt source. Use ref('proj_analyst', 'mart_merchant__merchants') to make the cross-source reference explicit."
+                    ],
+                    "stale_errors": [],
+                    "cycle_errors": [],
+                    "required_trailing_text": "Refresh again; the next compile usually succeeds."
+                }
+            },
+            "compile_window": {
+                "correlated": true,
+                "warning_scope": "serial refresh log window; warning events do not carry a project or job ID"
+            },
+            "integration": {
+                "revision": "4fdf8527df6f7edc064e4494e37bc2068af3c7fe",
+                "tree": "e3201e56e3b5f0d61172fdc0e75e1b2bd980a656",
+                "base_sha": "66a39c038857c709a1d628dbd0c530c5f558ab35",
+                "pr_head_sha": "6e35424935013c5c2fc5ceb7174b4abca62a0014",
+                "includes_31313": true,
+                "method": "Local merge-tree and signed commit-tree; no branch update or push",
+                "conflict_resolution": "Keep both upstream function additions unchanged; call source skipping before cycle validation",
+                "resolved_source_sha256": "e11e9c9333e2623687a94a111b01a698a8b8babb789ee191f5b3b9c36cd816d9"
+            },
+            "dbt_toolchain": {
+                "executable": "<local-path>",
+                "versions": {
+                    "dbt-core": "1.12.0",
+                    "dbt-postgres": "1.10.2",
+                    "dbt-loom": null
+                },
+                "live_api_path_resolution": {
+                    "dbt1.12": "<local-path>",
+                    "dbt": "<local-path>"
+                },
+                "evidence": "live API process environment and selected venv package metadata",
+                "source_provenance": {
+                    "build": "integrated",
+                    "sha": "4fdf8527df6f7edc064e4494e37bc2068af3c7fe",
+                    "files": {
+                        "dockerfile": {
+                            "sha256": "f5a1d0f03147fe3aa35a245328f3db233820eda082d6e45cd015abd4457db2e4",
+                            "lines": [
+                                {
+                                    "line": 16,
+                                    "text": "FROM python:3.11-slim-trixie AS pnpm-base"
+                                },
+                                {
+                                    "line": 163,
+                                    "text": "    && python3 -m venv /usr/local/dbt1.12 \\"
+                                },
+                                {
+                                    "line": 164,
+                                    "text": "# dbt-databricks 1.12 requires dbt-core below 1.12.1."
+                                },
+                                {
+                                    "line": 165,
+                                    "text": "    && /usr/local/dbt1.12/bin/pip install \\"
+                                },
+                                {
+                                    "line": 166,
+                                    "text": "    \"dbt-core==1.12.0\" \\"
+                                },
+                                {
+                                    "line": 167,
+                                    "text": "    \"dbt-postgres~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 168,
+                                    "text": "    \"dbt-redshift~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 169,
+                                    "text": "    \"dbt-snowflake~=1.12.0\" \\"
+                                },
+                                {
+                                    "line": 170,
+                                    "text": "    \"dbt-bigquery~=1.12.0\" \\"
+                                },
+                                {
+                                    "line": 171,
+                                    "text": "    \"dbt-databricks~=1.12.3\" \\"
+                                },
+                                {
+                                    "line": 172,
+                                    "text": "    \"dbt-trino~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 173,
+                                    "text": "    \"dbt-clickhouse~=1.9.0\" \\"
+                                },
+                                {
+                                    "line": 174,
+                                    "text": "    \"dbt-athena~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 175,
+                                    "text": "    \"dbt-duckdb~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 176,
+                                    "text": "    && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12"
+                                }
+                            ],
+                            "contains_dbt_loom": false
+                        },
+                        "dockerfile-prs": {
+                            "sha256": "68cc02b31a495d41f90d7582207017b7768b70f31fa752af4cd3ff0f045f6d7b",
+                            "lines": [
+                                {
+                                    "line": 22,
+                                    "text": "FROM python:3.11-slim-trixie AS pnpm-base"
+                                },
+                                {
+                                    "line": 61,
+                                    "text": "# Okteto previews only execute the latest fully supported dbt version."
+                                },
+                                {
+                                    "line": 62,
+                                    "text": "RUN --mount=type=cache,target=<local-path> \\"
+                                },
+                                {
+                                    "line": 63,
+                                    "text": "    python3 -m venv /usr/local/dbt1.12 \\"
+                                },
+                                {
+                                    "line": 64,
+                                    "text": "    && /usr/local/dbt1.12/bin/pip install \\"
+                                },
+                                {
+                                    "line": 65,
+                                    "text": "    \"dbt-core==1.12.0\" \\"
+                                },
+                                {
+                                    "line": 66,
+                                    "text": "    \"dbt-postgres~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 67,
+                                    "text": "    \"dbt-snowflake~=1.12.0\" \\"
+                                },
+                                {
+                                    "line": 68,
+                                    "text": "    \"dbt-bigquery~=1.12.0\" \\"
+                                },
+                                {
+                                    "line": 69,
+                                    "text": "    \"dbt-databricks~=1.12.3\" \\"
+                                },
+                                {
+                                    "line": 70,
+                                    "text": "    \"dbt-trino~=1.10.0\""
+                                }
+                            ],
+                            "contains_dbt_loom": false
+                        },
+                        "scripts/dbt-versions.json": {
+                            "sha256": "1859b27e9cea8613b6e0fb08d5c36a6610cd67c271a4c19098067d21b986adae",
+                            "lines": [],
+                            "contains_dbt_loom": false
+                        }
+                    },
+                    "integration": {
+                        "revision": "4fdf8527df6f7edc064e4494e37bc2068af3c7fe",
+                        "tree": "e3201e56e3b5f0d61172fdc0e75e1b2bd980a656",
+                        "base_sha": "66a39c038857c709a1d628dbd0c530c5f558ab35",
+                        "pr_head_sha": "6e35424935013c5c2fc5ceb7174b4abca62a0014",
+                        "includes_31313": true,
+                        "method": "Local merge-tree and signed commit-tree; no branch update or push",
+                        "conflict_resolution": "Keep both upstream function additions unchanged; call source skipping before cycle validation",
+                        "resolved_source_sha256": "e11e9c9333e2623687a94a111b01a698a8b8babb789ee191f5b3b9c36cd816d9"
+                    },
+                    "production_requirements": [
+                        "dbt-core==1.12.0",
+                        "dbt-postgres~=1.10.0",
+                        "dbt-redshift~=1.10.0",
+                        "dbt-snowflake~=1.12.0",
+                        "dbt-bigquery~=1.12.0",
+                        "dbt-databricks~=1.12.3",
+                        "dbt-trino~=1.10.0",
+                        "dbt-clickhouse~=1.9.0",
+                        "dbt-athena~=1.10.0",
+                        "dbt-duckdb~=1.10.0"
+                    ],
+                    "preview_requirements": [
+                        "dbt-core==1.12.0",
+                        "dbt-postgres~=1.10.0",
+                        "dbt-snowflake~=1.12.0",
+                        "dbt-bigquery~=1.12.0",
+                        "dbt-databricks~=1.12.3",
+                        "dbt-trino~=1.10.0"
+                    ],
+                    "loom": {
+                        "installed_by_recipe": false,
+                        "version": null
+                    },
+                    "limitations": [
+                        "Adapter patch versions and transitive dependencies are ranges, not exact locks; historical image resolutions cannot be established from Git alone.",
+                        "Python image specifies 3.11 without an exact patch digest."
+                    ],
+                    "selected_recipe": "production dockerfile dbt1.12 venv stanza",
+                    "runtime": {
+                        "python": "3.11.16",
+                        "executable": "<local-path>",
+                        "freeze_sha256": "b0712b4019a908f4a4b4a6f0842dc2c11de7215ab32d6533c07591f7ccd3f6ab",
+                        "dbt_loom": null
+                    },
+                    "publication_toolchain": {
+                        "dbt-core": "1.12.3",
+                        "dbt-postgres": "1.10.0",
+                        "dbt-loom": "0.9.6",
+                        "role": "fixture publication and consumer control parses only"
+                    }
+                },
+                "publication_executable": "<local-path>"
+            },
+            "started_at": "2026-10-23T00:09:48.550Z",
+            "finished_at": "2026-10-23T00:10:25.323Z",
+            "refresh_success": true,
+            "actor_is_service_account": true,
+            "errors": [],
+            "connection_warnings": [
+                "Model \"consumer_one_arg\" in dbt source \"proj_growth\" uses ref('mart_merchant__merchants'), which resolved to external model model.proj_analyst.mart_merchant__merchants from another dbt source. Use ref('proj_analyst', 'mart_merchant__merchants') to make the cross-source reference explicit.",
+                "Model \"mart_merchant__merchants\" (model.proj_bank.mart_merchant__merchants) is assigned explore name \"dbt_project__mart_merchant__merchants\". The plain name \"mart_merchant__merchants\" is reserved because of an unresolved collision. Qualified explore names: \"dbt_project__mart_merchant__merchants\", \"proj_analyst__mart_merchant__merchants\".",
+                "Model \"mart_merchant__merchants\" (model.proj_analyst.mart_merchant__merchants) is assigned explore name \"proj_analyst__mart_merchant__merchants\". The plain name \"mart_merchant__merchants\" is reserved because of an unresolved collision. Qualified explore names: \"dbt_project__mart_merchant__merchants\", \"proj_analyst__mart_merchant__merchants\"."
+            ],
+            "git_discovery_requests": 37,
+            "elapsed_ms": 37942,
+            "scenario": {
+                "name": "prod-shaped independent probe",
+                "variant": "prod-mixed",
+                "edgeDirection": "consumer_depends_on_provider",
+                "cycle": null,
+                "proposedCycle": {
+                    "closedPath": [
+                        "proj_bank.mart_bank_summary",
+                        "proj_bank.int_bank_accounts",
+                        "proj_bank.stg_bank_accounts",
+                        "proj_payments.transactions",
+                        "proj_payments.int_payment_events",
+                        "proj_payments.stg_payment_events",
+                        "proj_payments.mart_payment_accounts",
+                        "proj_analyst.segment_cohort",
+                        "proj_analyst.segment_activity",
+                        "proj_analyst.segment_value",
+                        "proj_analyst.int_segment_members",
+                        "proj_analyst.stg_segment_members",
+                        "proj_analyst.mart_segment_accounts",
+                        "proj_analyst.reporting_bank",
+                        "proj_bank.mart_bank_summary"
+                    ],
+                    "closedUniqueIds": [
+                        "model.proj_bank.mart_bank_summary",
+                        "model.proj_bank.int_bank_accounts",
+                        "model.proj_bank.stg_bank_accounts",
+                        "model.proj_payments.transactions.v3",
+                        "model.proj_payments.int_payment_events",
+                        "model.proj_payments.stg_payment_events",
+                        "model.proj_payments.mart_payment_accounts",
+                        "model.proj_analyst.segment_cohort.v3",
+                        "model.proj_analyst.segment_activity.v3",
+                        "model.proj_analyst.segment_value.v3",
+                        "model.proj_analyst.int_segment_members",
+                        "model.proj_analyst.stg_segment_members",
+                        "model.proj_analyst.mart_segment_accounts",
+                        "model.proj_analyst.reporting_bank",
+                        "model.proj_bank.mart_bank_summary"
+                    ],
+                    "modelCount": 14,
+                    "edgeCount": 14,
+                    "projectCount": 3,
+                    "sourceRing": [
+                        "proj_bank",
+                        "proj_payments",
+                        "proj_analyst",
+                        "proj_bank"
+                    ],
+                    "edges": [
+                        {
+                            "from": "proj_bank.mart_bank_summary",
+                            "to": "proj_bank.int_bank_accounts",
+                            "fromUniqueId": "model.proj_bank.mart_bank_summary",
+                            "toUniqueId": "model.proj_bank.int_bank_accounts",
+                            "ref": ["int_bank_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_bank.int_bank_accounts",
+                            "to": "proj_bank.stg_bank_accounts",
+                            "fromUniqueId": "model.proj_bank.int_bank_accounts",
+                            "toUniqueId": "model.proj_bank.stg_bank_accounts",
+                            "ref": ["stg_bank_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_bank.stg_bank_accounts",
+                            "to": "proj_payments.transactions",
+                            "fromUniqueId": "model.proj_bank.stg_bank_accounts",
+                            "toUniqueId": "model.proj_payments.transactions.v3",
+                            "ref": ["proj_payments", "transactions"],
+                            "refArgumentCount": 2,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_payments.transactions",
+                            "to": "proj_payments.int_payment_events",
+                            "fromUniqueId": "model.proj_payments.transactions.v3",
+                            "toUniqueId": "model.proj_payments.int_payment_events",
+                            "ref": ["int_payment_events"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.int_payment_events",
+                            "to": "proj_payments.stg_payment_events",
+                            "fromUniqueId": "model.proj_payments.int_payment_events",
+                            "toUniqueId": "model.proj_payments.stg_payment_events",
+                            "ref": ["stg_payment_events"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.stg_payment_events",
+                            "to": "proj_payments.mart_payment_accounts",
+                            "fromUniqueId": "model.proj_payments.stg_payment_events",
+                            "toUniqueId": "model.proj_payments.mart_payment_accounts",
+                            "ref": ["mart_payment_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.mart_payment_accounts",
+                            "to": "proj_analyst.segment_cohort",
+                            "fromUniqueId": "model.proj_payments.mart_payment_accounts",
+                            "toUniqueId": "model.proj_analyst.segment_cohort.v3",
+                            "ref": ["proj_analyst", "segment_cohort"],
+                            "refArgumentCount": 2,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_cohort",
+                            "to": "proj_analyst.segment_activity",
+                            "fromUniqueId": "model.proj_analyst.segment_cohort.v3",
+                            "toUniqueId": "model.proj_analyst.segment_activity.v3",
+                            "ref": ["segment_activity"],
+                            "refArgumentCount": 1,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_activity",
+                            "to": "proj_analyst.segment_value",
+                            "fromUniqueId": "model.proj_analyst.segment_activity.v3",
+                            "toUniqueId": "model.proj_analyst.segment_value.v3",
+                            "ref": ["segment_value"],
+                            "refArgumentCount": 1,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_value",
+                            "to": "proj_analyst.int_segment_members",
+                            "fromUniqueId": "model.proj_analyst.segment_value.v3",
+                            "toUniqueId": "model.proj_analyst.int_segment_members",
+                            "ref": ["int_segment_members"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.int_segment_members",
+                            "to": "proj_analyst.stg_segment_members",
+                            "fromUniqueId": "model.proj_analyst.int_segment_members",
+                            "toUniqueId": "model.proj_analyst.stg_segment_members",
+                            "ref": ["stg_segment_members"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.stg_segment_members",
+                            "to": "proj_analyst.mart_segment_accounts",
+                            "fromUniqueId": "model.proj_analyst.stg_segment_members",
+                            "toUniqueId": "model.proj_analyst.mart_segment_accounts",
+                            "ref": ["mart_segment_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.mart_segment_accounts",
+                            "to": "proj_analyst.reporting_bank",
+                            "fromUniqueId": "model.proj_analyst.mart_segment_accounts",
+                            "toUniqueId": "model.proj_analyst.reporting_bank",
+                            "ref": ["reporting_bank"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.reporting_bank",
+                            "to": "proj_bank.mart_bank_summary",
+                            "fromUniqueId": "model.proj_analyst.reporting_bank",
+                            "toUniqueId": "model.proj_bank.mart_bank_summary",
+                            "ref": ["proj_bank", "mart_bank_summary"],
+                            "refArgumentCount": 2,
+                            "version": null
+                        }
+                    ],
+                    "evidence": "Invented generic closed loop; not an original customer graph"
+                },
+                "versionedModels": [
+                    "model.proj_payments.transactions.v3",
+                    "model.proj_analyst.segment_cohort.v3",
+                    "model.proj_analyst.segment_activity.v3",
+                    "model.proj_analyst.segment_value.v3"
+                ],
+                "unversionedDecoys": [
+                    "model.proj_bank.decoy_v3",
+                    "model.proj_analyst.decoy_v2"
+                ],
+                "refs": [
+                    {
+                        "model": "proj_growth.consumer_one_arg",
+                        "ref": ["mart_merchant__merchants"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "mart_merchant__merchants",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_growth.consumer_explicit",
+                        "ref": ["proj_analyst", "mart_merchant__merchants"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "mart_merchant__merchants",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_growth.consumer_primary",
+                        "ref": ["proj_bank", "model_other"],
+                        "version": null,
+                        "providerProject": "proj_bank",
+                        "providerModel": "model_other",
+                        "refArgumentCount": 2
+                    }
+                ],
+                "consumerRefs": [
+                    {
+                        "model": "proj_growth.consumer_one_arg",
+                        "ref": ["mart_merchant__merchants"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "mart_merchant__merchants",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_growth.consumer_explicit",
+                        "ref": ["proj_analyst", "mart_merchant__merchants"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "mart_merchant__merchants",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_growth.consumer_primary",
+                        "ref": ["proj_bank", "model_other"],
+                        "version": null,
+                        "providerProject": "proj_bank",
+                        "providerModel": "model_other",
+                        "refArgumentCount": 2
+                    }
+                ],
+                "duplicatedModel": {
+                    "name": "mart_merchant__merchants",
+                    "primaryProvider": "proj_bank",
+                    "explicitProvider": "proj_analyst",
+                    "consumer": "proj_growth"
+                }
+            },
+            "publication": {
+                "elapsed_ms": 60998,
+                "exit_code": 0,
+                "full": false,
+                "projects_total": 19,
+                "projects_built": 0,
+                "bootstrap_signature": "4933a7d380d059a5fe2ce1b45ac003e9ab1a91c60bdcb95fb78822ba589df97e",
+                "parsed_manifest_validation": {
+                    "model_count": 41,
+                    "versioned_ids": [
+                        "model.proj_analyst.segment_activity.v3",
+                        "model.proj_analyst.segment_cohort.v3",
+                        "model.proj_analyst.segment_value.v3",
+                        "model.proj_payments.transactions.v3"
+                    ],
+                    "decoy_ids": [
+                        "model.proj_analyst.decoy_v2",
+                        "model.proj_bank.decoy_v3"
+                    ],
+                    "method": "actual dbt bootstrap manifest nodes"
+                },
+                "filtered_import": [
+                    {
+                        "consumer": "proj_growth",
+                        "provider": "proj_bank",
+                        "excluded_nodes": [
+                            "model.proj_bank.mart_merchant__merchants"
+                        ]
+                    }
+                ]
+            },
+            "dbt_diagnostics": [],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "proj_payments": 0,
+                    "proj_analyst": 0,
+                    "proj_growth": 0,
+                    "proj_a": 0,
+                    "proj_b": 0,
+                    "proj_c": 0,
+                    "proj_d": 0,
+                    "proj_e": 0,
+                    "proj_f": 0,
+                    "proj_g": 0,
+                    "proj_h": 0,
+                    "proj_i": 0,
+                    "proj_j": 0,
+                    "proj_k": 0,
+                    "proj_l": 0,
+                    "proj_m": 0,
+                    "proj_n": 0,
+                    "proj_o": 0
+                },
+                "total_explores": 0,
+                "explore_errors": [],
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {},
+                "defaults": null,
+                "connection_mode": "single"
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 7,
+                    "proj_payments": 5,
+                    "proj_analyst": 10,
+                    "proj_growth": 4,
+                    "proj_a": 1,
+                    "proj_b": 1,
+                    "proj_c": 1,
+                    "proj_d": 1,
+                    "proj_e": 1,
+                    "proj_f": 1,
+                    "proj_g": 1,
+                    "proj_h": 1,
+                    "proj_i": 1,
+                    "proj_j": 1,
+                    "proj_k": 1,
+                    "proj_l": 1,
+                    "proj_m": 1,
+                    "proj_n": 1,
+                    "proj_o": 1
+                },
+                "total_explores": 41,
+                "explore_errors": [],
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {},
+                "defaults": null,
+                "connection_mode": "single"
+            }
+        },
+        {
+            "build": "integrated",
+            "sha": "4fdf8527df6f7edc064e4494e37bc2068af3c7fe",
+            "flag": "on",
+            "runtime_flags": {
+                "multi-dbt-sources": {
+                    "enabled": true,
+                    "evidence": "api"
+                },
+                "cross-source-dbt-refs": {
+                    "enabled": true,
+                    "evidence": "api"
+                }
+            },
+            "variant": "prod-ambiguous-version",
+            "source_count": 19,
+            "counter_evidence": {
+                "method": "inspector",
+                "point": "sourceFetchComplete",
+                "agrees_with_product_log": true
+            },
+            "cycle_error": false,
+            "stale_retry_error": false,
+            "cross_source_warning": false,
+            "disk_evictions": 32,
+            "disk_refetches": 18,
+            "fetch_concurrency": 4,
+            "disk_derived_limit": 11,
+            "disk_budget_bytes": 3221225472,
+            "disk_budget_source": "env",
+            "messages": [
+                "Model \"mart_merchant__merchants\" (model.proj_bank.mart_merchant__merchants) is assigned explore name \"dbt_project__mart_merchant__merchants\". The plain name \"mart_merchant__merchants\" is reserved because of an unresolved collision. Qualified explore names: \"dbt_project__mart_merchant__merchants\", \"proj_analyst__mart_merchant__merchants\".",
+                "Model \"mart_merchant__merchants\" (model.proj_analyst.mart_merchant__merchants) is assigned explore name \"proj_analyst__mart_merchant__merchants\". The plain name \"mart_merchant__merchants\" is reserved because of an unresolved collision. Qualified explore names: \"dbt_project__mart_merchant__merchants\", \"proj_analyst__mart_merchant__merchants\"."
+            ],
+            "assertions": {
+                "expectation_basis": "Fresh latest_version=2 selects an acyclic leaf; success is expected on all four builds; the regression hypothesis is unverified",
+                "expected": {
+                    "refresh_success": true,
+                    "cycle_error": false,
+                    "stale_retry_error": false,
+                    "final_binding": "model.proj_payments.transactions.v2"
+                },
+                "observed": {
+                    "refresh_success": true,
+                    "cycle_error": false,
+                    "stale_retry_error": false,
+                    "final_binding": "model.proj_payments.transactions.v2"
+                },
+                "checks": {
+                    "refresh_success": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "cycle_error": {
+                        "expected": false,
+                        "observed": false,
+                        "pass": true
+                    },
+                    "stale_retry_error": {
+                        "expected": false,
+                        "observed": false,
+                        "pass": true
+                    },
+                    "final_binding": {
+                        "expected": "model.proj_payments.transactions.v2",
+                        "observed": "model.proj_payments.transactions.v2",
+                        "pass": true
+                    },
+                    "service_account_actor": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "actual_flag_on": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "inspector": {
+                        "expected": "inspector",
+                        "observed": "inspector",
+                        "pass": true
+                    },
+                    "counter_agreement": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "source_count": {
+                        "expected": 19,
+                        "observed": 19,
+                        "pass": true
+                    },
+                    "old_latest": {
+                        "expected": 3,
+                        "observed": 3,
+                        "pass": true
+                    },
+                    "fresh_latest": {
+                        "expected": 2,
+                        "observed": 2,
+                        "pass": true
+                    },
+                    "initial_binding": {
+                        "expected": ["model.proj_payments.transactions.v3"],
+                        "observed": ["model.proj_payments.transactions.v3"],
+                        "pass": true
+                    },
+                    "fresh_control_binding": {
+                        "expected": ["model.proj_payments.transactions.v2"],
+                        "observed": ["model.proj_payments.transactions.v2"],
+                        "pass": true
+                    },
+                    "fresh_graph_acyclic": {
+                        "expected": true,
+                        "observed": true,
+                        "pass": true
+                    },
+                    "fresh_graph_model_count": {
+                        "expected": 42,
+                        "observed": 42,
+                        "pass": true
+                    }
+                },
+                "pass": true,
+                "warning_present": false,
+                "error_present": false,
+                "sequence": [
+                    {
+                        "index": 26,
+                        "timestamp": "2026-10-23 00:13:58",
+                        "event": "dbt.compile.end.ok",
+                        "message": "compileProject completed in 41139.58ms projectUuid=<id> jobUuid=<id>"
+                    }
+                ]
+            },
+            "server_binding": {
+                "available": true,
+                "consumer": "model.proj_bank.stg_bank_accounts",
+                "refs": [],
+                "dependencies": ["model.proj_payments.transactions.v2"],
+                "created_at": "2026-10-23T00:13:58.463441+00:00",
+                "evidence_source": "persisted merged manifest from this refresh",
+                "sha256": "3326c2c8194ec34dba7dedbf9c389cb04b37dee68efb9a9a39501ca006f5436a",
+                "path": "<local-path>",
+                "graph": {
+                    "modelCount": 42,
+                    "acyclic": true,
+                    "cycle": null,
+                    "edges": {
+                        "model.proj_bank.int_bank_accounts": [
+                            "model.proj_bank.stg_bank_accounts"
+                        ],
+                        "model.proj_bank.model_other": [],
+                        "model.proj_bank.mart_merchant__merchants": [],
+                        "model.proj_bank.mart_bank_summary": [
+                            "model.proj_bank.int_bank_accounts"
+                        ],
+                        "model.proj_bank.decoy_v3": [],
+                        "model.proj_bank.stg_bank_accounts": [
+                            "model.proj_payments.transactions.v2"
+                        ],
+                        "model.proj_bank.proj_bank_base": [],
+                        "model.proj_payments.stg_payment_events": [
+                            "model.proj_payments.mart_payment_accounts"
+                        ],
+                        "model.proj_payments.proj_payments_base": [],
+                        "model.proj_payments.int_payment_events": [
+                            "model.proj_payments.stg_payment_events"
+                        ],
+                        "model.proj_payments.mart_payment_accounts": [
+                            "model.proj_analyst.segment_cohort.v3"
+                        ],
+                        "model.proj_payments.transactions.v2": [],
+                        "model.proj_payments.transactions.v3": [
+                            "model.proj_payments.int_payment_events"
+                        ],
+                        "model.proj_analyst.mart_segment_accounts": [
+                            "model.proj_analyst.reporting_bank"
+                        ],
+                        "model.proj_analyst.int_segment_members": [
+                            "model.proj_analyst.stg_segment_members"
+                        ],
+                        "model.proj_analyst.stg_segment_members": [
+                            "model.proj_analyst.mart_segment_accounts"
+                        ],
+                        "model.proj_analyst.mart_merchant__merchants": [],
+                        "model.proj_analyst.proj_analyst_base": [],
+                        "model.proj_analyst.decoy_v2": [],
+                        "model.proj_analyst.reporting_bank": [
+                            "model.proj_bank.mart_bank_summary"
+                        ],
+                        "model.proj_analyst.segment_cohort.v3": [
+                            "model.proj_analyst.segment_activity.v3"
+                        ],
+                        "model.proj_analyst.segment_activity.v3": [
+                            "model.proj_analyst.segment_value.v3"
+                        ],
+                        "model.proj_analyst.segment_value.v3": [
+                            "model.proj_analyst.int_segment_members"
+                        ],
+                        "model.proj_growth.consumer_explicit": [
+                            "model.proj_analyst.mart_merchant__merchants"
+                        ],
+                        "model.proj_growth.consumer_one_arg": [
+                            "model.proj_analyst.mart_merchant__merchants"
+                        ],
+                        "model.proj_growth.consumer_primary": [
+                            "model.proj_bank.model_other"
+                        ],
+                        "model.proj_growth.proj_growth_base": [],
+                        "model.proj_a.proj_a_base": [],
+                        "model.proj_b.proj_b_base": [],
+                        "model.proj_c.proj_c_base": [],
+                        "model.proj_d.proj_d_base": [],
+                        "model.proj_e.proj_e_base": [],
+                        "model.proj_f.proj_f_base": [],
+                        "model.proj_g.proj_g_base": [],
+                        "model.proj_h.proj_h_base": [],
+                        "model.proj_i.proj_i_base": [],
+                        "model.proj_j.proj_j_base": [],
+                        "model.proj_k.proj_k_base": [],
+                        "model.proj_l.proj_l_base": [],
+                        "model.proj_m.proj_m_base": [],
+                        "model.proj_n.proj_n_base": [],
+                        "model.proj_o.proj_o_base": []
+                    }
+                }
+            },
+            "integration": {
+                "revision": "4fdf8527df6f7edc064e4494e37bc2068af3c7fe",
+                "tree": "e3201e56e3b5f0d61172fdc0e75e1b2bd980a656",
+                "base_sha": "66a39c038857c709a1d628dbd0c530c5f558ab35",
+                "pr_head_sha": "6e35424935013c5c2fc5ceb7174b4abca62a0014",
+                "includes_31313": true,
+                "method": "Local merge-tree and signed commit-tree; no branch update or push",
+                "conflict_resolution": "Keep both upstream function additions unchanged; call source skipping before cycle validation",
+                "resolved_source_sha256": "e11e9c9333e2623687a94a111b01a698a8b8babb789ee191f5b3b9c36cd816d9"
+            },
+            "dbt_toolchain": {
+                "executable": "<local-path>",
+                "versions": {
+                    "dbt-core": "1.12.0",
+                    "dbt-postgres": "1.10.2",
+                    "dbt-loom": null
+                },
+                "live_api_path_resolution": {
+                    "dbt1.12": "<local-path>",
+                    "dbt": "<local-path>"
+                },
+                "evidence": "live API process environment and selected venv package metadata",
+                "source_provenance": {
+                    "build": "integrated",
+                    "sha": "4fdf8527df6f7edc064e4494e37bc2068af3c7fe",
+                    "files": {
+                        "dockerfile": {
+                            "sha256": "f5a1d0f03147fe3aa35a245328f3db233820eda082d6e45cd015abd4457db2e4",
+                            "lines": [
+                                {
+                                    "line": 16,
+                                    "text": "FROM python:3.11-slim-trixie AS pnpm-base"
+                                },
+                                {
+                                    "line": 163,
+                                    "text": "    && python3 -m venv /usr/local/dbt1.12 \\"
+                                },
+                                {
+                                    "line": 164,
+                                    "text": "# dbt-databricks 1.12 requires dbt-core below 1.12.1."
+                                },
+                                {
+                                    "line": 165,
+                                    "text": "    && /usr/local/dbt1.12/bin/pip install \\"
+                                },
+                                {
+                                    "line": 166,
+                                    "text": "    \"dbt-core==1.12.0\" \\"
+                                },
+                                {
+                                    "line": 167,
+                                    "text": "    \"dbt-postgres~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 168,
+                                    "text": "    \"dbt-redshift~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 169,
+                                    "text": "    \"dbt-snowflake~=1.12.0\" \\"
+                                },
+                                {
+                                    "line": 170,
+                                    "text": "    \"dbt-bigquery~=1.12.0\" \\"
+                                },
+                                {
+                                    "line": 171,
+                                    "text": "    \"dbt-databricks~=1.12.3\" \\"
+                                },
+                                {
+                                    "line": 172,
+                                    "text": "    \"dbt-trino~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 173,
+                                    "text": "    \"dbt-clickhouse~=1.9.0\" \\"
+                                },
+                                {
+                                    "line": 174,
+                                    "text": "    \"dbt-athena~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 175,
+                                    "text": "    \"dbt-duckdb~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 176,
+                                    "text": "    && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12"
+                                }
+                            ],
+                            "contains_dbt_loom": false
+                        },
+                        "dockerfile-prs": {
+                            "sha256": "68cc02b31a495d41f90d7582207017b7768b70f31fa752af4cd3ff0f045f6d7b",
+                            "lines": [
+                                {
+                                    "line": 22,
+                                    "text": "FROM python:3.11-slim-trixie AS pnpm-base"
+                                },
+                                {
+                                    "line": 61,
+                                    "text": "# Okteto previews only execute the latest fully supported dbt version."
+                                },
+                                {
+                                    "line": 62,
+                                    "text": "RUN --mount=type=cache,target=<local-path> \\"
+                                },
+                                {
+                                    "line": 63,
+                                    "text": "    python3 -m venv /usr/local/dbt1.12 \\"
+                                },
+                                {
+                                    "line": 64,
+                                    "text": "    && /usr/local/dbt1.12/bin/pip install \\"
+                                },
+                                {
+                                    "line": 65,
+                                    "text": "    \"dbt-core==1.12.0\" \\"
+                                },
+                                {
+                                    "line": 66,
+                                    "text": "    \"dbt-postgres~=1.10.0\" \\"
+                                },
+                                {
+                                    "line": 67,
+                                    "text": "    \"dbt-snowflake~=1.12.0\" \\"
+                                },
+                                {
+                                    "line": 68,
+                                    "text": "    \"dbt-bigquery~=1.12.0\" \\"
+                                },
+                                {
+                                    "line": 69,
+                                    "text": "    \"dbt-databricks~=1.12.3\" \\"
+                                },
+                                {
+                                    "line": 70,
+                                    "text": "    \"dbt-trino~=1.10.0\""
+                                }
+                            ],
+                            "contains_dbt_loom": false
+                        },
+                        "scripts/dbt-versions.json": {
+                            "sha256": "1859b27e9cea8613b6e0fb08d5c36a6610cd67c271a4c19098067d21b986adae",
+                            "lines": [],
+                            "contains_dbt_loom": false
+                        }
+                    },
+                    "integration": {
+                        "revision": "4fdf8527df6f7edc064e4494e37bc2068af3c7fe",
+                        "tree": "e3201e56e3b5f0d61172fdc0e75e1b2bd980a656",
+                        "base_sha": "66a39c038857c709a1d628dbd0c530c5f558ab35",
+                        "pr_head_sha": "6e35424935013c5c2fc5ceb7174b4abca62a0014",
+                        "includes_31313": true,
+                        "method": "Local merge-tree and signed commit-tree; no branch update or push",
+                        "conflict_resolution": "Keep both upstream function additions unchanged; call source skipping before cycle validation",
+                        "resolved_source_sha256": "e11e9c9333e2623687a94a111b01a698a8b8babb789ee191f5b3b9c36cd816d9"
+                    },
+                    "production_requirements": [
+                        "dbt-core==1.12.0",
+                        "dbt-postgres~=1.10.0",
+                        "dbt-redshift~=1.10.0",
+                        "dbt-snowflake~=1.12.0",
+                        "dbt-bigquery~=1.12.0",
+                        "dbt-databricks~=1.12.3",
+                        "dbt-trino~=1.10.0",
+                        "dbt-clickhouse~=1.9.0",
+                        "dbt-athena~=1.10.0",
+                        "dbt-duckdb~=1.10.0"
+                    ],
+                    "preview_requirements": [
+                        "dbt-core==1.12.0",
+                        "dbt-postgres~=1.10.0",
+                        "dbt-snowflake~=1.12.0",
+                        "dbt-bigquery~=1.12.0",
+                        "dbt-databricks~=1.12.3",
+                        "dbt-trino~=1.10.0"
+                    ],
+                    "loom": {
+                        "installed_by_recipe": false,
+                        "version": null
+                    },
+                    "limitations": [
+                        "Adapter patch versions and transitive dependencies are ranges, not exact locks; historical image resolutions cannot be established from Git alone.",
+                        "Python image specifies 3.11 without an exact patch digest."
+                    ],
+                    "selected_recipe": "production dockerfile dbt1.12 venv stanza",
+                    "runtime": {
+                        "python": "3.11.16",
+                        "executable": "<local-path>",
+                        "freeze_sha256": "b0712b4019a908f4a4b4a6f0842dc2c11de7215ab32d6533c07591f7ccd3f6ab",
+                        "dbt_loom": null
+                    },
+                    "publication_toolchain": {
+                        "dbt-core": "1.12.3",
+                        "dbt-postgres": "1.10.0",
+                        "dbt-loom": "0.9.6",
+                        "role": "fixture publication and consumer control parses only"
+                    }
+                },
+                "publication_executable": "<local-path>"
+            },
+            "started_at": "2026-10-23T00:13:17.391Z",
+            "finished_at": "2026-10-23T00:13:58.540Z",
+            "refresh_success": true,
+            "actor_is_service_account": true,
+            "errors": [],
+            "connection_warnings": [
+                "Model \"mart_merchant__merchants\" (model.proj_bank.mart_merchant__merchants) is assigned explore name \"dbt_project__mart_merchant__merchants\". The plain name \"mart_merchant__merchants\" is reserved because of an unresolved collision. Qualified explore names: \"dbt_project__mart_merchant__merchants\", \"proj_analyst__mart_merchant__merchants\".",
+                "Model \"mart_merchant__merchants\" (model.proj_analyst.mart_merchant__merchants) is assigned explore name \"proj_analyst__mart_merchant__merchants\". The plain name \"mart_merchant__merchants\" is reserved because of an unresolved collision. Qualified explore names: \"dbt_project__mart_merchant__merchants\", \"proj_analyst__mart_merchant__merchants\"."
+            ],
+            "git_discovery_requests": 37,
+            "elapsed_ms": 42033,
+            "scenario": {
+                "name": "ambiguous version publication probe",
+                "variant": "prod-ambiguous-version",
+                "edgeDirection": "consumer_depends_on_provider",
+                "cycle": null,
+                "proposedCycle": {
+                    "closedPath": [
+                        "proj_bank.mart_bank_summary",
+                        "proj_bank.int_bank_accounts",
+                        "proj_bank.stg_bank_accounts",
+                        "proj_payments.transactions",
+                        "proj_payments.int_payment_events",
+                        "proj_payments.stg_payment_events",
+                        "proj_payments.mart_payment_accounts",
+                        "proj_analyst.segment_cohort",
+                        "proj_analyst.segment_activity",
+                        "proj_analyst.segment_value",
+                        "proj_analyst.int_segment_members",
+                        "proj_analyst.stg_segment_members",
+                        "proj_analyst.mart_segment_accounts",
+                        "proj_analyst.reporting_bank",
+                        "proj_bank.mart_bank_summary"
+                    ],
+                    "closedUniqueIds": [
+                        "model.proj_bank.mart_bank_summary",
+                        "model.proj_bank.int_bank_accounts",
+                        "model.proj_bank.stg_bank_accounts",
+                        "model.proj_payments.transactions.v3",
+                        "model.proj_payments.int_payment_events",
+                        "model.proj_payments.stg_payment_events",
+                        "model.proj_payments.mart_payment_accounts",
+                        "model.proj_analyst.segment_cohort.v3",
+                        "model.proj_analyst.segment_activity.v3",
+                        "model.proj_analyst.segment_value.v3",
+                        "model.proj_analyst.int_segment_members",
+                        "model.proj_analyst.stg_segment_members",
+                        "model.proj_analyst.mart_segment_accounts",
+                        "model.proj_analyst.reporting_bank",
+                        "model.proj_bank.mart_bank_summary"
+                    ],
+                    "modelCount": 14,
+                    "edgeCount": 14,
+                    "projectCount": 3,
+                    "sourceRing": [
+                        "proj_bank",
+                        "proj_payments",
+                        "proj_analyst",
+                        "proj_bank"
+                    ],
+                    "edges": [
+                        {
+                            "from": "proj_bank.mart_bank_summary",
+                            "to": "proj_bank.int_bank_accounts",
+                            "fromUniqueId": "model.proj_bank.mart_bank_summary",
+                            "toUniqueId": "model.proj_bank.int_bank_accounts",
+                            "ref": ["int_bank_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_bank.int_bank_accounts",
+                            "to": "proj_bank.stg_bank_accounts",
+                            "fromUniqueId": "model.proj_bank.int_bank_accounts",
+                            "toUniqueId": "model.proj_bank.stg_bank_accounts",
+                            "ref": ["stg_bank_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_bank.stg_bank_accounts",
+                            "to": "proj_payments.transactions",
+                            "fromUniqueId": "model.proj_bank.stg_bank_accounts",
+                            "toUniqueId": "model.proj_payments.transactions.v3",
+                            "ref": ["proj_payments", "transactions"],
+                            "refArgumentCount": 2,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_payments.transactions",
+                            "to": "proj_payments.int_payment_events",
+                            "fromUniqueId": "model.proj_payments.transactions.v3",
+                            "toUniqueId": "model.proj_payments.int_payment_events",
+                            "ref": ["int_payment_events"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.int_payment_events",
+                            "to": "proj_payments.stg_payment_events",
+                            "fromUniqueId": "model.proj_payments.int_payment_events",
+                            "toUniqueId": "model.proj_payments.stg_payment_events",
+                            "ref": ["stg_payment_events"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.stg_payment_events",
+                            "to": "proj_payments.mart_payment_accounts",
+                            "fromUniqueId": "model.proj_payments.stg_payment_events",
+                            "toUniqueId": "model.proj_payments.mart_payment_accounts",
+                            "ref": ["mart_payment_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.mart_payment_accounts",
+                            "to": "proj_analyst.segment_cohort",
+                            "fromUniqueId": "model.proj_payments.mart_payment_accounts",
+                            "toUniqueId": "model.proj_analyst.segment_cohort.v3",
+                            "ref": ["proj_analyst", "segment_cohort"],
+                            "refArgumentCount": 2,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_cohort",
+                            "to": "proj_analyst.segment_activity",
+                            "fromUniqueId": "model.proj_analyst.segment_cohort.v3",
+                            "toUniqueId": "model.proj_analyst.segment_activity.v3",
+                            "ref": ["segment_activity"],
+                            "refArgumentCount": 1,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_activity",
+                            "to": "proj_analyst.segment_value",
+                            "fromUniqueId": "model.proj_analyst.segment_activity.v3",
+                            "toUniqueId": "model.proj_analyst.segment_value.v3",
+                            "ref": ["segment_value"],
+                            "refArgumentCount": 1,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_value",
+                            "to": "proj_analyst.int_segment_members",
+                            "fromUniqueId": "model.proj_analyst.segment_value.v3",
+                            "toUniqueId": "model.proj_analyst.int_segment_members",
+                            "ref": ["int_segment_members"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.int_segment_members",
+                            "to": "proj_analyst.stg_segment_members",
+                            "fromUniqueId": "model.proj_analyst.int_segment_members",
+                            "toUniqueId": "model.proj_analyst.stg_segment_members",
+                            "ref": ["stg_segment_members"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.stg_segment_members",
+                            "to": "proj_analyst.mart_segment_accounts",
+                            "fromUniqueId": "model.proj_analyst.stg_segment_members",
+                            "toUniqueId": "model.proj_analyst.mart_segment_accounts",
+                            "ref": ["mart_segment_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.mart_segment_accounts",
+                            "to": "proj_analyst.reporting_bank",
+                            "fromUniqueId": "model.proj_analyst.mart_segment_accounts",
+                            "toUniqueId": "model.proj_analyst.reporting_bank",
+                            "ref": ["reporting_bank"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.reporting_bank",
+                            "to": "proj_bank.mart_bank_summary",
+                            "fromUniqueId": "model.proj_analyst.reporting_bank",
+                            "toUniqueId": "model.proj_bank.mart_bank_summary",
+                            "ref": ["proj_bank", "mart_bank_summary"],
+                            "refArgumentCount": 2,
+                            "version": null
+                        }
+                    ],
+                    "evidence": "Invented generic closed loop; not an original customer graph"
+                },
+                "versionedModels": [
+                    "model.proj_payments.transactions.v3",
+                    "model.proj_analyst.segment_cohort.v3",
+                    "model.proj_analyst.segment_activity.v3",
+                    "model.proj_analyst.segment_value.v3"
+                ],
+                "unversionedDecoys": [
+                    "model.proj_bank.decoy_v3",
+                    "model.proj_analyst.decoy_v2"
+                ],
+                "refs": [
+                    {
+                        "model": "proj_bank.mart_bank_summary",
+                        "ref": ["int_bank_accounts"],
+                        "version": null,
+                        "providerProject": "proj_bank",
+                        "providerModel": "int_bank_accounts",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_bank.int_bank_accounts",
+                        "ref": ["stg_bank_accounts"],
+                        "version": null,
+                        "providerProject": "proj_bank",
+                        "providerModel": "stg_bank_accounts",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_bank.stg_bank_accounts",
+                        "ref": ["proj_payments", "transactions"],
+                        "version": null,
+                        "providerProject": "proj_payments",
+                        "providerModel": "transactions",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_payments.transactions",
+                        "ref": ["int_payment_events"],
+                        "version": null,
+                        "providerProject": "proj_payments",
+                        "providerModel": "int_payment_events",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_payments.int_payment_events",
+                        "ref": ["stg_payment_events"],
+                        "version": null,
+                        "providerProject": "proj_payments",
+                        "providerModel": "stg_payment_events",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_payments.stg_payment_events",
+                        "ref": ["mart_payment_accounts"],
+                        "version": null,
+                        "providerProject": "proj_payments",
+                        "providerModel": "mart_payment_accounts",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_payments.mart_payment_accounts",
+                        "ref": ["proj_analyst", "segment_cohort"],
+                        "version": 3,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "segment_cohort",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_analyst.segment_cohort",
+                        "ref": ["segment_activity"],
+                        "version": 3,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "segment_activity",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_analyst.segment_activity",
+                        "ref": ["segment_value"],
+                        "version": 3,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "segment_value",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_analyst.segment_value",
+                        "ref": ["int_segment_members"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "int_segment_members",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_analyst.int_segment_members",
+                        "ref": ["stg_segment_members"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "stg_segment_members",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_analyst.stg_segment_members",
+                        "ref": ["mart_segment_accounts"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "mart_segment_accounts",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_analyst.mart_segment_accounts",
+                        "ref": ["reporting_bank"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "reporting_bank",
+                        "refArgumentCount": 1
+                    },
+                    {
+                        "model": "proj_analyst.reporting_bank",
+                        "ref": ["proj_bank", "mart_bank_summary"],
+                        "version": null,
+                        "providerProject": "proj_bank",
+                        "providerModel": "mart_bank_summary",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_growth.consumer_one_arg",
+                        "ref": ["proj_analyst", "mart_merchant__merchants"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "mart_merchant__merchants",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_growth.consumer_explicit",
+                        "ref": ["proj_analyst", "mart_merchant__merchants"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "mart_merchant__merchants",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_growth.consumer_primary",
+                        "ref": ["proj_bank", "model_other"],
+                        "version": null,
+                        "providerProject": "proj_bank",
+                        "providerModel": "model_other",
+                        "refArgumentCount": 2
+                    }
+                ],
+                "consumerRefs": [
+                    {
+                        "model": "proj_growth.consumer_one_arg",
+                        "ref": ["proj_analyst", "mart_merchant__merchants"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "mart_merchant__merchants",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_growth.consumer_explicit",
+                        "ref": ["proj_analyst", "mart_merchant__merchants"],
+                        "version": null,
+                        "providerProject": "proj_analyst",
+                        "providerModel": "mart_merchant__merchants",
+                        "refArgumentCount": 2
+                    },
+                    {
+                        "model": "proj_growth.consumer_primary",
+                        "ref": ["proj_bank", "model_other"],
+                        "version": null,
+                        "providerProject": "proj_bank",
+                        "providerModel": "model_other",
+                        "refArgumentCount": 2
+                    }
+                ],
+                "duplicatedModel": {
+                    "name": "mart_merchant__merchants",
+                    "primaryProvider": "proj_bank",
+                    "explicitProvider": "proj_analyst",
+                    "consumer": "proj_growth"
+                },
+                "controlCycle": {
+                    "closedPath": [
+                        "proj_bank.mart_bank_summary",
+                        "proj_bank.int_bank_accounts",
+                        "proj_bank.stg_bank_accounts",
+                        "proj_payments.transactions",
+                        "proj_payments.int_payment_events",
+                        "proj_payments.stg_payment_events",
+                        "proj_payments.mart_payment_accounts",
+                        "proj_analyst.segment_cohort",
+                        "proj_analyst.segment_activity",
+                        "proj_analyst.segment_value",
+                        "proj_analyst.int_segment_members",
+                        "proj_analyst.stg_segment_members",
+                        "proj_analyst.mart_segment_accounts",
+                        "proj_analyst.reporting_bank",
+                        "proj_bank.mart_bank_summary"
+                    ],
+                    "closedUniqueIds": [
+                        "model.proj_bank.mart_bank_summary",
+                        "model.proj_bank.int_bank_accounts",
+                        "model.proj_bank.stg_bank_accounts",
+                        "model.proj_payments.transactions.v3",
+                        "model.proj_payments.int_payment_events",
+                        "model.proj_payments.stg_payment_events",
+                        "model.proj_payments.mart_payment_accounts",
+                        "model.proj_analyst.segment_cohort.v3",
+                        "model.proj_analyst.segment_activity.v3",
+                        "model.proj_analyst.segment_value.v3",
+                        "model.proj_analyst.int_segment_members",
+                        "model.proj_analyst.stg_segment_members",
+                        "model.proj_analyst.mart_segment_accounts",
+                        "model.proj_analyst.reporting_bank",
+                        "model.proj_bank.mart_bank_summary"
+                    ],
+                    "modelCount": 14,
+                    "edgeCount": 14,
+                    "projectCount": 3,
+                    "sourceRing": [
+                        "proj_bank",
+                        "proj_payments",
+                        "proj_analyst",
+                        "proj_bank"
+                    ],
+                    "edges": [
+                        {
+                            "from": "proj_bank.mart_bank_summary",
+                            "to": "proj_bank.int_bank_accounts",
+                            "fromUniqueId": "model.proj_bank.mart_bank_summary",
+                            "toUniqueId": "model.proj_bank.int_bank_accounts",
+                            "ref": ["int_bank_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_bank.int_bank_accounts",
+                            "to": "proj_bank.stg_bank_accounts",
+                            "fromUniqueId": "model.proj_bank.int_bank_accounts",
+                            "toUniqueId": "model.proj_bank.stg_bank_accounts",
+                            "ref": ["stg_bank_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_bank.stg_bank_accounts",
+                            "to": "proj_payments.transactions",
+                            "fromUniqueId": "model.proj_bank.stg_bank_accounts",
+                            "toUniqueId": "model.proj_payments.transactions.v3",
+                            "ref": ["proj_payments", "transactions"],
+                            "refArgumentCount": 2,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_payments.transactions",
+                            "to": "proj_payments.int_payment_events",
+                            "fromUniqueId": "model.proj_payments.transactions.v3",
+                            "toUniqueId": "model.proj_payments.int_payment_events",
+                            "ref": ["int_payment_events"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.int_payment_events",
+                            "to": "proj_payments.stg_payment_events",
+                            "fromUniqueId": "model.proj_payments.int_payment_events",
+                            "toUniqueId": "model.proj_payments.stg_payment_events",
+                            "ref": ["stg_payment_events"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.stg_payment_events",
+                            "to": "proj_payments.mart_payment_accounts",
+                            "fromUniqueId": "model.proj_payments.stg_payment_events",
+                            "toUniqueId": "model.proj_payments.mart_payment_accounts",
+                            "ref": ["mart_payment_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_payments.mart_payment_accounts",
+                            "to": "proj_analyst.segment_cohort",
+                            "fromUniqueId": "model.proj_payments.mart_payment_accounts",
+                            "toUniqueId": "model.proj_analyst.segment_cohort.v3",
+                            "ref": ["proj_analyst", "segment_cohort"],
+                            "refArgumentCount": 2,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_cohort",
+                            "to": "proj_analyst.segment_activity",
+                            "fromUniqueId": "model.proj_analyst.segment_cohort.v3",
+                            "toUniqueId": "model.proj_analyst.segment_activity.v3",
+                            "ref": ["segment_activity"],
+                            "refArgumentCount": 1,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_activity",
+                            "to": "proj_analyst.segment_value",
+                            "fromUniqueId": "model.proj_analyst.segment_activity.v3",
+                            "toUniqueId": "model.proj_analyst.segment_value.v3",
+                            "ref": ["segment_value"],
+                            "refArgumentCount": 1,
+                            "version": 3
+                        },
+                        {
+                            "from": "proj_analyst.segment_value",
+                            "to": "proj_analyst.int_segment_members",
+                            "fromUniqueId": "model.proj_analyst.segment_value.v3",
+                            "toUniqueId": "model.proj_analyst.int_segment_members",
+                            "ref": ["int_segment_members"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.int_segment_members",
+                            "to": "proj_analyst.stg_segment_members",
+                            "fromUniqueId": "model.proj_analyst.int_segment_members",
+                            "toUniqueId": "model.proj_analyst.stg_segment_members",
+                            "ref": ["stg_segment_members"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.stg_segment_members",
+                            "to": "proj_analyst.mart_segment_accounts",
+                            "fromUniqueId": "model.proj_analyst.stg_segment_members",
+                            "toUniqueId": "model.proj_analyst.mart_segment_accounts",
+                            "ref": ["mart_segment_accounts"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.mart_segment_accounts",
+                            "to": "proj_analyst.reporting_bank",
+                            "fromUniqueId": "model.proj_analyst.mart_segment_accounts",
+                            "toUniqueId": "model.proj_analyst.reporting_bank",
+                            "ref": ["reporting_bank"],
+                            "refArgumentCount": 1,
+                            "version": null
+                        },
+                        {
+                            "from": "proj_analyst.reporting_bank",
+                            "to": "proj_bank.mart_bank_summary",
+                            "fromUniqueId": "model.proj_analyst.reporting_bank",
+                            "toUniqueId": "model.proj_bank.mart_bank_summary",
+                            "ref": ["proj_bank", "mart_bank_summary"],
+                            "refArgumentCount": 2,
+                            "version": null
+                        }
+                    ],
+                    "evidence": "Invented generic closed loop; not an original customer graph"
+                },
+                "ambiguousEdges": [
+                    {
+                        "consumerUniqueId": "model.proj_bank.stg_bank_accounts",
+                        "ref": ["proj_payments", "transactions"],
+                        "refArgumentCount": 2,
+                        "version": null,
+                        "oldLatestVersion": 3,
+                        "freshLatestVersion": 2,
+                        "initialPublishedTarget": "model.proj_payments.transactions.v3",
+                        "intendedTarget": "model.proj_payments.transactions.v2"
+                    }
+                ],
+                "freshGraph": {
+                    "edges": [
+                        {
+                            "fromUniqueId": "model.proj_bank.mart_bank_summary",
+                            "toUniqueId": "model.proj_bank.int_bank_accounts"
+                        },
+                        {
+                            "fromUniqueId": "model.proj_bank.int_bank_accounts",
+                            "toUniqueId": "model.proj_bank.stg_bank_accounts"
+                        },
+                        {
+                            "fromUniqueId": "model.proj_bank.stg_bank_accounts",
+                            "toUniqueId": "model.proj_payments.transactions.v2"
+                        },
+                        {
+                            "fromUniqueId": "model.proj_payments.transactions.v3",
+                            "toUniqueId": "model.proj_payments.int_payment_events"
+                        },
+                        {
+                            "fromUniqueId": "model.proj_payments.int_payment_events",
+                            "toUniqueId": "model.proj_payments.stg_payment_events"
+                        },
+                        {
+                            "fromUniqueId": "model.proj_payments.stg_payment_events",
+                            "toUniqueId": "model.proj_payments.mart_payment_accounts"
+                        },
+                        {
+                            "fromUniqueId": "model.proj_payments.mart_payment_accounts",
+                            "toUniqueId": "model.proj_analyst.segment_cohort.v3"
+                        },
+                        {
+                            "fromUniqueId": "model.proj_analyst.segment_cohort.v3",
+                            "toUniqueId": "model.proj_analyst.segment_activity.v3"
+                        },
+                        {
+                            "fromUniqueId": "model.proj_analyst.segment_activity.v3",
+                            "toUniqueId": "model.proj_analyst.segment_value.v3"
+                        },
+                        {
+                            "fromUniqueId": "model.proj_analyst.segment_value.v3",
+                            "toUniqueId": "model.proj_analyst.int_segment_members"
+                        },
+                        {
+                            "fromUniqueId": "model.proj_analyst.int_segment_members",
+                            "toUniqueId": "model.proj_analyst.stg_segment_members"
+                        },
+                        {
+                            "fromUniqueId": "model.proj_analyst.stg_segment_members",
+                            "toUniqueId": "model.proj_analyst.mart_segment_accounts"
+                        },
+                        {
+                            "fromUniqueId": "model.proj_analyst.mart_segment_accounts",
+                            "toUniqueId": "model.proj_analyst.reporting_bank"
+                        },
+                        {
+                            "fromUniqueId": "model.proj_analyst.reporting_bank",
+                            "toUniqueId": "model.proj_bank.mart_bank_summary"
+                        }
+                    ],
+                    "leaf": "model.proj_payments.transactions.v2",
+                    "expectedAcyclic": true
+                },
+                "expectedResults": {
+                    "pre": {
+                        "refresh_success": true,
+                        "cycle_error": false,
+                        "stale_retry_error": false,
+                        "final_binding": "model.proj_payments.transactions.v2"
+                    },
+                    "fixed": {
+                        "refresh_success": true,
+                        "cycle_error": false,
+                        "stale_retry_error": false,
+                        "final_binding": "model.proj_payments.transactions.v2"
+                    },
+                    "main": {
+                        "refresh_success": true,
+                        "cycle_error": false,
+                        "stale_retry_error": false,
+                        "final_binding": "model.proj_payments.transactions.v2"
+                    },
+                    "cycle-pr": {
+                        "refresh_success": true,
+                        "cycle_error": false,
+                        "stale_retry_error": false,
+                        "final_binding": "model.proj_payments.transactions.v2"
+                    },
+                    "integrated": {
+                        "refresh_success": true,
+                        "cycle_error": false,
+                        "stale_retry_error": false,
+                        "final_binding": "model.proj_payments.transactions.v2"
+                    }
+                },
+                "hypothesis": "A stale latest-3 publication may cause a false cycle; this is unverified and success is expected on every build"
+            },
+            "publication": {
+                "cached": false,
+                "old_publication": {
+                    "stage": "old-provider",
+                    "project": "proj_payments",
+                    "command": "dbt --no-partial-parse parse",
+                    "generated_at": "2026-10-23T00:12:05.874849Z",
+                    "dbt_version": "1.12.3",
+                    "manifest_path": "parse-evidence/old-provider/manifest.json",
+                    "sha256": "74b2a3847996ec16f8a165a3947c97497cf35ed0c53f18463ca4a39c5eb1d2e4",
+                    "latest_version": 3,
+                    "versioned_nodes": [
+                        "model.proj_payments.transactions.v2",
+                        "model.proj_payments.transactions.v3"
+                    ]
+                },
+                "fresh_publication": {
+                    "stage": "fresh-provider",
+                    "project": "proj_payments",
+                    "command": "dbt --no-partial-parse parse",
+                    "generated_at": "2026-10-23T00:12:09.200144Z",
+                    "dbt_version": "1.12.3",
+                    "manifest_path": "parse-evidence/fresh-provider/manifest.json",
+                    "sha256": "048685431eae6e5b507468a07ed96d0ace994ae3dcca4e313315ecc606b3ddaa",
+                    "latest_version": 2,
+                    "versioned_nodes": [
+                        "model.proj_payments.transactions.v2",
+                        "model.proj_payments.transactions.v3"
+                    ]
+                },
+                "initial_consumer_binding": {
+                    "available": true,
+                    "consumer": "model.proj_bank.stg_bank_accounts",
+                    "refs": [
+                        {
+                            "name": "transactions",
+                            "package": "proj_payments",
+                            "version": null
+                        }
+                    ],
+                    "dependencies": ["model.proj_payments.transactions.v3"],
+                    "evidence": {
+                        "stage": "consumer-stale-publication",
+                        "project": "proj_bank",
+                        "command": "dbt --no-partial-parse parse",
+                        "generated_at": "2026-10-23T00:12:12.520537Z",
+                        "dbt_version": "1.12.3",
+                        "manifest_path": "parse-evidence/consumer-stale-publication/manifest.json",
+                        "sha256": "0e55d8548b4a2800a374a428b47305a034c3af51fa1358b4bd914b6d31f95ff9"
+                    }
+                },
+                "fresh_control_binding": {
+                    "available": true,
+                    "consumer": "model.proj_bank.stg_bank_accounts",
+                    "refs": [
+                        {
+                            "name": "transactions",
+                            "package": "proj_payments",
+                            "version": null
+                        }
+                    ],
+                    "dependencies": ["model.proj_payments.transactions.v2"],
+                    "evidence": {
+                        "stage": "consumer-fresh-publication",
+                        "project": "proj_bank",
+                        "command": "dbt --no-partial-parse parse",
+                        "generated_at": "2026-10-23T00:12:16.028413Z",
+                        "dbt_version": "1.12.3",
+                        "manifest_path": "parse-evidence/consumer-fresh-publication/manifest.json",
+                        "sha256": "98d2d028b51cb9b59b4af9eb0754007177baab79ff7d05d06a28682560c7d8b4"
+                    }
+                },
+                "initial_combined_graph": {
+                    "modelCount": 42,
+                    "acyclic": false,
+                    "cycle": [
+                        "model.proj_payments.stg_payment_events",
+                        "model.proj_payments.mart_payment_accounts",
+                        "model.proj_analyst.segment_cohort.v3",
+                        "model.proj_analyst.segment_activity.v3",
+                        "model.proj_analyst.segment_value.v3",
+                        "model.proj_analyst.int_segment_members",
+                        "model.proj_analyst.stg_segment_members",
+                        "model.proj_analyst.mart_segment_accounts",
+                        "model.proj_analyst.reporting_bank",
+                        "model.proj_bank.mart_bank_summary",
+                        "model.proj_bank.int_bank_accounts",
+                        "model.proj_bank.stg_bank_accounts",
+                        "model.proj_payments.transactions.v3",
+                        "model.proj_payments.int_payment_events",
+                        "model.proj_payments.stg_payment_events"
+                    ],
+                    "edges": {
+                        "model.proj_payments.stg_payment_events": [
+                            "model.proj_payments.mart_payment_accounts"
+                        ],
+                        "model.proj_payments.proj_payments_base": [],
+                        "model.proj_payments.int_payment_events": [
+                            "model.proj_payments.stg_payment_events"
+                        ],
+                        "model.proj_payments.mart_payment_accounts": [
+                            "model.proj_analyst.segment_cohort.v3"
+                        ],
+                        "model.proj_payments.transactions.v2": [],
+                        "model.proj_payments.transactions.v3": [
+                            "model.proj_payments.int_payment_events"
+                        ],
+                        "model.proj_analyst.mart_segment_accounts": [
+                            "model.proj_analyst.reporting_bank"
+                        ],
+                        "model.proj_analyst.int_segment_members": [
+                            "model.proj_analyst.stg_segment_members"
+                        ],
+                        "model.proj_analyst.stg_segment_members": [
+                            "model.proj_analyst.mart_segment_accounts"
+                        ],
+                        "model.proj_analyst.mart_merchant__merchants": [],
+                        "model.proj_analyst.proj_analyst_base": [],
+                        "model.proj_analyst.decoy_v2": [],
+                        "model.proj_analyst.reporting_bank": [
+                            "model.proj_bank.mart_bank_summary"
+                        ],
+                        "model.proj_analyst.segment_cohort.v3": [
+                            "model.proj_analyst.segment_activity.v3"
+                        ],
+                        "model.proj_analyst.segment_activity.v3": [
+                            "model.proj_analyst.segment_value.v3"
+                        ],
+                        "model.proj_analyst.segment_value.v3": [
+                            "model.proj_analyst.int_segment_members"
+                        ],
+                        "model.proj_growth.consumer_explicit": [
+                            "model.proj_analyst.mart_merchant__merchants"
+                        ],
+                        "model.proj_growth.consumer_one_arg": [
+                            "model.proj_analyst.mart_merchant__merchants"
+                        ],
+                        "model.proj_growth.consumer_primary": [
+                            "model.proj_bank.model_other"
+                        ],
+                        "model.proj_growth.proj_growth_base": [],
+                        "model.proj_a.proj_a_base": [],
+                        "model.proj_b.proj_b_base": [],
+                        "model.proj_c.proj_c_base": [],
+                        "model.proj_d.proj_d_base": [],
+                        "model.proj_e.proj_e_base": [],
+                        "model.proj_f.proj_f_base": [],
+                        "model.proj_g.proj_g_base": [],
+                        "model.proj_h.proj_h_base": [],
+                        "model.proj_i.proj_i_base": [],
+                        "model.proj_j.proj_j_base": [],
+                        "model.proj_k.proj_k_base": [],
+                        "model.proj_l.proj_l_base": [],
+                        "model.proj_m.proj_m_base": [],
+                        "model.proj_n.proj_n_base": [],
+                        "model.proj_o.proj_o_base": [],
+                        "model.proj_bank.int_bank_accounts": [
+                            "model.proj_bank.stg_bank_accounts"
+                        ],
+                        "model.proj_bank.model_other": [],
+                        "model.proj_bank.mart_merchant__merchants": [],
+                        "model.proj_bank.mart_bank_summary": [
+                            "model.proj_bank.int_bank_accounts"
+                        ],
+                        "model.proj_bank.decoy_v3": [],
+                        "model.proj_bank.stg_bank_accounts": [
+                            "model.proj_payments.transactions.v3"
+                        ],
+                        "model.proj_bank.proj_bank_base": []
+                    }
+                },
+                "fresh_combined_graph": {
+                    "modelCount": 42,
+                    "acyclic": true,
+                    "cycle": null,
+                    "edges": {
+                        "model.proj_payments.stg_payment_events": [
+                            "model.proj_payments.mart_payment_accounts"
+                        ],
+                        "model.proj_payments.proj_payments_base": [],
+                        "model.proj_payments.int_payment_events": [
+                            "model.proj_payments.stg_payment_events"
+                        ],
+                        "model.proj_payments.mart_payment_accounts": [
+                            "model.proj_analyst.segment_cohort.v3"
+                        ],
+                        "model.proj_payments.transactions.v2": [],
+                        "model.proj_payments.transactions.v3": [
+                            "model.proj_payments.int_payment_events"
+                        ],
+                        "model.proj_analyst.mart_segment_accounts": [
+                            "model.proj_analyst.reporting_bank"
+                        ],
+                        "model.proj_analyst.int_segment_members": [
+                            "model.proj_analyst.stg_segment_members"
+                        ],
+                        "model.proj_analyst.stg_segment_members": [
+                            "model.proj_analyst.mart_segment_accounts"
+                        ],
+                        "model.proj_analyst.mart_merchant__merchants": [],
+                        "model.proj_analyst.proj_analyst_base": [],
+                        "model.proj_analyst.decoy_v2": [],
+                        "model.proj_analyst.reporting_bank": [
+                            "model.proj_bank.mart_bank_summary"
+                        ],
+                        "model.proj_analyst.segment_cohort.v3": [
+                            "model.proj_analyst.segment_activity.v3"
+                        ],
+                        "model.proj_analyst.segment_activity.v3": [
+                            "model.proj_analyst.segment_value.v3"
+                        ],
+                        "model.proj_analyst.segment_value.v3": [
+                            "model.proj_analyst.int_segment_members"
+                        ],
+                        "model.proj_growth.consumer_explicit": [
+                            "model.proj_analyst.mart_merchant__merchants"
+                        ],
+                        "model.proj_growth.consumer_one_arg": [
+                            "model.proj_analyst.mart_merchant__merchants"
+                        ],
+                        "model.proj_growth.consumer_primary": [
+                            "model.proj_bank.model_other"
+                        ],
+                        "model.proj_growth.proj_growth_base": [],
+                        "model.proj_a.proj_a_base": [],
+                        "model.proj_b.proj_b_base": [],
+                        "model.proj_c.proj_c_base": [],
+                        "model.proj_d.proj_d_base": [],
+                        "model.proj_e.proj_e_base": [],
+                        "model.proj_f.proj_f_base": [],
+                        "model.proj_g.proj_g_base": [],
+                        "model.proj_h.proj_h_base": [],
+                        "model.proj_i.proj_i_base": [],
+                        "model.proj_j.proj_j_base": [],
+                        "model.proj_k.proj_k_base": [],
+                        "model.proj_l.proj_l_base": [],
+                        "model.proj_m.proj_m_base": [],
+                        "model.proj_n.proj_n_base": [],
+                        "model.proj_o.proj_o_base": [],
+                        "model.proj_bank.int_bank_accounts": [
+                            "model.proj_bank.stg_bank_accounts"
+                        ],
+                        "model.proj_bank.model_other": [],
+                        "model.proj_bank.mart_merchant__merchants": [],
+                        "model.proj_bank.mart_bank_summary": [
+                            "model.proj_bank.int_bank_accounts"
+                        ],
+                        "model.proj_bank.decoy_v3": [],
+                        "model.proj_bank.stg_bank_accounts": [
+                            "model.proj_payments.transactions.v2"
+                        ],
+                        "model.proj_bank.proj_bank_base": []
+                    }
+                },
+                "fresh_schema_sha256": "e0da026cb9f01a0e66b66197c2276c20b1d93d52f997e6e306a72d198db621db",
+                "old_schema_sha256": "fae6bc9c295e0b4ac01d9de1a129a84b6689a80dbee4561c54d21409685b7046",
+                "method": "actual dbt parse and dbt-loom; unmodified parsed manifests are published",
+                "bootstrap_signature": "e246a9df1f973b63ef00b7bb459fd80230f4fc583ea76caf32f077471fb03f51"
+            },
+            "dbt_diagnostics": [],
+            "before": {
+                "explores_per_source": {
+                    "dbt_project": 0,
+                    "proj_payments": 0,
+                    "proj_analyst": 0,
+                    "proj_growth": 0,
+                    "proj_a": 0,
+                    "proj_b": 0,
+                    "proj_c": 0,
+                    "proj_d": 0,
+                    "proj_e": 0,
+                    "proj_f": 0,
+                    "proj_g": 0,
+                    "proj_h": 0,
+                    "proj_i": 0,
+                    "proj_j": 0,
+                    "proj_k": 0,
+                    "proj_l": 0,
+                    "proj_m": 0,
+                    "proj_n": 0,
+                    "proj_o": 0
+                },
+                "total_explores": 0,
+                "explore_errors": [],
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {},
+                "defaults": null,
+                "connection_mode": "single"
+            },
+            "after": {
+                "explores_per_source": {
+                    "dbt_project": 7,
+                    "proj_payments": 5,
+                    "proj_analyst": 10,
+                    "proj_growth": 4,
+                    "proj_a": 1,
+                    "proj_b": 1,
+                    "proj_c": 1,
+                    "proj_d": 1,
+                    "proj_e": 1,
+                    "proj_f": 1,
+                    "proj_g": 1,
+                    "proj_h": 1,
+                    "proj_i": 1,
+                    "proj_j": 1,
+                    "proj_k": 1,
+                    "proj_l": 1,
+                    "proj_m": 1,
+                    "proj_n": 1,
+                    "proj_o": 1
+                },
+                "total_explores": 41,
+                "explore_errors": [],
+                "connection_route": "single",
+                "parameters": {},
+                "spotlight_tags": [],
+                "table_groups": {},
+                "defaults": null,
+                "connection_mode": "single"
+            }
+        }
+    ]
+}

@@ -49,6 +49,8 @@ def _process(argv, cwd, env, timeout, body=None):
 
 
 def command(argv, cwd, env, timeout=1800):
+    if not 0 < timeout <= 1800:
+        raise ValueError("Command timeout must be between 1 and 1800 seconds")
     try:
         result = _process(argv, cwd, env, timeout)
     except subprocess.TimeoutExpired:
@@ -200,14 +202,22 @@ def initialise_repos(root):
                 "-A",
                 "--",
                 ".",
-                ":(exclude)target",
-                ":(exclude)logs",
-                ":(exclude)dbt_packages",
-                ":(exclude).env*",
             ],
             repo,
             env,
         )
+        staged = command(
+            [*git, "diff", "--cached", "--name-only", "-z"], repo, env
+        ).stdout
+        if any(
+            name.split("/", 1)[0] in ("target", "logs", "dbt_packages")
+            or name.split("/", 1)[0].startswith(".env")
+            for name in staged.split("\0")
+            if name
+        ):
+            raise RuntimeError(
+                "Generated output or environment files cannot be committed"
+            )
         try:
             command([*git, "diff", "--cached", "--quiet"], repo, env)
         except CommandError as error:
@@ -219,7 +229,7 @@ def initialise_repos(root):
                     "commit",
                     "-S",
                     "-m",
-                    "Update synthetic dbt fixture",
+                    "test: update synthetic dbt fixture",
                     "-m",
                     "Refs #31323\nRefs #31113",
                 ],
@@ -256,6 +266,7 @@ def _safe_output(output, env):
 
 
 def _dbt_stage(root, source, dbt, dbt19, env, stage, action, arguments, result):
+    check_load()
     executable = dbt19 if str(source["dbtVersion"]).startswith("1.9") and dbt19 else dbt
     started = time.monotonic()
     record = {"source": source["name"], "stage": stage, "elapsed_ms": 0, "exit_code": 0}
