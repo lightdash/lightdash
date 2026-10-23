@@ -42,6 +42,16 @@ fields. User-facing copy says *tile*, never *chart*.
   editor (`isViewer`) never locks the header: their filters leave the
   dashboard as it is.
 
+- `ee/features/embed/EmbedDashboard/components/EmbedDashboard.tsx` gates the
+  rail on `isEmbedFilterRailEnabled` (the flag, and not an embed editor in
+  edit mode). With it, `EmbedDashboardGrid`'s `isControlsEnabled` (optional,
+  default false) puts `ControlSidebar` first in its row with
+  `CONTROLS_RAIL_LAYOUT`, the headers and filter bar take
+  `isControlsEnabled`, and `TileOverlays`, `TabCounts` and `FieldTilesBar`
+  render. A dashboard with no tiles has no grid, so its header gets
+  `isControlsEnabled={false}`: the shipped filters, never a rail with
+  nowhere to sit.
+
 ## Openings in shipped files
 
 Each is a pure move or an optional prop that defaults to today's behaviour.

@@ -91,6 +91,7 @@ import EmbedDashboardHeader from './EmbedDashboardHeader';
 import EmbedDataAppTile from './EmbedDataAppTile';
 import { EmbedHeadingTile } from './EmbedHeadingTile';
 import { EmbedMarkdownTile } from './EmbedMarkdownTile';
+import { isEmbedFilterRailEnabled } from './isEmbedFilterRailEnabled';
 import '../../../../../styles/react-grid.css';
 
 const RAIL_CONTRACT_CLASSES: RailContractClassNames = {
@@ -173,8 +174,8 @@ const EmbedDashboardGrid: FC<{
     canEditChart?: (chart: SavedChart) => boolean;
     onExplore?: (options: EmbedExploreOptions) => void;
     useDashboardEditorTileQueries: boolean;
-    // The filter rail sits left of the grid
-    isControlsEnabled: boolean;
+    // The filter rail sits left of the grid (default false)
+    isControlsEnabled?: boolean;
 }> = ({
     filteredTiles,
     layouts,
@@ -194,7 +195,7 @@ const EmbedDashboardGrid: FC<{
     canEditChart,
     onExplore,
     useDashboardEditorTileQueries,
-    isControlsEnabled,
+    isControlsEnabled = false,
 }) => (
     <Group
         grow
@@ -703,10 +704,10 @@ const EmbedDashboard: FC<{
         !!dashboard &&
         writeSpaceUuids.includes(dashboard.spaceUuid) &&
         embedWriteContext?.canUpdateDashboard === true;
-    // Viewers get the filter rail; an embed editor keeps the shipped filters
-    const isControlsEnabled =
-        dashboardControlsFlag?.enabled === true &&
-        !(canWriteDashboard && isEditMode);
+    const isControlsEnabled = isEmbedFilterRailEnabled({
+        isFlagEnabled: dashboardControlsFlag?.enabled === true,
+        isEditorInEditMode: canWriteDashboard && isEditMode,
+    });
     const canUseChartBuilder = canUseEmbeddedChartBuilder({
         canWriteDashboard,
         canCreateSavedChart: embedWriteContext?.canCreateSavedChart === true,
@@ -1224,7 +1225,8 @@ const EmbedDashboard: FC<{
                             projectUuid={projectUuid}
                             activeTiles={filteredTiles}
                             isEditMode={canWriteDashboard && isEditMode}
-                            isControlsEnabled={isControlsEnabled}
+                            // No grid, so no rail: the shipped filters
+                            isControlsEnabled={false}
                         />
                         {renderDashboardEditToolbar()}
                         <Box mt="lg">
