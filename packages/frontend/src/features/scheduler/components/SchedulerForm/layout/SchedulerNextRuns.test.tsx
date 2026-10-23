@@ -51,10 +51,10 @@ describe('SchedulerNextRuns', () => {
     });
 
     it('shows runs in the project timezone when the delivery has no timezone', () => {
-        project.data = { schedulerTimezone: 'UTC' };
+        project.data = { schedulerTimezone: 'Asia/Kolkata' };
         renderNextRuns({ cron: '0 9 * * *', timezone: undefined });
 
-        expect(screen.getByText('Thu, Sep 10 · 9:00 AM UTC')).toBeTruthy();
+        expect(screen.getByText(/^Thu, Sep 10 · 9:00 AM (?!UTC)/)).toBeTruthy();
         expect(
             screen.getByText('Times shown in project timezone'),
         ).toBeTruthy();
