@@ -35,6 +35,7 @@ import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import { useRegisterTileQuery } from '../../providers/Dashboard/useRegisterTileQuery';
 import { getConnectionName } from '../common/connectionName';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
@@ -171,6 +172,31 @@ const SqlChartTile: FC<Props> = ({
               },
     );
     const connections = useConnectionBadges(effectiveProjectUuid);
+
+    // Publish this tile's query as an AI analysis source once it settles.
+    const sqlQueryUuid = chartResultsData?.queryUuid ?? null;
+    const tileError = chartError ?? chartResultsError ?? null;
+    const registration = useMemo(() => {
+        if (isChartLoading || isChartResultsLoading) return null;
+        if (!sqlQueryUuid && !tileError) return null;
+        return {
+            tileUuid: tile.uuid,
+            queryUuid: sqlQueryUuid,
+            label:
+                tile.properties.title || tile.properties.chartName || 'Chart',
+            status: (tileError ? 'error' : 'ready') as 'ready' | 'error',
+        };
+    }, [
+        sqlQueryUuid,
+        tileError,
+        isChartLoading,
+        isChartResultsLoading,
+        tile.uuid,
+        tile.properties.title,
+        tile.properties.chartName,
+    ]);
+    useRegisterTileQuery(registration);
+
     // Charts in Dashboard shouldn't have animation
     const specWithoutAnimation = useMemo(() => {
         if (!chartResultsData?.chartSpec) return chartResultsData?.chartSpec;
