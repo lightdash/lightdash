@@ -1104,10 +1104,16 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                     dateZoomLabel={
                                                         isDateZoomDisabled
                                                             ? null
-                                                            : getDateZoomSummaryLabel(
-                                                                  dateZoomGranularity,
-                                                                  getUiString,
-                                                              )
+                                                            : // The pill's "None", not "Default"
+                                                              isDashboardControlsEnabled &&
+                                                                !dateZoomGranularity
+                                                              ? getUiString(
+                                                                    'dateZoom.none',
+                                                                )
+                                                              : getDateZoomSummaryLabel(
+                                                                    dateZoomGranularity,
+                                                                    getUiString,
+                                                                )
                                                     }
                                                     onExpand={() =>
                                                         setIsFiltersCollapsed(

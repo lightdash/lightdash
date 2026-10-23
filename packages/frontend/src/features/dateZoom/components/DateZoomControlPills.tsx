@@ -42,9 +42,20 @@ import { DateZoomControlConfig } from './DateZoomControlConfig';
 
 type Props = {
     isEditMode: boolean;
+    /**
+     * In edit mode, a named pill opens the control elsewhere instead of its
+     * grain menu (default: the menu).
+     */
+    onOpenControl?: (controlUuid: string) => void;
+    /** In edit mode, "Add date zoom" calls this instead of its popover. */
+    onAddControl?: () => void;
 };
 
-export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
+export const DateZoomControlPills: FC<Props> = ({
+    isEditMode,
+    onOpenControl,
+    onAddControl,
+}) => {
     const getUiString = useUiStrings();
     const dateZoomConfig = useDashboardDateZoomConfig();
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
@@ -124,6 +135,10 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
         });
     };
 
+    // Edit mode with an opener: the pill opens the control, no menu or popover
+    const openControl = isEditMode ? onOpenControl : undefined;
+    const addControl = isEditMode ? onAddControl : undefined;
+
     const visibleControls = dateZoomConfig.controls.filter(
         (control) => isEditMode || !control.hidden,
     );
@@ -167,7 +182,7 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                         offset={1}
                                         arrowOffset={14}
                                         closeOnItemClick
-                                        disabled={isEditing}
+                                        disabled={isEditing || !!openControl}
                                     >
                                         <Menu.Target>
                                             <Button
@@ -179,9 +194,21 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                                         : styles.pill,
                                                 }}
                                                 rightSection={
-                                                    <MantineIcon
-                                                        icon={IconChevronDown}
-                                                    />
+                                                    openControl ? undefined : (
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconChevronDown
+                                                            }
+                                                        />
+                                                    )
+                                                }
+                                                onClick={
+                                                    openControl
+                                                        ? () =>
+                                                              openControl(
+                                                                  control.uuid,
+                                                              )
+                                                        : undefined
                                                 }
                                             >
                                                 {control.name} ·{' '}
@@ -366,14 +393,16 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                             variant="default"
                             classNames={{ root: styles.addControl }}
                             onClick={() =>
-                                setEditingControl({
-                                    uuid: uuid4(),
-                                    name: 'Date zoom',
-                                    granularity:
-                                        defaultDateZoomGranularity ??
-                                        dateZoomGranularities[0] ??
-                                        DateGranularity.MONTH,
-                                })
+                                addControl
+                                    ? addControl()
+                                    : setEditingControl({
+                                          uuid: uuid4(),
+                                          name: 'Date zoom',
+                                          granularity:
+                                              defaultDateZoomGranularity ??
+                                              dateZoomGranularities[0] ??
+                                              DateGranularity.MONTH,
+                                      })
                             }
                         >
                             Add date zoom
