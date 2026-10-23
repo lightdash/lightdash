@@ -24,9 +24,10 @@ export const areTilePropsEqual = <Props extends object>(
         );
     });
 
-export const getTileTitle = (tile: DashboardTile): string => {
+// `fallback` names a tile with no title
+export const getTileTitle = (tile: DashboardTile, fallback: string): string => {
     if (tile.properties.title) return tile.properties.title;
     if ('chartName' in tile.properties && tile.properties.chartName)
         return tile.properties.chartName;
-    return 'this tile';
+    return fallback;
 };

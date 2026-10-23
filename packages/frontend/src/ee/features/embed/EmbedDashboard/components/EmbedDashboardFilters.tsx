@@ -21,6 +21,46 @@ import { EventName } from '../../../../../types/Events';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { embedContractClass } from '../../styles/embedClassContract';
 
+// Resets every filter once they changed, for viewers who cannot add filters
+// (with "Add filter", the button carries its own reset)
+export const EmbedResetFiltersButton: FC = () => {
+    const getUiString = useUiStrings();
+    const hasTemporaryFilters = useHasDashboardTemporaryFilters();
+    const haveFiltersChanged =
+        useDashboardSelector(selectHaveFiltersChanged) || hasTemporaryFilters;
+    const setHaveFiltersChanged = useDashboardContext(
+        (c) => c.setHaveFiltersChanged,
+    );
+    const resetDashboardFilters = useDashboardContext(
+        (c) => c.resetDashboardFilters,
+    );
+    if (!haveFiltersChanged) return null;
+    return (
+        // TODO: create a common component for this
+        <Tooltip label={getUiString('filters.resetAll')}>
+            <Button
+                data-dashboard-filter-control
+                aria-label={getUiString('filters.resetAll')}
+                size="xs"
+                variant="default"
+                color="gray"
+                onClick={() => {
+                    setHaveFiltersChanged(false);
+                    resetDashboardFilters();
+                }}
+                styles={{
+                    root: {
+                        borderRadius: '100px',
+                        borderStyle: 'dashed',
+                    },
+                }}
+            >
+                <MantineIcon icon={IconRotate2} />
+            </Button>
+        </Tooltip>
+    );
+};
+
 type Props = {
     canAddFilters?: boolean;
     /** Dashboard edit mode via writeActions: filters become saved, removable and configurable */
@@ -54,13 +94,6 @@ const EmbedDashboardFilters: FC<Props> = ({
     );
     const allFilterableMetrics = useDashboardContext(
         (c) => c.allFilterableMetrics,
-    );
-
-    const hasTemporaryFilters = useHasDashboardTemporaryFilters();
-    const haveFiltersChanged =
-        useDashboardSelector(selectHaveFiltersChanged) || hasTemporaryFilters;
-    const setHaveFiltersChanged = useDashboardContext(
-        (c) => c.setHaveFiltersChanged,
     );
 
     const resetDashboardFilters = useDashboardContext(
@@ -103,10 +136,6 @@ const EmbedDashboardFilters: FC<Props> = ({
         ],
     );
 
-    // AddFilterButton renders its own attached reset button once filters have
-    // changed, so the standalone reset pill below would duplicate it.
-    const showResetFiltersButton = !canAddFilters && haveFiltersChanged;
-
     return (
         <FiltersProvider
             projectUuid={projectUuid}
@@ -139,30 +168,9 @@ const EmbedDashboardFilters: FC<Props> = ({
                         )}
                     />
                 )}
-                {showResetFiltersButton && (
-                    // TODO: create a common component for this
-                    <Tooltip label={getUiString('filters.resetAll')}>
-                        <Button
-                            data-dashboard-filter-control
-                            aria-label={getUiString('filters.resetAll')}
-                            size="xs"
-                            variant="default"
-                            color="gray"
-                            onClick={() => {
-                                setHaveFiltersChanged(false);
-                                resetDashboardFilters();
-                            }}
-                            styles={{
-                                root: {
-                                    borderRadius: '100px',
-                                    borderStyle: 'dashed',
-                                },
-                            }}
-                        >
-                            <MantineIcon icon={IconRotate2} />
-                        </Button>
-                    </Tooltip>
-                )}
+                {/* AddFilterButton renders its own attached reset button once
+                    filters have changed, so this one would duplicate it */}
+                {!canAddFilters && <EmbedResetFiltersButton />}
                 <ActiveFilters
                     isEditMode={isEditMode}
                     onPopoverOpen={handlePopoverOpen}

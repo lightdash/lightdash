@@ -23,6 +23,7 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import type * as LazySelectModule from './LazySelect';
+import { RailContractClasses } from './railContractClasses';
 import { TileOverlays } from './TileOverlay';
 
 const mockSidebar = vi.hoisted(() => ({
@@ -402,6 +403,28 @@ describe('TileOverlays', () => {
         expect(opened).toHaveAttribute('aria-expanded', 'true');
         // The other tiles still have only their trigger
         expect(select(statusOnly.uuid).tagName).toBe('BUTTON');
+    });
+
+    it("gives a card's list an embed's dropdown class", async () => {
+        renderWithProviders(
+            <RailContractClasses.Provider
+                value={{
+                    rail: 'rail-class',
+                    addFilterDropdown: 'ld-dashboard-add-filter-dropdown',
+                    filterDropdown: 'ld-dashboard-filter-dropdown',
+                }}
+            >
+                <TileOverlays />
+            </RailContractClasses.Provider>,
+        );
+
+        select(both.uuid).focus();
+        await userEvent.keyboard('{Enter}');
+        expect(
+            screen
+                .getAllByRole('option', { hidden: true })[0]
+                .closest('.ld-dashboard-filter-dropdown'),
+        ).not.toBeNull();
     });
 
     it.each(['{Enter}', ' ', '{ArrowDown}'])(

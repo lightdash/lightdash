@@ -21,6 +21,8 @@ type Props = {
     /** Tiles rendered on the active tab */
     activeTiles: DashboardTile[];
     isEditMode?: boolean;
+    /** The filters open in the dashboard's filter rail (default false). */
+    isControlsEnabled?: boolean;
 };
 
 const EmbedDashboardHeader: FC<Props> = ({
@@ -29,6 +31,7 @@ const EmbedDashboardHeader: FC<Props> = ({
     tabs,
     activeTiles,
     isEditMode = false,
+    isControlsEnabled = false,
 }) => {
     const hasFilterBar =
         dashboard.canDateZoom ||
@@ -57,6 +60,7 @@ const EmbedDashboardHeader: FC<Props> = ({
             shouldShowFilters={shouldShowFilters}
             activeTiles={activeTiles}
             isEditMode={isEditMode}
+            isControlsEnabled={isControlsEnabled}
         />
     ) : null;
 

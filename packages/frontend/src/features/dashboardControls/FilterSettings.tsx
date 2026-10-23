@@ -8,7 +8,7 @@ import { IconChevronRight } from '@tabler/icons-react';
 import { useMemo, type FC, type ReactNode } from 'react';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../components/common/MantineIcon';
-import { useProject } from '../../hooks/useProject';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
@@ -29,7 +29,9 @@ import { useDashboardFilterField } from '../dashboardFilters/FilterRequirements/
 import { useFilterBarPopovers } from '../dashboardFilters/FilterRequirements/useFilterBarPopovers';
 import { getDashboardFilterRuleLabel } from '../dashboardFilters/FilterRequirements/utils';
 import classes from './ControlSidebar.module.css';
+import { DropdownClass } from './DropdownClass';
 import { FilterValueSettings } from './FilterValueSettings';
+import { useRailContractClasses } from './railContractClasses';
 import {
     getLockSummary,
     getRequiredSummary,
@@ -40,6 +42,7 @@ import {
     useControlsSidebarSelector,
     type ControlsSidebarSection,
 } from './useControlsSidebar';
+import { useFiltersStartOfWeek } from './useFiltersStartOfWeek';
 import { ViewerControls } from './ViewerControls';
 
 // What "Rules" holds, in words: the lock and the requirement
@@ -141,7 +144,7 @@ export const FilterSettings: FC<Props> = ({
     tilesSummary,
 }) => {
     const projectUuid = useProjectUuid();
-    const project = useProject(projectUuid);
+    const startOfWeek = useFiltersStartOfWeek(projectUuid);
     const allFilters = useDashboardAllFilters();
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
@@ -172,6 +175,10 @@ export const FilterSettings: FC<Props> = ({
         (c) => c.updateOtherFilters,
     );
     const activeSection = useControlsSidebarSelector((c) => c.activeSection);
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const isNew = useControlsSidebarSelector((c) => c.isNew);
+    const getUiString = useUiStrings();
+    const contractClasses = useRailContractClasses();
     const setActiveSection = useControlsSidebarSelector(
         (c) => c.setActiveSection,
     );
@@ -206,47 +213,59 @@ export const FilterSettings: FC<Props> = ({
         <FiltersProvider
             projectUuid={projectUuid}
             itemsMap={allFilterableFieldsMap}
-            startOfWeek={
-                project.data?.warehouseConnection?.startOfWeek ?? undefined
-            }
+            startOfWeek={startOfWeek}
             dashboardFilters={allFilters}
             dashboardTiles={dashboardTiles}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             activeTabUuid={activeTabUuid}
             parameterValues={parameterValues}
         >
-            <FilterValueSettings
-                filterType={filterType}
-                field={field}
-                filterRule={rule}
-                onChange={onChange}
-            />
+            <DropdownClass className={contractClasses?.filterDropdown ?? null}>
+                <Box data-controls-value>
+                    <FilterValueSettings
+                        isEditMode={!isViewer}
+                        isCreatingNew={isViewer && isNew}
+                        filterType={filterType}
+                        field={field}
+                        filterRule={rule}
+                        onChange={onChange}
+                    />
+                </Box>
+            </DropdownClass>
+            {isViewer && (
+                <Text fz="xs" c="dimmed">
+                    {getUiString('filters.rail.addedByYouNote')}
+                </Text>
+            )}
             <Box className={classes.disclosures}>
                 <Disclosure
                     section="tiles"
-                    label="Tiles"
+                    label={getUiString('filters.rail.tiles')}
                     summary={tilesSummary}
                     isOpen={activeSection === 'tiles'}
                     onToggle={toggleSection}
                 >
                     {tiles}
                 </Disclosure>
-                <Disclosure
-                    section="rules"
-                    label="Rules"
-                    summary={rulesSummary}
-                    isOpen={activeSection === 'rules'}
-                    onToggle={toggleSection}
-                >
-                    <ViewerControls
-                        rule={rule}
-                        filterType={filterType}
-                        field={field}
-                        onChange={onChange}
-                        onChangeOthers={updateOtherFilters}
-                        onEditRules={handleEditRules}
-                    />
-                </Disclosure>
+                {/* Locks and requirements are the dashboard's, never a viewer's */}
+                {!isViewer && (
+                    <Disclosure
+                        section="rules"
+                        label="Rules"
+                        summary={rulesSummary}
+                        isOpen={activeSection === 'rules'}
+                        onToggle={toggleSection}
+                    >
+                        <ViewerControls
+                            rule={rule}
+                            filterType={filterType}
+                            field={field}
+                            onChange={onChange}
+                            onChangeOthers={updateOtherFilters}
+                            onEditRules={handleEditRules}
+                        />
+                    </Disclosure>
+                )}
             </Box>
         </FiltersProvider>
     );
