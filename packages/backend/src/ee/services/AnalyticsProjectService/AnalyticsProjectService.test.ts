@@ -3,12 +3,12 @@ import {
     ForbiddenError,
     NotFoundError,
 } from '@lightdash/common';
-import { analyticsContentAsCode } from '../../analytics/systemExplores/sampleContent';
-import * as analyticsExplores from '../ProjectService/analyticsProject/createAnalyticsExplores';
+import { analyticsContentAsCode } from '../../../analytics/systemExplores/sampleContent';
+import * as analyticsExplores from '../../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import {
     user as baseUser,
     defaultProject,
-} from '../ProjectService/ProjectService.mock';
+} from '../../../services/ProjectService/ProjectService.mock';
 import { AnalyticsProjectService } from './AnalyticsProjectService';
 
 describe('AnalyticsProjectService', () => {

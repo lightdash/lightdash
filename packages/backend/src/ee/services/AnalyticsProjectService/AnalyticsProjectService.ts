@@ -8,18 +8,18 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import memoize from 'lodash/memoize';
-import { analyticsContentAsCode } from '../../analytics/systemExplores/sampleContent';
-import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { type SavedChartModel } from '../../models/SavedChartModel';
-import { UserModel } from '../../models/UserModel';
-import { BaseService } from '../BaseService';
-import { type CoderService } from '../CoderService/CoderService';
+import { analyticsContentAsCode } from '../../../analytics/systemExplores/sampleContent';
+import { type DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { type SavedChartModel } from '../../../models/SavedChartModel';
+import { UserModel } from '../../../models/UserModel';
+import { BaseService } from '../../../services/BaseService';
+import { type CoderService } from '../../../services/CoderService/CoderService';
 import {
     analyticsExploreNames,
     createAnalyticsExplores,
-} from '../ProjectService/analyticsProject/createAnalyticsExplores';
-import { ProjectService } from '../ProjectService/ProjectService';
+} from '../../../services/ProjectService/analyticsProject/createAnalyticsExplores';
+import { ProjectService } from '../../../services/ProjectService/ProjectService';
 
 type Dependencies = {
     coderService: Pick<CoderService, 'upsertChart' | 'upsertDashboard'>;
