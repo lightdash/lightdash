@@ -1,0 +1,6957 @@
+{
+ "F42": {
+  "key": [
+   "pass",
+   "pass"
+  ],
+  "verdict": "parity",
+  "bindings_equal": true,
+  "case": {
+   "id": "F42",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "public",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "ledger",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "ledger",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "ledger",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "pass",
+   "tail": [
+    "14:35:17  Running with dbt=1.12.0",
+    "14:35:17  Initializing dbt-loom=0.9.6",
+    "14:35:17  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:35:17  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:35:17  Registered adapter: postgres=1.10.2",
+    "14:35:18  dbt-loom: Injecting nodes",
+    "14:35:18  Found 4 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"model.consumer_x.r1\"}",
+    "{\"unique_id\": \"model.consumer_x.r2\"}",
+    "{\"unique_id\": \"model.provider_a.ledger\"}"
+   ],
+   "excerpt": [
+    "14:35:17  Initializing dbt-loom=0.9.6",
+    "14:35:17  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:35:17  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:35:18  dbt-loom: Injecting nodes"
+   ],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "model.provider_a.ledger"
+    ],
+    "model.consumer_x.r1": [
+     "model.provider_a.ledger"
+    ],
+    "model.consumer_x.r2": [
+     "model.provider_a.ledger"
+    ]
+   },
+   "injected": [
+    "model.provider_a.ledger"
+   ]
+  },
+  "fix7b": {
+   "status": "pass",
+   "tail": [
+    "14:35:20  Running with dbt=1.12.0",
+    "14:35:20  Registered adapter: postgres=1.10.2",
+    "14:35:21  Found 4 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"model.consumer_x.r1\"}",
+    "{\"unique_id\": \"model.consumer_x.r2\"}",
+    "{\"unique_id\": \"model.provider_a.ledger\"}"
+   ],
+   "excerpt": [],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "model.provider_a.ledger"
+    ],
+    "model.consumer_x.r1": [
+     "model.provider_a.ledger"
+    ],
+    "model.consumer_x.r2": [
+     "model.provider_a.ledger"
+    ]
+   },
+   "injected": [
+    "model.provider_a.ledger"
+   ],
+   "payload_ids": [
+    "model.provider_a.ledger"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.ledger": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:35:14  Running with dbt=1.12.0",
+     "14:35:14  Registered adapter: postgres=1.10.2",
+     "14:35:15  Found 1 model, 476 macros",
+     "{\"unique_id\": \"model.provider_a.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F43": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F43",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "orders",
+       "access": "protected",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "customers",
+       "access": "public"
+      }
+     ]
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "customers",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "customers",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "orders",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:35:26  Running with dbt=1.12.0",
+    "14:35:27  Initializing dbt-loom=0.9.6",
+    "14:35:27  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:35:27  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:35:27  Registered adapter: postgres=1.10.2",
+    "14:35:28  dbt-loom: Injecting nodes",
+    "14:35:28  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r2 attempted to reference node model.provider_a.orders, which is not allowed because the referenced node is protected to the 'provider_a' package."
+   ],
+   "excerpt": [
+    "14:35:27  Initializing dbt-loom=0.9.6",
+    "14:35:27  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:35:27  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:35:28  dbt-loom: Injecting nodes",
+    "Parsing Error",
+    "Node model.consumer_x.r2 attempted to reference node model.provider_a.orders, which is not allowed because the referenced node is protected to the 'provider_a' package."
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:35:29  Running with dbt=1.12.0",
+    "14:35:29  Registered adapter: postgres=1.10.2",
+    "14:35:30  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r2' (models/r2.sql) depends on a node named 'orders' in package or project 'provider_a' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r2' (models/r2.sql) depends on a node named 'orders' in package or project 'provider_a' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "snapshot.provider_a.customers"
+   ],
+   "payload_depends_on": {
+    "snapshot.provider_a.customers": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:35:23  Running with dbt=1.12.0",
+     "14:35:23  Registered adapter: postgres=1.10.2",
+     "14:35:25  Found 1 model, 1 snapshot, 476 macros",
+     "{\"unique_id\": \"model.provider_a.orders\"}",
+     "{\"unique_id\": \"snapshot.provider_a.customers\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F44": {
+  "key": [
+   "error",
+   "error"
+  ],
+  "verdict": "parity-dbt-error",
+  "bindings_equal": true,
+  "case": {
+   "id": "F44",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "orders",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "access": "public",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "protected",
+       "version": 1,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "version": 2,
+       "latest_version": 2,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_c",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "customers",
+       "access": "public",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "ledger",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "ledger",
+         2
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b",
+    "provider_c"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b",
+      "provider_c"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      },
+      {
+       "name": "provider_c"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "error",
+   "tail": [
+    "14:35:41  Running with dbt=1.12.0",
+    "14:35:41  Initializing dbt-loom=0.9.6",
+    "14:35:41  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:35:41  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:35:41  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:35:41  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:35:41  Registered adapter: postgres=1.10.2",
+    "14:35:42  dbt-loom: Injecting nodes",
+    "14:35:42  [ERROR]: Encountered an error:",
+    "Compilation Error in model r0 (models/r0.sql)",
+    "  When referencing 'ledger', dbt found nodes in multiple packages: 'model.provider_a.ledger', 'model.provider_b.ledger.v2', 'model.provider_c.ledger'",
+    "  To fix this, use two-argument 'ref', with the package name first: 'provider_a' or 'provider_b' or 'provider_c'"
+   ],
+   "excerpt": [
+    "14:35:41  Initializing dbt-loom=0.9.6",
+    "14:35:41  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:35:41  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:35:41  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:35:41  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:35:42  dbt-loom: Injecting nodes"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "error",
+   "tail": [
+    "14:35:44  Running with dbt=1.12.0",
+    "14:35:44  Registered adapter: postgres=1.10.2",
+    "14:35:45  [ERROR]: Encountered an error:",
+    "Compilation Error in model r0 (models/r0.sql)",
+    "  When referencing 'ledger', dbt found nodes in multiple packages: 'model.provider_a.ledger', 'model.provider_c.ledger'",
+    "  To fix this, use two-argument 'ref', with the package name first: 'provider_a' or 'provider_c'"
+   ],
+   "excerpt": [
+    "Compilation Error in model r0 (models/r0.sql)"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.ledger",
+    "model.provider_a.orders",
+    "model.provider_c.customers",
+    "model.provider_c.ledger"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.orders": [],
+    "model.provider_a.ledger": [],
+    "model.provider_c.customers": [],
+    "model.provider_c.ledger": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:35:32  Running with dbt=1.12.0",
+     "14:35:32  Registered adapter: postgres=1.10.2",
+     "14:35:33  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.ledger\"}",
+     "{\"unique_id\": \"model.provider_a.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:35:35  Running with dbt=1.12.0",
+     "14:35:35  Registered adapter: postgres=1.10.2",
+     "14:35:36  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_b.ledger.v1\"}",
+     "{\"unique_id\": \"model.provider_b.ledger.v2\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_c": {
+    "tail": [
+     "14:35:38  Running with dbt=1.12.0",
+     "14:35:38  Registered adapter: postgres=1.10.2",
+     "14:35:39  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_c.customers\"}",
+     "{\"unique_id\": \"model.provider_c.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F45": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F45",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "measure",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "access": "protected",
+       "refs": [
+        [
+         null,
+         "measure",
+         null
+        ]
+       ]
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "orders"
+      }
+     ]
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "measure",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "measure",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "orders",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:35:52  Running with dbt=1.12.0",
+    "14:35:53  Initializing dbt-loom=0.9.6",
+    "14:35:53  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:35:53  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:35:53  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:35:53  Registered adapter: postgres=1.10.2",
+    "14:35:54  dbt-loom: Injecting nodes",
+    "14:35:54  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r2 attempted to reference node snapshot.provider_b.orders, which is not allowed because the referenced node is protected to the 'provider_b' package."
+   ],
+   "excerpt": [
+    "14:35:53  Initializing dbt-loom=0.9.6",
+    "14:35:53  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:35:53  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:35:53  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:35:54  dbt-loom: Injecting nodes",
+    "Parsing Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:35:55  Running with dbt=1.12.0",
+    "14:35:55  Registered adapter: postgres=1.10.2",
+    "14:35:56  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r2' (models/r2.sql) depends on a node named 'orders' in package or project 'provider_b' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r2' (models/r2.sql) depends on a node named 'orders' in package or project 'provider_b' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.measure"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.measure": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:35:47  Running with dbt=1.12.0",
+     "14:35:47  Registered adapter: postgres=1.10.2",
+     "14:35:48  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.ledger\"}",
+     "{\"unique_id\": \"model.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:35:50  Running with dbt=1.12.0",
+     "14:35:50  Registered adapter: postgres=1.10.2",
+     "14:35:51  Found 1 snapshot, 476 macros",
+     "{\"unique_id\": \"snapshot.provider_b.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F46": {
+  "key": [
+   "pass",
+   "pass"
+  ],
+  "verdict": "parity",
+  "bindings_equal": true,
+  "case": {
+   "id": "F46",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "orders",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "customers",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "orders",
+         null
+        ]
+       ]
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "orders",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "customers",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "pass",
+   "tail": [
+    "14:36:01  Running with dbt=1.12.0",
+    "14:36:02  Initializing dbt-loom=0.9.6",
+    "14:36:02  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:36:02  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:36:02  Registered adapter: postgres=1.10.2",
+    "14:36:03  dbt-loom: Injecting nodes",
+    "14:36:03  Found 4 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"model.consumer_x.r1\"}",
+    "{\"unique_id\": \"model.provider_a.customers\"}",
+    "{\"unique_id\": \"model.provider_a.orders\"}"
+   ],
+   "excerpt": [
+    "14:36:02  Initializing dbt-loom=0.9.6",
+    "14:36:02  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:36:02  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:36:03  dbt-loom: Injecting nodes"
+   ],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "model.provider_a.orders"
+    ],
+    "model.consumer_x.r1": [
+     "model.provider_a.customers"
+    ]
+   },
+   "injected": [
+    "model.provider_a.customers",
+    "model.provider_a.orders"
+   ]
+  },
+  "fix7b": {
+   "status": "pass",
+   "tail": [
+    "14:36:05  Running with dbt=1.12.0",
+    "14:36:05  Registered adapter: postgres=1.10.2",
+    "14:36:06  Found 4 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"model.consumer_x.r1\"}",
+    "{\"unique_id\": \"model.provider_a.customers\"}",
+    "{\"unique_id\": \"model.provider_a.orders\"}"
+   ],
+   "excerpt": [],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "model.provider_a.orders"
+    ],
+    "model.consumer_x.r1": [
+     "model.provider_a.customers"
+    ]
+   },
+   "injected": [
+    "model.provider_a.customers",
+    "model.provider_a.orders"
+   ],
+   "payload_ids": [
+    "model.provider_a.customers",
+    "model.provider_a.orders"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.orders": [],
+    "model.provider_a.customers": [
+     "model.provider_a.orders"
+    ]
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:35:58  Running with dbt=1.12.0",
+     "14:35:58  Registered adapter: postgres=1.10.2",
+     "14:35:59  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.customers\"}",
+     "{\"unique_id\": \"model.provider_a.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F47": {
+  "key": [
+   "pass",
+   "pass"
+  ],
+  "verdict": "parity",
+  "bindings_equal": true,
+  "case": {
+   "id": "F47",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "measure",
+       "access": "private",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "protected",
+       "refs": []
+      },
+      {
+       "name": "orders",
+       "version": 1,
+       "latest_version": 1,
+       "refs": []
+      },
+      {
+       "name": "orders",
+       "access": "public",
+       "version": 2,
+       "latest_version": 1,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "orders",
+         2
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "pass",
+   "tail": [
+    "14:36:14  Initializing dbt-loom=0.9.6",
+    "14:36:14  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:36:14  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:36:14  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:36:14  Registered adapter: postgres=1.10.2",
+    "14:36:15  dbt-loom: Injecting nodes",
+    "14:36:15  Found 5 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"model.provider_a.measure\"}",
+    "{\"unique_id\": \"model.provider_b.ledger\"}",
+    "{\"unique_id\": \"model.provider_b.orders.v1\"}",
+    "{\"unique_id\": \"model.provider_b.orders.v2\"}"
+   ],
+   "excerpt": [
+    "14:36:14  Initializing dbt-loom=0.9.6",
+    "14:36:14  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:36:14  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:36:14  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:36:15  dbt-loom: Injecting nodes"
+   ],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "model.provider_b.orders.v2"
+    ]
+   },
+   "injected": [
+    "model.provider_a.measure",
+    "model.provider_b.ledger",
+    "model.provider_b.orders.v1",
+    "model.provider_b.orders.v2"
+   ]
+  },
+  "fix7b": {
+   "status": "pass",
+   "tail": [
+    "14:36:17  Running with dbt=1.12.0",
+    "14:36:17  Registered adapter: postgres=1.10.2",
+    "14:36:18  Found 3 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"model.provider_b.orders.v1\"}",
+    "{\"unique_id\": \"model.provider_b.orders.v2\"}"
+   ],
+   "excerpt": [],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "model.provider_b.orders.v2"
+    ]
+   },
+   "injected": [
+    "model.provider_b.orders.v1",
+    "model.provider_b.orders.v2"
+   ],
+   "payload_ids": [
+    "model.provider_b.orders.v1",
+    "model.provider_b.orders.v2"
+   ],
+   "payload_depends_on": {
+    "model.provider_b.orders.v1": [],
+    "model.provider_b.orders.v2": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:36:08  Running with dbt=1.12.0",
+     "14:36:08  Registered adapter: postgres=1.10.2",
+     "14:36:09  Found 1 model, 476 macros",
+     "{\"unique_id\": \"model.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:36:11  Running with dbt=1.12.0",
+     "14:36:11  Registered adapter: postgres=1.10.2",
+     "14:36:12  Found 3 models, 476 macros",
+     "{\"unique_id\": \"model.provider_b.ledger\"}",
+     "{\"unique_id\": \"model.provider_b.orders.v1\"}",
+     "{\"unique_id\": \"model.provider_b.orders.v2\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F48": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F48",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "private",
+       "version": 1,
+       "latest_version": 1,
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "version": 2,
+       "latest_version": 1,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "customers",
+       "refs": []
+      },
+      {
+       "name": "orders",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "customers",
+         null
+        ]
+       ]
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "ledger",
+         1
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "ledger",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "ledger",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:36:25  Running with dbt=1.12.0",
+    "14:36:26  Initializing dbt-loom=0.9.6",
+    "14:36:26  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:36:26  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:36:26  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:36:26  Registered adapter: postgres=1.10.2",
+    "14:36:27  dbt-loom: Injecting nodes",
+    "14:36:27  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node model.provider_a.ledger.v1, which is not allowed because the referenced node is private to the '' group."
+   ],
+   "excerpt": [
+    "14:36:26  Initializing dbt-loom=0.9.6",
+    "14:36:26  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:36:26  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:36:26  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:36:27  dbt-loom: Injecting nodes",
+    "Parsing Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:36:28  Running with dbt=1.12.0",
+    "14:36:28  Registered adapter: postgres=1.10.2",
+    "14:36:29  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'ledger' with version '1' in package or project 'provider_a' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'ledger' with version '1' in package or project 'provider_a' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_b.orders"
+   ],
+   "payload_depends_on": {
+    "model.provider_b.orders": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:36:20  Running with dbt=1.12.0",
+     "14:36:20  Registered adapter: postgres=1.10.2",
+     "14:36:21  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.ledger.v1\"}",
+     "{\"unique_id\": \"model.provider_a.ledger.v2\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:36:22  Running with dbt=1.12.0",
+     "14:36:23  Registered adapter: postgres=1.10.2",
+     "14:36:24  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_b.customers\"}",
+     "{\"unique_id\": \"model.provider_b.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F49": {
+  "key": [
+   "pass",
+   "pass"
+  ],
+  "verdict": "parity",
+  "bindings_equal": true,
+  "case": {
+   "id": "F49",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "orders",
+       "version": 1,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "orders",
+       "access": "public",
+       "version": 2,
+       "latest_version": 2,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "measure",
+       "access": "public"
+      }
+     ]
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "measure",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "pass",
+   "tail": [
+    "14:36:34  Running with dbt=1.12.0",
+    "14:36:35  Initializing dbt-loom=0.9.6",
+    "14:36:35  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:36:35  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:36:35  Registered adapter: postgres=1.10.2",
+    "14:36:36  dbt-loom: Injecting nodes",
+    "14:36:36  Found 5 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"model.consumer_x.r1\"}",
+    "{\"unique_id\": \"model.provider_a.orders.v1\"}",
+    "{\"unique_id\": \"model.provider_a.orders.v2\"}",
+    "{\"unique_id\": \"snapshot.provider_a.measure\"}"
+   ],
+   "excerpt": [
+    "14:36:35  Initializing dbt-loom=0.9.6",
+    "14:36:35  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:36:35  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:36:36  dbt-loom: Injecting nodes"
+   ],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "snapshot.provider_a.measure"
+    ],
+    "model.consumer_x.r1": [
+     "snapshot.provider_a.measure"
+    ]
+   },
+   "injected": [
+    "model.provider_a.orders.v1",
+    "model.provider_a.orders.v2",
+    "snapshot.provider_a.measure"
+   ]
+  },
+  "fix7b": {
+   "status": "pass",
+   "tail": [
+    "14:36:37  Running with dbt=1.12.0",
+    "14:36:38  Registered adapter: postgres=1.10.2",
+    "14:36:39  Found 5 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"model.consumer_x.r1\"}",
+    "{\"unique_id\": \"model.provider_a.orders.v1\"}",
+    "{\"unique_id\": \"model.provider_a.orders.v2\"}",
+    "{\"unique_id\": \"snapshot.provider_a.measure\"}"
+   ],
+   "excerpt": [],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "snapshot.provider_a.measure"
+    ],
+    "model.consumer_x.r1": [
+     "snapshot.provider_a.measure"
+    ]
+   },
+   "injected": [
+    "model.provider_a.orders.v1",
+    "model.provider_a.orders.v2",
+    "snapshot.provider_a.measure"
+   ],
+   "payload_ids": [
+    "model.provider_a.orders.v1",
+    "model.provider_a.orders.v2",
+    "snapshot.provider_a.measure"
+   ],
+   "payload_depends_on": {
+    "snapshot.provider_a.measure": [],
+    "model.provider_a.orders.v1": [],
+    "model.provider_a.orders.v2": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:36:31  Running with dbt=1.12.0",
+     "14:36:31  Registered adapter: postgres=1.10.2",
+     "14:36:33  Found 1 snapshot, 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.orders.v1\"}",
+     "{\"unique_id\": \"model.provider_a.orders.v2\"}",
+     "{\"unique_id\": \"snapshot.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F50": {
+  "key": [
+   "pass",
+   "pass"
+  ],
+  "verdict": "parity",
+  "bindings_equal": true,
+  "case": {
+   "id": "F50",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "public",
+       "version": 1,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "access": "public",
+       "version": 2,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "orders",
+       "access": "public",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "customers",
+       "access": "public",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_c",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "public",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_c",
+         "ledger",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "orders",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "customers",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b",
+    "provider_c"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b",
+      "provider_c"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      },
+      {
+       "name": "provider_c"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "pass",
+   "tail": [
+    "14:36:50  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:36:50  Registered adapter: postgres=1.10.2",
+    "14:36:51  dbt-loom: Injecting nodes",
+    "14:36:51  Found 8 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"model.consumer_x.r1\"}",
+    "{\"unique_id\": \"model.consumer_x.r2\"}",
+    "{\"unique_id\": \"model.provider_a.ledger.v1\"}",
+    "{\"unique_id\": \"model.provider_a.ledger.v2\"}",
+    "{\"unique_id\": \"model.provider_a.orders\"}",
+    "{\"unique_id\": \"model.provider_b.customers\"}",
+    "{\"unique_id\": \"model.provider_c.ledger\"}"
+   ],
+   "excerpt": [
+    "14:36:50  Initializing dbt-loom=0.9.6",
+    "14:36:50  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:36:50  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:36:50  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:36:50  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:36:51  dbt-loom: Injecting nodes"
+   ],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "model.provider_c.ledger"
+    ],
+    "model.consumer_x.r1": [
+     "model.provider_a.orders"
+    ],
+    "model.consumer_x.r2": [
+     "model.provider_b.customers"
+    ]
+   },
+   "injected": [
+    "model.provider_a.ledger.v1",
+    "model.provider_a.ledger.v2",
+    "model.provider_a.orders",
+    "model.provider_b.customers",
+    "model.provider_c.ledger"
+   ]
+  },
+  "fix7b": {
+   "status": "pass",
+   "tail": [
+    "14:36:53  Running with dbt=1.12.0",
+    "14:36:53  Registered adapter: postgres=1.10.2",
+    "14:36:54  Found 8 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"model.consumer_x.r1\"}",
+    "{\"unique_id\": \"model.consumer_x.r2\"}",
+    "{\"unique_id\": \"model.provider_a.ledger.v1\"}",
+    "{\"unique_id\": \"model.provider_a.ledger.v2\"}",
+    "{\"unique_id\": \"model.provider_a.orders\"}",
+    "{\"unique_id\": \"model.provider_b.customers\"}",
+    "{\"unique_id\": \"model.provider_c.ledger\"}"
+   ],
+   "excerpt": [],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "model.provider_c.ledger"
+    ],
+    "model.consumer_x.r1": [
+     "model.provider_a.orders"
+    ],
+    "model.consumer_x.r2": [
+     "model.provider_b.customers"
+    ]
+   },
+   "injected": [
+    "model.provider_a.ledger.v1",
+    "model.provider_a.ledger.v2",
+    "model.provider_a.orders",
+    "model.provider_b.customers",
+    "model.provider_c.ledger"
+   ],
+   "payload_ids": [
+    "model.provider_a.ledger.v1",
+    "model.provider_a.ledger.v2",
+    "model.provider_a.orders",
+    "model.provider_b.customers",
+    "model.provider_c.ledger"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.orders": [],
+    "model.provider_a.ledger.v1": [],
+    "model.provider_a.ledger.v2": [],
+    "model.provider_b.customers": [],
+    "model.provider_c.ledger": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:36:40  Running with dbt=1.12.0",
+     "14:36:41  Registered adapter: postgres=1.10.2",
+     "14:36:42  Found 3 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.ledger.v1\"}",
+     "{\"unique_id\": \"model.provider_a.ledger.v2\"}",
+     "{\"unique_id\": \"model.provider_a.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:36:43  Running with dbt=1.12.0",
+     "14:36:44  Registered adapter: postgres=1.10.2",
+     "14:36:45  Found 1 model, 476 macros",
+     "{\"unique_id\": \"model.provider_b.customers\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_c": {
+    "tail": [
+     "14:36:46  Running with dbt=1.12.0",
+     "14:36:47  Registered adapter: postgres=1.10.2",
+     "14:36:48  Found 1 model, 476 macros",
+     "{\"unique_id\": \"model.provider_c.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F51": {
+  "key": [
+   "unresolved",
+   "unresolved"
+  ],
+  "verdict": "parity-unresolved",
+  "bindings_equal": true,
+  "case": {
+   "id": "F51",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "customers",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "measure",
+       "access": "private",
+       "version": 1,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "measure",
+       "access": "private",
+       "version": 2,
+       "latest_version": 2,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "ledger",
+       "access": "protected"
+      }
+     ]
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "measure",
+       "access": "public",
+       "version": 1,
+       "latest_version": 1,
+       "refs": []
+      },
+      {
+       "name": "measure",
+       "access": "public",
+       "version": 2,
+       "latest_version": 1,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "measure",
+         3
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "unresolved",
+   "tail": [
+    "14:37:02  Running with dbt=1.12.0",
+    "14:37:02  Initializing dbt-loom=0.9.6",
+    "14:37:02  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:37:02  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:37:02  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:37:02  Registered adapter: postgres=1.10.2",
+    "14:37:03  dbt-loom: Injecting nodes",
+    "14:37:03  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' with version '3' which was not found"
+   ],
+   "excerpt": [
+    "14:37:02  Initializing dbt-loom=0.9.6",
+    "14:37:02  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:37:02  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:37:02  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:37:03  dbt-loom: Injecting nodes",
+    "Compilation Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:37:05  Running with dbt=1.12.0",
+    "14:37:05  Registered adapter: postgres=1.10.2",
+    "14:37:06  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' with version '3' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' with version '3' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.customers",
+    "model.provider_b.ledger",
+    "model.provider_b.measure.v1",
+    "model.provider_b.measure.v2"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.customers": [],
+    "model.provider_b.ledger": [],
+    "model.provider_b.measure.v1": [],
+    "model.provider_b.measure.v2": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:36:56  Running with dbt=1.12.0",
+     "14:36:56  Registered adapter: postgres=1.10.2",
+     "14:36:57  Found 3 models, 1 snapshot, 476 macros",
+     "{\"unique_id\": \"model.provider_a.customers\"}",
+     "{\"unique_id\": \"model.provider_a.measure.v1\"}",
+     "{\"unique_id\": \"model.provider_a.measure.v2\"}",
+     "{\"unique_id\": \"snapshot.provider_a.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:36:59  Running with dbt=1.12.0",
+     "14:36:59  Registered adapter: postgres=1.10.2",
+     "14:37:00  Found 3 models, 476 macros",
+     "{\"unique_id\": \"model.provider_b.ledger\"}",
+     "{\"unique_id\": \"model.provider_b.measure.v1\"}",
+     "{\"unique_id\": \"model.provider_b.measure.v2\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F52": {
+  "key": [
+   "error",
+   "error"
+  ],
+  "verdict": "parity-dbt-error",
+  "bindings_equal": true,
+  "case": {
+   "id": "F52",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [],
+     "seeds": [
+      {
+       "name": "measure",
+       "access": "public"
+      }
+     ],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [],
+     "seeds": [
+      {
+       "name": "measure",
+       "access": "public"
+      }
+     ],
+     "snapshots": [
+      {
+       "name": "orders",
+       "access": "public"
+      }
+     ]
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "measure",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "error",
+   "tail": [
+    "14:37:14  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:37:14  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:37:14  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:37:14  Registered adapter: postgres=1.10.2",
+    "14:37:15  dbt-loom: Injecting nodes",
+    "14:37:15  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  dbt found two resources with the database representation \"\"sim\".\"fuzz\".\"measure\"\".",
+    "  dbt cannot create two resources with identical database representations. To fix this,",
+    "  change the configuration of one of these resources:",
+    "  - seed.provider_a.measure ()",
+    "  - seed.provider_b.measure ()"
+   ],
+   "excerpt": [
+    "14:37:14  Initializing dbt-loom=0.9.6",
+    "14:37:14  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:37:14  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:37:14  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:37:15  dbt-loom: Injecting nodes",
+    "Compilation Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "error",
+   "tail": [
+    "14:37:17  Running with dbt=1.12.0",
+    "14:37:17  Registered adapter: postgres=1.10.2",
+    "14:37:18  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  dbt found two resources with the database representation \"\"sim\".\"fuzz\".\"measure\"\".",
+    "  dbt cannot create two resources with identical database representations. To fix this,",
+    "  change the configuration of one of these resources:",
+    "  - seed.provider_a.measure ()",
+    "  - seed.provider_b.measure ()"
+   ],
+   "excerpt": [
+    "Compilation Error"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "seed.provider_a.measure",
+    "seed.provider_b.measure",
+    "snapshot.provider_b.orders"
+   ],
+   "payload_depends_on": {
+    "seed.provider_a.measure": [],
+    "snapshot.provider_b.orders": [],
+    "seed.provider_b.measure": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:37:08  Running with dbt=1.12.0",
+     "14:37:08  Registered adapter: postgres=1.10.2",
+     "14:37:09  Found 1 seed, 476 macros",
+     "{\"unique_id\": \"seed.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:37:11  Running with dbt=1.12.0",
+     "14:37:11  Registered adapter: postgres=1.10.2",
+     "14:37:12  Found 1 snapshot, 1 seed, 476 macros",
+     "{\"unique_id\": \"seed.provider_b.measure\"}",
+     "{\"unique_id\": \"snapshot.provider_b.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F53": {
+  "key": [
+   "error",
+   "error"
+  ],
+  "verdict": "parity-dbt-error",
+  "bindings_equal": true,
+  "case": {
+   "id": "F53",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "ledger",
+       "version": 1,
+       "latest_version": 1,
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "access": "public",
+       "version": 2,
+       "latest_version": 1,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "measure",
+       "access": "private"
+      }
+     ]
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "public",
+       "version": 1,
+       "latest_version": 1,
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "access": "public",
+       "version": 2,
+       "latest_version": 1,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "ledger",
+         1
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "error",
+   "tail": [
+    "14:37:26  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:37:26  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:37:26  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:37:26  Registered adapter: postgres=1.10.2",
+    "14:37:27  dbt-loom: Injecting nodes",
+    "14:37:27  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  dbt found two resources with the database representation \"\"sim\".\"fuzz\".\"ledger_v1\"\".",
+    "  dbt cannot create two resources with identical database representations. To fix this,",
+    "  change the configuration of one of these resources:",
+    "  - model.provider_a.ledger.v1 ()",
+    "  - model.provider_b.ledger.v1 ()"
+   ],
+   "excerpt": [
+    "14:37:26  Initializing dbt-loom=0.9.6",
+    "14:37:26  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:37:26  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:37:26  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:37:27  dbt-loom: Injecting nodes",
+    "Compilation Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "error",
+   "tail": [
+    "14:37:29  Running with dbt=1.12.0",
+    "14:37:29  Registered adapter: postgres=1.10.2",
+    "14:37:30  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  dbt found two resources with the database representation \"\"sim\".\"fuzz\".\"ledger_v1\"\".",
+    "  dbt cannot create two resources with identical database representations. To fix this,",
+    "  change the configuration of one of these resources:",
+    "  - model.provider_a.ledger.v1 ()",
+    "  - model.provider_b.ledger.v1 ()"
+   ],
+   "excerpt": [
+    "Compilation Error"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.ledger.v1",
+    "model.provider_a.ledger.v2",
+    "model.provider_b.ledger.v1",
+    "model.provider_b.ledger.v2"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.ledger.v1": [],
+    "model.provider_a.ledger.v2": [],
+    "model.provider_b.ledger.v1": [],
+    "model.provider_b.ledger.v2": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:37:20  Running with dbt=1.12.0",
+     "14:37:20  Registered adapter: postgres=1.10.2",
+     "14:37:22  Found 1 snapshot, 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.ledger.v1\"}",
+     "{\"unique_id\": \"model.provider_a.ledger.v2\"}",
+     "{\"unique_id\": \"snapshot.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:37:23  Running with dbt=1.12.0",
+     "14:37:23  Registered adapter: postgres=1.10.2",
+     "14:37:25  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_b.ledger.v1\"}",
+     "{\"unique_id\": \"model.provider_b.ledger.v2\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F54": {
+  "key": [
+   "crash",
+   "unresolved"
+  ],
+  "verdict": "UNCLASSIFIED ('crash', 'unresolved')",
+  "bindings_equal": true,
+  "case": {
+   "id": "F54",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "protected",
+       "refs": []
+      },
+      {
+       "name": "measure",
+       "access": "public",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "customers",
+       "access": "public",
+       "version": 1,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "customers",
+       "access": "private",
+       "version": 2,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "measure",
+       "access": "private",
+       "refs": [
+        [
+         null,
+         "customers",
+         null
+        ]
+       ]
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "customers",
+         3
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "customers",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "crash",
+   "tail": [
+    "               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "  File \".work/venvs/dbt1120-loom/lib/python3.12/site-packages/dbt_loom/manifests.py\", line 276, in load",
+    "    raise e",
+    "  File \".work/venvs/dbt1120-loom/lib/python3.12/site-packages/dbt_loom/manifests.py\", line 270, in load",
+    "    manifest = self.loading_functions[manifest_reference.type](",
+    "               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "  File \".work/venvs/dbt1120-loom/lib/python3.12/site-packages/dbt_loom/manifests.py\", line 137, in load_from_path",
+    "    return ManifestLoader.load_from_local_filesystem(config)",
+    "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "  File \".work/venvs/dbt1120-loom/lib/python3.12/site-packages/dbt_loom/manifests.py\", line 160, in load_from_local_filesystem",
+    "    raise LoomConfigurationError(f\"The path `{file_path}` does not exist.\")",
+    "dbt_loom.config.LoomConfigurationError: The path `.work/loom-parity/combo/F54/last-good/provider_b/manifest.json` does not exist."
+   ],
+   "excerpt": [
+    "14:37:38  Initializing dbt-loom=0.9.6",
+    "14:37:38  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:37:38  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:37:38  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:37:38  Traceback (most recent call last):",
+    "raise LoomConfigurationError(f\"The path `{file_path}` does not exist.\")"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:37:39  Running with dbt=1.12.0",
+    "14:37:40  Registered adapter: postgres=1.10.2",
+    "14:37:41  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'customers' with version '3' in package or project 'provider_b' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'customers' with version '3' in package or project 'provider_b' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.measure"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.measure": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:37:32  Running with dbt=1.12.0",
+     "14:37:32  Registered adapter: postgres=1.10.2",
+     "14:37:33  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.ledger\"}",
+     "{\"unique_id\": \"model.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:37:35  Running with dbt=1.12.0",
+     "14:37:35  Registered adapter: postgres=1.10.2",
+     "14:37:36  [ERROR]: Encountered an error:",
+     "Parsing Error",
+     "  Node model.provider_b.measure attempted to reference node model.provider_b.customers.v2, which is not allowed because the referenced node is private to the '' group."
+    ],
+    "status": "access-denied",
+    "excerpt": [
+     "Parsing Error",
+     "Node model.provider_b.measure attempted to reference node model.provider_b.customers.v2, which is not allowed because the referenced node is private to the '' group."
+    ]
+   }
+  }
+ },
+ "F55": {
+  "key": [
+   "pass",
+   "pass"
+  ],
+  "verdict": "parity",
+  "bindings_equal": true,
+  "case": {
+   "id": "F55",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "customers",
+       "access": "public"
+      }
+     ]
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "customers",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "pass",
+   "tail": [
+    "14:37:45  Running with dbt=1.12.0",
+    "14:37:45  Initializing dbt-loom=0.9.6",
+    "14:37:45  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:37:45  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:37:45  Registered adapter: postgres=1.10.2",
+    "14:37:46  dbt-loom: Injecting nodes",
+    "14:37:46  Found 2 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"snapshot.provider_a.customers\"}"
+   ],
+   "excerpt": [
+    "14:37:45  Initializing dbt-loom=0.9.6",
+    "14:37:45  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:37:45  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:37:46  dbt-loom: Injecting nodes"
+   ],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "snapshot.provider_a.customers"
+    ]
+   },
+   "injected": [
+    "snapshot.provider_a.customers"
+   ]
+  },
+  "fix7b": {
+   "status": "pass",
+   "tail": [
+    "14:37:48  Running with dbt=1.12.0",
+    "14:37:48  Registered adapter: postgres=1.10.2",
+    "14:37:49  Found 2 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"snapshot.provider_a.customers\"}"
+   ],
+   "excerpt": [],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "snapshot.provider_a.customers"
+    ]
+   },
+   "injected": [
+    "snapshot.provider_a.customers"
+   ],
+   "payload_ids": [
+    "snapshot.provider_a.customers"
+   ],
+   "payload_depends_on": {
+    "snapshot.provider_a.customers": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:37:42  Running with dbt=1.12.0",
+     "14:37:42  Registered adapter: postgres=1.10.2",
+     "14:37:43  Found 1 snapshot, 476 macros",
+     "{\"unique_id\": \"snapshot.provider_a.customers\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F56": {
+  "key": [
+   "unresolved",
+   "unresolved"
+  ],
+  "verdict": "parity-unresolved",
+  "bindings_equal": true,
+  "case": {
+   "id": "F56",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "protected",
+       "version": 1,
+       "latest_version": 1,
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "access": "public",
+       "version": 2,
+       "latest_version": 1,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "ledger",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "ledger",
+         3
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "ledger",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "unresolved",
+   "tail": [
+    "14:37:54  Running with dbt=1.12.0",
+    "14:37:54  Initializing dbt-loom=0.9.6",
+    "14:37:54  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:37:54  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:37:55  Registered adapter: postgres=1.10.2",
+    "14:37:55  dbt-loom: Injecting nodes",
+    "14:37:55  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r1' (models/r1.sql) depends on a node named 'ledger' with version '3' which was not found"
+   ],
+   "excerpt": [
+    "14:37:54  Initializing dbt-loom=0.9.6",
+    "14:37:54  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:37:54  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:37:55  dbt-loom: Injecting nodes",
+    "Compilation Error",
+    "Model 'model.consumer_x.r1' (models/r1.sql) depends on a node named 'ledger' with version '3' which was not found"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:37:57  Running with dbt=1.12.0",
+    "14:37:57  Registered adapter: postgres=1.10.2",
+    "14:37:58  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r1' (models/r1.sql) depends on a node named 'ledger' with version '3' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r1' (models/r1.sql) depends on a node named 'ledger' with version '3' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.ledger.v1",
+    "model.provider_a.ledger.v2"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.ledger.v1": [],
+    "model.provider_a.ledger.v2": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:37:51  Running with dbt=1.12.0",
+     "14:37:51  Registered adapter: postgres=1.10.2",
+     "14:37:53  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.ledger.v1\"}",
+     "{\"unique_id\": \"model.provider_a.ledger.v2\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F57": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F57",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "orders",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "measure",
+       "access": "protected",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "orders",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:38:03  Running with dbt=1.12.0",
+    "14:38:03  Initializing dbt-loom=0.9.6",
+    "14:38:03  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:38:03  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:38:03  Registered adapter: postgres=1.10.2",
+    "14:38:04  dbt-loom: Injecting nodes",
+    "14:38:04  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r1 attempted to reference node model.provider_a.measure, which is not allowed because the referenced node is protected to the 'provider_a' package."
+   ],
+   "excerpt": [
+    "14:38:03  Initializing dbt-loom=0.9.6",
+    "14:38:03  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:38:03  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:38:04  dbt-loom: Injecting nodes",
+    "Parsing Error",
+    "Node model.consumer_x.r1 attempted to reference node model.provider_a.measure, which is not allowed because the referenced node is protected to the 'provider_a' package."
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:38:05  Running with dbt=1.12.0",
+    "14:38:06  Registered adapter: postgres=1.10.2",
+    "14:38:07  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r1' (models/r1.sql) depends on a node named 'measure' in package or project 'provider_a' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r1' (models/r1.sql) depends on a node named 'measure' in package or project 'provider_a' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.orders"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.orders": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:38:00  Running with dbt=1.12.0",
+     "14:38:00  Registered adapter: postgres=1.10.2",
+     "14:38:01  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.measure\"}",
+     "{\"unique_id\": \"model.provider_a.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F58": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F58",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "customers",
+       "access": "protected",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [],
+     "seeds": [
+      {
+       "name": "measure",
+       "access": "protected"
+      }
+     ],
+     "snapshots": [
+      {
+       "name": "ledger",
+       "access": "public"
+      }
+     ]
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "customers",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:38:14  Running with dbt=1.12.0",
+    "14:38:14  Initializing dbt-loom=0.9.6",
+    "14:38:14  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:38:14  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:38:14  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:38:14  Registered adapter: postgres=1.10.2",
+    "14:38:15  dbt-loom: Injecting nodes",
+    "14:38:15  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node model.provider_a.customers, which is not allowed because the referenced node is protected to the 'provider_a' package."
+   ],
+   "excerpt": [
+    "14:38:14  Initializing dbt-loom=0.9.6",
+    "14:38:14  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:38:14  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:38:14  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:38:15  dbt-loom: Injecting nodes",
+    "Parsing Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:38:17  Running with dbt=1.12.0",
+    "14:38:17  Registered adapter: postgres=1.10.2",
+    "14:38:18  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'customers' in package or project 'provider_a' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'customers' in package or project 'provider_a' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "snapshot.provider_b.ledger"
+   ],
+   "payload_depends_on": {
+    "snapshot.provider_b.ledger": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:38:08  Running with dbt=1.12.0",
+     "14:38:08  Registered adapter: postgres=1.10.2",
+     "14:38:10  Found 1 model, 476 macros",
+     "{\"unique_id\": \"model.provider_a.customers\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:38:11  Running with dbt=1.12.0",
+     "14:38:11  Registered adapter: postgres=1.10.2",
+     "14:38:12  Found 1 snapshot, 1 seed, 476 macros",
+     "{\"unique_id\": \"seed.provider_b.measure\"}",
+     "{\"unique_id\": \"snapshot.provider_b.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F59": {
+  "key": [
+   "error",
+   "pass"
+  ],
+  "verdict": "loom ambiguity on protected twin; 7b resolves public (S2a class)",
+  "bindings_equal": false,
+  "case": {
+   "id": "F59",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "measure",
+       "access": "public",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "orders",
+       "access": "public",
+       "version": 1,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "orders",
+       "access": "protected",
+       "version": 2,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "version": 1,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "version": 2,
+       "latest_version": 2,
+       "refs": []
+      }
+     ],
+     "seeds": [
+      {
+       "name": "measure",
+       "access": "private"
+      }
+     ],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "error",
+   "tail": [
+    "14:38:26  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:38:26  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:38:26  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:38:26  Registered adapter: postgres=1.10.2",
+    "14:38:27  dbt-loom: Injecting nodes",
+    "14:38:27  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  dbt found two resources with the database representation \"\"sim\".\"fuzz\".\"measure\"\".",
+    "  dbt cannot create two resources with identical database representations. To fix this,",
+    "  change the configuration of one of these resources:",
+    "  - model.provider_a.measure ()",
+    "  - seed.provider_b.measure ()"
+   ],
+   "excerpt": [
+    "14:38:26  Initializing dbt-loom=0.9.6",
+    "14:38:26  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:38:26  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:38:26  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:38:27  dbt-loom: Injecting nodes",
+    "Compilation Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "pass",
+   "tail": [
+    "14:38:29  Running with dbt=1.12.0",
+    "14:38:29  Registered adapter: postgres=1.10.2",
+    "14:38:31  Found 2 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"model.provider_a.measure\"}"
+   ],
+   "excerpt": [],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "model.provider_a.measure"
+    ]
+   },
+   "injected": [
+    "model.provider_a.measure"
+   ],
+   "payload_ids": [
+    "model.provider_a.measure"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.measure": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:38:20  Running with dbt=1.12.0",
+     "14:38:20  Registered adapter: postgres=1.10.2",
+     "14:38:21  Found 1 model, 476 macros",
+     "{\"unique_id\": \"model.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:38:23  Running with dbt=1.12.0",
+     "14:38:23  Registered adapter: postgres=1.10.2",
+     "14:38:24  Found 1 seed, 4 models, 476 macros",
+     "{\"unique_id\": \"model.provider_b.ledger.v1\"}",
+     "{\"unique_id\": \"model.provider_b.ledger.v2\"}",
+     "{\"unique_id\": \"model.provider_b.orders.v1\"}",
+     "{\"unique_id\": \"model.provider_b.orders.v2\"}",
+     "{\"unique_id\": \"seed.provider_b.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F60": {
+  "key": [
+   "error",
+   "pass"
+  ],
+  "verdict": "loom ambiguity on protected twin; 7b resolves public (S2a class)",
+  "bindings_equal": false,
+  "case": {
+   "id": "F60",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "customers",
+       "access": "protected",
+       "refs": []
+      }
+     ],
+     "seeds": [
+      {
+       "name": "measure",
+       "access": "public"
+      }
+     ],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "customers",
+       "access": "public",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "error",
+   "tail": [
+    "14:38:39  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:38:39  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:38:39  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:38:39  Registered adapter: postgres=1.10.2",
+    "14:38:40  dbt-loom: Injecting nodes",
+    "14:38:40  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  dbt found two resources with the database representation \"\"sim\".\"fuzz\".\"customers\"\".",
+    "  dbt cannot create two resources with identical database representations. To fix this,",
+    "  change the configuration of one of these resources:",
+    "  - model.provider_a.customers ()",
+    "  - model.provider_b.customers ()"
+   ],
+   "excerpt": [
+    "14:38:39  Initializing dbt-loom=0.9.6",
+    "14:38:39  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:38:39  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:38:39  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:38:40  dbt-loom: Injecting nodes",
+    "Compilation Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "pass",
+   "tail": [
+    "14:38:42  Running with dbt=1.12.0",
+    "14:38:42  Registered adapter: postgres=1.10.2",
+    "14:38:43  Found 3 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"model.provider_b.customers\"}",
+    "{\"unique_id\": \"seed.provider_a.measure\"}"
+   ],
+   "excerpt": [],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "seed.provider_a.measure"
+    ]
+   },
+   "injected": [
+    "model.provider_b.customers",
+    "seed.provider_a.measure"
+   ],
+   "payload_ids": [
+    "model.provider_b.customers",
+    "seed.provider_a.measure"
+   ],
+   "payload_depends_on": {
+    "seed.provider_a.measure": [],
+    "model.provider_b.customers": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:38:32  Running with dbt=1.12.0",
+     "14:38:32  Registered adapter: postgres=1.10.2",
+     "14:38:34  Found 1 model, 1 seed, 476 macros",
+     "{\"unique_id\": \"model.provider_a.customers\"}",
+     "{\"unique_id\": \"seed.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:38:35  Running with dbt=1.12.0",
+     "14:38:36  Registered adapter: postgres=1.10.2",
+     "14:38:37  Found 1 model, 476 macros",
+     "{\"unique_id\": \"model.provider_b.customers\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F61": {
+  "key": [
+   "error",
+   "error"
+  ],
+  "verdict": "parity-dbt-error",
+  "bindings_equal": true,
+  "case": {
+   "id": "F61",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [],
+     "seeds": [
+      {
+       "name": "customers",
+       "access": "public"
+      }
+     ],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "measure",
+       "access": "public",
+       "refs": []
+      }
+     ],
+     "seeds": [
+      {
+       "name": "ledger",
+       "access": "public"
+      }
+     ],
+     "snapshots": []
+    },
+    {
+     "name": "provider_c",
+     "models": [
+      {
+       "name": "measure",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "access": "private",
+       "version": 1,
+       "latest_version": 1,
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "version": 2,
+       "latest_version": 1,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b",
+    "provider_c"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b",
+      "provider_c"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      },
+      {
+       "name": "provider_c"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "error",
+   "tail": [
+    "14:38:54  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:38:54  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:38:54  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:38:54  Registered adapter: postgres=1.10.2",
+    "14:38:55  dbt-loom: Injecting nodes",
+    "14:38:55  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  dbt found two resources with the database representation \"\"sim\".\"fuzz\".\"measure\"\".",
+    "  dbt cannot create two resources with identical database representations. To fix this,",
+    "  change the configuration of one of these resources:",
+    "  - model.provider_b.measure ()",
+    "  - model.provider_c.measure ()"
+   ],
+   "excerpt": [
+    "14:38:54  Initializing dbt-loom=0.9.6",
+    "14:38:54  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:38:54  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:38:54  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:38:54  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:38:55  dbt-loom: Injecting nodes"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "error",
+   "tail": [
+    "14:38:56  Running with dbt=1.12.0",
+    "14:38:57  Registered adapter: postgres=1.10.2",
+    "14:38:58  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  dbt found two resources with the database representation \"\"sim\".\"fuzz\".\"measure\"\".",
+    "  dbt cannot create two resources with identical database representations. To fix this,",
+    "  change the configuration of one of these resources:",
+    "  - model.provider_b.measure ()",
+    "  - model.provider_c.measure ()"
+   ],
+   "excerpt": [
+    "Compilation Error"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_b.measure",
+    "model.provider_c.measure",
+    "seed.provider_a.customers",
+    "seed.provider_b.ledger"
+   ],
+   "payload_depends_on": {
+    "seed.provider_a.customers": [],
+    "model.provider_b.measure": [],
+    "seed.provider_b.ledger": [],
+    "model.provider_c.measure": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:38:45  Running with dbt=1.12.0",
+     "14:38:45  Registered adapter: postgres=1.10.2",
+     "14:38:46  Found 1 seed, 476 macros",
+     "{\"unique_id\": \"seed.provider_a.customers\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:38:47  Running with dbt=1.12.0",
+     "14:38:48  Registered adapter: postgres=1.10.2",
+     "14:38:49  Found 1 model, 1 seed, 476 macros",
+     "{\"unique_id\": \"model.provider_b.measure\"}",
+     "{\"unique_id\": \"seed.provider_b.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_c": {
+    "tail": [
+     "14:38:51  Running with dbt=1.12.0",
+     "14:38:51  Registered adapter: postgres=1.10.2",
+     "14:38:52  Found 3 models, 476 macros",
+     "{\"unique_id\": \"model.provider_c.ledger.v1\"}",
+     "{\"unique_id\": \"model.provider_c.ledger.v2\"}",
+     "{\"unique_id\": \"model.provider_c.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F62": {
+  "key": [
+   "error",
+   "error"
+  ],
+  "verdict": "parity-dbt-error",
+  "bindings_equal": true,
+  "case": {
+   "id": "F62",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [],
+     "seeds": [
+      {
+       "name": "customers",
+       "access": "public"
+      }
+     ],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "customers",
+       "access": "public",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "customers",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "error",
+   "tail": [
+    "14:39:05  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:39:05  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:39:05  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:39:05  Registered adapter: postgres=1.10.2",
+    "14:39:06  dbt-loom: Injecting nodes",
+    "14:39:06  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  dbt found two resources with the database representation \"\"sim\".\"fuzz\".\"customers\"\".",
+    "  dbt cannot create two resources with identical database representations. To fix this,",
+    "  change the configuration of one of these resources:",
+    "  - seed.provider_a.customers ()",
+    "  - model.provider_b.customers ()"
+   ],
+   "excerpt": [
+    "14:39:05  Initializing dbt-loom=0.9.6",
+    "14:39:05  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:39:05  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:39:05  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:39:06  dbt-loom: Injecting nodes",
+    "Compilation Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "error",
+   "tail": [
+    "14:39:08  Running with dbt=1.12.0",
+    "14:39:08  Registered adapter: postgres=1.10.2",
+    "14:39:09  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  dbt found two resources with the database representation \"\"sim\".\"fuzz\".\"customers\"\".",
+    "  dbt cannot create two resources with identical database representations. To fix this,",
+    "  change the configuration of one of these resources:",
+    "  - seed.provider_a.customers ()",
+    "  - model.provider_b.customers ()"
+   ],
+   "excerpt": [
+    "Compilation Error"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_b.customers",
+    "model.provider_b.ledger",
+    "seed.provider_a.customers"
+   ],
+   "payload_depends_on": {
+    "seed.provider_a.customers": [],
+    "model.provider_b.customers": [],
+    "model.provider_b.ledger": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:38:59  Running with dbt=1.12.0",
+     "14:38:59  Registered adapter: postgres=1.10.2",
+     "14:39:00  Found 1 seed, 476 macros",
+     "{\"unique_id\": \"seed.provider_a.customers\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:39:02  Running with dbt=1.12.0",
+     "14:39:02  Registered adapter: postgres=1.10.2",
+     "14:39:03  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_b.customers\"}",
+     "{\"unique_id\": \"model.provider_b.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F63": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F63",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "measure",
+       "access": "protected",
+       "version": 1,
+       "latest_version": 1,
+       "refs": []
+      },
+      {
+       "name": "measure",
+       "access": "public",
+       "version": 2,
+       "latest_version": 1,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "ledger",
+       "access": "public"
+      }
+     ]
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "customers",
+       "refs": []
+      },
+      {
+       "name": "orders",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "customers",
+         null
+        ]
+       ]
+      }
+     ],
+     "seeds": [
+      {
+       "name": "ledger",
+       "access": "private"
+      }
+     ],
+     "snapshots": []
+    },
+    {
+     "name": "provider_c",
+     "models": [
+      {
+       "name": "customers",
+       "access": "private",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "orders",
+       "access": "private"
+      }
+     ]
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "orders",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "ledger",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b",
+    "provider_c"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b",
+      "provider_c"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      },
+      {
+       "name": "provider_c"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:39:20  Running with dbt=1.12.0",
+    "14:39:21  Initializing dbt-loom=0.9.6",
+    "14:39:21  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:39:21  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:39:21  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:39:21  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:39:21  Registered adapter: postgres=1.10.2",
+    "14:39:22  dbt-loom: Injecting nodes",
+    "14:39:22  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r1 attempted to reference node seed.provider_b.ledger, which is not allowed because the referenced node is private to the '' group."
+   ],
+   "excerpt": [
+    "14:39:21  Initializing dbt-loom=0.9.6",
+    "14:39:21  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:39:21  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:39:21  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:39:21  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:39:22  dbt-loom: Injecting nodes"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:39:24  Running with dbt=1.12.0",
+    "14:39:24  Registered adapter: postgres=1.10.2",
+    "14:39:25  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r1' (models/r1.sql) depends on a node named 'ledger' in package or project 'provider_b' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r1' (models/r1.sql) depends on a node named 'ledger' in package or project 'provider_b' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.measure.v1",
+    "model.provider_a.measure.v2",
+    "model.provider_b.orders",
+    "snapshot.provider_a.ledger"
+   ],
+   "payload_depends_on": {
+    "snapshot.provider_a.ledger": [],
+    "model.provider_a.measure.v1": [],
+    "model.provider_a.measure.v2": [],
+    "model.provider_b.orders": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:39:11  Running with dbt=1.12.0",
+     "14:39:11  Registered adapter: postgres=1.10.2",
+     "14:39:12  Found 1 snapshot, 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.measure.v1\"}",
+     "{\"unique_id\": \"model.provider_a.measure.v2\"}",
+     "{\"unique_id\": \"snapshot.provider_a.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:39:14  Running with dbt=1.12.0",
+     "14:39:14  Registered adapter: postgres=1.10.2",
+     "14:39:15  Found 2 models, 1 seed, 476 macros",
+     "{\"unique_id\": \"model.provider_b.customers\"}",
+     "{\"unique_id\": \"model.provider_b.orders\"}",
+     "{\"unique_id\": \"seed.provider_b.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_c": {
+    "tail": [
+     "14:39:17  Running with dbt=1.12.0",
+     "14:39:17  Registered adapter: postgres=1.10.2",
+     "14:39:19  Found 1 model, 1 snapshot, 476 macros",
+     "{\"unique_id\": \"model.provider_c.customers\"}",
+     "{\"unique_id\": \"snapshot.provider_c.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F64": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F64",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "measure",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "customers"
+      }
+     ]
+    },
+    {
+     "name": "provider_c",
+     "models": [
+      {
+       "name": "customers",
+       "version": 1,
+       "latest_version": 1,
+       "refs": []
+      },
+      {
+       "name": "customers",
+       "access": "public",
+       "version": 2,
+       "latest_version": 1,
+       "refs": []
+      },
+      {
+       "name": "measure",
+       "refs": [
+        [
+         null,
+         "customers",
+         null
+        ]
+       ]
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "measure",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "customers",
+         3
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b",
+    "provider_c"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b",
+      "provider_c"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      },
+      {
+       "name": "provider_c"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:39:35  Running with dbt=1.12.0",
+    "14:39:35  Initializing dbt-loom=0.9.6",
+    "14:39:35  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:39:35  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:39:35  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:39:35  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:39:35  Registered adapter: postgres=1.10.2",
+    "14:39:36  dbt-loom: Injecting nodes",
+    "14:39:36  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node model.provider_a.measure, which is not allowed because the referenced node is protected to the 'provider_a' package."
+   ],
+   "excerpt": [
+    "14:39:35  Initializing dbt-loom=0.9.6",
+    "14:39:35  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:39:35  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:39:35  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:39:35  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:39:36  dbt-loom: Injecting nodes"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:39:38  Running with dbt=1.12.0",
+    "14:39:38  Registered adapter: postgres=1.10.2",
+    "14:39:39  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' in package or project 'provider_a' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' in package or project 'provider_a' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_c.customers.v1",
+    "model.provider_c.customers.v2"
+   ],
+   "payload_depends_on": {
+    "model.provider_c.customers.v1": [],
+    "model.provider_c.customers.v2": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:39:26  Running with dbt=1.12.0",
+     "14:39:27  Registered adapter: postgres=1.10.2",
+     "14:39:28  Found 1 model, 476 macros",
+     "{\"unique_id\": \"model.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:39:29  Running with dbt=1.12.0",
+     "14:39:30  Registered adapter: postgres=1.10.2",
+     "14:39:31  Found 1 snapshot, 476 macros",
+     "{\"unique_id\": \"snapshot.provider_b.customers\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_c": {
+    "tail": [
+     "14:39:32  Running with dbt=1.12.0",
+     "14:39:32  Registered adapter: postgres=1.10.2",
+     "14:39:34  Found 3 models, 476 macros",
+     "{\"unique_id\": \"model.provider_c.customers.v1\"}",
+     "{\"unique_id\": \"model.provider_c.customers.v2\"}",
+     "{\"unique_id\": \"model.provider_c.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F65": {
+  "key": [
+   "unresolved",
+   "unresolved"
+  ],
+  "verdict": "parity-unresolved",
+  "bindings_equal": true,
+  "case": {
+   "id": "F65",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "measure",
+       "access": "protected",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "measure",
+       "access": "public"
+      }
+     ]
+    },
+    {
+     "name": "provider_c",
+     "models": [
+      {
+       "name": "customers",
+       "access": "private",
+       "version": 1,
+       "latest_version": 1,
+       "refs": []
+      },
+      {
+       "name": "customers",
+       "access": "public",
+       "version": 2,
+       "latest_version": 1,
+       "refs": []
+      },
+      {
+       "name": "orders",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "ledger",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "measure",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         "provider_c",
+         "customers",
+         3
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b",
+    "provider_c"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b",
+      "provider_c"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      },
+      {
+       "name": "provider_c"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "unresolved",
+   "tail": [
+    "14:39:49  Running with dbt=1.12.0",
+    "14:39:49  Initializing dbt-loom=0.9.6",
+    "14:39:49  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:39:49  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:39:49  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:39:49  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:39:50  Registered adapter: postgres=1.10.2",
+    "14:39:50  dbt-loom: Injecting nodes",
+    "14:39:50  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r2' (models/r2.sql) depends on a node named 'customers' with version '3' in package or project 'provider_c' which was not found"
+   ],
+   "excerpt": [
+    "14:39:49  Initializing dbt-loom=0.9.6",
+    "14:39:49  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:39:49  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:39:49  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:39:49  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:39:50  dbt-loom: Injecting nodes"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:39:52  Running with dbt=1.12.0",
+    "14:39:52  Registered adapter: postgres=1.10.2",
+    "14:39:53  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r2' (models/r2.sql) depends on a node named 'customers' with version '3' in package or project 'provider_c' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r2' (models/r2.sql) depends on a node named 'customers' with version '3' in package or project 'provider_c' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.ledger",
+    "model.provider_c.customers.v1",
+    "model.provider_c.customers.v2",
+    "snapshot.provider_b.measure"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.ledger": [],
+    "snapshot.provider_b.measure": [],
+    "model.provider_c.customers.v1": [],
+    "model.provider_c.customers.v2": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:39:41  Running with dbt=1.12.0",
+     "14:39:41  Registered adapter: postgres=1.10.2",
+     "14:39:42  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.ledger\"}",
+     "{\"unique_id\": \"model.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:39:44  Running with dbt=1.12.0",
+     "14:39:44  Registered adapter: postgres=1.10.2",
+     "14:39:45  Found 1 snapshot, 476 macros",
+     "{\"unique_id\": \"snapshot.provider_b.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_c": {
+    "tail": [
+     "14:39:46  Running with dbt=1.12.0",
+     "14:39:46  Registered adapter: postgres=1.10.2",
+     "14:39:48  Found 3 models, 476 macros",
+     "{\"unique_id\": \"model.provider_c.customers.v1\"}",
+     "{\"unique_id\": \"model.provider_c.customers.v2\"}",
+     "{\"unique_id\": \"model.provider_c.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F66": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F66",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "private",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "measure",
+       "access": "protected"
+      }
+     ]
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "ledger",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:39:58  Running with dbt=1.12.0",
+    "14:39:58  Initializing dbt-loom=0.9.6",
+    "14:39:58  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:39:58  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:39:58  Registered adapter: postgres=1.10.2",
+    "14:39:59  dbt-loom: Injecting nodes",
+    "14:39:59  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node model.provider_a.ledger, which is not allowed because the referenced node is private to the '' group."
+   ],
+   "excerpt": [
+    "14:39:58  Initializing dbt-loom=0.9.6",
+    "14:39:58  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:39:58  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:39:59  dbt-loom: Injecting nodes",
+    "Parsing Error",
+    "Node model.consumer_x.r0 attempted to reference node model.provider_a.ledger, which is not allowed because the referenced node is private to the '' group."
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:40:01  Running with dbt=1.12.0",
+    "14:40:01  Registered adapter: postgres=1.10.2",
+    "14:40:02  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'ledger' in package or project 'provider_a' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'ledger' in package or project 'provider_a' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [],
+   "payload_depends_on": {}
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:39:55  Running with dbt=1.12.0",
+     "14:39:55  Registered adapter: postgres=1.10.2",
+     "14:39:56  Found 1 model, 1 snapshot, 476 macros",
+     "{\"unique_id\": \"model.provider_a.ledger\"}",
+     "{\"unique_id\": \"snapshot.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F67": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F67",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "measure",
+       "access": "protected"
+      }
+     ]
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "measure",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:40:07  Running with dbt=1.12.0",
+    "14:40:07  Initializing dbt-loom=0.9.6",
+    "14:40:07  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:40:07  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:40:07  Registered adapter: postgres=1.10.2",
+    "14:40:08  dbt-loom: Injecting nodes",
+    "14:40:08  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node snapshot.provider_a.measure, which is not allowed because the referenced node is protected to the 'provider_a' package."
+   ],
+   "excerpt": [
+    "14:40:07  Initializing dbt-loom=0.9.6",
+    "14:40:07  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:40:07  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:40:08  dbt-loom: Injecting nodes",
+    "Parsing Error",
+    "Node model.consumer_x.r0 attempted to reference node snapshot.provider_a.measure, which is not allowed because the referenced node is protected to the 'provider_a' package."
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:40:09  Running with dbt=1.12.0",
+    "14:40:10  Registered adapter: postgres=1.10.2",
+    "14:40:10  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' in package or project 'provider_a' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' in package or project 'provider_a' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [],
+   "payload_depends_on": {}
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:40:04  Running with dbt=1.12.0",
+     "14:40:04  Registered adapter: postgres=1.10.2",
+     "14:40:05  Found 1 snapshot, 476 macros",
+     "{\"unique_id\": \"snapshot.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F68": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F68",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "orders",
+       "access": "public",
+       "version": 1,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "orders",
+       "access": "protected",
+       "version": 2,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "version": 1,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "access": "protected",
+       "version": 2,
+       "latest_version": 2,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "orders",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_c",
+     "models": [],
+     "seeds": [
+      {
+       "name": "orders",
+       "access": "public"
+      }
+     ],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "orders",
+         2
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "orders",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         "provider_c",
+         "orders",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b",
+    "provider_c"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b",
+      "provider_c"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      },
+      {
+       "name": "provider_c"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:40:21  Running with dbt=1.12.0",
+    "14:40:21  Initializing dbt-loom=0.9.6",
+    "14:40:21  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:40:21  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:40:21  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:40:21  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:40:21  Registered adapter: postgres=1.10.2",
+    "14:40:22  dbt-loom: Injecting nodes",
+    "14:40:22  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node model.provider_a.orders.v2, which is not allowed because the referenced node is protected to the 'provider_a' package."
+   ],
+   "excerpt": [
+    "14:40:21  Initializing dbt-loom=0.9.6",
+    "14:40:21  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:40:21  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:40:21  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:40:21  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:40:22  dbt-loom: Injecting nodes"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:40:23  Running with dbt=1.12.0",
+    "14:40:24  Registered adapter: postgres=1.10.2",
+    "14:40:25  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'orders' with version '2' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'orders' with version '2' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "seed.provider_c.orders"
+   ],
+   "payload_depends_on": {
+    "seed.provider_c.orders": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:40:12  Running with dbt=1.12.0",
+     "14:40:12  Registered adapter: postgres=1.10.2",
+     "14:40:13  Found 4 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.ledger.v1\"}",
+     "{\"unique_id\": \"model.provider_a.ledger.v2\"}",
+     "{\"unique_id\": \"model.provider_a.orders.v1\"}",
+     "{\"unique_id\": \"model.provider_a.orders.v2\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:40:15  Running with dbt=1.12.0",
+     "14:40:15  Registered adapter: postgres=1.10.2",
+     "14:40:16  Found 1 model, 476 macros",
+     "{\"unique_id\": \"model.provider_b.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_c": {
+    "tail": [
+     "14:40:18  Running with dbt=1.12.0",
+     "14:40:18  Registered adapter: postgres=1.10.2",
+     "14:40:19  Found 1 seed, 476 macros",
+     "{\"unique_id\": \"seed.provider_c.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F69": {
+  "key": [
+   "pass",
+   "pass"
+  ],
+  "verdict": "parity",
+  "bindings_equal": true,
+  "case": {
+   "id": "F69",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "customers",
+       "access": "public",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "customers",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "customers",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "pass",
+   "tail": [
+    "14:40:29  Running with dbt=1.12.0",
+    "14:40:29  Initializing dbt-loom=0.9.6",
+    "14:40:29  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:40:29  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:40:29  Registered adapter: postgres=1.10.2",
+    "14:40:30  dbt-loom: Injecting nodes",
+    "14:40:31  Found 3 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"model.consumer_x.r1\"}",
+    "{\"unique_id\": \"model.provider_a.customers\"}"
+   ],
+   "excerpt": [
+    "14:40:29  Initializing dbt-loom=0.9.6",
+    "14:40:29  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:40:29  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:40:30  dbt-loom: Injecting nodes"
+   ],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "model.provider_a.customers"
+    ],
+    "model.consumer_x.r1": [
+     "model.provider_a.customers"
+    ]
+   },
+   "injected": [
+    "model.provider_a.customers"
+   ]
+  },
+  "fix7b": {
+   "status": "pass",
+   "tail": [
+    "14:40:32  Running with dbt=1.12.0",
+    "14:40:33  Registered adapter: postgres=1.10.2",
+    "14:40:34  Found 3 models, 476 macros",
+    "{\"unique_id\": \"model.consumer_x.r0\"}",
+    "{\"unique_id\": \"model.consumer_x.r1\"}",
+    "{\"unique_id\": \"model.provider_a.customers\"}"
+   ],
+   "excerpt": [],
+   "bindings": {
+    "model.consumer_x.r0": [
+     "model.provider_a.customers"
+    ],
+    "model.consumer_x.r1": [
+     "model.provider_a.customers"
+    ]
+   },
+   "injected": [
+    "model.provider_a.customers"
+   ],
+   "payload_ids": [
+    "model.provider_a.customers"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.customers": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:40:26  Running with dbt=1.12.0",
+     "14:40:26  Registered adapter: postgres=1.10.2",
+     "14:40:28  Found 1 model, 476 macros",
+     "{\"unique_id\": \"model.provider_a.customers\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F70": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F70",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "measure",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "orders",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "orders",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:40:39  Running with dbt=1.12.0",
+    "14:40:39  Initializing dbt-loom=0.9.6",
+    "14:40:39  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:40:39  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:40:39  Registered adapter: postgres=1.10.2",
+    "14:40:40  dbt-loom: Injecting nodes",
+    "14:40:40  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node model.provider_a.orders, which is not allowed because the referenced node is protected to the 'provider_a' package."
+   ],
+   "excerpt": [
+    "14:40:39  Initializing dbt-loom=0.9.6",
+    "14:40:39  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:40:39  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:40:40  dbt-loom: Injecting nodes",
+    "Parsing Error",
+    "Node model.consumer_x.r0 attempted to reference node model.provider_a.orders, which is not allowed because the referenced node is protected to the 'provider_a' package."
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:40:42  Running with dbt=1.12.0",
+    "14:40:42  Registered adapter: postgres=1.10.2",
+    "14:40:43  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'orders' in package or project 'provider_a' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'orders' in package or project 'provider_a' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.measure"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.measure": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:40:35  Running with dbt=1.12.0",
+     "14:40:36  Registered adapter: postgres=1.10.2",
+     "14:40:37  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.measure\"}",
+     "{\"unique_id\": \"model.provider_a.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F71": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F71",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "orders",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "customers",
+       "access": "public",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "customers",
+       "access": "public",
+       "refs": []
+      }
+     ],
+     "seeds": [
+      {
+       "name": "orders",
+       "access": "private"
+      }
+     ],
+     "snapshots": [
+      {
+       "name": "ledger",
+       "access": "protected"
+      }
+     ]
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "ledger",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:40:51  Running with dbt=1.12.0",
+    "14:40:51  Initializing dbt-loom=0.9.6",
+    "14:40:51  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:40:51  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:40:51  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:40:51  Registered adapter: postgres=1.10.2",
+    "14:40:52  dbt-loom: Injecting nodes",
+    "14:40:52  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node snapshot.provider_b.ledger, which is not allowed because the referenced node is protected to the 'provider_b' package."
+   ],
+   "excerpt": [
+    "14:40:51  Initializing dbt-loom=0.9.6",
+    "14:40:51  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:40:51  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:40:51  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:40:52  dbt-loom: Injecting nodes",
+    "Parsing Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:40:54  Running with dbt=1.12.0",
+    "14:40:54  Registered adapter: postgres=1.10.2",
+    "14:40:55  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'ledger' in package or project 'provider_b' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'ledger' in package or project 'provider_b' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.customers",
+    "model.provider_a.orders",
+    "model.provider_b.customers"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.orders": [],
+    "model.provider_a.customers": [],
+    "model.provider_b.customers": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:40:45  Running with dbt=1.12.0",
+     "14:40:45  Registered adapter: postgres=1.10.2",
+     "14:40:46  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.customers\"}",
+     "{\"unique_id\": \"model.provider_a.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:40:48  Running with dbt=1.12.0",
+     "14:40:48  Registered adapter: postgres=1.10.2",
+     "14:40:49  Found 1 model, 1 snapshot, 1 seed, 476 macros",
+     "{\"unique_id\": \"model.provider_b.customers\"}",
+     "{\"unique_id\": \"seed.provider_b.orders\"}",
+     "{\"unique_id\": \"snapshot.provider_b.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F72": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F72",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "customers",
+       "access": "private",
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "customers",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "customers",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "ledger",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:41:00  Running with dbt=1.12.0",
+    "14:41:00  Initializing dbt-loom=0.9.6",
+    "14:41:00  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:41:00  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:41:00  Registered adapter: postgres=1.10.2",
+    "14:41:01  dbt-loom: Injecting nodes",
+    "14:41:01  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node model.provider_a.customers, which is not allowed because the referenced node is private to the '' group."
+   ],
+   "excerpt": [
+    "14:41:00  Initializing dbt-loom=0.9.6",
+    "14:41:00  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:41:00  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:41:01  dbt-loom: Injecting nodes",
+    "Parsing Error",
+    "Node model.consumer_x.r0 attempted to reference node model.provider_a.customers, which is not allowed because the referenced node is private to the '' group."
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:41:03  Running with dbt=1.12.0",
+    "14:41:03  Registered adapter: postgres=1.10.2",
+    "14:41:04  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'customers' in package or project 'provider_a' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'customers' in package or project 'provider_a' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [],
+   "payload_depends_on": {}
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:40:57  Running with dbt=1.12.0",
+     "14:40:57  Registered adapter: postgres=1.10.2",
+     "14:40:58  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.customers\"}",
+     "{\"unique_id\": \"model.provider_a.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F73": {
+  "key": [
+   "crash",
+   "unresolved"
+  ],
+  "verdict": "UNCLASSIFIED ('crash', 'unresolved')",
+  "bindings_equal": true,
+  "case": {
+   "id": "F73",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "measure",
+       "access": "protected",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "orders",
+       "access": "private",
+       "refs": []
+      },
+      {
+       "name": "customers",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "orders",
+         null
+        ]
+       ]
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "customers",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "crash",
+   "tail": [
+    "               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "  File \".work/venvs/dbt1120-loom/lib/python3.12/site-packages/dbt_loom/manifests.py\", line 276, in load",
+    "    raise e",
+    "  File \".work/venvs/dbt1120-loom/lib/python3.12/site-packages/dbt_loom/manifests.py\", line 270, in load",
+    "    manifest = self.loading_functions[manifest_reference.type](",
+    "               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "  File \".work/venvs/dbt1120-loom/lib/python3.12/site-packages/dbt_loom/manifests.py\", line 137, in load_from_path",
+    "    return ManifestLoader.load_from_local_filesystem(config)",
+    "           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+    "  File \".work/venvs/dbt1120-loom/lib/python3.12/site-packages/dbt_loom/manifests.py\", line 160, in load_from_local_filesystem",
+    "    raise LoomConfigurationError(f\"The path `{file_path}` does not exist.\")",
+    "dbt_loom.config.LoomConfigurationError: The path `.work/loom-parity/combo/F73/last-good/provider_b/manifest.json` does not exist."
+   ],
+   "excerpt": [
+    "14:41:12  Initializing dbt-loom=0.9.6",
+    "14:41:12  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:41:12  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:41:12  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:41:12  Traceback (most recent call last):",
+    "raise LoomConfigurationError(f\"The path `{file_path}` does not exist.\")"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:41:13  Running with dbt=1.12.0",
+    "14:41:14  Registered adapter: postgres=1.10.2",
+    "14:41:15  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'customers' in package or project 'provider_b' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'customers' in package or project 'provider_b' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [],
+   "payload_depends_on": {}
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:41:05  Running with dbt=1.12.0",
+     "14:41:06  Registered adapter: postgres=1.10.2",
+     "14:41:07  Found 1 model, 476 macros",
+     "{\"unique_id\": \"model.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:41:09  Running with dbt=1.12.0",
+     "14:41:09  Registered adapter: postgres=1.10.2",
+     "14:41:10  [ERROR]: Encountered an error:",
+     "Parsing Error",
+     "  Node model.provider_b.customers attempted to reference node model.provider_b.orders, which is not allowed because the referenced node is private to the '' group."
+    ],
+    "status": "access-denied",
+    "excerpt": [
+     "Parsing Error",
+     "Node model.provider_b.customers attempted to reference node model.provider_b.orders, which is not allowed because the referenced node is private to the '' group."
+    ]
+   }
+  }
+ },
+ "F74": {
+  "key": [
+   "unresolved",
+   "unresolved"
+  ],
+  "verdict": "parity-unresolved",
+  "bindings_equal": true,
+  "case": {
+   "id": "F74",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "orders",
+       "access": "public",
+       "version": 1,
+       "latest_version": 1,
+       "refs": []
+      },
+      {
+       "name": "orders",
+       "access": "public",
+       "version": 2,
+       "latest_version": 1,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "orders",
+         3
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "orders",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "unresolved",
+   "tail": [
+    "14:41:20  Running with dbt=1.12.0",
+    "14:41:20  Initializing dbt-loom=0.9.6",
+    "14:41:20  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:41:20  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:41:20  Registered adapter: postgres=1.10.2",
+    "14:41:21  dbt-loom: Injecting nodes",
+    "14:41:21  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'orders' with version '3' in package or project 'provider_a' which was not found"
+   ],
+   "excerpt": [
+    "14:41:20  Initializing dbt-loom=0.9.6",
+    "14:41:20  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:41:20  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:41:21  dbt-loom: Injecting nodes",
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'orders' with version '3' in package or project 'provider_a' which was not found"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:41:23  Running with dbt=1.12.0",
+    "14:41:23  Registered adapter: postgres=1.10.2",
+    "14:41:24  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'orders' with version '3' in package or project 'provider_a' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'orders' with version '3' in package or project 'provider_a' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.orders.v1",
+    "model.provider_a.orders.v2"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.orders.v1": [],
+    "model.provider_a.orders.v2": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:41:16  Running with dbt=1.12.0",
+     "14:41:17  Registered adapter: postgres=1.10.2",
+     "14:41:18  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.orders.v1\"}",
+     "{\"unique_id\": \"model.provider_a.orders.v2\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F75": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F75",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "measure",
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "refs": [
+        [
+         null,
+         "measure",
+         null
+        ]
+       ]
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "ledger",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_c",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "protected",
+       "version": 1,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "access": "protected",
+       "version": 2,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "orders",
+       "access": "private",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "measure",
+       "access": "public"
+      }
+     ]
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b",
+    "provider_c"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b",
+      "provider_c"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      },
+      {
+       "name": "provider_c"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:41:35  Running with dbt=1.12.0",
+    "14:41:35  Initializing dbt-loom=0.9.6",
+    "14:41:35  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:41:35  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:41:35  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:41:35  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:41:35  Registered adapter: postgres=1.10.2",
+    "14:41:36  dbt-loom: Injecting nodes",
+    "14:41:36  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node model.provider_a.measure, which is not allowed because the referenced node is protected to the 'provider_a' package."
+   ],
+   "excerpt": [
+    "14:41:35  Initializing dbt-loom=0.9.6",
+    "14:41:35  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:41:35  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:41:35  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:41:35  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:41:36  dbt-loom: Injecting nodes"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:41:38  Running with dbt=1.12.0",
+    "14:41:38  Registered adapter: postgres=1.10.2",
+    "14:41:39  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' in package or project 'provider_a' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' in package or project 'provider_a' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "snapshot.provider_c.measure"
+   ],
+   "payload_depends_on": {
+    "snapshot.provider_c.measure": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:41:25  Running with dbt=1.12.0",
+     "14:41:26  Registered adapter: postgres=1.10.2",
+     "14:41:27  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.ledger\"}",
+     "{\"unique_id\": \"model.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:41:28  Running with dbt=1.12.0",
+     "14:41:29  Registered adapter: postgres=1.10.2",
+     "14:41:30  Found 1 model, 476 macros",
+     "{\"unique_id\": \"model.provider_b.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_c": {
+    "tail": [
+     "14:41:31  Running with dbt=1.12.0",
+     "14:41:32  Registered adapter: postgres=1.10.2",
+     "14:41:33  Found 3 models, 1 snapshot, 476 macros",
+     "{\"unique_id\": \"model.provider_c.ledger.v1\"}",
+     "{\"unique_id\": \"model.provider_c.ledger.v2\"}",
+     "{\"unique_id\": \"model.provider_c.orders\"}",
+     "{\"unique_id\": \"snapshot.provider_c.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F76": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F76",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "measure",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "orders",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "measure",
+         null
+        ]
+       ]
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "measure",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "access": "private",
+       "refs": [
+        [
+         null,
+         "measure",
+         null
+        ]
+       ]
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "ledger",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "ledger",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:41:46  Running with dbt=1.12.0",
+    "14:41:47  Initializing dbt-loom=0.9.6",
+    "14:41:47  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:41:47  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:41:47  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:41:47  Registered adapter: postgres=1.10.2",
+    "14:41:48  dbt-loom: Injecting nodes",
+    "14:41:48  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node model.provider_b.ledger, which is not allowed because the referenced node is private to the '' group."
+   ],
+   "excerpt": [
+    "14:41:47  Initializing dbt-loom=0.9.6",
+    "14:41:47  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:41:47  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:41:47  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:41:48  dbt-loom: Injecting nodes",
+    "Parsing Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:41:49  Running with dbt=1.12.0",
+    "14:41:49  Registered adapter: postgres=1.10.2",
+    "14:41:51  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'ledger' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'ledger' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.measure",
+    "model.provider_a.orders",
+    "model.provider_b.measure"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.orders": [
+     "model.provider_a.measure"
+    ],
+    "model.provider_a.measure": [],
+    "model.provider_b.measure": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:41:40  Running with dbt=1.12.0",
+     "14:41:41  Registered adapter: postgres=1.10.2",
+     "14:41:42  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.measure\"}",
+     "{\"unique_id\": \"model.provider_a.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:41:43  Running with dbt=1.12.0",
+     "14:41:43  Registered adapter: postgres=1.10.2",
+     "14:41:45  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_b.ledger\"}",
+     "{\"unique_id\": \"model.provider_b.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F77": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F77",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "customers",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "ledger",
+       "access": "private",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "customers",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "ledger",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "customers",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "ledger",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:41:58  Running with dbt=1.12.0",
+    "14:41:59  Initializing dbt-loom=0.9.6",
+    "14:41:59  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:41:59  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:41:59  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:41:59  Registered adapter: postgres=1.10.2",
+    "14:42:00  dbt-loom: Injecting nodes",
+    "14:42:00  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node model.provider_a.ledger, which is not allowed because the referenced node is private to the '' group."
+   ],
+   "excerpt": [
+    "14:41:59  Initializing dbt-loom=0.9.6",
+    "14:41:59  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:41:59  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:41:59  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:42:00  dbt-loom: Injecting nodes",
+    "Parsing Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:42:01  Running with dbt=1.12.0",
+    "14:42:02  Registered adapter: postgres=1.10.2",
+    "14:42:03  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'ledger' in package or project 'provider_a' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'ledger' in package or project 'provider_a' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.customers"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.customers": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:41:52  Running with dbt=1.12.0",
+     "14:41:52  Registered adapter: postgres=1.10.2",
+     "14:41:54  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.customers\"}",
+     "{\"unique_id\": \"model.provider_a.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:41:55  Running with dbt=1.12.0",
+     "14:41:56  Registered adapter: postgres=1.10.2",
+     "14:41:57  Found 1 model, 476 macros",
+     "{\"unique_id\": \"model.provider_b.customers\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F78": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F78",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "ledger"
+      }
+     ]
+    },
+    {
+     "name": "provider_b",
+     "models": [],
+     "seeds": [
+      {
+       "name": "customers",
+       "access": "protected"
+      }
+     ],
+     "snapshots": [
+      {
+       "name": "measure"
+      }
+     ]
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "ledger",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "ledger",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:42:10  Running with dbt=1.12.0",
+    "14:42:10  Initializing dbt-loom=0.9.6",
+    "14:42:10  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:42:10  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:42:10  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:42:10  Registered adapter: postgres=1.10.2",
+    "14:42:11  dbt-loom: Injecting nodes",
+    "14:42:11  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node snapshot.provider_a.ledger, which is not allowed because the referenced node is protected to the 'provider_a' package."
+   ],
+   "excerpt": [
+    "14:42:10  Initializing dbt-loom=0.9.6",
+    "14:42:10  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:42:10  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:42:10  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:42:11  dbt-loom: Injecting nodes",
+    "Parsing Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:42:13  Running with dbt=1.12.0",
+    "14:42:13  Registered adapter: postgres=1.10.2",
+    "14:42:14  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'ledger' in package or project 'provider_a' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'ledger' in package or project 'provider_a' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [],
+   "payload_depends_on": {}
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:42:04  Running with dbt=1.12.0",
+     "14:42:04  Registered adapter: postgres=1.10.2",
+     "14:42:05  Found 1 snapshot, 476 macros",
+     "{\"unique_id\": \"snapshot.provider_a.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:42:07  Running with dbt=1.12.0",
+     "14:42:07  Registered adapter: postgres=1.10.2",
+     "14:42:08  Found 1 snapshot, 1 seed, 476 macros",
+     "{\"unique_id\": \"seed.provider_b.customers\"}",
+     "{\"unique_id\": \"snapshot.provider_b.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F79": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F79",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "customers",
+       "access": "protected",
+       "version": 1,
+       "latest_version": 1,
+       "refs": []
+      },
+      {
+       "name": "customers",
+       "access": "public",
+       "version": 2,
+       "latest_version": 1,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "orders",
+       "refs": []
+      },
+      {
+       "name": "measure",
+       "access": "public",
+       "version": 1,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "measure",
+       "access": "protected",
+       "version": 2,
+       "latest_version": 2,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "measure",
+         2
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "orders",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "measure",
+         1
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:42:21  Running with dbt=1.12.0",
+    "14:42:21  Initializing dbt-loom=0.9.6",
+    "14:42:21  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:42:21  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:42:21  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:42:21  Registered adapter: postgres=1.10.2",
+    "14:42:22  dbt-loom: Injecting nodes",
+    "14:42:22  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node model.provider_b.measure.v2, which is not allowed because the referenced node is protected to the 'provider_b' package."
+   ],
+   "excerpt": [
+    "14:42:21  Initializing dbt-loom=0.9.6",
+    "14:42:21  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:42:21  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:42:21  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:42:22  dbt-loom: Injecting nodes",
+    "Parsing Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:42:24  Running with dbt=1.12.0",
+    "14:42:24  Registered adapter: postgres=1.10.2",
+    "14:42:25  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' with version '2' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' with version '2' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.customers.v1",
+    "model.provider_a.customers.v2",
+    "model.provider_a.ledger"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.ledger": [],
+    "model.provider_a.customers.v1": [],
+    "model.provider_a.customers.v2": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:42:15  Running with dbt=1.12.0",
+     "14:42:16  Registered adapter: postgres=1.10.2",
+     "14:42:17  Found 3 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.customers.v1\"}",
+     "{\"unique_id\": \"model.provider_a.customers.v2\"}",
+     "{\"unique_id\": \"model.provider_a.ledger\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:42:18  Running with dbt=1.12.0",
+     "14:42:19  Registered adapter: postgres=1.10.2",
+     "14:42:20  Found 3 models, 476 macros",
+     "{\"unique_id\": \"model.provider_b.measure.v1\"}",
+     "{\"unique_id\": \"model.provider_b.measure.v2\"}",
+     "{\"unique_id\": \"model.provider_b.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F80": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F80",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "measure",
+       "access": "private",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "orders",
+       "access": "protected",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "customers",
+       "access": "public"
+      }
+     ]
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         null,
+         "measure",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:42:33  Running with dbt=1.12.0",
+    "14:42:33  Initializing dbt-loom=0.9.6",
+    "14:42:33  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:42:33  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:42:33  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:42:33  Registered adapter: postgres=1.10.2",
+    "14:42:34  dbt-loom: Injecting nodes",
+    "14:42:34  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node model.provider_a.measure, which is not allowed because the referenced node is private to the '' group."
+   ],
+   "excerpt": [
+    "14:42:33  Initializing dbt-loom=0.9.6",
+    "14:42:33  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:42:33  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:42:33  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:42:34  dbt-loom: Injecting nodes",
+    "Parsing Error"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:42:35  Running with dbt=1.12.0",
+    "14:42:36  Registered adapter: postgres=1.10.2",
+    "14:42:37  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "snapshot.provider_b.customers"
+   ],
+   "payload_depends_on": {
+    "snapshot.provider_b.customers": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:42:27  Running with dbt=1.12.0",
+     "14:42:27  Registered adapter: postgres=1.10.2",
+     "14:42:28  Found 1 model, 476 macros",
+     "{\"unique_id\": \"model.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:42:29  Running with dbt=1.12.0",
+     "14:42:30  Registered adapter: postgres=1.10.2",
+     "14:42:31  Found 1 model, 1 snapshot, 476 macros",
+     "{\"unique_id\": \"model.provider_b.orders\"}",
+     "{\"unique_id\": \"snapshot.provider_b.customers\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ },
+ "F81": {
+  "key": [
+   "access-denied",
+   "unresolved"
+  ],
+  "verdict": "withheld-both (loom denies, 7b never injects)",
+  "bindings_equal": true,
+  "case": {
+   "id": "F81",
+   "projects": [
+    {
+     "name": "provider_a",
+     "models": [
+      {
+       "name": "measure",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "customers",
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": []
+    },
+    {
+     "name": "provider_b",
+     "models": [
+      {
+       "name": "ledger",
+       "refs": []
+      },
+      {
+       "name": "customers",
+       "access": "public",
+       "version": 1,
+       "latest_version": 2,
+       "refs": []
+      },
+      {
+       "name": "customers",
+       "access": "private",
+       "version": 2,
+       "latest_version": 2,
+       "refs": []
+      }
+     ],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "orders",
+       "access": "public"
+      }
+     ]
+    },
+    {
+     "name": "provider_c",
+     "models": [
+      {
+       "name": "ledger",
+       "access": "public",
+       "refs": []
+      },
+      {
+       "name": "measure",
+       "access": "protected",
+       "refs": [
+        [
+         null,
+         "ledger",
+         null
+        ]
+       ]
+      }
+     ],
+     "seeds": [],
+     "snapshots": [
+      {
+       "name": "customers"
+      }
+     ]
+    },
+    {
+     "name": "consumer_x",
+     "models": [
+      {
+       "name": "r0",
+       "access": "public",
+       "refs": [
+        [
+         "provider_c",
+         "measure",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r1",
+       "access": "public",
+       "refs": [
+        [
+         "provider_b",
+         "customers",
+         null
+        ]
+       ]
+      },
+      {
+       "name": "r2",
+       "access": "public",
+       "refs": [
+        [
+         "provider_a",
+         "measure",
+         null
+        ]
+       ]
+      }
+     ]
+    }
+   ],
+   "seed_order": [
+    "provider_a",
+    "provider_b",
+    "provider_c"
+   ],
+   "consumers": [
+    {
+     "name": "consumer_x",
+     "project": "consumer_x",
+     "upstreams": [
+      "provider_a",
+      "provider_b",
+      "provider_c"
+     ],
+     "loom": [
+      {
+       "name": "provider_a"
+      },
+      {
+       "name": "provider_b"
+      },
+      {
+       "name": "provider_c"
+      }
+     ]
+    }
+   ]
+  },
+  "loom": {
+   "status": "access-denied",
+   "tail": [
+    "14:42:48  Running with dbt=1.12.0",
+    "14:42:49  Initializing dbt-loom=0.9.6",
+    "14:42:49  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:42:49  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:42:49  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:42:49  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:42:49  Registered adapter: postgres=1.10.2",
+    "14:42:50  dbt-loom: Injecting nodes",
+    "14:42:50  [ERROR]: Encountered an error:",
+    "Parsing Error",
+    "  Node model.consumer_x.r0 attempted to reference node model.provider_c.measure, which is not allowed because the referenced node is protected to the 'provider_c' package."
+   ],
+   "excerpt": [
+    "14:42:49  Initializing dbt-loom=0.9.6",
+    "14:42:49  dbt-loom: Patching ref protection methods to support dbt-loom dependencies.",
+    "14:42:49  dbt-loom: Loading manifest for `provider_a` from `file`",
+    "14:42:49  dbt-loom: Loading manifest for `provider_b` from `file`",
+    "14:42:49  dbt-loom: Loading manifest for `provider_c` from `file`",
+    "14:42:50  dbt-loom: Injecting nodes"
+   ],
+   "bindings": null,
+   "injected": null
+  },
+  "fix7b": {
+   "status": "unresolved",
+   "tail": [
+    "14:42:51  Running with dbt=1.12.0",
+    "14:42:52  Registered adapter: postgres=1.10.2",
+    "14:42:53  [ERROR]: Encountered an error:",
+    "Compilation Error",
+    "  Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' in package or project 'provider_c' which was not found"
+   ],
+   "excerpt": [
+    "Compilation Error",
+    "Model 'model.consumer_x.r0' (models/r0.sql) depends on a node named 'measure' in package or project 'provider_c' which was not found"
+   ],
+   "bindings": null,
+   "injected": null,
+   "payload_ids": [
+    "model.provider_a.measure",
+    "model.provider_c.ledger",
+    "snapshot.provider_b.orders"
+   ],
+   "payload_depends_on": {
+    "model.provider_a.measure": [],
+    "snapshot.provider_b.orders": [],
+    "model.provider_c.ledger": []
+   }
+  },
+  "providers": {
+   "provider_a": {
+    "tail": [
+     "14:42:38  Running with dbt=1.12.0",
+     "14:42:39  Registered adapter: postgres=1.10.2",
+     "14:42:40  Found 2 models, 476 macros",
+     "{\"unique_id\": \"model.provider_a.customers\"}",
+     "{\"unique_id\": \"model.provider_a.measure\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_b": {
+    "tail": [
+     "14:42:41  Running with dbt=1.12.0",
+     "14:42:42  Registered adapter: postgres=1.10.2",
+     "14:42:43  Found 3 models, 1 snapshot, 476 macros",
+     "{\"unique_id\": \"model.provider_b.customers.v1\"}",
+     "{\"unique_id\": \"model.provider_b.customers.v2\"}",
+     "{\"unique_id\": \"model.provider_b.ledger\"}",
+     "{\"unique_id\": \"snapshot.provider_b.orders\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   },
+   "provider_c": {
+    "tail": [
+     "14:42:45  Running with dbt=1.12.0",
+     "14:42:45  Registered adapter: postgres=1.10.2",
+     "14:42:46  Found 2 models, 1 snapshot, 476 macros",
+     "{\"unique_id\": \"model.provider_c.ledger\"}",
+     "{\"unique_id\": \"model.provider_c.measure\"}",
+     "{\"unique_id\": \"snapshot.provider_c.customers\"}"
+    ],
+    "status": "pass",
+    "excerpt": []
+   }
+  }
+ }
+}

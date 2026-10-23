@@ -1,0 +1,687 @@
+{
+ "productSha": "33f4e2a165",
+ "cases": 3000,
+ "start": 1,
+ "byStatus": {
+  "resolved": 929,
+  "parameter-error": 2071,
+  "dbt-error": 0,
+  "crash": 0
+ },
+ "classes": {
+  "cold-start": 406,
+  "not-public": 1071,
+  "unresolved-generic": 629,
+  "ambiguous-one-arg": 262,
+  "dbt-multiple-packages": 15,
+  "provider-failed": 427,
+  "missing-in-last-good": 51,
+  "cycle": 151
+ },
+ "crashes": [],
+ "examples": {
+  "cold-start": [
+   {
+    "seed": 1,
+    "summary": "proj_a[seeded]: seed:ledger=protected | proj_b[cold]: rate=public local ledger; ledger.v1(latest 1)=public; ledger.v2(latest 1)=public refs ?.orders.v1 | proj_c[seeded]: orders.v1(latest 2)=private refs ?.ledger; orders.v2(latest 2)=public refs proj_a.ledger",
+    "message": "dbt source \"src_proj_b\" references ref('orders', v=1), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). Cold start: dbt source \"src_proj_c\" references dbt source \"src_proj_b\" (project \"proj_b\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_c\" could not resolve ref('ledger') during its single parse. dbt source \"src_proj_c\" references ref('proj_a', 'ledger'), but dbt source \"src_proj_a\" does not expose that model (or version) with access: public."
+   },
+   {
+    "seed": 3,
+    "summary": "proj_a[seeded]: seed:ledger=public | proj_b[cold]: ledger.v1(latest 2)=public refs proj_a.ledger,?.measure; ledger.v2(latest 2)=private refs proj_c.measure | proj_c[cold]: measure=public refs proj_b.ledger | proj_d[seeded]: orders=unset refs proj_c.measure; measure=public",
+    "message": "dbt source \"src_proj_b\" references ref('measure'), but the name 'measure' is defined by several dbt sources. Use ref('project', 'model') to select a source. Cold start: dbt source \"src_proj_b\" references dbt source \"src_proj_c\" (project \"proj_c\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_b\" could not resolve ref('proj_c', 'measure') during its single parse. Cold start: dbt source \"src_proj_c\" references dbt source \"src_proj_b\" (project \"proj_b\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_c\" could not resolve ref('proj_b', 'ledger') during its single parse. Cold start: dbt source \"src_proj_d\" references dbt source \"src_proj_c\" (project \"proj_c\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_d\" could not resolve ref('proj_c', 'measure') during its single parse."
+   },
+   {
+    "seed": 5,
+    "summary": "proj_a[seeded]: customers=protected refs ?.rate local measure; seed:measure=private | proj_b[seeded]: seed:ledger=private | proj_c[seeded]: orders=public refs ?.ledger | proj_d[cold]: rate.v1(latest 2)=public; rate.v2(latest 2)=public refs ?.ledger,?.customers; rate=public",
+    "message": "dbt source \"src_proj_c\" references ref('ledger'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). dbt source \"src_proj_d\" references ref('ledger'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). dbt source \"src_proj_d\" references ref('customers'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_d\" (project \"proj_d\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('rate') during its single parse."
+   }
+  ],
+  "not-public": [
+   {
+    "seed": 1,
+    "summary": "proj_a[seeded]: seed:ledger=protected | proj_b[cold]: rate=public local ledger; ledger.v1(latest 1)=public; ledger.v2(latest 1)=public refs ?.orders.v1 | proj_c[seeded]: orders.v1(latest 2)=private refs ?.ledger; orders.v2(latest 2)=public refs proj_a.ledger",
+    "message": "dbt source \"src_proj_b\" references ref('orders', v=1), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). Cold start: dbt source \"src_proj_c\" references dbt source \"src_proj_b\" (project \"proj_b\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_c\" could not resolve ref('ledger') during its single parse. dbt source \"src_proj_c\" references ref('proj_a', 'ledger'), but dbt source \"src_proj_a\" does not expose that model (or version) with access: public."
+   },
+   {
+    "seed": 9,
+    "summary": "proj_a[seeded]: orders=protected; customers=protected refs proj_b.measure local orders; measure=unset local customers | proj_b[seeded]: measure=unset; seed:rate=protected; seed:customers=public",
+    "message": "dbt source \"src_proj_a\" references ref('proj_b', 'measure'), but dbt source \"src_proj_b\" does not expose that model (or version) with access: public."
+   },
+   {
+    "seed": 12,
+    "summary": "proj_a[seeded]: ledger=public refs proj_b.ledger,proj_b.ledger | proj_b[seeded]: ledger=unset; customers=protected",
+    "message": "dbt source \"src_proj_a\" references ref('proj_b', 'ledger'), but dbt source \"src_proj_b\" does not expose that model (or version) with access: public."
+   }
+  ],
+  "unresolved-generic": [
+   {
+    "seed": 1,
+    "summary": "proj_a[seeded]: seed:ledger=protected | proj_b[cold]: rate=public local ledger; ledger.v1(latest 1)=public; ledger.v2(latest 1)=public refs ?.orders.v1 | proj_c[seeded]: orders.v1(latest 2)=private refs ?.ledger; orders.v2(latest 2)=public refs proj_a.ledger",
+    "message": "dbt source \"src_proj_b\" references ref('orders', v=1), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). Cold start: dbt source \"src_proj_c\" references dbt source \"src_proj_b\" (project \"proj_b\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_c\" could not resolve ref('ledger') during its single parse. dbt source \"src_proj_c\" references ref('proj_a', 'ledger'), but dbt source \"src_proj_a\" does not expose that model (or version) with access: public."
+   },
+   {
+    "seed": 5,
+    "summary": "proj_a[seeded]: customers=protected refs ?.rate local measure; seed:measure=private | proj_b[seeded]: seed:ledger=private | proj_c[seeded]: orders=public refs ?.ledger | proj_d[cold]: rate.v1(latest 2)=public; rate.v2(latest 2)=public refs ?.ledger,?.customers; rate=public",
+    "message": "dbt source \"src_proj_c\" references ref('ledger'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). dbt source \"src_proj_d\" references ref('ledger'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). dbt source \"src_proj_d\" references ref('customers'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_d\" (project \"proj_d\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('rate') during its single parse."
+   },
+   {
+    "seed": 18,
+    "summary": "proj_a[seeded]: snapshot:ledger=private refs ?.orders; customers.v1(latest 1)=public; customers.v2(latest 1)=public refs proj_b.orders,proj_c.customers | proj_b[seeded]: orders=unset refs proj_a.ledger; seed:ledger=unset | proj_c[cold]: seed:orders=public; customers=private refs ?.ledger,?.orders",
+    "message": "dbt source \"src_proj_b\" references ref('proj_a', 'ledger'), but dbt source \"src_proj_a\" failed: Model 'snapshot.proj_a.ledger' (models/ledger.sql) depends on a node named 'orders' which was not found\nModel 'model.proj_a.customers.v2' (models/customers.sql) depends on a node named 'orders' in package or project 'proj_b' which was not found\nModel 'model.proj_a.customers.v2' (models/customers.sql) depends on a node named 'customers' in package or project 'proj_c' which was not found dbt source \"src_proj_c\" references ref('ledger'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_c\" (project \"proj_c\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('orders') during its single parse. dbt source \"src_proj_a\" references ref('proj_b', 'orders'), but dbt source \"src_proj_b\" failed: Model 'model.proj_b.orders' (models/orders.sql) depends on a node named 'ledger' in package or project 'proj_a' which was not found Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_c\" (project \"proj_c\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('proj_c', 'customers') during its single parse."
+   }
+  ],
+  "ambiguous-one-arg": [
+   {
+    "seed": 3,
+    "summary": "proj_a[seeded]: seed:ledger=public | proj_b[cold]: ledger.v1(latest 2)=public refs proj_a.ledger,?.measure; ledger.v2(latest 2)=private refs proj_c.measure | proj_c[cold]: measure=public refs proj_b.ledger | proj_d[seeded]: orders=unset refs proj_c.measure; measure=public",
+    "message": "dbt source \"src_proj_b\" references ref('measure'), but the name 'measure' is defined by several dbt sources. Use ref('project', 'model') to select a source. Cold start: dbt source \"src_proj_b\" references dbt source \"src_proj_c\" (project \"proj_c\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_b\" could not resolve ref('proj_c', 'measure') during its single parse. Cold start: dbt source \"src_proj_c\" references dbt source \"src_proj_b\" (project \"proj_b\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_c\" could not resolve ref('proj_b', 'ledger') during its single parse. Cold start: dbt source \"src_proj_d\" references dbt source \"src_proj_c\" (project \"proj_c\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_d\" could not resolve ref('proj_c', 'measure') during its single parse."
+   },
+   {
+    "seed": 4,
+    "summary": "proj_a[seeded]: customers.v1(latest 2)=public; customers.v2(latest 2)=unset refs proj_d.ledger | proj_b[cold]: measure=unset; ledger=public refs proj_c.ledger local measure | proj_c[seeded]: seed:ledger=private; customers=public refs proj_d.rate | proj_d[seeded]: orders=public refs ?.customers; ledger.v1(latest 1)=public; ledger.v2(latest 1)=public local rate; seed:rate=public",
+    "message": "dbt source \"src_proj_d\" references ref('customers'), but the name 'customers' is defined by several dbt sources. Use ref('project', 'model') to select a source."
+   },
+   {
+    "seed": 6,
+    "summary": "proj_a[cold]: measure.v1(latest 1)=public refs ?.rate; measure.v2(latest 1)=unset | proj_b[seeded]: rate=public | proj_c[cold]: measure=public; rate=unset refs proj_b.rate",
+    "message": "dbt source \"src_proj_a\" references ref('rate'), but the name 'rate' is defined by several dbt sources. Use ref('project', 'model') to select a source."
+   }
+  ],
+  "dbt-multiple-packages": [
+   {
+    "seed": 10,
+    "summary": "proj_a[seeded]: measure=public refs ?.orders local customers; customers.v1(latest 2)=unset refs proj_c.orders; customers.v2(latest 2)=public refs ?.orders,proj_b.rate; customers=unset | proj_b[seeded]: rate.v1(latest 2)=public refs ?.measure; rate.v2(latest 2)=public; customers=public refs proj_c.orders local orders; orders=public | proj_c[seeded]: seed:orders=public",
+    "message": "When referencing 'orders', dbt found nodes in multiple packages: proj_b, proj_c\nWhen referencing 'orders', dbt found nodes in multiple packages: proj_b, proj_c"
+   },
+   {
+    "seed": 407,
+    "summary": "proj_a[seeded]: orders.v1(latest 2)=public refs proj_d.customers; orders.v2(latest 2)=public; rate=unset refs ?.ledger,?.customers | proj_b[seeded]: customers=public; orders=public | proj_c[seeded]: customers.v1(latest 1)=public; customers.v2(latest 1)=private refs proj_d.customers.v1; ledger=public | proj_d[seeded]: customers.v1(latest 2)=public; customers.v2(latest 2)=unset refs ?.ledger",
+    "message": "When referencing 'customers', dbt found nodes in multiple packages: proj_c, proj_d"
+   },
+   {
+    "seed": 588,
+    "summary": "proj_a[seeded]: rate=public refs proj_c.measure; snapshot:measure=public refs proj_c.measure | proj_b[cold]: customers.v1(latest 1)=public; customers.v2(latest 1)=public refs ?.measure local orders; snapshot:customers=public refs ?.rate; orders.v1(latest 2)=public; orders.v2(latest 2)=private refs proj_c.measure | proj_c[seeded]: measure=public",
+    "message": "When referencing 'measure', dbt found nodes in multiple packages: proj_a, proj_c"
+   }
+  ],
+  "provider-failed": [
+   {
+    "seed": 18,
+    "summary": "proj_a[seeded]: snapshot:ledger=private refs ?.orders; customers.v1(latest 1)=public; customers.v2(latest 1)=public refs proj_b.orders,proj_c.customers | proj_b[seeded]: orders=unset refs proj_a.ledger; seed:ledger=unset | proj_c[cold]: seed:orders=public; customers=private refs ?.ledger,?.orders",
+    "message": "dbt source \"src_proj_b\" references ref('proj_a', 'ledger'), but dbt source \"src_proj_a\" failed: Model 'snapshot.proj_a.ledger' (models/ledger.sql) depends on a node named 'orders' which was not found\nModel 'model.proj_a.customers.v2' (models/customers.sql) depends on a node named 'orders' in package or project 'proj_b' which was not found\nModel 'model.proj_a.customers.v2' (models/customers.sql) depends on a node named 'customers' in package or project 'proj_c' which was not found dbt source \"src_proj_c\" references ref('ledger'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_c\" (project \"proj_c\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('orders') during its single parse. dbt source \"src_proj_a\" references ref('proj_b', 'orders'), but dbt source \"src_proj_b\" failed: Model 'model.proj_b.orders' (models/orders.sql) depends on a node named 'ledger' in package or project 'proj_a' which was not found Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_c\" (project \"proj_c\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('proj_c', 'customers') during its single parse."
+   },
+   {
+    "seed": 21,
+    "summary": "proj_a[seeded]: customers=unset refs ?.ledger.v3; rate=private refs proj_c.ledger.v1 | proj_b[seeded]: measure=unset refs proj_c.ledger; seed:customers=public | proj_c[seeded]: ledger.v1(latest 2)=unset refs proj_a.customers,?.rate; ledger.v2(latest 2)=protected; ledger.v1(latest 1)=public refs ?.rate,proj_a.customers; ledger.v2(latest 1)=protected",
+    "message": "dbt source \"src_proj_a\" references ref('ledger', v=3), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). dbt source \"src_proj_c\" references ref('proj_a', 'customers'), but dbt source \"src_proj_a\" failed: Model 'model.proj_a.customers' (models/customers.sql) depends on a node named 'ledger' with version '3' which was not found dbt source \"src_proj_c\" references ref('rate'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model')."
+   },
+   {
+    "seed": 25,
+    "summary": "proj_a[seeded]: ledger=public | proj_b[seeded]: customers.v1(latest 1)=private refs proj_c.rate.v3; customers.v2(latest 1)=public | proj_c[seeded]: snapshot:ledger=private refs ?.customers.v3; rate.v1(latest 1)=public refs ?.customers.v3; rate.v2(latest 1)=public",
+    "message": "dbt source \"src_proj_b\" references ref('proj_c', 'rate', v=3), but dbt source \"src_proj_c\" failed: Model 'snapshot.proj_c.ledger' (models/ledger.sql) depends on a node named 'customers' with version '3' which was not found\nModel 'model.proj_c.rate.v1' (models/rate.sql) depends on a node named 'customers' with version '3' which was not found dbt source \"src_proj_c\" references ref('customers', v=3), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model')."
+   }
+  ],
+  "missing-in-last-good": [
+   {
+    "seed": 22,
+    "summary": "proj_a[seeded]: customers.v1(latest 2)=public; customers.v2(latest 2)=protected | proj_b[seeded]: orders.v1(latest 1)=public; orders.v2(latest 1)=public | proj_c[seeded]: seed:measure=protected; ledger.v1(latest 2)=public refs proj_a.customers.v2; ledger.v2(latest 2)=public refs proj_a.customers.v3",
+    "message": "dbt source \"src_proj_c\" references ref('proj_a', 'customers', v=2), but dbt source \"src_proj_a\" does not expose that model (or version) with access: public. dbt source \"src_proj_c\" references ref('proj_a', 'customers', v=3), but the confirmed last-good manifest of dbt source \"src_proj_a\" does not define that model (or version)."
+   },
+   {
+    "seed": 30,
+    "summary": "proj_a[seeded]: ledger.v1(latest 1)=unset; ledger.v2(latest 1)=public; seed:rate=unset; snapshot:measure=public | proj_b[seeded]: customers=unset refs proj_a.rate | proj_c[cold]: ledger=public refs ?.measure | proj_d[cold]: rate=public refs proj_b.customers local ledger; ledger=public refs proj_a.rate,proj_a.ledger.v3",
+    "message": "dbt source \"src_proj_b\" references ref('proj_a', 'rate'), but dbt source \"src_proj_a\" does not expose that model (or version) with access: public. dbt source \"src_proj_d\" references ref('proj_b', 'customers'), but dbt source \"src_proj_b\" failed: Model 'model.proj_b.customers' (models/customers.sql) depends on a node named 'rate' in package or project 'proj_a' which was not found dbt source \"src_proj_d\" references ref('proj_a', 'rate'), but dbt source \"src_proj_a\" does not expose that model (or version) with access: public. dbt source \"src_proj_d\" references ref('proj_a', 'ledger', v=3), but the confirmed last-good manifest of dbt source \"src_proj_a\" does not define that model (or version)."
+   },
+   {
+    "seed": 180,
+    "summary": "proj_a[seeded]: ledger=public refs proj_c.measure local measure; measure=public refs ?.ledger | proj_b[seeded]: seed:orders=private; measure.v1(latest 2)=public refs proj_d.customers.v3; measure.v2(latest 2)=unset | proj_c[cold]: seed:ledger=private; measure.v1(latest 1)=public refs ?.customers; measure.v2(latest 1)=public refs proj_b.measure | proj_d[seeded]: measure=public refs proj_a.ledger,?.ledger; ledger=public local customers; customers.v1(latest 2)=unset; customers.v2(latest 2)=public refs proj_b.measure local measure",
+    "message": "dbt source \"src_proj_b\" references ref('proj_d', 'customers', v=3), but the confirmed last-good manifest of dbt source \"src_proj_d\" does not define that model (or version)."
+   }
+  ],
+  "cycle": [
+   {
+    "seed": 61,
+    "summary": "proj_a[seeded]: rate=public; ledger=public; measure=public refs ?.rate local ledger | proj_b[seeded]: rate=private refs proj_a.measure | proj_c[seeded]: customers.v1(latest 2)=private refs ?.measure; customers.v2(latest 2)=protected; seed:customers=public; rate=public refs ?.measure local customers",
+    "message": "dbt models form a cycle across dbt sources: model.proj_a.measure -> model.proj_c.rate -> model.proj_a.measure. Break the cycle in one of these models."
+   },
+   {
+    "seed": 76,
+    "summary": "proj_a[seeded]: snapshot:rate=protected refs proj_c.rate; customers=public | proj_b[seeded]: snapshot:rate=public local orders; customers=unset; orders=private refs proj_c.rate,proj_c.customers | proj_c[seeded]: customers=public refs proj_b.rate; rate=public",
+    "message": "dbt models form a cycle across dbt sources: model.proj_b.orders -> model.proj_c.customers -> snapshot.proj_b.rate -> model.proj_b.orders. Break the cycle in one of these models."
+   },
+   {
+    "seed": 99,
+    "summary": "proj_a[seeded]: ledger=private local customers; orders.v1(latest 2)=public refs ?.rate.v2; orders.v2(latest 2)=public local ledger; customers=public | proj_b[seeded]: ledger=private; snapshot:customers=public refs proj_a.orders.v2 local rate; rate.v1(latest 2)=public refs proj_a.customers; rate.v2(latest 2)=public refs proj_a.orders,?.customers",
+    "message": "dbt models form a cycle across dbt sources: model.proj_b.rate.v2 -> snapshot.proj_b.customers -> model.proj_b.rate.v2. Break the cycle in one of these models."
+   }
+  ]
+ },
+ "invariantFailures": [],
+ "dbtErrors": [],
+ "sample": [
+  {
+   "seed": 1,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_b\" references ref('orders', v=1), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). Cold start: dbt source \"src_proj_c\" references dbt source \"src_proj_b\" (project \"proj_b\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_c\" could not resolve ref('ledger') during its single parse. dbt source \"src_proj_c\" references ref('proj_a', 'ledger'), but dbt source \"src_proj_a\" does not expose that model (or version) with access: public.",
+   "summary": "proj_a[seeded]: seed:ledger=protected | proj_b[cold]: rate=public local ledger; ledger.v1(latest 1)=public; ledger.v2(latest 1)=public refs ?.orders.v1 | proj_c[seeded]: orders.v1(latest 2)=private refs ?.ledger; orders.v2(latest 2)=public refs proj_a.ledger",
+   "invariantFailures": [],
+   "injectedTotal": 0,
+   "sources": 3,
+   "seeded": 2,
+   "classes": [
+    "cold-start",
+    "not-public",
+    "unresolved-generic"
+   ]
+  },
+  {
+   "seed": 2,
+   "status": "resolved",
+   "message": "",
+   "summary": "proj_a[seeded]: snapshot:customers=public | proj_b[seeded]: orders=public refs ?.ledger,proj_a.customers; rate=protected; customers=unset refs ?.ledger | proj_c[cold]: seed:orders=protected | proj_d[seeded]: ledger=public",
+   "invariantFailures": [],
+   "injectedTotal": 2,
+   "sources": 4,
+   "seeded": 3,
+   "classes": []
+  },
+  {
+   "seed": 3,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_b\" references ref('measure'), but the name 'measure' is defined by several dbt sources. Use ref('project', 'model') to select a source. Cold start: dbt source \"src_proj_b\" references dbt source \"src_proj_c\" (project \"proj_c\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_b\" could not resolve ref('proj_c', 'measure') during its single parse. Cold start: dbt source \"src_proj_c\" references dbt source \"src_proj_b\" (project \"proj_b\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_c\" could not resolve ref('proj_b', 'ledger') during its single parse. Cold start: dbt source \"src_proj_d\" references dbt source \"src_proj_c\" (project \"proj_c\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_d\" could not resolve ref('proj_c', 'measure') during its single parse.",
+   "summary": "proj_a[seeded]: seed:ledger=public | proj_b[cold]: ledger.v1(latest 2)=public refs proj_a.ledger,?.measure; ledger.v2(latest 2)=private refs proj_c.measure | proj_c[cold]: measure=public refs proj_b.ledger | proj_d[seeded]: orders=unset refs proj_c.measure; measure=public",
+   "invariantFailures": [],
+   "injectedTotal": 1,
+   "sources": 4,
+   "seeded": 2,
+   "classes": [
+    "ambiguous-one-arg",
+    "cold-start"
+   ]
+  },
+  {
+   "seed": 4,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_d\" references ref('customers'), but the name 'customers' is defined by several dbt sources. Use ref('project', 'model') to select a source.",
+   "summary": "proj_a[seeded]: customers.v1(latest 2)=public; customers.v2(latest 2)=unset refs proj_d.ledger | proj_b[cold]: measure=unset; ledger=public refs proj_c.ledger local measure | proj_c[seeded]: seed:ledger=private; customers=public refs proj_d.rate | proj_d[seeded]: orders=public refs ?.customers; ledger.v1(latest 1)=public; ledger.v2(latest 1)=public local rate; seed:rate=public",
+   "invariantFailures": [],
+   "injectedTotal": 9,
+   "sources": 4,
+   "seeded": 3,
+   "classes": [
+    "ambiguous-one-arg"
+   ]
+  },
+  {
+   "seed": 5,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_c\" references ref('ledger'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). dbt source \"src_proj_d\" references ref('ledger'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). dbt source \"src_proj_d\" references ref('customers'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_d\" (project \"proj_d\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('rate') during its single parse.",
+   "summary": "proj_a[seeded]: customers=protected refs ?.rate local measure; seed:measure=private | proj_b[seeded]: seed:ledger=private | proj_c[seeded]: orders=public refs ?.ledger | proj_d[cold]: rate.v1(latest 2)=public; rate.v2(latest 2)=public refs ?.ledger,?.customers; rate=public",
+   "invariantFailures": [],
+   "injectedTotal": 0,
+   "sources": 4,
+   "seeded": 3,
+   "classes": [
+    "cold-start",
+    "unresolved-generic"
+   ]
+  },
+  {
+   "seed": 6,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_a\" references ref('rate'), but the name 'rate' is defined by several dbt sources. Use ref('project', 'model') to select a source.",
+   "summary": "proj_a[cold]: measure.v1(latest 1)=public refs ?.rate; measure.v2(latest 1)=unset | proj_b[seeded]: rate=public | proj_c[cold]: measure=public; rate=unset refs proj_b.rate",
+   "invariantFailures": [],
+   "injectedTotal": 1,
+   "sources": 3,
+   "seeded": 1,
+   "classes": [
+    "ambiguous-one-arg"
+   ]
+  },
+  {
+   "seed": 7,
+   "status": "resolved",
+   "message": "",
+   "summary": "proj_a[seeded]: rate=public | proj_b[cold]: ledger=public",
+   "invariantFailures": [],
+   "injectedTotal": 0,
+   "sources": 2,
+   "seeded": 1,
+   "classes": []
+  },
+  {
+   "seed": 8,
+   "status": "resolved",
+   "message": "",
+   "summary": "proj_a[seeded]: customers=public; rate.v1(latest 1)=public; rate.v2(latest 1)=public | proj_b[seeded]: orders=public",
+   "invariantFailures": [],
+   "injectedTotal": 0,
+   "sources": 2,
+   "seeded": 2,
+   "classes": []
+  },
+  {
+   "seed": 9,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_a\" references ref('proj_b', 'measure'), but dbt source \"src_proj_b\" does not expose that model (or version) with access: public.",
+   "summary": "proj_a[seeded]: orders=protected; customers=protected refs proj_b.measure local orders; measure=unset local customers | proj_b[seeded]: measure=unset; seed:rate=protected; seed:customers=public",
+   "invariantFailures": [],
+   "injectedTotal": 1,
+   "sources": 2,
+   "seeded": 2,
+   "classes": [
+    "not-public"
+   ]
+  },
+  {
+   "seed": 10,
+   "status": "parameter-error",
+   "message": "When referencing 'orders', dbt found nodes in multiple packages: proj_b, proj_c\nWhen referencing 'orders', dbt found nodes in multiple packages: proj_b, proj_c",
+   "summary": "proj_a[seeded]: measure=public refs ?.orders local customers; customers.v1(latest 2)=unset refs proj_c.orders; customers.v2(latest 2)=public refs ?.orders,proj_b.rate; customers=unset | proj_b[seeded]: rate.v1(latest 2)=public refs ?.measure; rate.v2(latest 2)=public; customers=public refs proj_c.orders local orders; orders=public | proj_c[seeded]: seed:orders=public",
+   "invariantFailures": [],
+   "injectedTotal": 8,
+   "sources": 3,
+   "seeded": 3,
+   "classes": [
+    "dbt-multiple-packages"
+   ]
+  },
+  {
+   "seed": 11,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_c\" references ref('measure'), but the name 'measure' is defined by several dbt sources. Use ref('project', 'model') to select a source.",
+   "summary": "proj_a[cold]: snapshot:measure=public refs proj_c.ledger; ledger=public | proj_b[seeded]: measure=public refs proj_a.ledger; customers=protected refs ?.ledger | proj_c[seeded]: snapshot:ledger=private; customers=public refs ?.measure",
+   "invariantFailures": [],
+   "injectedTotal": 1,
+   "sources": 3,
+   "seeded": 2,
+   "classes": [
+    "ambiguous-one-arg"
+   ]
+  },
+  {
+   "seed": 12,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_a\" references ref('proj_b', 'ledger'), but dbt source \"src_proj_b\" does not expose that model (or version) with access: public.",
+   "summary": "proj_a[seeded]: ledger=public refs proj_b.ledger,proj_b.ledger | proj_b[seeded]: ledger=unset; customers=protected",
+   "invariantFailures": [],
+   "injectedTotal": 0,
+   "sources": 2,
+   "seeded": 2,
+   "classes": [
+    "not-public"
+   ]
+  },
+  {
+   "seed": 13,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_a\" references ref('proj_b', 'ledger'), but dbt source \"src_proj_b\" does not expose that model (or version) with access: public.",
+   "summary": "proj_a[seeded]: orders.v1(latest 1)=public; orders.v2(latest 1)=public; ledger=private refs proj_b.ledger | proj_b[seeded]: ledger=protected | proj_c[seeded]: ledger=public refs proj_a.orders.v1; measure=public",
+   "invariantFailures": [],
+   "injectedTotal": 2,
+   "sources": 3,
+   "seeded": 3,
+   "classes": [
+    "not-public"
+   ]
+  },
+  {
+   "seed": 14,
+   "status": "resolved",
+   "message": "",
+   "summary": "proj_a[seeded]: ledger=public; snapshot:measure=public refs proj_b.orders | proj_b[cold]: orders.v1(latest 1)=unset; orders.v2(latest 1)=public refs proj_c.customers.v1; seed:measure=unset | proj_c[seeded]: customers.v1(latest 1)=public refs proj_a.ledger; customers.v2(latest 1)=protected",
+   "invariantFailures": [],
+   "injectedTotal": 4,
+   "sources": 3,
+   "seeded": 2,
+   "classes": []
+  },
+  {
+   "seed": 15,
+   "status": "resolved",
+   "message": "",
+   "summary": "proj_a[seeded]: ledger=protected refs proj_b.orders; rate=public | proj_b[seeded]: orders=public refs proj_a.rate",
+   "invariantFailures": [],
+   "injectedTotal": 2,
+   "sources": 2,
+   "seeded": 2,
+   "classes": []
+  },
+  {
+   "seed": 16,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_a\" references ref('proj_b', 'customers'), but dbt source \"src_proj_b\" does not expose that model (or version) with access: public. Cold start: dbt source \"src_proj_c\" references dbt source \"src_proj_a\" (project \"proj_a\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_c\" could not resolve ref('measure') during its single parse. Cold start: dbt source \"src_proj_c\" references dbt source \"src_proj_a\" (project \"proj_a\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_c\" could not resolve ref('proj_a', 'measure') during its single parse.",
+   "summary": "proj_a[cold]: measure=public refs proj_b.customers | proj_b[seeded]: orders=public local customers; customers=private refs ?.ledger | proj_c[seeded]: rate.v1(latest 1)=protected refs ?.measure; rate.v2(latest 1)=private refs proj_a.measure,proj_a.measure; snapshot:ledger=public refs proj_a.measure",
+   "invariantFailures": [],
+   "injectedTotal": 2,
+   "sources": 3,
+   "seeded": 2,
+   "classes": [
+    "cold-start",
+    "not-public"
+   ]
+  },
+  {
+   "seed": 17,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_a\" references ref('measure'), but the name 'measure' is defined by several dbt sources. Use ref('project', 'model') to select a source.",
+   "summary": "proj_a[seeded]: ledger.v1(latest 2)=public refs ?.measure; ledger.v2(latest 2)=public | proj_b[seeded]: measure=public | proj_c[cold]: measure=protected; ledger=public refs proj_d.ledger,proj_a.ledger | proj_d[seeded]: ledger=public",
+   "invariantFailures": [],
+   "injectedTotal": 0,
+   "sources": 4,
+   "seeded": 3,
+   "classes": [
+    "ambiguous-one-arg"
+   ]
+  },
+  {
+   "seed": 18,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_b\" references ref('proj_a', 'ledger'), but dbt source \"src_proj_a\" failed: Model 'snapshot.proj_a.ledger' (models/ledger.sql) depends on a node named 'orders' which was not found\nModel 'model.proj_a.customers.v2' (models/customers.sql) depends on a node named 'orders' in package or project 'proj_b' which was not found\nModel 'model.proj_a.customers.v2' (models/customers.sql) depends on a node named 'customers' in package or project 'proj_c' which was not found dbt source \"src_proj_c\" references ref('ledger'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_c\" (project \"proj_c\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('orders') during its single parse. dbt source \"src_proj_a\" references ref('proj_b', 'orders'), but dbt source \"src_proj_b\" failed: Model 'model.proj_b.orders' (models/orders.sql) depends on a node named 'ledger' in package or project 'proj_a' which was not found Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_c\" (project \"proj_c\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('proj_c', 'customers') during its single parse.",
+   "summary": "proj_a[seeded]: snapshot:ledger=private refs ?.orders; customers.v1(latest 1)=public; customers.v2(latest 1)=public refs proj_b.orders,proj_c.customers | proj_b[seeded]: orders=unset refs proj_a.ledger; seed:ledger=unset | proj_c[cold]: seed:orders=public; customers=private refs ?.ledger,?.orders",
+   "invariantFailures": [],
+   "injectedTotal": 2,
+   "sources": 3,
+   "seeded": 2,
+   "classes": [
+    "cold-start",
+    "unresolved-generic",
+    "provider-failed"
+   ]
+  },
+  {
+   "seed": 19,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_b\" references ref('ledger'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model').",
+   "summary": "proj_a[seeded]: seed:ledger=protected | proj_b[seeded]: rate.v1(latest 2)=public; rate.v2(latest 2)=protected; orders.v1(latest 2)=private refs ?.ledger; orders.v2(latest 2)=public",
+   "invariantFailures": [],
+   "injectedTotal": 0,
+   "sources": 2,
+   "seeded": 2,
+   "classes": [
+    "unresolved-generic"
+   ]
+  },
+  {
+   "seed": 20,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_a\" references ref('orders'), but the name 'orders' is defined by several dbt sources. Use ref('project', 'model') to select a source.",
+   "summary": "proj_a[seeded]: ledger=public refs ?.orders; measure=unset refs proj_b.customers | proj_b[cold]: customers=public | proj_c[seeded]: orders=public refs ?.customers | proj_d[cold]: seed:rate=public; ledger.v1(latest 2)=public refs ?.customers,proj_b.customers; ledger.v2(latest 2)=public; orders=private refs proj_c.orders local ledger",
+   "invariantFailures": [],
+   "injectedTotal": 2,
+   "sources": 4,
+   "seeded": 2,
+   "classes": [
+    "ambiguous-one-arg"
+   ]
+  },
+  {
+   "seed": 21,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_a\" references ref('ledger', v=3), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). dbt source \"src_proj_c\" references ref('proj_a', 'customers'), but dbt source \"src_proj_a\" failed: Model 'model.proj_a.customers' (models/customers.sql) depends on a node named 'ledger' with version '3' which was not found dbt source \"src_proj_c\" references ref('rate'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model').",
+   "summary": "proj_a[seeded]: customers=unset refs ?.ledger.v3; rate=private refs proj_c.ledger.v1 | proj_b[seeded]: measure=unset refs proj_c.ledger; seed:customers=public | proj_c[seeded]: ledger.v1(latest 2)=unset refs proj_a.customers,?.rate; ledger.v2(latest 2)=protected; ledger.v1(latest 1)=public refs ?.rate,proj_a.customers; ledger.v2(latest 1)=protected",
+   "invariantFailures": [],
+   "injectedTotal": 2,
+   "sources": 3,
+   "seeded": 3,
+   "classes": [
+    "unresolved-generic",
+    "provider-failed"
+   ]
+  },
+  {
+   "seed": 22,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_c\" references ref('proj_a', 'customers', v=2), but dbt source \"src_proj_a\" does not expose that model (or version) with access: public. dbt source \"src_proj_c\" references ref('proj_a', 'customers', v=3), but the confirmed last-good manifest of dbt source \"src_proj_a\" does not define that model (or version).",
+   "summary": "proj_a[seeded]: customers.v1(latest 2)=public; customers.v2(latest 2)=protected | proj_b[seeded]: orders.v1(latest 1)=public; orders.v2(latest 1)=public | proj_c[seeded]: seed:measure=protected; ledger.v1(latest 2)=public refs proj_a.customers.v2; ledger.v2(latest 2)=public refs proj_a.customers.v3",
+   "invariantFailures": [],
+   "injectedTotal": 1,
+   "sources": 3,
+   "seeded": 3,
+   "classes": [
+    "not-public",
+    "missing-in-last-good"
+   ]
+  },
+  {
+   "seed": 23,
+   "status": "resolved",
+   "message": "",
+   "summary": "proj_a[seeded]: measure=public | proj_b[seeded]: rate.v1(latest 1)=public refs proj_a.measure local ledger; rate.v2(latest 1)=unset local ledger; rate=public refs proj_a.measure local ledger; seed:ledger=private",
+   "invariantFailures": [],
+   "injectedTotal": 1,
+   "sources": 2,
+   "seeded": 2,
+   "classes": []
+  },
+  {
+   "seed": 24,
+   "status": "parameter-error",
+   "message": "Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_b\" (project \"proj_b\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('proj_b', 'measure') during its single parse. Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_b\" (project \"proj_b\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('proj_b', 'ledger') during its single parse. Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_b\" (project \"proj_b\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('ledger') during its single parse. Cold start: dbt source \"src_proj_b\" references dbt source \"src_proj_a\" (project \"proj_a\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_b\" could not resolve ref('orders') during its single parse.",
+   "summary": "proj_a[cold]: customers.v1(latest 1)=public refs proj_b.measure; customers.v2(latest 1)=public local orders; rate=public local customers,orders; orders=public refs proj_b.ledger,?.ledger | proj_b[cold]: seed:ledger=unset; measure=public refs ?.orders",
+   "invariantFailures": [],
+   "injectedTotal": 0,
+   "sources": 2,
+   "seeded": 0,
+   "classes": [
+    "cold-start"
+   ]
+  },
+  {
+   "seed": 25,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_b\" references ref('proj_c', 'rate', v=3), but dbt source \"src_proj_c\" failed: Model 'snapshot.proj_c.ledger' (models/ledger.sql) depends on a node named 'customers' with version '3' which was not found\nModel 'model.proj_c.rate.v1' (models/rate.sql) depends on a node named 'customers' with version '3' which was not found dbt source \"src_proj_c\" references ref('customers', v=3), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model').",
+   "summary": "proj_a[seeded]: ledger=public | proj_b[seeded]: customers.v1(latest 1)=private refs proj_c.rate.v3; customers.v2(latest 1)=public | proj_c[seeded]: snapshot:ledger=private refs ?.customers.v3; rate.v1(latest 1)=public refs ?.customers.v3; rate.v2(latest 1)=public",
+   "invariantFailures": [],
+   "injectedTotal": 2,
+   "sources": 3,
+   "seeded": 3,
+   "classes": [
+    "unresolved-generic",
+    "provider-failed"
+   ]
+  },
+  {
+   "seed": 26,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_c\" references ref('proj_b', 'orders'), but dbt source \"src_proj_b\" does not expose that model (or version) with access: public.",
+   "summary": "proj_a[seeded]: snapshot:ledger=unset refs proj_c.ledger; seed:measure=public; seed:rate=protected | proj_b[seeded]: orders=protected refs proj_c.ledger.v2,proj_c.ledger; rate=protected; seed:measure=public | proj_c[seeded]: ledger.v1(latest 2)=public refs proj_b.orders; ledger.v2(latest 2)=public refs proj_a.measure",
+   "invariantFailures": [],
+   "injectedTotal": 6,
+   "sources": 3,
+   "seeded": 3,
+   "classes": [
+    "not-public"
+   ]
+  },
+  {
+   "seed": 27,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_b\" references ref('orders'), but the name 'orders' is defined by several dbt sources. Use ref('project', 'model') to select a source.",
+   "summary": "proj_a[seeded]: seed:orders=public | proj_b[cold]: ledger=public; customers.v1(latest 2)=public refs ?.orders,?.orders; customers.v2(latest 2)=private refs ?.orders | proj_c[seeded]: ledger=private refs ?.orders,proj_a.orders; orders=public",
+   "invariantFailures": [],
+   "injectedTotal": 1,
+   "sources": 3,
+   "seeded": 2,
+   "classes": [
+    "ambiguous-one-arg"
+   ]
+  },
+  {
+   "seed": 28,
+   "status": "parameter-error",
+   "message": "Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_c\" (project \"proj_c\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('proj_c', 'orders') during its single parse. dbt source \"src_proj_a\" references ref('customers'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). Cold start: dbt source \"src_proj_c\" references dbt source \"src_proj_a\" (project \"proj_a\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_c\" could not resolve ref('measure') during its single parse.",
+   "summary": "proj_a[cold]: measure=public refs proj_c.orders,?.customers; seed:ledger=unset; rate=public refs proj_c.orders | proj_b[cold]: seed:orders=public; seed:customers=unset | proj_c[cold]: orders=protected refs ?.measure",
+   "invariantFailures": [],
+   "injectedTotal": 0,
+   "sources": 3,
+   "seeded": 0,
+   "classes": [
+    "cold-start",
+    "unresolved-generic"
+   ]
+  },
+  {
+   "seed": 29,
+   "status": "resolved",
+   "message": "",
+   "summary": "proj_a[seeded]: customers.v1(latest 1)=public; customers.v2(latest 1)=public refs proj_b.measure | proj_b[seeded]: measure.v1(latest 2)=unset; measure.v2(latest 2)=public",
+   "invariantFailures": [],
+   "injectedTotal": 1,
+   "sources": 2,
+   "seeded": 2,
+   "classes": []
+  },
+  {
+   "seed": 30,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_b\" references ref('proj_a', 'rate'), but dbt source \"src_proj_a\" does not expose that model (or version) with access: public. dbt source \"src_proj_d\" references ref('proj_b', 'customers'), but dbt source \"src_proj_b\" failed: Model 'model.proj_b.customers' (models/customers.sql) depends on a node named 'rate' in package or project 'proj_a' which was not found dbt source \"src_proj_d\" references ref('proj_a', 'rate'), but dbt source \"src_proj_a\" does not expose that model (or version) with access: public. dbt source \"src_proj_d\" references ref('proj_a', 'ledger', v=3), but the confirmed last-good manifest of dbt source \"src_proj_a\" does not define that model (or version).",
+   "summary": "proj_a[seeded]: ledger.v1(latest 1)=unset; ledger.v2(latest 1)=public; seed:rate=unset; snapshot:measure=public | proj_b[seeded]: customers=unset refs proj_a.rate | proj_c[cold]: ledger=public refs ?.measure | proj_d[cold]: rate=public refs proj_b.customers local ledger; ledger=public refs proj_a.rate,proj_a.ledger.v3",
+   "invariantFailures": [],
+   "injectedTotal": 6,
+   "sources": 4,
+   "seeded": 2,
+   "classes": [
+    "not-public",
+    "missing-in-last-good",
+    "provider-failed"
+   ]
+  },
+  {
+   "seed": 31,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_b\" references ref('customers'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). dbt source \"src_proj_c\" references ref('proj_b', 'rate'), but dbt source \"src_proj_b\" failed: Model 'snapshot.proj_b.rate' (models/rate.sql) depends on a node named 'customers' which was not found dbt source \"src_proj_a\" references ref('customers'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model'). Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_c\" (project \"proj_c\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('proj_c', 'orders') during its single parse. dbt source \"src_proj_a\" references ref('proj_d', 'customers'), but dbt source \"src_proj_d\" does not expose that model (or version) with access: public.",
+   "summary": "proj_a[seeded]: measure.v1(latest 1)=public; measure.v2(latest 1)=unset refs ?.customers,proj_c.orders; rate=private refs proj_d.customers,?.customers; ledger=public refs proj_d.customers,?.customers | proj_b[seeded]: snapshot:rate=private refs ?.customers | proj_c[cold]: orders.v1(latest 2)=public; orders.v2(latest 2)=public refs proj_b.rate local measure; snapshot:measure=private | proj_d[seeded]: customers=private",
+   "invariantFailures": [],
+   "injectedTotal": 0,
+   "sources": 4,
+   "seeded": 3,
+   "classes": [
+    "cold-start",
+    "not-public",
+    "unresolved-generic",
+    "provider-failed"
+   ]
+  },
+  {
+   "seed": 32,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_b\" references ref('proj_c', 'rate'), but dbt source \"src_proj_c\" does not expose that model (or version) with access: public. dbt source \"src_proj_b\" references ref('rate'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model').",
+   "summary": "proj_a[seeded]: customers=public; snapshot:orders=public | proj_b[seeded]: ledger=public refs proj_c.rate; measure=public refs ?.rate,proj_c.rate; seed:orders=public | proj_c[seeded]: measure=public local rate; rate=private",
+   "invariantFailures": [],
+   "injectedTotal": 1,
+   "sources": 3,
+   "seeded": 3,
+   "classes": [
+    "not-public",
+    "unresolved-generic"
+   ]
+  },
+  {
+   "seed": 33,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_b\" references ref('measure'), but the name 'measure' is defined by several dbt sources. Use ref('project', 'model') to select a source.",
+   "summary": "proj_a[seeded]: measure.v1(latest 2)=public refs ?.customers,proj_b.customers; measure.v2(latest 2)=protected; measure=private local customers; snapshot:customers=public refs proj_b.customers | proj_b[seeded]: customers=private refs ?.measure | proj_c[cold]: measure=public",
+   "invariantFailures": [],
+   "injectedTotal": 0,
+   "sources": 3,
+   "seeded": 2,
+   "classes": [
+    "ambiguous-one-arg"
+   ]
+  },
+  {
+   "seed": 34,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_b\" references ref('proj_a', 'orders'), but dbt source \"src_proj_a\" failed: Model 'model.proj_a.orders' (models/orders.sql) depends on a node named 'ledger' in package or project 'proj_c' which was not found dbt source \"src_proj_a\" references ref('proj_c', 'ledger'), but dbt source \"src_proj_c\" does not expose that model (or version) with access: public.",
+   "summary": "proj_a[seeded]: orders=private refs proj_c.ledger; ledger=public; rate=public | proj_b[seeded]: rate=public refs proj_a.orders; seed:customers=public | proj_c[cold]: ledger=unset refs proj_a.rate",
+   "invariantFailures": [],
+   "injectedTotal": 4,
+   "sources": 3,
+   "seeded": 2,
+   "classes": [
+    "not-public",
+    "provider-failed"
+   ]
+  },
+  {
+   "seed": 35,
+   "status": "resolved",
+   "message": "",
+   "summary": "proj_a[cold]: measure=public local customers; seed:customers=protected | proj_b[seeded]: orders=private; customers=public refs proj_a.measure local orders",
+   "invariantFailures": [],
+   "injectedTotal": 1,
+   "sources": 2,
+   "seeded": 1,
+   "classes": []
+  },
+  {
+   "seed": 36,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_a\" references ref('proj_d', 'rate'), but dbt source \"src_proj_d\" does not expose that model (or version) with access: public.",
+   "summary": "proj_a[seeded]: snapshot:customers=protected refs proj_b.rate; rate=public refs proj_d.rate | proj_b[seeded]: snapshot:orders=public refs ?.rate local rate; rate=public | proj_c[cold]: customers.v1(latest 1)=public; customers.v2(latest 1)=protected; customers.v1(latest 1)=unset refs ?.rate; customers.v2(latest 1)=public refs proj_b.rate; orders=private local customers | proj_d[seeded]: rate=private refs proj_b.orders",
+   "invariantFailures": [],
+   "injectedTotal": 6,
+   "sources": 4,
+   "seeded": 3,
+   "classes": [
+    "not-public"
+   ]
+  },
+  {
+   "seed": 37,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_a\" references ref('proj_c', 'orders'), but dbt source \"src_proj_c\" failed: Model 'model.proj_c.orders' (models/orders.sql) depends on a node named 'orders' in package or project 'proj_a' which was not found Cold start: dbt source \"src_proj_b\" references dbt source \"src_proj_a\" (project \"proj_a\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_b\" could not resolve ref('orders') during its single parse. Cold start: dbt source \"src_proj_b\" references dbt source \"src_proj_a\" (project \"proj_a\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_b\" could not resolve ref('rate') during its single parse. Cold start: dbt source \"src_proj_c\" references dbt source \"src_proj_a\" (project \"proj_a\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_c\" could not resolve ref('proj_a', 'orders') during its single parse.",
+   "summary": "proj_a[cold]: orders=protected; rate=protected refs proj_c.orders,proj_b.measure | proj_b[seeded]: snapshot:measure=public refs ?.orders,?.rate | proj_c[seeded]: orders=protected refs proj_a.orders local customers; customers=protected local ledger; seed:ledger=public",
+   "invariantFailures": [],
+   "injectedTotal": 2,
+   "sources": 3,
+   "seeded": 2,
+   "classes": [
+    "cold-start",
+    "provider-failed"
+   ]
+  },
+  {
+   "seed": 38,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_a\" references ref('proj_c', 'rate'), but dbt source \"src_proj_c\" does not expose that model (or version) with access: public.",
+   "summary": "proj_a[seeded]: seed:orders=public; rate=public refs proj_c.rate,proj_d.ledger | proj_b[seeded]: ledger=protected refs proj_d.customers; seed:rate=public | proj_c[cold]: ledger=unset refs proj_a.orders,?.orders; rate=unset | proj_d[seeded]: customers=public refs proj_a.orders local orders; orders=public; ledger=public",
+   "invariantFailures": [],
+   "injectedTotal": 10,
+   "sources": 4,
+   "seeded": 3,
+   "classes": [
+    "not-public"
+   ]
+  },
+  {
+   "seed": 39,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_a\" references ref('orders'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model').",
+   "summary": "proj_a[seeded]: snapshot:ledger=public local customers; snapshot:customers=private; rate=public refs ?.orders local ledger | proj_b[seeded]: snapshot:orders=unset; snapshot:ledger=public",
+   "invariantFailures": [],
+   "injectedTotal": 0,
+   "sources": 2,
+   "seeded": 2,
+   "classes": [
+    "unresolved-generic"
+   ]
+  },
+  {
+   "seed": 40,
+   "status": "parameter-error",
+   "message": "dbt source \"src_proj_b\" references ref('customers'), but the name 'customers' is defined by several dbt sources. Use ref('project', 'model') to select a source.",
+   "summary": "proj_a[cold]: orders=private; measure.v1(latest 2)=public; measure.v2(latest 2)=public; customers.v1(latest 2)=public local measure; customers.v2(latest 2)=public refs ?.measure | proj_b[seeded]: ledger=public local measure; measure.v1(latest 1)=unset refs ?.customers; measure.v2(latest 1)=public; seed:measure=private | proj_c[seeded]: snapshot:rate=private; customers=public; orders=public refs proj_b.measure,proj_b.ledger",
+   "invariantFailures": [],
+   "injectedTotal": 0,
+   "sources": 3,
+   "seeded": 2,
+   "classes": [
+    "ambiguous-one-arg"
+   ]
+  }
+ ]
+}

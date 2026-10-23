@@ -1,0 +1,194 @@
+{
+ "A1-file-plain": {
+  "status": "pass",
+  "returncode": 0,
+  "tail": [
+   "14:44:12  Performance info: examples/multi-repo-dbt-sim/.work/loom-parity/loaders/t/A1-file-plain/perf_info.json"
+  ]
+ },
+ "A2-file-gzip": {
+  "status": "error",
+  "returncode": 2,
+  "tail": [
+   "14:44:14  [ERROR]: Encountered an error:",
+   "Runtime Error",
+   "  'utf-8' codec can't decode byte 0x8b in position 1: invalid start byte"
+  ]
+ },
+ "A3-file-corrupt": {
+  "status": "error",
+  "returncode": 2,
+  "tail": [
+   "14:44:16  [ERROR]: Encountered an error:",
+   "Runtime Error",
+   "  Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
+  ]
+ },
+ "A4-file-empty": {
+  "status": "error",
+  "returncode": 2,
+  "tail": [
+   "14:44:17  [ERROR]: Encountered an error:",
+   "Runtime Error",
+   "  Expecting value: line 1 column 1 (char 0)"
+  ]
+ },
+ "A5-file-missing-optional": {
+  "status": "unresolved",
+  "returncode": 2,
+  "tail": [
+   "14:44:20  [ERROR]: Encountered an error:",
+   "Compilation Error",
+   "  Model 'model.consumer_x.r1' (models/r1.sql) depends on a node named 'orders' in package or project 'provider_a' which was not found"
+  ]
+ },
+ "A6-file-missing-required": {
+  "status": "crash",
+  "returncode": 2,
+  "tail": [
+   "  File \"examples/multi-repo-dbt-sim/.work/venvs/dbt1120-loom/lib/python3.12/site-packages/dbt_loom/manifests.py\", line 160, in load_from_local_filesystem",
+   "    raise LoomConfigurationError(f\"The path `{file_path}` does not exist.\")",
+   "dbt_loom.config.LoomConfigurationError: The path `examples/multi-repo-dbt-sim/.work/loom-parity/loaders/store/nope.json` does not exist."
+  ]
+ },
+ "A7-http-200": {
+  "status": "pass",
+  "returncode": 0,
+  "tail": [
+   "14:44:25  Performance info: examples/multi-repo-dbt-sim/.work/loom-parity/loaders/t/A7-http-200/perf_info.json"
+  ]
+ },
+ "A8-http-200-gzip": {
+  "status": "pass",
+  "returncode": 0,
+  "tail": [
+   "14:44:28  Performance info: examples/multi-repo-dbt-sim/.work/loom-parity/loaders/t/A8-http-200-gzip/perf_info.json"
+  ]
+ },
+ "A9-http-404-optional": {
+  "status": "error",
+  "returncode": 2,
+  "tail": [
+   "14:44:30  [ERROR]: Encountered an error:",
+   "Runtime Error",
+   "  404 Client Error: File not found for url: http://127.0.0.1:36591/provider_a/nope.json"
+  ]
+ },
+ "A10-http-404-required": {
+  "status": "error",
+  "returncode": 2,
+  "tail": [
+   "14:44:32  [ERROR]: Encountered an error:",
+   "Runtime Error",
+   "  404 Client Error: File not found for url: http://127.0.0.1:36591/provider_a/nope.json"
+  ]
+ },
+ "A11-http-refused-optional": {
+  "status": "error",
+  "returncode": 2,
+  "tail": [
+   "14:44:33  [ERROR]: Encountered an error:",
+   "Runtime Error",
+   "  HTTPConnectionPool(host='127.0.0.1', port=9): Max retries exceeded with url: /manifest.json (Caused by NewConnectionError(\"HTTPConnection(host='127.0.0.1', port=9): Failed to establish a new connection: [Errno 111] Connection refused\"))"
+  ]
+ },
+ "A12-s3-nocreds-optional": {
+  "status": "error",
+  "returncode": 2,
+  "tail": [
+   "14:44:36  [ERROR]: Encountered an error:",
+   "Runtime Error",
+   "  Unable to locate credentials"
+  ]
+ },
+ "A13-gcs-nocreds-optional": {
+  "status": "error",
+  "returncode": 2,
+  "tail": [
+   "Runtime Error",
+   "  Reauthentication is needed. Please run `gcloud auth application-default login` to reauthenticate.",
+   "WARNING:google.auth._default:No project ID could be determined. Consider running `gcloud config set project` or setting the GOOGLE_CLOUD_PROJECT environment variable"
+  ]
+ },
+ "A14-azure-nocreds-optional": {
+  "status": "error",
+  "returncode": 2,
+  "tail": [
+   "\tAzureDeveloperCliCredential: Azure Developer CLI could not be found. Please visit https://aka.ms/azure-dev for installation instructions and then,once installed, authenticate to your Azure account using 'azd auth login'.",
+   "\tBrokerCredential: InteractiveBrowserBrokerCredential unavailable. The 'azure-identity-broker' package is required to use brokered authentication.",
+   "To mitigate this issue, please refer to the troubleshooting guidelines here at https://aka.ms/azsdk/python/identity/defaultazurecredential/troubleshoot."
+  ]
+ },
+ "A15-dbt_cloud-nocreds-optional": {
+  "status": "error",
+  "returncode": 2,
+  "tail": [
+   "14:47:43  [ERROR]: Encountered an error:",
+   "Runtime Error"
+  ]
+ },
+ "A16-unknown-type": {
+  "status": "crash",
+  "returncode": 2,
+  "tail": [
+   "manifests.0.type",
+   "  Input should be 'file', 'dbt_cloud', 'paradime', 'gcs', 's3', 'azure', 'snowflake' or 'databricks' [type=enum, input_value='ftp', input_type=str]",
+   "    For further information visit https://errors.pydantic.dev/2.14/v/enum"
+  ]
+ },
+ "B1-include-and-exclude": {
+  "status": "crash",
+  "returncode": 2,
+  "tail": [
+   "manifests.0",
+   "  Value error, Cannot specify both 'included_packages' and 'excluded_packages'. Use one or the other. [type=value_error, input_value={'name': 'provider_a', 't...cluded_packages': ['x']}, input_type=dict]",
+   "    For further information visit https://errors.pydantic.dev/2.14/v/value_error"
+  ]
+ },
+ "B2-include-unknown": {
+  "status": "unresolved",
+  "returncode": 2,
+  "tail": [
+   "14:47:49  [ERROR]: Encountered an error:",
+   "Compilation Error",
+   "  Model 'model.consumer_x.r1' (models/r1.sql) depends on a node named 'orders' in package or project 'provider_a' which was not found"
+  ]
+ },
+ "B3-exclude-self": {
+  "status": "unresolved",
+  "returncode": 2,
+  "tail": [
+   "14:47:52  [ERROR]: Encountered an error:",
+   "Compilation Error",
+   "  Model 'model.consumer_x.r1' (models/r1.sql) depends on a node named 'orders' in package or project 'provider_a' which was not found"
+  ]
+ },
+ "B4-include-self": {
+  "status": "pass",
+  "returncode": 0,
+  "tail": [
+   "14:47:55  Performance info: examples/multi-repo-dbt-sim/.work/loom-parity/loaders/t/B4-include-self/perf_info.json"
+  ]
+ },
+ "B5-empty-include-list": {
+  "status": "pass",
+  "returncode": 0,
+  "tail": [
+   "14:47:58  Performance info: examples/multi-repo-dbt-sim/.work/loom-parity/loaders/t/B5-empty-include-list/perf_info.json"
+  ]
+ },
+ "C1-two-refs-same-manifest": {
+  "status": "pass",
+  "returncode": 0,
+  "tail": [
+   "14:48:01  Performance info: examples/multi-repo-dbt-sim/.work/loom-parity/loaders/t/C1-two-refs-same-manifest/perf_info.json"
+  ]
+ },
+ "C3-name-mismatch": {
+  "status": "pass",
+  "returncode": 0,
+  "tail": [
+   "14:48:04  Performance info: examples/multi-repo-dbt-sim/.work/loom-parity/loaders/t/C3-name-mismatch/perf_info.json"
+  ]
+ }
+}
