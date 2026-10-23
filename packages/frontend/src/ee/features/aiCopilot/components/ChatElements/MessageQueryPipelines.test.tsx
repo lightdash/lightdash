@@ -32,7 +32,11 @@ describe('MessageQueriesList', () => {
     it('shows a card per pipeline and passes the clicked pipeline to onSelect', () => {
         const onSelect = vi.fn();
         renderWithProviders(
-            <MessageQueriesList pipelines={[pipeline]} onSelect={onSelect} />,
+            <MessageQueriesList
+                pipelines={[pipeline]}
+                onSelect={onSelect}
+                selectedQueryUuid={null}
+            />,
         );
 
         expect(screen.getByText('2 steps · Semantic layer')).toBeVisible();
@@ -40,5 +44,25 @@ describe('MessageQueriesList', () => {
             screen.getByRole('button', { name: 'Show query Net orders' }),
         );
         expect(onSelect).toHaveBeenCalledWith(pipeline);
+    });
+
+    it('marks the open pipeline as pressed', () => {
+        renderWithProviders(
+            <MessageQueriesList
+                pipelines={[
+                    pipeline,
+                    { ...pipeline, queryUuid: 'q2', title: 'Other' },
+                ]}
+                onSelect={vi.fn()}
+                selectedQueryUuid="q2"
+            />,
+        );
+
+        expect(
+            screen.getByRole('button', { name: 'Show query Other' }),
+        ).toHaveAttribute('aria-pressed', 'true');
+        expect(
+            screen.getByRole('button', { name: 'Show query Net orders' }),
+        ).toHaveAttribute('aria-pressed', 'false');
     });
 });

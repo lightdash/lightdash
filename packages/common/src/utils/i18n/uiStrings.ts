@@ -382,6 +382,7 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.modelSelector.agentDefault': 'Agent default',
     'aiAgent.composer.loadingResult': 'Loading results...',
     'aiAgent.composer.resultError': 'This result could not be loaded',
+    'aiAgent.composer.emptyResult': 'No rows returned',
     'aiAgent.composer.nodeStatus.pending': 'Queued',
     'aiAgent.composer.nodeStatus.awaitingApproval': 'Awaiting approval',
     'aiAgent.composer.nodeStatus.running': 'Running',

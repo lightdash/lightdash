@@ -14,6 +14,11 @@
     background: var(--mantine-color-default-hover);
 }
 
+.card[aria-pressed='true'] {
+    border-color: var(--mantine-color-ldGray-5);
+    background: var(--mantine-color-default-hover);
+}
+
 .card:focus-visible {
     outline: 2px solid var(--mantine-color-ldGray-5);
     outline-offset: 2px;

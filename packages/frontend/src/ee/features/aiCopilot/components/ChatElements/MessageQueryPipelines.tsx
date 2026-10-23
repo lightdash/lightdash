@@ -63,7 +63,9 @@ const pipelineSummary = ({ nodes }: AiAgentMessageQueryPipeline): string => {
 export const MessageQueriesList: FC<{
     pipelines: AiAgentMessageQueryPipeline[];
     onSelect: ((pipeline: AiAgentMessageQueryPipeline) => void) | null;
-}> = ({ pipelines, onSelect }) => (
+    /** The pipeline open in the preview pane, highlighted. */
+    selectedQueryUuid: string | null;
+}> = ({ pipelines, onSelect, selectedQueryUuid }) => (
     <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
         {pipelines.map((pipeline) => {
             const terminal = pipeline.nodes.find(
@@ -94,6 +96,7 @@ export const MessageQueriesList: FC<{
                     p="sm"
                     className={styles.card}
                     aria-label={`Show query ${pipeline.title}`}
+                    aria-pressed={pipeline.queryUuid === selectedQueryUuid}
                     onClick={() => onSelect(pipeline)}
                 >
                     {content}

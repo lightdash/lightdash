@@ -124,6 +124,7 @@ const Scenario = ({ defaultExpanded, pipelines, onSelect }: Args) => {
                     <MessageQueriesList
                         pipelines={pipelines}
                         onSelect={onSelect}
+                        selectedQueryUuid={null}
                     />
                 )}
             </Stack>

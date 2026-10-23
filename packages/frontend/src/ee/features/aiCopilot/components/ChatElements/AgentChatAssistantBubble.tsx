@@ -1429,6 +1429,11 @@ export const AssistantBubble: FC<Props> = memo(
                                 ? null
                                 : handleQueryPipelineSelect
                         }
+                        selectedQueryUuid={
+                            openPipeline?.messageUuid === message.uuid
+                                ? openPipeline.queryUuid
+                                : null
+                        }
                     />
                 )}
 
