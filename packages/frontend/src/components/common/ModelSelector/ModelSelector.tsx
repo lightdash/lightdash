@@ -151,7 +151,7 @@ export const ModelSelector: FC<Props> = ({
                         {visibleModels.length > 1 && <Menu.Divider />}
                     </>
                 )}
-                <ScrollArea.Autosize mah={200}>
+                <ScrollArea.Autosize mah={200} scrollbars="y">
                     {agentDefault && (
                         <>
                             <Menu.Item
@@ -172,7 +172,7 @@ export const ModelSelector: FC<Props> = ({
                                     )}
                                 </Text>
                             </Menu.Item>
-                            <Menu.Divider />
+                            <Menu.Divider mx={0} />
                         </>
                     )}
                     {modelGroups.map((groupLabel, groupIndex) => {
@@ -218,7 +218,7 @@ export const ModelSelector: FC<Props> = ({
                                 })}
 
                                 {groupIndex < modelGroups.length - 1 && (
-                                    <Menu.Divider />
+                                    <Menu.Divider mx={0} />
                                 )}
                             </Box>
                         );
