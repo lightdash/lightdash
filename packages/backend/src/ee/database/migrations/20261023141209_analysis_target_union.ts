@@ -24,17 +24,29 @@ export async function up(knex: Knex): Promise<void> {
         await knex.raw(
             `ALTER TABLE ${analysesTable} ALTER COLUMN app_version DROP NOT NULL`,
         );
-        if (!(await knex.schema.hasColumn(analysesTable, 'dashboard_uuid'))) {
-            await knex.schema.alterTable(analysesTable, (table) => {
-                table
-                    .uuid('dashboard_uuid')
-                    .nullable()
-                    .references('dashboard_uuid')
-                    .inTable('dashboards')
-                    .onDelete('CASCADE')
-                    .index();
-            });
-        }
+        // Column, FK and index each guarded on their own: with
+        // transaction: false these are separate statements, and a retry must
+        // resume at exactly the missing piece.
+        await knex.raw(
+            `ALTER TABLE ${analysesTable} ADD COLUMN IF NOT EXISTS dashboard_uuid uuid`,
+        );
+        await knex.raw(`
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint
+                    WHERE conname = '${analysesTable}_dashboard_uuid_foreign'
+                ) THEN
+                    ALTER TABLE ${analysesTable}
+                    ADD CONSTRAINT ${analysesTable}_dashboard_uuid_foreign
+                    FOREIGN KEY (dashboard_uuid)
+                    REFERENCES dashboards(dashboard_uuid) ON DELETE CASCADE;
+                END IF;
+            END $$;
+        `);
+        await knex.raw(
+            `CREATE INDEX IF NOT EXISTS ${analysesTable}_dashboard_uuid_index ON ${analysesTable} (dashboard_uuid)`,
+        );
         // Exactly one target per row. NOT VALID + VALIDATE so existing rows
         // are checked without an exclusive-lock table scan.
         await knex.raw(`
@@ -82,18 +94,18 @@ export async function up(knex: Knex): Promise<void> {
 
     // An interrupted concurrent build leaves an invalid index that
     // IF NOT EXISTS would keep; drop it so the retry rebuilds a usable one.
-    await knex.raw(`
-        DO $$
-        BEGIN
-            IF EXISTS (
-                SELECT 1 FROM pg_index i
-                JOIN pg_class c ON c.oid = i.indexrelid
-                WHERE c.relname = '${dashboardReuseIndex}' AND NOT i.indisvalid
-            ) THEN
-                DROP INDEX CONCURRENTLY ${dashboardReuseIndex};
-            END IF;
-        END $$;
+    // Validity is checked in TypeScript because DROP INDEX CONCURRENTLY
+    // cannot run inside a DO block (it refuses any transaction context).
+    const invalidIndex = await knex.raw(`
+        SELECT 1 FROM pg_index i
+        JOIN pg_class c ON c.oid = i.indexrelid
+        WHERE c.relname = '${dashboardReuseIndex}' AND NOT i.indisvalid
     `);
+    if (invalidIndex.rows.length > 0) {
+        await knex.raw(
+            `DROP INDEX CONCURRENTLY IF EXISTS ${dashboardReuseIndex}`,
+        );
+    }
     await knex.raw(
         `CREATE INDEX CONCURRENTLY IF NOT EXISTS ${dashboardReuseIndex} ON ${analysesTable} (dashboard_uuid, content_hash, created_at DESC) WHERE operation = 'detect' AND dashboard_uuid IS NOT NULL`,
     );
