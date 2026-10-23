@@ -114,6 +114,19 @@ export const isAiComposerChartArtifactConfig = (
     'terminalNodeId' in config &&
     typeof config.terminalNodeId === 'string';
 
+/** Semantic explores a pipeline reads, the access a user needs to see its results. */
+export const getComposerSemanticExploreNames = (
+    queries: SourceQuery[],
+): string[] => [
+    ...new Set(
+        queries.flatMap((node) =>
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                ? [node.exploreName]
+                : [],
+        ),
+    ),
+];
+
 // The full definition, with array references written in map form.
 // Filter group and rule ids are generated per submission, so two identical
 // filters differ only by id; compare them without.

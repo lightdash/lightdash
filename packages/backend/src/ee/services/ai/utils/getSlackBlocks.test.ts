@@ -561,6 +561,67 @@ describe('Slack AI agent blocks', () => {
         ]);
     });
 
+    it('shows a visualized big number value on its card, escaped for mrkdwn', async () => {
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => 'https://lightdash.example.com/share/chart',
+            async () => mockOrdersExplore,
+            async () => true,
+            'agent-1',
+            [
+                {
+                    artifactUuid: 'artifact-kpi',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'chart',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'kpi',
+                    title: 'Total revenue',
+                    description: 'All paid orders',
+                    dashboardConfig: null,
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: {
+                        source: 'composer',
+                        schemaVersion: 2,
+                        queries: [],
+                        terminalNodeId: 'final',
+                        vizConfig: { type: 'big_number' },
+                    },
+                },
+            ] as never,
+            [],
+            undefined,
+            false,
+            new Map([['kpi', { value: '$48,210', label: 'Net & gross' }]]),
+        );
+
+        expect(blocks).toMatchObject([
+            {
+                type: 'card',
+                title: { text: 'Total revenue' },
+                body: { text: '*$48,210*\nNet &amp; gross' },
+                subtext: { text: 'All paid orders' },
+                actions: [
+                    {
+                        url: 'https://lightdash.example.com/projects/project-1/ai-agents/agent-1/threads/thread-1',
+                    },
+                ],
+            },
+        ]);
+        expect(blocks[0]).not.toHaveProperty('subtitle');
+    });
+
     it('uses generateVisualization chart image URLs as card hero images', async () => {
         const blocks = await getModernArtifactCardBlocks(
             {

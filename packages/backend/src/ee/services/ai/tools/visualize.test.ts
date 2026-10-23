@@ -389,6 +389,28 @@ describe('visualize', () => {
         });
     });
 
+    it('runs a Slack big number so its value can post, unless links-only; a lone semantic node stays a composer version', async () => {
+        const slack = makeTool({
+            currentPrompt: slackPrompt,
+            rows: [{ orders_total_order_amount: 42 }],
+        });
+        const linksOnly = makeTool({
+            currentPrompt: slackPrompt,
+            rows: [{ orders_total_order_amount: 42 }],
+            slackLinksOnly: true,
+        });
+        const bigNumber = { ...tableConfig, type: 'big_number' as const };
+
+        const output = await slack.visualize({ vizConfig: bigNumber });
+        await linksOnly.visualize({ vizConfig: bigNumber });
+
+        expect(output.metadata).toMatchObject({ queryUuid: 'query-uuid' });
+        expect(slack.versions[0].vizConfig).toMatchObject({
+            source: 'composer',
+        });
+        expect(linksOnly.runComposerQueries).not.toHaveBeenCalled();
+    });
+
     it('does not run a web table or a Slack chart without hints', async () => {
         const web = makeTool();
         const slack = makeTool({ currentPrompt: slackPrompt });
