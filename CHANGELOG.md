@@ -1,3 +1,10 @@
+## [3.49.1](https://github.com/lightdash/lightdash/compare/3.49.0...3.49.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* keep dashboard config when adding a chart or duplicating ([#31513](https://github.com/lightdash/lightdash/issues/31513)) ([3b60566](https://github.com/lightdash/lightdash/commit/3b60566acef26280b5b8d5ae553563bbaa896188))
+
 # [3.49.0](https://github.com/lightdash/lightdash/compare/3.48.2...3.49.0) (2026-10-23)
 
 
