@@ -164,7 +164,7 @@ export class DataAppAnalysisController extends BaseController {
         const results = await this.getService().investigate(
             req.account,
             projectUuid,
-            appUuid,
+            { kind: 'app', appUuid },
             analysisId,
             body,
         );

@@ -685,7 +685,10 @@ import {
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import { deriveAiAgentThreadLiveStatus } from './aiAgentThreadLiveStatus';
 import { isComposerQueriesEnabled } from './composerQueriesGate';
-import { resolveStandardToolAllowlist } from './dataAppThreadPolicy';
+import {
+    isAnalysisInvestigationThread,
+    resolveStandardToolAllowlist,
+} from './dataAppThreadPolicy';
 import {
     redactStreamToolOutputs,
     redactThreadToolResults,
@@ -5579,7 +5582,7 @@ export class AiAgentService extends BaseService {
     }
 
     /**
-     * Any new user input on a thread that began as a data-app investigation
+     * Any new user input on a thread that began as an analysis investigation
      * (a message, a steer) is "continuing" it, so all of them honour the
      * org setting.
      */
@@ -5587,14 +5590,14 @@ export class AiAgentService extends BaseService {
         thread: { createdFrom: AiThreadCreatedFrom },
         organizationUuid: string,
     ): Promise<void> {
-        if (thread.createdFrom !== 'data_app') return;
+        if (!isAnalysisInvestigationThread(thread.createdFrom)) return;
         if (
             !(await this.aiOrganizationSettingsService.isDataAppContinueInAskAiEnabled(
                 organizationUuid,
             ))
         ) {
             throw new ForbiddenError(
-                'Continuing a data-app investigation in Ask AI is turned off for this organization',
+                'Continuing an investigation in Ask AI is turned off for this organization',
             );
         }
     }

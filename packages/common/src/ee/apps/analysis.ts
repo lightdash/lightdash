@@ -154,7 +154,9 @@ export type DataAppInvestigation = DataAppInvestigateResult & {
 
 /** Job that runs an investigation off the request path; poll by jobId. */
 export type DataAppInvestigateJobPayload = TraceTaskBase & {
-    appUuid: string;
+    target?: AnalysisTargetLocator;
+    /** Pre-target jobs enqueued before an upgrade; implies an app target. */
+    appUuid?: string;
     analysisId: string;
     anomalyId: string;
     agentUuid: string;

@@ -3,8 +3,10 @@ import {
     type ApiDataAppAnalysisLookupResponse,
     type ApiDataAppAnalysisResponse,
     type ApiDataAppDetectResponse,
+    type ApiDataAppInvestigateResponse,
     type ApiErrorPayload,
     type DataAppDetectRequest,
+    type DataAppInvestigateRequest,
     type DataAppLookupRequest,
     type UUID,
 } from '@lightdash/common';
@@ -31,8 +33,7 @@ import { BaseController } from '../../controllers/baseController';
 import { DataAppAnalysisService } from '../services/DataAppAnalysisService/DataAppAnalysisService';
 
 /**
- * Sibling of DataAppAnalysisController for classic dashboards. Investigate
- * stays app-only until dashboard thread policy lands (GLITCH-951); prompt is
+ * Sibling of DataAppAnalysisController for classic dashboards. Prompt is
  * app-only by design (dashboards have no app code to author prompts in).
  */
 @Route('/api/v2/projects/{projectUuid}/dashboards/{dashboardUuid}/analysis')
@@ -100,6 +101,41 @@ export class DashboardAnalysisController extends BaseController {
             req.account,
             projectUuid,
             { kind: 'dashboard', dashboardUuid },
+            body,
+        );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Queue an agent investigation of one anomaly from a persisted detection.
+     * Poll `GET /api/v1/schedulers/job/{jobId}/status`; the completed job's
+     * details carry `investigationId`, readable via the analysis route.
+     * @summary Investigate a detected dashboard anomaly
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('DashboardAnalysisController.investigate'),
+    ])
+    @SuccessResponse('202', 'Accepted')
+    @Post('/{analysisId}/investigate')
+    @OperationId('investigateDashboardAnomaly')
+    async investigate(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() dashboardUuid: UUID,
+        @Path() analysisId: UUID,
+        @Body() body: DataAppInvestigateRequest,
+    ): Promise<ApiDataAppInvestigateResponse> {
+        if (!req.account) {
+            throw new ForbiddenError('Account is required');
+        }
+        this.setStatus(202);
+        const results = await this.getService().investigate(
+            req.account,
+            projectUuid,
+            { kind: 'dashboard', dashboardUuid },
+            analysisId,
             body,
         );
         return { status: 'ok', results };

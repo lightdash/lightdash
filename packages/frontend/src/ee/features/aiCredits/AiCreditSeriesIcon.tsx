@@ -9,6 +9,7 @@ import {
 import { Box } from '@mantine/core';
 import {
     IconApi,
+    IconLayoutDashboard,
     IconAppWindow,
     IconBook2,
     IconBrandSlack,
@@ -43,6 +44,7 @@ const CHANNEL_ICONS: Record<AiUsageChannel, Icon> = {
     evals: IconBook2,
     scheduler: IconCalendarStats,
     data_app: IconAppWindow,
+    dashboard_analysis: IconLayoutDashboard,
 };
 
 const ICON_SIZE = 14;

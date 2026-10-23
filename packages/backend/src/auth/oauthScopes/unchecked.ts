@@ -231,6 +231,7 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'DashboardAnalysisController.detect': 'write',
     'DashboardAnalysisController.lookup': 'read',
     'DashboardAnalysisController.getAnalysis': 'read',
+    'DashboardAnalysisController.investigate': 'write',
     'ExternalConnectionController.externalFetch': 'write',
     'AppStateController.getAppState': 'read',
     'AppStateController.setUserState': 'write',
