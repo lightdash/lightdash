@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.47.0",
-  "previousVersion": "3.46.0",
-  "releaseDate": "2026-10-23T14:26:43.680Z",
+  "version": "3.47.1",
+  "previousVersion": "3.47.0",
+  "releaseDate": "2026-10-23T14:31:22.853Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261023132110_add_node_columns_to_composer_query_nodes.ts",
-        "edition": "ee",
-        "tables": [
-          "composer_query_nodes"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

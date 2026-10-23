@@ -1,3 +1,10 @@
+## [3.47.1](https://github.com/lightdash/lightdash/compare/3.47.0...3.47.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **dashboards:** line up the filter rail's inputs and row actions ([#31484](https://github.com/lightdash/lightdash/issues/31484)) ([fb768a7](https://github.com/lightdash/lightdash/commit/fb768a7594601a2b6bb7858abfbdd0e8118e1fa0))
+
 # [3.47.0](https://github.com/lightdash/lightdash/compare/3.46.0...3.47.0) (2026-10-23)
 
 
