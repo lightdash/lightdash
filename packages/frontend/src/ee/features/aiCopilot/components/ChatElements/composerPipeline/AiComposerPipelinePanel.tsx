@@ -60,11 +60,11 @@ import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import styles from './AiComposerPipelinePanel.module.css';
 import {
     groupPipeline,
-    nodeTypeIcon,
     nodeTypeLabelOf,
     type PipelineLayer,
     type PipelineNode,
 } from './groupPipeline';
+import { nodeTypeIcon } from './nodeTypeIcon';
 import {
     layoutPipelineFlow,
     toPipelineFlow,

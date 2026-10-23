@@ -1824,9 +1824,9 @@ export class AiAgentController extends BaseController {
     async getAgentThreadMessageQueryPipelines(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Path() agentUuid: string,
-        @Path() threadUuid: string,
-        @Path() messageUuid: string,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Path() messageUuid: UUID,
     ): Promise<ApiAiAgentMessageQueryPipelinesResponse> {
         this.setStatus(200);
         const args = { agentUuid, threadUuid, messageUuid };

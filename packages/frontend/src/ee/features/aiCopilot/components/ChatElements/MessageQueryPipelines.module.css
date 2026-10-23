@@ -23,7 +23,6 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
     width: 22px;
     height: 22px;
     border: 1px solid var(--mantine-color-default-border);

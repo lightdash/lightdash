@@ -13,7 +13,7 @@ import MantineIcon from '../components/common/MantineIcon';
 import {
     MessageQueriesList,
     MessageQueriesToggle,
-} from '../ee/features/aiCopilot/components/ChatElements/MessageTurnQueries';
+} from '../ee/features/aiCopilot/components/ChatElements/MessageQueryPipelines';
 
 const revenueByRegion: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.SEMANTIC_LAYER,
@@ -132,7 +132,7 @@ const Scenario = ({ defaultExpanded, pipelines, onSelect }: Args) => {
 };
 
 const meta: Meta<Args> = {
-    title: 'AI Agent/MessageTurnQueries',
+    title: 'AI Agent/MessageQueryPipelines',
     render: (args) => <Scenario {...args} />,
     args: {
         pipelines: [netRevenuePipeline, revenuePipeline],

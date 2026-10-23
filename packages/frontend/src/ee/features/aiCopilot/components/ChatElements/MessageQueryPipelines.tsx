@@ -9,11 +9,9 @@ import {
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../../../components/common/PolymorphicPaperButton';
-import {
-    nodeTypeIcon,
-    nodeTypeLabelOf,
-} from './composerPipeline/groupPipeline';
-import styles from './MessageTurnQueries.module.css';
+import { nodeTypeLabelOf } from './composerPipeline/groupPipeline';
+import { nodeTypeIcon } from './composerPipeline/nodeTypeIcon';
+import styles from './MessageQueryPipelines.module.css';
 
 export const MessageQueriesToggle: FC<{
     count: number;
@@ -76,7 +74,7 @@ export const MessageQueriesList: FC<{
                     onClick={() => onSelect(pipeline)}
                 >
                     <Group gap="sm" wrap="nowrap" align="flex-start">
-                        <Box className={styles.iconChip}>
+                        <Box className={styles.iconChip} flex="0 0 auto">
                             <MantineIcon icon={icon} size={14} />
                         </Box>
                         <Stack gap={2} miw={0}>

@@ -94,8 +94,11 @@ import {
     MessageSourcesToggle,
 } from './MessageMemorySources';
 import { MessageModelIndicator } from './MessageModelIndicator';
+import {
+    MessageQueriesList,
+    MessageQueriesToggle,
+} from './MessageQueryPipelines';
 import { MessageTimingIndicator } from './MessageTimingIndicator';
-import { MessageQueriesList, MessageQueriesToggle } from './MessageTurnQueries';
 import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { StreamRecoveryAlert } from './StreamRecoveryAlert';
@@ -1049,8 +1052,10 @@ export const AssistantBubble: FC<Props> = memo(
         const ranUnvisualizedQueries =
             !isLoading &&
             !isArtifactAvailable &&
-            message.toolCalls.some((toolCall) =>
-                isComposerQueryToolName(toolCall.toolName),
+            message.toolCalls.some(
+                (toolCall) =>
+                    toolCall.parentToolCallId === null &&
+                    isComposerQueryToolName(toolCall.toolName),
             );
         const queryPipelinesQuery = useAiAgentMessageQueryPipelines({
             projectUuid,
