@@ -193,6 +193,7 @@ import {
     type AgentToolName,
     type AgentWorkMarker,
     type AiAgentEditDbtProjectPipelineJobPayload,
+    type AiAgentMessageQueryPipeline,
     type AiAgentModelConfig,
     type AiAgentSkill,
     type AiArtifact,
@@ -210,6 +211,7 @@ import {
     type AiSemanticChartArtifactConfig,
     type AiThreadCreatedFrom,
     type AiWebAppThreadCreatedFrom,
+    type ApiAiAgentComposerArtifactVizQuery,
     type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
     type ComposerStoredChartVizConfig,
@@ -628,6 +630,7 @@ import {
     parseMemoryCitations,
     stripMemoryCitations,
 } from '../ai/utils/memoryCitation';
+import { buildMessageQueryPipelines } from '../ai/utils/messageQueryPipelines';
 import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
@@ -904,6 +907,14 @@ export const assertDeepResearchPromptExecution = ({
 
 // Set where a user action starts; null where the run continues one that was already checked.
 export type AiCreditCheck = { isEmbedViewer: boolean };
+
+type MessageQueryPipelineRef = {
+    agentUuid: string;
+    threadUuid: string;
+    messageUuid: string;
+    /** The pipeline's terminal queryUuid from its `query` call. */
+    queryUuid: string;
+};
 
 type EmbedAiAgentRuntimeOptions = {
     // A thread belongs to every write space of the token that created it.
@@ -9304,6 +9315,38 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    async getEmbedMessageQueryPipelines(
+        account: AnonymousAccount,
+        projectUuid: string,
+        args: { agentUuid: string; threadUuid: string; messageUuid: string },
+    ): Promise<AiAgentMessageQueryPipeline[]> {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            args.agentUuid,
+        );
+        await this.assertEmbedThreadInSpace(args.threadUuid, runtimeOptions);
+        return this.getMessageQueryPipelines(user, { ...args, projectUuid });
+    }
+
+    async getEmbedMessageQueryPipelineVizQuery(
+        account: AnonymousAccount,
+        projectUuid: string,
+        args: MessageQueryPipelineRef,
+    ): Promise<ApiAiAgentComposerArtifactVizQuery> {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            args.agentUuid,
+        );
+        await this.assertEmbedThreadInSpace(args.threadUuid, runtimeOptions);
+        return this.getMessageQueryPipelineVizQuery(user, {
+            ...args,
+            projectUuid,
+            runtimeOptions,
+        });
+    }
+
     async updateEmbedHumanScoreForMessage(
         account: AnonymousAccount,
         projectUuid: string,
@@ -9888,7 +9931,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         agentUuid: string,
-        artifact: AiArtifact,
+        artifact: Pick<AiArtifact, 'threadUuid' | 'promptUuid'>,
         authMethod: QueryResultReader['authMethod'],
     ): Promise<QueryResultReader> {
         const thread = await this.aiAgentModel.getThread({
@@ -10067,12 +10110,43 @@ export class AiAgentService extends BaseService {
             artifactUuid,
             versionUuid,
         );
+        return this.executeQueriesAsOwner(
+            user,
+            { projectUuid, agentUuid, source: artifact },
+            execute,
+            getQueryUuids,
+            (account, queryUuid) =>
+                this.asyncQueryService.bindQueryToArtifact(
+                    account,
+                    projectUuid,
+                    queryUuid,
+                    { agentUuid, artifactUuid, versionUuid },
+                ),
+        );
+    }
+
+    /** Runs as the source's owner when the reader allows, then binds every query it produced. */
+    private async executeQueriesAsOwner<T>(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            source,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            source: Pick<AiArtifact, 'threadUuid' | 'promptUuid'>;
+        },
+        execute: () => Promise<T>,
+        getQueryUuids: (result: T) => string[],
+        bind: (account: RegisteredAccount, queryUuid: string) => Promise<void>,
+    ): Promise<T> {
         const account = fromSession(user);
         const reader = await this.getArtifactOwnerResultReader(
             user,
             projectUuid,
             agentUuid,
-            artifact,
+            source,
             account.authentication.type,
         );
         const result =
@@ -10089,14 +10163,7 @@ export class AiAgentService extends BaseService {
                   )
                 : await execute();
         await Promise.all(
-            getQueryUuids(result).map((queryUuid) =>
-                this.asyncQueryService.bindQueryToArtifact(
-                    account,
-                    projectUuid,
-                    queryUuid,
-                    { agentUuid, artifactUuid, versionUuid },
-                ),
-            ),
+            getQueryUuids(result).map((queryUuid) => bind(account, queryUuid)),
         );
         return result;
     }
@@ -10867,6 +10934,226 @@ export class AiAgentService extends BaseService {
             messageUuid,
             savedQueryUuid,
         });
+    }
+
+    async getMessageQueryPipelines(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        },
+    ): Promise<AiAgentMessageQueryPipeline[]> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError(`Organization not found`);
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled)
+            throw new ForbiddenError(`Copilot is not enabled`);
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent || agent.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to view this thread',
+            );
+        }
+
+        // Throws unless the message belongs to this thread
+        await this.aiAgentModel.findThreadMessage('assistant', {
+            organizationUuid,
+            threadUuid,
+            messageUuid,
+        });
+
+        const [toolCalls, threadNodes] = await Promise.all([
+            this.aiAgentModel.getToolCallsAndResultsForPrompt(messageUuid),
+            this.aiAgentModel.listComposerQueryNodes(
+                threadComposerQueryScope(threadUuid),
+            ),
+        ]);
+        return buildMessageQueryPipelines({ toolCalls, threadNodes });
+    }
+
+    private async getMessageQueryPipeline(
+        user: SessionUser,
+        args: MessageQueryPipelineRef & { projectUuid: string },
+    ): Promise<AiAgentMessageQueryPipeline> {
+        const pipelines = await this.getMessageQueryPipelines(user, args);
+        const pipeline = pipelines.find(
+            ({ queryUuid }) => queryUuid === args.queryUuid,
+        );
+        if (!pipeline) {
+            throw new NotFoundError(`Query not found: ${args.queryUuid}`);
+        }
+        return pipeline;
+    }
+
+    /** Runs a message's `query` pipeline for the preview panel, like an artifact's viz query. */
+    async getMessageQueryPipelineVizQuery(
+        user: SessionUser,
+        {
+            projectUuid,
+            runtimeOptions,
+            ...args
+        }: MessageQueryPipelineRef & {
+            projectUuid: string;
+            runtimeOptions: EmbedAiAgentRuntimeOptions | null;
+        },
+    ): Promise<ApiAiAgentComposerArtifactVizQuery> {
+        const pipeline = await this.getMessageQueryPipeline(user, {
+            ...args,
+            projectUuid,
+        });
+        // Embed viewers are scoped by user attributes, which raw SQL bypasses.
+        if (
+            runtimeOptions &&
+            pipeline.nodes.some(
+                (node) => node.sourceType === QuerySourceType.SQL,
+            )
+        ) {
+            throw new ForbiddenError(
+                'Pipelines with warehouse SQL are not available in embedded AI agents',
+            );
+        }
+        const execute =
+            async (): Promise<ApiAiAgentComposerArtifactVizQuery> => {
+                const { queries } = await this.querySourceService.submitQueries(
+                    {
+                        account: fromSession(user),
+                        projectUuid,
+                        queries: pipeline.nodes,
+                        context: QueryExecutionContext.AI,
+                        querySurface: await this.getArtifactQuerySurface(
+                            args.messageUuid,
+                        ),
+                        parameters: {},
+                        userAttributeOverrides:
+                            runtimeOptions?.userAttributeOverrides ?? {},
+                        invalidateCache: false,
+                        plans: {},
+                    },
+                );
+                return {
+                    source: 'composer',
+                    terminalNodeId: pipeline.terminalNodeId,
+                    nodeQueryUuids: Object.fromEntries(
+                        queries.map(({ nodeId, queryUuid }) => [
+                            nodeId,
+                            queryUuid,
+                        ]),
+                    ),
+                    metadata: { title: pipeline.title, description: null },
+                    chartStage: null,
+                };
+            };
+        if (runtimeOptions) return execute();
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        if (!enabled) return execute();
+        return this.executeQueriesAsOwner(
+            user,
+            {
+                projectUuid,
+                agentUuid: args.agentUuid,
+                source: {
+                    threadUuid: args.threadUuid,
+                    promptUuid: args.messageUuid,
+                },
+            },
+            execute,
+            (vizQuery) => Object.values(vizQuery.nodeQueryUuids),
+            (account, queryUuid) =>
+                this.asyncQueryService.bindQueryToMessageQuery(
+                    account,
+                    projectUuid,
+                    queryUuid,
+                    {
+                        agentUuid: args.agentUuid,
+                        promptUuid: args.messageUuid,
+                        queryUuid: args.queryUuid,
+                    },
+                ),
+        );
+    }
+
+    async getMessageQueryPipelineQueryResults(
+        user: SessionUser,
+        {
+            projectUuid,
+            resultQueryUuid,
+            page,
+            pageSize,
+            ...args
+        }: MessageQueryPipelineRef & {
+            projectUuid: string;
+            resultQueryUuid: string;
+            page: number | null;
+            pageSize: number | null;
+        },
+        account: RegisteredAccount = fromSession(user),
+    ): Promise<ApiGetAsyncQueryResults> {
+        await this.getMessageQueryPipeline(user, { ...args, projectUuid });
+        const { enabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        const reader: QueryResultReader = enabled
+            ? await this.getArtifactOwnerResultReader(
+                  user,
+                  projectUuid,
+                  args.agentUuid,
+                  { threadUuid: args.threadUuid, promptUuid: args.messageUuid },
+                  account.authentication.type,
+              )
+            : { kind: 'person', authMethod: account.authentication.type };
+        const resultsArgs = {
+            account,
+            reader,
+            projectUuid,
+            queryUuid: resultQueryUuid,
+            page: page ?? undefined,
+            pageSize: pageSize ?? undefined,
+        };
+        if (!enabled)
+            return this.asyncQueryService.getAsyncQueryResults(resultsArgs);
+        return this.asyncQueryService.getMessageQueryBoundQueryResults(
+            resultsArgs,
+            {
+                agentUuid: args.agentUuid,
+                promptUuid: args.messageUuid,
+                queryUuid: args.queryUuid,
+            },
+        );
     }
 
     async updateArtifactVersion(

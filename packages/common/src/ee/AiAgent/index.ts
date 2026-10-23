@@ -1076,6 +1076,11 @@ export type ApiAiAgentComposerArtifactVizQuery = {
     chartStage: ApiAiAgentComposerArtifactChartStage | null;
 };
 
+export type ApiAiAgentComposerArtifactVizQueryResponse = {
+    status: 'ok';
+    results: ApiAiAgentComposerArtifactVizQuery;
+};
+
 export type ApiAiAgentComposerArtifactChartStage =
     | { status: 'ok'; queryUuid: string }
     | { status: 'error'; message: string };

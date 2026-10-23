@@ -43,6 +43,7 @@ import {
 import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
 import { AiDataAppPreviewPanel } from '../ChatElements/AiDataAppPreviewPanel';
 import { AiDocumentPreviewPanel } from '../ChatElements/AiDocumentPreviewPanel';
+import { AiQueryPipelinePreviewPanel } from '../ChatElements/AiQueryPipelinePreviewPanel';
 import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './aiAgentPageLayout.module.css';
 import {
@@ -64,6 +65,8 @@ const renderPreviewPanel = (preview: AiPreview) => {
             );
         case 'document':
             return <AiDocumentPreviewPanel documentPreview={preview} />;
+        case 'queryPipeline':
+            return <AiQueryPipelinePreviewPanel pipelinePreview={preview} />;
         default:
             return assertUnreachable(preview, 'Unknown preview type');
     }
