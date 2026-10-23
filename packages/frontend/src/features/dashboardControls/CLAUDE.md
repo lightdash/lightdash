@@ -26,7 +26,9 @@ fields. User-facing copy says *tile*, never *chart*.
 
 - `features/dashboardTabs/index.tsx` picks `ControlsBar` instead of
   `DashboardFiltersBar`, and puts the rail (`ControlSidebar`) first in the
-  grid's row, which gets `CONTROLS_RAIL_LAYOUT` as its class.
+  grid's row, which gets `CONTROLS_RAIL_LAYOUT` as its class. The collapsed
+  view-mode summary says the date zoom's "None" (`dateZoom.none`) instead
+  of "Default" when no grain is in use, as the Default zoom pill does.
 - `pages/Dashboard.tsx` picks `ControlsSidebarPage` instead of `Page` and
   renders the header through `DashboardHeaderGuard`: the shipped header with
   its Save and Cancel wrapped. Save calls `close()` first, as "Done" does, then
@@ -62,6 +64,20 @@ behaviour. All but the first are in `features/dashboardFilters/`.
   today's share of the viewport. Nothing sets it outside the tab counts.
 - `AddFilterButton`: `isVisibilityToggleHidden` (default false), which leaves out the eye in
   the rail's footer.
+- `dateZoom/components/DateZoom`: `isDefaultValueShown` (default false):
+  "Default zoom · <grain>" in both modes, the default's grain in edit mode
+  and the one in use in view mode, "None" (`dateZoom.none`) without one;
+  `onOpenControl` and `onAddControl`, passed to `DateZoomControlPills`
+  (default none): in edit mode a named pill calls `onOpenControl(uuid)`
+  with no grain menu (its chevron goes, the `Menu` is disabled), and "Add
+  date zoom" calls `onAddControl()` with no popover. A viewer keeps the
+  menu. `granularityData` and the eligible tiles of the shipped
+  `DateZoomControlConfig` are `useGranularityOptions` and
+  `useEligibleZoomTiles` in `dateZoom/hooks.ts`, moved out.
+- `DashboardFiltersBar`: `dateZoomProps` (default none), spread on its
+  `DateZoom`. `ControlsBar` passes `openZoom`, `openNewZoom` and
+  `isDefaultValueShown`, so under the flag an editor's named pills open
+  the rail. Embeds render their own `DateZoom` and stay as shipped.
 - `DashboardFiltersBar`: `filterArea`, which replaces the shipped filters and
   the requirements button (default: both, as today), and
   `isCompactDrawerSuppressed` (default false): on a narrow screen the bar is
@@ -1050,6 +1066,10 @@ pills.
   zoom through the same `closeEdited`. `editingZoom` is the control as the
   config holds it now; `isSidebarOpen` is on while it exists, so the header
   guard locks for a zoom as for a filter. Both are no-ops for a viewer.
+- Opening a zoom (`openZoom`, `openNewZoom`) clears its runtime grain
+  (`setControlGranularity(uuid, undefined)`): a viewer's pick survives into
+  edit mode and wins in `resolveTileDateZoom`, so without it the tiles
+  would not preview the grain being edited.
 - `openNewZoom()` adds the control to the config at once, seeded as the
   bar's "Add date zoom" seeds one (`createZoomControl`: "Date zoom", the
   default grain, else the first enabled one, else month).

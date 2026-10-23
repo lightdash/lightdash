@@ -228,6 +228,7 @@ type Latest = {
     dateZoomGranularities: ReturnType<typeof useDashboardDateZoomGranularities>;
     setDateZoomConfig: DashboardContextType['setDateZoomConfig'];
     setHasDateZoomConfigChanged: DashboardContextType['setHasDateZoomConfigChanged'];
+    setControlGranularity: DashboardContextType['setControlGranularity'];
 };
 
 // Fields of the filter on no tile yet, keyed by filter so a stale entry
@@ -370,6 +371,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const setHasDateZoomConfigChanged = useDashboardContext(
         (c) => c.setHasDateZoomConfigChanged,
     );
+    const setControlGranularity = useDashboardContext(
+        (c) => c.setControlGranularity,
+    );
     const { track } = useTracking();
     const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
 
@@ -434,6 +438,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         dateZoomGranularities,
         setDateZoomConfig,
         setHasDateZoomConfigChanged,
+        setControlGranularity,
     };
     const latest = useRef(rendered);
     useLayoutEffect(() => {
@@ -1359,6 +1364,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             setHoveredFilterId(null);
             writeRailOpen(true);
             writeZoomEdit({ controlUuid, isNew, snapshot });
+            // A viewer's grain would win over the one being edited
+            latest.current.setControlGranularity(controlUuid, undefined);
         },
         [writeUndo, writeRailOpen, writeZoomEdit],
     );

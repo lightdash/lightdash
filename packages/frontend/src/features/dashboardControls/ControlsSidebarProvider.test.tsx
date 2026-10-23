@@ -3271,4 +3271,16 @@ describe('ControlsSidebarProvider date zoom', () => {
         expect(result.current.editing).toBeNull();
         expect(latest.zoomConfig).toEqual(twoZooms());
     });
+
+    it("clears the opened zoom's runtime grain, so the saved one previews", () => {
+        const { result } = setup();
+        act(() => result.current.openZoom('z1'));
+        expect(mockSetControlGranularity).toHaveBeenCalledWith('z1', undefined);
+        act(() => result.current.openNewZoom());
+        const uuid = result.current.editingZoom?.uuid;
+        expect(mockSetControlGranularity).toHaveBeenLastCalledWith(
+            uuid,
+            undefined,
+        );
+    });
 });

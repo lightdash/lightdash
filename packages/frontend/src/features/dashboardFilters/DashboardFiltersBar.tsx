@@ -22,7 +22,7 @@ import {
     IconEyeOff,
     IconFilter,
 } from '@tabler/icons-react';
-import { useState, type FC, type ReactNode } from 'react';
+import { useState, type ComponentProps, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useCompactContentHeader } from '../../components/common/Page/useCompactContentHeader';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -64,6 +64,11 @@ type Props = {
      * of behind its drawer button, and closes the drawer (default false).
      */
     isCompactDrawerSuppressed?: boolean;
+    /** Openings of the date zoom (default none: the shipped date zoom). */
+    dateZoomProps?: Omit<
+        ComponentProps<typeof DateZoom>,
+        'isEditMode' | 'dropdownClassName'
+    >;
 };
 
 export const DashboardFiltersBar: FC<Props> = ({
@@ -86,6 +91,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     onCollapse,
     filterArea,
     isCompactDrawerSuppressed = false,
+    dateZoomProps,
 }) => {
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
@@ -270,7 +276,10 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         </ActionIcon>
                                     </Tooltip>
                                 )}
-                                <DateZoom isEditMode={isEditMode} />
+                                <DateZoom
+                                    isEditMode={isEditMode}
+                                    {...dateZoomProps}
+                                />
                             </>
                         )}
 
