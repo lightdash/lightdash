@@ -267,6 +267,12 @@ In `FilterConfiguration/`:
   filters: a filter with no field dropped, an empty default switched off, a
   new filter with a field kept and tracked in its own mode. The rail closes
   and focus stays where it is.
+  This is the one effect that writes the store and tracks, an exception to
+  "nothing is reset in an effect": the mode is an external change. In the
+  app the header guard's Save and Cancel close the edit first, so the
+  effect only meets browser Back, a typed URL and an embed's `isEditMode`
+  input. The embed's toggle lives in `EmbedDashboard`, above the provider,
+  so it has no handle on `close()` without a new opening.
 - `openNew()` opens a placeholder with no mapping; it cannot be kept and
   never reaches the bar. `addFirstField(field)` turns it into a filter control
   on every tile that offers the field (a metric makes a rule in

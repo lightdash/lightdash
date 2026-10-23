@@ -1140,7 +1140,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const collapse = useCallback(() => closeEdited(true), [closeEdited]);
 
     // Entering or leaving edit mode closes whatever was edited as "Done"
-    // would, on the filters of the mode it started in, and the rail with it
+    // would, on the filters of the mode it started in, and the rail with it.
+    // The one effect that writes: Back, the URL and an embed's mode input
+    // change the mode with no event here (the header guard closes first)
     const lastIsEditMode = useRef(isEditMode);
     useEffect(() => {
         if (lastIsEditMode.current === isEditMode) return;
