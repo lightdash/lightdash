@@ -48,7 +48,7 @@ const setup = () => ({
     featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
     userWarehouseCredentialsModel: {
         getSignInSnapshot: vi.fn().mockResolvedValue(snapshot),
-        markNeedsSignIn: vi.fn().mockResolvedValue(undefined),
+        markNeedsSignIn: vi.fn().mockResolvedValue(true),
     },
     logger: { warn: vi.fn() },
 });
@@ -255,3 +255,18 @@ test.each([BigqueryTokenError, SnowflakeTokenError, DatabricksTokenError])(
         expect(other.data).toEqual({ sharedSignIn: expiry });
     },
 );
+
+test('does not deliver personal expiry when the captured incarnation is obsolete', async () => {
+    const deps = setup();
+    deps.userWarehouseCredentialsModel.markNeedsSignIn.mockResolvedValue(false);
+    await expect(
+        markPersonalSignInRejection(
+            deps,
+            { snapshot, organizationUuid: 'organization_a' },
+            new BigqueryTokenError('reconnect', {
+                rejection: WarehouseSignInRejection.INVALID_GRANT,
+            }),
+            snapshot.refreshToken,
+        ),
+    ).resolves.toBe(false);
+});

@@ -304,7 +304,7 @@ const buildFixture = (
     };
     const userWarehouseCredentialsModel = {
         getSignInSnapshot: vi.fn().mockResolvedValue(null),
-        markNeedsSignIn: vi.fn().mockResolvedValue(undefined),
+        markNeedsSignIn: vi.fn().mockResolvedValue(true),
     };
     const factory = new WarehouseClientFactory({
         userWarehouseCredentialsModel,
@@ -6534,6 +6534,25 @@ describe('personal warehouse sign-in marks', () => {
             );
         },
     );
+
+    test('keeps an obsolete personal rejection out of controlled expiry delivery', async () => {
+        const f = setupPersonal();
+        f.userWarehouseCredentialsModel.markNeedsSignIn.mockResolvedValue(
+            false,
+        );
+        const rejected = error();
+        f.runQuery.mockRejectedValue(rejected);
+        await expect(
+            f.factory.withWarehouseClient(
+                ref,
+                context(),
+                ({ warehouseClient }) =>
+                    warehouseClient.runQuery('SELECT 1', {}),
+            ),
+        ).rejects.toBe(rejected);
+        expect(rejected.data).not.toHaveProperty('personalSignIn');
+        expect(f.runQuery).toHaveBeenCalledOnce();
+    });
 
     test('marks an extra binding with the same personal owner', async () => {
         const f = setupPersonal();
