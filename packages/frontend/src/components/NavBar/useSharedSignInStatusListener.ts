@@ -354,7 +354,7 @@ export const useSharedSignInStatusListener = ({
         };
         const onRestored = (event: Event) => {
             if (event instanceof CustomEvent)
-                activateSharedSignInRestoration(event.detail);
+                activateSharedSignInRestoration(event.detail, queryClient);
             if (
                 event instanceof CustomEvent &&
                 (event.detail as SharedSignInRestoration)?.target

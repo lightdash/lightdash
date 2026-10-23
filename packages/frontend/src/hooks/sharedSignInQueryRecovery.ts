@@ -4,6 +4,7 @@ import {
     isBigqueryTokenErrorMessage,
     type ApiErrorDetail,
     type PersonalSignInExpiry,
+    type SqlRunnerWarehouseConnection,
 } from '@lightdash/common';
 import {
     type Query,
@@ -21,6 +22,7 @@ import {
     type WarehouseSignInPreflight,
     type WarehouseSignInTarget,
 } from '../components/NavBar/warehouseSignInPreflight';
+import { isSharedSignInModalError } from '../components/ProjectConnection/SharedSignIn/sharedSignInCopy';
 
 type QueryScope = WarehouseSignInExecutionIdentity & {
     recoveryGeneration: number;
@@ -56,6 +58,70 @@ const pages = new WeakMap<
 >();
 const requests = new WeakMap<Query, QueryScope>();
 const failures = new WeakMap<ApiErrorDetail, QueryScope>();
+const catalogueRequests = new WeakMap<Query, QueryScope | null>();
+const catalogueFailures = new WeakMap<
+    Query,
+    { scope: QueryScope; error: unknown }
+>();
+export const runWarehouseCatalogueQuery = async <T>(
+    client: QueryClient,
+    key: QueryKey,
+    projectUuid: string,
+    connection: WarehouseSignInBinding,
+    request: () => Promise<T>,
+): Promise<T> => {
+    const original =
+        connection !== null &&
+        client
+            .getQueryData<SqlRunnerWarehouseConnection[]>([
+                'sqlRunner',
+                'connections',
+                projectUuid,
+            ])
+            ?.some(
+                (item) =>
+                    item.warehouseConnectionUuid === connection &&
+                    item.isOriginal,
+            );
+    const binding = original ? null : connection;
+    const store = getActiveWarehouseSignInPreflight();
+    const scope: QueryScope | null =
+        store?.enabled &&
+        !store.loading &&
+        store.identity.projectUuid === projectUuid &&
+        store.hasPreferredBinding(binding)
+            ? {
+                  ...store.captureCurrentOrNextExecution(binding),
+                  recoveryGeneration: store.recoveryGeneration,
+                  personalSignIn:
+                      store.checks.get(warehouseSignInBindingKey(binding))
+                          ?.status?.personalSignIn ?? null,
+              }
+            : null;
+    const query = client.getQueryCache().find(key, { exact: true });
+    if (query) {
+        catalogueRequests.set(query, scope);
+        catalogueFailures.delete(query);
+    }
+    try {
+        return await request();
+    } catch (error) {
+        if (
+            query &&
+            scope &&
+            catalogueRequests.get(query) === scope &&
+            getActiveWarehouseSignInPreflight() === store &&
+            store?.recoveryGeneration === scope.recoveryGeneration &&
+            isApiError(error) &&
+            isWarehouseSignInQueryError(error) &&
+            (error.error.data?.personalSignIn ||
+                error.error.data?.sharedSignIn ||
+                getWarehouseSignInErrorType(error.error.message))
+        )
+            catalogueFailures.set(query, { scope, error });
+        throw error;
+    }
+};
 export const rememberSharedSignInFailure = (
     error: ApiErrorDetail,
     scope: QueryScope | null,
@@ -167,7 +233,7 @@ export const getSharedSignInPollScope = (
         : null;
 };
 export const getSharedSignInQueryScope = (query: Query) =>
-    requests.get(query) ?? null;
+    requests.get(query) ?? catalogueRequests.get(query) ?? null;
 export const trackSharedSignInPoll = (
     client: QueryClient,
     key: QueryKey,
@@ -212,7 +278,10 @@ export const isAcceptedSharedSignInRestoration = (
             (detail as SharedSignInRestoration).recoveryGeneration
     );
 };
-export const activateSharedSignInRestoration = (detail: unknown) => {
+export const activateSharedSignInRestoration = (
+    detail: unknown,
+    client?: QueryClient,
+) => {
     if (!isAcceptedSharedSignInRestoration(detail)) return;
     const store = getActiveWarehouseSignInPreflight();
     if (!store) return;
@@ -220,6 +289,38 @@ export const activateSharedSignInRestoration = (detail: unknown) => {
     if (state.publishedGeneration === detail.recoveryGeneration) return;
     state.publishedGeneration = detail.recoveryGeneration;
     store.notify();
+    if (client) {
+        const eligible = new Set(
+            client
+                .getQueryCache()
+                .getAll()
+                .filter((query) => {
+                    const failure = catalogueFailures.get(query);
+                    return (
+                        query.isActive() &&
+                        query.state.status === 'error' &&
+                        query.state.fetchStatus === 'idle' &&
+                        failure &&
+                        query.state.error === failure.error &&
+                        canReplayRestoredSql(failure.scope, detail) &&
+                        isApiError(failure.error) &&
+                        (!failure.error.error.data?.sharedSignIn ||
+                            failure.error.error.data.sharedSignIn
+                                .projectUuid === detail.target.projectUuid) &&
+                        isSharedSignInModalError(
+                            failure.error.error,
+                            detail.target.status,
+                            detail.target.userUuid,
+                        )
+                    );
+                }),
+        );
+        for (const query of eligible) catalogueFailures.delete(query);
+        void client.refetchQueries(
+            { predicate: (query) => eligible.has(query), type: 'active' },
+            { cancelRefetch: false },
+        );
+    }
 };
 export const canReplayRestoredSql = (
     scope: QueryScope | null,

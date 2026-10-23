@@ -13,6 +13,7 @@ import {
 } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { type LightdashApi } from '../../../../api';
+import { runWarehouseCatalogueQuery } from '../../../../hooks/sharedSignInQueryRecovery';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import {
     tableUnitId,
@@ -177,13 +178,21 @@ export const useConnectionTableFields = ({
     identity: TableIdentity | undefined;
 }) => {
     const lightdashApi = useLightdashApi();
+    const client = useQueryClient();
     return useQuery<WarehouseTableSchema, ApiError>({
         queryKey: identity
             ? tableFieldsQueryKey(projectUuid, identity)
             : ['sqlRunner', 'connections', projectUuid, 'fields'],
         queryFn: () =>
             identity
-                ? fetchTableFields(lightdashApi, projectUuid, identity)
+                ? runWarehouseCatalogueQuery(
+                      client,
+                      tableFieldsQueryKey(projectUuid, identity),
+                      projectUuid,
+                      identity.connectionId,
+                      () =>
+                          fetchTableFields(lightdashApi, projectUuid, identity),
+                  )
                 : Promise.reject(new Error('No table selected')),
         retry: false,
         enabled: !!identity,
@@ -233,11 +242,19 @@ export const useConnectionDatabases = ({
     enabledConnectionIds: ReadonlySet<string>;
 }): ConnectionDatabases => {
     const lightdashApi = useLightdashApi();
+    const client = useQueryClient();
     const results = useQueries({
         queries: connectionIds.map((connectionId) => ({
             queryKey: databasesQueryKey(projectUuid, connectionId),
             queryFn: () =>
-                fetchDatabases(lightdashApi, projectUuid, connectionId),
+                runWarehouseCatalogueQuery(
+                    client,
+                    databasesQueryKey(projectUuid, connectionId),
+                    projectUuid,
+                    connectionId,
+                    () =>
+                        fetchDatabases(lightdashApi, projectUuid, connectionId),
+                ),
             retry: false,
             enabled: !!projectUuid && enabledConnectionIds.has(connectionId),
         })),
@@ -288,11 +305,22 @@ export const useTableUnits = ({
                 unit.database,
             ),
             queryFn: () =>
-                fetchTables(
-                    lightdashApi,
+                runWarehouseCatalogueQuery(
+                    queryClient,
+                    tablesQueryKey(
+                        projectUuid,
+                        unit.warehouseConnectionUuid,
+                        unit.database,
+                    ),
                     projectUuid,
                     unit.warehouseConnectionUuid,
-                    unit.database,
+                    () =>
+                        fetchTables(
+                            lightdashApi,
+                            projectUuid,
+                            unit.warehouseConnectionUuid,
+                            unit.database,
+                        ),
                 ),
             retry: false,
             enabled: !!projectUuid && enabledUnitIds.has(tableUnitId(unit)),

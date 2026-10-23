@@ -1,7 +1,8 @@
 import { type ApiError } from '@lightdash/common';
-import { useQueries } from '@tanstack/react-query';
+import { useQueries, useQueryClient } from '@tanstack/react-query';
 import isEmpty from 'lodash/isEmpty';
 import { useMemo } from 'react';
+import { runWarehouseCatalogueQuery } from '../../../hooks/sharedSignInQueryRecovery';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     fetchTableFields as fetchConnectionTableFields,
@@ -21,6 +22,7 @@ export type TableReference = {
 
 export const useMultipleTableFields = (tableReferences: TableReference[]) => {
     const lightdashApi = useLightdashApi();
+    const client = useQueryClient();
     // Create queries for each unique table reference
     const queries = useMemo(() => {
         // Deduplicate table references based on projectUuid + schema + tableName
@@ -45,28 +47,36 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
                 schema: ref.schema,
                 table: ref.tableName,
             };
+            const queryKey = identity
+                ? connectionTableFieldsQueryKey(ref.projectUuid, identity)
+                : [
+                      'sqlRunner',
+                      'tables',
+                      ref.tableName,
+                      ref.projectUuid,
+                      ref.schema,
+                  ];
             return {
-                queryKey: identity
-                    ? connectionTableFieldsQueryKey(ref.projectUuid, identity)
-                    : [
-                          'sqlRunner',
-                          'tables',
-                          ref.tableName,
-                          ref.projectUuid,
-                          ref.schema,
-                      ],
+                queryKey,
                 queryFn: () =>
-                    identity
-                        ? fetchConnectionTableFields(
-                              lightdashApi,
-                              ref.projectUuid,
-                              identity,
-                          )
-                        : fetchTableFields(lightdashApi, {
-                              projectUuid: ref.projectUuid,
-                              tableName: ref.tableName,
-                              schema: ref.schema,
-                          }),
+                    runWarehouseCatalogueQuery(
+                        client,
+                        queryKey,
+                        ref.projectUuid,
+                        connection?.connectionId ?? null,
+                        () =>
+                            identity
+                                ? fetchConnectionTableFields(
+                                      lightdashApi,
+                                      ref.projectUuid,
+                                      identity,
+                                  )
+                                : fetchTableFields(lightdashApi, {
+                                      projectUuid: ref.projectUuid,
+                                      tableName: ref.tableName,
+                                      schema: ref.schema,
+                                  }),
+                    ),
                 retry: false,
                 enabled: !!(ref.projectUuid && ref.tableName && ref.schema),
                 staleTime: 5 * 60 * 1000, // 5 minutes - keep data fresh but allow caching
@@ -77,7 +87,7 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
                 },
             };
         });
-    }, [tableReferences, lightdashApi]);
+    }, [tableReferences, lightdashApi, client]);
 
     const results = useQueries({
         queries,

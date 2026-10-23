@@ -16,7 +16,24 @@ import {
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect } from 'react';
+import { Provider } from 'react-redux';
 import { MemoryRouter, useNavigate } from 'react-router';
+import { useMultipleTableFields } from '../../features/sqlRunner/hooks/useMultipleTableFields';
+import { useTableFields } from '../../features/sqlRunner/hooks/useTableFields';
+import { useTables } from '../../features/sqlRunner/hooks/useTables';
+import { SqlRunnerConnectionScope } from '../../features/sqlRunner/multiConnection/components/SqlRunnerConnectionScope';
+import {
+    useConnectionDatabases,
+    useConnectionTableFields,
+    useSqlRunnerConnections,
+    useTableUnits,
+} from '../../features/sqlRunner/multiConnection/hooks/useConnectionCatalog';
+import { tableUnitId } from '../../features/sqlRunner/multiConnection/utils/warehouseTreeRows';
+import { store as sqlStore } from '../../features/sqlRunner/store';
+import {
+    resetState,
+    setProjectUuid,
+} from '../../features/sqlRunner/store/sqlRunnerSlice';
 import {
     completeSharedSignInRestoration,
     canReplayRestoredSql,
@@ -61,6 +78,15 @@ const state = vi.hoisted(() => ({
     popupCallback: null as (() => void) | null,
     realQueries: false,
     boundRoots: null as string[] | null,
+    catalogue: false,
+    pageSourceMounted: true,
+    realCatalogueScope: false,
+    catalogueExtra: false,
+    catalogueFields: false,
+    catalogueMounted: true,
+    catalogueEnabled: true,
+    catalogueConnection: 'connection_a',
+    catalogueProject: 'project_a',
     showRemoved: true,
     deliberateDisabled: true,
     toastError: vi.fn(),
@@ -213,6 +239,97 @@ const RealRoot = ({
     useInfiniteQueryResults(projectUuid, result.data?.queryUuid);
     return null;
 };
+const CatalogueRoot = () => {
+    const tables = useTables({ projectUuid: state.projectUuid });
+    useTableFields({
+        projectUuid: state.projectUuid,
+        tableName: 'healthy_table',
+        schema: 'schema_a',
+        search: undefined,
+    });
+    return (
+        <Text>
+            {tables.data
+                ? JSON.stringify(tables.data)
+                : 'Catalogue unavailable'}
+        </Text>
+    );
+};
+const CatalogueFields = () => {
+    const single = useTableFields({
+        projectUuid: 'project_a',
+        tableName: 'table_a',
+        schema: 'schema_a',
+        search: undefined,
+    });
+    const multiple = useMultipleTableFields([
+        { projectUuid: 'project_a', tableName: 'table_a', schema: 'schema_a' },
+        { projectUuid: 'project_a', tableName: 'table_b', schema: 'schema_a' },
+    ]);
+    return <Text>{JSON.stringify([single.data, multiple.data])}</Text>;
+};
+const CatalogueExtra = () => {
+    const connections = useSqlRunnerConnections('project_a', true);
+    return connections.data ? <CatalogueExtraQueries /> : null;
+};
+const CatalogueExtraQueries = () => {
+    const connection = state.catalogueConnection;
+    const databases = useConnectionDatabases({
+        projectUuid: 'project_a',
+        connectionIds: [connection, 'connection_other'],
+        enabledConnectionIds: new Set([connection, 'connection_other']),
+    });
+    const units = ['database_a', 'database_healthy', 'database_disabled'].map(
+        (database) => ({
+            connectionId: connection,
+            warehouseConnectionUuid: connection,
+            database,
+        }),
+    );
+    const tables = useTableUnits({
+        projectUuid: 'project_a',
+        units,
+        enabledUnitIds: new Set(
+            units
+                .filter(
+                    (unit) =>
+                        unit.database !== 'database_disabled' ||
+                        state.catalogueEnabled,
+                )
+                .map(tableUnitId),
+        ),
+    });
+    const fields = useConnectionTableFields({
+        projectUuid: 'project_a',
+        identity: {
+            connectionId: connection,
+            database: 'database_a',
+            schema: 'schema_a',
+            table: 'table_a',
+        },
+    });
+    useMultipleTableFields([
+        {
+            projectUuid: 'project_a',
+            schema: 'schema_a',
+            tableName: 'table_b',
+            connection: { connectionId: connection, database: 'database_a' },
+        },
+    ]);
+    return (
+        <Text>
+            {JSON.stringify([
+                databases.listings.get(connection),
+                tables.loadedCatalogs,
+                fields.data,
+            ])}
+        </Text>
+    );
+};
+const CatalogueOtherProject = () => {
+    useTables({ projectUuid: state.catalogueProject });
+    return null;
+};
 const RealRoots = () => (
     <>
         {[
@@ -260,10 +377,36 @@ const Harness = () => {
                 state.boundRoots.map((name) => (
                     <RealRoot key={name} name={name} tableId={name} />
                 ))
-            ) : (
+            ) : state.pageSourceMounted && !state.realCatalogueScope ? (
                 <PageQuery />
-            )}
+            ) : null}
             {state.realQueries && <RealRoots />}
+            {state.catalogue && (
+                <>
+                    {state.catalogueMounted &&
+                        (state.realCatalogueScope ? (
+                            <Provider store={sqlStore}>
+                                <SqlRunnerConnectionScope
+                                    isEditingSavedChart={false}
+                                >
+                                    <CatalogueRoot />
+                                </SqlRunnerConnectionScope>
+                            </Provider>
+                        ) : (
+                            <CatalogueRoot />
+                        ))}
+                    {state.pageSourceMounted && !state.realCatalogueScope && (
+                        <RealRoot name="catalogue_data" />
+                    )}
+                </>
+            )}
+            {state.catalogueFields && state.catalogueMounted && (
+                <CatalogueFields />
+            )}
+            {state.catalogueExtra && <CatalogueExtra />}
+            {state.catalogueProject !== 'project_a' && (
+                <CatalogueOtherProject />
+            )}
         </SharedSignInQueryBoundary>
     );
 };
@@ -302,6 +445,15 @@ beforeEach(() => {
     state.popupCallback = null;
     state.realQueries = false;
     state.boundRoots = null;
+    state.catalogue = false;
+    state.pageSourceMounted = true;
+    state.realCatalogueScope = false;
+    state.catalogueExtra = false;
+    state.catalogueFields = false;
+    state.catalogueMounted = true;
+    state.catalogueEnabled = true;
+    state.catalogueConnection = 'connection_a';
+    state.catalogueProject = 'project_a';
     state.showRemoved = true;
     state.deliberateDisabled = true;
     state.api.mockImplementation(
@@ -1733,4 +1885,461 @@ test('a later current personal rejection presents recovery after an unknown stat
     });
     expect(await screen.findByRole('dialog')).toBeVisible();
     expect(statusReads).toBe(3);
+});
+
+test('restores the mounted failed warehouse catalogue after accepted sign-in without replaying healthy catalogue', async () => {
+    state.catalogue = true;
+    let repaired = false;
+    const calls = { tables: 0, fields: 0, data: 0 };
+    state.api.mockImplementation(
+        async ({ url, method }: { url: string; method: string }) => {
+            if (url.includes('shared-sign-in'))
+                return {
+                    ...personal,
+                    personalSignIn: {
+                        ...personal.personalSignIn!,
+                        expired: !repaired,
+                    },
+                };
+            if (url.endsWith('/sqlRunner/tables')) {
+                calls.tables += 1;
+                if (!repaired) throw { status: 'error', error: personalError };
+                return { database_a: { schema_a: { table_a: {} } } };
+            }
+            if (url.includes('/sqlRunner/fields')) {
+                calls.fields += 1;
+                return { field_a: 'string' };
+            }
+            if (method === 'POST') {
+                calls.data += 1;
+                if (!repaired) throw { status: 'error', error: personalError };
+                return { queryUuid: 'query_ready' };
+            }
+            if (url.includes('/query/'))
+                return {
+                    status: QueryHistoryStatus.READY,
+                    rows: [],
+                    columns: {},
+                    totalResults: 0,
+                    metadata: { performance: {} },
+                };
+            return [];
+        },
+    );
+    mount();
+    await screen.findByRole('dialog');
+    await waitFor(() => expect(calls.tables).toBe(1));
+    expect(screen.getByText('Catalogue unavailable')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await waitFor(() => expect(calls.data).toBe(1));
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(calls.data).toBe(2));
+    await waitFor(() => expect(calls.tables).toBe(2));
+    expect(await screen.findByText(/table_a/)).toBeVisible();
+    expect(calls.fields).toBe(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+test.each(['fields', 'extra', 'original-route'] as const)(
+    'recovers only current failed warehouse catalogue requests through real %s hooks',
+    async (kind) => {
+        state.catalogueFields = kind === 'fields';
+        state.catalogueExtra = kind !== 'fields';
+        state.catalogueConnection =
+            kind === 'original-route' ? 'original_a' : 'connection_a';
+        state.binding = kind === 'extra' ? 'connection_a' : null;
+        state.catalogueProject = 'project_b';
+        const calls = new Map<string, number>();
+        let repaired = false;
+        state.api.mockImplementation(async ({ url }: { url: string }) => {
+            if (url.includes('shared-sign-in'))
+                return {
+                    ...personal,
+                    personalSelection: {
+                        warehouseConnectionUuid: state.binding,
+                    },
+                    personalSignIn: {
+                        ...personal.personalSignIn!,
+                        expired: !repaired,
+                    },
+                };
+            calls.set(url, (calls.get(url) ?? 0) + 1);
+            if (url.endsWith('/sqlRunner/connections'))
+                return [
+                    {
+                        warehouseConnectionUuid: state.catalogueConnection,
+                        isOriginal: kind === 'original-route',
+                    },
+                ];
+            if (url.includes('database_healthy'))
+                return {
+                    database_healthy: { schema_a: { healthy_table: {} } },
+                };
+            if (!repaired) throw { status: 'error', error: personalError };
+            if (url.endsWith('/databases'))
+                return {
+                    databases: [{ name: 'database_a' }],
+                    truncated: false,
+                    limit: 100,
+                };
+            if (url.includes('/fields')) return { field_a: 'string' };
+            return { database_a: { schema_a: { table_a: {} } } };
+        });
+        const view = mount();
+        await screen.findByRole('dialog');
+        await waitFor(() =>
+            expect(
+                [...calls.keys()].filter((url) => url.includes('/fields'))
+                    .length,
+            ).toBe(2),
+        );
+        state.catalogueEnabled = false;
+        view.rerender(view.tree());
+        repaired = true;
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Sign in with Google' }),
+        );
+        await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+        await waitFor(() => {
+            for (const [url, count] of calls) {
+                const excluded =
+                    url.includes('project_b') ||
+                    url.includes('connection_other') ||
+                    url.includes('database_healthy') ||
+                    url.includes('database_disabled') ||
+                    url.endsWith('/sqlRunner/connections');
+                expect(count).toBe(excluded ? 1 : 2);
+            }
+        });
+        expect(await screen.findByText(/field_a/)).toBeVisible();
+        const receipt = new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
+            detail: {},
+        });
+        act(() => {
+            window.dispatchEvent(receipt);
+        });
+        for (const [url, count] of calls)
+            expect(count).toBe(
+                url.includes('project_b') ||
+                    url.includes('connection_other') ||
+                    url.includes('database_healthy') ||
+                    url.includes('database_disabled') ||
+                    url.endsWith('/sqlRunner/connections')
+                    ? 1
+                    : 2,
+            );
+    },
+);
+
+test.each([
+    'accepted',
+    'abandoned',
+    'shared',
+    'healthy',
+    'permission',
+    'network',
+    'other-row',
+    'unmounted',
+    'selection',
+    'user',
+    'page',
+    'superseded',
+    'late',
+    'pending-selection',
+    'pending-other-selection',
+] as const)(
+    'keeps warehouse catalogue recovery scoped to the accepted current failure: %s',
+    async (kind) => {
+        state.catalogue = true;
+        state.pageSourceMounted = !kind.startsWith('pending-');
+        let repaired = false;
+        let superseded = false;
+        const pending = Promise.withResolvers<never>();
+        const calls = { tables: 0, data: 0 };
+        let receipt: unknown;
+        const onReceipt = (event: Event) => {
+            if (event instanceof CustomEvent) receipt = event.detail;
+        };
+        window.addEventListener(SHARED_SIGN_IN_RECONNECTED, onReceipt);
+        const failure =
+            kind === 'shared'
+                ? {
+                      ...personalError,
+                      data: {
+                          sharedSignIn: {
+                              projectUuid: 'project_a',
+                              provider: PersonSignInProvider.GOOGLE,
+                              subjectUserUuid: 'user_a',
+                              subjectBasis: SignInSubjectBasis.RECORDED,
+                          },
+                      },
+                  }
+                : personalError;
+        state.api.mockImplementation(
+            async ({ url, method }: { url: string; method: string }) => {
+                if (url.includes('shared-sign-in')) {
+                    if (method === 'POST') return { status: 'ok' };
+                    return kind === 'shared'
+                        ? { ...shared, expired: !repaired }
+                        : {
+                              ...personal,
+                              personalSelection: {
+                                  warehouseConnectionUuid: state.binding,
+                              },
+                              personalSignIn: {
+                                  ...personal.personalSignIn!,
+                                  expired: !repaired,
+                              },
+                          };
+                }
+                if (url.endsWith('/sqlRunner/tables')) {
+                    calls.tables += 1;
+                    if (kind === 'late' && calls.tables === 1)
+                        return pending.promise;
+                    if (!repaired && kind !== 'healthy') {
+                        const error = {
+                            ...failure,
+                            statusCode:
+                                kind === 'permission' || superseded
+                                    ? 403
+                                    : kind === 'network'
+                                      ? 500
+                                      : 400,
+                        };
+                        if (kind === 'other-row')
+                            error.data = {
+                                personalSignIn: {
+                                    ...personal.personalSignIn!,
+                                    userWarehouseCredentialsUuid:
+                                        'credential_other',
+                                },
+                            };
+                        throw { status: 'error', error };
+                    }
+                    return { database_a: { schema_a: { table_a: {} } } };
+                }
+                if (url.includes('/sqlRunner/fields'))
+                    return { field_a: 'string' };
+                if (method === 'POST') {
+                    calls.data += 1;
+                    if (!repaired)
+                        throw { status: 'error', error: { ...failure } };
+                    return { queryUuid: 'query_ready' };
+                }
+                if (url.includes('/query/'))
+                    return {
+                        status: QueryHistoryStatus.READY,
+                        rows: [],
+                        columns: {},
+                        totalResults: 0,
+                        metadata: { performance: {} },
+                    };
+                return [];
+            },
+        );
+        const view = mount();
+        try {
+            if (kind.startsWith('pending-')) {
+                await waitFor(() => expect(calls.tables).toBe(1));
+                await act(async () => {});
+                expect(getActiveWarehouseSignInPreflight()!.checks.size).toBe(
+                    0,
+                );
+                state.pageSourceMounted = true;
+                if (kind === 'pending-other-selection')
+                    state.binding = 'connection_b';
+                view.rerender(view.tree());
+                await screen.findByRole('dialog');
+                if (kind === 'pending-other-selection') {
+                    state.binding = null;
+                    view.rerender(view.tree());
+                }
+            }
+            await screen.findByRole('dialog');
+            await waitFor(() => expect(calls.tables).toBe(1));
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Not now' }),
+            );
+            await waitFor(() => expect(calls.data).toBe(1));
+            if (kind === 'unmounted') {
+                state.catalogueMounted = false;
+                view.rerender(view.tree());
+            }
+            if (kind === 'superseded') {
+                superseded = true;
+                await act(async () => {
+                    await view.client.refetchQueries(
+                        ['sqlRunner', 'tables', 'project_a'],
+                        { exact: true },
+                    );
+                });
+                expect(calls.tables).toBe(2);
+            }
+            if (kind === 'selection') {
+                state.binding = 'connection_b';
+                view.rerender(view.tree());
+                await screen.findByRole('dialog');
+                state.binding = null;
+                view.rerender(view.tree());
+                await screen.findByRole('dialog');
+            } else if (kind === 'user') {
+                state.userUuid = 'user_b';
+                view.rerender(view.tree());
+                await screen.findByRole('dialog');
+            } else if (kind === 'page') {
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Home' }),
+                );
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Query route' }),
+                );
+                await screen.findByRole('dialog');
+            } else {
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Reconnect' }),
+                );
+            }
+            if (kind === 'abandoned') {
+                const hold = Promise.withResolvers<void>();
+                const cancel = vi
+                    .spyOn(view.client, 'cancelQueries')
+                    .mockReturnValueOnce(hold.promise);
+                let current = true;
+                await act(async () => {
+                    const attempt = completeSharedSignInRestoration(
+                        view.client,
+                        getActiveWarehouseSignInPreflight()!.target!,
+                        () => current,
+                    );
+                    current = false;
+                    hold.resolve();
+                    expect(await attempt).toBeNull();
+                });
+                cancel.mockRestore();
+                expect(calls.tables).toBe(1);
+            }
+            repaired = true;
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Sign in with Google' }),
+            );
+            await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+            const eligible = [
+                'accepted',
+                'abandoned',
+                'shared',
+                'pending-selection',
+            ].includes(kind);
+            await waitFor(() =>
+                expect(calls.tables).toBe(
+                    eligible || kind === 'superseded' ? 2 : 1,
+                ),
+            );
+            await waitFor(() => expect(calls.data).toBe(2));
+            if (kind === 'late')
+                await act(async () => {
+                    pending.reject({ status: 'error', error: personalError });
+                });
+            expect(receipt).toBeTruthy();
+            act(() => {
+                window.dispatchEvent(
+                    new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
+                        detail: { ...(receipt as object) },
+                    }),
+                );
+                window.dispatchEvent(
+                    new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
+                        detail: receipt,
+                    }),
+                );
+            });
+            expect(calls.tables).toBe(
+                eligible || kind === 'superseded' ? 2 : 1,
+            );
+            expect(calls.data).toBe(2);
+            expect(screen.queryByRole('dialog')).toBeNull();
+            expect(
+                screen.queryByRole('button', { name: 'Reconnect' }),
+            ).toBeNull();
+        } finally {
+            window.removeEventListener(SHARED_SIGN_IN_RECONNECTED, onReceipt);
+        }
+    },
+);
+
+test.each([
+    { reconnect: false, expiry: false },
+    { reconnect: false, expiry: true },
+    { reconnect: true, expiry: false },
+])('does not add warehouse catalogue recovery with flags %j', async (flags) => {
+    state.catalogue = true;
+    state.reconnect = flags.reconnect;
+    state.expiry = flags.expiry;
+    const calls = { catalogue: 0, status: 0 };
+    state.api.mockImplementation(async ({ url }: { url: string }) => {
+        if (url.includes('shared-sign-in')) {
+            calls.status += 1;
+            return personal;
+        }
+        if (url.endsWith('/sqlRunner/tables')) calls.catalogue += 1;
+        throw { status: 'error', error: personalError };
+    });
+    mount();
+    await waitFor(() => expect(calls.catalogue).toBe(1));
+    await act(async () => {
+        window.dispatchEvent(
+            new CustomEvent(SHARED_SIGN_IN_RECONNECTED, {
+                detail: { projectUuid: 'project_a' },
+            }),
+        );
+    });
+    expect(calls.status).toBe(0);
+    expect(calls.catalogue).toBe(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+});
+
+test('recovers catalogue requested by the real SQL connection scope while its initial route synchronizes', async () => {
+    state.catalogue = true;
+    state.realCatalogueScope = true;
+    sqlStore.dispatch(resetState());
+    sqlStore.dispatch(setProjectUuid('project_a'));
+    let repaired = false;
+    let calls = 0;
+    const registrations: number[] = [];
+    state.api.mockImplementation(async ({ url }: { url: string }) => {
+        if (url.includes('shared-sign-in'))
+            return {
+                ...personal,
+                personalSignIn: {
+                    ...personal.personalSignIn!,
+                    expired: !repaired,
+                },
+            };
+        if (url.endsWith('/sqlRunner/tables')) {
+            calls += 1;
+            registrations.push(
+                getActiveWarehouseSignInPreflight()!.checks.size,
+            );
+            if (!repaired) throw { status: 'error', error: personalError };
+            return { database_a: { schema_a: { table_a: {} } } };
+        }
+        return { field_a: 'string' };
+    });
+    mount();
+    await screen.findByRole('dialog');
+    expect(calls).toBe(1);
+    expect(registrations[0]).toBe(0);
+    expect(sqlStore.getState().sqlRunner.connectionRoute.route).toBe('single');
+    await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
+    repaired = true;
+    await userEvent.click(
+        screen.getByRole('button', { name: 'Sign in with Google' }),
+    );
+    await waitFor(() => expect(calls).toBe(2));
+    expect(await screen.findByText(/table_a/)).toBeVisible();
+    expect(screen.queryByRole('dialog')).toBeNull();
 });
