@@ -11,12 +11,15 @@ export const DataAppAnalysesTableName = 'data_app_analyses';
 /** Hash of one source's section (legend + rows), keyed by the query it came from. */
 export type DataAppSourceHash = { queryUuid: string; hash: string };
 
-type DbDataAppAnalysisBase = {
+/** Exactly one target per row, enforced by a CHECK constraint. */
+export type DbDataAppAnalysisTarget =
+    | { app_id: string; app_version: number; dashboard_uuid: null }
+    | { app_id: null; app_version: null; dashboard_uuid: string };
+
+type DbDataAppAnalysisBase = DbDataAppAnalysisTarget & {
     data_app_analysis_uuid: string;
     organization_uuid: string;
     project_uuid: string;
-    app_id: string;
-    app_version: number;
     created_by_user_uuid: string;
     sources: DataAppAnalysisSource[];
     instructions: string | null;
@@ -66,17 +69,22 @@ export type DbDataAppAnalysis = DbDataAppAnalysisBase &
 // as a Postgres array, not jsonb)
 export type DbCreateDataAppAnalysis = Omit<
     DbDataAppAnalysisBase,
-    'data_app_analysis_uuid' | 'created_at' | 'sources' | 'source_hashes'
-> & {
-    operation: 'detect' | 'investigate' | 'prompt';
-    sources: string;
-    source_hashes: string | null;
-    result: string;
-    parent_analysis_uuid: string | null;
-    anomaly_id: string | null;
-    agent_uuid: string | null;
-    thread_uuid: string | null;
-};
+    | 'data_app_analysis_uuid'
+    | 'created_at'
+    | 'sources'
+    | 'source_hashes'
+    | keyof DbDataAppAnalysisTarget
+> &
+    DbDataAppAnalysisTarget & {
+        operation: 'detect' | 'investigate' | 'prompt';
+        sources: string;
+        source_hashes: string | null;
+        result: string;
+        parent_analysis_uuid: string | null;
+        anomaly_id: string | null;
+        agent_uuid: string | null;
+        thread_uuid: string | null;
+    };
 
 export type DataAppAnalysesTable = Knex.CompositeTableType<
     DbDataAppAnalysis,
@@ -89,6 +97,7 @@ export const DataAppAnalysisRateCountersTableName =
 export type DataAppAnalysisOperation = 'detect' | 'prompt' | 'investigate';
 
 export type DbDataAppAnalysisRateCounter = {
+    /** Target uuid (app or dashboard); named for its original app-only scope. */
     app_id: string;
     user_uuid: string;
     operation: DataAppAnalysisOperation;

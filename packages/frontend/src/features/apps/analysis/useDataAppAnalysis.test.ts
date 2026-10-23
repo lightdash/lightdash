@@ -31,8 +31,7 @@ const readyQuery: QueryEvent = {
 
 const analysis = (appUuid: string) => ({
     analysisId: `analysis-${appUuid}`,
-    appUuid,
-    appVersion: 1,
+    target: { kind: 'app' as const, appUuid, appVersion: 1 },
     sources: [{ queryUuid: 'q-1', label: 'Orders' }],
     generatedAt: new Date(),
     headline: `Headline for ${appUuid}`,
@@ -232,8 +231,11 @@ describe('useDataAppAnalysis', () => {
                 {
                     investigationId: 'inv-1',
                     analysisId: stored.analysisId,
-                    appUuid: 'app-a',
-                    appVersion: 1,
+                    target: {
+                        kind: 'app' as const,
+                        appUuid: 'app-a',
+                        appVersion: 1,
+                    },
                     generatedAt: new Date(),
                     explanation: 'because',
                     anomaly: {

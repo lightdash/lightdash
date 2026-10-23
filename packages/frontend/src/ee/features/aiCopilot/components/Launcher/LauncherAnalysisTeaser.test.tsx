@@ -13,8 +13,7 @@ const analyse = vi.fn();
 
 const analysis: DataAppAnalysis = {
     analysisId: 'analysis-1',
-    appUuid: 'app-1',
-    appVersion: 1,
+    target: { kind: 'app', appUuid: 'app-1', appVersion: 1 },
     sources: [{ queryUuid: 'q1', label: 'Revenue' }],
     generatedAt: new Date(),
     headline: 'Revenue dipped on Friday',
