@@ -53,11 +53,12 @@ export const useAiAgentMessageQueryPipelines = ({
     });
 };
 
-/** Runs one of a message's pipelines; each open gets fresh results. */
+/** Runs one of a message's pipelines; each open reruns it. */
 export const useAiAgentMessageQueryPipelineVizQuery = ({
     queryUuid,
+    enabled,
     ...ref
-}: MessageRef & { queryUuid: string }) => {
+}: MessageRef & { queryUuid: string; enabled: boolean }) => {
     const lightdashApi = useLightdashApi();
     const { showToastApiError } = useToaster();
     return useQuery<ApiAiAgentComposerArtifactVizQuery, ApiError>({
@@ -77,6 +78,10 @@ export const useAiAgentMessageQueryPipelineVizQuery = ({
                     body: undefined,
                 },
             ),
+        enabled,
+        // Kept while open, dropped on close
+        staleTime: Infinity,
+        cacheTime: 0,
         onError: (error) => {
             if (getAiAccessRefusal(error.error)) return;
             showToastApiError({

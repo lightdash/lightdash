@@ -1850,7 +1850,7 @@ export class AiAgentController extends BaseController {
             status: 'ok',
             results: await this.getAiAgentService().getMessageQueryPipelines(
                 toSessionUser(req.account),
-                args,
+                { ...args, projectUuid },
             ),
         };
     }

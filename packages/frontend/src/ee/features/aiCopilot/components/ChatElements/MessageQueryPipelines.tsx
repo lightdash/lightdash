@@ -1,5 +1,13 @@
 import { type AiAgentMessageQueryPipeline } from '@lightdash/common';
-import { Box, Button, Group, SimpleGrid, Stack, Text } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Paper,
+    SimpleGrid,
+    Stack,
+    Text,
+} from '@mantine/core';
 import {
     IconChevronDown,
     IconChevronUp,
@@ -51,10 +59,10 @@ const pipelineSummary = ({ nodes }: AiAgentMessageQueryPipeline): string => {
     ].join(' · ');
 };
 
-/** A card per pipeline the message ran; `onSelect` is the click seam. */
+/** A card per pipeline the message ran; null `onSelect` renders them static. */
 export const MessageQueriesList: FC<{
     pipelines: AiAgentMessageQueryPipeline[];
-    onSelect: (pipeline: AiAgentMessageQueryPipeline) => void;
+    onSelect: ((pipeline: AiAgentMessageQueryPipeline) => void) | null;
 }> = ({ pipelines, onSelect }) => (
     <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
         {pipelines.map((pipeline) => {
@@ -63,7 +71,22 @@ export const MessageQueriesList: FC<{
             );
             // DuckDB has no type in the Queries tab; it is a transformation there
             const icon = (terminal && nodeTypeIcon(terminal)) ?? IconTransform;
-            return (
+            const content = (
+                <Group gap="sm" wrap="nowrap" align="flex-start">
+                    <Box className={styles.iconChip} flex="0 0 auto">
+                        <MantineIcon icon={icon} size={14} />
+                    </Box>
+                    <Stack gap={2} miw={0}>
+                        <Text size="sm" fw={500} lineClamp={1} ta="left">
+                            {pipeline.title}
+                        </Text>
+                        <Text size="xs" c="dimmed" lineClamp={1} ta="left">
+                            {pipelineSummary(pipeline)}
+                        </Text>
+                    </Stack>
+                </Group>
+            );
+            return onSelect ? (
                 <PolymorphicPaperButton
                     key={pipeline.queryUuid}
                     component="button"
@@ -73,20 +96,12 @@ export const MessageQueriesList: FC<{
                     aria-label={`Show query ${pipeline.title}`}
                     onClick={() => onSelect(pipeline)}
                 >
-                    <Group gap="sm" wrap="nowrap" align="flex-start">
-                        <Box className={styles.iconChip} flex="0 0 auto">
-                            <MantineIcon icon={icon} size={14} />
-                        </Box>
-                        <Stack gap={2} miw={0}>
-                            <Text size="sm" fw={500} lineClamp={1} ta="left">
-                                {pipeline.title}
-                            </Text>
-                            <Text size="xs" c="dimmed" lineClamp={1} ta="left">
-                                {pipelineSummary(pipeline)}
-                            </Text>
-                        </Stack>
-                    </Group>
+                    {content}
                 </PolymorphicPaperButton>
+            ) : (
+                <Paper key={pipeline.queryUuid} p="sm">
+                    {content}
+                </Paper>
             );
         })}
     </SimpleGrid>

@@ -9325,7 +9325,7 @@ export class AiAgentService extends BaseService {
             args.agentUuid,
         );
         await this.assertEmbedThreadInSpace(args.threadUuid, runtimeOptions);
-        return this.getMessageQueryPipelines(user, args);
+        return this.getMessageQueryPipelines(user, { ...args, projectUuid });
     }
 
     async getEmbedMessageQueryPipelineVizQuery(
@@ -10938,10 +10938,12 @@ export class AiAgentService extends BaseService {
     async getMessageQueryPipelines(
         user: SessionUser,
         {
+            projectUuid,
             agentUuid,
             threadUuid,
             messageUuid,
         }: {
+            projectUuid: string;
             agentUuid: string;
             threadUuid: string;
             messageUuid: string;
@@ -10959,7 +10961,7 @@ export class AiAgentService extends BaseService {
             organizationUuid,
             agentUuid,
         });
-        if (!agent) {
+        if (!agent || agent.projectUuid !== projectUuid) {
             throw new NotFoundError(`Agent not found: ${agentUuid}`);
         }
 
@@ -11001,7 +11003,7 @@ export class AiAgentService extends BaseService {
 
     private async getMessageQueryPipeline(
         user: SessionUser,
-        args: MessageQueryPipelineRef,
+        args: MessageQueryPipelineRef & { projectUuid: string },
     ): Promise<AiAgentMessageQueryPipeline> {
         const pipelines = await this.getMessageQueryPipelines(user, args);
         const pipeline = pipelines.find(
@@ -11025,7 +11027,10 @@ export class AiAgentService extends BaseService {
             runtimeOptions: EmbedAiAgentRuntimeOptions | null;
         },
     ): Promise<ApiAiAgentComposerArtifactVizQuery> {
-        const pipeline = await this.getMessageQueryPipeline(user, args);
+        const pipeline = await this.getMessageQueryPipeline(user, {
+            ...args,
+            projectUuid,
+        });
         // Embed viewers are scoped by user attributes, which raw SQL bypasses.
         if (
             runtimeOptions &&
@@ -11116,7 +11121,7 @@ export class AiAgentService extends BaseService {
         },
         account: RegisteredAccount = fromSession(user),
     ): Promise<ApiGetAsyncQueryResults> {
-        await this.getMessageQueryPipeline(user, args);
+        await this.getMessageQueryPipeline(user, { ...args, projectUuid });
         const { enabled } = await this.featureFlagService.get({
             user,
             featureFlagId: FeatureFlags.AgentIdentity,

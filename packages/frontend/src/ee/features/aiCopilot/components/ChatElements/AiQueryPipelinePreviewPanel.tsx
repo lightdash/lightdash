@@ -29,10 +29,13 @@ export const AiQueryPipelinePreviewPanel: FC<Props> = ({ pipelinePreview }) => {
         messageUuid,
         enabled: true,
     });
-    const run = useAiAgentMessageQueryPipelineVizQuery(pipelinePreview);
     const pipeline = pipelines.data?.find(
         (candidate) => candidate.queryUuid === queryUuid,
     );
+    const run = useAiAgentMessageQueryPipelineVizQuery({
+        ...pipelinePreview,
+        enabled: pipeline !== undefined,
+    });
     const config = useMemo<AiComposerChartArtifactConfigV1 | null>(
         () =>
             pipeline

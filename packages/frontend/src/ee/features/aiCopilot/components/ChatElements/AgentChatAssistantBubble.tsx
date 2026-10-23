@@ -1423,7 +1423,12 @@ export const AssistantBubble: FC<Props> = memo(
                 {queriesExpanded && queryPipelines.length > 0 && (
                     <MessageQueriesList
                         pipelines={queryPipelines}
-                        onSelect={handleQueryPipelineSelect}
+                        // The launcher has no preview pane to open them in
+                        onSelect={
+                            renderArtifactsInline
+                                ? null
+                                : handleQueryPipelineSelect
+                        }
                     />
                 )}
 
