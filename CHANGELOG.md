@@ -1,3 +1,10 @@
+# [3.45.0](https://github.com/lightdash/lightdash/compare/3.44.1...3.45.0) (2026-10-23)
+
+
+### Features
+
+* **ai:** show big number values in composer Slack cards ([#31481](https://github.com/lightdash/lightdash/issues/31481)) ([a950cd9](https://github.com/lightdash/lightdash/commit/a950cd9c7e17879715e959bf6f3572ae6f752bf4))
+
 ## [3.44.1](https://github.com/lightdash/lightdash/compare/3.44.0...3.44.1) (2026-10-23)
 
 
