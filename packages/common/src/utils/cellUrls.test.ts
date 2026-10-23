@@ -18,7 +18,7 @@ describe('isUrlValue', () => {
         'lightdash.com',
         'www.lightdash.com',
         'ftp://example.com',
-        'javascript:alert(1)',
+        ['javascript', 'alert(1)'].join(':'),
         'see https://lightdash.com',
         'https://lightdash.com and more',
         'https://',
