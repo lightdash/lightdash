@@ -1,5 +1,6 @@
 import {
     buildComposerArtifactPipeline,
+    isSlackPrompt,
     ParameterError,
     toComposerChartArtifactVersion,
     visualizeToolDefinition,
@@ -40,6 +41,7 @@ type VisualizeOutput =
               nodeId: string;
               artifactUuid: string;
               versionUuid: string;
+              queryUuid: string | null;
           }
       >
     | ExecuteToolErrorResult;
@@ -75,7 +77,8 @@ export const getVisualize = ({
             vizConfig,
         }): Promise<VisualizeOutput> => {
             try {
-                const { threadUuid, promptUuid } = await getPrompt();
+                const prompt = await getPrompt();
+                const { threadUuid, promptUuid } = prompt;
                 const threadNodes =
                     await listThreadComposerQueryNodes(threadUuid);
                 const node = threadNodes.find((n) => n.nodeId === nodeId);
@@ -90,17 +93,22 @@ export const getVisualize = ({
                 });
 
                 await updateProgress('Visualizing result...');
-                // Hints read the node's rows, usually a results cache hit; a failed run only drops them.
-                const hints = composerChartQualityHintsNeedRows(vizConfig)
-                    ? await runComposerQueries({
-                          queries,
-                          terminalNodeId: nodeId,
-                      }).then(
-                          ({ terminal }) =>
-                              composerChartQualityHints(vizConfig, terminal),
-                          () => [],
-                      )
-                    : [];
+                const needsHints = composerChartQualityHintsNeedRows(vizConfig);
+                // Slack posts a table from this execution's rows.
+                const needsRows =
+                    isSlackPrompt(prompt) && vizConfig.type === 'table';
+                // Usually a results cache hit; a failed run only drops hints and the Slack table.
+                const run =
+                    needsHints || needsRows
+                        ? await runComposerQueries({
+                              queries,
+                              terminalNodeId: nodeId,
+                          }).catch(() => null)
+                        : null;
+                const hints =
+                    run && needsHints
+                        ? composerChartQualityHints(vizConfig, run.terminal)
+                        : [];
 
                 const artifact = await createOrUpdateArtifact({
                     threadUuid,
@@ -126,6 +134,7 @@ export const getVisualize = ({
                         nodeId,
                         artifactUuid: artifact.artifactUuid,
                         versionUuid: artifact.versionUuid,
+                        queryUuid: run?.terminal.queryUuid ?? null,
                     },
                     structuredContent: { nodeId, hints },
                 };

@@ -18,6 +18,22 @@ const prompt = {
     threadUuid: 'thread-uuid',
 } as AiWebAppPrompt;
 
+const slackPrompt = {
+    ...prompt,
+    slackUserId: 'U1',
+} as unknown as AiWebAppPrompt;
+
+const tableConfig: ToolVisualizeArgs['vizConfig'] = {
+    type: 'table',
+    x: null,
+    y: null,
+    groupBy: null,
+    stack: null,
+    horizontal: null,
+    y2: null,
+    labels: null,
+};
+
 const ordersNode: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.SEMANTIC_LAYER,
     nodeId: 'orders',
@@ -84,14 +100,16 @@ const makeRun = (
 const makeTool = ({
     threadNodes = [ordersNode, shareNode, unrelatedNode],
     rows = [],
+    currentPrompt = prompt,
 }: {
     threadNodes?: ThreadComposerQueryNode[];
     rows?: Record<string, unknown>[];
+    currentPrompt?: AiWebAppPrompt;
 } = {}) => {
     const versions: Parameters<CreateOrUpdateArtifactFn>[0][] = [];
     const runComposerQueries = vi.fn(async () => makeRun(rows));
     const tool = getVisualize({
-        getPrompt: async () => prompt,
+        getPrompt: async () => currentPrompt,
         listThreadComposerQueryNodes: async () => threadNodes,
         runComposerQueries,
         createOrUpdateArtifact: async (data) => {
@@ -133,6 +151,7 @@ describe('visualize', () => {
             nodeId: 'share',
             artifactUuid: 'artifact-uuid',
             versionUuid: 'version-1',
+            queryUuid: null,
         });
         expect(versions).toEqual([
             {
@@ -259,5 +278,33 @@ describe('visualize', () => {
             ],
         });
         expect(versions).toHaveLength(2);
+    });
+
+    it('runs a Slack table so its rows can post as a Slack table', async () => {
+        const { visualize, runComposerQueries } = makeTool({
+            currentPrompt: slackPrompt,
+            rows: [{ orders_status: 'completed' }],
+        });
+
+        const output = await visualize({ vizConfig: tableConfig });
+
+        expect(runComposerQueries).toHaveBeenCalledOnce();
+        expect(output.metadata).toMatchObject({
+            status: 'success',
+            queryUuid: 'query-uuid',
+        });
+    });
+
+    it('does not run a web table or a Slack chart without hints', async () => {
+        const web = makeTool();
+        const slack = makeTool({ currentPrompt: slackPrompt });
+
+        const webTable = await web.visualize({ vizConfig: tableConfig });
+        const slackChart = await slack.visualize();
+
+        expect(web.runComposerQueries).not.toHaveBeenCalled();
+        expect(slack.runComposerQueries).not.toHaveBeenCalled();
+        expect(webTable.metadata).toMatchObject({ queryUuid: null });
+        expect(slackChart.metadata).toMatchObject({ queryUuid: null });
     });
 });

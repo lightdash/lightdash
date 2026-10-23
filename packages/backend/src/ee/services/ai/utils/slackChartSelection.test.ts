@@ -225,6 +225,30 @@ describe('getSlackSelectedCardArtifacts', () => {
         ]);
     });
 
+    it('posts a visualized composer table inline instead of as a card, unless inline data is off', () => {
+        const composer = (versionUuid: string, type: 'table' | 'bar') =>
+            artifact(versionUuid, {
+                chartConfig: {
+                    source: 'composer',
+                    schemaVersion: 2,
+                    queries: [],
+                    terminalNodeId: 'final',
+                    vizConfig: { type } as never,
+                },
+            });
+        const input = {
+            ...setup(),
+            artifacts: [composer('table', 'table'), composer('chart', 'bar')],
+            selectedVersionUuids: [],
+        };
+
+        expect(versions(input)).toEqual(['chart']);
+        expect(versions({ ...input, canShowInlineTables: false })).toEqual([
+            'table',
+            'chart',
+        ]);
+    });
+
     it('allows saved custom chart types and merge charts to be selected', () => {
         const custom = artifact('custom', {
             chartConfig: parseConfig({

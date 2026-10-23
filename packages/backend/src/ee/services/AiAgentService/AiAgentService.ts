@@ -589,11 +589,6 @@ import {
     GIT_WRITE_PERMISSION_AGENT_MESSAGE,
 } from '../ai/utils/classifyWritebackError';
 import {
-    buildComposerPresentations,
-    resolveSlackComposerPresentations,
-    type TurnToolResult,
-} from '../ai/utils/composerPresentation';
-import {
     createUserFacingErrorResolver,
     getUserFacingErrorMessage,
 } from '../ai/utils/errorMessages';
@@ -8439,47 +8434,6 @@ export class AiAgentService extends BaseService {
         }
     }
 
-    /** One composer artifact version per Slack-presented result, in answer order. */
-    private async saveComposerPresentations({
-        prompt,
-        results,
-        onArtifactReady,
-    }: {
-        prompt: AiPrompt;
-        results: ToolComposerQueriesSuccessMetadata[];
-        onArtifactReady: (artifact: AiArtifact) => void;
-    }): Promise<void> {
-        if (results.length === 0) return;
-        const { threadUuid, promptUuid } = prompt;
-        try {
-            const threadNodes = await this.aiAgentModel.listComposerQueryNodes(
-                threadComposerQueryScope(threadUuid),
-            );
-            const presentations = buildComposerPresentations({
-                results,
-                threadNodes,
-            });
-            await presentations.reduce<Promise<void>>(
-                (previous, presentation) =>
-                    previous.then(async () => {
-                        const artifact =
-                            await this.aiAgentModel.createOrUpdateArtifact({
-                                threadUuid,
-                                promptUuid,
-                                ...presentation,
-                            });
-                        onArtifactReady(artifact);
-                    }),
-                Promise.resolve(),
-            );
-        } catch (error) {
-            this.logger.error(
-                `Failed to save composer presentations for prompt ${promptUuid}`,
-                error,
-            );
-        }
-    }
-
     private persistTrackedPromptUpdate(
         update: UpdateSlackResponse | UpdateWebAppResponse,
         classificationContext?: {
@@ -15953,8 +15907,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
         // the agent's stream starts pulling.
         const stepProgressEmitter =
             stream && !isSlackPrompt(prompt) ? new EventEmitter() : undefined;
-        // This turn's tool results, so the final answer can present composer nodes.
-        const turnToolResults: TurnToolResult[] = [];
         const aiAgentMemoryEnabled =
             await this.aiOrganizationSettingsService.isAiAgentMemoryEnabled(
                 user,
@@ -17334,18 +17286,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     updateSlackMessage,
                     storeToolCall,
                     storeToolCallError,
-                    storeToolResults: (results) => {
-                        turnToolResults.push(
-                            ...results.map(
-                                ({ promptUuid, toolName, metadata }) => ({
-                                    promptUuid,
-                                    toolName,
-                                    metadata,
-                                }),
-                            ),
-                        );
-                        return storeToolResults(results);
-                    },
+                    storeToolResults,
                     storeReasoning,
                     storeLoadout,
                     isPromptInterrupted,
@@ -17381,21 +17322,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         // Generation saves step and terminal responses before Slack
                         // delivery. Keep presentation markers out of stored history and
                         // classifiers while returning the original text for selection.
-                        const composerPresentation =
+                        const visibleUpdate =
                             update.response !== undefined &&
                             isSlackPrompt(prompt)
-                                ? resolveSlackComposerPresentations({
-                                      response: update.response,
-                                      promptUuid: prompt.promptUuid,
-                                      toolResults: turnToolResults,
-                                  })
-                                : null;
-                        const visibleUpdate = composerPresentation
-                            ? {
-                                  ...update,
-                                  response: composerPresentation.response,
-                              }
-                            : update;
+                                ? {
+                                      ...update,
+                                      response:
+                                          stripSlackVisualizationSelection(
+                                              update.response,
+                                          ),
+                                  }
+                                : update;
                         const updatePromise = this.persistTrackedPromptUpdate(
                             visibleUpdate,
                             {
@@ -17410,30 +17347,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         if (!updatePromise) {
                             return Promise.resolve();
                         }
-                        const presentationPromise = updatePromise.then(
-                            async (persisted) => {
-                                if (!persisted || !composerPresentation) return;
-                                await this.saveComposerPresentations({
-                                    prompt,
-                                    results: composerPresentation.results,
-                                    onArtifactReady: (artifact) => {
-                                        if (decisions) {
-                                            stepProgressEmitter?.emit(
-                                                'artifactReady',
-                                                {
-                                                    promptUuid:
-                                                        prompt.promptUuid,
-                                                    artifactUuid:
-                                                        artifact.artifactUuid,
-                                                    versionUuid:
-                                                        artifact.versionUuid,
-                                                },
-                                            );
-                                        }
-                                    },
-                                });
-                            },
-                        );
                         const updateWithCitationTelemetryPromise =
                             aiAgentMemoryEnabled &&
                             update.response !== undefined &&
@@ -17569,10 +17482,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                 });
                         }
 
-                        return Promise.all([
-                            updateWithCitationTelemetryPromise,
-                            presentationPromise,
-                        ]).then(() => undefined);
+                        return updateWithCitationTelemetryPromise.then(
+                            () => undefined,
+                        );
                     },
                     trackEvent: (event) => this.analytics.track(event),
 
@@ -18120,28 +18032,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
     }
 
-    /** Composer previews need the thread's nodes; without them the answer still goes out, minus those previews. */
-    private async getSlackComposerThreadNodes(
-        slackPrompt: Pick<SlackPrompt, 'promptUuid' | 'threadUuid'>,
-        toolCalls: { tool_name: string }[],
-    ): Promise<ThreadComposerQueryNode[]> {
-        const hasComposerCall = toolCalls.some((call) =>
-            isComposerQueryToolName(call.tool_name),
-        );
-        if (!hasComposerCall) return [];
-        try {
-            return await this.aiAgentModel.listComposerQueryNodes(
-                threadComposerQueryScope(slackPrompt.threadUuid),
-            );
-        } catch (error) {
-            this.logger.error(
-                `Failed to load composer nodes for Slack previews of prompt ${slackPrompt.promptUuid}`,
-                error,
-            );
-            return [];
-        }
-    }
-
     // TODO: user permissions
     private async getSlackAgentFinalBlocks({
         user,
@@ -18225,7 +18115,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       slackPrompt.organizationUuid,
                   )
                 : undefined;
-        const selection = parseSlackVisualizationSelection(response);
+        // Composer turns present with visualize, so markers select nothing there.
+        const isComposerTurn = toolCalls.some(
+            (call) =>
+                isComposerQueryToolName(call.tool_name) ||
+                call.tool_name === 'visualize',
+        );
+        const selection = isComposerTurn
+            ? { tableQueryUuids: [], chartVersionUuids: [] }
+            : parseSlackVisualizationSelection(response);
         const slackResultReader: QueryResultReader = {
             kind: 'agent',
             authMethod: 'session',
@@ -18236,10 +18134,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 agentUuid: agent?.uuid ?? null,
             }),
         };
-        const threadNodes = await this.getSlackComposerThreadNodes(
-            slackPrompt,
-            toolCalls,
-        );
         const tablePreviews = await getSlackTablePreviews({
             enableDataAccess: agent?.enableDataAccess === true,
             slackLinksOnly: slackSettings?.aiLinksOnly === true,
@@ -18247,7 +18141,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             toolCalls,
             toolResults,
             artifacts: artifactVersions,
-            threadNodes,
             url: this.getAgentThreadUrl(slackPrompt, agent?.uuid),
             runtimeResults: runtimeTableResults,
             authorize: async ({ queryUuid, exploreNames }) => {

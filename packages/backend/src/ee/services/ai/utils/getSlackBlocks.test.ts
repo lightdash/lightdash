@@ -484,6 +484,74 @@ describe('Slack AI agent blocks', () => {
         expect(saved.metricQuery.filters.metrics).toHaveProperty('or');
     });
 
+    it('links a visualized composer version to the thread until chart images land', async () => {
+        const composer = (
+            versionUuid: string,
+            title: string,
+            type: 'bar' | 'table',
+        ) => ({
+            artifactUuid: `artifact-${versionUuid}`,
+            threadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+            artifactType: 'chart',
+            savedQueryUuid: null,
+            savedDashboardUuid: null,
+            createdAt: new Date(),
+            versionNumber: 1,
+            versionUuid,
+            title,
+            description: null,
+            dashboardConfig: null,
+            versionCreatedAt: new Date(),
+            verifiedByUserUuid: null,
+            verifiedAt: null,
+            chartConfig: {
+                source: 'composer',
+                schemaVersion: 2,
+                queries: [],
+                terminalNodeId: 'final',
+                vizConfig: { type },
+            },
+        });
+
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => 'https://lightdash.example.com/share/chart',
+            async () => mockOrdersExplore,
+            async () => true,
+            'agent-1',
+            [
+                composer('chart', 'Revenue by month', 'bar'),
+                composer('table', 'Top customers', 'table'),
+            ] as never,
+            [],
+        );
+
+        const threadUrl =
+            'https://lightdash.example.com/projects/project-1/ai-agents/agent-1/threads/thread-1';
+        expect(blocks).toMatchObject([
+            {
+                type: 'carousel',
+                elements: [
+                    {
+                        title: { text: 'Revenue by month' },
+                        actions: [{ url: threadUrl }],
+                    },
+                    {
+                        title: { text: 'Top customers' },
+                        actions: [{ url: threadUrl }],
+                    },
+                ],
+            },
+        ]);
+    });
+
     it('uses generateVisualization chart image URLs as card hero images', async () => {
         const blocks = await getModernArtifactCardBlocks(
             {

@@ -289,59 +289,18 @@ const makeTool = ({
 };
 
 describe('getRunComposerQueries', () => {
-    it('in Slack, the reply can show the terminal result as a table that links to the thread, without an artifact', async () => {
-        const agentContext = new AgentContext([]);
-        const { tool, registry } = makeTool({
+    it('in Slack, asks for visualize as on the web, without a Slack marker', async () => {
+        const { tool } = makeTool({
             autoApproveSql: true,
             prompt: makeSlackPrompt(),
-            agentContext,
         });
 
-        const output = await executeTool(tool, makeArgs(), 'composer-call');
-        expect(output.result).not.toContain('<show');
-        // The model selects the table using the queryUuid it was given.
-        const queryUuid = output.result.match(/queryUuid="([^"]+)"/)?.[1];
+        const output = await executeTool(tool, makeArgs());
 
-        const previews = await getSlackTablePreviews({
-            enableDataAccess: true,
-            slackLinksOnly: false,
-            selectedQueryUuids: queryUuid ? [queryUuid] : [],
-            toolCalls: [
-                {
-                    tool_call_id: 'composer-call',
-                    tool_name: 'runComposerQueries',
-                    tool_args: makeArgs(),
-                },
-            ],
-            toolResults: [
-                {
-                    toolCallId: 'composer-call',
-                    toolType: 'built-in',
-                    toolName: 'runComposerQueries',
-                    metadata: output.metadata,
-                },
-            ],
-            artifacts: [],
-            threadNodes: registry.nodes('thread-uuid'),
-            url: 'https://lightdash.test/threads/thread-uuid',
-            runtimeResults: agentContext.getSlackTableResults(),
-            authorize: vi.fn().mockResolvedValue(undefined),
-            getResults: vi
-                .fn()
-                .mockRejectedValue(new Error('stored results not needed')),
-            onLoadError: vi.fn(),
-        });
-
-        expect(previews).toEqual([
-            expect.objectContaining({
-                status: 'ready',
-                title: 'Revenue vs signups',
-                url: 'https://lightdash.test/threads/thread-uuid',
-                queryResults: expect.objectContaining({
-                    rows: [{ month: '2026-01', signups: 12 }],
-                }),
-            }),
-        ]);
+        expect(output.result).toContain(
+            'Not visualized yet. To present it to the user, call visualize with nodeId "joined".',
+        );
+        expect(output.result).not.toContain('<slack-table');
     });
 
     it('runs the pipeline and returns the terminal without presenting it', async () => {

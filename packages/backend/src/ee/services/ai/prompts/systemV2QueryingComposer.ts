@@ -36,18 +36,12 @@ export const getQueryingComposerSection = ({
                   '- Run statistics, forecasts and other algorithms that SQL expresses poorly in a python node.',
               ]
             : []),
-        `- Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is ${
-            slackChannelId
-                ? 'the table you can share'
-                : 'the result that answers the question'
-        }.`,
+        '- Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.',
         '- For a follow-up that changes an earlier result, change only what the user asked for, and claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.',
-        ...(slackChannelId
-            ? []
-            : [
-                  '- After query, call visualize on the node your answer rests on: with the chart type the user asked for; otherwise with a chart that fits the result (a line for a trend over time, a bar to compare categories), or a table when the user wants an interactive or downloadable table or the rows are too many for a Markdown table. Skip visualize when a sentence or a small Markdown table answers the question and the user asked for no chart.',
-                  '- Visualize a second node only when it adds a distinct view. To visualize an earlier result again, or as another chart, call visualize on its node rather than rerunning query.',
-              ]),
+        slackChannelId
+            ? '- After query, call visualize on the node your answer rests on when the user asks for a chart or when its rows materially help: with the chart type the user asked for; otherwise with a chart that fits the result (a line for a trend over time, a bar to compare categories), or a table. Skip visualize when a sentence answers the question.'
+            : '- After query, call visualize on the node your answer rests on: with the chart type the user asked for; otherwise with a chart that fits the result (a line for a trend over time, a bar to compare categories), or a table when the user wants an interactive or downloadable table or the rows are too many for a Markdown table. Skip visualize when a sentence or a small Markdown table answers the question and the user asked for no chart.',
+        '- Visualize a second node only when it adds a distinct view. To visualize an earlier result again, or as another chart, call visualize on its node rather than rerunning query.',
         '',
         '## Field usage',
         '',
