@@ -28,6 +28,7 @@ import { UsageEventsCompactor } from '../analytics/eventStream/UsageEventsCompac
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
 import { type AgentActionLogModel } from '../models/AgentActionLogModel';
+import { type RetentionCleanupOptions } from '../models/retentionCleanup';
 import type { UsageDimensionsModel } from '../models/UsageDimensionsModel';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
@@ -2033,18 +2034,29 @@ export class SchedulerWorker extends SchedulerTask {
                     `Cleaning query history records older than ${cutoffDate.toISOString()}`,
                 );
 
+                const cleanupOptions: RetentionCleanupOptions = {
+                    batchSize: cleanupConfig.batchSize,
+                    delayMs: cleanupConfig.delayMs,
+                    maxBatches: cleanupConfig.maxBatches,
+                };
+                const { queryHistoryModel } = this.asyncQueryService;
+
                 try {
-                    const { totalDeleted, batchCount } =
-                        await this.asyncQueryService.queryHistoryModel.cleanupBatch(
-                            cutoffDate,
-                            cleanupConfig.batchSize,
-                            cleanupConfig.delayMs,
-                            cleanupConfig.maxBatches,
-                        );
+                    const queryCleanup = await queryHistoryModel.cleanupBatch(
+                        cutoffDate,
+                        cleanupOptions,
+                    );
 
                     Logger.info(
-                        `Query history cleanup completed. Total records deleted: ${totalDeleted} in ${batchCount} batches`,
+                        `Query history cleanup completed. Total records deleted: ${queryCleanup.totalDeleted} in ${queryCleanup.batchCount} batches`,
                     );
+                    if (!queryCleanup.completed) {
+                        const remaining =
+                            await queryHistoryModel.countOlderThan(cutoffDate);
+                        Logger.warn(
+                            `Query history cleanup stopped before clearing the retention backlog: ${remaining} records older than ${cutoffDate.toISOString()} remain`,
+                        );
+                    }
                 } catch (error) {
                     Logger.error('Error during query history cleanup:', error);
                     throw error;
@@ -2053,9 +2065,7 @@ export class SchedulerWorker extends SchedulerTask {
                 const actionCleanup =
                     await this.agentActionLogModel.cleanupBatch(
                         cutoffDate,
-                        cleanupConfig.batchSize,
-                        cleanupConfig.delayMs,
-                        cleanupConfig.maxBatches,
+                        cleanupOptions,
                     );
                 Logger.info(
                     `Agent action log cleanup completed. Total records deleted: ${actionCleanup.totalDeleted} in ${actionCleanup.batchCount} batches`,

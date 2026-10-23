@@ -231,7 +231,7 @@ export const lightdashConfigMock: LightdashConfig = {
                 retentionDays: 30,
                 batchSize: 1000,
                 delayMs: 100,
-                maxBatches: 100,
+                maxBatches: 300,
                 schedule: '0 2 * * *',
             },
         },

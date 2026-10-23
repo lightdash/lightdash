@@ -1818,7 +1818,7 @@ export type LightdashConfig = {
                 retentionDays: number;
                 batchSize: number;
                 delayMs: number;
-                maxBatches?: number;
+                maxBatches: number;
                 schedule: string;
             };
         };
@@ -2654,6 +2654,9 @@ export type PostmarkConfig = {
 };
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
+// 300k rows a night: twice the insert rate of the busiest known instance, so
+// retention catches up without one night ever deleting an unbounded amount
+const DEFAULT_QUERY_HISTORY_CLEANUP_MAX_BATCHES = 300;
 // Must stay below the orchestrator's termination grace period (helm: 90s)
 // so the fail_job fallback runs before SIGKILL.
 const DEFAULT_SCHEDULER_SHUTDOWN_TIMEOUT = 1000 * 60; // 1 minute
@@ -3932,7 +3935,7 @@ export const parseConfig = (): LightdashConfig => {
                     maxBatches:
                         getIntegerFromEnvironmentVariable(
                             'QUERY_HISTORY_CLEANUP_MAX_BATCHES',
-                        ) || 100,
+                        ) || DEFAULT_QUERY_HISTORY_CLEANUP_MAX_BATCHES,
                     schedule:
                         process.env.QUERY_HISTORY_CLEANUP_SCHEDULE ||
                         '0 2 * * *',
