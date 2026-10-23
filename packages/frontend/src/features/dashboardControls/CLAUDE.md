@@ -125,11 +125,12 @@ In `FilterConfiguration/`:
   expanded or not) all three fold away: the rail lists the filters and its
   footer has "Add filter". In their place `EditingStrip` says what is being
   edited, after the bar's own filter icon: "Editing filters" (semibold,
-  ink), a vertical `Divider`, then the edited filter's type icon, its name
-  (semibold, the rail's naming) and " · N tiles" (dimmed). N is
-  `useAppliedTileCount`, the hook the rail's Tiles summary reads. A new
-  filter with no field reads "New filter" with no count, and with nothing
-  expanded the strip is "Editing filters" alone. It is one `role="status"`
+  ink), a vertical `Divider`, then the edited filter's name (semibold, the
+  rail's naming, no type icon) and " · N tiles" (dimmed). N is
+  `useAppliedTileCount`, the hook the rail's Tiles summary reads. While the
+  edited filter has no field (`isPlaceholder`, new or emptied), and with
+  nothing expanded, the strip is "Editing filters" alone: the rail already
+  says it. It is one `role="status"`
   so a switch is announced, it wraps rather than truncating, and it holds no
   button: "Done" in the rail stays the one way out. The shipped divider and
   date zoom stay on the right as they are.
