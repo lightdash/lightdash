@@ -619,6 +619,7 @@ describe('Slack AI agent blocks', () => {
                 ],
             },
         ]);
+        expect(blocks[0]).not.toHaveProperty('subtitle');
     });
 
     it('uses generateVisualization chart image URLs as card hero images', async () => {

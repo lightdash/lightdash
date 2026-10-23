@@ -962,7 +962,6 @@ export async function getModernArtifactCardBlocks(
                     return buildSlackCardBlock({
                         blockId: `ai_agent_composer_card_${artifact.versionUuid}`,
                         title: getArtifactTitle(artifact),
-                        subtitle: 'Big number',
                         body: `*${escapeMrkdwn(bigNumber.value)}*\n${escapeMrkdwn(bigNumber.label)}`,
                         subtext: artifact.description || undefined,
                         actions: [threadButton],
