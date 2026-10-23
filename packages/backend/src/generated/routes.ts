@@ -31620,6 +31620,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['submitWorkerFindings'] },
                 { dataType: 'enum', enums: ['syncDbtProject'] },
                 { dataType: 'enum', enums: ['updateUserName'] },
+                { dataType: 'enum', enums: ['visualize'] },
             ],
             validators: {},
         },

@@ -1,3 +1,12 @@
+# [3.40.0](https://github.com/lightdash/lightdash/compare/3.39.0...3.40.0) (2026-10-23)
+
+
+### Features
+
+* **ai:** custom chart types through visualize ([#31458](https://github.com/lightdash/lightdash/issues/31458)) ([3f88c60](https://github.com/lightdash/lightdash/commit/3f88c60ab63135abaf4d929ec506ca7f630cdd5b))
+* **ai:** Slack composer answers present with visualize ([#31457](https://github.com/lightdash/lightdash/issues/31457)) ([1ff3535](https://github.com/lightdash/lightdash/commit/1ff353530fcc00a5866beba79253db5bf5029b64))
+* **ai:** visualize tool presents composer nodes ([#31435](https://github.com/lightdash/lightdash/issues/31435)) ([684fb3a](https://github.com/lightdash/lightdash/commit/684fb3a27668a61084f54a2800f7fdf1f6b3b200))
+
 # [3.39.0](https://github.com/lightdash/lightdash/compare/3.38.0...3.39.0) (2026-10-23)
 
 
