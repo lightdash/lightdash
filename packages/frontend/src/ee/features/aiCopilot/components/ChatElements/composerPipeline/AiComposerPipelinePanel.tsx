@@ -21,14 +21,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
-import {
-    IconBrandPython,
-    IconChevronRight,
-    IconDatabase,
-    IconFileSpreadsheet,
-    IconHelpCircle,
-    IconSitemap,
-} from '@tabler/icons-react';
+import { IconChevronRight, IconHelpCircle } from '@tabler/icons-react';
 import {
     Background,
     Handle,
@@ -67,6 +60,7 @@ import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import styles from './AiComposerPipelinePanel.module.css';
 import {
     groupPipeline,
+    nodeTypeIcon,
     nodeTypeLabelOf,
     type PipelineLayer,
     type PipelineNode,
@@ -96,23 +90,6 @@ const layerLabel = (layer: PipelineLayer) => {
             return 'Result';
         default:
             return assertUnreachable(layer.kind, 'Unknown pipeline layer');
-    }
-};
-
-const nodeTypeIcon = (query: SourceQuery) => {
-    switch (query.sourceType) {
-        case QuerySourceType.SEMANTIC_LAYER:
-            return IconSitemap;
-        case QuerySourceType.SQL:
-            return IconDatabase;
-        case QuerySourceType.EXTERNAL:
-            return IconFileSpreadsheet;
-        case QuerySourceType.PYTHON:
-            return IconBrandPython;
-        case QuerySourceType.DUCKDB:
-            return null;
-        default:
-            return assertUnreachable(query, 'Unknown source type');
     }
 };
 

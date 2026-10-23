@@ -193,6 +193,7 @@ import {
     type AgentToolName,
     type AgentWorkMarker,
     type AiAgentEditDbtProjectPipelineJobPayload,
+    type AiAgentMessageQueryPipeline,
     type AiAgentModelConfig,
     type AiAgentSkill,
     type AiArtifact,
@@ -628,6 +629,7 @@ import {
     parseMemoryCitations,
     stripMemoryCitations,
 } from '../ai/utils/memoryCitation';
+import { buildMessageQueryPipelines } from '../ai/utils/messageQueryPipelines';
 import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
@@ -9303,6 +9305,20 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    async getEmbedMessageQueryPipelines(
+        account: AnonymousAccount,
+        projectUuid: string,
+        args: { agentUuid: string; threadUuid: string; messageUuid: string },
+    ): Promise<AiAgentMessageQueryPipeline[]> {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            args.agentUuid,
+        );
+        await this.assertEmbedThreadInSpace(args.threadUuid, runtimeOptions);
+        return this.getMessageQueryPipelines(user, args);
+    }
+
     async updateEmbedHumanScoreForMessage(
         account: AnonymousAccount,
         projectUuid: string,
@@ -10866,6 +10882,70 @@ export class AiAgentService extends BaseService {
             messageUuid,
             savedQueryUuid,
         });
+    }
+
+    async getMessageQueryPipelines(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            messageUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+        },
+    ): Promise<AiAgentMessageQueryPipeline[]> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError(`Organization not found`);
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled)
+            throw new ForbiddenError(`Copilot is not enabled`);
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to view this thread',
+            );
+        }
+
+        // Throws unless the message belongs to this thread
+        await this.aiAgentModel.findThreadMessage('assistant', {
+            organizationUuid,
+            threadUuid,
+            messageUuid,
+        });
+
+        const [toolCalls, threadNodes] = await Promise.all([
+            this.aiAgentModel.getToolCallsAndResultsForPrompt(messageUuid),
+            this.aiAgentModel.listComposerQueryNodes(
+                threadComposerQueryScope(threadUuid),
+            ),
+        ]);
+        return buildMessageQueryPipelines({ toolCalls, threadNodes });
     }
 
     async updateArtifactVersion(

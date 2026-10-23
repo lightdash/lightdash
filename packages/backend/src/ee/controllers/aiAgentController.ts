@@ -19,6 +19,7 @@ import {
     ApiAiAgentExploreAccessSummaryResponse,
     ApiAiAgentMcpServerToolListResponse,
     ApiAiAgentMemoryResponse,
+    ApiAiAgentMessageQueryPipelinesResponse,
     ApiAiAgentModelOptionsResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
@@ -1803,6 +1804,53 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * List the composer query pipelines an assistant message ran, one per successful query call.
+     * @summary Get AI agent message query pipelines
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getAgentThreadMessageQueryPipelines',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries')
+    @OperationId('getAgentThreadMessageQueryPipelines')
+    async getAgentThreadMessageQueryPipelines(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+        @Path() messageUuid: string,
+    ): Promise<ApiAiAgentMessageQueryPipelinesResponse> {
+        this.setStatus(200);
+        const args = { agentUuid, threadUuid, messageUuid };
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results:
+                    await this.getAiAgentService().getEmbedMessageQueryPipelines(
+                        req.account,
+                        projectUuid,
+                        args,
+                    ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getMessageQueryPipelines(
+                toSessionUser(req.account),
+                args,
+            ),
         };
     }
 

@@ -1,6 +1,8 @@
 import {
     FeatureFlags,
+    isComposerQueryToolName,
     type AiAgentMessageAssistant,
+    type AiAgentMessageQueryPipeline,
     type AiAgentMessageUser,
     type AiMcpServer,
     isToolEditDbtProjectResult,
@@ -46,6 +48,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
+import { useAiAgentMessageQueryPipelines } from '../../hooks/useAiAgentMessageQueryPipelines';
 import {
     useRetryAiAgentThreadMessageMutation,
     useUpdatePromptFeedbackMutation,
@@ -92,6 +95,7 @@ import {
 } from './MessageMemorySources';
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { MessageTimingIndicator } from './MessageTimingIndicator';
+import { MessageQueriesList, MessageQueriesToggle } from './MessageTurnQueries';
 import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
 import { StreamRecoveryAlert } from './StreamRecoveryAlert';
@@ -1041,6 +1045,30 @@ export const AssistantBubble: FC<Props> = memo(
             message.artifacts && message.artifacts.length > 0
         );
 
+        // Only turns that queried without visualizing need the pipeline list
+        const ranUnvisualizedQueries =
+            !isLoading &&
+            !isArtifactAvailable &&
+            message.toolCalls.some((toolCall) =>
+                isComposerQueryToolName(toolCall.toolName),
+            );
+        const queryPipelinesQuery = useAiAgentMessageQueryPipelines({
+            projectUuid,
+            agentUuid,
+            threadUuid: message.threadUuid,
+            messageUuid: message.uuid,
+            enabled: ranUnvisualizedQueries,
+        });
+        const queryPipelines = ranUnvisualizedQueries
+            ? (queryPipelinesQuery.data ?? [])
+            : [];
+        const [queriesExpanded, { toggle: toggleQueries }] =
+            useDisclosure(false);
+        const handleQueryPipelineSelect = useCallback(
+            (_pipeline: AiAgentMessageQueryPipeline) => {},
+            [],
+        );
+
         // A restore turn is deterministic (no LLM): the card is the whole
         // reply, its message included, so nothing else renders for it.
         const restoreItem = getDataAppRestoreItem(hiddenSibling);
@@ -1309,6 +1337,13 @@ export const AssistantBubble: FC<Props> = memo(
                             </ActionIcon>
                         )}
 
+                        {queryPipelines.length > 0 && (
+                            <MessageQueriesToggle
+                                count={queryPipelines.length}
+                                expanded={queriesExpanded}
+                                onToggle={toggleQueries}
+                            />
+                        )}
                         {sourceSlugs.length > 0 && (
                             <MessageSourcesToggle
                                 count={sourceSlugs.length}
@@ -1349,6 +1384,13 @@ export const AssistantBubble: FC<Props> = memo(
                             }
                         />
                     </Group>
+                )}
+
+                {queriesExpanded && queryPipelines.length > 0 && (
+                    <MessageQueriesList
+                        pipelines={queryPipelines}
+                        onSelect={handleQueryPipelineSelect}
+                    />
                 )}
 
                 {!isLoading && sourcesExpanded && sourceSlugs.length > 0 && (

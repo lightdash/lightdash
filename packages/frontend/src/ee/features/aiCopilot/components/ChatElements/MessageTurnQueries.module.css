@@ -1,0 +1,33 @@
+/* the neighboring subtle ActionIcons compute to ldGray.6; match them exactly */
+.toggle {
+    color: var(--mantine-color-ldGray-6);
+}
+
+.card {
+    transition:
+        border-color 120ms ease,
+        background-color 120ms ease;
+}
+
+.card:hover {
+    border-color: var(--mantine-color-ldGray-3);
+    background: var(--mantine-color-default-hover);
+}
+
+.card:focus-visible {
+    outline: 2px solid var(--mantine-color-ldGray-5);
+    outline-offset: 2px;
+}
+
+.iconChip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-ldGray-1);
+    color: var(--mantine-color-dimmed);
+}

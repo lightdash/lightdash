@@ -249,3 +249,17 @@ export const buildComposerArtifactPipeline = ({
     queries.forEach(visit);
     return pipeline;
 };
+
+/** A successful `query` call of a turn, presented by its terminal node. */
+export type AiAgentMessageQueryPipeline = {
+    queryUuid: string;
+    title: string;
+    terminalNodeId: QueryNodeId;
+    /** Every node the call ran, reused ones included, in dependency order. */
+    nodes: ComposerPipelineNode[];
+};
+
+export type ApiAiAgentMessageQueryPipelinesResponse = {
+    status: 'ok';
+    results: AiAgentMessageQueryPipeline[];
+};

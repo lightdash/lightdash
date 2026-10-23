@@ -4,6 +4,12 @@ import {
     QuerySourceType,
     type SourceQuery,
 } from '@lightdash/common';
+import {
+    IconBrandPython,
+    IconDatabase,
+    IconFileSpreadsheet,
+    IconSitemap,
+} from '@tabler/icons-react';
 
 export type PipelineNode = {
     nodeId: string;
@@ -38,6 +44,23 @@ export const nodeTypeLabelOf = (query: SourceQuery): string | null => {
             return 'External data';
         case QuerySourceType.PYTHON:
             return 'Python';
+        case QuerySourceType.DUCKDB:
+            return null;
+        default:
+            return assertUnreachable(query, 'Unknown source type');
+    }
+};
+
+export const nodeTypeIcon = (query: SourceQuery) => {
+    switch (query.sourceType) {
+        case QuerySourceType.SEMANTIC_LAYER:
+            return IconSitemap;
+        case QuerySourceType.SQL:
+            return IconDatabase;
+        case QuerySourceType.EXTERNAL:
+            return IconFileSpreadsheet;
+        case QuerySourceType.PYTHON:
+            return IconBrandPython;
         case QuerySourceType.DUCKDB:
             return null;
         default:
