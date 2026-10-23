@@ -116,6 +116,13 @@ can be displayed and visualized the same way. Results are creator-scoped and
 expire.
 _Avoid_: intermediate result, step output, preview
 
+**Node columns**:
+The result column references and types of a node, stored beside its
+definition in the thread composer query nodes by a run that had it as its
+terminal node. They hold no query id. visualize checks a viz config against
+them; a node without them is visualized unchecked. Rendering never reads them.
+_Avoid_: schema, node fields, result metadata
+
 **Displayed node**:
 The node whose result is on screen in the composer artifact. The presented
 node by default; picking a node in the pipeline panel displays it, and a new

@@ -30,8 +30,11 @@ import {
 import { getDataAppVizFieldIds } from '../apps/dataAppVizFieldMapping';
 import { type DataAppVizField } from '../apps/types';
 import { getRunQueryChartConfig } from './chartConfig/web/runQueryTool/getRunQueryChartConfig';
+import { type ComposerNodeColumn } from './composerArtifact';
 import {
     type ComposerBuiltinChartVizConfig,
+    type ComposerChartVizConfig,
+    type ComposerCustomChartVizConfig,
     type ComposerStoredChartVizConfig,
     type ComposerStoredCustomChartVizConfig,
     type ToolRunQueryArgsTransformed,
@@ -615,4 +618,157 @@ export const getComposerChartStage = ({
             sortBy: undefined,
         },
     };
+};
+
+type ReferenceCheck = {
+    has: (reference: string) => boolean;
+    isNumeric: (reference: string) => boolean;
+    typeOf: (reference: string) => string;
+};
+
+const toReferenceCheck = (columns: ComposerNodeColumn[]): ReferenceCheck => {
+    const types = new Map(
+        columns.map(({ reference, type }) => [reference, type]),
+    );
+    return {
+        has: (reference) => types.has(reference),
+        isNumeric: (reference) => types.get(reference) === DimensionType.NUMBER,
+        typeOf: (reference) => types.get(reference) ?? 'unknown',
+    };
+};
+
+const getMissingReferenceErrors = (
+    check: ReferenceCheck,
+    bindings: [label: string, references: string[]][],
+): string[] =>
+    bindings.flatMap(([label, references]) =>
+        references
+            .filter((reference) => !check.has(reference))
+            .map(
+                (reference) =>
+                    `${label}: column "${reference}" is not in the result`,
+            ),
+    );
+
+const getNonNumericErrors = (
+    check: ReferenceCheck,
+    label: string,
+    references: string[],
+): string[] =>
+    references
+        .filter(
+            (reference) => check.has(reference) && !check.isNumeric(reference),
+        )
+        .map(
+            (reference) =>
+                `${label}: column "${reference}" is ${check.typeOf(reference)}, not numeric`,
+        );
+
+const getBuiltinReferenceErrors = (
+    check: ReferenceCheck,
+    vizConfig: ComposerBuiltinChartVizConfig,
+): string[] => {
+    const { type, x } = vizConfig;
+    const y = vizConfig.y ?? [];
+    const groupBy = vizConfig.groupBy ?? [];
+    const y2 = vizConfig.y2 === null ? [] : [vizConfig.y2];
+    const isCartesian =
+        type === 'bar' ||
+        type === 'line' ||
+        type === 'area' ||
+        type === 'scatter';
+    const usesY2 = type === 'bar' || type === 'line' || type === 'area';
+    return [
+        ...getMissingReferenceErrors(check, [
+            ['x', x === null ? [] : [x]],
+            ['y', y],
+            ['groupBy', groupBy],
+            ['y2', y2],
+        ]),
+        ...(type === 'table' ? [] : getNonNumericErrors(check, 'y', y)),
+        ...(usesY2 ? getNonNumericErrors(check, 'y2', y2) : []),
+        ...(usesY2 && y2.some((reference) => y.includes(reference))
+            ? [`y2: column "${y2[0]}" must not also be in y`]
+            : []),
+        ...(isCartesian
+            ? groupBy
+                  .filter(
+                      (reference) => reference === x || y.includes(reference),
+                  )
+                  .map(
+                      (reference) =>
+                          `groupBy: column "${reference}" must not also be on x or y`,
+                  )
+            : []),
+        ...(isCartesian && groupBy.length > 0 && (x === null || y.length === 0)
+            ? ['groupBy: a series split needs explicit x and y columns']
+            : []),
+    ];
+};
+
+/** A custom chart type slot as validation reads it. */
+export type ComposerCustomChartTypeSlotSpec = Pick<
+    DataAppVizField,
+    'name' | 'type' | 'required' | 'multiple'
+>;
+
+const getCustomReferenceErrors = (
+    check: ReferenceCheck,
+    { fieldMapping }: ComposerCustomChartVizConfig,
+    slots: ComposerCustomChartTypeSlotSpec[],
+): string[] => {
+    const slotNames = slots.map(({ name }) => name);
+    const unknownSlots = Object.keys(fieldMapping).filter(
+        (name) => !slotNames.includes(name),
+    );
+    const { split, values } = getCustomChartTypeReferences(fieldMapping, slots);
+    return [
+        ...unknownSlots.map(
+            (name) =>
+                `fieldMapping: "${name}" is not a slot of this chart type (slots: ${slotNames.join(', ')})`,
+        ),
+        ...slots
+            .filter(
+                ({ name, required }) =>
+                    required &&
+                    getDataAppVizFieldIds(fieldMapping[name]).length === 0,
+            )
+            .map(
+                ({ name }) =>
+                    `fieldMapping: required slot "${name}" is not bound`,
+            ),
+        ...slots
+            .filter(({ name, multiple }) => {
+                const value = fieldMapping[name];
+                return !multiple && Array.isArray(value) && value.length > 1;
+            })
+            .map(({ name }) => `fieldMapping.${name}: slot takes one column`),
+        ...getMissingReferenceErrors(
+            check,
+            Object.entries(fieldMapping).map(([name, value]) => [
+                `fieldMapping.${name}`,
+                getDataAppVizFieldIds(value),
+            ]),
+        ),
+        ...getNonNumericErrors(check, 'metric slot', values),
+        ...(split.length > 0 && values.length === 0
+            ? ['fieldMapping: a series slot needs a column on a metric slot']
+            : []),
+    ];
+};
+
+/** Viz config references the node's columns cannot draw; empty when the config renders. */
+export const getComposerVizConfigReferenceErrors = ({
+    columns,
+    vizConfig,
+    customChartTypeSlots,
+}: {
+    columns: ComposerNodeColumn[];
+    vizConfig: ComposerChartVizConfig;
+    customChartTypeSlots: ComposerCustomChartTypeSlotSpec[];
+}): string[] => {
+    const check = toReferenceCheck(columns);
+    return vizConfig.type === 'custom'
+        ? getCustomReferenceErrors(check, vizConfig, customChartTypeSlots)
+        : getBuiltinReferenceErrors(check, vizConfig);
 };

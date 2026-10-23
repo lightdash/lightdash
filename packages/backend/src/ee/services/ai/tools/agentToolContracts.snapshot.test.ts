@@ -247,6 +247,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         visualize: getVisualize({
             getPrompt: noop,
             listThreadComposerQueryNodes: noop,
+            getThreadComposerNodeColumns: noop,
             runComposerQueries: noop,
             resolveCustomChartType: noop,
             createOrUpdateArtifact: noop,
