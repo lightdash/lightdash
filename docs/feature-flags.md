@@ -131,10 +131,13 @@ overrides apply on the next compile or deploy; ENV changes require API and worke
 restarts. Connected-source compilation also requires `multi-dbt-sources`.
 
 With the flag on, each refresh captures the confirmed ref catalogue for each
-connected source in its warehouse connection group. The v1 projection stores all
-real models, seeds and snapshots, including relation, version, access and dependency
-fields. Only explicit `access: public` resources cross sources. Seed and snapshot
-access comes from their explicit `config.access`. Missing or null access defaults
+connected source in its warehouse connection group. The v1 projection stores
+project-owned models, seeds and snapshots, including relation, version, access and
+dependency fields. A node belongs to the project when its `package_name` matches
+the root project name. Installed-package resources stay local to each project and
+never enter its cross-project share surface. This filter also applies to older
+confirmed snapshots. Only explicit `access: public` resources cross sources.
+Seed and snapshot access comes from their explicit `config.access`. Missing or null access defaults
 to protected. Protected and private resources do not cross.
 
 The stitcher uses scans, declared upstreams and stored references to choose

@@ -46,6 +46,7 @@ describe.skipIf(!executable)('last-good manifests with real dbt 1.12', () => {
         projectName: string,
         models: Record<string, string>,
         schema: string,
+        localPackages: string[] = [],
     ): Promise<CrossSourceFetchTask<string>> => {
         const root = await fs.mkdtemp(path.join(directory, `${projectName}-`));
         await fs.mkdir(path.join(root, 'models'));
@@ -69,6 +70,15 @@ describe.skipIf(!executable)('last-good manifests with real dbt 1.12', () => {
             partialParseBaselinePath: null,
         });
         clients.push(client);
+        if (localPackages.length > 0) {
+            await fs.writeFile(
+                path.join(root, 'packages.yml'),
+                JSON.stringify({
+                    packages: localPackages.map((local) => ({ local })),
+                }),
+            );
+            await client.installDeps();
+        }
         return {
             key: projectName,
             context: projectName,
@@ -322,6 +332,112 @@ describe.skipIf(!executable)('last-good manifests with real dbt 1.12', () => {
                 .depends_on_nodes,
         ).toEqual(['model.public_upstream.public_base']);
         expect(storedRoot.depends_on_nodes).toHaveLength(3);
+    }, 120000);
+
+    it('shares only owned public models when providers install the same package', async () => {
+        const localPackage = await createTask(
+            'shared_package',
+            {
+                shared_model:
+                    "{{ config(schema='package_local') }}\nselect 1 as id",
+            },
+            'version: 2\nmodels:\n  - name: shared_model\n    access: public\n',
+        );
+        const packageDirectory =
+            clients[clients.length - 1].dbtProjectDirectory;
+        const packageNodes = getExternalModelNodesFromManifest(
+            (await localPackage.fetch({ externalNodes: [] })).manifest,
+        );
+        expect(packageNodes).toHaveLength(1);
+        const providers = await Promise.all([
+            createTask(
+                'package_owner_one',
+                {
+                    shared_model:
+                        "select * from {{ ref('shared_package', 'shared_model') }}",
+                },
+                'version: 2\nmodels:\n  - name: shared_model\n    access: public\n',
+                [packageDirectory],
+            ),
+            createTask(
+                'package_owner_two',
+                {
+                    owned_other:
+                        "select * from {{ ref('shared_package', 'shared_model') }}",
+                },
+                'version: 2\nmodels:\n  - name: owned_other\n    access: public\n',
+                [packageDirectory],
+            ),
+        ]);
+        const catalogues = await Promise.all(
+            providers.map(async (provider) => {
+                const { manifest } = await provider.fetch({
+                    externalNodes: [],
+                });
+                expect(
+                    manifest.nodes['model.shared_package.shared_model'],
+                ).toBeDefined();
+                const nodes = getExternalModelNodesFromManifest(manifest);
+                expect(nodes).toHaveLength(1);
+                expect(nodes[0].package_name).toBe(provider.key);
+                expect(nodes[0].depends_on_nodes).toEqual([
+                    'model.shared_package.shared_model',
+                ]);
+                return {
+                    key: provider.key,
+                    projectName: provider.key,
+                    referencedProjects: [],
+                    nodes: [...nodes, ...packageNodes],
+                };
+            }),
+        );
+        const consumer = await createTask(
+            'package_consumer',
+            {
+                report: "select * from {{ ref('package_owner_one', 'shared_model') }} union all select * from {{ ref('package_owner_two', 'owned_other') }}",
+            },
+            'version: 2\nmodels:\n  - name: report\n',
+        );
+        const fetch = vi.fn(consumer.fetch);
+        const saved = JSON.stringify(catalogues);
+        const result = await resolveCrossSourceManifests({
+            tasks: [{ ...consumer, fetch }, ...providers],
+            enabled: true,
+            concurrency: 2,
+            cache: catalogues,
+        });
+        expect(result.results).toHaveLength(3);
+        const injected = fetch.mock.calls[0][0]?.externalNodes ?? [];
+        expect(
+            injected.map((node) => `${node.package_name}.${node.name}`).sort(),
+        ).toEqual([
+            'package_owner_one.shared_model',
+            'package_owner_two.owned_other',
+        ]);
+        expect(
+            injected.every((node) => node.depends_on_nodes.length === 0),
+        ).toBe(true);
+        const consumerManifest = result.results.find(
+            (entry) => entry.task.key === consumer.key,
+        )!.result.manifest;
+        expect(
+            dependencies(consumerManifest, 'model.package_consumer.report'),
+        ).toEqual([
+            'model.package_owner_one.shared_model',
+            'model.package_owner_two.owned_other',
+        ]);
+        expect(
+            consumerManifest.nodes['model.shared_package.shared_model'],
+        ).toBeUndefined();
+        for (const provider of providers) {
+            const { manifest } = result.results.find(
+                (entry) => entry.task.key === provider.key,
+            )!.result;
+            expect(
+                manifest.nodes['model.shared_package.shared_model'],
+            ).toBeDefined();
+        }
+        expect(JSON.stringify(catalogues)).toBe(saved);
     }, 120000);
 
     it('fresh-seeds a reversed cold chain once in provider order', async () => {

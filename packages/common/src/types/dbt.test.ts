@@ -451,6 +451,13 @@ describe('patchPathParts', () => {
 });
 
 describe('external dbt model nodes', () => {
+    const ownedManifest = (nodes: Record<string, object>): DbtManifest => {
+        const result = makeManifest(nodes);
+        return {
+            ...result,
+            metadata: { ...result.metadata, project_name: 'test' },
+        };
+    };
     const stub = {
         ...baseModel,
         name: 'external',
@@ -497,7 +504,7 @@ describe('external dbt model nodes', () => {
             },
         };
         const nodes = getExternalModelNodesFromManifest(
-            makeManifest({
+            ownedManifest({
                 stub,
                 local,
                 ephemeral,
@@ -554,7 +561,7 @@ describe('external dbt model nodes', () => {
         ]);
         expect(
             getExternalModelNodesFromManifest(
-                makeManifest({
+                ownedManifest({
                     minimal: {
                         ...local,
                         database: undefined,
@@ -571,7 +578,7 @@ describe('external dbt model nodes', () => {
     });
     it('retains native seed and snapshot identities and explicit access from config', () => {
         const nodes = getExternalModelNodesFromManifest(
-            makeManifest({
+            ownedManifest({
                 seed: {
                     ...local,
                     name: 'lookup',
@@ -615,6 +622,38 @@ describe('external dbt model nodes', () => {
                 version: 0,
             }),
         ).toBe('model.test.lookup.v0');
+    });
+    it('exports only project-owned resources even when installed packages are public', () => {
+        const resources = ['model', 'seed', 'snapshot'].flatMap(
+            (resourceType) =>
+                ['test', 'installed'].map((packageName) => ({
+                    ...local,
+                    name: 'shared_name',
+                    package_name: packageName,
+                    unique_id: `${resourceType}.${packageName}.shared_name`,
+                    resource_type: resourceType,
+                    access: 'public',
+                })),
+        );
+        const projected = getExternalModelNodesFromManifest(
+            ownedManifest(
+                Object.fromEntries(
+                    resources.map((node) => [node.unique_id, node]),
+                ),
+            ),
+        );
+        expect(projected.map(getExternalDbtNodeUniqueId)).toEqual([
+            'model.test.shared_name',
+            'seed.test.shared_name',
+            'snapshot.test.shared_name',
+        ]);
+    });
+    it('requires an explicit project identity instead of inferring it from installed packages', () => {
+        const withoutOwner = makeManifest({ local });
+        expect(getExternalModelNodesFromManifest(withoutOwner)).toEqual([]);
+        expect(getExternalModelNodesFromManifest(withoutOwner, 'test')).toEqual(
+            getExternalModelNodesFromManifest(ownedManifest({ local })),
+        );
     });
     it('strips stubs without changing dependencies or mutating the input', () => {
         const stripped = stripExternalDbtNodes(manifest);

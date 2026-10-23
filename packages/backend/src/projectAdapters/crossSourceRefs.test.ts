@@ -1324,30 +1324,66 @@ it('detects a cycle through a seeded version that is missing from the disk manif
     );
 });
 
-it.each(['direct', 'ancestor'])(
-    'rejects duplicate seeded package-model providers used as a %s',
-    async (kind) => {
-        const consumer = withRefs('consumer', [
-            ref(kind === 'direct' ? 'shared' : 'first', 'm'),
-        ]);
-        const first = seed('first', [
-            model('first', 'm'),
-            model('shared', 'm'),
-        ]);
-        first.nodes[0].depends_on_nodes = ['model.shared.m'];
-        const second = seed('second', [model('shared', 'm')]);
-        const resolution = resolve(
-            [consumer, scannedTask('first'), scannedTask('second')],
+it.each(['confirmed', 'fresh'])(
+    'excludes shared installed packages from %s provider surfaces and retains same-name owned models',
+    async (source) => {
+        const refs = [ref('first', 'm'), ref('second', 'm')];
+        const consumer = withRefs('consumer', refs);
+        consumer.fetch.mockImplementation(async ({ externalNodes }) =>
+            boundResult('consumer', externalNodes, refs),
+        );
+        const providers = ['first', 'second'].map((key) => {
+            const provider = scannedTask(key);
+            const owned = {
+                ...model(key, 'm'),
+                depends_on: { nodes: ['model.shared.m'], macros: [] },
+            };
+            const installed = model('shared', 'm');
+            provider.fetch.mockResolvedValue({
+                ...result(key),
+                manifest: {
+                    ...manifest(key),
+                    nodes: {
+                        [owned.unique_id]: owned,
+                        [installed.unique_id]: installed,
+                    },
+                },
+            });
+            return provider;
+        });
+        const cache = ['first', 'second'].map((key) => {
+            const cached = seed(key, [model(key, 'm')]);
+            cached.nodes[0].depends_on_nodes = ['model.shared.m'];
+            cached.nodes.push(...seed('shared', [model('shared', 'm')]).nodes);
+            return cached;
+        });
+        const before = structuredClone(cache);
+        const resolution = await resolve(
+            [consumer, ...providers],
             true,
             2,
-            [first, second],
+            source === 'confirmed' ? cache : [],
         );
-        await expect(resolution).rejects.toThrow(
-            'External model "model.shared.m" is provided by several dbt sources: "first", "second"',
+        expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(
+            ['first', 'second'].flatMap(
+                (key) => seed(key, [model(key, 'm')]).nodes,
+            ),
         );
-        expect(consumer.fetch).not.toHaveBeenCalled();
+        expect(resolution.results).toHaveLength(3);
+        expect(cache).toEqual(before);
     },
 );
+
+it('does not resolve an installed package through a legacy provider snapshot', async () => {
+    const consumer = withRefs('consumer', [ref('shared', 'm')]);
+    consumer.fetch.mockRejectedValue(missing('shared', 'm'));
+    const cached = seed('provider');
+    cached.nodes.push(...seed('shared', [model('shared', 'm')]).nodes);
+    await expect(
+        resolve([consumer, scannedTask('provider')], true, 2, [cached]),
+    ).rejects.toThrow('shared');
+    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual([]);
+});
 
 it('preserves a seeded ancestor link when fresh disk dependencies disagree', async () => {
     const consumer = withRefs('consumer', [ref('provider')]);
@@ -2494,18 +2530,31 @@ it('injects explicit public seeds and snapshots with their native IDs', async ()
     expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(cached.nodes);
 });
 
-it('rejects duplicate foreign public IDs between two scan-less sources', async () => {
+it('excludes duplicate installed public IDs between scan-less sources', async () => {
     const first = task('first');
     const second = task('second');
-    const firstSeed = seed('first', [model('first'), model('shared', 'm')]);
+    const firstSeed = seed('first');
     firstSeed.referencedProjects = ['second'];
-    const secondSeed = seed('second', [model('second'), model('shared', 'm')]);
-    await expect(
-        resolve([first, second], true, 2, [firstSeed, secondSeed]),
-    ).rejects.toThrow(
-        'External model "model.shared.m" is provided by several dbt sources: "first", "second"',
+    const secondSeed = seed('second');
+    for (const cached of [firstSeed, secondSeed]) {
+        cached.nodes.push(...seed('shared', [model('shared', 'm')]).nodes);
+    }
+    await resolve([first, second], true, 2, [firstSeed, secondSeed]);
+    expect(first.fetch.mock.calls[0][0].externalNodes).toEqual(
+        seed('second').nodes,
     );
-    expect(first.fetch).not.toHaveBeenCalled();
+});
+
+it('rejects two sources that claim the same project-owned public model', async () => {
+    const consumer = withRefs('consumer', [ref('shared')]);
+    const first = task('first');
+    const second = task('second');
+    const firstSeed = { ...seed('shared'), key: 'first' };
+    const secondSeed = { ...seed('shared'), key: 'second' };
+    await expect(
+        resolve([consumer, first, second], true, 2, [firstSeed, secondSeed]),
+    ).rejects.toThrow('External model');
+    expect(consumer.fetch).not.toHaveBeenCalled();
 });
 
 it('preserves dbt error log details when no missing-node reference can decorate the failure', async () => {

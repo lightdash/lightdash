@@ -172,10 +172,12 @@ export const resolveCrossSourceManifests = async <T>({
     const seededCatalogs = cache.map((row) => ({
         ...row,
         referencedProjects: [...row.referencedProjects],
-        nodes: row.nodes.map((node) => ({
-            ...node,
-            depends_on_nodes: [...node.depends_on_nodes],
-        })),
+        nodes: row.nodes
+            .filter((node) => node.package_name === row.projectName)
+            .map((node) => ({
+                ...node,
+                depends_on_nodes: [...node.depends_on_nodes],
+            })),
     }));
     const cancellation = new CrossSourceCancellation(
         signal,

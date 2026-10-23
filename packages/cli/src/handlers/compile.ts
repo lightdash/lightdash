@@ -515,11 +515,15 @@ export const compileProject = async (
         const sourceManifest = await loadManifest({
             targetDir: context.targetDir,
         });
+        const projectName =
+            sourceManifest.metadata.project_name ?? context.projectName;
         dbtSourceManifest = {
-            projectName:
-                sourceManifest.metadata.project_name ?? context.projectName,
+            projectName,
             dbtVersion: dbtVersionResult.version.verboseVersion,
-            nodes: getExternalModelNodesFromManifest(sourceManifest),
+            nodes: getExternalModelNodesFromManifest(
+                sourceManifest,
+                projectName,
+            ),
             referencedProjects: getReferencedProjects(sourceManifest),
         };
         let manifest = stripExternalDbtNodes(sourceManifest);

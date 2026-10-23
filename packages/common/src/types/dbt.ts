@@ -990,7 +990,9 @@ export type DbtSourceManifest = {
 
 export const getExternalModelNodesFromManifest = (
     manifest: DbtManifest,
+    projectName = manifest.metadata.project_name,
 ): DbtExternalModelNode[] => {
+    if (!projectName) return [];
     const resources = Object.values(manifest.nodes)
         .filter((node) =>
             ['model', 'seed', 'snapshot'].includes(node.resource_type),
@@ -1002,7 +1004,10 @@ export const getExternalModelNodesFromManifest = (
                     config?: DbtRawModelNode['config'] & { access?: string };
                 },
         )
-        .filter((node) => !isExternalDbtNode(node));
+        .filter(
+            (node) =>
+                node.package_name === projectName && !isExternalDbtNode(node),
+        );
     const resourceIds = new Set(
         Object.values(manifest.nodes)
             .filter((node) =>

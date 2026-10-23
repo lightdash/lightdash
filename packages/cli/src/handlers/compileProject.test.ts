@@ -90,6 +90,7 @@ const manifest = (
             dbt_schema_version:
                 'https://schemas.getdbt.com/dbt/manifest/v12.json',
             generated_at: '2026-01-01T00:00:00Z',
+            project_name: 'test',
             adapter_type: 'postgres',
         },
         nodes,
@@ -305,7 +306,7 @@ describe('compileProject completeness', () => {
         expect(loadManifest).not.toHaveBeenCalled();
     });
 
-    test('seeds all parsed models, seeds and snapshots before explore selection without filtering access', async () => {
+    test('seeds all owned parsed resources before explore selection without filtering access', async () => {
         vi.mocked(loadManifest).mockResolvedValue(
             manifest({
                 'model.test.orders.v2': dbtNode(
@@ -364,6 +365,12 @@ describe('compileProject completeness', () => {
                         database: null,
                     },
                 ),
+                'model.installed.helper': dbtNode(
+                    'model.installed.helper',
+                    'model',
+                    false,
+                    { package_name: 'installed', access: 'public' },
+                ),
                 'model.remote.placeholder': dbtNode(
                     'model.remote.placeholder',
                     'model',
@@ -387,7 +394,7 @@ describe('compileProject completeness', () => {
         expect(result.explores).toHaveLength(1);
         expect(result.isProjectComplete).toBe(false);
         expect(result.dbtSourceManifest).toEqual({
-            projectName: 'test_project',
+            projectName: 'test',
             dbtVersion: '1.10.19',
             referencedProjects: ['remote'],
             nodes: [
@@ -462,9 +469,49 @@ describe('compileProject completeness', () => {
         });
     });
 
+    test('uses the local project name when the manifest has no project metadata', async () => {
+        const localManifest = manifest({
+            'model.test_project.orders': dbtNode(
+                'model.test_project.orders',
+                'model',
+                true,
+                {
+                    package_name: 'test_project',
+                    access: 'public',
+                },
+            ),
+            'model.installed.orders': dbtNode(
+                'model.installed.orders',
+                'model',
+                false,
+                {
+                    package_name: 'installed',
+                    access: 'public',
+                },
+            ),
+        });
+        delete localManifest.metadata.project_name;
+        vi.mocked(loadManifest).mockResolvedValue(localManifest);
+        vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
+            compiledModelIds: ['model.test_project.orders'],
+            originallySelectedModelIds: undefined,
+        });
+        const result = await compileProject(compileOptions(tempDir));
+        expect(result.dbtSourceManifest).toMatchObject({
+            projectName: 'test_project',
+            nodes: [
+                expect.objectContaining({
+                    package_name: 'test_project',
+                    name: 'orders',
+                }),
+            ],
+        });
+    });
+
     test('seeds only the local source before combining another manifest', async () => {
         const localManifest = manifest({
-            'model.test.orders': dbtNode('model.test.orders', 'model', true, {
+            'model.alpha.orders': dbtNode('model.alpha.orders', 'model', true, {
+                package_name: 'alpha',
                 lightdash_source_name: 'alpha',
                 lightdash_source_uuid: 'alpha-uuid',
             }),
@@ -488,7 +535,7 @@ describe('compileProject completeness', () => {
             }),
         );
         vi.mocked(maybeCompileModelsAndJoins).mockResolvedValue({
-            compiledModelIds: ['model.test.orders'],
+            compiledModelIds: ['model.alpha.orders'],
             originallySelectedModelIds: undefined,
         });
 
