@@ -262,8 +262,8 @@ const harness = ({
         },
     );
     const dbtSourceRefCatalogModel = {
-        get: vi.fn(async (_projectUuid: string, connectionGroup: string) =>
-            connectionGroup === providerGroup
+        get: vi.fn(async (_projectUuid: string, connectionGroup: string) => [
+            ...(connectionGroup === providerGroup
                 ? [
                       {
                           dbt_source_uuid: 'shared-uuid',
@@ -279,8 +279,25 @@ const harness = ({
                           referenced_projects: [],
                       },
                   ]
-                : [],
-        ),
+                : []),
+            ...(!scanned && connectionGroup === 'extra'
+                ? [
+                      {
+                          dbt_source_uuid: 'analytics-uuid',
+                          project_name: 'analytics_project',
+                          status: 'confirmed',
+                          nodes: getExternalModelNodesFromManifest(
+                              manifest(
+                                  'analytics_project',
+                                  'orders',
+                                  SupportedDbtAdapter.TRINO,
+                              ),
+                          ),
+                          referenced_projects: [referencedProject],
+                      },
+                  ]
+                : []),
+        ]),
         replaceConfirmed: vi.fn(async () => undefined),
     };
     const projectModel = {
@@ -503,23 +520,29 @@ describe('cross-connection dbt ref diagnostics', () => {
         },
     );
 
-    it('names both connections and carries the failed Trino group', async () => {
+    it('names both connections and carries only the failed Trino source', async () => {
         const h = harness();
         const compilation = await h.compiler.compile(h.input);
         expect(compilation.warnings).toEqual([
             expect.stringContaining(
                 'Cross-source refs only work between dbt sources on the same warehouse connection.',
             ),
+            expect.stringContaining('Source "analytics" failed'),
         ]);
         expect(compilation.carry).toEqual({
             kind: 'connections',
-            warehouseConnectionUuids: ['extra'],
+            warehouseConnectionUuids: [],
+            dbtSourceUuids: ['analytics-uuid'],
         });
         await h.compiler.save('project', compilation);
         expect(h.saveMultiConnectionExplores).toHaveBeenCalledWith(
             'project',
             expect.anything(),
-            { kind: 'connections', warehouseConnectionUuids: ['extra'] },
+            {
+                kind: 'connections',
+                warehouseConnectionUuids: [],
+                dbtSourceUuids: ['analytics-uuid'],
+            },
             undefined,
             {
                 mode: 'refresh',
@@ -549,13 +572,14 @@ describe('cross-connection dbt ref diagnostics', () => {
         expect(h.withWarehouseClient).toHaveBeenCalledTimes(2);
     });
 
-    it('keeps the exact existing warning when mixed warehouses are disabled', async () => {
+    it('keeps the connection warning when mixed warehouses are disabled', async () => {
         const h = harness({ mixed: false });
         const compilation = await h.compiler.compile(h.input);
         expect(compilation.warnings).toEqual([
             expect.stringContaining(
                 'Cross-source refs only work between dbt sources on the same warehouse connection.',
             ),
+            expect.stringContaining('Source "analytics" failed'),
         ]);
         await expectOriginalExplores(compilation.exploreStream);
     });
@@ -610,7 +634,7 @@ describe('cross-connection dbt ref diagnostics', () => {
             const analyticsCalls = h.fetchSourceManifest.mock.calls.filter(
                 ([dbtSource]) => dbtSource.name === 'analytics',
             );
-            expect(analyticsCalls).toHaveLength(scanned ? 1 : 2);
+            expect(analyticsCalls).toHaveLength(1);
             expect(analyticsCalls.at(-1)?.[3].externalNodes).toEqual([
                 expect.objectContaining({
                     package_name: 'shared_dimensions',
@@ -765,6 +789,7 @@ describe('cross-connection dbt ref diagnostics', () => {
             expect.stringContaining(
                 'Cross-source refs only work between dbt sources on the same warehouse connection.',
             ),
+            expect.stringContaining('Source "analytics" failed'),
         ]);
         const explores = await collect(compilation.exploreStream);
         expectExploreIdentities(explores, [
@@ -791,6 +816,7 @@ describe('cross-connection dbt ref diagnostics', () => {
         const compilation = await h.compiler.compile(h.input);
         expect(compilation.warnings).toEqual([
             expect.stringContaining('Earlier extra'),
+            expect.stringContaining('Source "analytics" failed'),
         ]);
         const explores = await collect(compilation.exploreStream);
         expectExploreIdentities(explores, [
@@ -819,22 +845,41 @@ describe('cross-connection dbt ref diagnostics', () => {
             }
             return prepare(...args);
         });
-        const failure = h.compiler.compile(h.input);
-        await expect(failure).rejects.toThrow(
-            'dbt source "analytics" on warehouse connection "Warehouse A" references project "shared_dimensions", which dbt source "shared" provides on a different warehouse connection ("Warehouse B").',
+        const compilation = await h.compiler.compile(h.input);
+        expect(compilation.warnings).toContainEqual(
+            expect.stringContaining(
+                'dbt source "analytics" on warehouse connection "Warehouse A" references project "shared_dimensions", which dbt source "shared" provides on a different warehouse connection ("Warehouse B").',
+            ),
         );
-        await expect(failure).rejects.toThrow(
-            'Cross-source refs only work between dbt sources on the same warehouse connection.',
-        );
+        expect(compilation.carry).toMatchObject({
+            dbtSourceUuids: expect.arrayContaining([
+                'analytics-uuid',
+                'leaf_b-uuid',
+            ]),
+        });
+        expectExploreIdentities(await collect(compilation.exploreStream), [
+            singletonPrimaryOrdersIdentity,
+            singletonCalendarIdentity,
+        ]);
     });
 
-    it('keeps an original-group failure unchanged', async () => {
+    it('isolates a failed additional source in the original group', async () => {
         const h = harness({ providerGroup: 'later' });
         h.plans[0].sources.push(h.plans[1].sources.pop()!);
-        await expect(h.compiler.compile(h.input)).rejects.toThrow(
-            'Cross-source refs only work between dbt sources on the same warehouse connection.',
+        const compilation = await h.compiler.compile(h.input);
+        expect(compilation.warnings).toContainEqual(
+            expect.stringContaining(
+                'Cross-source refs only work between dbt sources on the same warehouse connection.',
+            ),
         );
-        expect(h.withWarehouseClient).toHaveBeenCalledTimes(2);
+        expect(compilation.carry).toMatchObject({
+            dbtSourceUuids: ['analytics-uuid'],
+        });
+        expectExploreIdentities(await collect(compilation.exploreStream), [
+            singletonPrimaryOrdersIdentity,
+            singletonCalendarIdentity,
+        ]);
+        expect(h.withWarehouseClient).toHaveBeenCalledTimes(4);
     });
 
     it('rejects declarations across connections before any group fetches', async () => {

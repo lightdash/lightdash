@@ -533,19 +533,18 @@ export const deploy = async (
                 },
             ).catch(async (error: unknown) => {
                 if (getAgentConnectionSelection() !== null) throw error;
-                const missingLegacyInventory =
+                const requiresLegacyInventory =
                     error instanceof LightdashError &&
                     options.dbtModelNames === undefined &&
                     options.dbtSourceManifest !== undefined &&
                     error.statusCode === 422 &&
                     error.name === 'ValidateError' &&
                     Object.keys(error.data).length === 1 &&
-                    error.data['body.dbtModelNames']?.message ===
-                        "'dbtModelNames' is required";
+                    Object.hasOwn(error.data, 'body.dbtModelNames');
                 if (
                     !useV2Deploy ||
                     !(error instanceof LightdashError) ||
-                    (error.statusCode !== 404 && !missingLegacyInventory)
+                    (error.statusCode !== 404 && !requiresLegacyInventory)
                 ) {
                     throw error;
                 }

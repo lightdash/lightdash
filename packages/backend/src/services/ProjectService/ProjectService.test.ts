@@ -14733,7 +14733,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     });
 
     it.each([true, false])(
-        'gates managed cross-source retries with flag enabled=%s',
+        'gates managed cross-source injection with flag enabled=%s',
         async (enabled) => {
             const { projectService } = buildServiceWithMocks(true, []);
             projectService.featureFlagModel.get = vi.fn(
@@ -14755,6 +14755,12 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             Object.assign(projectService, {
                 dbtSourceRefCatalogModel: {
                     get: vi.fn(async () => [
+                        {
+                            dbt_source_uuid: 'analytics-uuid',
+                            project_name: 'analytics',
+                            referenced_projects: ['shared'],
+                            nodes: [],
+                        },
                         {
                             dbt_source_uuid: 'primary-source-uuid',
                             project_name: 'shared',
@@ -14801,17 +14807,22 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             const downstreamAdapter = buildAdapterWithManifest(downstream);
             const fetchManifest = vi
                 .mocked(downstreamAdapter.getDbtManifest)
-                .mockRejectedValueOnce(error)
-                .mockResolvedValueOnce({
-                    manifest: {
-                        ...downstream,
-                        nodes: { ...downstream.nodes, [stub.unique_id]: stub },
-                    },
-                    selectedModelIds: [
-                        stub.unique_id,
-                        'model.analytics.orders',
-                    ],
-                    timings: NO_FETCH_TIMINGS,
+                .mockImplementation(async (options) => {
+                    if (!options?.externalNodes?.length) throw error;
+                    return {
+                        manifest: {
+                            ...downstream,
+                            nodes: {
+                                ...downstream.nodes,
+                                [stub.unique_id]: stub,
+                            },
+                        },
+                        selectedModelIds: [
+                            stub.unique_id,
+                            'model.analytics.orders',
+                        ],
+                        timings: NO_FETCH_TIMINGS,
+                    };
                 });
             const build = vi
                 .spyOn(projectService, 'buildSourceAdapter')
@@ -14837,13 +14848,13 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 expect(merged.manifest.nodes[stub.unique_id]).toMatchObject({
                     path: 'models/calendar.sql',
                 });
-                expect(fetchManifest).toHaveBeenCalledTimes(2);
+                expect(fetchManifest).toHaveBeenCalledTimes(1);
                 expect(downstreamAdapter.releaseDisk).toHaveBeenCalledOnce();
                 expect(
                     vi.mocked(downstreamAdapter.releaseDisk).mock
                         .invocationCallOrder[0],
-                ).toBeGreaterThan(fetchManifest.mock.invocationCallOrder[1]);
-                expect(fetchManifest.mock.calls[1][0]?.externalNodes).toEqual([
+                ).toBeGreaterThan(fetchManifest.mock.invocationCallOrder[0]);
+                expect(fetchManifest.mock.calls[0][0]?.externalNodes).toEqual([
                     expect.objectContaining({
                         package_name: 'shared',
                         name: 'calendar',

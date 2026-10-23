@@ -10,13 +10,25 @@ import { DbtSourceError } from './DbtSourceError';
 export const DBT_EXTERNAL_NODES_PLUGIN_FILENAME =
     'dbt_lightdash_external_nodes.py';
 
-export const DBT_EXTERNAL_NODES_PLUGIN_SOURCE = `import hashlib
+export const DBT_EXTERNAL_NODES_PLUGIN_SOURCE = `from dataclasses import dataclass
 import json
 import os
 
 from dbt.contracts.graph.node_args import ModelNodeArgs
 from dbt.plugins.manager import dbt_hook, dbtPlugin
 from dbt.plugins.manifest import PluginNodes
+
+
+@dataclass
+class ExternalNodeArgs(ModelNodeArgs):
+    resource_type: str = "model"
+
+    @property
+    def unique_id(self) -> str:
+        unique_id = f"{self.resource_type}.{self.package_name}.{self.name}"
+        if self.version is not None:
+            unique_id = f"{unique_id}.v{self.version}"
+        return unique_id
 
 
 class LightdashExternalNodes(dbtPlugin):
@@ -35,16 +47,11 @@ class LightdashExternalNodes(dbtPlugin):
             if raw["package_name"] == self.project_name:
                 continue
             nodes.add_model(
-                ModelNodeArgs(
+                ExternalNodeArgs(
+                    resource_type=raw.get("resource_type") or "model",
                     name=raw["name"],
                     package_name=raw["package_name"],
-                    identifier=(
-                        "lightdash_" + hashlib.sha256(
-                            json.dumps([raw["package_name"], raw["name"], raw.get("version")]).encode()
-                        ).hexdigest()
-                        if raw["schema"] == "lightdash_placeholder"
-                        else raw["identifier"]
-                    ),
+                    identifier=raw["identifier"],
                     schema=raw["schema"],
                     database=raw.get("database"),
                     relation_name=raw.get("relation_name"),
@@ -147,26 +154,3 @@ export const withCrossSourceRefsHint = (
     }
     return error;
 };
-
-export const placeholderExternalNode = ({
-    packageName,
-    name,
-    version,
-    latestVersion,
-}: {
-    packageName: string;
-    name: string;
-    version: string | null;
-    latestVersion: string | null;
-}): DbtExternalModelNode => ({
-    package_name: packageName,
-    name,
-    identifier: name,
-    schema: 'lightdash_placeholder',
-    database: null,
-    relation_name: null,
-    version,
-    latest_version: latestVersion,
-    access: 'public',
-    depends_on_nodes: [],
-});

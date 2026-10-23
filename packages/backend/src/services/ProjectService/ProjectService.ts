@@ -4318,24 +4318,17 @@ export class ProjectService
     private async prepareDeploySourceManifest({
         projectUuid,
         userUuid,
-        complete,
         explores,
         dbtSourceManifest,
         sourceUuid,
     }: {
         projectUuid: string;
         userUuid: string;
-        complete?: boolean;
         explores: (Explore | ExploreError)[];
         dbtSourceManifest?: DbtSourceManifest;
         sourceUuid: string | null;
     }): Promise<CrossSourceCatalogCache | null> {
-        if (
-            !dbtSourceManifest ||
-            complete !== true ||
-            explores.some(isExploreError)
-        )
-            return null;
+        if (!dbtSourceManifest || explores.some(isExploreError)) return null;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         const { enabled } = await this.featureFlagModel.get({
@@ -8997,7 +8990,6 @@ export class ProjectService
             ...(crossSourceRefsEnabled
                 ? {
                       signal: armCompileShutdown(),
-                      maxPasses: this.lightdashConfig.dbt.crossSourceMaxPasses,
                       cache: cachedCatalogs,
                       onSourceResolved: async ({
                           task,
@@ -9209,9 +9201,6 @@ export class ProjectService
                     event: 'dbt.compile.crossSourceRefsResolved',
                     projectUuid,
                     rounds: resolution.rounds,
-                    passes: resolution.passes,
-                    stubs: resolution.stubs,
-                    contradictions: resolution.contradictions,
                     sourceTimings: resolution.sources,
                     cacheRowsLoaded: catalogCache?.rowsLoaded ?? 0,
                     cacheRowsWritten: catalogCache?.rowsWritten ?? 0,
@@ -9627,8 +9616,6 @@ export class ProjectService
             mixedWarehouseConnectionsEnabled,
             ...(crossSourceRefsEnabled
                 ? {
-                      crossSourceMaxPasses:
-                          this.lightdashConfig.dbt.crossSourceMaxPasses,
                       compileJobUuid: jobUuid ?? null,
                       crossSourceTimeouts: {
                           prepareMs:

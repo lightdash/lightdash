@@ -110,12 +110,42 @@ it.each(['single', 'multi'] as const)(
 );
 
 it.each([
-    { complete: false },
     { dbtSourceManifest: undefined },
     { explores: [{ errors: [{ message: 'compile failed' }] } as ExploreError] },
-])('does not seed an incomplete or failed compile: %j', async (extra) => {
+])('does not seed an absent manifest or failed compile: %j', async (extra) => {
     const { deploy, replaceConfirmed } = setup();
     await deploy(extra);
+    expect(replaceConfirmed).not.toHaveBeenCalled();
+});
+
+it('seeds the complete parsed manifest after a selective deploy publishes', async () => {
+    const { deploy, replaceConfirmed, publish } = setup();
+    await deploy({ complete: false });
+    expect(replaceConfirmed).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+            entries: [expect.objectContaining({ nodes: manifest.nodes })],
+        }),
+    );
+    expect(publish.mock.invocationCallOrder[0]).toBeLessThan(
+        replaceConfirmed.mock.invocationCallOrder[0],
+    );
+});
+
+it('retains the snapshot when a selective deploy fails to publish', async () => {
+    const { deploy, replaceConfirmed, publish } = setup();
+    publish.mockRejectedValue(new Error('publication failed'));
+    await expect(deploy({ complete: false })).rejects.toThrow(
+        'publication failed',
+    );
+    expect(replaceConfirmed).not.toHaveBeenCalled();
+});
+
+it('keeps the existing complete-deploy requirement for multiple connections', async () => {
+    const { deploy, replaceConfirmed, publish } = setup('multi');
+    await expect(deploy({ complete: false })).rejects.toThrow(
+        'must send every explore of its dbt source',
+    );
+    expect(publish).not.toHaveBeenCalled();
     expect(replaceConfirmed).not.toHaveBeenCalled();
 });
 

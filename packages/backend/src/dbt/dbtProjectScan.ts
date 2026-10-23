@@ -32,13 +32,35 @@ const readYaml = async (filename: string): Promise<unknown> => {
     }
 };
 
-const modelDirectories = (root: string, project: unknown): string[] =>
-    (isRecord(project) && Array.isArray(project['model-paths'])
-        ? project['model-paths'].filter(
-              (entry): entry is string => typeof entry === 'string',
-          )
-        : ['models']
-    ).map((directory) => path.resolve(root, directory));
+const resourceDirectories = (root: string, project: unknown) => {
+    const directories = (resource: 'model' | 'seed' | 'snapshot') => {
+        const configured = isRecord(project)
+            ? project[`${resource}-paths`]
+            : null;
+        return (
+            Array.isArray(configured)
+                ? configured.filter(
+                      (entry): entry is string => typeof entry === 'string',
+                  )
+                : [`${resource}s`]
+        ).map((directory) => path.resolve(root, directory));
+    };
+    return {
+        models: directories('model'),
+        seeds: directories('seed'),
+        snapshots: directories('snapshot'),
+    };
+};
+
+const isWithinDirectories = (filename: string, directories: string[]) =>
+    directories.some((root) => {
+        const relative = path.relative(root, filename);
+        return (
+            !relative.startsWith(`..${path.sep}`) &&
+            relative !== '..' &&
+            !path.isAbsolute(relative)
+        );
+    });
 
 const normalizeVersion = (version: string | null): string | null =>
     version !== null && /^\d+(?:\.\d+)?$/.test(version)
@@ -81,7 +103,7 @@ export const scanDbtProject = async (
     const walk = async (
         directory: string,
         packageModels: Set<string> | null = null,
-        modelPaths = modelDirectories(projectDir, project),
+        resourcePaths = resourceDirectories(projectDir, project),
     ): Promise<void> => {
         try {
             const entries = await fs.readdir(directory, {
@@ -97,56 +119,84 @@ export const scanDbtProject = async (
                             entry.name,
                         )
                     ) {
-                        await walk(filename, packageModels, modelPaths);
+                        await walk(filename, packageModels, resourcePaths);
                     } else if (
                         entry.isFile() &&
-                        /\.(sql|py|ya?ml)$/.test(entry.name)
+                        /\.(sql|py|csv|ya?ml)$/.test(entry.name)
                     ) {
                         try {
+                            const models = packageModels ?? localModels;
+                            if (/\.csv$/.test(entry.name)) {
+                                if (
+                                    isWithinDirectories(
+                                        filename,
+                                        resourcePaths.seeds,
+                                    )
+                                )
+                                    models.add(
+                                        entry.name.replace(/\.csv$/, ''),
+                                    );
+                                return;
+                            }
                             if (
                                 (await fs.stat(filename)).size >
                                 2 * 1024 * 1024
                             )
                                 return;
                             const content = await fs.readFile(filename, 'utf8');
-                            const models = packageModels ?? localModels;
                             if (
-                                modelPaths.some((root) => {
-                                    const relative = path.relative(
-                                        root,
-                                        filename,
-                                    );
-                                    return (
-                                        !relative.startsWith(`..${path.sep}`) &&
-                                        relative !== '..' &&
-                                        !path.isAbsolute(relative)
-                                    );
-                                })
+                                isWithinDirectories(
+                                    filename,
+                                    resourcePaths.models,
+                                ) &&
+                                /\.(sql|py)$/.test(entry.name)
+                            )
+                                models.add(
+                                    entry.name
+                                        .replace(/\.(sql|py)$/, '')
+                                        .replace(/_v\d+$/, ''),
+                                );
+                            if (
+                                isWithinDirectories(
+                                    filename,
+                                    resourcePaths.snapshots,
+                                ) &&
+                                /\.sql$/.test(entry.name)
                             ) {
-                                if (/\.(sql|py)$/.test(entry.name))
-                                    models.add(
-                                        entry.name
-                                            .replace(/\.(sql|py)$/, '')
-                                            .replace(/_v\d+$/, ''),
+                                for (const match of content.matchAll(
+                                    /{%[-+]?\s*snapshot\s+([A-Za-z_][A-Za-z0-9_]*)\s*[-+]?%}/g,
+                                ))
+                                    models.add(match[1]);
+                            }
+                            if (
+                                /\.ya?ml$/.test(entry.name) &&
+                                isWithinDirectories(filename, [
+                                    ...resourcePaths.models,
+                                    ...resourcePaths.seeds,
+                                    ...resourcePaths.snapshots,
+                                ])
+                            ) {
+                                const schema: unknown =
+                                    await readYaml(filename);
+                                if (isRecord(schema)) {
+                                    ['models', 'seeds', 'snapshots'].forEach(
+                                        (resource) => {
+                                            const nodes = schema[resource];
+                                            if (Array.isArray(nodes))
+                                                nodes.forEach(
+                                                    (node: unknown) => {
+                                                        if (
+                                                            isRecord(node) &&
+                                                            typeof node.name ===
+                                                                'string'
+                                                        )
+                                                            models.add(
+                                                                node.name,
+                                                            );
+                                                    },
+                                                );
+                                        },
                                     );
-                                else {
-                                    const schema: unknown =
-                                        await readYaml(filename);
-                                    if (
-                                        isRecord(schema) &&
-                                        Array.isArray(schema.models)
-                                    ) {
-                                        schema.models.forEach(
-                                            (model: unknown) => {
-                                                if (
-                                                    isRecord(model) &&
-                                                    typeof model.name ===
-                                                        'string'
-                                                )
-                                                    models.add(model.name);
-                                            },
-                                        );
-                                    }
                                 }
                             }
                             if (packageModels !== null) return;
@@ -215,7 +265,7 @@ export const scanDbtProject = async (
                             await walk(
                                 path.join(packagesPath, entry.name),
                                 installedPackageModels,
-                                modelDirectories(
+                                resourceDirectories(
                                     path.join(packagesPath, entry.name),
                                     installed,
                                 ),

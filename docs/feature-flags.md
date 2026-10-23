@@ -131,28 +131,43 @@ overrides apply on the next compile or deploy; ENV changes require API and worke
 restarts. Connected-source compilation also requires `multi-dbt-sources`.
 
 With the flag on, each refresh captures the confirmed ref catalogue for each
-connected source in its warehouse connection group. This manifest projection
-stores all real models, their relation, version, access and dependency fields.
-The stitcher uses the public-only share surface of dbt Mesh and loom: only models
-with explicit `access: public` can cross sources, then refs select the models to
-inject. Protected and private models cannot cross, including models with missing
-or null access, which default to protected. Dependency traversal includes only
-public models and removes non-public dependency links from injected nodes.
-Fresh disk parsing cannot replace these bindings during the refresh. This does
-not add a loom dependency to the API or worker image.
+connected source in its warehouse connection group. The v1 projection stores all
+real models, seeds and snapshots, including relation, version, access and dependency
+fields. Only explicit `access: public` resources cross sources. Seed and snapshot
+access comes from their explicit `config.access`. Missing or null access defaults
+to protected. Protected and private resources do not cross.
 
-A successful server compile or complete CLI deploy confirms the next snapshot.
-Failed or incomplete work retains the previous snapshot. If any explore has a
-compile error, no source snapshot advances in that compile. Provisional catalogue
-rows do not count as seeds. An unseeded upstream causes a warning naming the
-source and a compile failure; the resolver does not invent nodes or use a fresh
-disk parse as a seed.
+The stitcher uses scans, declared upstreams and stored references to choose
+providers. It injects each referenced provider's whole public surface and retains
+only dependency links whose targets are in that injection. Each model ID must
+have one provider. Ambiguous providers fail. Each source parses once; missing-ref
+errors provide diagnostics and never trigger retries or placeholder injection.
+Dynamic refs must identify their provider through a declaration or stored reference
+when the scan cannot identify it.
 
-Use a CLI that sends source manifest metadata to seed existing connected sources.
-`--combine-manifest` keeps the local source's seed separate from the models added
-for compilation. Older CLI uploads do not seed the store. Deploy the updated API
-and workers before enabling this policy. With the flag off, ordinary compilation
-and deploy behaviour applies, and stored snapshots remain unused by the stitcher.
+A confirmed snapshot always wins over fresh disk output during the refresh. If an
+upstream has no confirmed snapshot, the resolver warns with its name and compiles
+unseeded providers in dependency order. Their successful parse results supply the
+missing seeds in memory. A cold dependency cycle that cannot bootstrap still
+fails loudly; it does not invent a snapshot. New snapshots become confirmed only
+after successful publication. Failed work retains the previous snapshots. If any
+explore has a compile error, no source snapshot advances in that compile.
+
+Successful selective CLI deploys also seed: `-s` selects explores, but the parsed
+manifest is complete. Existing restrictions on selective explore publication in
+multi-connection projects still apply; a rejected deploy cannot seed. Older CLI
+uploads without source manifest metadata do not seed the store.
+`--combine-manifest` keeps the local source's projection separate from added models.
+
+Routing a primary source with zero additional sources through the merged adapter
+under `cross-source-dbt-refs` is intentional. It seeds that source for later
+consumers and still requires `multi-dbt-sources`. The merged-manifest blob and
+per-source projections both remain in use. No loom dependency is added to the API
+or worker image, and no manifest URL field is introduced.
+
+Deploy the updated API and workers before enabling this policy. With the flag off,
+ordinary compilation and deploy behaviour applies, and the stitcher does not read
+the stored snapshots.
 
 ## Refresh, caching, and restart expectations
 

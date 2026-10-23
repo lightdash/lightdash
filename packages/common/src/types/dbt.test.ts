@@ -5,6 +5,7 @@ import {
     flattenAiHints,
     getDbtManifestPackageNames,
     getEffectiveFieldAiHints,
+    getExternalDbtNodeUniqueId,
     getExternalModelNodesFromManifest,
     getModelsFromManifest,
     isExternalDbtNode,
@@ -500,7 +501,12 @@ describe('external dbt model nodes', () => {
                 stub,
                 local,
                 ephemeral,
-                seed: { ...local, resource_type: 'seed' },
+                seed: {
+                    ...local,
+                    name: 'raw',
+                    unique_id: 'seed.test.raw',
+                    resource_type: 'seed',
+                },
             }),
         );
         expect(nodes).toEqual([
@@ -526,7 +532,24 @@ describe('external dbt model nodes', () => {
                 version: 2,
                 latest_version: 3,
                 access: 'public',
-                depends_on_nodes: [local.unique_id, stub.unique_id],
+                depends_on_nodes: [
+                    local.unique_id,
+                    'seed.test.raw',
+                    stub.unique_id,
+                ],
+            },
+            {
+                resource_type: 'seed',
+                name: 'raw',
+                package_name: 'test',
+                identifier: 'model',
+                schema: 'public',
+                database: 'db',
+                relation_name: baseModel.relation_name,
+                version: null,
+                latest_version: null,
+                access: null,
+                depends_on_nodes: [stub.unique_id],
             },
         ]);
         expect(
@@ -545,6 +568,53 @@ describe('external dbt model nodes', () => {
             relation_name: null,
             depends_on_nodes: [],
         });
+    });
+    it('retains native seed and snapshot identities and explicit access from config', () => {
+        const nodes = getExternalModelNodesFromManifest(
+            makeManifest({
+                seed: {
+                    ...local,
+                    name: 'lookup',
+                    unique_id: 'seed.test.lookup',
+                    resource_type: 'seed',
+                    config: { materialized: 'seed', access: 'public' },
+                },
+                snapshot: {
+                    ...local,
+                    name: 'history',
+                    unique_id: 'snapshot.test.history',
+                    resource_type: 'snapshot',
+                    config: { materialized: 'snapshot', access: 'public' },
+                    depends_on: { nodes: ['seed.test.lookup'], macros: [] },
+                },
+                protectedSnapshot: {
+                    ...local,
+                    name: 'internal_history',
+                    unique_id: 'snapshot.test.internal_history',
+                    resource_type: 'snapshot',
+                },
+                externalSeed: { ...stub, resource_type: 'seed' },
+                externalSnapshot: { ...stub, resource_type: 'snapshot' },
+            }),
+        );
+        expect(nodes.map(getExternalDbtNodeUniqueId)).toEqual([
+            'seed.test.lookup',
+            'snapshot.test.history',
+            'snapshot.test.internal_history',
+        ]);
+        expect(nodes.map((node) => node.access)).toEqual([
+            'public',
+            'public',
+            null,
+        ]);
+        expect(nodes[1].depends_on_nodes).toEqual(['seed.test.lookup']);
+        expect(
+            getExternalDbtNodeUniqueId({
+                ...nodes[0],
+                resource_type: undefined,
+                version: 0,
+            }),
+        ).toBe('model.test.lookup.v0');
     });
     it('strips stubs without changing dependencies or mutating the input', () => {
         const stripped = stripExternalDbtNodes(manifest);

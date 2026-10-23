@@ -1,15 +1,20 @@
-import { placeholderExternalNode } from '../dbt/dbtExternalNodes';
 import Logger from '../logging/logger';
 import { type DbtSourceRefCatalogModel } from '../models/DbtSourceRefCatalogModel';
 import { CrossSourceCatalogCache } from './crossSourceCatalogCache';
 
 const nodes = [
-    placeholderExternalNode({
-        packageName: 'provider',
+    {
+        package_name: 'provider',
         name: 'orders',
+        identifier: 'orders',
+        schema: 'public',
+        database: 'warehouse',
+        relation_name: 'warehouse.public.orders',
         version: null,
-        latestVersion: null,
-    }),
+        latest_version: null,
+        access: 'public',
+        depends_on_nodes: [] as string[],
+    },
 ];
 const setup = () => {
     const model = {

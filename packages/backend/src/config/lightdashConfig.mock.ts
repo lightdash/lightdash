@@ -127,7 +127,6 @@ export const lightdashConfigMock: LightdashConfig = {
     dbt: {
         environmentVariableAllowlist: [],
         sourceFetchConcurrency: undefined,
-        crossSourceMaxPasses: 3,
         sourceFetchDiskBudgetBytes: undefined,
         sourceFetchDiskPerSourceBytes: 256 * 1024 ** 2,
         crossSourcePrepareTimeoutMs: 180000,

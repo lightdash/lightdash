@@ -324,6 +324,129 @@ describe.skipIf(!executable)('last-good manifests with real dbt 1.12', () => {
         expect(storedRoot.depends_on_nodes).toHaveLength(3);
     }, 120000);
 
+    it('fresh-seeds a reversed cold chain once in provider order', async () => {
+        const provider = await createTask(
+            'cold_provider',
+            { shared: 'select 1 as id' },
+            'version: 2\nmodels:\n  - name: shared\n    access: public\n',
+        );
+        const middle = await createTask(
+            'cold_middle',
+            {
+                middle_shared:
+                    "select * from {{ ref('cold_provider', 'shared') }}",
+            },
+            'version: 2\nmodels:\n  - name: middle_shared\n    access: public\n',
+        );
+        const consumer = await createTask(
+            'cold_consumer',
+            {
+                report: "select * from {{ ref('cold_middle', 'middle_shared') }}",
+            },
+            'version: 2\nmodels:\n  - name: report\n',
+        );
+        const fetched: string[] = [];
+        const tasks = [consumer, middle, provider].map((task) => ({
+            ...task,
+            fetch: vi.fn(async (options: Parameters<typeof task.fetch>[0]) => {
+                fetched.push(task.key);
+                return task.fetch(options);
+            }),
+        }));
+        const result = await resolveCrossSourceManifests({
+            tasks,
+            enabled: true,
+            concurrency: 2,
+        });
+        expect(fetched).toEqual([
+            'cold_provider',
+            'cold_middle',
+            'cold_consumer',
+        ]);
+        expect(result.attempts).toBe(3);
+        for (const task of tasks) expect(task.fetch).toHaveBeenCalledOnce();
+        expect(result.warnings.join(' ')).toContain('cold_provider');
+        expect(result.warnings.join(' ')).toContain('cold_middle');
+        expect(
+            dependencies(
+                result.results[0].result.manifest,
+                'model.cold_consumer.report',
+            ),
+        ).toEqual(['model.cold_middle.middle_shared']);
+    }, 120000);
+
+    it('resolves explicitly public seed and snapshot projections with native ids', async () => {
+        const provider = await createTask(
+            'resources',
+            { base: 'select 1 as id' },
+            'version: 2\nmodels:\n  - name: base\n    access: public\n',
+        );
+        const root = clients[clients.length - 1].dbtProjectDirectory;
+        await fs.mkdir(path.join(root, 'seeds'));
+        await fs.mkdir(path.join(root, 'snapshots'));
+        await fs.writeFile(path.join(root, 'seeds', 'lookup.csv'), 'id\n1\n');
+        await fs.appendFile(
+            path.join(root, 'dbt_project.yml'),
+            'seeds:\n  resources:\n    +access: public\n',
+        );
+        await fs.writeFile(
+            path.join(root, 'snapshots', 'history.sql'),
+            "{% snapshot history %}\n{{ config(target_schema='sim', unique_key='id', strategy='timestamp', updated_at='updated_at', access='public') }}\nselect id, current_timestamp as updated_at from {{ ref('lookup') }}\n{% endsnapshot %}\n",
+        );
+        const nodes = getExternalModelNodesFromManifest(
+            (await provider.fetch({ externalNodes: [] })).manifest,
+        );
+        expect(nodes).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    name: 'lookup',
+                    resource_type: 'seed',
+                    access: 'public',
+                }),
+                expect.objectContaining({
+                    name: 'history',
+                    resource_type: 'snapshot',
+                    access: 'public',
+                    depends_on_nodes: ['seed.resources.lookup'],
+                }),
+            ]),
+        );
+        const consumer = await createTask(
+            'resource_consumer',
+            {
+                report: "select a.id from {{ ref('resources', 'lookup') }} a join {{ ref('resources', 'history') }} b on a.id = b.id",
+            },
+            'version: 2\nmodels:\n  - name: report\n',
+        );
+        const result = await resolveCrossSourceManifests({
+            tasks: [consumer, provider],
+            enabled: true,
+            concurrency: 2,
+            cache: [
+                {
+                    key: provider.key,
+                    projectName: provider.key,
+                    nodes,
+                    referencedProjects: [],
+                },
+            ],
+        });
+        expect(
+            dependencies(
+                result.results[0].result.manifest,
+                'model.resource_consumer.report',
+            ),
+        ).toEqual(['seed.resources.lookup', 'snapshot.resources.history']);
+        expect(
+            result.results[0].result.manifest.nodes['seed.resources.lookup'],
+        ).toBeUndefined();
+        expect(
+            result.results[0].result.manifest.nodes[
+                'snapshot.resources.history'
+            ],
+        ).toBeUndefined();
+    }, 120000);
+
     it('ignores the store and keeps ordinary dbt failure with the flag off', async () => {
         const warn = vi.spyOn(Logger, 'warn');
         try {

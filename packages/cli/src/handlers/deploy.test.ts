@@ -527,19 +527,21 @@ describe('deploy dbt source and target transport', () => {
     });
 
     test.each([
-        { batchedDeploy: true, dbtModelNames: undefined },
-        { batchedDeploy: false, dbtModelNames: undefined },
-        { batchedDeploy: true, dbtModelNames: ['orders'] },
-        { batchedDeploy: false, dbtModelNames: ['orders'] },
+        { batchedDeploy: true, dbtModelNames: undefined, complete: true },
+        { batchedDeploy: false, dbtModelNames: undefined, complete: true },
+        { batchedDeploy: true, dbtModelNames: ['orders'], complete: true },
+        { batchedDeploy: false, dbtModelNames: ['orders'], complete: true },
+        { batchedDeploy: true, dbtModelNames: undefined, complete: false },
+        { batchedDeploy: false, dbtModelNames: undefined, complete: false },
     ])(
         'sends the source manifest on the final write: %j',
-        async ({ batchedDeploy, dbtModelNames }) => {
+        async ({ batchedDeploy, dbtModelNames, complete }) => {
             vi.mocked(lightdashApi).mockImplementation(batchedResponses);
 
             await deploy([compiledExplore], {
                 ...deployOptions,
                 batchedDeploy,
-                complete: true,
+                complete,
                 dbtModelNames,
                 sourceUuid: 'alpha-uuid',
                 deployTarget: { database: 'alpha' },
@@ -563,7 +565,7 @@ describe('deploy dbt source and target transport', () => {
             expect(JSON.parse(String(finalWrite?.body))).toEqual({
                 ...(batchedDeploy
                     ? {}
-                    : { explores: [compiledExplore], complete: true }),
+                    : { explores: [compiledExplore], complete }),
                 ...(dbtModelNames === undefined ? {} : { dbtModelNames }),
                 sourceUuid: 'alpha-uuid',
                 target: { database: 'alpha' },
@@ -621,43 +623,70 @@ describe('deploy dbt source and target transport', () => {
         });
     });
 
-    test.each([true, false])(
-        'falls back only for an old server missing inventory validation: %s',
-        async (onlyMissingInventory) => {
-            const error = new LightdashError({
-                name: 'ValidateError',
-                statusCode: 422,
-                message: "body.dbtModelNames: 'dbtModelNames' is required",
-                data: {
-                    'body.dbtModelNames': {
-                        message: "'dbtModelNames' is required",
-                    },
-                    ...(onlyMissingInventory
-                        ? {}
-                        : { 'body.explores': { message: 'invalid explores' } }),
-                },
-            });
+    test.each([
+        { message: "'dbtModelNames' is required" },
+        { message: 'This field must be provided' },
+        { message: 'Dieses Feld ist erforderlich' },
+        {},
+    ])(
+        'uses the legacy inventory field response without message matching: %j',
+        async (field) => {
             vi.mocked(lightdashApi).mockImplementation(async ({ url }) => {
-                if (url.endsWith('/deploy')) throw error;
+                if (url.endsWith('/deploy'))
+                    throw new LightdashError({
+                        name: 'ValidateError',
+                        statusCode: 422,
+                        message: 'Invalid request',
+                        data: { 'body.dbtModelNames': field },
+                    });
                 return null as never;
             });
-            const deploying = deploy([compiledExplore], {
+            await deploy([compiledExplore], {
                 ...deployOptions,
                 batchedDeploy: false,
                 complete: true,
                 dbtSourceManifest,
             });
-            if (onlyMissingInventory) {
-                await deploying;
-                expect(lightdashApi).toHaveBeenCalledWith({
-                    method: 'PUT',
-                    url: '/api/v1/projects/project-uuid/explores?complete=true',
-                    body: JSON.stringify([compiledExplore]),
-                });
-            } else {
-                await expect(deploying).rejects.toThrow();
-                expect(lightdashApi).toHaveBeenCalledTimes(1);
-            }
+            expect(lightdashApi).toHaveBeenCalledWith({
+                method: 'PUT',
+                url: '/api/v1/projects/project-uuid/explores?complete=true',
+                body: JSON.stringify([compiledExplore]),
+            });
+        },
+    );
+
+    test.each([
+        {
+            data: {
+                'body.dbtModelNames': { message: 'required' },
+                'body.explores': { message: 'invalid explores' },
+            },
+        },
+        { data: { 'body.explores': { message: 'invalid explores' } } },
+        {
+            data: { 'body.dbtModelNames': { message: 'invalid inventory' } },
+            dbtModelNames: ['orders'],
+        },
+    ])(
+        'does not fall back for other validation failures: %j',
+        async ({ data, dbtModelNames }) => {
+            const error = new LightdashError({
+                name: 'ValidateError',
+                statusCode: 422,
+                message: 'Invalid request',
+                data,
+            });
+            vi.mocked(lightdashApi).mockRejectedValue(error);
+            await expect(
+                deploy([compiledExplore], {
+                    ...deployOptions,
+                    batchedDeploy: false,
+                    complete: true,
+                    dbtSourceManifest,
+                    dbtModelNames,
+                }),
+            ).rejects.toBe(error);
+            expect(lightdashApi).toHaveBeenCalledTimes(1);
         },
     );
 

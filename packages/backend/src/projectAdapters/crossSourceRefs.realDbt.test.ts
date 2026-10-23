@@ -132,6 +132,10 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         ),
                 });
                 if (dynamicOnly) {
+                    await fs.writeFile(
+                        path.join(copy, 'dependencies.yml'),
+                        'projects:\n  - name: dyn_upstream\n',
+                    );
                     await Promise.all(
                         (await fs.readdir(path.join(copy, 'models')))
                             .filter(
@@ -362,7 +366,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                             clients[clients.length - 1].dbtProjectDirectory;
                         await fs.writeFile(
                             path.join(copy, 'dbt_project.yml'),
-                            `name: ${project}\nversion: '1.0.0'\nconfig-version: 2\nprofile: cross_source_refs\nmodels:\n  ${project}:\n    +access: public\n`,
+                            `name: ${project}\nversion: '1.0.0'\nconfig-version: 2\nprofile: cross_source_refs\nmodels:\n  ${project}:\n    +access: public\n    +schema: ${project}\n`,
                         );
                         await fs.rm(path.join(copy, 'models'), {
                             recursive: true,
@@ -403,15 +407,14 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         enabled: true,
                         concurrency: 1,
                     });
-                    if (!explicit) {
+                    if (oneArg && usesPrimary) {
                         await expect(resolution).rejects.toThrow(
-                            "name 'm' is defined by several dbt sources. Use ref('project', 'model')",
+                            /multiple packages|several dbt sources/,
                         );
                         return;
                     }
                     const resolved = await resolution;
-                    expect(resolved.passes).toBe(1);
-                    expect(resolved.contradictions).toBe(0);
+                    expect(resolved.rounds).toBe(1);
                     expect(
                         resolved.sources?.map((source) => source.lsRuns),
                     ).toEqual([1, 1, 1]);
@@ -460,7 +463,9 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     expect(resolution.warnings).toEqual([
                         expect.stringContaining('Cold start:'),
                     ]);
-                    expect(resolution.results[0].injectedFrom).toEqual([]);
+                    expect(resolution.results[0].injectedFrom).toEqual([
+                        'access_upstream',
+                    ]);
                 },
                 120_000,
             );
@@ -512,14 +517,14 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 });
                 expect(resolution.attempts).toBe(3);
                 expect(resolution.firstAttemptInjected).toBe(2);
-                expect(resolution.passes).toBe(1);
+                expect(resolution.rounds).toBe(1);
                 expect(resolution.results[0].injectedFrom.sort()).toEqual([
                     'analytics',
                     'shared_dimensions',
                 ]);
             }, 120_000);
 
-            it('resolves dynamic var, macro and set refs missed by the scan with a retry', async () => {
+            it('resolves dynamic model names in a declared provider with one fetch per source', async () => {
                 const resolution = await resolveSeeded({
                     tasks: [
                         await task('dyn_downstream', null, false, true, true),
@@ -529,8 +534,8 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     enabled: true,
                     concurrency: 1,
                 });
-                expect(resolution.passes).toBe(3);
-                expect(resolution.attempts).toBe(5);
+                expect(resolution.rounds).toBe(1);
+                expect(resolution.attempts).toBe(3);
                 for (const name of ['m_var', 'm_set', 'm_macro'])
                     expect(
                         resolution.results[0].result.manifest.nodes[
@@ -544,7 +549,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     'shared_dimensions',
                     'analytics',
                 ]);
-                expect(resolution.passes).toBe(1);
+                expect(resolution.rounds).toBe(1);
                 const { manifest } = resolution.results[1].result;
                 expect(
                     Object.values(manifest.nodes).filter((node) =>
@@ -569,7 +574,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     'analytics',
                     'shared_dimensions',
                 ]);
-                expect(resolution.passes).toBe(1);
+                expect(resolution.rounds).toBe(1);
                 expect(resolution.results[0].injectedFrom.sort()).toEqual([
                     'analytics',
                     'shared_dimensions',
@@ -588,7 +593,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     'diamond_right',
                     'diamond_top',
                 ]);
-                expect(resolution.passes).toBe(1);
+                expect(resolution.rounds).toBe(1);
                 expect(
                     resolution.results[3].result.manifest.nodes[
                         'model.diamond_top.joined_days'
@@ -610,7 +615,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 'allows project cycles %j in one pass',
                 async (...projects) => {
                     const resolution = await resolve(projects);
-                    expect(resolution.passes).toBe(1);
+                    expect(resolution.rounds).toBe(1);
                     expect(resolution.attempts).toBe(projects.length);
                 },
                 120_000,
@@ -631,19 +636,6 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     cache[1].nodes.find((node) => node.name === 'model_b')!
                         .depends_on_nodes,
                 ).toContain('model.node_cycle_a.model_a');
-                const { fetch } = tasks[0];
-                let output = '';
-                tasks[0].fetch = async (options) => {
-                    try {
-                        return await fetch(options);
-                    } catch (error) {
-                        if (error instanceof DbtError)
-                            output = (error.logs ?? [])
-                                .map((log) => log.info.msg)
-                                .join('\n');
-                        throw error;
-                    }
-                };
                 await expect(
                     resolveSeeded({
                         tasks,
@@ -651,16 +643,8 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         concurrency: 1,
                         cache,
                     }),
-                ).rejects.toThrow();
-                const cycle = output
-                    .match(/Found a cycle: ([^\n]+)/)?.[1]
-                    .split(' --> ');
-                expect(cycle).toHaveLength(2);
-                expect(new Set(cycle)).toEqual(
-                    new Set([
-                        'model.node_cycle_a.model_a',
-                        'model.node_cycle_b.model_b',
-                    ]),
+                ).rejects.toThrow(
+                    /cycle.*model.node_cycle_a.model_a.*model.node_cycle_b.model_b/,
                 );
             }, 120_000);
 
@@ -731,7 +715,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
 
             it('resolves public and versioned refs with restricted models disabled', async () => {
                 const resolution = await access();
-                expect(resolution.passes).toBe(1);
+                expect(resolution.rounds).toBe(1);
                 const { manifest } = resolution.results[1].result;
                 expect(Object.keys(manifest.nodes).sort()).toEqual([
                     'model.access_downstream.uses_public',
@@ -776,7 +760,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 ).rejects.toThrow(/private_model.*access: public/);
             }, 120_000);
 
-            it('learns dynamic refs against a cached catalogue on every refresh', async () => {
+            it('injects the complete cached public provider surface on every refresh', async () => {
                 const tasks = [
                     await task('dyn_downstream', null, false, true, true),
                     await task('dyn_upstream'),
@@ -794,7 +778,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         referenced.set(source.key, referencedProjects);
                     },
                 });
-                expect(first.passes).toBe(3);
+                expect(first.rounds).toBe(1);
                 const cache = first.results.map(({ task: source, result }) => ({
                     key: source.key,
                     referencedProjects: referenced.get(source.key) ?? [],
@@ -807,26 +791,24 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     concurrency: 2,
                     cache,
                 });
-                expect(second.passes).toBe(3);
+                expect(second.rounds).toBe(1);
                 expect(referenced.get('dyn_downstream')).toEqual([
                     'dyn_upstream',
                 ]);
-                const providerNodes = cache.find(
-                    (row) => row.key === 'dyn_upstream',
-                )!.nodes.length;
+                const providerNodes = cache
+                    .find((row) => row.key === 'dyn_upstream')!
+                    .nodes.filter((node) => node.access === 'public').length;
                 expect(providerNodes).toBeGreaterThan(0);
-                expect(second.stubs!.cached).toBe(3);
                 expect(
                     second.sources?.map(({ key, injectedStubs }) => ({
                         key,
                         injectedStubs,
                     })),
                 ).toEqual([
-                    { key: 'dyn_downstream', injectedStubs: 3 },
+                    { key: 'dyn_downstream', injectedStubs: providerNodes },
                     { key: 'dyn_upstream', injectedStubs: 0 },
                     { key: 'dyn_upstream2', injectedStubs: 0 },
                 ]);
-                expect(second.contradictions).toBe(0);
             }, 120_000);
 
             it.each([false, true])(
@@ -858,7 +840,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         concurrency: 2,
                         cache,
                     });
-                    expect(resolution.passes).toBe(1);
+                    expect(resolution.rounds).toBe(1);
                     expect(
                         (
                             resolution.results[0].result.manifest.nodes[
@@ -932,8 +914,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                         concurrency: 1,
                         cache,
                     });
-                    expect(resolution.passes).toBe(1);
-                    expect(resolution.contradictions).toBe(0);
+                    expect(resolution.rounds).toBe(1);
                     const consumerManifest = resolution.results.find(
                         ({ task: source }) => source.key === consumer.key,
                     )!.result.manifest;
@@ -1040,7 +1021,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                               cache,
                           })
                         : first;
-                    expect(resolution.passes).toBe(1);
+                    expect(resolution.rounds).toBe(1);
                     const { manifest } = resolution.results[0].result;
                     for (const [name, modelVersion] of [
                         ['uses_v3', 3],
@@ -1120,7 +1101,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     concurrency: 2,
                     cache,
                 });
-                expect(resolution.passes).toBe(1);
+                expect(resolution.rounds).toBe(1);
                 expect(
                     (
                         resolution.results[0].result.manifest.nodes[
@@ -1336,7 +1317,7 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                     cache,
                 });
                 const resolved = await resolution;
-                expect(resolved.passes).toBe(1);
+                expect(resolved.rounds).toBe(1);
                 expect(
                     (
                         resolved.results[0].result.manifest.nodes[

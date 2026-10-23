@@ -45,7 +45,7 @@ vi.mock('./dbt/apiClient', async (importOriginal) => ({
 
 const dbtNode = (
     uniqueId: string,
-    resourceType: 'model' | 'seed',
+    resourceType: 'model' | 'seed' | 'snapshot',
     compiled: boolean,
     extra: Record<string, unknown> = {},
 ) => ({
@@ -305,7 +305,7 @@ describe('compileProject completeness', () => {
         expect(loadManifest).not.toHaveBeenCalled();
     });
 
-    test('seeds every real model version before explore selection without filtering access', async () => {
+    test('seeds all parsed models, seeds and snapshots before explore selection without filtering access', async () => {
         vi.mocked(loadManifest).mockResolvedValue(
             manifest({
                 'model.test.orders.v2': dbtNode(
@@ -347,6 +347,12 @@ describe('compileProject completeness', () => {
                     'seed',
                     false,
                 ),
+                'snapshot.test.history': dbtNode(
+                    'snapshot.test.history',
+                    'snapshot',
+                    false,
+                    { access: 'public' },
+                ),
                 'model.test.helper': dbtNode(
                     'model.test.helper',
                     'model',
@@ -379,6 +385,7 @@ describe('compileProject completeness', () => {
         const result = await compileProject(compileOptions(tempDir));
 
         expect(result.explores).toHaveLength(1);
+        expect(result.isProjectComplete).toBe(false);
         expect(result.dbtSourceManifest).toEqual({
             projectName: 'test_project',
             dbtVersion: '1.10.19',
@@ -408,9 +415,36 @@ describe('compileProject completeness', () => {
                     access: 'private',
                     depends_on_nodes: [
                         'model.test.orders.v2',
+                        'seed.test.countries',
                         'model.remote.placeholder',
                         'model.remote.placeholder',
                     ],
+                },
+                {
+                    resource_type: 'seed',
+                    name: 'countries',
+                    package_name: 'test',
+                    identifier: 'countries',
+                    database: 'db',
+                    schema: 'public',
+                    relation_name: '"db"."public"."seed.test.countries"',
+                    version: null,
+                    latest_version: null,
+                    access: null,
+                    depends_on_nodes: [],
+                },
+                {
+                    resource_type: 'snapshot',
+                    name: 'history',
+                    package_name: 'test',
+                    identifier: 'history',
+                    database: 'db',
+                    schema: 'public',
+                    relation_name: '"db"."public"."snapshot.test.history"',
+                    version: null,
+                    latest_version: null,
+                    access: 'public',
+                    depends_on_nodes: [],
                 },
                 {
                     name: 'helper',

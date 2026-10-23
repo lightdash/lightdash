@@ -232,7 +232,6 @@ type MultiConnectionCompileInput = SourceDiskLifecycle & {
     trackingParams?: TrackingParams;
     analytics?: LightdashAnalytics;
     crossSourceTimeouts?: CrossSourceTimeouts;
-    crossSourceMaxPasses?: number;
     compileJobUuid?: string | null;
 };
 
@@ -290,7 +289,6 @@ export class MultiConnectionCompiler {
             isolation?: SourceFailureIsolation;
             signal?: AbortSignal;
             timeouts?: CrossSourceTimeouts;
-            maxPasses?: number;
             catalogCache?: CrossSourceCatalogCache;
             resolutionElapsedMs?: number;
             connectionName?: string;
@@ -495,9 +493,6 @@ export class MultiConnectionCompiler {
                     event: 'dbt.compile.crossSourceRefsResolved',
                     projectUuid,
                     rounds: resolution.rounds,
-                    passes: resolution.passes,
-                    stubs: resolution.stubs,
-                    contradictions: resolution.contradictions,
                     sourceTimings: resolution.sources,
                     cacheRowsLoaded: catalogCache?.rowsLoaded ?? 0,
                     cacheRowsWritten: catalogCache?.rowsWritten ?? 0,
@@ -799,7 +794,6 @@ export class MultiConnectionCompiler {
             trackingParams,
             analytics,
             crossSourceTimeouts = DEFAULT_CROSS_SOURCE_TIMEOUTS,
-            crossSourceMaxPasses = 3,
             compileJobUuid = null,
             withSourceDisk,
             prepareSourceFetch,
@@ -1068,7 +1062,6 @@ export class MultiConnectionCompiler {
                     ? {
                           signal: compileSignal,
                           timeouts: crossSourceTimeouts,
-                          maxPasses: crossSourceMaxPasses,
                           catalogCache: cacheFor(plan),
                           get resolutionElapsedMs() {
                               return Date.now() - resolutionStartedAt;

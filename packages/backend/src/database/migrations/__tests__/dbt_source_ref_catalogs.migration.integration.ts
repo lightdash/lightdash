@@ -1,6 +1,5 @@
 import { DbtProjectType, ProjectType } from '@lightdash/common';
 import { randomUUID } from 'crypto';
-import { placeholderExternalNode } from '../../../dbt/dbtExternalNodes';
 import { DbtSourceRefCatalogModel } from '../../../models/DbtSourceRefCatalogModel';
 import { CrossSourceCatalogCache } from '../../../projectAdapters/crossSourceCatalogCache';
 import {
@@ -38,13 +37,18 @@ beforeAll(async () => {
 afterAll(async () => migrated?.destroy());
 beforeEach(async () => model.deleteForProject(projectUuid, null));
 
-const node = (version: string | null = null) =>
-    placeholderExternalNode({
-        packageName: 'provider',
-        name: 'orders',
-        version,
-        latestVersion: version,
-    });
+const node = (version: string | null = null) => ({
+    package_name: 'provider',
+    name: 'orders',
+    identifier: 'orders',
+    schema: 'public',
+    database: 'warehouse',
+    relation_name: 'warehouse.public.orders',
+    version,
+    latest_version: version,
+    access: 'public',
+    depends_on_nodes: [] as string[],
+});
 const write = (
     dbtSourceUuid: string,
     connectionGroup = 'original',
