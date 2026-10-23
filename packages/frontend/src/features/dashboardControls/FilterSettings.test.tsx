@@ -48,8 +48,13 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
 vi.mock('../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-1',
 }));
-vi.mock('../../hooks/useProject', () => ({
-    useProject: () => ({ data: undefined }),
+const useProject = vi.hoisted(() =>
+    vi.fn((_id: string | undefined) => ({ data: undefined })),
+);
+vi.mock('../../hooks/useProject', () => ({ useProject }));
+const mockEmbedded = vi.hoisted(() => ({ current: false }));
+vi.mock('../../ee/providers/Embed/useIsEmbedded', () => ({
+    default: () => mockEmbedded.current,
 }));
 vi.mock('./FilterValueSettings', () => ({
     FilterValueSettings: ({
@@ -172,6 +177,8 @@ const RulesState = () => (
 
 describe('FilterSettings', () => {
     beforeEach(() => {
+        useProject.mockClear();
+        mockEmbedded.current = false;
         close.mockClear();
         updateOtherFilters.mockClear();
         setActiveSection.mockClear();
@@ -235,6 +242,24 @@ describe('FilterSettings', () => {
             `${FilterType.BOOLEAN} for no field`,
         );
     });
+
+    it.each([
+        [false, 'project-1'],
+        [true, undefined],
+    ])(
+        'asks for the project only outside an embed (embedded: %s)',
+        (isEmbedded, projectUuid) => {
+            mockEmbedded.current = isEmbedded;
+            renderSettings(
+                rule({ fieldId: 'orders_amount', tableName: 'orders' }),
+                amount,
+            );
+            expect(useProject).toHaveBeenCalled();
+            expect(
+                useProject.mock.calls.every(([id]) => id === projectUuid),
+            ).toBe(true);
+        },
+    );
 
     it('falls back to text when a field is gone', () => {
         renderSettings(

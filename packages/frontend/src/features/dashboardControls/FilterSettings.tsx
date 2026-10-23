@@ -8,6 +8,7 @@ import { IconChevronRight } from '@tabler/icons-react';
 import { useMemo, type FC, type ReactNode } from 'react';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../components/common/MantineIcon';
+import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -142,7 +143,9 @@ export const FilterSettings: FC<Props> = ({
     tilesSummary,
 }) => {
     const projectUuid = useProjectUuid();
-    const project = useProject(projectUuid);
+    // An embed has no project request, so no start of week, as its shipped bar
+    const isEmbedded = useIsEmbedded();
+    const project = useProject(isEmbedded ? undefined : projectUuid);
     const allFilters = useDashboardAllFilters();
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
