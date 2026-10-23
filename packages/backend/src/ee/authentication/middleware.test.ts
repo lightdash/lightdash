@@ -1,4 +1,4 @@
-import { ScimError } from '@lightdash/common';
+import { CommercialFeatureFlags, ScimError } from '@lightdash/common';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 import {
     mockNext,
@@ -8,6 +8,7 @@ import {
     mockRequestWithInvalidToken,
     mockRequestWithMalformedToken,
     mockRequestWithNoToken,
+    mockRequestWithScimDisabled,
     mockResponse,
     mockServiceAccount,
 } from './middleware.mock';
@@ -31,6 +32,35 @@ describe('SCIM Authentication Middleware', () => {
         });
         expect(mockRequest.serviceAccount).toEqual(mockServiceAccount);
         expect(mockNext).toHaveBeenCalledWith();
+        expect(
+            mockRequest.services.getFeatureFlagService().get,
+        ).toHaveBeenCalledWith({
+            user: { organizationUuid: 'test-org-uuid' },
+            featureFlagId: CommercialFeatureFlags.Scim,
+        });
+    });
+
+    it('should reject a valid SCIM token when SCIM is not enabled for its organization', async () => {
+        await isScimAuthenticated(
+            mockRequestWithScimDisabled,
+            mockResponse,
+            mockNext,
+        );
+
+        const [error] = mockNext.mock.calls[0];
+        expect(error).toBeInstanceOf(ScimError);
+        expect(error.status).toBe('403');
+        expect(error.detail).toBe('SCIM is not enabled for this organization');
+        expect(mockRequestWithScimDisabled.scimLogAttribution).toEqual({
+            organizationUuid: 'test-org-uuid',
+            serviceAccountUuid: 'test-service-account-uuid',
+        });
+        expect(mockRequestWithScimDisabled.serviceAccount).toBeUndefined();
+        expect(mockRequestWithScimDisabled.account).toBeUndefined();
+        expect(
+            mockRequestWithScimDisabled.services.getUserService()
+                .getSessionUserForServiceAccount,
+        ).not.toHaveBeenCalled();
     });
 
     it('should reject expired SCIM token but keep log attribution', async () => {
