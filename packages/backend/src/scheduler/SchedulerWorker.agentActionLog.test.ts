@@ -13,10 +13,11 @@ class TestableSchedulerWorker extends SchedulerWorker {
 const setup = (enabled: boolean) => {
     const cleanupBatch = vi
         .fn()
-        .mockResolvedValue({ totalDeleted: 2, batchCount: 1 });
+        .mockResolvedValue({ totalDeleted: 2, batchCount: 1, completed: true });
     const queryCleanup = vi
         .fn()
-        .mockResolvedValue({ totalDeleted: 3, batchCount: 1 });
+        .mockResolvedValue({ totalDeleted: 3, batchCount: 1, completed: true });
+    const countOlderThan = vi.fn().mockResolvedValue(0);
     const worker = new TestableSchedulerWorker({
         lightdashConfig: {
             scheduler: {
@@ -34,13 +35,17 @@ const setup = (enabled: boolean) => {
         },
         agentActionLogModel: { cleanupBatch },
         asyncQueryService: {
-            queryHistoryModel: { cleanupBatch: queryCleanup },
+            queryHistoryModel: {
+                cleanupBatch: queryCleanup,
+                countOlderThan,
+            },
             cleanupPreAggregateDailyStats: vi.fn().mockResolvedValue(0),
         },
     } as unknown as SchedulerWorkerArguments);
     return {
         cleanupBatch,
         queryCleanup,
+        countOlderThan,
         run: () =>
             worker.task()(
                 {
@@ -73,4 +78,21 @@ test('propagates ledger cleanup failures for retry', async () => {
     const { cleanupBatch, run } = setup(true);
     cleanupBatch.mockRejectedValueOnce(new Error('cleanup failed'));
     await expect(run()).rejects.toThrow('cleanup failed');
+});
+
+test('reports the remaining backlog only when the run stopped before clearing it', async () => {
+    const { queryCleanup, countOlderThan, run } = setup(true);
+    await run();
+    expect(countOlderThan).not.toHaveBeenCalled();
+
+    queryCleanup.mockResolvedValueOnce({
+        totalDeleted: 200,
+        batchCount: 2,
+        completed: false,
+    });
+    countOlderThan.mockResolvedValueOnce(690_000);
+    await run();
+    expect(countOlderThan).toHaveBeenCalledExactlyOnceWith(
+        queryCleanup.mock.calls[1][0],
+    );
 });
