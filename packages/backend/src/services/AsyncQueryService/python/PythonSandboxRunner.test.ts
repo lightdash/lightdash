@@ -33,9 +33,25 @@ vi.mock('../../../ee/services/SandboxRuntime', async () => ({
     createSandboxProvider,
     S3SnapshotStore: class {},
 }));
-vi.mock('../../../tracing/tracing', () => ({
-    traceSpan: async (_options: unknown, fn: () => Promise<unknown>) => fn(),
+const { spans } = vi.hoisted(() => ({
+    spans: [] as { name: string; attributes: Record<string, unknown> }[],
 }));
+vi.mock('../../../tracing/tracing', () => ({
+    traceSpan: async (
+        options: { name: string; attributes: Record<string, unknown> },
+        fn: (span: unknown) => Promise<unknown>,
+    ) => {
+        spans.push({ name: options.name, attributes: options.attributes });
+        return fn({ setAttribute: vi.fn(), setAttributes: vi.fn() });
+    },
+}));
+
+const silentLogger = {
+    info: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    error: vi.fn(),
+};
 
 describe('PythonSandboxRunner output limits', () => {
     it.each([
@@ -89,12 +105,8 @@ describe('PythonSandboxRunner output limits', () => {
                         sandboxProvider: 'e2b',
                     },
                 },
-                logger: {
-                    info: vi.fn(),
-                    warn: vi.fn(),
-                    debug: vi.fn(),
-                    error: vi.fn(),
-                },
+                logger: silentLogger,
+                metrics: null,
             });
             await expect(
                 runner.run({
@@ -136,6 +148,7 @@ describe('PythonSandboxRunner provider selection', () => {
                 },
             },
             logger,
+            metrics: null,
         }).run({
             queryUuid: 'query',
             code: 'def run(inputs, params):\n    return None',
@@ -209,4 +222,73 @@ describe('PythonSandboxRunner provider selection', () => {
             expect(createSandboxProvider).not.toHaveBeenCalled();
         },
     );
+});
+
+describe('PythonSandboxRunner stage instrumentation', () => {
+    it('traces each input write and observes every sandbox stage', async () => {
+        const handle = {
+            sandboxId: 'sandbox-1',
+            commands: {
+                run: vi.fn(async () => ({
+                    stdout: '',
+                    stderr: '',
+                    exitCode: 0,
+                })),
+            },
+            files: {
+                write: vi.fn(),
+                readBytes: vi.fn(async () => Buffer.from('{}')),
+                read: vi.fn(async () => '{}'),
+            },
+        } as unknown as SandboxHandle;
+        create.mockResolvedValue(handle);
+        destroy.mockResolvedValue(undefined);
+        const observeComposerQueryStageDuration = vi.fn();
+        spans.length = 0;
+
+        await new PythonSandboxRunner({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                appRuntime: {
+                    ...lightdashConfigMock.appRuntime,
+                    sandboxProvider: 'e2b',
+                },
+            },
+            logger: silentLogger,
+            metrics: { observeComposerQueryStageDuration },
+        }).run({
+            queryUuid: 'query',
+            code: 'def run(inputs, params):\n    return inputs["a"]',
+            inputs: [
+                { name: 'a', jsonl: Buffer.from('{"x":1}\n') },
+                { name: 'b', jsonl: Buffer.from('{}\n') },
+            ],
+            inputMeta: { inputs: {}, params: {}, limit: 10 },
+            timeoutMs: 1000,
+        });
+
+        expect(
+            spans
+                .filter(({ name }) => name === 'python.sandbox.write_input')
+                .map(({ attributes }) => attributes),
+        ).toEqual([
+            { 'lightdash.inputName': 'a', 'lightdash.inputBytes': 8 },
+            { 'lightdash.inputName': 'b', 'lightdash.inputBytes': 3 },
+        ]);
+        expect(
+            spans.find(({ name }) => name === 'python.sandbox.run')?.attributes,
+        ).toMatchObject({ 'lightdash.sandboxId': 'sandbox-1' });
+        expect(
+            observeComposerQueryStageDuration.mock.calls.map(
+                ([source, stage]) => `${source}.${stage}`,
+            ),
+        ).toEqual([
+            'python.create',
+            'python.compile',
+            'python.write_inputs',
+            'python.run',
+            'python.read_output',
+            'python.destroy',
+        ]);
+    });
 });

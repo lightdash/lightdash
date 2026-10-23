@@ -29,6 +29,11 @@ import { type SuggestionFallbackReason } from '../ee/services/ai/agents/suggesti
 import Logger from '../logging/logger';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import {
+    COMPOSER_QUERY_STAGES,
+    type ComposerQuerySource,
+    type ComposerQueryStage,
+} from '../services/AsyncQueryService/composerQueryStage';
+import {
     serializeOtelHttpMetrics,
     shutdownOtelHttpMetrics,
 } from './otelHttpMetrics';
@@ -232,6 +237,10 @@ export default class PrometheusMetrics {
 
     public aiWritebackStageDurationHistogram: prometheus.Histogram<'stage'> | null =
         null;
+
+    public composerQueryStageDurationHistogram: prometheus.Histogram<
+        'source' | 'stage'
+    > | null = null;
 
     // Pre-aggregate metrics
     public preAggregateMatchCounter: prometheus.Counter<string> | null = null;
@@ -884,6 +893,19 @@ export default class PrometheusMetrics {
                         ...rest,
                     });
 
+                // Python and DuckDB composer query nodes, stage by stage
+                this.composerQueryStageDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'composer_query_stage_duration_ms',
+                        help: 'Composer query node per-stage duration in ms, by source (python | duckdb)',
+                        labelNames: ['source', 'stage'],
+                        buckets: [
+                            10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000,
+                            30000, 60000, 120000, 300000,
+                        ],
+                        ...rest,
+                    });
+
                 // Pre-create every known label combination so each series
                 // exports a zero baseline from process start. Without this,
                 // Managed Prometheus treats the first observed sample of a
@@ -906,6 +928,16 @@ export default class PrometheusMetrics {
                 AI_WRITEBACK_STAGES.forEach((stage) => {
                     this.aiWritebackStageDurationHistogram?.zero({ stage });
                 });
+                Object.entries(COMPOSER_QUERY_STAGES).forEach(
+                    ([source, stages]) => {
+                        stages.forEach((stage) => {
+                            this.composerQueryStageDurationHistogram?.zero({
+                                source,
+                                stage,
+                            });
+                        });
+                    },
+                );
                 AI_AGENT_MEMORY_DISTILL_OUTCOMES.forEach((outcome) => {
                     this.aiAgentMemoryDistillCounter?.inc({ outcome }, 0);
                     this.aiAgentMemoryDistillDurationHistogram?.zero({
@@ -2026,6 +2058,17 @@ export default class PrometheusMetrics {
 
     public observeAiWritebackStageDuration(stage: string, durationMs: number) {
         this.aiWritebackStageDurationHistogram?.observe({ stage }, durationMs);
+    }
+
+    public observeComposerQueryStageDuration<S extends ComposerQuerySource>(
+        source: S,
+        stage: ComposerQueryStage<S>,
+        durationMs: number,
+    ) {
+        this.composerQueryStageDurationHistogram?.observe(
+            { source, stage },
+            durationMs,
+        );
     }
 
     public incrementUsageEventsPushed() {

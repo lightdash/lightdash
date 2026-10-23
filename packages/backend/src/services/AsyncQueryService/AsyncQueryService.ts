@@ -243,7 +243,7 @@ import {
     validateMetricQueryFields,
 } from '../../queryCompiler';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { traceSpan } from '../../tracing/tracing';
+import { traceSpan, type TraceSpan } from '../../tracing/tracing';
 import { wrapSentryTransaction } from '../../utils';
 import { isAiServiceAccountPermissionError } from '../../utils/aiServiceAccountErrors';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
@@ -365,6 +365,12 @@ import {
     assertPivotWithinColumnLimit,
     getPivotColumnReferences,
 } from './composePivot';
+import {
+    traceComposerQueryStage,
+    type ComposerQuerySource,
+    type ComposerQueryStage,
+    type ComposerStageTimedCallback,
+} from './composerQueryStage';
 import { resolveDashboardDateFilters } from './dashboardDateFilters';
 import { getValidatedDashboardSorts } from './dashboardSorts';
 import { DuckdbQueryRefusal } from './DuckdbQueryRefusal';
@@ -4588,6 +4594,7 @@ export class AsyncQueryService extends ProjectService {
             resultProducerOverride?: QueryResultProducer | null;
             warehouseCredentialsTypeOverride?: CreateWarehouseCredentials['type'];
             rethrowOnError?: boolean;
+            onComposerStageTimed?: ComposerStageTimedCallback;
         },
     ) {
         return this.withQueryConnectionExecution(args, () =>
@@ -4606,9 +4613,33 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
-    private runDuckdbQuery(args: RunDuckdbQueryArgs) {
-        return this.withQueryConnectionExecution(args, () =>
-            this.runDuckdbQueryInScope(args),
+    private runDuckdbQuery(
+        args: RunDuckdbQueryArgs,
+        queueWaitMs: number | null,
+    ) {
+        return this.traceComposerQueryStage(
+            'duckdb',
+            'total',
+            {
+                name: 'duckdb.query.run',
+                attributes: {
+                    'lightdash.queryUuid': args.queryUuid,
+                    'lightdash.projectUuid': args.projectUuid,
+                    'lightdash.queryContext': args.context,
+                    'lightdash.referenceCount':
+                        args.references.kind === 'queries'
+                            ? Object.keys(args.references.references).length
+                            : args.references.referenceCtes.length,
+                    'lightdash.engine': args.engine.kind,
+                    ...(queueWaitMs !== null
+                        ? { 'lightdash.queueWaitMs': queueWaitMs }
+                        : {}),
+                },
+            },
+            (span) =>
+                this.withQueryConnectionExecution(args, () =>
+                    this.runDuckdbQueryInScope(args, span),
+                ),
         );
     }
 
@@ -4855,11 +4886,13 @@ export class AsyncQueryService extends ProjectService {
         warehouseCredentialsTypeOverride,
         resultProducerOverride = null,
         rethrowOnError,
+        onComposerStageTimed,
     }: RunAsyncWarehouseQueryArgs & {
         warehouseClientOverride?: WarehouseClient;
         resultProducerOverride?: QueryResultProducer | null;
         warehouseCredentialsTypeOverride?: CreateWarehouseCredentials['type'];
         rethrowOnError?: boolean;
+        onComposerStageTimed?: ComposerStageTimedCallback;
     }) {
         type StreamMetrics = {
             totalBytesWritten: number;
@@ -5263,6 +5296,7 @@ export class AsyncQueryService extends ProjectService {
                 });
 
                 const queryExecMs = Date.now() - queryStartTime;
+                onComposerStageTimed?.('execute', queryExecMs);
 
                 if (stream) {
                     // Wait for the file to be written before marking the query as ready
@@ -5282,12 +5316,14 @@ export class AsyncQueryService extends ProjectService {
                             return stream?.close();
                         },
                     );
+                    const s3UploadMs = Date.now() - s3UploadStart;
+                    onComposerStageTimed?.('upload', s3UploadMs);
                     if (
                         executionSource === 'pre_aggregate_duckdb' ||
                         this.lightdashConfig.prometheus.allQueryMetricsEnabled
                     ) {
                         this.prometheusMetrics?.observeS3ResultsUploadDuration(
-                            Date.now() - s3UploadStart,
+                            s3UploadMs,
                             executionSource,
                         );
                     }
@@ -10812,11 +10848,27 @@ export class AsyncQueryService extends ProjectService {
     /** Python queries run for at most this long inside the sandbox. */
     static readonly PYTHON_RUN_TIMEOUT_MS = 5 * 60 * 1000;
 
+    private traceComposerQueryStage<S extends ComposerQuerySource, T>(
+        source: S,
+        stage: ComposerQueryStage<S>,
+        options: Parameters<typeof traceComposerQueryStage>[3],
+        fn: (span: TraceSpan) => Promise<T>,
+    ): Promise<T> {
+        return traceComposerQueryStage(
+            this.prometheusMetrics,
+            source,
+            stage,
+            options,
+            fn,
+        );
+    }
+
     private getPythonSandboxRunner(): PythonSandboxRunner {
         if (!this.pythonSandboxRunner) {
             this.pythonSandboxRunner = new PythonSandboxRunner({
                 lightdashConfig: this.lightdashConfig,
                 logger: this.logger,
+                metrics: this.prometheusMetrics ?? null,
             });
         }
         return this.pythonSandboxRunner;
@@ -11071,17 +11123,17 @@ export class AsyncQueryService extends ProjectService {
             'lightdash.referenceCount': Object.keys(references).length,
             'lightdash.limit': limit,
         };
-        await traceSpan(
-            { op: 'python.query.run', name: 'python.query.run', attributes },
+        await this.traceComposerQueryStage(
+            'python',
+            'total',
+            { name: 'python.query.run', attributes },
             async (span) => {
                 const startedAt = Date.now();
                 try {
-                    const histories = await traceSpan(
-                        {
-                            op: 'python.query.wait_references',
-                            name: 'python.query.wait_references',
-                            attributes,
-                        },
+                    const histories = await this.traceComposerQueryStage(
+                        'python',
+                        'wait_references',
+                        { name: 'python.query.wait_references', attributes },
                         () =>
                             this.waitForQueryReferences({
                                 projectUuid,
@@ -11166,6 +11218,7 @@ export class AsyncQueryService extends ProjectService {
                         context,
                         false,
                     );
+                    span.setAttribute('lightdash.cacheHit', cached !== null);
                     if (cached !== null) {
                         await this.landPythonCacheHit({
                             account,
@@ -11185,12 +11238,10 @@ export class AsyncQueryService extends ProjectService {
                         limit,
                     };
                     const inputReader = new PythonInputReader();
-                    const inputs = await traceSpan(
-                        {
-                            op: 'python.query.read_inputs',
-                            name: 'python.query.read_inputs',
-                            attributes,
-                        },
+                    const inputs = await this.traceComposerQueryStage(
+                        'python',
+                        'read_inputs',
+                        { name: 'python.query.read_inputs', attributes },
                         () =>
                             Promise.all(
                                 inputResultFiles.map(
@@ -11243,9 +11294,10 @@ export class AsyncQueryService extends ProjectService {
                         timeoutMs: AsyncQueryService.PYTHON_RUN_TIMEOUT_MS,
                     });
 
-                    const { meta, rows } = await traceSpan(
+                    const { meta, rows } = await this.traceComposerQueryStage(
+                        'python',
+                        'validate_output',
                         {
-                            op: 'python.query.validate_output',
                             name: 'python.query.validate_output',
                             attributes: {
                                 ...attributes,
@@ -11282,7 +11334,9 @@ export class AsyncQueryService extends ProjectService {
                             resultsKey,
                         );
                     const createdAt = new Date();
-                    await traceSpan(
+                    await this.traceComposerQueryStage(
+                        'python',
+                        'upload_result',
                         {
                             op: 's3.upload',
                             name: 'python.query.upload_result',
@@ -11652,6 +11706,7 @@ export class AsyncQueryService extends ProjectService {
         queryTagsOverride?: RunQueryTags,
         onConnectionClaimed?: () => void,
     ): Promise<boolean> {
+        const pickedUpAt = Date.now();
         // A DuckDB query may queue behind the legs it references, so it is
         // allowed their wait on top of the ordinary queue timeout
         let connectionClaimed = false;
@@ -11689,7 +11744,13 @@ export class AsyncQueryService extends ProjectService {
                 );
             throw e;
         }
-        await this.runDuckdbQuery(args);
+        const queueWaitMs = pickedUpAt - args.queryCreatedAt.getTime();
+        this.prometheusMetrics?.observeComposerQueryStageDuration(
+            'duckdb',
+            'queue_wait',
+            queueWaitMs,
+        );
+        await this.runDuckdbQuery(args, queueWaitMs);
         return true;
     }
 
@@ -12276,42 +12337,45 @@ export class AsyncQueryService extends ProjectService {
             context,
             querySurface ?? null,
         );
-        void this.runDuckdbQuery({
-            identityEnabled,
-            resultEntitlementFingerprint,
-            authMethod: account.authentication.type,
-            agentIdentity: reader.kind === 'agent' ? reader.claim : null,
-            actor: {
-                userUuid: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
+        void this.runDuckdbQuery(
+            {
+                identityEnabled,
+                resultEntitlementFingerprint,
+                authMethod: account.authentication.type,
+                agentIdentity: reader.kind === 'agent' ? reader.claim : null,
+                actor: {
+                    userUuid: account.user.id,
+                    isRegisteredUser: account.isRegisteredUser(),
+                    isServiceAccount: account.isServiceAccount(),
+                },
+                // Bound references have no results to be served from
+                invalidateCache: true,
+                projectUuid,
+                organizationUuid,
+                isPreviewProject:
+                    projectSummary.type === ProjectType.PREVIEW ||
+                    projectSummary.provisioningSource === 'playground',
+                onboardingFlow,
+                queryUuid,
+                sql,
+                references: { kind: 'bound', referenceCtes },
+                columns: {
+                    mode: 'discover',
+                    limit,
+                    parameters: combinedParameters,
+                    pivotConfiguration: undefined,
+                },
+                // Only persist the user SQL; resolved SQL contains private URIs.
+                storedCompiledSql: sql,
+                engine: { kind: 'client', warehouseClient },
+                queryTags,
+                queryCreatedAt,
+                queryUsage,
+                cacheKey,
+                context,
             },
-            // Bound references have no results to be served from
-            invalidateCache: true,
-            projectUuid,
-            organizationUuid,
-            isPreviewProject:
-                projectSummary.type === ProjectType.PREVIEW ||
-                projectSummary.provisioningSource === 'playground',
-            onboardingFlow,
-            queryUuid,
-            sql,
-            references: { kind: 'bound', referenceCtes },
-            columns: {
-                mode: 'discover',
-                limit,
-                parameters: combinedParameters,
-                pivotConfiguration: undefined,
-            },
-            // Only persist the user SQL; resolved SQL contains private URIs.
-            storedCompiledSql: sql,
-            engine: { kind: 'client', warehouseClient },
-            queryTags,
-            queryCreatedAt,
-            queryUsage,
-            cacheKey,
-            context,
-        }).catch((e) => {
+            null,
+        ).catch((e) => {
             this.logger.error(
                 `Async external SQL query ${queryUuid} failed: ${getErrorMessage(
                     e,
@@ -12363,29 +12427,32 @@ export class AsyncQueryService extends ProjectService {
      * before execution mark the query history row errored so pollers see
      * them through the standard status lifecycle.
      */
-    private async runDuckdbQueryInScope({
-        identityEnabled: requestedIdentityEnabled = null,
-        agentIdentity,
-        authMethod = null,
-        resultEntitlementFingerprint = null,
-        actor,
-        invalidateCache,
-        projectUuid,
-        organizationUuid,
-        isPreviewProject,
-        onboardingFlow,
-        queryUuid,
-        sql,
-        references,
-        columns,
-        storedCompiledSql,
-        engine,
-        queryTags,
-        queryCreatedAt,
-        queryUsage,
-        cacheKey,
-        context,
-    }: RunDuckdbQueryArgs): Promise<void> {
+    private async runDuckdbQueryInScope(
+        {
+            identityEnabled: requestedIdentityEnabled = null,
+            agentIdentity,
+            authMethod = null,
+            resultEntitlementFingerprint = null,
+            actor,
+            invalidateCache,
+            projectUuid,
+            organizationUuid,
+            isPreviewProject,
+            onboardingFlow,
+            queryUuid,
+            sql,
+            references,
+            columns,
+            storedCompiledSql,
+            engine,
+            queryTags,
+            queryCreatedAt,
+            queryUsage,
+            cacheKey,
+            context,
+        }: RunDuckdbQueryArgs,
+        runSpan: TraceSpan,
+    ): Promise<void> {
         // The row's creator, as the model scopes writes: a worker has no
         // session, only what the row records
         const account = {
@@ -12518,6 +12585,7 @@ export class AsyncQueryService extends ProjectService {
                     context,
                     false,
                 );
+                runSpan.setAttribute('lightdash.cacheHit', cached !== null);
                 if (cached !== null) {
                     await this.landDuckdbCacheHit({
                         actor,
@@ -12541,13 +12609,25 @@ export class AsyncQueryService extends ProjectService {
                     return;
                 }
             }
-            const execution = await this.resolveDuckdbQueryColumns({
-                sql,
-                referenceCtes: bound.referenceCtes,
-                columns,
-                warehouseClient,
-                queryTags,
-            });
+            const execution = await this.traceComposerQueryStage(
+                'duckdb',
+                'resolve_columns',
+                {
+                    name: 'duckdb.query.resolve_columns',
+                    attributes: {
+                        'lightdash.queryUuid': queryUuid,
+                        'lightdash.columnsMode': columns.mode,
+                    },
+                },
+                () =>
+                    this.resolveDuckdbQueryColumns({
+                        sql,
+                        referenceCtes: bound.referenceCtes,
+                        columns,
+                        warehouseClient,
+                        queryTags,
+                    }),
+            );
 
             await this.queryHistoryModel.update(
                 queryUuid,
@@ -12590,6 +12670,12 @@ export class AsyncQueryService extends ProjectService {
                 resultProducerOverride: resultProducer,
                 warehouseCredentialsTypeOverride:
                     warehouseClient.credentials.type,
+                onComposerStageTimed: (stage, durationMs) =>
+                    this.prometheusMetrics?.observeComposerQueryStageDuration(
+                        'duckdb',
+                        stage,
+                        durationMs,
+                    ),
             });
         } catch (e) {
             // A refusal is the feature working, and whoever reports the
@@ -12860,109 +12946,151 @@ export class AsyncQueryService extends ProjectService {
                     resultFileUris: [],
                 };
             case 'queries': {
-                const completed = await this.waitForQueryReferences({
-                    projectUuid,
-                    references: references.references,
-                    labelByTable: references.labelByTable,
-                });
-                const { enabled: identityEnabled } =
-                    await this.featureFlagModel.get({
-                        user: {
-                            organizationUuid,
-                            ...(actor.isRegisteredUser
-                                ? { userUuid: actor.userUuid }
-                                : {}),
+                const referenceCount = Object.keys(
+                    references.references,
+                ).length;
+                const completed = await this.traceComposerQueryStage(
+                    'duckdb',
+                    'wait_references',
+                    {
+                        name: 'duckdb.query.wait_references',
+                        attributes: {
+                            'lightdash.referenceCount': referenceCount,
                         },
-                        featureFlagId: FeatureFlags.AgentIdentity,
-                    });
-                onIdentityResolved?.(identityEnabled);
-                const execution =
-                    agentExecutionContext.getStore()?.agentConnectionExecution;
-                const freshConnection = execution
-                    ? await this.aiAccessService.assertActiveConnectionExecution(
-                          execution,
-                          projectUuid,
-                          [
-                              AgentCapability.ReadDiscover,
-                              AgentCapability.Query,
-                              AgentCapability.RawSql,
-                          ],
-                          true,
-                      )
-                    : null;
-                if (
-                    Object.keys(completed).length > 0 &&
-                    (identityEnabled ||
-                        freshConnection ||
-                        Object.values(completed).some(
-                            isConnectionProducedQuery,
-                        ))
-                ) {
-                    if (!actor.isRegisteredUser) throw new ForbiddenError();
-                    const user =
-                        await this.userModel.findSessionUserAndOrgByUuid(
-                            actor.userUuid,
-                            organizationUuid,
-                        );
-                    let account: Account;
-                    if (actor.isServiceAccount) {
-                        const serviceAccount =
-                            await this.userModel.findServiceAccountByUserUuid(
-                                actor.userUuid,
-                            );
+                    },
+                    () =>
+                        this.waitForQueryReferences({
+                            projectUuid,
+                            references: references.references,
+                            labelByTable: references.labelByTable,
+                        }),
+                );
+                return this.traceComposerQueryStage(
+                    'duckdb',
+                    'bind_references',
+                    {
+                        name: 'duckdb.query.bind_references',
+                        attributes: {
+                            'lightdash.referenceCount': referenceCount,
+                            'lightdash.referenceRows': Object.values(
+                                completed,
+                            ).reduce(
+                                (total, query) =>
+                                    total + (query.totalRowCount ?? 0),
+                                0,
+                            ),
+                        },
+                    },
+                    async () => {
+                        const { enabled: identityEnabled } =
+                            await this.featureFlagModel.get({
+                                user: {
+                                    organizationUuid,
+                                    ...(actor.isRegisteredUser
+                                        ? { userUuid: actor.userUuid }
+                                        : {}),
+                                },
+                                featureFlagId: FeatureFlags.AgentIdentity,
+                            });
+                        onIdentityResolved?.(identityEnabled);
+                        const execution =
+                            agentExecutionContext.getStore()
+                                ?.agentConnectionExecution;
+                        const freshConnection = execution
+                            ? await this.aiAccessService.assertActiveConnectionExecution(
+                                  execution,
+                                  projectUuid,
+                                  [
+                                      AgentCapability.ReadDiscover,
+                                      AgentCapability.Query,
+                                      AgentCapability.RawSql,
+                                  ],
+                                  true,
+                              )
+                            : null;
                         if (
-                            !serviceAccount ||
-                            serviceAccount.organizationUuid !==
-                                organizationUuid ||
-                            (serviceAccount.expiresAt &&
-                                serviceAccount.expiresAt <= new Date()) ||
-                            (agentIdentity &&
-                                (agentIdentity.subject.type !==
-                                    'service_account' ||
-                                    agentIdentity.subject.uuid !==
-                                        serviceAccount.uuid))
+                            Object.keys(completed).length > 0 &&
+                            (identityEnabled ||
+                                freshConnection ||
+                                Object.values(completed).some(
+                                    isConnectionProducedQuery,
+                                ))
                         ) {
-                            throw new ForbiddenError();
+                            if (!actor.isRegisteredUser)
+                                throw new ForbiddenError();
+                            const user =
+                                await this.userModel.findSessionUserAndOrgByUuid(
+                                    actor.userUuid,
+                                    organizationUuid,
+                                );
+                            let account: Account;
+                            if (actor.isServiceAccount) {
+                                const serviceAccount =
+                                    await this.userModel.findServiceAccountByUserUuid(
+                                        actor.userUuid,
+                                    );
+                                if (
+                                    !serviceAccount ||
+                                    serviceAccount.organizationUuid !==
+                                        organizationUuid ||
+                                    (serviceAccount.expiresAt &&
+                                        serviceAccount.expiresAt <=
+                                            new Date()) ||
+                                    (agentIdentity &&
+                                        (agentIdentity.subject.type !==
+                                            'service_account' ||
+                                            agentIdentity.subject.uuid !==
+                                                serviceAccount.uuid))
+                                ) {
+                                    throw new ForbiddenError();
+                                }
+                                account = fromServiceAccount(
+                                    { ...user, serviceAccount },
+                                    '',
+                                );
+                            } else {
+                                account =
+                                    freshConnection?.account ??
+                                    fromSession(user);
+                            }
+                            await this.assertCanReadStoredResultsForQueries(
+                                account,
+                                projectUuid,
+                                [
+                                    ...new Map(
+                                        Object.values(completed).map(
+                                            (reference) => [
+                                                reference.queryUuid,
+                                                reference,
+                                            ],
+                                        ),
+                                    ).values(),
+                                ],
+                                agentIdentity
+                                    ? {
+                                          kind: 'agent',
+                                          claim: agentIdentity,
+                                          authMethod: authMethod ?? null,
+                                      }
+                                    : {
+                                          kind: 'person',
+                                          authMethod: authMethod ?? null,
+                                      },
+                                identityEnabled,
+                                false,
+                                false,
+                                true,
+                            );
                         }
-                        account = fromServiceAccount(
-                            { ...user, serviceAccount },
-                            '',
-                        );
-                    } else {
-                        account = freshConnection?.account ?? fromSession(user);
-                    }
-                    await this.assertCanReadStoredResultsForQueries(
-                        account,
-                        projectUuid,
-                        [
-                            ...new Map(
-                                Object.values(completed).map((reference) => [
-                                    reference.queryUuid,
-                                    reference,
-                                ]),
-                            ).values(),
-                        ],
-                        agentIdentity
-                            ? {
-                                  kind: 'agent',
-                                  claim: agentIdentity,
-                                  authMethod: authMethod ?? null,
-                              }
-                            : {
-                                  kind: 'person',
-                                  authMethod: authMethod ?? null,
-                              },
-                        identityEnabled,
-                        false,
-                        false,
-                        true,
-                    );
-                }
-                const refusal = references.guard?.(completed) ?? null;
-                if (refusal !== null) {
-                    throw new DuckdbQueryRefusal(refusal, { kind: 'row_cap' });
-                }
-                return this.buildQueryReferenceCtes(completed);
+                        const refusal = references.guard?.(completed) ?? null;
+                        if (refusal !== null) {
+                            throw new DuckdbQueryRefusal(refusal, {
+                                kind: 'row_cap',
+                            });
+                        }
+                        return this.buildQueryReferenceCtes(completed);
+                    },
+                );
             }
             default:
                 return assertUnreachable(
