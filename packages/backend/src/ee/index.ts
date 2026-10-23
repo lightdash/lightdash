@@ -107,6 +107,7 @@ import { AiService } from './services/AiService/AiService';
 import { AiThreadFileService } from './services/AiThreadFileService';
 import { AiWritebackService } from './services/AiWritebackService/AiWritebackService';
 import { WritebackPreviewService } from './services/AiWritebackService/WritebackPreviewService';
+import { AnalyticsProjectService } from './services/AnalyticsProjectService/AnalyticsProjectService';
 import { AppGenerateService } from './services/AppGenerateService/AppGenerateService';
 import { AppStateService } from './services/AppStateService/AppStateService';
 import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
@@ -196,6 +197,15 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             await failInFlightAiAgentStreams(repository);
         },
         serviceProviders: {
+            analyticsProjectService: ({ repository, models }) =>
+                new AnalyticsProjectService({
+                    coderService: repository.getCoderService(),
+                    dashboardModel: models.getDashboardModel(),
+                    savedChartModel: models.getSavedChartModel(),
+                    projectModel: models.getProjectModel(),
+                    projectService: repository.getProjectService(),
+                    userModel: models.getUserModel(),
+                }),
             licenseService: () =>
                 new EnterpriseLicenseService({
                     licenseKey: lightdashConfig.license.licenseKey,

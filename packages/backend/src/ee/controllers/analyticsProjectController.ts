@@ -20,9 +20,13 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../auth/account';
-import { isAuthenticated, unauthorisedInDemo } from './authentication';
-import { BaseController } from './baseController';
+import { toSessionUser } from '../../auth/account';
+import {
+    isAuthenticated,
+    unauthorisedInDemo,
+} from '../../controllers/authentication';
+import { BaseController } from '../../controllers/baseController';
+import { type AnalyticsProjectService } from '../services/AnalyticsProjectService/AnalyticsProjectService';
 
 @Route('/api/v1/org/analytics-project')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -39,7 +43,7 @@ export class AnalyticsProjectController extends BaseController {
         return {
             status: 'ok',
             results: await this.services
-                .getAnalyticsProjectService()
+                .getAnalyticsProjectService<AnalyticsProjectService>()
                 .getStatus(toSessionUser(req.account)),
         };
     }
@@ -55,7 +59,7 @@ export class AnalyticsProjectController extends BaseController {
         return {
             status: 'ok',
             results: await this.services
-                .getAnalyticsProjectService()
+                .getAnalyticsProjectService<AnalyticsProjectService>()
                 .ensure(toSessionUser(req.account)),
         };
     }
@@ -69,7 +73,7 @@ export class AnalyticsProjectController extends BaseController {
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         await this.services
-            .getAnalyticsProjectService()
+            .getAnalyticsProjectService<AnalyticsProjectService>()
             .installSampleContent(toSessionUser(req.account));
         return { status: 'ok', results: undefined };
     }
@@ -84,7 +88,7 @@ export class AnalyticsProjectController extends BaseController {
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         await this.services
-            .getAnalyticsProjectService()
+            .getAnalyticsProjectService<AnalyticsProjectService>()
             .delete(toSessionUser(req.account), projectUuid);
         return { status: 'ok', results: undefined };
     }

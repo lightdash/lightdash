@@ -9,7 +9,8 @@ No MotherDuck account, dbt project, or configurable connector UI is required.
 
 ## Configure and provision
 
-Start an isolated development instance using the worktree runbook. Configure the
+Start an isolated development instance using the worktree runbook, with a valid
+commercial license configured through `LIGHTDASH_LICENSE_KEY`. Configure the
 usage-events writer's S3-compatible storage settings: `USAGE_EVENTS_S3_ENDPOINT`,
 `USAGE_EVENTS_S3_BUCKET`, `USAGE_EVENTS_S3_ACCESS_KEY`,
 `USAGE_EVENTS_S3_SECRET_KEY`, and `USAGE_EVENTS_S3_REGION`. The reader reuses this

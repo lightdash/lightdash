@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 import knex from 'knex';
 import { gzipSync } from 'zlib';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { CommercialFeatureFlagModel } from '../../ee/models/CommercialFeatureFlagModel';
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { createS3AnalyticsSourceResolver } from '../../services/ProjectService/analyticsProject/S3AnalyticsSource';
 import { createEventStreamWriter } from './createEventStreamWriter';
@@ -64,7 +64,7 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     bufferMaxSize: 100000,
                 },
             };
-            const flags = new FeatureFlagModel({
+            const flags = new CommercialFeatureFlagModel({
                 database: db,
                 lightdashConfig: config,
             });
