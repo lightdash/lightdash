@@ -239,19 +239,26 @@ describe('getSlackTablePreviews', () => {
         expect(preview).not.toHaveProperty('queryResults');
     });
 
-    it('posts no table for a visualized composer chart or an unrun table', async () => {
+    it('posts no table for a visualized composer chart', async () => {
         expect(
             await getSlackTablePreviews({
                 ...setup(),
                 ...visualizeCall('bar'),
             }),
         ).toEqual([]);
-        expect(
-            await getSlackTablePreviews({
-                ...setup(),
-                ...visualizeCall('table', null),
+    });
+
+    it('links a visualized composer table whose run failed to the thread', async () => {
+        const input = { ...setup(), ...visualizeCall('table', null) };
+
+        expect(await getSlackTablePreviews(input)).toEqual([
+            expect.objectContaining({
+                status: 'unavailable',
+                title: 'Revenue pipeline',
+                url: 'https://lightdash.test/threads/thread',
             }),
-        ).toEqual([]);
+        ]);
+        expect(input.authorize).not.toHaveBeenCalled();
     });
 
     it('posts no composer table for links-only organizations', async () => {

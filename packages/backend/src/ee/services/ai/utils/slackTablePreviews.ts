@@ -38,7 +38,7 @@ const tableCallArgsSchema = z.object({
 /** A composer version visualized as a table, with the semantic explores its pipeline reads. */
 const getComposerTable = (
     artifact: AiArtifact | undefined,
-): { title: string; exploreNames: string[] } | null => {
+): { title: string | null; exploreNames: string[] } | null => {
     const chartConfig = artifact?.chartConfig;
     if (
         !artifact ||
@@ -49,7 +49,7 @@ const getComposerTable = (
         return null;
     }
     return {
-        title: artifact.title ?? '',
+        title: artifact.title || null,
         exploreNames: [
             ...new Set(
                 chartConfig.queries.flatMap((node) =>
@@ -136,7 +136,8 @@ export const getSlackTablePreviews = async ({
         call: (typeof toolCalls)[number];
         title: string | null;
         exploreNames: string[];
-        metadata: { queryUuid: string };
+        // Null when visualize could not run the node; the table links to the thread.
+        metadata: { queryUuid: string | null };
         artifact: AiArtifact | undefined;
     };
     // A visualize call presents its table; no marker selects it.
@@ -145,7 +146,7 @@ export const getSlackTablePreviews = async ({
         const metadata = parseToolVisualizeSuccessMetadata(
             resultsByCall.get(call.tool_call_id)?.metadata,
         );
-        if (!metadata?.queryUuid) return [];
+        if (!metadata) return [];
         const table = getComposerTable(
             artifactsByVersion.get(metadata.versionUuid),
         );
@@ -153,7 +154,7 @@ export const getSlackTablePreviews = async ({
         return [
             {
                 call,
-                title: table.title || null,
+                title: table.title,
                 exploreNames: table.exploreNames,
                 metadata: { queryUuid: metadata.queryUuid },
                 artifact: undefined,
@@ -235,16 +236,20 @@ export const getSlackTablePreviews = async ({
                         ? { artifactVersionUuid: artifact.versionUuid }
                         : {}),
                 };
+                const { queryUuid } = metadata;
+                if (queryUuid === null) {
+                    return { ...preview, status: 'unavailable' as const };
+                }
                 try {
                     await authorize({
-                        queryUuid: metadata.queryUuid,
+                        queryUuid,
                         exploreNames,
                     });
                     // Approval resumes and retries have a new runtime context.
                     const queryResults =
-                        runtimeResults.get(metadata.queryUuid) ??
+                        runtimeResults.get(queryUuid) ??
                         (await getResults({
-                            queryUuid: metadata.queryUuid,
+                            queryUuid,
                             exploreNames,
                             maxRows: SLACK_TABLE_MAX_ROWS,
                         }));

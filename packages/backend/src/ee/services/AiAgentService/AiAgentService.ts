@@ -18115,7 +18115,15 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       slackPrompt.organizationUuid,
                   )
                 : undefined;
-        const selection = parseSlackVisualizationSelection(response);
+        // Composer turns present with visualize, so markers select nothing there.
+        const isComposerTurn = toolCalls.some(
+            (call) =>
+                isComposerQueryToolName(call.tool_name) ||
+                call.tool_name === 'visualize',
+        );
+        const selection = isComposerTurn
+            ? { tableQueryUuids: [], chartVersionUuids: [] }
+            : parseSlackVisualizationSelection(response);
         const slackResultReader: QueryResultReader = {
             kind: 'agent',
             authMethod: 'session',

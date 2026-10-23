@@ -480,7 +480,7 @@ describe('getSystemPromptV2 composer queries', () => {
         });
 
         expect(content).toContain(
-            'call visualize on the node your answer rests on when the user asks for a chart or a table',
+            'call visualize on the node your answer rests on when the user asks for a chart or when its rows materially help',
         );
         expect(content).not.toContain('<slack-table');
         expect(content).not.toContain('<slack-chart');
