@@ -63,6 +63,9 @@ vi.mock('./FilterSettings', () => ({
         tilesSummary: string;
     }) => (
         <div data-testid="filter-settings">
+            <div data-controls-value>
+                <input aria-label="Operator" />
+            </div>
             {field ? `Settings for ${field.label}` : 'Settings with no field'}
             <span data-testid="tiles-summary">{tilesSummary}</span>
         </div>
@@ -1020,6 +1023,46 @@ describe('ControlSidebar', () => {
                     'Tried to reference field with unknown id: orders_gone',
                 ),
             ).toBeInTheDocument();
+        });
+
+        it('sends focus to the value once a new filter gets a field', () => {
+            setSidebar({
+                isViewer: true,
+                isNew: true,
+                isPlaceholder: true,
+                editing: { filterId: 'own' },
+                editingRule: {
+                    ...own,
+                    target: { fieldId: '', tableName: '' },
+                },
+            });
+            const { rerender } = renderWithProviders(<ControlSidebar />);
+            setSidebar({
+                isViewer: true,
+                isNew: true,
+                isPlaceholder: false,
+                editing: { filterId: 'own' },
+                editingRule: own,
+            });
+            rerender(<ControlSidebar />);
+            expect(screen.getByLabelText('Operator')).toHaveFocus();
+        });
+
+        it('focuses the name of an own filter it opens', () => {
+            setSidebar({
+                isViewer: true,
+                isNew: false,
+                editing: { filterId: 'own' },
+                editingRule: own,
+            });
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([]),
+                filters([own]),
+            );
+            expect(document.activeElement).toHaveAttribute(
+                'data-controls-label',
+            );
         });
 
         it('edits their own filter with no label input, and can remove it', () => {

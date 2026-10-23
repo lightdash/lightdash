@@ -533,7 +533,11 @@ In `FilterConfiguration/`:
   (`[data-controls-start]`) takes it instead, on the next frame
   (`useFocusLabelOnMount`). The first field of a
   filter keeps the same editor mounted: the id is the placeholder's. So the
-  pick calls `focusLabelInput()`, from the sidebar and from a tile card.
+  pick calls `focusLabelInput()`, from the sidebar and from a tile card. A
+  viewer's filter has no label to edit: when the editor was opened on a new
+  filter, the name's mount sends focus to the first input of the value
+  (`[data-controls-value]`, mounted in the same commit) instead of taking
+  it; an own filter opened from its pill or row still focuses its name.
 - The edited filter's field is resolved as the shipped bar does
   (`useFilterRuleField`, over the shipped `useDashboardFilterField`:
   dimensions and metrics, with the labels of the tile it is mapped on). A SQL

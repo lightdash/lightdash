@@ -69,10 +69,24 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const getUiString = useUiStrings();
     useFocusLabelOnMount();
-    // The name takes focus as the edit-mode label input does (`autoFocus`)
+    // The name takes focus as the edit-mode label input does (`autoFocus`).
+    // A new filter has no name to edit: once a field is picked, the value
+    // does, which mounts in the same commit
+    const [isOpenedNew] = useState(() => isPlaceholder);
     const focusOnMount = useCallback(
-        (node: HTMLElement | null) => node?.focus(),
-        [],
+        (node: HTMLElement | null) => {
+            if (node === null) return;
+            if (!isOpenedNew) {
+                node.focus();
+                return;
+            }
+            node.closest('[data-controls-editor]')
+                ?.querySelector<HTMLElement>(
+                    '[data-controls-value] input:not([type="hidden"])',
+                )
+                ?.focus();
+        },
+        [isOpenedNew],
     );
     // As the control was opened: an emptied label goes back to exactly that
     const [hadLabelKey] = useState(() => 'label' in filterRule);

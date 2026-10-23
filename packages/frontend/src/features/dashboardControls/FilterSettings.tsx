@@ -221,14 +221,16 @@ export const FilterSettings: FC<Props> = ({
             parameterValues={parameterValues}
         >
             <DropdownClass className={contractClasses?.filterDropdown ?? null}>
-                <FilterValueSettings
-                    isEditMode={!isViewer}
-                    isCreatingNew={isViewer && isNew}
-                    filterType={filterType}
-                    field={field}
-                    filterRule={rule}
-                    onChange={onChange}
-                />
+                <Box data-controls-value>
+                    <FilterValueSettings
+                        isEditMode={!isViewer}
+                        isCreatingNew={isViewer && isNew}
+                        filterType={filterType}
+                        field={field}
+                        filterRule={rule}
+                        onChange={onChange}
+                    />
+                </Box>
             </DropdownClass>
             {isViewer && (
                 <Text fz="xs" c="dimmed">
