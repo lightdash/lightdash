@@ -1,17 +1,21 @@
 import {
     assertUnreachable,
     buildComposerArtifactPipeline,
+    getComposerVizConfigReferenceErrors,
     isComposerSlackImageVizConfig,
     isSlackPrompt,
     ParameterError,
     parsePersistedRunQueryPayload,
     QuerySourceType,
     toComposerChartArtifactVersion,
+    toComposerNodeColumns,
     toComposerSemanticArtifactVersion,
     visualizeToolDefinition,
     type AiComposerArtifactVersion,
     type AiComposerSemanticArtifactVersion,
     type ComposerChartVizConfig,
+    type ComposerCustomChartTypeSlotSpec,
+    type ComposerNodeColumn,
     type ComposerPipelineNode,
     type ComposerStoredChartVizConfig,
     type ThreadComposerQueryNode,
@@ -27,6 +31,7 @@ import type {
     CreateOrUpdateArtifactFn,
     DeferSlackVisualizationFn,
     GetPromptFn,
+    GetThreadComposerNodeColumnsFn,
     ListThreadComposerQueryNodesFn,
     ResolveCustomChartTypeFn,
     RunComposerQueriesFn,
@@ -41,6 +46,7 @@ import { toolErrorOutput } from '../utils/toolErrorHandler';
 type Dependencies = {
     getPrompt: GetPromptFn;
     listThreadComposerQueryNodes: ListThreadComposerQueryNodesFn;
+    getThreadComposerNodeColumns: GetThreadComposerNodeColumnsFn;
     runComposerQueries: RunComposerQueriesFn;
     resolveCustomChartType: ResolveCustomChartTypeFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
@@ -75,12 +81,41 @@ const unknownNodeMessage = (
               .map((node) => `${node.nodeId} ("${node.title ?? node.nodeId}")`)
               .join(', ')}.`;
 
+const assertVizConfigReferences = ({
+    nodeId,
+    columns,
+    vizConfig,
+    customChartTypeSlots,
+}: {
+    nodeId: string;
+    columns: ComposerNodeColumn[];
+    vizConfig: ComposerChartVizConfig;
+    customChartTypeSlots: ComposerCustomChartTypeSlotSpec[];
+}): void => {
+    const errors = getComposerVizConfigReferenceErrors({
+        columns,
+        vizConfig,
+        customChartTypeSlots,
+    });
+    if (errors.length === 0) return;
+    throw new ParameterError(
+        `vizConfig does not match node "${nodeId}": ${errors.join('; ')}. Columns of node "${nodeId}": ${columns
+            .map(({ reference, type }) => `${reference} (${type})`)
+            .join(', ')}.`,
+    );
+};
+
 // A custom chart type pins the version resolved now, so later edits to the type leave this card as drawn.
-const toStoredVizConfig = async (
+const resolveVizConfig = async (
     vizConfig: ComposerChartVizConfig,
     resolveCustomChartType: ResolveCustomChartTypeFn,
-): Promise<ComposerStoredChartVizConfig> => {
-    if (vizConfig.type !== 'custom') return vizConfig;
+): Promise<{
+    storedVizConfig: ComposerStoredChartVizConfig;
+    customChartTypeSlots: ComposerCustomChartTypeSlotSpec[];
+}> => {
+    if (vizConfig.type !== 'custom') {
+        return { storedVizConfig: vizConfig, customChartTypeSlots: [] };
+    }
     const resolved = await resolveCustomChartType(
         vizConfig.customChartTypeSlug,
     );
@@ -90,9 +125,12 @@ const toStoredVizConfig = async (
         );
     }
     return {
-        ...vizConfig,
-        dataAppVizUuid: resolved.dataAppVizUuid,
-        dataAppVizVersion: resolved.dataAppVizVersion,
+        storedVizConfig: {
+            ...vizConfig,
+            dataAppVizUuid: resolved.dataAppVizUuid,
+            dataAppVizVersion: resolved.dataAppVizVersion,
+        },
+        customChartTypeSlots: resolved.schema.fields,
     };
 };
 
@@ -165,6 +203,7 @@ const toSlackRenderInput = (
 export const getVisualize = ({
     getPrompt,
     listThreadComposerQueryNodes,
+    getThreadComposerNodeColumns,
     runComposerQueries,
     resolveCustomChartType,
     createOrUpdateArtifact,
@@ -200,10 +239,8 @@ export const getVisualize = ({
                     threadNodes,
                 });
 
-                const storedVizConfig = await toStoredVizConfig(
-                    vizConfig,
-                    resolveCustomChartType,
-                );
+                const { storedVizConfig, customChartTypeSlots } =
+                    await resolveVizConfig(vizConfig, resolveCustomChartType);
 
                 await updateProgress('Visualizing result...');
                 const needsHints = composerChartQualityHintsNeedRows(vizConfig);
@@ -229,6 +266,20 @@ export const getVisualize = ({
                               terminalNodeId: nodeId,
                           }).catch(() => null)
                         : null;
+                const columns = run
+                    ? toComposerNodeColumns(run.terminal.columns)
+                    : await getThreadComposerNodeColumns({
+                          threadUuid,
+                          nodeId,
+                      });
+                if (columns) {
+                    assertVizConfigReferences({
+                        nodeId,
+                        columns,
+                        vizConfig,
+                        customChartTypeSlots,
+                    });
+                }
                 const hints =
                     run && needsHints
                         ? composerChartQualityHints(vizConfig, run.terminal)

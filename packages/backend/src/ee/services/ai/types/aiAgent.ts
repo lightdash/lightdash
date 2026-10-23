@@ -68,6 +68,7 @@ import {
     GetPullRequestDiffFn,
     GetSavedChartFn,
     GetSqlChartFn,
+    GetThreadComposerNodeColumnsFn,
     GetVerifiedFieldUsageFn,
     IsPromptInterruptedFn,
     IsThreadSqlAutoApprovedFn,
@@ -438,6 +439,7 @@ export type AiAgentDependencies = {
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     listThreadComposerQueryNodes: ListThreadComposerQueryNodesFn;
+    getThreadComposerNodeColumns: GetThreadComposerNodeColumnsFn;
     registerThreadComposerQueryNodes: RegisterThreadComposerQueryNodesFn;
     generateDataApp: GenerateDataAppFn;
     iterateDataApp: IterateDataAppFn;

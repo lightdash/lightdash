@@ -1,4 +1,5 @@
 import { ParameterError } from '../../types/errors';
+import { type DimensionType } from '../../types/field';
 import {
     isAndFilterGroup,
     isOrFilterGroup,
@@ -11,6 +12,7 @@ import {
     type QueryNodeId,
     type SourceQuery,
 } from '../../types/querySources';
+import { type ResultColumns } from '../../types/results';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { stableJson } from '../../utils/stableJson';
 import { type AllVizChartConfig } from '../../visualizations/types';
@@ -196,6 +198,17 @@ export type ComposerPipelineNode = SourceQuery & { nodeId: QueryNodeId };
 
 /** A node a thread defined through a successful composer query. */
 export type ThreadComposerQueryNode = ComposerPipelineNode;
+
+/** A result column of a node, stored beside its definition by the run that registered it. */
+export type ComposerNodeColumn = {
+    reference: string;
+    type: DimensionType;
+};
+
+export const toComposerNodeColumns = (
+    columns: ResultColumns,
+): ComposerNodeColumn[] =>
+    Object.values(columns).map(({ reference, type }) => ({ reference, type }));
 
 const hasNodeId = (node: SourceQuery): node is ComposerPipelineNode =>
     !!node.nodeId;

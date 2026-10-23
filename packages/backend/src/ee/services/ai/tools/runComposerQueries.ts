@@ -6,6 +6,7 @@ import {
     getToolComposerQueriesDescription,
     QuerySourceType,
     queryToolDefinition,
+    toComposerNodeColumns,
     toolComposerQueryNodeToSourceQuery,
     type AnyType,
     type ParameterDefinitions,
@@ -578,6 +579,11 @@ export const getRunComposerQueries = ({
                 await registerThreadComposerQueryNodes({
                     threadUuid: prompt.threadUuid,
                     nodes: queries,
+                    nodeColumns: {
+                        [resolvedTerminalNodeId]: toComposerNodeColumns(
+                            terminal.columns,
+                        ),
+                    },
                 });
 
                 return await persistIfResumed(output);

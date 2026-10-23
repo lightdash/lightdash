@@ -17591,10 +17591,20 @@ Use your existing tools to inspect them when relevant to the user's question (re
                         this.aiAgentModel.listComposerQueryNodes(
                             threadComposerQueryScope(threadUuid),
                         ),
-                    registerThreadComposerQueryNodes: ({ threadUuid, nodes }) =>
+                    getThreadComposerNodeColumns: ({ threadUuid, nodeId }) =>
+                        this.aiAgentModel.findComposerQueryNodeColumns({
+                            scope: threadComposerQueryScope(threadUuid),
+                            nodeId,
+                        }),
+                    registerThreadComposerQueryNodes: ({
+                        threadUuid,
+                        nodes,
+                        nodeColumns,
+                    }) =>
                         this.aiAgentModel.registerComposerQueryNodes({
                             scope: threadComposerQueryScope(threadUuid),
                             nodes,
+                            nodeColumns,
                         }),
 
                     waitForSqlApproval: (toolCallId, timeoutMs) =>
