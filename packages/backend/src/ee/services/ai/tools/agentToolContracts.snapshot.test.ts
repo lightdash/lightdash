@@ -251,6 +251,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             resolveCustomChartType: noop,
             createOrUpdateArtifact: noop,
             updateProgress: noopAsync,
+            slackLinksOnly: false,
         }),
         searchFieldValues: getSearchFieldValues({
             searchFieldValues: noop,

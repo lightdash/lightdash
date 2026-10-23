@@ -39,6 +39,7 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     updateProgress: UpdateProgressFn;
     deferSlackVisualization?: DeferSlackVisualizationFn;
+    slackLinksOnly: boolean;
 };
 
 type VisualizeOutput =
@@ -95,6 +96,7 @@ export const getVisualize = ({
     createOrUpdateArtifact,
     updateProgress,
     deferSlackVisualization,
+    slackLinksOnly,
 }: Dependencies) =>
     tool({
         description: toolDefinition.description,
@@ -133,6 +135,7 @@ export const getVisualize = ({
                 // Slack posts a table, or a chart image, from this execution's rows.
                 const slackImage =
                     isSlackPrompt(prompt) &&
+                    !slackLinksOnly &&
                     !!deferSlackVisualization &&
                     isComposerSlackImageVizConfig(storedVizConfig);
                 const needsRows =

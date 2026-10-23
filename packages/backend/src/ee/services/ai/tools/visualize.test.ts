@@ -126,12 +126,14 @@ const makeTool = ({
     currentPrompt = prompt,
     resolveCustomChartType = resolveStatusRibbon,
     deferSlackVisualization,
+    slackLinksOnly = false,
 }: {
     threadNodes?: ThreadComposerQueryNode[];
     rows?: Record<string, unknown>[];
     currentPrompt?: AiWebAppPrompt;
     resolveCustomChartType?: ResolveCustomChartTypeFn;
     deferSlackVisualization?: DeferSlackVisualizationFn;
+    slackLinksOnly?: boolean;
 } = {}) => {
     const versions: Parameters<CreateOrUpdateArtifactFn>[0][] = [];
     const runComposerQueries = vi.fn(async () => makeRun(rows));
@@ -149,6 +151,7 @@ const makeTool = ({
         },
         updateProgress: async () => {},
         deferSlackVisualization,
+        slackLinksOnly,
     });
     const visualize = (args: Partial<ToolVisualizeArgs> = {}) =>
         tool.execute!(
@@ -358,7 +361,7 @@ describe('visualize', () => {
         expect(output.metadata).toMatchObject({ queryUuid: 'query-uuid' });
     });
 
-    it('registers no Slack image for tables, big numbers, custom types or empty results', async () => {
+    it('registers no Slack image for tables, big numbers, custom types, empty results or links-only orgs', async () => {
         const deferSlackVisualization = vi.fn(async () => true);
         const withRows = makeTool({
             currentPrompt: slackPrompt,
@@ -369,6 +372,12 @@ describe('visualize', () => {
             currentPrompt: slackPrompt,
             deferSlackVisualization,
         });
+        const linksOnly = makeTool({
+            currentPrompt: slackPrompt,
+            rows: [{ orders_status: 'completed' }],
+            deferSlackVisualization,
+            slackLinksOnly: true,
+        });
 
         await withRows.visualize({ vizConfig: tableConfig });
         await withRows.visualize({
@@ -376,8 +385,10 @@ describe('visualize', () => {
         });
         await withRows.visualize({ vizConfig: customConfig });
         await empty.visualize();
+        await linksOnly.visualize();
 
         expect(deferSlackVisualization).not.toHaveBeenCalled();
+        expect(linksOnly.runComposerQueries).not.toHaveBeenCalled();
     });
 
     it('keeps the Slack chart card when image registration fails', async () => {

@@ -2233,6 +2233,7 @@ export const getAgentTools = (
                     args.execution.mode === 'standard'
                         ? dependencies.deferSlackVisualization
                         : undefined,
+                slackLinksOnly: args.slackLinksOnly,
             }),
         listWarehouseTables: () =>
             getListWarehouseTables({

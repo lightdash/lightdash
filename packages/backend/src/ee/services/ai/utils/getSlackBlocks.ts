@@ -14,6 +14,7 @@ import {
     getWebAiChartConfig,
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
+    isComposerSlackImageVizConfig,
     isToolEditDbtProjectResult,
     isToolSetupPreviewDeployResult,
     NotFoundError,
@@ -939,12 +940,13 @@ export async function getModernArtifactCardBlocks(
                 artifact.chartConfig.schemaVersion === 2 &&
                 agentUuid
             ) {
-                const isTable =
-                    artifact.chartConfig.vizConfig?.type === 'table';
+                const { vizConfig } = artifact.chartConfig;
+                const isTable = vizConfig?.type === 'table';
                 return buildSlackCardBlock({
-                    blockId: isTable
-                        ? `ai_agent_composer_card_${artifact.versionUuid}`
-                        : getSlackArtifactCardBlockId(artifact.versionUuid),
+                    blockId:
+                        vizConfig && isComposerSlackImageVizConfig(vizConfig)
+                            ? getSlackArtifactCardBlockId(artifact.versionUuid)
+                            : `ai_agent_composer_card_${artifact.versionUuid}`,
                     title: getArtifactTitle(artifact),
                     subtitle: isTable ? 'Table' : 'Chart',
                     body:

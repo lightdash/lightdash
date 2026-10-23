@@ -52,7 +52,6 @@ describe('Slack image delivery scope', () => {
         const replies = vi.fn().mockResolvedValue({ messages: [] });
         const getAsyncQueryHistory = vi.fn().mockResolvedValue({});
         const getRawAsyncQueryResults = vi.fn();
-        const getAsyncQueryResults = vi.fn();
         const updateMessage = vi.fn();
         const getDelivery = vi.fn();
         const executeAsyncMetricQuery = vi.fn();
@@ -133,7 +132,6 @@ describe('Slack image delivery scope', () => {
             asyncQueryService: {
                 getAsyncQueryHistory,
                 getRawAsyncQueryResults,
-                getAsyncQueryResults,
                 executeAsyncMetricQuery,
             },
             fileStorageClient,
@@ -194,7 +192,6 @@ describe('Slack image delivery scope', () => {
             getExplore,
             getAsyncQueryHistory,
             getRawAsyncQueryResults,
-            getAsyncQueryResults,
             updateMessage,
             fileStorageClient,
             getDelivery,
@@ -693,7 +690,7 @@ describe('Slack image delivery scope', () => {
             getArtifact,
             getExplore,
             getAsyncQueryHistory,
-            getAsyncQueryResults,
+            getRawAsyncQueryResults,
             fileStorageClient,
         } = setup();
         getArtifact.mockResolvedValue({
@@ -734,8 +731,7 @@ describe('Slack image delivery scope', () => {
                 },
             },
         } as unknown as AiArtifact);
-        getAsyncQueryResults.mockResolvedValue({
-            status: QueryHistoryStatus.READY,
+        getAsyncQueryHistory.mockResolvedValue({
             columns: {
                 orders_status: {
                     reference: 'orders_status',
@@ -746,14 +742,10 @@ describe('Slack image delivery scope', () => {
                     type: DimensionType.NUMBER,
                 },
             },
-            rows: [
-                {
-                    orders_status: {
-                        value: { raw: 'done', formatted: 'done' },
-                    },
-                    orders_revenue: { value: { raw: 10, formatted: '10' } },
-                },
-            ],
+        });
+        getRawAsyncQueryResults.mockResolvedValue({
+            rows: [{ orders_status: 'done', orders_revenue: 10 }],
+            truncated: false,
         });
         const input: SlackComposerRenderInput = {
             source: 'composer',
@@ -774,10 +766,10 @@ describe('Slack image delivery scope', () => {
         expect(getAsyncQueryHistory).toHaveBeenCalledWith(
             expect.objectContaining({ queryUuid: 'execution' }),
         );
-        expect(getAsyncQueryResults).toHaveBeenCalledExactlyOnceWith(
+        expect(getRawAsyncQueryResults).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
                 queryUuid: 'execution',
-                pageSize: 1,
+                maxRows: 1,
                 aiAccessOnly: true,
             }),
         );
@@ -796,6 +788,13 @@ describe('Slack image delivery scope', () => {
         );
         expect(fileStorageClient.uploadImage).toHaveBeenCalledOnce();
         expect(url).toContain('/api/v1/slack/card-image/');
+
+        // More rows than the agent saw would draw an incomplete chart.
+        getRawAsyncQueryResults.mockResolvedValue({
+            rows: [{ orders_status: 'done', orders_revenue: 10 }],
+            truncated: true,
+        });
+        expect(await runtime!.render(input)).toBeNull();
     });
 
     it.each(['table', 'big_number'] as const)(

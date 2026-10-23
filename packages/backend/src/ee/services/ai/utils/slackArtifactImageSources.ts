@@ -9,11 +9,13 @@ import {
 import { type SlackArtifactRenderInput } from '../../../database/entities/aiSlackArtifactDeliveries';
 import { buildAiMergeSourceConfigs } from './buildAiMergeQuery';
 
-export type SlackImageSource = {
-    exploreNames: string[];
-    /** The composer chart to draw; null for runQuery inputs, which carry their tool args. */
-    composerVizConfig: ComposerStoredChartVizConfig | null;
-};
+export type SlackImageSource =
+    | { source: 'runQuery'; exploreNames: string[] }
+    | {
+          source: 'composer';
+          exploreNames: string[];
+          vizConfig: ComposerStoredChartVizConfig;
+      };
 
 /** What a Slack image reads, or null when the artifact version cannot render this input. */
 export const getSlackImageSource = (
@@ -35,10 +37,10 @@ export const getSlackImageSource = (
                   )
                 : [input.queryTool.queryConfig];
             return {
+                source: 'runQuery',
                 exploreNames: [
                     ...new Set(queries.map(({ exploreName }) => exploreName)),
                 ],
-                composerVizConfig: null,
             };
         }
         case 'composer': {
@@ -50,6 +52,7 @@ export const getSlackImageSource = (
             )
                 return null;
             return {
+                source: 'composer',
                 exploreNames: [
                     ...new Set(
                         chartConfig.queries.flatMap((node) =>
@@ -59,7 +62,7 @@ export const getSlackImageSource = (
                         ),
                     ),
                 ],
-                composerVizConfig: chartConfig.vizConfig,
+                vizConfig: chartConfig.vizConfig,
             };
         }
         default:

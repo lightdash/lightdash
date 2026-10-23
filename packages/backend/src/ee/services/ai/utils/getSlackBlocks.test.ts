@@ -489,7 +489,7 @@ describe('Slack AI agent blocks', () => {
         const composer = (
             versionUuid: string,
             title: string,
-            type: 'bar' | 'table',
+            type: 'bar' | 'table' | 'big_number',
         ) => ({
             artifactUuid: `artifact-${versionUuid}`,
             threadUuid: 'thread-1',
@@ -530,6 +530,7 @@ describe('Slack AI agent blocks', () => {
             [
                 composer('chart', 'Revenue by month', 'bar'),
                 composer('table', 'Top customers', 'table'),
+                composer('kpi', 'Total revenue', 'big_number'),
             ] as never,
             [],
         );
@@ -546,6 +547,10 @@ describe('Slack AI agent blocks', () => {
                     },
                     {
                         title: { text: 'Top customers' },
+                        actions: [{ url: threadUrl }],
+                    },
+                    {
+                        title: { text: 'Total revenue' },
                         actions: [{ url: threadUrl }],
                     },
                 ],

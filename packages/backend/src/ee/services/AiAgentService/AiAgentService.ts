@@ -212,6 +212,7 @@ import {
     type AiWebAppThreadCreatedFrom,
     type ApiGetAsyncQueryResults,
     type AppGeneratePipelineJobPayload,
+    type ComposerStoredChartVizConfig,
     type DataAppVizChart,
     type DuckdbSourceQuery,
     type ItemsMap,
@@ -253,6 +254,7 @@ import {
 } from 'ai';
 import { createCanvas, loadImage } from 'canvas';
 import { randomBytes, randomUUID } from 'crypto';
+import { type EChartsOption } from 'echarts';
 import { EventEmitter } from 'events';
 import fs from 'fs/promises';
 import _ from 'lodash';
@@ -2326,43 +2328,21 @@ export class AiAgentService extends BaseService {
                             ? ([deliveryGuard] as const)
                             : []),
                     );
-                if (input.source === 'composer') {
-                    if (!source.composerVizConfig) return null;
-                    const results =
-                        await this.asyncQueryService.getAsyncQueryResults({
-                            account: fromSession(user),
-                            reader: resultReader,
-                            projectUuid: prompt.projectUuid,
-                            queryUuid: input.queryUuid,
-                            page: 1,
-                            pageSize: input.rowLimit,
-                            aiAccessOnly: true,
-                        });
-                    if (
-                        results.status !== QueryHistoryStatus.READY ||
-                        results.rows.length !== input.rowLimit
-                    )
-                        return null;
-                    const options = await getComposerSlackEchartsConfig({
-                        columns: Object.values(results.columns),
-                        rows: results.rows.map((row) =>
-                            Object.fromEntries(
-                                Object.entries(row).map(([key, cell]) => [
-                                    key,
-                                    cell.value.raw,
-                                ]),
-                            ),
-                        ),
-                        vizConfig: source.composerVizConfig,
-                        metadata: {
-                            title: artifact.title ?? '',
-                            description: artifact.description ?? '',
-                        },
-                        getPivotedResults,
+                if (source.source === 'composer') {
+                    const options = await this.getSlackComposerChartOptions({
+                        user,
+                        reader: resultReader,
+                        projectUuid: prompt.projectUuid,
+                        queryUuid: input.queryUuid,
+                        rowLimit: input.rowLimit,
+                        artifact,
+                        vizConfig: source.vizConfig,
                     });
-                    if (!options) return null;
-                    return uploadImage(await renderEcharts(options));
+                    return options
+                        ? uploadImage(await renderEcharts(options))
+                        : null;
                 }
+                if (input.source !== 'runQuery') return null;
                 if (artifact.chartConfig?.source === 'customChartType') {
                     const { imageUrl } =
                         await this.unfurlService.exportAiAgentArtifact(
@@ -2414,6 +2394,65 @@ export class AiAgentService extends BaseService {
                 });
             },
         };
+    }
+
+    /** Null leaves the card's link: an incomplete result or a chart the result cannot draw. */
+    private async getSlackComposerChartOptions({
+        user,
+        reader,
+        projectUuid,
+        queryUuid,
+        rowLimit,
+        artifact,
+        vizConfig,
+    }: {
+        user: SessionUser;
+        reader: QueryResultReader;
+        projectUuid: string;
+        queryUuid: string;
+        rowLimit: number;
+        artifact: AiArtifact;
+        vizConfig: ComposerStoredChartVizConfig;
+    }): Promise<EChartsOption | null> {
+        const account = fromSession(user);
+        const history = await this.asyncQueryService.getAsyncQueryHistory({
+            account,
+            reader,
+            projectUuid,
+            queryUuid,
+        });
+        const results = await this.asyncQueryService.getRawAsyncQueryResults({
+            account,
+            reader,
+            projectUuid,
+            queryUuid,
+            aiAccessOnly: true,
+            maxRows: rowLimit,
+        });
+        if (
+            !history.columns ||
+            results.truncated ||
+            results.rows.length !== rowLimit
+        )
+            return null;
+        try {
+            return await getComposerSlackEchartsConfig({
+                columns: Object.values(history.columns),
+                rows: results.rows,
+                vizConfig,
+                metadata: {
+                    title: artifact.title ?? '',
+                    description: artifact.description ?? '',
+                },
+                getPivotedResults,
+            });
+        } catch (error) {
+            this.logger.warn('Composer Slack chart cannot be drawn', {
+                versionUuid: artifact.versionUuid,
+                error: getErrorMessage(error),
+            });
+            return null;
+        }
     }
 
     private async uploadSlackAgentCardImage(

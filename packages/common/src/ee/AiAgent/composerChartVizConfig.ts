@@ -13,7 +13,7 @@ import {
     type DuckdbSourceQuery,
     type QueryNodeId,
 } from '../../types/querySources';
-import { type ResultColumn, type ResultRow } from '../../types/results';
+import { type ResultColumn } from '../../types/results';
 import {
     ChartType,
     type ChartConfig,
@@ -37,8 +37,6 @@ import {
     type ToolRunQueryArgsTransformed,
     type ToolRunQueryBuiltinChartConfig,
 } from './schemas';
-
-type RawResultRow = Record<string, unknown>;
 
 /** Synthetic explore of a composer node result; its fields are the result columns. */
 export const COMPOSER_RESULT_TABLE_NAME = 'composer_result';
@@ -454,22 +452,21 @@ export const getComposerRunQueryChart = ({
 };
 
 /** Row keys renamed to field ids, keeping only the chart's fields: builders treat any extra key as data (funnel labels). */
-export const toComposerResultRows = <Row extends ResultRow | RawResultRow>(
+export const toComposerResultRows = <Value>(
     chart: Pick<ComposerRunQueryChart, 'metricQuery' | 'fields'>,
-    rows: Row[],
-): Row[] => {
+    rows: Record<string, Value>[],
+): Record<string, Value>[] => {
     const fieldIds = [
         ...chart.metricQuery.dimensions,
         ...chart.metricQuery.metrics,
     ];
-    return rows.map(
-        (row) =>
-            Object.fromEntries(
-                fieldIds.map((fieldId) => [
-                    fieldId,
-                    row[chart.fields[fieldId].name],
-                ]),
-            ) as Row,
+    return rows.map((row) =>
+        Object.fromEntries(
+            fieldIds.map((fieldId) => [
+                fieldId,
+                row[chart.fields[fieldId].name],
+            ]),
+        ),
     );
 };
 
@@ -484,12 +481,12 @@ export const getComposerSlackRunQueryChart = ({
     metadata,
 }: {
     columns: ResultColumn[];
-    rows: RawResultRow[];
+    rows: Record<string, unknown>[];
     vizConfig: ComposerStoredChartVizConfig;
     metadata: { title: string; description: string };
 }): {
     tool: ToolRunQueryArgsTransformed;
-    rows: RawResultRow[];
+    rows: Record<string, unknown>[];
     fields: ItemsMap;
 } | null => {
     if (!isComposerSlackImageVizConfig(vizConfig)) return null;
