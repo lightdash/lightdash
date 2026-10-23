@@ -1,3 +1,10 @@
+## [3.50.1](https://github.com/lightdash/lightdash/compare/3.50.0...3.50.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **ai:** Slack chart results give the slack-chart marker, not Document tags ([#31524](https://github.com/lightdash/lightdash/issues/31524)) ([3107e50](https://github.com/lightdash/lightdash/commit/3107e50ccf666a653c35932590bf52a128d55ab7))
+
 # [3.50.0](https://github.com/lightdash/lightdash/compare/3.49.1...3.50.0) (2026-10-23)
 
 
