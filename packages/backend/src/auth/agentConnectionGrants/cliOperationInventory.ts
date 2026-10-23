@@ -229,7 +229,7 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             '`/api/v2/projects/${projectUuid}/query/${queryUuid}${pageSizeParam}`',
             ['QueryController.getAsyncQueryResults'],
         ),
-        allowed('handlers/compile.ts:521', 'GET', 'manifestEndpoint', [
+        allowed('handlers/compile.ts:564', 'GET', 'manifestEndpoint', [
             'ProjectController.getMergedManifest',
         ]),
         refused(
@@ -318,58 +318,58 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'Global job identifiers have no reviewed project resolver; an injected project filter cannot scope them.',
         ),
         allowed(
-            'handlers/deploy.ts:202',
+            'handlers/deploy.ts:204',
             'PUT',
             '`/api/v1/projects/${projectUuid}/tags/yaml`',
             ['ProjectController.replaceYamlTags'],
         ),
         allowed(
-            'handlers/deploy.ts:219',
+            'handlers/deploy.ts:221',
             'PUT',
             '`/api/v2/projects/${projectUuid}/parameters`',
             ['ParametersController.replaceParameters'],
         ),
         allowed(
-            'handlers/deploy.ts:231',
+            'handlers/deploy.ts:233',
             'PUT',
             '`/api/v2/projects/${projectUuid}/defaults`',
             ['ProjectDefaultsController.replaceProjectDefaults'],
         ),
         allowed(
-            'handlers/deploy.ts:246',
+            'handlers/deploy.ts:248',
             'PUT',
             '`/api/v1/projects/${projectUuid}/table-groups`',
             ['ProjectController.replaceProjectTableGroups'],
         ),
         allowed(
-            'handlers/deploy.ts:335',
+            'handlers/deploy.ts:337',
             'POST',
             '`/api/v2/projects/${options.projectUuid}/deploy`',
             ['DeployController.startDeploySession'],
         ),
         allowed(
-            'handlers/deploy.ts:380',
+            'handlers/deploy.ts:382',
             'POST',
             '`/api/v2/projects/${options.projectUuid}/deploy/${sessionUuid}/batch`',
             ['DeployController.addDeployBatch'],
         ),
         allowed(
-            'handlers/deploy.ts:433',
+            'handlers/deploy.ts:435',
             'POST',
             '`/api/v2/projects/${options.projectUuid}/deploy/${sessionUuid}/finalize`',
             ['DeployController.finalizeDeploySession'],
         ),
         allowed(
-            'handlers/deploy.ts:519',
+            'handlers/deploy.ts:526',
             'PUT',
-            'options.dbtModelNames === undefined\n                            ? `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${deployDestinationQuery(options)}`\n                            : `/api/v2/projects/${options.projectUuid}/deploy`',
+            '!useV2Deploy\n                        ? `/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${deployDestinationQuery(options)}`\n                        : `/api/v2/projects/${options.projectUuid}/deploy`',
             [
                 'ExploreController.SetExplores',
                 'DeployController.deployExplores',
             ],
         ),
         allowed(
-            'handlers/deploy.ts:542',
+            'handlers/deploy.ts:559',
             'PUT',
             '`/api/v1/projects/${options.projectUuid}/explores?complete=${options.complete === true}${deployDestinationQuery(options)}`',
             ['ExploreController.SetExplores'],
