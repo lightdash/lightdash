@@ -177,20 +177,38 @@ const SqlChartTile: FC<Props> = ({
     const sqlQueryUuid = chartResultsData?.queryUuid ?? null;
     const tileError = chartError ?? chartResultsError ?? null;
     const registration = useMemo(() => {
-        if (isChartLoading || isChartResultsLoading) return null;
-        if (!sqlQueryUuid && !tileError) return null;
+        const label =
+            tile.properties.title || tile.properties.chartName || 'Chart';
+        // Errors settle the tile before any loading guard: a failed chart
+        // fetch leaves the dependent results query disabled with
+        // isLoading: true forever, which would pin the dashboard in flight.
+        if (tileError) {
+            return {
+                tileUuid: tile.uuid,
+                queryUuid: sqlQueryUuid,
+                label,
+                status: 'error' as const,
+            };
+        }
+        // Withdraw during background refetches too: a cached tab remount
+        // keeps the old queryUuid while replacement results load, and stale
+        // uuids must never be analysed.
+        if (isChartLoading || isChartResultsLoading || isChartResultsFetching) {
+            return null;
+        }
+        if (!sqlQueryUuid) return null;
         return {
             tileUuid: tile.uuid,
             queryUuid: sqlQueryUuid,
-            label:
-                tile.properties.title || tile.properties.chartName || 'Chart',
-            status: (tileError ? 'error' : 'ready') as 'ready' | 'error',
+            label,
+            status: 'ready' as const,
         };
     }, [
         sqlQueryUuid,
         tileError,
         isChartLoading,
         isChartResultsLoading,
+        isChartResultsFetching,
         tile.uuid,
         tile.properties.title,
         tile.properties.chartName,
