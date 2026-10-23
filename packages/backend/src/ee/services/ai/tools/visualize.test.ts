@@ -402,7 +402,7 @@ describe('visualize', () => {
         expect(slackChart.metadata).toMatchObject({ queryUuid: null });
     });
 
-    it('registers a Slack chart image drawn from the run of the node', async () => {
+    it('registers a classic Slack chart image for a lone semantic node', async () => {
         const deferSlackVisualization = vi.fn(async () => true);
         const { visualize, runComposerQueries } = makeTool({
             currentPrompt: slackPrompt,
@@ -414,13 +414,45 @@ describe('visualize', () => {
 
         expect(runComposerQueries).toHaveBeenCalledOnce();
         expect(deferSlackVisualization).toHaveBeenCalledExactlyOnceWith({
+            source: 'runQuery',
+            artifactUuid: 'artifact-uuid',
+            versionUuid: 'version-1',
+            queryUuid: 'query-uuid',
+            rowLimit: 2,
+            queryTool: expect.objectContaining({
+                queryConfig: expect.objectContaining({
+                    exploreName: 'orders',
+                    metrics: ['orders_total_order_amount'],
+                }),
+                chartConfig: expect.objectContaining({
+                    defaultVizType: 'bar',
+                    xAxisDimension: 'orders_order_date_month',
+                }),
+            }),
+        });
+        expect(output.metadata).toMatchObject({ queryUuid: 'query-uuid' });
+    });
+
+    it('registers a composer Slack chart image for a pipeline node', async () => {
+        const deferSlackVisualization = vi.fn(async () => true);
+        const { visualize } = makeTool({
+            currentPrompt: slackPrompt,
+            rows: [{ orders_status: 'completed' }, { orders_status: 'placed' }],
+            deferSlackVisualization,
+        });
+
+        await visualize({
+            nodeId: 'share',
+            vizConfig: { ...barConfig, x: 'orders_status', y: ['amount'] },
+        });
+
+        expect(deferSlackVisualization).toHaveBeenCalledExactlyOnceWith({
             source: 'composer',
             artifactUuid: 'artifact-uuid',
             versionUuid: 'version-1',
             queryUuid: 'query-uuid',
             rowLimit: 2,
         });
-        expect(output.metadata).toMatchObject({ queryUuid: 'query-uuid' });
     });
 
     it('registers no Slack image for tables, big numbers, custom types, empty results or links-only orgs', async () => {

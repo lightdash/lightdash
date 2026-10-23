@@ -1,8 +1,10 @@
 import {
+    assertUnreachable,
     buildComposerArtifactPipeline,
     isComposerSlackImageVizConfig,
     isSlackPrompt,
     ParameterError,
+    parsePersistedRunQueryPayload,
     QuerySourceType,
     toComposerChartArtifactVersion,
     toComposerSemanticArtifactVersion,
@@ -132,6 +134,34 @@ const toPresentedArtifactVersion = ({
     );
 };
 
+type SlackRenderInput = Parameters<DeferSlackVisualizationFn>[0];
+
+// Classic versions draw through the runQuery Slack path, composer versions through their own.
+const toSlackRenderInput = (
+    {
+        vizConfig,
+    }: AiComposerArtifactVersion | AiComposerSemanticArtifactVersion,
+    execution: Omit<
+        Extract<SlackRenderInput, { source: 'composer' }>,
+        'source'
+    >,
+): SlackRenderInput | null => {
+    switch (vizConfig.source) {
+        case 'composer':
+            return { source: 'composer', ...execution };
+        case 'semantic': {
+            const queryTool = parsePersistedRunQueryPayload(vizConfig.config);
+            return queryTool
+                ? { source: 'runQuery', ...execution, queryTool }
+                : null;
+        }
+        case 'customChartType':
+            return null;
+        default:
+            return assertUnreachable(vizConfig, 'Unknown artifact source');
+    }
+};
+
 export const getVisualize = ({
     getPrompt,
     listThreadComposerQueryNodes,
@@ -199,30 +229,34 @@ export const getVisualize = ({
                         ? composerChartQualityHints(vizConfig, run.terminal)
                         : [];
 
+                const version = toPresentedArtifactVersion({
+                    title,
+                    description,
+                    queries,
+                    terminalNodeId: nodeId,
+                    vizConfig: storedVizConfig,
+                    maxQueryLimit,
+                });
                 const artifact = await createOrUpdateArtifact({
                     threadUuid,
                     promptUuid,
-                    ...toPresentedArtifactVersion({
-                        title,
-                        description,
-                        queries,
-                        terminalNodeId: nodeId,
-                        vizConfig: storedVizConfig,
-                        maxQueryLimit,
-                    }),
+                    ...version,
                 });
 
-                if (slackImage && run && run.terminal.rows.length > 0) {
+                const slackRenderInput =
+                    slackImage && run && run.terminal.rows.length > 0
+                        ? toSlackRenderInput(version, {
+                              artifactUuid: artifact.artifactUuid,
+                              versionUuid: artifact.versionUuid,
+                              queryUuid: run.terminal.queryUuid,
+                              rowLimit: run.terminal.rows.length,
+                          })
+                        : null;
+                if (slackRenderInput && deferSlackVisualization) {
                     // The answer keeps its link card if the image cannot be registered.
-                    await deferSlackVisualization({
-                        source: 'composer',
-                        artifactUuid: artifact.artifactUuid,
-                        versionUuid: artifact.versionUuid,
-                        queryUuid: run.terminal.queryUuid,
-                        rowLimit: run.terminal.rows.length,
-                    }).catch(() =>
+                    await deferSlackVisualization(slackRenderInput).catch(() =>
                         Logger.warn(
-                            '[AiAgent] Deferred Slack composer image unavailable; retaining the chart link.',
+                            '[AiAgent] Deferred Slack image unavailable; retaining the chart link.',
                         ),
                     );
                 }

@@ -798,7 +798,7 @@ describe('Slack image delivery scope', () => {
     });
 
     it.each(['table', 'big_number'] as const)(
-        'refuses a composer %s image',
+        'marks a composer %s image unavailable without reading results',
         async (type) => {
             const { service, getArtifact, getAsyncQueryHistory } = setup();
             getArtifact.mockResolvedValue({
@@ -822,7 +822,7 @@ describe('Slack image delivery scope', () => {
                     queryUuid: 'execution',
                     rowLimit: 1,
                 }),
-            ).rejects.toBeInstanceOf(ForbiddenError);
+            ).resolves.toBe(false);
             expect(getAsyncQueryHistory).not.toHaveBeenCalled();
         },
     );
