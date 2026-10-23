@@ -1,7 +1,4 @@
-import {
-    AUTO_DETECTED_URL_LABEL,
-    isUrlValue,
-} from '@lightdash/common';
+import { AUTO_DETECTED_URL_LABEL, isUrlValue } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { IconCopy, IconLink } from '@tabler/icons-react';
 import useToaster from '../../../hooks/toaster/useToaster';
