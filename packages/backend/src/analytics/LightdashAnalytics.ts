@@ -671,7 +671,8 @@ type QueryExecutionSource =
     | 'warehouse'
     | 'pre_aggregate_duckdb'
     | 'pre_aggregate_warehouse'
-    | 'external_source_duckdb';
+    | 'external_source_duckdb'
+    | 'composer_duckdb';
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
@@ -1410,9 +1411,7 @@ type TrainingProjectProvisionedEvent = BaseTrack & {
     };
 };
 
-export type TrainingProjectSkippedReason =
-    | 'learn_disabled'
-    | 'training_project_already_exists';
+export type TrainingProjectSkippedReason = 'training_project_already_exists';
 
 type TrainingProjectSkippedEvent = BaseTrack & {
     event: 'training_project.skipped';

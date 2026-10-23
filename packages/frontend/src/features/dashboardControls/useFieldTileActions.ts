@@ -1,12 +1,15 @@
 import {
+    interpolateUiString,
     isDashboardDataAppTileType,
     isDashboardFieldTarget,
     type DashboardFieldTarget,
     type DashboardFilterableField,
     type DashboardFilterRule,
     type DashboardTile,
+    type UiStringResolver,
 } from '@lightdash/common';
 import { useMemo } from 'react';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectActiveTabUuid,
@@ -32,11 +35,19 @@ import {
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { toDashboardFilterableField } from './useFilterRuleField';
 
-const SQL_COLUMN_LABEL = 'SQL column';
-
 // The fields a press replaces: one or two by name, more as "other fields"
-export const nameReplacedFields = (labels: string[]): string =>
-    labels.length > 2 ? 'other fields' : labels.join(' and ');
+export const nameReplacedFields = (
+    labels: string[],
+    getUiString: UiStringResolver,
+): string => {
+    if (labels.length > 2) return getUiString('filters.fieldBar.otherFields');
+    if (labels.length === 2)
+        return interpolateUiString(getUiString('filters.fieldBar.twoFields'), {
+            first: labels[0],
+            second: labels[1],
+        });
+    return labels.join('');
+};
 
 // Which tiles an action is over. Without tabs there is only 'every-tab'
 export type TileScope = 'this-tab' | 'every-tab';
@@ -162,6 +173,7 @@ export const useFieldTileActions = (
         (c) => c.filterableFieldsByTileUuid,
     );
     const fieldsMap = useFilterableItemsMap();
+    const sqlColumnLabel = useUiStrings()('filters.rail.sqlColumn');
 
     return useMemo(() => {
         if (editingRule === null || isPlaceholder) return null;
@@ -224,7 +236,7 @@ export const useFieldTileActions = (
                 // Each time grain is a field of its own, so the name says which one
                 label: field?.label ?? fieldId,
                 tableLabel: isSqlColumn
-                    ? SQL_COLUMN_LABEL
+                    ? sqlColumnLabel
                     : (field?.tableLabel ?? target?.tableName ?? ''),
                 isWaiting,
                 thisTabScope,
@@ -328,5 +340,6 @@ export const useFieldTileActions = (
         applyWithUndo,
         removeLastField,
         removeWaitingField,
+        sqlColumnLabel,
     ]);
 };

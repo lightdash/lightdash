@@ -57,10 +57,13 @@ const useLockHeader = (isLocked: boolean) => {
 // Save closes the editor as Done does, Cancel drops what it wrote; both then
 // do what they do without it. Each is a no-op while the editor is closed
 export const DashboardHeaderGuard: FC<Props> = (props) => {
-    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    // A viewer's filter leaves the dashboard as it is: nothing to lock
+    const isLocked = useControlsSidebarSelector(
+        (c) => c.isSidebarOpen && !c.isViewer,
+    );
     const close = useControlsSidebarSelector((c) => c.close);
     const discard = useControlsSidebarSelector((c) => c.discard);
-    const root = useLockHeader(isSidebarOpen);
+    const root = useLockHeader(isLocked);
     return (
         <div ref={root} className={classes.guard}>
             <DashboardHeader

@@ -1,4 +1,5 @@
 import { ParameterError } from '../../types/errors';
+import { type DimensionType } from '../../types/field';
 import {
     isAndFilterGroup,
     isOrFilterGroup,
@@ -11,6 +12,7 @@ import {
     type QueryNodeId,
     type SourceQuery,
 } from '../../types/querySources';
+import { type ResultColumns } from '../../types/results';
 import assertUnreachable from '../../utils/assertUnreachable';
 import { stableJson } from '../../utils/stableJson';
 import { type AllVizChartConfig } from '../../visualizations/types';
@@ -114,6 +116,19 @@ export const isAiComposerChartArtifactConfig = (
     'terminalNodeId' in config &&
     typeof config.terminalNodeId === 'string';
 
+/** Semantic explores a pipeline reads, the access a user needs to see its results. */
+export const getComposerSemanticExploreNames = (
+    queries: SourceQuery[],
+): string[] => [
+    ...new Set(
+        queries.flatMap((node) =>
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                ? [node.exploreName]
+                : [],
+        ),
+    ),
+];
+
 // The full definition, with array references written in map form.
 // Filter group and rule ids are generated per submission, so two identical
 // filters differ only by id; compare them without.
@@ -184,6 +199,17 @@ export type ComposerPipelineNode = SourceQuery & { nodeId: QueryNodeId };
 /** A node a thread defined through a successful composer query. */
 export type ThreadComposerQueryNode = ComposerPipelineNode;
 
+/** A result column of a node, stored beside its definition by the run that registered it. */
+export type ComposerNodeColumn = {
+    reference: string;
+    type: DimensionType;
+};
+
+export const toComposerNodeColumns = (
+    columns: ResultColumns,
+): ComposerNodeColumn[] =>
+    Object.values(columns).map(({ reference, type }) => ({ reference, type }));
+
 const hasNodeId = (node: SourceQuery): node is ComposerPipelineNode =>
     !!node.nodeId;
 
@@ -248,4 +274,18 @@ export const buildComposerArtifactPipeline = ({
     };
     queries.forEach(visit);
     return pipeline;
+};
+
+/** A successful `query` call of a turn, presented by its terminal node. */
+export type AiAgentMessageQueryPipeline = {
+    queryUuid: string;
+    title: string;
+    terminalNodeId: QueryNodeId;
+    /** Every node the call ran, reused ones included, in dependency order. */
+    nodes: ComposerPipelineNode[];
+};
+
+export type ApiAiAgentMessageQueryPipelinesResponse = {
+    status: 'ok';
+    results: AiAgentMessageQueryPipeline[];
 };

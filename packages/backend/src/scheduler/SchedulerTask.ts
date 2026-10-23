@@ -3200,14 +3200,9 @@ export default class SchedulerTask {
                 };
 
                 try {
-                    if (
-                        !(await isPreAggregatesEnabled(
-                            this.featureFlagModel,
-                            payload.organizationUuid,
-                        ))
-                    ) {
+                    if (!isPreAggregatesEnabled(this.lightdashConfig)) {
                         Logger.info(
-                            `Skipping pre-aggregate materialization ${payload.preAggregateDefinitionUuid}: pre-aggregates are off for organization ${payload.organizationUuid}`,
+                            `Skipping pre-aggregate materialization ${payload.preAggregateDefinitionUuid}: pre-aggregates are not enabled on this instance`,
                         );
                         return;
                     }
@@ -3293,29 +3288,18 @@ export default class SchedulerTask {
     protected async generateDailyPreAggregateMaterializationJobs(
         currentDateStartOfDay: Date,
     ): Promise<void> {
+        if (!isPreAggregatesEnabled(this.lightdashConfig)) {
+            return;
+        }
         const preAggregateSchedulerDetails =
             await this.preAggregateModel.getProjectSchedulerDetailsForPreAggregates();
 
         let totalScheduledJobs = 0;
-        const enabledByOrganization = new Map<string, Promise<boolean>>();
-        const isEnabledFor = (organizationUuid: string) => {
-            const cached = enabledByOrganization.get(organizationUuid);
-            if (cached) return cached;
-            const pending = isPreAggregatesEnabled(
-                this.featureFlagModel,
-                organizationUuid,
-            );
-            enabledByOrganization.set(organizationUuid, pending);
-            return pending;
-        };
 
         await Promise.all(
             preAggregateSchedulerDetails.map(async (definition) => {
                 const { createdByUserUuid } = definition;
                 if (!createdByUserUuid) {
-                    return;
-                }
-                if (!(await isEnabledFor(definition.organizationUuid))) {
                     return;
                 }
 

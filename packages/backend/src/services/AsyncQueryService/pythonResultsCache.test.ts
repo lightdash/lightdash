@@ -208,6 +208,13 @@ const buildHarness = ({
                     columns: [{ name: 'id', type: 'number' }],
                     rowCount: 1,
                     truncated: false,
+                    timings: {
+                        importMs: 0,
+                        loadInputsMs: 0,
+                        loadCodeMs: 0,
+                        runMs: 0,
+                        writeOutputMs: 0,
+                    },
                 }),
                 stdout: '',
             }),

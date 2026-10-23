@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    getComposerSemanticExploreNames,
     isAiComposerChartArtifactConfig,
     isComposerSlackImageVizConfig,
     QuerySourceType,
@@ -53,15 +54,9 @@ export const getSlackImageSource = (
                 return null;
             return {
                 source: 'composer',
-                exploreNames: [
-                    ...new Set(
-                        chartConfig.queries.flatMap((node) =>
-                            node.sourceType === QuerySourceType.SEMANTIC_LAYER
-                                ? [node.exploreName]
-                                : [],
-                        ),
-                    ),
-                ],
+                exploreNames: getComposerSemanticExploreNames(
+                    chartConfig.queries,
+                ),
                 vizConfig: chartConfig.vizConfig,
             };
         }

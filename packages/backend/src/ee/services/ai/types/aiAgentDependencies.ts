@@ -16,6 +16,7 @@ import {
     CacheMetadata,
     CatalogField,
     ChartAsCode,
+    ComposerNodeColumn,
     CreateSchedulerAndTargetsWithoutIds,
     CustomChartType,
     CustomChartTypeLibrary,
@@ -694,10 +695,18 @@ export type ListThreadComposerQueryNodesFn = (
     threadUuid: string,
 ) => Promise<ThreadComposerQueryNode[]>;
 
+/** Null when the node never ran as the terminal of a query. */
+export type GetThreadComposerNodeColumnsFn = (args: {
+    threadUuid: string;
+    nodeId: string;
+}) => Promise<ComposerNodeColumn[] | null>;
+
 /** Throws on a different definition under a registered node id. */
 export type RegisterThreadComposerQueryNodesFn = (args: {
     threadUuid: string;
     nodes: ThreadComposerQueryNode[];
+    /** Columns by node id; a node without an entry keeps the columns it has. */
+    nodeColumns: Record<string, ComposerNodeColumn[]>;
 }) => Promise<void>;
 
 type RecordedPromptDecisionField =

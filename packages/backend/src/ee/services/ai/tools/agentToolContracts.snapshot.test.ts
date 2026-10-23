@@ -247,11 +247,13 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         visualize: getVisualize({
             getPrompt: noop,
             listThreadComposerQueryNodes: noop,
+            getThreadComposerNodeColumns: noop,
             runComposerQueries: noop,
             resolveCustomChartType: noop,
             createOrUpdateArtifact: noop,
             updateProgress: noopAsync,
             slackLinksOnly: false,
+            maxQueryLimit: 500,
         }),
         searchFieldValues: getSearchFieldValues({
             searchFieldValues: noop,

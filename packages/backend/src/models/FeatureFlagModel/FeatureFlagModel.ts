@@ -1,7 +1,6 @@
 import {
     FeatureFlag,
     FeatureFlags,
-    LightdashMode,
     LightdashUser,
     PREVIEW_ENABLED_FEATURE_FLAGS,
 } from '@lightdash/common';
@@ -65,15 +64,6 @@ export class FeatureFlagModel {
                     this.lightdashConfig.results.cacheEnabled,
                     options,
                 ),
-            // On by default on Lightdash Cloud; self-hosted opts in through
-            // LIGHTDASH_ENABLE_FEATURE_FLAGS. An organization override (or a
-            // stored flag default) still wins, so one org can be turned off.
-            [FeatureFlags.EnableLearn]: (flagArgs, options) =>
-                this.getWithEnvFallback(
-                    flagArgs,
-                    this.lightdashConfig.mode === LightdashMode.CLOUD_BETA,
-                    options,
-                ),
             [FeatureFlags.WarehouseOAuthRefreshLock]: (flagArgs, options) =>
                 this.getWithEnvFallback(flagArgs, true, options),
             [FeatureFlags.AgentIdentitySilentRefresh]: (flagArgs, options) =>
@@ -89,8 +79,6 @@ export class FeatureFlagModel {
                 options,
             ) => this.getWithEnvFallback(flagArgs, true, options),
             [FeatureFlags.EgressIpNotice]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.AiDecisions]: (flagArgs, options) =>
                 this.getWithEnvFallback(flagArgs, true, options),
         };
     }

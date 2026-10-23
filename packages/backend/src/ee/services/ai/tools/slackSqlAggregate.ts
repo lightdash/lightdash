@@ -13,7 +13,7 @@ import {
     type AiPrompt,
     type AnyType,
 } from '@lightdash/common';
-import { getThinkingBlocks } from '../utils/getSlackBlocks';
+import { escapeMrkdwn, getThinkingBlocks } from '../utils/getSlackBlocks';
 import { type NativeSqlApprovalToolName } from './sqlApprovals';
 
 export type SqlApprovalStep = {
@@ -125,9 +125,6 @@ const truncateSql = (sql: string, maxLength = 2500) =>
 
 // Keeps the card within Slack's 50-block limit.
 export const MAX_SQL_APPROVAL_STEPS = 15;
-
-const escapeMrkdwn = (text: string) =>
-    text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const sqlCodeBlock = (sql: string): AnyType => ({
     type: 'section',

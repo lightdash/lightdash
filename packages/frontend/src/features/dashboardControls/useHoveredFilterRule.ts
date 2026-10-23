@@ -1,6 +1,7 @@
 import { type DashboardFilterRule } from '@lightdash/common';
 import {
     selectDashboardFilters,
+    selectRawTemporaryFilters,
     useDashboardSelector,
 } from '../dashboard/store';
 import { findFilterRule } from './sidebarState';
@@ -14,7 +15,10 @@ export const useHoveredFilterRule = (): DashboardFilterRule | null => {
             : c.hoveredFilterId,
     );
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
+    // A viewer's rail lists their own filters too
+    const temporaryFilters = useDashboardSelector(selectRawTemporaryFilters);
     return filterId === null
         ? null
-        : findFilterRule(dashboardFilters, filterId);
+        : (findFilterRule(dashboardFilters, filterId) ??
+              findFilterRule(temporaryFilters, filterId));
 };

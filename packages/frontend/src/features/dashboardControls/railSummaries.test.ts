@@ -1,3 +1,4 @@
+import { DEFAULT_UI_STRINGS, type UiStringResolver } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     getLockSummary,
@@ -5,11 +6,13 @@ import {
     getTilesSummary,
 } from './railSummaries';
 
+const english: UiStringResolver = (key) => DEFAULT_UI_STRINGS[key];
+
 describe('railSummaries', () => {
     it('counts the tiles and fields of a filter', () => {
-        expect(getTilesSummary(3, 2)).toBe('3 tiles · 2 fields');
-        expect(getTilesSummary(1, 1)).toBe('1 tile · 1 field');
-        expect(getTilesSummary(0, 1)).toBe('0 tiles · 1 field');
+        expect(getTilesSummary(3, 2, english)).toBe('3 tiles · 2 fields');
+        expect(getTilesSummary(1, 1, english)).toBe('1 tile · 1 field');
+        expect(getTilesSummary(0, 1, english)).toBe('0 tiles · 1 field');
     });
 
     it('names the tabs a filter is locked on', () => {

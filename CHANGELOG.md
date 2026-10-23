@@ -1,3 +1,113 @@
+## [3.49.1](https://github.com/lightdash/lightdash/compare/3.49.0...3.49.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* keep dashboard config when adding a chart or duplicating ([#31513](https://github.com/lightdash/lightdash/issues/31513)) ([3b60566](https://github.com/lightdash/lightdash/commit/3b60566acef26280b5b8d5ae553563bbaa896188))
+
+# [3.49.0](https://github.com/lightdash/lightdash/compare/3.48.2...3.49.0) (2026-10-23)
+
+
+### Features
+
+* **ai:** list a turn's query pipelines under unvisualized composer messages ([#31482](https://github.com/lightdash/lightdash/issues/31482)) ([0ea6b0a](https://github.com/lightdash/lightdash/commit/0ea6b0a1db011f4f1460a0b1c26b66d8e003d739))
+
+## [3.48.2](https://github.com/lightdash/lightdash/compare/3.48.1...3.48.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* show scheduled delivery next runs in the project timezone when none is set ([#31497](https://github.com/lightdash/lightdash/issues/31497)) ([a6fa241](https://github.com/lightdash/lightdash/commit/a6fa241f839c0cc2b68e8cf39b4973f6a1ced30e))
+
+## [3.48.1](https://github.com/lightdash/lightdash/compare/3.48.0...3.48.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **composer-queries:** label duckdb override runs by their real source ([#31503](https://github.com/lightdash/lightdash/issues/31503)) ([f5a7618](https://github.com/lightdash/lightdash/commit/f5a7618c73c6fdcd52d42697837b75038904e69a))
+
+# [3.48.0](https://github.com/lightdash/lightdash/compare/3.47.1...3.48.0) (2026-10-23)
+
+
+### Bug Fixes
+
+* prevent horizontal scrolling in model picker ([#31505](https://github.com/lightdash/lightdash/issues/31505)) ([292b082](https://github.com/lightdash/lightdash/commit/292b082879fd28546b0b62a6c04cb1f0228eb4f3))
+
+
+### Features
+
+* **analysis:** decouple availability gates from data apps ([#31496](https://github.com/lightdash/lightdash/issues/31496)) ([be2f4ec](https://github.com/lightdash/lightdash/commit/be2f4ec32e64fd28f7f97af64051acf2b57f6aae))
+* **composer-queries:** python harness stage timings on run span ([#31502](https://github.com/lightdash/lightdash/issues/31502)) ([2ccdd5c](https://github.com/lightdash/lightdash/commit/2ccdd5c61b05a2cdc4e7f759a5af52eb16fe69d7))
+
+## [3.47.1](https://github.com/lightdash/lightdash/compare/3.47.0...3.47.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **dashboards:** line up the filter rail's inputs and row actions ([#31484](https://github.com/lightdash/lightdash/issues/31484)) ([fb768a7](https://github.com/lightdash/lightdash/commit/fb768a7594601a2b6bb7858abfbdd0e8118e1fa0))
+
+# [3.47.0](https://github.com/lightdash/lightdash/compare/3.46.0...3.47.0) (2026-10-23)
+
+
+### Bug Fixes
+
+* apply organization flag overrides to embedded viewers ([#31495](https://github.com/lightdash/lightdash/issues/31495)) ([5c8bfe9](https://github.com/lightdash/lightdash/commit/5c8bfe93113425a922f9ba13577fb5623e22c020))
+* **dashboards:** keep tab names whole beside the filter rail's counts ([#31485](https://github.com/lightdash/lightdash/issues/31485)) ([db85d98](https://github.com/lightdash/lightdash/commit/db85d98260b92a794e427921ba35079555df33f8))
+
+
+### Features
+
+* **ai:** visualize validates viz config against node columns ([#31486](https://github.com/lightdash/lightdash/issues/31486)) ([a2452c7](https://github.com/lightdash/lightdash/commit/a2452c781d7c258ebd79db0702437e0d711616a6))
+
+# [3.46.0](https://github.com/lightdash/lightdash/compare/3.45.0...3.46.0) (2026-10-23)
+
+
+### Features
+
+* make Learn available on every instance and remove enable-learn ([#31477](https://github.com/lightdash/lightdash/issues/31477)) ([466ad7c](https://github.com/lightdash/lightdash/commit/466ad7c1457bd1e5288e0bbdf6bff1c635c4a287))
+
+# [3.45.0](https://github.com/lightdash/lightdash/compare/3.44.1...3.45.0) (2026-10-23)
+
+
+### Features
+
+* **ai:** show big number values in composer Slack cards ([#31481](https://github.com/lightdash/lightdash/issues/31481)) ([a950cd9](https://github.com/lightdash/lightdash/commit/a950cd9c7e17879715e959bf6f3572ae6f752bf4))
+
+## [3.44.1](https://github.com/lightdash/lightdash/compare/3.44.0...3.44.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* gate SCIM token management and provisioning on scim-token-management flag ([#31474](https://github.com/lightdash/lightdash/issues/31474)) ([380e2c9](https://github.com/lightdash/lightdash/commit/380e2c9a59d786df164cdee849e93e49a38363fb))
+
+# [3.44.0](https://github.com/lightdash/lightdash/compare/3.43.0...3.44.0) (2026-10-23)
+
+
+### Features
+
+* **dashboards:** open the filter rail for dashboard viewers ([#31466](https://github.com/lightdash/lightdash/issues/31466)) ([ea5e1f3](https://github.com/lightdash/lightdash/commit/ea5e1f3c94e9bc1670bcccc2f75b77b5202582d7))
+
+# [3.43.0](https://github.com/lightdash/lightdash/compare/3.42.2...3.43.0) (2026-10-23)
+
+
+### Features
+
+* **ai:** lone semantic node presents as a classic semantic artifact ([#31464](https://github.com/lightdash/lightdash/issues/31464)) ([93cfa2f](https://github.com/lightdash/lightdash/commit/93cfa2fae645d849d150769b1c5197167a6e83a3))
+
+## [3.42.2](https://github.com/lightdash/lightdash/compare/3.42.1...3.42.2) (2026-10-23)
+
+
+### Bug Fixes
+
+* wait for guided tour highlights in detour test ([#31478](https://github.com/lightdash/lightdash/issues/31478)) ([8289598](https://github.com/lightdash/lightdash/commit/82895986fa442bae705fedcb02d0c2348ca6aefe))
+
+## [3.42.1](https://github.com/lightdash/lightdash/compare/3.42.0...3.42.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* reject leading spaces in connection form fields ([#31459](https://github.com/lightdash/lightdash/issues/31459)) ([8bb17de](https://github.com/lightdash/lightdash/commit/8bb17de139f6ebdcef59a90fa0b1f1b97d33ec98))
+
 # [3.42.0](https://github.com/lightdash/lightdash/compare/3.41.1...3.42.0) (2026-10-23)
 
 

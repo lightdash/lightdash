@@ -1257,7 +1257,6 @@ export class ServiceRepository
                         provisionTrainingProject({
                             user,
                             projectService,
-                            featureFlagModel: this.models.getFeatureFlagModel(),
                             projectModel: this.models.getProjectModel(),
                             onboardingModel: this.models.getOnboardingModel(),
                             catalogService: this.getCatalogService(),
@@ -1943,7 +1942,6 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     learnWorkspaceModel: this.models.getLearnWorkspaceModel(),
                     projectModel: this.models.getProjectModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     personalAccessTokenService:
                         this.getPersonalAccessTokenService(),
                     userService: this.getUserService(),

@@ -3,6 +3,7 @@ import {
     QuerySourceType,
     type AiArtifact,
     type AiWebAppPrompt,
+    type ComposerNodeColumn,
     type ThreadComposerQueryNode,
     type ToolVisualizeArgs,
     type ToolVisualizeOutput,
@@ -10,6 +11,7 @@ import {
 import type {
     CreateOrUpdateArtifactFn,
     DeferSlackVisualizationFn,
+    GetThreadComposerNodeColumnsFn,
     ResolveCustomChartTypeFn,
     RunComposerQueriesFn,
 } from '../types/aiAgentDependencies';
@@ -95,26 +97,29 @@ const resolveStatusRibbon: ResolveCustomChartTypeFn = async (slug) =>
           }
         : null;
 
+const ordersColumns: ComposerNodeColumn[] = [
+    { reference: 'orders_order_date_month', type: DimensionType.DATE },
+    { reference: 'orders_status', type: DimensionType.STRING },
+    { reference: 'orders_total_order_amount', type: DimensionType.NUMBER },
+];
+
+const shareColumns: ComposerNodeColumn[] = [
+    { reference: 'orders_status', type: DimensionType.STRING },
+    { reference: 'amount', type: DimensionType.NUMBER },
+];
+
 const makeRun = (
     rows: Record<string, unknown>[],
+    terminalNodeId: string,
 ): Awaited<ReturnType<RunComposerQueriesFn>> => ({
     submissions: [],
     terminal: {
         queryUuid: 'query-uuid',
-        columns: {
-            orders_order_date_month: {
-                reference: 'orders_order_date_month',
-                type: DimensionType.DATE,
-            },
-            orders_status: {
-                reference: 'orders_status',
-                type: DimensionType.STRING,
-            },
-            orders_total_order_amount: {
-                reference: 'orders_total_order_amount',
-                type: DimensionType.NUMBER,
-            },
-        },
+        columns: Object.fromEntries(
+            (terminalNodeId === 'share' ? shareColumns : ordersColumns).map(
+                (column) => [column.reference, column],
+            ),
+        ),
         rows,
         rowCount: rows.length,
     },
@@ -122,6 +127,7 @@ const makeRun = (
 
 const makeTool = ({
     threadNodes = [ordersNode, shareNode, unrelatedNode],
+    nodeColumns = {},
     rows = [],
     currentPrompt = prompt,
     resolveCustomChartType = resolveStatusRibbon,
@@ -129,6 +135,7 @@ const makeTool = ({
     slackLinksOnly = false,
 }: {
     threadNodes?: ThreadComposerQueryNode[];
+    nodeColumns?: Record<string, ComposerNodeColumn[]>;
     rows?: Record<string, unknown>[];
     currentPrompt?: AiWebAppPrompt;
     resolveCustomChartType?: ResolveCustomChartTypeFn;
@@ -136,12 +143,19 @@ const makeTool = ({
     slackLinksOnly?: boolean;
 } = {}) => {
     const versions: Parameters<CreateOrUpdateArtifactFn>[0][] = [];
-    const runComposerQueries = vi.fn(async () => makeRun(rows));
+    const runComposerQueries = vi.fn(
+        async ({ terminalNodeId }: Parameters<RunComposerQueriesFn>[0]) =>
+            makeRun(rows, terminalNodeId),
+    );
     const tool = getVisualize({
         getPrompt: async () => currentPrompt,
         listThreadComposerQueryNodes: async () => threadNodes,
+        getThreadComposerNodeColumns: (async ({ nodeId }) =>
+            nodeColumns[nodeId] ??
+            null) satisfies GetThreadComposerNodeColumnsFn,
         runComposerQueries,
         resolveCustomChartType,
+        maxQueryLimit: 1000,
         createOrUpdateArtifact: async (data) => {
             versions.push(data);
             return {
@@ -208,34 +222,92 @@ describe('visualize', () => {
         expect(runComposerQueries).not.toHaveBeenCalled();
     });
 
-    it('draws a stacked bar by status from a series split', async () => {
+    it('writes a classic semantic version for a lone semantic node', async () => {
         const { visualize, versions, runComposerQueries } = makeTool({
             rows: [
                 { orders_status: 'completed' },
                 { orders_status: 'returned' },
             ],
         });
-        const stacked = {
-            ...barConfig,
-            groupBy: ['orders_status'],
-            stack: true,
-        };
 
-        const output = await visualize({ vizConfig: stacked });
+        const output = await visualize({
+            vizConfig: {
+                ...barConfig,
+                groupBy: ['orders_status'],
+                stack: true,
+                labels: { x: 'Month', y: 'Amount', y2: null },
+            },
+        });
 
-        expect(output.metadata.status).toBe('success');
-        expect(output.structuredContent).toEqual({
-            nodeId: 'orders',
-            hints: [],
+        expect(output.metadata).toMatchObject({
+            status: 'success',
+            versionUuid: 'version-1',
         });
-        expect(versions[0].vizConfig).toMatchObject({
-            schemaVersion: 2,
-            terminalNodeId: 'orders',
-            vizConfig: stacked,
-        });
+        expect(versions).toEqual([
+            {
+                threadUuid: 'thread-uuid',
+                promptUuid: 'prompt-uuid',
+                artifactType: 'chart',
+                title: 'Order amount by month',
+                vizConfig: {
+                    source: 'semantic',
+                    config: {
+                        title: 'Order amount by month',
+                        description: '',
+                        queryConfig: {
+                            exploreName: 'orders',
+                            dimensions: [
+                                'orders_order_date_month',
+                                'orders_status',
+                            ],
+                            metrics: ['orders_total_order_amount'],
+                            filters: null,
+                            sorts: [],
+                            limit: 500,
+                            parameters: null,
+                            customMetrics: null,
+                            tableCalculations: null,
+                        },
+                        chartConfig: {
+                            defaultVizType: 'bar',
+                            xAxisDimension: 'orders_order_date_month',
+                            yAxisMetrics: ['orders_total_order_amount'],
+                            groupBy: ['orders_status'],
+                            xAxisType: null,
+                            stackBars: true,
+                            lineType: null,
+                            xAxisLabel: 'Month',
+                            yAxisLabel: 'Amount',
+                            secondaryYAxisMetric: null,
+                            secondaryYAxisLabel: null,
+                        },
+                        mergeConfig: null,
+                    },
+                },
+            },
+        ]);
         expect(runComposerQueries).toHaveBeenCalledWith({
             queries: [ordersNode],
             terminalNodeId: 'orders',
+        });
+    });
+
+    it('writes a composer version for a lone semantic node classic charts cannot draw', async () => {
+        const { visualize, versions } = makeTool();
+        const bigNumber = {
+            ...barConfig,
+            type: 'big_number' as const,
+            x: null,
+        };
+
+        await visualize({ vizConfig: bigNumber });
+
+        expect(versions[0].vizConfig).toEqual({
+            source: 'composer',
+            schemaVersion: 2,
+            queries: [ordersNode],
+            terminalNodeId: 'orders',
+            vizConfig: bigNumber,
         });
     });
 
@@ -257,8 +329,11 @@ describe('visualize', () => {
     it('writes one version per call, so two calls show two cards', async () => {
         const { visualize, versions } = makeTool();
 
-        await visualize();
-        await visualize({ vizConfig: { ...barConfig, type: 'line' } });
+        await visualize({ nodeId: 'share' });
+        await visualize({
+            nodeId: 'share',
+            vizConfig: { ...barConfig, type: 'line' },
+        });
 
         expect(versions).toHaveLength(2);
         expect(versions.map((v) => v.vizConfig.vizConfig)).toEqual([
@@ -327,6 +402,28 @@ describe('visualize', () => {
         });
     });
 
+    it('runs a Slack big number so its value can post, unless links-only; a lone semantic node stays a composer version', async () => {
+        const slack = makeTool({
+            currentPrompt: slackPrompt,
+            rows: [{ orders_total_order_amount: 42 }],
+        });
+        const linksOnly = makeTool({
+            currentPrompt: slackPrompt,
+            rows: [{ orders_total_order_amount: 42 }],
+            slackLinksOnly: true,
+        });
+        const bigNumber = { ...tableConfig, type: 'big_number' as const };
+
+        const output = await slack.visualize({ vizConfig: bigNumber });
+        await linksOnly.visualize({ vizConfig: bigNumber });
+
+        expect(output.metadata).toMatchObject({ queryUuid: 'query-uuid' });
+        expect(slack.versions[0].vizConfig).toMatchObject({
+            source: 'composer',
+        });
+        expect(linksOnly.runComposerQueries).not.toHaveBeenCalled();
+    });
+
     it('does not run a web table or a Slack chart without hints', async () => {
         const web = makeTool();
         const slack = makeTool({ currentPrompt: slackPrompt });
@@ -340,7 +437,7 @@ describe('visualize', () => {
         expect(slackChart.metadata).toMatchObject({ queryUuid: null });
     });
 
-    it('registers a Slack chart image drawn from the run of the node', async () => {
+    it('registers a classic Slack chart image for a lone semantic node', async () => {
         const deferSlackVisualization = vi.fn(async () => true);
         const { visualize, runComposerQueries } = makeTool({
             currentPrompt: slackPrompt,
@@ -352,13 +449,45 @@ describe('visualize', () => {
 
         expect(runComposerQueries).toHaveBeenCalledOnce();
         expect(deferSlackVisualization).toHaveBeenCalledExactlyOnceWith({
+            source: 'runQuery',
+            artifactUuid: 'artifact-uuid',
+            versionUuid: 'version-1',
+            queryUuid: 'query-uuid',
+            rowLimit: 2,
+            queryTool: expect.objectContaining({
+                queryConfig: expect.objectContaining({
+                    exploreName: 'orders',
+                    metrics: ['orders_total_order_amount'],
+                }),
+                chartConfig: expect.objectContaining({
+                    defaultVizType: 'bar',
+                    xAxisDimension: 'orders_order_date_month',
+                }),
+            }),
+        });
+        expect(output.metadata).toMatchObject({ queryUuid: 'query-uuid' });
+    });
+
+    it('registers a composer Slack chart image for a pipeline node', async () => {
+        const deferSlackVisualization = vi.fn(async () => true);
+        const { visualize } = makeTool({
+            currentPrompt: slackPrompt,
+            rows: [{ orders_status: 'completed' }, { orders_status: 'placed' }],
+            deferSlackVisualization,
+        });
+
+        await visualize({
+            nodeId: 'share',
+            vizConfig: { ...barConfig, x: 'orders_status', y: ['amount'] },
+        });
+
+        expect(deferSlackVisualization).toHaveBeenCalledExactlyOnceWith({
             source: 'composer',
             artifactUuid: 'artifact-uuid',
             versionUuid: 'version-1',
             queryUuid: 'query-uuid',
             rowLimit: 2,
         });
-        expect(output.metadata).toMatchObject({ queryUuid: 'query-uuid' });
     });
 
     it('registers no Slack image for tables, big numbers, custom types, empty results or links-only orgs', async () => {
@@ -409,12 +538,15 @@ describe('visualize', () => {
     it('pins the custom chart type version it resolved from the slug', async () => {
         const { visualize, versions, runComposerQueries } = makeTool();
 
-        const output = await visualize({ vizConfig: customConfig });
+        const output = await visualize({
+            nodeId: 'share',
+            vizConfig: customConfig,
+        });
 
         expect(output.metadata.status).toBe('success');
         expect(versions[0].vizConfig).toMatchObject({
             schemaVersion: 2,
-            terminalNodeId: 'orders',
+            terminalNodeId: 'share',
             vizConfig: {
                 ...customConfig,
                 dataAppVizUuid: 'viz-uuid',
@@ -422,6 +554,27 @@ describe('visualize', () => {
             },
         });
         expect(runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('writes a classic custom chart type version for a lone semantic node', async () => {
+        const { visualize, versions } = makeTool();
+
+        await visualize({ vizConfig: customConfig });
+
+        expect(versions[0].vizConfig).toEqual({
+            source: 'customChartType',
+            schemaVersion: 1,
+            dataAppVizUuid: 'viz-uuid',
+            dataAppVizVersion: 3,
+            config: expect.objectContaining({
+                chartConfig: {
+                    customChartTypeSlug: 'status-ribbon',
+                    fieldMapping: customConfig.fieldMapping,
+                    options: null,
+                },
+                mergeConfig: null,
+            }),
+        });
     });
 
     it('rejects an unknown custom chart type slug without writing a card', async () => {
@@ -436,5 +589,235 @@ describe('visualize', () => {
             'Custom chart type "sankey" was not found in this project',
         );
         expect(versions).toEqual([]);
+    });
+    describe('validates column references against the node columns', () => {
+        const visualizeOrders = (vizConfig: ToolVisualizeArgs['vizConfig']) => {
+            const tool = makeTool({ nodeColumns: { orders: ordersColumns } });
+            return { ...tool, output: tool.visualize({ vizConfig }) };
+        };
+
+        it('rejects an unknown column, naming the columns with their types, without writing a card', async () => {
+            const { output, versions, runComposerQueries } = visualizeOrders({
+                ...barConfig,
+                x: 'order_month',
+            });
+
+            const result = await output;
+
+            expect(result.metadata.status).toBe('error');
+            expect(result.result).toContain(
+                'x: column "order_month" is not in the result',
+            );
+            expect(result.result).toContain(
+                'orders_order_date_month (date), orders_status (string), orders_total_order_amount (number)',
+            );
+            expect(versions).toEqual([]);
+            expect(runComposerQueries).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            [
+                'a non-numeric y',
+                { ...barConfig, y: ['orders_status'] },
+                'y: column "orders_status" is string, not numeric',
+            ],
+            [
+                'a non-numeric big number value',
+                {
+                    ...barConfig,
+                    type: 'big_number' as const,
+                    x: null,
+                    y: ['orders_status'],
+                },
+                'y: column "orders_status" is string, not numeric',
+            ],
+            [
+                'y2 also in y',
+                { ...barConfig, y2: 'orders_total_order_amount' },
+                'y2: column "orders_total_order_amount" must not also be in y',
+            ],
+            [
+                'groupBy on x',
+                { ...barConfig, groupBy: ['orders_order_date_month'] },
+                'groupBy: column "orders_order_date_month" must not also be on x or y',
+            ],
+            [
+                'a split without explicit y',
+                { ...barConfig, y: null, groupBy: ['orders_status'] },
+                'groupBy: a series split needs explicit x and y columns',
+            ],
+        ])('rejects %s', async (_, vizConfig, message) => {
+            const { output, versions } = visualizeOrders(vizConfig);
+
+            const result = await output;
+
+            expect(result.metadata.status).toBe('error');
+            expect(result.result).toContain(message);
+            expect(versions).toEqual([]);
+        });
+
+        it('rejects a default y when no numeric column is left to draw', async () => {
+            const { visualize, versions } = makeTool({
+                nodeColumns: { orders: ordersColumns.slice(0, 2) },
+            });
+
+            const output = await visualize({
+                vizConfig: { ...tableConfig, type: 'big_number' },
+            });
+
+            expect(output.result).toContain(
+                'y: no numeric column to draw; set y to a numeric column',
+            );
+            expect(versions).toEqual([]);
+        });
+
+        it('checks only y[0] where a chart draws one value', async () => {
+            const { output, versions } = visualizeOrders({
+                ...barConfig,
+                type: 'funnel',
+                x: 'orders_status',
+                y: ['orders_total_order_amount', 'orders_order_date_month'],
+            });
+
+            expect((await output).metadata.status).toBe('success');
+            expect(versions).toHaveLength(1);
+        });
+
+        it('writes a config whose references match the node columns', async () => {
+            const { output, versions } = visualizeOrders({
+                ...barConfig,
+                groupBy: ['orders_status'],
+            });
+
+            expect((await output).metadata.status).toBe('success');
+            expect(versions).toHaveLength(1);
+        });
+
+        it("validates against the run's columns when hints run the node", async () => {
+            const { visualize, versions } = makeTool();
+
+            const output = await visualize({
+                nodeId: 'share',
+                vizConfig: {
+                    ...barConfig,
+                    type: 'pie',
+                    x: 'status',
+                    y: ['amount'],
+                },
+            });
+
+            expect(output.result).toContain(
+                'x: column "status" is not in the result',
+            );
+            expect(output.result).toContain(
+                'orders_status (string), amount (number)',
+            );
+            expect(versions).toEqual([]);
+        });
+
+        describe('custom chart types', () => {
+            const resolveRibbonWithSlots: ResolveCustomChartTypeFn =
+                async () => ({
+                    dataAppVizUuid: 'viz-uuid',
+                    name: 'Status ribbon',
+                    dataAppVizVersion: 3,
+                    schema: {
+                        fields: [
+                            {
+                                name: 'month',
+                                label: 'Month',
+                                type: 'dimension',
+                                required: true,
+                            },
+                            {
+                                name: 'status',
+                                label: 'Status',
+                                type: 'series',
+                                required: false,
+                            },
+                            {
+                                name: 'amount',
+                                label: 'Amount',
+                                type: 'metric',
+                                required: false,
+                            },
+                        ],
+                        configOptions: [],
+                        colorPalette: null,
+                    },
+                });
+            const visualizeCustom = (
+                fieldMapping: Record<string, string | string[]>,
+            ) => {
+                const tool = makeTool({
+                    nodeColumns: { orders: ordersColumns },
+                    resolveCustomChartType: resolveRibbonWithSlots,
+                });
+                return {
+                    ...tool,
+                    output: tool.visualize({
+                        vizConfig: { ...customConfig, fieldMapping },
+                    }),
+                };
+            };
+
+            it.each([
+                [
+                    'an unbound required slot',
+                    { amount: 'orders_total_order_amount' },
+                    'fieldMapping: required slot "month" is not bound',
+                ],
+                [
+                    'several columns on a single slot',
+                    { month: ['orders_order_date_month', 'orders_status'] },
+                    'fieldMapping.month: slot takes one column',
+                ],
+                [
+                    'an unknown slot',
+                    { month: 'orders_order_date_month', size: 'orders_status' },
+                    'fieldMapping: "size" is not a slot of this chart type (slots: month, status, amount)',
+                ],
+                [
+                    'an unknown column',
+                    { month: 'order_month' },
+                    'fieldMapping.month: column "order_month" is not in the result',
+                ],
+                [
+                    'a non-numeric metric slot',
+                    {
+                        month: 'orders_order_date_month',
+                        amount: 'orders_status',
+                    },
+                    'metric slot: column "orders_status" is string, not numeric',
+                ],
+                [
+                    'a series slot without a metric slot',
+                    {
+                        month: 'orders_order_date_month',
+                        status: 'orders_status',
+                    },
+                    'fieldMapping: a series slot needs a column on a metric slot',
+                ],
+            ])('rejects %s', async (_, fieldMapping, message) => {
+                const { output, versions } = visualizeCustom(fieldMapping);
+
+                const result = await output;
+
+                expect(result.metadata.status).toBe('error');
+                expect(result.result).toContain(message);
+                expect(versions).toEqual([]);
+            });
+
+            it('accepts any column on dimension and series slots', async () => {
+                const { output, versions } = visualizeCustom({
+                    month: 'orders_total_order_amount',
+                    status: 'orders_status',
+                    amount: 'orders_total_order_amount',
+                });
+
+                expect((await output).metadata.status).toBe('success');
+                expect(versions).toHaveLength(1);
+            });
+        });
     });
 });

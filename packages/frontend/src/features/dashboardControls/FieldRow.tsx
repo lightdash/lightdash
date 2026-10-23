@@ -1,4 +1,5 @@
 import { type DashboardFilterableField } from '@lightdash/common';
+import { interpolateUiString } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -11,7 +12,8 @@ import { IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
-import { pluralizeTiles } from './fieldLabels';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
+import { formatTileCount } from './fieldLabels';
 import classes from './FieldsAndTiles.module.css';
 
 type Props = {
@@ -44,58 +46,71 @@ export const FieldRow: FC<Props> = ({
     onToggleHighlight,
     onHoverChange,
     onRemove,
-}) => (
-    <Box
-        className={
-            isHighlighted
-                ? `${classes.row} ${classes.rowHighlighted}`
-                : classes.row
-        }
-        data-waiting={isWaiting || undefined}
-        onMouseEnter={() => onHoverChange(true)}
-        onMouseLeave={() => onHoverChange(false)}
-    >
-        <UnstyledButton
-            className={classes.rowMain}
-            data-highlighted={isHighlighted || undefined}
-            aria-pressed={isHighlighted}
-            onClick={onToggleHighlight}
-            onFocus={() => onHoverChange(true)}
-            onBlur={() => onHoverChange(false)}
+}) => {
+    const getUiString = useUiStrings();
+    return (
+        <Box
+            className={
+                isHighlighted
+                    ? `${classes.row} ${classes.rowHighlighted}`
+                    : classes.row
+            }
+            data-waiting={isWaiting || undefined}
+            onMouseEnter={() => onHoverChange(true)}
+            onMouseLeave={() => onHoverChange(false)}
         >
-            <Group gap="xs" wrap="nowrap" className={classes.rowLabel}>
-                {field !== null && (
-                    <FieldIcon item={field} size={14} aria-hidden />
+            <UnstyledButton
+                className={classes.rowMain}
+                data-highlighted={isHighlighted || undefined}
+                aria-pressed={isHighlighted}
+                onClick={onToggleHighlight}
+                onFocus={() => onHoverChange(true)}
+                onBlur={() => onHoverChange(false)}
+            >
+                <Group gap="xs" wrap="nowrap" className={classes.rowLabel}>
+                    {field !== null && (
+                        <FieldIcon item={field} size={14} aria-hidden />
+                    )}
+                    <Text fz="sm" truncate>
+                        {label}
+                    </Text>
+                </Group>
+            </UnstyledButton>
+            <Tooltip
+                label={interpolateUiString(
+                    getUiString(
+                        possible === 1
+                            ? 'filters.rail.fieldTilesTooltip.singular'
+                            : 'filters.rail.fieldTilesTooltip.plural',
+                    ),
+                    { table: tableLabel, applied, total: possible },
                 )}
-                <Text fz="sm" truncate>
-                    {label}
+            >
+                <Text
+                    key={`${applied}/${possible}`}
+                    fz="xs"
+                    c="dimmed"
+                    className={classes.rowCount}
+                >
+                    {formatTileCount(getUiString, applied)}
                 </Text>
-            </Group>
-        </UnstyledButton>
-        <Tooltip
-            label={`${tableLabel} · ${applied} of ${possible} ${pluralizeTiles(possible)}`}
-        >
-            <Text
-                key={`${applied}/${possible}`}
-                fz="xs"
-                c="dimmed"
-                className={classes.rowCount}
-            >
-                {`${applied} ${pluralizeTiles(applied)}`}
-            </Text>
-        </Tooltip>
-        <Tooltip label="Remove field">
-            <ActionIcon
-                className={classes.rowRemove}
-                size="sm"
-                variant="subtle"
-                color="gray"
-                aria-label={`Remove field ${label}`}
-                disabled={isRemoveDisabled}
-                onClick={onRemove}
-            >
-                <MantineIcon icon={IconTrash} size={14} />
-            </ActionIcon>
-        </Tooltip>
-    </Box>
-);
+            </Tooltip>
+            <Tooltip label={getUiString('filters.rail.removeField')}>
+                <ActionIcon
+                    className={classes.rowRemove}
+                    size="sm"
+                    variant="subtle"
+                    color="gray"
+                    aria-label={interpolateUiString(
+                        getUiString('filters.rail.removeFieldName'),
+                        { field: label },
+                    )}
+                    disabled={isRemoveDisabled}
+                    onClick={onRemove}
+                >
+                    <MantineIcon icon={IconTrash} size={14} />
+                </ActionIcon>
+            </Tooltip>
+        </Box>
+    );
+};

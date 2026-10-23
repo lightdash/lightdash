@@ -118,6 +118,7 @@ import {
     type AiAgentJevDecision,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
+    type ComposerNodeColumn,
     type ServedSkillMetadata,
     type ThreadComposerQueryNode,
     type ToolEditDbtProjectOutput,
@@ -10033,28 +10034,61 @@ export class AiAgentModel {
         return rows.map((row) => row.definition);
     }
 
-    /** Identical definitions are a no-op; a different one under a registered node id throws. */
+    async findComposerQueryNodeColumns({
+        scope,
+        nodeId,
+    }: {
+        scope: ComposerQueryNodeScope;
+        nodeId: string;
+    }): Promise<ComposerNodeColumn[] | null> {
+        const row = await this.database(ComposerQueryNodesTableName)
+            .select('node_columns')
+            .where({
+                scope_type: scope.scopeType,
+                scope_uuid: scope.scopeUuid,
+                node_id: nodeId,
+            })
+            .first();
+        return row?.node_columns ?? null;
+    }
+
+    /**
+     * Identical definitions are a no-op apart from storing given columns;
+     * a different one under a registered node id throws.
+     */
     async registerComposerQueryNodes({
         scope,
         nodes,
+        nodeColumns,
     }: {
         scope: ComposerQueryNodeScope;
         nodes: ThreadComposerQueryNode[];
+        nodeColumns: Record<string, ComposerNodeColumn[]>;
     }): Promise<void> {
         if (nodes.length === 0) return;
         const submitted = new Map(nodes.map((node) => [node.nodeId, node]));
         await this.database.transaction(async (trx) => {
             await trx(ComposerQueryNodesTableName)
                 .insert(
-                    nodes.map((node) => ({
-                        scope_type: scope.scopeType,
-                        scope_uuid: scope.scopeUuid,
-                        node_id: node.nodeId,
-                        definition: node,
-                    })),
+                    nodes.map((node) => {
+                        const columns = nodeColumns[node.nodeId];
+                        return {
+                            scope_type: scope.scopeType,
+                            scope_uuid: scope.scopeUuid,
+                            node_id: node.nodeId,
+                            definition: node,
+                            node_columns: columns
+                                ? JSON.stringify(columns)
+                                : null,
+                        };
+                    }),
                 )
                 .onConflict(['scope_type', 'scope_uuid', 'node_id'])
-                .ignore();
+                .merge({
+                    node_columns: trx.raw(
+                        `COALESCE(EXCLUDED.node_columns, ${ComposerQueryNodesTableName}.node_columns)`,
+                    ),
+                });
             const registered = await trx(ComposerQueryNodesTableName)
                 .select('node_id', 'definition')
                 .where({
@@ -11584,8 +11618,8 @@ export class AiAgentModel {
 
             await trx.raw(
                 `INSERT INTO ${ComposerQueryNodesTableName}
-                    (scope_type, scope_uuid, node_id, definition, created_at)
-                 SELECT scope_type, :targetThreadUuid, node_id, definition, created_at
+                    (scope_type, scope_uuid, node_id, definition, node_columns, created_at)
+                 SELECT scope_type, :targetThreadUuid, node_id, definition, node_columns, created_at
                  FROM ${ComposerQueryNodesTableName}
                  WHERE scope_type = :scopeType AND scope_uuid = :scopeUuid`,
                 {

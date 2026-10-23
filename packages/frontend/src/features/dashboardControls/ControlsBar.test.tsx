@@ -96,12 +96,14 @@ describe('ControlsBar', () => {
         };
     });
 
-    it('renders the shipped filters, date zoom and hide button in view mode', () => {
+    it('renders Add and the pills in view mode, with date zoom and hide, without Required', () => {
         renderWithProviders(<ControlsBar {...baseProps} />);
 
+        expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
+        expect(screen.getByTestId('filter-pills')).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Add filter' }),
-        ).toBeInTheDocument();
+            screen.queryByRole('button', { name: 'Add filter' }),
+        ).not.toBeInTheDocument();
         expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Hide' }),
@@ -109,11 +111,14 @@ describe('ControlsBar', () => {
         expect(
             screen.queryByRole('button', { name: 'Required' }),
         ).not.toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Add' }),
-        ).not.toBeInTheDocument();
-        expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
         expect(screen.queryByTestId('parameters')).not.toBeInTheDocument();
+    });
+
+    it('shows the editing strip in view mode while the rail is open', () => {
+        mockSidebar.current = { isRailOpen: true };
+        renderWithProviders(<ControlsBar {...baseProps} />);
+        expect(screen.getByTestId('editing-strip')).toBeInTheDocument();
+        expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
     });
 
     it('renders Add, the pills and the Required button in edit mode', () => {
@@ -215,5 +220,16 @@ describe('ControlsBar', () => {
                 expanded: false,
             }),
         ).toBeInTheDocument();
+    });
+
+    it('shows the bar in place on compact viewports while the rail is open', () => {
+        mockCompact.current = true;
+        mockSidebar.current = { isRailOpen: true };
+        renderWithProviders(<ControlsBar {...baseProps} />);
+
+        expect(screen.getByTestId('editing-strip')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Filters and parameters' }),
+        ).not.toBeInTheDocument();
     });
 });

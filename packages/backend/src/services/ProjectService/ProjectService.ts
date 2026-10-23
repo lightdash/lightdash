@@ -1184,7 +1184,7 @@ export class ProjectService
     /**
      * Enable Learn for the user's organization (CS-257): create the training
      * project, seeded, with the caller as its assigned admin. Idempotent.
-     * Org admins only; 404 when the org has Learn switched off.
+     * Org admins only.
      */
     /** Run by the scheduler; moves sample-data projects to this server's playground bundle. */
     async reconcilePlaygroundBundles(): Promise<ReconcilePlaygroundBundlesResult> {
@@ -1192,7 +1192,7 @@ export class ProjectService
     }
 
     async enableLearn(user: SessionUser): Promise<EnableLearnResults> {
-        await this.assertLearnEnabled(user);
+        await this.assertCanViewLearn(user);
         if (!this.provisionTrainingProject) {
             throw new NotFoundError('Learn is not available');
         }
@@ -4900,12 +4900,7 @@ export class ProjectService
                 prevMetricsTreeNodes,
             }));
 
-        if (
-            await isPreAggregatesEnabled(
-                this.featureFlagModel,
-                organizationUuid,
-            )
-        ) {
+        if (isPreAggregatesEnabled(this.lightdashConfig)) {
             await this.syncAndEnqueuePreAggregateMaterializations({
                 projectUuid,
                 organizationUuid,
@@ -6201,9 +6196,8 @@ export class ProjectService
             );
         }
 
-        const preAggregatesEnabled = await isPreAggregatesEnabled(
-            this.featureFlagModel,
-            project.organizationUuid,
+        const preAggregatesEnabled = isPreAggregatesEnabled(
+            this.lightdashConfig,
         );
         const startOfWeekByExplore = preAggregatesEnabled
             ? await this.getDeployStartOfWeekByExplore({
@@ -11354,12 +11348,7 @@ export class ProjectService
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
-        if (
-            !(await isPreAggregatesEnabled(
-                this.featureFlagModel,
-                organizationUuid,
-            ))
-        ) {
+        if (!isPreAggregatesEnabled(this.lightdashConfig)) {
             throw new ForbiddenError('Pre-aggregates are not enabled');
         }
 
@@ -13982,12 +13971,7 @@ export class ProjectService
         ) {
             throw new ForbiddenError();
         }
-        if (
-            !(await isPreAggregatesEnabled(
-                this.featureFlagModel,
-                organizationUuid,
-            ))
-        ) {
+        if (!isPreAggregatesEnabled(this.lightdashConfig)) {
             throw new ForbiddenError('Pre-aggregates are not enabled');
         }
 
@@ -14605,12 +14589,7 @@ export class ProjectService
         organizationUuid: string,
         projectUuid: string,
     ): Promise<boolean> {
-        if (
-            !(await isPreAggregatesEnabled(
-                this.featureFlagModel,
-                organizationUuid,
-            ))
-        ) {
+        if (!isPreAggregatesEnabled(this.lightdashConfig)) {
             return false;
         }
 
@@ -17204,7 +17183,7 @@ export class ProjectService
         user: SessionUser,
         trainingProjectUuid: string,
     ): Promise<CreateTrainingPreviewResults> {
-        await this.assertLearnEnabled(user);
+        await this.assertCanViewLearn(user);
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -17526,18 +17505,9 @@ export class ProjectService
 
     private static readonly TRAINING_PREVIEW_EXPIRES_IN_HOURS = 24;
 
-    private async assertLearnEnabled(user: SessionUser): Promise<void> {
+    private async assertCanViewLearn(user: SessionUser): Promise<void> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
-        }
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.EnableLearn,
-        });
-        if (!enabled) {
-            throw new NotFoundError(
-                'Learn is not enabled for this organization',
-            );
         }
         const ability = this.createAuditedAbility(user);
         if (
@@ -17558,7 +17528,7 @@ export class ProjectService
         user: SessionUser,
         trainingProjectUuid: string,
     ): Promise<{ deleted: number }> {
-        await this.assertLearnEnabled(user);
+        await this.assertCanViewLearn(user);
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }

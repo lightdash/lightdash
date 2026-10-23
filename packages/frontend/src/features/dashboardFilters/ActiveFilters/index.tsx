@@ -11,7 +11,7 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { getDashboardFilterField } from '@lightdash/common';
-import { Group, Skeleton, useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine/core';
 import { useMemo, type FC, type ReactNode } from 'react';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
@@ -20,6 +20,7 @@ import {
 } from '../../dashboard/store';
 import Filter from './Filter';
 import { moveFilterRule } from './filterOrder';
+import { FilterPillSkeletons } from './FilterPillSkeletons';
 import { TemporaryFilters } from './TemporaryFilters';
 import { UnresolvedFilter } from './UnresolvedFilter';
 import {
@@ -149,15 +150,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     const { getTabsUsingFilter, getOrphanedState } = useFilterTabPlacement();
 
     if (isLoadingDashboardFilters || isFetchingDashboardFilters) {
-        return (
-            <Group gap="xs" ml="xs">
-                <Skeleton h={30} w={100} radius={4} />
-                <Skeleton h={30} w={100} radius={4} />
-                <Skeleton h={30} w={100} radius={4} />
-                <Skeleton h={30} w={100} radius={4} />
-                <Skeleton h={30} w={100} radius={4} />
-            </Group>
-        );
+        return <FilterPillSkeletons />;
     }
 
     if (!allFilterableFieldsMap) return null;

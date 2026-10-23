@@ -333,6 +333,31 @@ export class QueryHistoryModel {
             );
     }
 
+    async recordResultMessageQuery(
+        queryUuid: string,
+        projectUuid: string,
+        accountId: string,
+        messageQuery: NonNullable<
+            QueryHistory['requestParameters']['resultMessageQuery']
+        >,
+    ): Promise<void> {
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('project_uuid', projectUuid)
+            .andWhere((query) => {
+                void query
+                    .whereRaw('created_by_user_uuid::text = ?', [accountId])
+                    .orWhere('created_by_account', accountId);
+            })
+            .update(
+                'request_parameters',
+                this.database.raw(
+                    "jsonb_set(request_parameters, '{resultMessageQuery}', ?::jsonb, true)",
+                    [JSON.stringify(messageQuery)],
+                ),
+            );
+    }
+
     async recordResultResearchRun(
         queryUuid: string,
         projectUuid: string,

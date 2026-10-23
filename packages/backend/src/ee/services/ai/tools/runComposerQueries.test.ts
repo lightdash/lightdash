@@ -6,6 +6,7 @@ import {
     QuerySourceType,
     toolComposerQueryNodeToSourceQuery,
     type AiWebAppPrompt,
+    type ComposerNodeColumn,
     type Explore,
     type ParameterDefinitions,
     type SlackPrompt,
@@ -67,17 +68,21 @@ const makeNodeRegistry = (initial: ThreadComposerQueryNode[] = []) => {
     const byThread = new Map<string, ThreadComposerQueryNode[]>([
         ['thread-uuid', [...initial]],
     ]);
+    const columnsByNode = new Map<string, ComposerNodeColumn[]>();
     const list = (threadUuid: string) => byThread.get(threadUuid) ?? [];
     return {
         nodes: list,
+        nodeColumns: (nodeId: string) => columnsByNode.get(nodeId) ?? null,
         listThreadComposerQueryNodes: async (threadUuid: string) =>
             list(threadUuid),
         registerThreadComposerQueryNodes: async ({
             threadUuid,
             nodes,
+            nodeColumns,
         }: {
             threadUuid: string;
             nodes: ThreadComposerQueryNode[];
+            nodeColumns: Record<string, ComposerNodeColumn[]>;
         }) => {
             const registered = list(threadUuid);
             nodes.forEach((node) => {
@@ -90,6 +95,9 @@ const makeNodeRegistry = (initial: ThreadComposerQueryNode[] = []) => {
                     );
                 }
             });
+            Object.entries(nodeColumns).forEach(([nodeId, columns]) =>
+                columnsByNode.set(nodeId, columns),
+            );
             byThread.set(threadUuid, [
                 ...registered,
                 ...nodes.filter(
@@ -541,6 +549,18 @@ describe('getRunComposerQueries', () => {
             'signups',
             'joined',
         ]);
+    });
+
+    it("stores the terminal node's columns with its registration", async () => {
+        const { tool, registry } = makeTool({ autoApproveSql: true });
+
+        await executeTool(tool, makeArgs());
+
+        expect(registry.nodeColumns('joined')).toEqual([
+            { reference: 'month', type: 'string' },
+            { reference: 'signups', type: 'number' },
+        ]);
+        expect(registry.nodeColumns('revenue')).toBeNull();
     });
 
     it.each([

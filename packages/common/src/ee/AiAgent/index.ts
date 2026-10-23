@@ -54,6 +54,7 @@ export * from './constants';
 export * from './coder';
 export * from './composerArtifact';
 export * from './composerChartVizConfig';
+export * from './composerSemanticArtifact';
 export * from './composerViz';
 export * from './composerVizPanel';
 export * from './dashboardContext';
@@ -1073,6 +1074,11 @@ export type ApiAiAgentComposerArtifactVizQuery = {
     metadata: AiVizMetadata;
     /** v2 series split only: the pivot stage run over the terminal node; null without one. */
     chartStage: ApiAiAgentComposerArtifactChartStage | null;
+};
+
+export type ApiAiAgentComposerArtifactVizQueryResponse = {
+    status: 'ok';
+    results: ApiAiAgentComposerArtifactVizQuery;
 };
 
 export type ApiAiAgentComposerArtifactChartStage =

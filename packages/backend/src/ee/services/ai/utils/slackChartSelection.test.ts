@@ -249,6 +249,32 @@ describe('getSlackSelectedCardArtifacts', () => {
         ]);
     });
 
+    it('shows a semantic chart a visualize call presented without a marker, and posts its table inline', () => {
+        const visualized = (versionUuid: string) =>
+            result(versionUuid, {
+                toolName: 'visualize',
+                metadata: {
+                    status: 'success',
+                    nodeId: 'orders',
+                    artifactUuid: 'artifact',
+                    versionUuid,
+                    queryUuid: null,
+                },
+            });
+        const input = {
+            ...setup(),
+            artifacts: [tableArtifact(), artifact('chart')],
+            toolResults: [visualized('table'), visualized('chart')],
+            selectedVersionUuids: [],
+        };
+
+        expect(versions(input)).toEqual(['chart']);
+        expect(versions({ ...input, canShowInlineTables: false })).toEqual([
+            'table',
+            'chart',
+        ]);
+    });
+
     it('allows saved custom chart types and merge charts to be selected', () => {
         const custom = artifact('custom', {
             chartConfig: parseConfig({

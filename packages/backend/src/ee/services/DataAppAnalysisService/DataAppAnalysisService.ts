@@ -1,5 +1,6 @@
 import {
     assertRegisteredAccount,
+    assertUnreachable,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
     EE_SCHEDULER_TASKS,
@@ -17,6 +18,7 @@ import {
     SchedulerJobStatus,
     TooManyRequestsError,
     type Account,
+    type AnalysisTarget,
     type DataAppAnalysis,
     type DataAppAnalysisLimits,
     type DataAppAnalysisLookup,
@@ -388,10 +390,15 @@ export class DataAppAnalysisService extends BaseService {
 
     /**
      * Fails closed in order: customer consent (org setting), AI entitlement,
-     * data-apps flag, analysis rollout flag. Each has its own code so the
-     * host can explain which.
+     * then the target's rollout flags. Consent and entitlement are shared
+     * across targets; each target has its own rollout flag so apps and
+     * dashboards roll out independently. Each failure has its own code so
+     * the surface can explain which.
      */
-    private async assertRuntimeAiAllowed(user: SessionUser): Promise<void> {
+    private async assertRuntimeAiAllowed(
+        user: SessionUser,
+        target: AnalysisTarget = 'app',
+    ): Promise<void> {
         if (!user.organizationUuid) {
             throw new ForbiddenError('User must belong to an organization');
         }
@@ -401,7 +408,7 @@ export class DataAppAnalysisService extends BaseService {
             ))
         ) {
             throw new DataAppAnalysisUnavailableError(
-                'AI analysis in data apps is turned off for this organization',
+                'AI analysis is turned off for this organization',
                 'org_setting_disabled',
             );
         }
@@ -411,25 +418,45 @@ export class DataAppAnalysisService extends BaseService {
                 'copilot_disabled',
             );
         }
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.EnableDataApps,
-        });
-        if (!enabled) {
-            throw new DataAppAnalysisUnavailableError(
-                'Data apps are not enabled',
-                'data_apps_disabled',
-            );
-        }
-        const analysisFlag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.EnableDataAppAnalysis,
-        });
-        if (!analysisFlag.enabled) {
-            throw new DataAppAnalysisUnavailableError(
-                'AI analysis in data apps is not enabled for this organization',
-                'analysis_disabled',
-            );
+        switch (target) {
+            case 'app': {
+                const { enabled } = await this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.EnableDataApps,
+                });
+                if (!enabled) {
+                    throw new DataAppAnalysisUnavailableError(
+                        'Data apps are not enabled',
+                        'data_apps_disabled',
+                    );
+                }
+                const analysisFlag = await this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.EnableDataAppAnalysis,
+                });
+                if (!analysisFlag.enabled) {
+                    throw new DataAppAnalysisUnavailableError(
+                        'AI analysis is not enabled for this organization',
+                        'analysis_disabled',
+                    );
+                }
+                return;
+            }
+            case 'dashboard': {
+                const analysisFlag = await this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.EnableDashboardAnalysis,
+                });
+                if (!analysisFlag.enabled) {
+                    throw new DataAppAnalysisUnavailableError(
+                        'AI analysis is not enabled for this organization',
+                        'analysis_disabled',
+                    );
+                }
+                return;
+            }
+            default:
+                assertUnreachable(target, 'Unknown analysis target');
         }
     }
 
@@ -442,7 +469,7 @@ export class DataAppAnalysisService extends BaseService {
             ))
         ) {
             throw new DataAppAnalysisUnavailableError(
-                'AI analysis in data apps was turned off for this organization',
+                'AI analysis was turned off for this organization',
                 'org_setting_disabled',
             );
         }

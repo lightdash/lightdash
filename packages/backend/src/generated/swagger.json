@@ -37013,6 +37013,519 @@
                 "type": "string",
                 "enum": ["web_app", "evals"]
             },
+            "QueryNodeId": {
+                "type": "string",
+                "description": "A name identifying one query within a multi-query submission. Other queries\nreference this query's results by this name, and by default the results are\nexposed to referencing DuckDB SQL as a table of the same name — so node ids\nshare the table-name grammar.",
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
+            },
+            "QuerySourceType.SEMANTIC_LAYER": {
+                "enum": ["semanticLayer"],
+                "type": "string"
+            },
+            "SemanticLayerSourceQuery": {
+                "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for this query, layered over the submission's parameters."
+                    },
+                    "timezone": {
+                        "type": "string",
+                        "description": "IANA timezone for time dimension bucketing, e.g. \"America/New_York\"."
+                    },
+                    "dimensionOverrides": {
+                        "$ref": "#/components/schemas/DimensionOverrides",
+                        "description": "Formatting overrides for dimensions in this query, keyed by field id."
+                    },
+                    "metricOverrides": {
+                        "$ref": "#/components/schemas/MetricOverrides",
+                        "description": "Formatting overrides for metrics in this query, keyed by field id."
+                    },
+                    "customDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        "type": "array",
+                        "description": "Ad-hoc dimensions not defined in the explore."
+                    },
+                    "additionalMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array",
+                        "description": "Ad-hoc metrics not defined in the explore."
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Table calculations appended to the results. Defaults to none."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Max rows to return. Defaults to the standard query row limit."
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array",
+                        "description": "Sorts to apply, e.g. [{\"fieldId\": \"orders_order_date\", \"descending\": true}]. Defaults to none."
+                    },
+                    "filters": {
+                        "properties": {
+                            "tableCalculations": {
+                                "$ref": "#/components/schemas/AnyType"
+                            },
+                            "metrics": {
+                                "$ref": "#/components/schemas/AnyType"
+                            },
+                            "dimensions": {
+                                "$ref": "#/components/schemas/AnyType"
+                            }
+                        },
+                        "type": "object",
+                        "description": "Filters to apply, in the metric query filters shape: an optional filter\ngroup per field kind, e.g. {\"dimensions\": {\"id\": \"...\", \"and\": [{\"id\":\n\"...\", \"target\": {\"fieldId\": \"orders_status\"}, \"operator\": \"equals\",\n\"values\": [\"completed\"]}]}}. Defaults to no filters."
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array",
+                        "description": "Metric field ids to compute, from the explore's schema."
+                    },
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array",
+                        "description": "Dimension field ids to group by, from the explore's schema."
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.SEMANTIC_LAYER"
+                    }
+                },
+                "required": [
+                    "metrics",
+                    "dimensions",
+                    "exploreName",
+                    "sourceType"
+                ],
+                "type": "object",
+                "description": "A semantic layer (metric) query as a source query. Only exploreName,\ndimensions and metrics are required; everything else defaults to empty\n(no filters, no sorts, no table calculations) and a default row limit.\n\nResult columns are named by field id — exactly the dimensions and metrics\nrequested (e.g. requesting metric \"payments_total_revenue\" yields a column\n\"payments_total_revenue\"), so referencing DuckDB SQL selects those names."
+            },
+            "QuerySourceType.SQL": {
+                "enum": ["sql"],
+                "type": "string"
+            },
+            "SqlSourceQuery": {
+                "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.SQL"
+                    }
+                },
+                "required": ["sql", "sourceType"],
+                "type": "object",
+                "description": "A raw warehouse SQL query as a source query."
+            },
+            "QuerySourceType.DUCKDB": {
+                "enum": ["duckdb"],
+                "type": "string"
+            },
+            "Record_QuerySourceTableName.QueryResultReference_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DuckdbSourceQuery": {
+                "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Pivots this node's result over the columns its SQL returns; checked at\nsubmission. Results carry pivotDetails. Omit for an unpivoted result."
+                    },
+                    "references": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/QueryNodeId"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Record_QuerySourceTableName.QueryResultReference_"
+                            }
+                        ],
+                        "description": "Which query results the SQL reads, in one of two forms. Shorthand\narray: node ids of queries in the same submission, each exposed as a\ntable named by its node id — [\"orders\", \"revenue\"] lets the SQL run\nSELECT * FROM orders JOIN revenue. Map form for aliasing or existing\nresults: {tableName: nodeIdOrQueryUuid}, e.g. {\"o\": \"orders\", \"prev\":\n\"<queryUuid>\"}. Required at execution: the query runs on a session\nthat can reach only these results, so one that references nothing is\nrefused."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.DUCKDB"
+                    }
+                },
+                "required": ["sql", "sourceType"],
+                "type": "object",
+                "description": "A DuckDB compose query as a source query. References expose other queries'\nresults as named tables the SQL can select from; a referenced result's\ncolumn names are those of the upstream query's result (field ids for\nsemanticLayer queries, SELECT output names for sql queries).\n\nReferences that name queries still running are waited on: this query\nexecutes once every referenced result is ready, and fails if any\nreferenced query fails."
+            },
+            "QuerySourceType.EXTERNAL": {
+                "enum": ["external"],
+                "type": "string"
+            },
+            "ExternalSourceTableReference": {
+                "type": "string",
+                "description": "External table SQL name or UUID.",
+                "pattern": "^[a-zA-Z0-9_][a-zA-Z0-9_-]{0,63}$"
+            },
+            "Record_QuerySourceTableName.ExternalSourceTableReference_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "ExternalSourceQuery": {
+                "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
+                    },
+                    "tables": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/ExternalSourceTableReference"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Record_QuerySourceTableName.ExternalSourceTableReference_"
+                            }
+                        ]
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.EXTERNAL"
+                    }
+                },
+                "required": ["tables", "sql", "sourceType"],
+                "type": "object",
+                "description": "DuckDB SQL over named durable external tables."
+            },
+            "QuerySourceType.PYTHON": {
+                "enum": ["python"],
+                "type": "string"
+            },
+            "PythonSourceQuery": {
+                "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Python queries refuse a pivot; pivot in a referencing duckdb query."
+                    },
+                    "references": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/QueryNodeId"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Record_QuerySourceTableName.QueryResultReference_"
+                            }
+                        ],
+                        "description": "Which query results the code reads, in the same two forms as duckdb\nreferences. Shorthand array: node ids of queries in the same\nsubmission, each exposed as inputs[nodeId]. Map form for aliasing or\nexisting results: {inputName: nodeIdOrQueryUuid}. At least one is\nrequired."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Maximum rows kept from the returned DataFrame."
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.PYTHON"
+                    }
+                },
+                "required": ["references", "code", "sourceType"],
+                "type": "object",
+                "description": "A python query as a source query: code defining\n`run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame`.\nReferences expose other queries' results as DataFrames in `inputs`, keyed\nlike DuckDB references expose tables. Referenced queries still running are\nwaited on; the query fails if any referenced query fails."
+            },
+            "SourceQuery": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/SemanticLayerSourceQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/SqlSourceQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DuckdbSourceQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ExternalSourceQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PythonSourceQuery"
+                    }
+                ],
+                "description": "The tagged union every submit endpoint takes: one shape per source,\ndiscriminated by sourceType. New sources add a member here — this union is\nthe extension point, not new WarehouseTypes values."
+            },
+            "ComposerPipelineNode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/SourceQuery"
+                    },
+                    {
+                        "properties": {
+                            "nodeId": {
+                                "$ref": "#/components/schemas/QueryNodeId"
+                            }
+                        },
+                        "required": ["nodeId"],
+                        "type": "object"
+                    }
+                ],
+                "description": "A node of a built pipeline; building guarantees every node a node id."
+            },
+            "AiAgentMessageQueryPipeline": {
+                "properties": {
+                    "nodes": {
+                        "items": {
+                            "$ref": "#/components/schemas/ComposerPipelineNode"
+                        },
+                        "type": "array",
+                        "description": "Every node the call ran, reused ones included, in dependency order."
+                    },
+                    "terminalNodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "queryUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["nodes", "terminalNodeId", "title", "queryUuid"],
+                "type": "object",
+                "description": "A successful `query` call of a turn, presented by its terminal node."
+            },
+            "ApiAiAgentMessageQueryPipelinesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentMessageQueryPipeline"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Record_QueryNodeId.string_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "AiVizMetadata": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["description", "title"],
+                "type": "object"
+            },
+            "ApiAiAgentComposerArtifactChartStage": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "queryUuid": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["ok"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["queryUuid", "status"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "message": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["error"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["message", "status"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiAiAgentComposerArtifactVizQuery": {
+                "properties": {
+                    "chartStage": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiAiAgentComposerArtifactChartStage"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "v2 series split only: the pivot stage run over the terminal node; null without one."
+                    },
+                    "metadata": {
+                        "$ref": "#/components/schemas/AiVizMetadata"
+                    },
+                    "nodeQueryUuids": {
+                        "$ref": "#/components/schemas/Record_QueryNodeId.string_"
+                    },
+                    "terminalNodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId"
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["composer"],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "chartStage",
+                    "metadata",
+                    "nodeQueryUuids",
+                    "terminalNodeId",
+                    "source"
+                ],
+                "type": "object",
+                "description": "One run of a composer artifact's pipeline: every node's result from that run."
+            },
+            "ApiAiAgentComposerArtifactVizQueryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiAiAgentComposerArtifactVizQuery"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "AiAgentExploreAccessSummary": {
                 "properties": {
                     "metrics": {
@@ -37209,20 +37722,6 @@
                 ],
                 "type": "string"
             },
-            "AiVizMetadata": {
-                "properties": {
-                    "description": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "title": {
-                        "type": "string",
-                        "nullable": true
-                    }
-                },
-                "required": ["description", "title"],
-                "type": "object"
-            },
             "ApiAiAgentThreadMessageVizQuery": {
                 "properties": {
                     "metadata": {
@@ -37295,87 +37794,6 @@
                     "source"
                 ],
                 "type": "object"
-            },
-            "QueryNodeId": {
-                "type": "string",
-                "description": "A name identifying one query within a multi-query submission. Other queries\nreference this query's results by this name, and by default the results are\nexposed to referencing DuckDB SQL as a table of the same name — so node ids\nshare the table-name grammar.",
-                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$"
-            },
-            "Record_QueryNodeId.string_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ApiAiAgentComposerArtifactChartStage": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "queryUuid": {
-                                "type": "string"
-                            },
-                            "status": {
-                                "type": "string",
-                                "enum": ["ok"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["queryUuid", "status"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "message": {
-                                "type": "string"
-                            },
-                            "status": {
-                                "type": "string",
-                                "enum": ["error"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["message", "status"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ApiAiAgentComposerArtifactVizQuery": {
-                "properties": {
-                    "chartStage": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ApiAiAgentComposerArtifactChartStage"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "v2 series split only: the pivot stage run over the terminal node; null without one."
-                    },
-                    "metadata": {
-                        "$ref": "#/components/schemas/AiVizMetadata"
-                    },
-                    "nodeQueryUuids": {
-                        "$ref": "#/components/schemas/Record_QueryNodeId.string_"
-                    },
-                    "terminalNodeId": {
-                        "$ref": "#/components/schemas/QueryNodeId"
-                    },
-                    "source": {
-                        "type": "string",
-                        "enum": ["composer"],
-                        "nullable": false
-                    }
-                },
-                "required": [
-                    "chartStage",
-                    "metadata",
-                    "nodeQueryUuids",
-                    "terminalNodeId",
-                    "source"
-                ],
-                "type": "object",
-                "description": "One run of a composer artifact's pipeline: every node's result from that run."
             },
             "ApiAiAgentArtifactVizQuery": {
                 "anyOf": [
@@ -69962,353 +70380,6 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "QuerySourceType.SEMANTIC_LAYER": {
-                "enum": ["semanticLayer"],
-                "type": "string"
-            },
-            "SemanticLayerSourceQuery": {
-                "properties": {
-                    "pivotConfiguration": {
-                        "$ref": "#/components/schemas/PivotConfiguration",
-                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
-                    },
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap",
-                        "description": "Parameter values for this query, layered over the submission's parameters."
-                    },
-                    "timezone": {
-                        "type": "string",
-                        "description": "IANA timezone for time dimension bucketing, e.g. \"America/New_York\"."
-                    },
-                    "dimensionOverrides": {
-                        "$ref": "#/components/schemas/DimensionOverrides",
-                        "description": "Formatting overrides for dimensions in this query, keyed by field id."
-                    },
-                    "metricOverrides": {
-                        "$ref": "#/components/schemas/MetricOverrides",
-                        "description": "Formatting overrides for metrics in this query, keyed by field id."
-                    },
-                    "customDimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/CustomDimension"
-                        },
-                        "type": "array",
-                        "description": "Ad-hoc dimensions not defined in the explore."
-                    },
-                    "additionalMetrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/AdditionalMetric"
-                        },
-                        "type": "array",
-                        "description": "Ad-hoc metrics not defined in the explore."
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/TableCalculation"
-                        },
-                        "type": "array",
-                        "description": "Table calculations appended to the results. Defaults to none."
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Max rows to return. Defaults to the standard query row limit."
-                    },
-                    "sorts": {
-                        "items": {
-                            "$ref": "#/components/schemas/SortField"
-                        },
-                        "type": "array",
-                        "description": "Sorts to apply, e.g. [{\"fieldId\": \"orders_order_date\", \"descending\": true}]. Defaults to none."
-                    },
-                    "filters": {
-                        "properties": {
-                            "tableCalculations": {
-                                "$ref": "#/components/schemas/AnyType"
-                            },
-                            "metrics": {
-                                "$ref": "#/components/schemas/AnyType"
-                            },
-                            "dimensions": {
-                                "$ref": "#/components/schemas/AnyType"
-                            }
-                        },
-                        "type": "object",
-                        "description": "Filters to apply, in the metric query filters shape: an optional filter\ngroup per field kind, e.g. {\"dimensions\": {\"id\": \"...\", \"and\": [{\"id\":\n\"...\", \"target\": {\"fieldId\": \"orders_status\"}, \"operator\": \"equals\",\n\"values\": [\"completed\"]}]}}. Defaults to no filters."
-                    },
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array",
-                        "description": "Metric field ids to compute, from the explore's schema."
-                    },
-                    "dimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array",
-                        "description": "Dimension field ids to group by, from the explore's schema."
-                    },
-                    "exploreName": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "One-line note on what this query does, shown under the title."
-                    },
-                    "title": {
-                        "type": "string",
-                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
-                    },
-                    "nodeId": {
-                        "$ref": "#/components/schemas/QueryNodeId",
-                        "description": "Names this query so other queries in the same submission can reference its results."
-                    },
-                    "sourceType": {
-                        "$ref": "#/components/schemas/QuerySourceType.SEMANTIC_LAYER"
-                    }
-                },
-                "required": [
-                    "metrics",
-                    "dimensions",
-                    "exploreName",
-                    "sourceType"
-                ],
-                "type": "object",
-                "description": "A semantic layer (metric) query as a source query. Only exploreName,\ndimensions and metrics are required; everything else defaults to empty\n(no filters, no sorts, no table calculations) and a default row limit.\n\nResult columns are named by field id — exactly the dimensions and metrics\nrequested (e.g. requesting metric \"payments_total_revenue\" yields a column\n\"payments_total_revenue\"), so referencing DuckDB SQL selects those names."
-            },
-            "QuerySourceType.SQL": {
-                "enum": ["sql"],
-                "type": "string"
-            },
-            "SqlSourceQuery": {
-                "properties": {
-                    "pivotConfiguration": {
-                        "$ref": "#/components/schemas/PivotConfiguration",
-                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "One-line note on what this query does, shown under the title."
-                    },
-                    "title": {
-                        "type": "string",
-                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
-                    },
-                    "nodeId": {
-                        "$ref": "#/components/schemas/QueryNodeId",
-                        "description": "Names this query so other queries in the same submission can reference its results."
-                    },
-                    "sourceType": {
-                        "$ref": "#/components/schemas/QuerySourceType.SQL"
-                    }
-                },
-                "required": ["sql", "sourceType"],
-                "type": "object",
-                "description": "A raw warehouse SQL query as a source query."
-            },
-            "QuerySourceType.DUCKDB": {
-                "enum": ["duckdb"],
-                "type": "string"
-            },
-            "Record_QuerySourceTableName.QueryResultReference_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "DuckdbSourceQuery": {
-                "properties": {
-                    "pivotConfiguration": {
-                        "$ref": "#/components/schemas/PivotConfiguration",
-                        "description": "Pivots this node's result over the columns its SQL returns; checked at\nsubmission. Results carry pivotDetails. Omit for an unpivoted result."
-                    },
-                    "references": {
-                        "anyOf": [
-                            {
-                                "items": {
-                                    "$ref": "#/components/schemas/QueryNodeId"
-                                },
-                                "type": "array"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Record_QuerySourceTableName.QueryResultReference_"
-                            }
-                        ],
-                        "description": "Which query results the SQL reads, in one of two forms. Shorthand\narray: node ids of queries in the same submission, each exposed as a\ntable named by its node id — [\"orders\", \"revenue\"] lets the SQL run\nSELECT * FROM orders JOIN revenue. Map form for aliasing or existing\nresults: {tableName: nodeIdOrQueryUuid}, e.g. {\"o\": \"orders\", \"prev\":\n\"<queryUuid>\"}. Required at execution: the query runs on a session\nthat can reach only these results, so one that references nothing is\nrefused."
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "One-line note on what this query does, shown under the title."
-                    },
-                    "title": {
-                        "type": "string",
-                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
-                    },
-                    "nodeId": {
-                        "$ref": "#/components/schemas/QueryNodeId",
-                        "description": "Names this query so other queries in the same submission can reference its results."
-                    },
-                    "sourceType": {
-                        "$ref": "#/components/schemas/QuerySourceType.DUCKDB"
-                    }
-                },
-                "required": ["sql", "sourceType"],
-                "type": "object",
-                "description": "A DuckDB compose query as a source query. References expose other queries'\nresults as named tables the SQL can select from; a referenced result's\ncolumn names are those of the upstream query's result (field ids for\nsemanticLayer queries, SELECT output names for sql queries).\n\nReferences that name queries still running are waited on: this query\nexecutes once every referenced result is ready, and fails if any\nreferenced query fails."
-            },
-            "QuerySourceType.EXTERNAL": {
-                "enum": ["external"],
-                "type": "string"
-            },
-            "ExternalSourceTableReference": {
-                "type": "string",
-                "description": "External table SQL name or UUID.",
-                "pattern": "^[a-zA-Z0-9_][a-zA-Z0-9_-]{0,63}$"
-            },
-            "Record_QuerySourceTableName.ExternalSourceTableReference_": {
-                "properties": {},
-                "additionalProperties": {
-                    "type": "string"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "ExternalSourceQuery": {
-                "properties": {
-                    "pivotConfiguration": {
-                        "$ref": "#/components/schemas/PivotConfiguration",
-                        "description": "Pivots this node's result the way a pivoted chart does. Honoured by\nsemanticLayer, sql and duckdb nodes; external nodes refuse it."
-                    },
-                    "tables": {
-                        "anyOf": [
-                            {
-                                "items": {
-                                    "$ref": "#/components/schemas/ExternalSourceTableReference"
-                                },
-                                "type": "array"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Record_QuerySourceTableName.ExternalSourceTableReference_"
-                            }
-                        ]
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "One-line note on what this query does, shown under the title."
-                    },
-                    "title": {
-                        "type": "string",
-                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
-                    },
-                    "nodeId": {
-                        "$ref": "#/components/schemas/QueryNodeId",
-                        "description": "Names this query so other queries in the same submission can reference its results."
-                    },
-                    "sourceType": {
-                        "$ref": "#/components/schemas/QuerySourceType.EXTERNAL"
-                    }
-                },
-                "required": ["tables", "sql", "sourceType"],
-                "type": "object",
-                "description": "DuckDB SQL over named durable external tables."
-            },
-            "QuerySourceType.PYTHON": {
-                "enum": ["python"],
-                "type": "string"
-            },
-            "PythonSourceQuery": {
-                "properties": {
-                    "pivotConfiguration": {
-                        "$ref": "#/components/schemas/PivotConfiguration",
-                        "description": "Python queries refuse a pivot; pivot in a referencing duckdb query."
-                    },
-                    "references": {
-                        "anyOf": [
-                            {
-                                "items": {
-                                    "$ref": "#/components/schemas/QueryNodeId"
-                                },
-                                "type": "array"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Record_QuerySourceTableName.QueryResultReference_"
-                            }
-                        ],
-                        "description": "Which query results the code reads, in the same two forms as duckdb\nreferences. Shorthand array: node ids of queries in the same\nsubmission, each exposed as inputs[nodeId]. Map form for aliasing or\nexisting results: {inputName: nodeIdOrQueryUuid}. At least one is\nrequired."
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Maximum rows kept from the returned DataFrame."
-                    },
-                    "code": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string",
-                        "description": "One-line note on what this query does, shown under the title."
-                    },
-                    "title": {
-                        "type": "string",
-                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
-                    },
-                    "nodeId": {
-                        "$ref": "#/components/schemas/QueryNodeId",
-                        "description": "Names this query so other queries in the same submission can reference its results."
-                    },
-                    "sourceType": {
-                        "$ref": "#/components/schemas/QuerySourceType.PYTHON"
-                    }
-                },
-                "required": ["references", "code", "sourceType"],
-                "type": "object",
-                "description": "A python query as a source query: code defining\n`run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame`.\nReferences expose other queries' results as DataFrames in `inputs`, keyed\nlike DuckDB references expose tables. Referenced queries still running are\nwaited on; the query fails if any referenced query fails."
-            },
-            "SourceQuery": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/SemanticLayerSourceQuery"
-                    },
-                    {
-                        "$ref": "#/components/schemas/SqlSourceQuery"
-                    },
-                    {
-                        "$ref": "#/components/schemas/DuckdbSourceQuery"
-                    },
-                    {
-                        "$ref": "#/components/schemas/ExternalSourceQuery"
-                    },
-                    {
-                        "$ref": "#/components/schemas/PythonSourceQuery"
-                    }
-                ],
-                "description": "The tagged union every submit endpoint takes: one shape per source,\ndiscriminated by sourceType. New sources add a member here — this union is\nthe extension point, not new WarehouseTypes values."
-            },
             "ExecuteSourceQueriesRequestParams": {
                 "properties": {
                     "invalidateCache": {
@@ -73833,7 +73904,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.42.0",
+        "version": "3.49.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -85643,6 +85714,240 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries": {
+            "get": {
+                "operationId": "getAgentThreadMessageQueryPipelines",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentMessageQueryPipelinesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the composer query pipelines an assistant message ran, one per successful query call.",
+                "summary": "Get AI agent message query pipelines",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "messageUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries/{queryUuid}/viz-query": {
+            "get": {
+                "operationId": "getAgentThreadMessageQueryPipelineVizQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentComposerArtifactVizQueryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Run a message's query pipeline for preview; returns each node's queryUuid.",
+                "summary": "Get AI agent message query pipeline viz query",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "messageUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "queryUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/queries/{queryUuid}/query-results": {
+            "get": {
+                "operationId": "getAgentThreadMessageQueryPipelineResults",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetAsyncQueryResultsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Read a node result of a message's query pipeline run.",
+                "summary": "Get AI agent message query pipeline results",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "messageUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "queryUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "resultQueryUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/feedback": {

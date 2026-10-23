@@ -4,7 +4,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { type FC } from 'react';
+import { Fragment, type FC } from 'react';
 import {
     DraggableItem,
     DroppableArea,
@@ -15,27 +15,38 @@ import {
     selectDashboardFilters,
     selectDashboardTabs,
     useDashboardSelector,
+    useDashboardTemporaryFilters,
 } from '../dashboard/store';
 import { moveFilterRule } from '../dashboardFilters/ActiveFilters/filterOrder';
+import { FilterPillSkeletons } from '../dashboardFilters/ActiveFilters/FilterPillSkeletons';
 import { UnresolvedFilter } from '../dashboardFilters/ActiveFilters/UnresolvedFilter';
 import {
     isFilterHiddenOnTab,
     useFilterTabPlacement,
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
-import { FilterPill } from './FilterPill';
+import { FilterPill, type FilterPillKind } from './FilterPill';
 import { isPlaceholderRule } from './sidebarState';
 import { TemporaryFilterPills } from './TemporaryFilterPills';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { ViewerSavedPills } from './ViewerSavedPills';
 
 type Props = {
     activeTabUuid: string | undefined;
+    /** An embed's class contract hook on each pill (default none). */
+    triggerClassName?: string;
+    /** An embed's class contract hook on a saved pill's popover (default none). */
+    dropdownClassName?: string;
 };
 
 type FilterPillGroup = 'dimensions' | 'metrics';
 
 const GROUPS: FilterPillGroup[] = ['dimensions', 'metrics'];
 
-export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
+export const FilterPills: FC<Props> = ({
+    activeTabUuid,
+    triggerClassName,
+    dropdownClassName,
+}) => {
     const editingFilterId = useControlsSidebarSelector(
         (c) => c.editing?.filterId ?? null,
     );
@@ -44,6 +55,8 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
     const removeFilterById = useControlsSidebarSelector(
         (c) => c.removeFilterById,
     );
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const temporaryFilters = useDashboardTemporaryFilters();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
@@ -87,6 +100,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
     const renderPill = (
         filter: DashboardFilterRule,
         group: FilterPillGroup,
+        kind: FilterPillKind,
     ) => {
         const isSelected = editingFilterId === filter.id;
         const appliesToTabs = getTabsUsingFilter(filter);
@@ -109,7 +123,7 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
             // The shipped pills for a deleted or hidden field: no editor
             return (
                 <UnresolvedFilter
-                    isEditMode={!isSidebarOpen}
+                    isEditMode={!isViewer && !isSidebarOpen}
                     filterRule={filter}
                     onRemove={() => removeFilterById(filter.id)}
                 />
@@ -117,6 +131,8 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
         }
         return (
             <FilterPill
+                kind={kind}
+                triggerClassName={triggerClassName}
                 filter={filter}
                 field={field}
                 {...getOrphanedState(filter, appliesToTabs)}
@@ -131,42 +147,71 @@ export const FilterPills: FC<Props> = ({ activeTabUuid }) => {
         );
     };
 
+    // The shipped view bar's placeholders while the filters load
+    if (isViewer && areFieldsLoading) return <FilterPillSkeletons />;
+
     return (
         <>
-            {GROUPS.map((group) => {
-                const orderedKeys = dashboardFilters[group].map(
-                    (rule) => rule.id,
-                );
-                return (
-                    <DndContext
-                        key={group}
-                        sensors={dragSensors}
-                        onDragEnd={(event) => handleDragEnd(group, event)}
-                    >
-                        {dashboardFilters[group].map((filter) => {
-                            const pill = renderPill(filter, group);
-                            return (
-                                pill && (
-                                    <DroppableArea
-                                        key={filter.id}
-                                        id={filter.id}
-                                        orderedKeys={orderedKeys}
-                                    >
-                                        <DraggableItem
+            {/* A viewer's saved filters keep the shipped pills and popover */}
+            {isViewer ? (
+                <ViewerSavedPills
+                    activeTabUuid={activeTabUuid}
+                    triggerClassName={triggerClassName}
+                    dropdownClassName={dropdownClassName}
+                />
+            ) : (
+                GROUPS.map((group) => {
+                    const orderedKeys = dashboardFilters[group].map(
+                        (rule) => rule.id,
+                    );
+                    return (
+                        <DndContext
+                            key={group}
+                            sensors={dragSensors}
+                            onDragEnd={(event) => handleDragEnd(group, event)}
+                        >
+                            {dashboardFilters[group].map((filter) => {
+                                const pill = renderPill(
+                                    filter,
+                                    group,
+                                    'editor',
+                                );
+                                return (
+                                    pill && (
+                                        <DroppableArea
+                                            key={filter.id}
                                             id={filter.id}
-                                            disabled={isSidebarOpen}
+                                            orderedKeys={orderedKeys}
                                         >
-                                            {pill}
-                                        </DraggableItem>
-                                    </DroppableArea>
-                                )
-                            );
-                        })}
-                        <DragOverlay />
-                    </DndContext>
-                );
-            })}
-            <TemporaryFilterPills activeTabUuid={activeTabUuid} />
+                                            <DraggableItem
+                                                id={filter.id}
+                                                disabled={isSidebarOpen}
+                                            >
+                                                {pill}
+                                            </DraggableItem>
+                                        </DroppableArea>
+                                    )
+                                );
+                            })}
+                            <DragOverlay />
+                        </DndContext>
+                    );
+                })
+            )}
+            {/* A viewer's own filters open in the rail too; in edit mode
+                they keep the shipped popover */}
+            {isViewer ? (
+                GROUPS.flatMap((group) =>
+                    temporaryFilters[group].map((filter) => {
+                        const pill = renderPill(filter, group, 'viewerOwn');
+                        return (
+                            pill && <Fragment key={filter.id}>{pill}</Fragment>
+                        );
+                    }),
+                )
+            ) : (
+                <TemporaryFilterPills activeTabUuid={activeTabUuid} />
+            )}
         </>
     );
 };

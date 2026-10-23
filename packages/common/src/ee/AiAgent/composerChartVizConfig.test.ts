@@ -9,6 +9,7 @@ import {
 } from '../../visualizations/types';
 import { type DataAppVizFieldType } from '../apps/types';
 import {
+    getComposerBigNumber,
     getComposerChartStage,
     getComposerRunQueryChart,
     toComposerResultRows,
@@ -441,6 +442,59 @@ describe('getComposerRunQueryChart', () => {
         expect(() =>
             chart(viz({ type: 'bar', x: 'missing', y: ['revenue'] })),
         ).toThrow('Column "missing" is not in the result');
+    });
+});
+
+describe('getComposerBigNumber', () => {
+    const formatted: ResultColumn[] = [
+        { reference: 'status', type: DimensionType.STRING },
+        {
+            reference: 'revenue',
+            type: DimensionType.NUMBER,
+            label: 'Total revenue',
+            format: '"$"#,##0.00',
+        },
+    ];
+    const bigNumber = (
+        config: Partial<ComposerBuiltinChartVizConfig>,
+        rows: Record<string, unknown>[] = [{ status: 'all', revenue: 1234.5 }],
+    ) =>
+        getComposerBigNumber({
+            columns: formatted,
+            rows,
+            vizConfig: viz({ type: 'big_number', ...config }),
+        });
+
+    test('formats the first row with the column format and label', () => {
+        expect(bigNumber({})).toEqual({
+            value: '$1,234.50',
+            label: 'Total revenue',
+        });
+    });
+
+    test('labels.y replaces the column label unless empty', () => {
+        expect(
+            bigNumber({ labels: { x: null, y: 'Revenue', y2: null } }),
+        ).toEqual({ value: '$1,234.50', label: 'Revenue' });
+        expect(bigNumber({ labels: { x: null, y: '', y2: null } })).toEqual({
+            value: '$1,234.50',
+            label: 'Total revenue',
+        });
+    });
+
+    test('null without a value to show', () => {
+        expect(bigNumber({}, [])).toBeNull();
+        expect(bigNumber({}, [{ status: 'all', revenue: null }])).toBeNull();
+    });
+
+    test('null for other viz types', () => {
+        expect(
+            getComposerBigNumber({
+                columns: formatted,
+                rows: [{ status: 'all', revenue: 1 }],
+                vizConfig: viz({ type: 'table' }),
+            }),
+        ).toBeNull();
     });
 });
 

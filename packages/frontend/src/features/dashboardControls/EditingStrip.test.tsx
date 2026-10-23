@@ -84,17 +84,30 @@ describe('EditingStrip', () => {
         );
     });
 
-    it('says "New filter" with no count while a new filter has no field', () => {
-        setSidebar({
-            isNew: true,
-            isPlaceholder: true,
-            editingRule: rule({ target: { fieldId: '', tableName: '' } }),
-        });
+    it.each([true, false])(
+        'says only "Editing filters" while the filter has no field (new: %s)',
+        (isNew) => {
+            setSidebar({
+                isNew,
+                isPlaceholder: true,
+                editingRule: rule({
+                    label: 'Region',
+                    target: { fieldId: '', tableName: '' },
+                }),
+            });
+            renderWithProviders(<EditingStrip />);
+
+            expect(screen.getByRole('status')).toHaveTextContent(
+                /^Editing filters$/,
+            );
+        },
+    );
+
+    it('has no type icon in the crumb', () => {
+        setSidebar({});
         renderWithProviders(<EditingStrip />);
 
-        expect(screen.getByRole('status')).toHaveTextContent(
-            /^Editing filtersNew filter$/,
-        );
+        expect(screen.getByRole('status').querySelector('svg')).toBeNull();
     });
 
     it('says only "Editing filters" with nothing expanded', () => {

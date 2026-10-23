@@ -292,7 +292,7 @@ describe('Slack artifact image outbox PostgreSQL integration', () => {
         };
         const runtime = {
             findMessage: vi.fn().mockImplementation(async () => message),
-            authorize: vi.fn().mockResolvedValue(undefined),
+            authorize: vi.fn().mockResolvedValue(true),
             render: vi
                 .fn()
                 .mockResolvedValue('https://lightdash.test/image/one'),

@@ -470,6 +470,8 @@ import {
     type RunDuckdbQueryArgs,
     type ScheduleDownloadAsyncQueryResultsArgs,
     type UnboundedRerunFromQueryHistoryResult,
+    type WarehouseClientOverride,
+    type WarehouseExecutionSource,
 } from './types';
 
 /** A compiled merge that can run: no errors, the join core and full metadata. */
@@ -961,7 +963,10 @@ export class AsyncQueryService extends ProjectService {
                 });
             await this.runAsyncWarehouseQuery({
                 ...warehouseArgs,
-                warehouseClientOverride: warehouseClient,
+                warehouseClientOverride: {
+                    client: warehouseClient,
+                    executionSource: 'external_source_duckdb',
+                },
                 resultProducerOverride: {
                     version: 1,
                     warehouseConnectionUuid:
@@ -2405,6 +2410,47 @@ export class AsyncQueryService extends ProjectService {
             binding.versionUuid !== artifact.versionUuid
         )
             throw new ForbiddenError('Artifact results are unavailable');
+        return this.getAsyncQueryResults(args);
+    }
+
+    async bindQueryToMessageQuery(
+        account: Account,
+        projectUuid: string,
+        queryUuid: string,
+        messageQuery: NonNullable<
+            QueryHistory['requestParameters']['resultMessageQuery']
+        >,
+    ): Promise<void> {
+        await this.queryHistoryModel.recordResultMessageQuery(
+            queryUuid,
+            projectUuid,
+            account.user.id,
+            messageQuery,
+        );
+    }
+
+    async getMessageQueryBoundQueryResults(
+        args: GetAsyncQueryResultsArgs,
+        messageQuery: NonNullable<
+            QueryHistory['requestParameters']['resultMessageQuery']
+        >,
+    ): Promise<ApiGetAsyncQueryResults> {
+        const history = await this.queryHistoryModel.get(
+            args.queryUuid,
+            args.projectUuid,
+            args.account,
+        );
+        const binding = history.requestParameters.resultMessageQuery;
+        if (!binding)
+            throw new ForbiddenError(
+                'These results are not compatible with your current access. Run the query again.',
+            );
+        if (
+            binding.agentUuid !== messageQuery.agentUuid ||
+            binding.promptUuid !== messageQuery.promptUuid ||
+            binding.queryUuid !== messageQuery.queryUuid
+        )
+            throw new ForbiddenError('Query results are unavailable');
         return this.getAsyncQueryResults(args);
     }
 
@@ -4202,7 +4248,10 @@ export class AsyncQueryService extends ProjectService {
                 rethrowOnError: true,
                 ...(duckDbWarehouseClient
                     ? {
-                          warehouseClientOverride: duckDbWarehouseClient,
+                          warehouseClientOverride: {
+                              client: duckDbWarehouseClient,
+                              executionSource: 'pre_aggregate_duckdb' as const,
+                          },
                           resultProducerOverride: resultProducer ?? {
                               version: 1 as const,
                               warehouseConnectionUuid:
@@ -4448,10 +4497,7 @@ export class AsyncQueryService extends ProjectService {
     > & {
         inheritedFromProjectUuid: string | null;
         errorMessage: string;
-        executionSource:
-            | 'warehouse'
-            | 'pre_aggregate_duckdb'
-            | 'pre_aggregate_warehouse';
+        executionSource: WarehouseExecutionSource | 'pre_aggregate_warehouse';
         warehouseType: WarehouseTypes | null;
         warehouseConnectionUuid?: string | null;
         connectionRoute?: ConnectionRouteWithOriginal | null;
@@ -4592,7 +4638,7 @@ export class AsyncQueryService extends ProjectService {
 
     public runAsyncWarehouseQuery(
         args: RunAsyncWarehouseQueryArgs & {
-            warehouseClientOverride?: WarehouseClient;
+            warehouseClientOverride?: WarehouseClientOverride;
             resultProducerOverride?: QueryResultProducer | null;
             warehouseCredentialsTypeOverride?: CreateWarehouseCredentials['type'];
             rethrowOnError?: boolean;
@@ -4890,7 +4936,7 @@ export class AsyncQueryService extends ProjectService {
         rethrowOnError,
         onComposerStageTimed,
     }: RunAsyncWarehouseQueryArgs & {
-        warehouseClientOverride?: WarehouseClient;
+        warehouseClientOverride?: WarehouseClientOverride;
         resultProducerOverride?: QueryResultProducer | null;
         warehouseCredentialsTypeOverride?: CreateWarehouseCredentials['type'];
         rethrowOnError?: boolean;
@@ -4931,8 +4977,8 @@ export class AsyncQueryService extends ProjectService {
             },
         };
 
-        const executionSource: 'warehouse' | 'pre_aggregate_duckdb' =
-            warehouseClientOverride ? 'pre_aggregate_duckdb' : 'warehouse';
+        const executionSource: WarehouseExecutionSource =
+            warehouseClientOverride?.executionSource ?? 'warehouse';
         let queryStartTime = Date.now();
         let projectCredentials: CreateWarehouseCredentials | null = null;
         let aiQueryTags: Record<string, string> = {};
@@ -5328,7 +5374,7 @@ export class AsyncQueryService extends ProjectService {
                     const s3UploadMs = Date.now() - s3UploadStart;
                     onComposerStageTimed?.('upload', s3UploadMs);
                     if (
-                        executionSource === 'pre_aggregate_duckdb' ||
+                        executionSource !== 'warehouse' ||
                         this.lightdashConfig.prometheus.allQueryMetricsEnabled
                     ) {
                         this.prometheusMetrics?.observeS3ResultsUploadDuration(
@@ -5519,8 +5565,10 @@ export class AsyncQueryService extends ProjectService {
                 );
                 warehouseCredentialsType =
                     warehouseCredentialsTypeOverride ??
-                    warehouseClientOverride.credentials.type;
-                await executeWithWarehouseClient(warehouseClientOverride);
+                    warehouseClientOverride.client.credentials.type;
+                await executeWithWarehouseClient(
+                    warehouseClientOverride.client,
+                );
             } else {
                 const attempt = await withWarehouseAttempt(
                     executeWithWarehouseClient,
@@ -11331,6 +11379,14 @@ export class AsyncQueryService extends ProjectService {
                     span.setAttributes({
                         'lightdash.rowCount': rows.length,
                         'lightdash.truncated': meta.truncated,
+                        ...Object.fromEntries(
+                            Object.entries(meta.timings).map(
+                                ([name, durationMs]) => [
+                                    `lightdash.python.${name}`,
+                                    Math.round(durationMs),
+                                ],
+                            ),
+                        ),
                     });
 
                     const resultsStorageClient =
@@ -12675,7 +12731,10 @@ export class AsyncQueryService extends ProjectService {
                 queryCreatedAt,
                 queryUsage,
                 displayTimezone: null,
-                warehouseClientOverride: warehouseClient,
+                warehouseClientOverride: {
+                    client: warehouseClient,
+                    executionSource: 'composer_duckdb',
+                },
                 resultProducerOverride: resultProducer,
                 warehouseCredentialsTypeOverride:
                     warehouseClient.credentials.type,
@@ -12891,7 +12950,7 @@ export class AsyncQueryService extends ProjectService {
                 chartId: queryTags.chart_uuid ?? null,
                 dashboardId: queryTags.dashboard_uuid ?? null,
                 cacheHit: true,
-                executionSource: 'pre_aggregate_duckdb',
+                executionSource: 'composer_duckdb',
                 warehouseType,
                 warehouseExecutionTimeMs: 0,
                 // Served from cache — no warehouse phases to report.

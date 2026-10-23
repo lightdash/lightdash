@@ -1,5 +1,7 @@
 import { Group, Stack, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
+import { useProject } from '../../../../../hooks/useProject';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import { getNextRuns } from './nextRuns';
 import classes from './SchedulerDeliveryModal.module.css';
@@ -7,8 +9,14 @@ import classes from './SchedulerDeliveryModal.module.css';
 export const SchedulerNextRuns: FC = () => {
     const form = useSchedulerFormContext();
     const { cron, timezone } = form.values;
+    const projectUuid = useProjectUuid();
+    const { data: project } = useProject(projectUuid);
+    const effectiveTimezone = timezone || project?.schedulerTimezone;
 
-    const runs = useMemo(() => getNextRuns(cron, timezone), [cron, timezone]);
+    const runs = useMemo(
+        () => (effectiveTimezone ? getNextRuns(cron, effectiveTimezone) : []),
+        [cron, effectiveTimezone],
+    );
 
     if (runs.length === 0) return null;
 

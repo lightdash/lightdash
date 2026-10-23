@@ -6,7 +6,6 @@ import {
 } from '@casl/ability';
 import {
     CommercialFeatureFlags,
-    FeatureFlags,
     LightdashMode,
     LightdashUser,
     MemberAbility,
@@ -56,6 +55,10 @@ type TestableUserModel = {
     getTrainingProjects: (
         organizationId: number,
         userUuid: string,
+        training?: {
+            project_uuid: string;
+            created_by_user_uuid: string | null;
+        },
         trx?: Knex,
     ) => Promise<
         {
@@ -458,7 +461,7 @@ describe('UserModel', () => {
             role_uuid: undefined,
         };
 
-        const createHumanModel = (learnEnabled = true) => {
+        const createHumanModel = () => {
             const model = new UserModel({
                 database: vi.fn() as unknown as Knex,
                 lightdashConfig: {
@@ -472,10 +475,9 @@ describe('UserModel', () => {
                         }: {
                             featureFlagId: string;
                         }) => ({
+                            // Every flag off: Learn needs none of them.
                             id: featureFlagId,
-                            enabled:
-                                featureFlagId === FeatureFlags.EnableLearn &&
-                                learnEnabled,
+                            enabled: false,
                         }),
                     ),
                 } as unknown as FeatureFlagModel,
@@ -505,19 +507,27 @@ describe('UserModel', () => {
             return model;
         };
 
-        it('does not grant trainee scopes when the org Learn flag is off', async () => {
-            const model = createHumanModel(false);
+        it('grants trainee scopes with every feature flag off', async () => {
+            const model = createHumanModel();
+            model.getTrainingProjects = vi.fn(async () => [
+                {
+                    projectUuid: 'training-copy',
+                    projectType: ProjectType.PREVIEW,
+                    createdByUserUuid: humanDetails.user_uuid,
+                },
+            ]);
             const { abilityBuilder } =
                 await model.generateUserAbilityBuilder(humanDetails);
-            expect(model.getTrainingProjects).not.toHaveBeenCalled();
+            expect(model.getTrainingProjects).toHaveBeenCalledOnce();
             expect(
                 abilityBuilder.build().can(
                     'manage',
                     subject('PinnedItems', {
+                        organizationUuid: humanDetails.organization_uuid,
                         projectUuid: 'training-copy',
                     }),
                 ),
-            ).toBe(false);
+            ).toBe(true);
         });
 
         it.each([false, true])(
@@ -784,7 +794,20 @@ describe('UserModel', () => {
             });
 
             it('reads the training project from the user row, not the database', async () => {
-                const model = createHumanModel(false);
+                const model = createHumanModel();
+                model.getTrainingProjects = vi.fn(
+                    async (_organizationId, _userUuid, training) =>
+                        training
+                            ? [
+                                  {
+                                      projectUuid: training.project_uuid,
+                                      projectType: ProjectType.TRAINING,
+                                      createdByUserUuid:
+                                          training.created_by_user_uuid,
+                                  },
+                              ]
+                            : [],
+                );
 
                 const { abilityBuilder } =
                     await model.generateUserAbilityBuilder({
@@ -808,7 +831,7 @@ describe('UserModel', () => {
             });
 
             it('reads nothing when the user row says the org has no training project', async () => {
-                const model = createHumanModel(false);
+                const model = createHumanModel();
 
                 await model.generateUserAbilityBuilder({
                     ...adminDetails,
@@ -819,36 +842,6 @@ describe('UserModel', () => {
                 expect(
                     model.getOrganizationTrainingProject,
                 ).not.toHaveBeenCalled();
-            });
-
-            it('stays locked when the org Learn flag is off', async () => {
-                const model = createHumanModel(false);
-                model.getOrganizationTrainingProject = vi.fn(async () => ({
-                    project_uuid: 'training-project',
-                    created_by_user_uuid: adminDetails.user_uuid,
-                }));
-
-                const { abilityBuilder } =
-                    await model.generateUserAbilityBuilder(adminDetails);
-                const ability = abilityBuilder.build();
-
-                expect(model.getTrainingProjects).not.toHaveBeenCalled();
-                lockedWrites.forEach(([action, subjectName]) => {
-                    expect({
-                        action,
-                        subjectName,
-                        can: ability.can(action, trainingSubject(subjectName)),
-                    }).toEqual({ action, subjectName, can: false });
-                });
-                expect(
-                    ability.can(
-                        'manage',
-                        subject('SavedChart', {
-                            organizationUuid: adminDetails.organization_uuid,
-                            projectUuid: 'another-project',
-                        }),
-                    ),
-                ).toBe(true);
             });
 
             it('stays locked for a role that can edit content but not view Learn', async () => {

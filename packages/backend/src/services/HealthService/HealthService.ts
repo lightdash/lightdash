@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     HealthState,
     LightdashInstallType,
     LightdashMode,
@@ -79,19 +78,6 @@ export class HealthService extends BaseService {
         return this.lightdashConfig.license.licenseKey !== undefined;
     }
 
-    // Instance key first; the org flag can only switch decisions off for a caller's org.
-    private async isAiDecisionsEnabled(
-        user: SessionUser | undefined,
-    ): Promise<boolean> {
-        if (!this.lightdashConfig.ai.decisions.apiKey) return false;
-        if (!user?.organizationUuid) return true;
-        const { enabled } = await this.featureFlagModel.get({
-            user: { organizationUuid: user.organizationUuid },
-            featureFlagId: FeatureFlags.AiDecisions,
-        });
-        return enabled;
-    }
-
     async getHealthState(
         user: SessionUser | undefined,
         _options: { skipMigrationCheck: boolean } = {
@@ -117,12 +103,9 @@ export class HealthService extends BaseService {
                   csvCellsLimit: this.lightdashConfig.query.csvCellsLimit,
               };
 
-        const preAggregatesEnabled = user?.organizationUuid
-            ? await isPreAggregatesEnabled(
-                  this.featureFlagModel,
-                  user.organizationUuid,
-              )
-            : this.lightdashConfig.preAggregates.enabled;
+        const preAggregatesEnabled = isPreAggregatesEnabled(
+            this.lightdashConfig,
+        );
 
         const migrationStartTime = performance.now();
         const { status: migrationStatus, currentVersion } =
@@ -331,7 +314,8 @@ export class HealthService extends BaseService {
                 threadDumpEnabled:
                     this.isEnterpriseEnabled() &&
                     this.lightdashConfig.ai.copilot.threadDumpEnabled,
-                fastDecisionsEnabled: await this.isAiDecisionsEnabled(user),
+                fastDecisionsEnabled:
+                    !!this.lightdashConfig.ai.decisions.apiKey,
             },
             echarts6: {
                 enabled: false,
