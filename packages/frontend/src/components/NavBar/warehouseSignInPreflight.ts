@@ -247,17 +247,6 @@ export class WarehouseSignInPreflight {
                 ?.generation === target.generation
         );
     }
-    captureCurrentOrNextExecution(
-        binding: WarehouseSignInBinding,
-    ): WarehouseSignInExecutionIdentity {
-        return {
-            ...this.identity,
-            binding,
-            generation:
-                this.checks.get(warehouseSignInBindingKey(binding))
-                    ?.generation ?? this.generation + 1,
-        };
-    }
     ready(binding: WarehouseSignInBinding | undefined) {
         if (this.loading) return false;
         if (!this.enabled) return true;
@@ -432,6 +421,7 @@ export class WarehouseSignInPreflight {
     }
 }
 
+export const WarehouseSignInCataloguePendingContext = createContext(false);
 export const WarehouseSignInPreflightContext =
     createContext<WarehouseSignInPreflight | null>(null);
 const noSubscribe = () => () => {};

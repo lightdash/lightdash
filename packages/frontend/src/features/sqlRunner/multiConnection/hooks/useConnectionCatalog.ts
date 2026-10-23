@@ -13,7 +13,7 @@ import {
 } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { type LightdashApi } from '../../../../api';
-import { runWarehouseCatalogueQuery } from '../../../../hooks/sharedSignInQueryRecovery';
+import { useWarehouseCatalogueRecovery } from '../../../../hooks/sharedSignInQueryRecovery';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import {
     tableUnitId,
@@ -178,15 +178,14 @@ export const useConnectionTableFields = ({
     identity: TableIdentity | undefined;
 }) => {
     const lightdashApi = useLightdashApi();
-    const client = useQueryClient();
+    const { canFetch, run } = useWarehouseCatalogueRecovery();
     return useQuery<WarehouseTableSchema, ApiError>({
         queryKey: identity
             ? tableFieldsQueryKey(projectUuid, identity)
             : ['sqlRunner', 'connections', projectUuid, 'fields'],
         queryFn: () =>
             identity
-                ? runWarehouseCatalogueQuery(
-                      client,
+                ? run(
                       tableFieldsQueryKey(projectUuid, identity),
                       projectUuid,
                       identity.connectionId,
@@ -195,7 +194,13 @@ export const useConnectionTableFields = ({
                   )
                 : Promise.reject(new Error('No table selected')),
         retry: false,
-        enabled: !!identity,
+        enabled:
+            !!identity &&
+            canFetch(
+                tableFieldsQueryKey(projectUuid, identity),
+                projectUuid,
+                identity.connectionId,
+            ),
     });
 };
 
@@ -242,13 +247,12 @@ export const useConnectionDatabases = ({
     enabledConnectionIds: ReadonlySet<string>;
 }): ConnectionDatabases => {
     const lightdashApi = useLightdashApi();
-    const client = useQueryClient();
+    const { canFetch, run } = useWarehouseCatalogueRecovery();
     const results = useQueries({
         queries: connectionIds.map((connectionId) => ({
             queryKey: databasesQueryKey(projectUuid, connectionId),
             queryFn: () =>
-                runWarehouseCatalogueQuery(
-                    client,
+                run(
                     databasesQueryKey(projectUuid, connectionId),
                     projectUuid,
                     connectionId,
@@ -256,7 +260,14 @@ export const useConnectionDatabases = ({
                         fetchDatabases(lightdashApi, projectUuid, connectionId),
                 ),
             retry: false,
-            enabled: !!projectUuid && enabledConnectionIds.has(connectionId),
+            enabled:
+                !!projectUuid &&
+                enabledConnectionIds.has(connectionId) &&
+                canFetch(
+                    databasesQueryKey(projectUuid, connectionId),
+                    projectUuid,
+                    connectionId,
+                ),
         })),
     });
 
@@ -295,6 +306,7 @@ export const useTableUnits = ({
     enabledUnitIds: ReadonlySet<string>;
 }): TableUnits => {
     const lightdashApi = useLightdashApi();
+    const { canFetch, run } = useWarehouseCatalogueRecovery();
     const queryClient = useQueryClient();
 
     const results = useQueries({
@@ -305,8 +317,7 @@ export const useTableUnits = ({
                 unit.database,
             ),
             queryFn: () =>
-                runWarehouseCatalogueQuery(
-                    queryClient,
+                run(
                     tablesQueryKey(
                         projectUuid,
                         unit.warehouseConnectionUuid,
@@ -323,7 +334,18 @@ export const useTableUnits = ({
                         ),
                 ),
             retry: false,
-            enabled: !!projectUuid && enabledUnitIds.has(tableUnitId(unit)),
+            enabled:
+                !!projectUuid &&
+                enabledUnitIds.has(tableUnitId(unit)) &&
+                canFetch(
+                    tablesQueryKey(
+                        projectUuid,
+                        unit.warehouseConnectionUuid,
+                        unit.database,
+                    ),
+                    projectUuid,
+                    unit.warehouseConnectionUuid,
+                ),
         })),
     });
 

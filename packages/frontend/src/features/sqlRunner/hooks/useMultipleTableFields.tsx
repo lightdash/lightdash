@@ -1,8 +1,8 @@
 import { type ApiError } from '@lightdash/common';
-import { useQueries, useQueryClient } from '@tanstack/react-query';
+import { useQueries } from '@tanstack/react-query';
 import isEmpty from 'lodash/isEmpty';
 import { useMemo } from 'react';
-import { runWarehouseCatalogueQuery } from '../../../hooks/sharedSignInQueryRecovery';
+import { useWarehouseCatalogueRecovery } from '../../../hooks/sharedSignInQueryRecovery';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     fetchTableFields as fetchConnectionTableFields,
@@ -22,7 +22,7 @@ export type TableReference = {
 
 export const useMultipleTableFields = (tableReferences: TableReference[]) => {
     const lightdashApi = useLightdashApi();
-    const client = useQueryClient();
+    const { canFetch, run } = useWarehouseCatalogueRecovery();
     // Create queries for each unique table reference
     const queries = useMemo(() => {
         // Deduplicate table references based on projectUuid + schema + tableName
@@ -59,8 +59,7 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
             return {
                 queryKey,
                 queryFn: () =>
-                    runWarehouseCatalogueQuery(
-                        client,
+                    run(
                         queryKey,
                         ref.projectUuid,
                         connection?.connectionId ?? null,
@@ -78,7 +77,13 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
                                   }),
                     ),
                 retry: false,
-                enabled: !!(ref.projectUuid && ref.tableName && ref.schema),
+                enabled:
+                    !!(ref.projectUuid && ref.tableName && ref.schema) &&
+                    canFetch(
+                        queryKey,
+                        ref.projectUuid,
+                        connection?.connectionId ?? null,
+                    ),
                 staleTime: 5 * 60 * 1000, // 5 minutes - keep data fresh but allow caching
                 meta: {
                     tableName: ref.tableName,
@@ -87,7 +92,7 @@ export const useMultipleTableFields = (tableReferences: TableReference[]) => {
                 },
             };
         });
-    }, [tableReferences, lightdashApi, client]);
+    }, [tableReferences, lightdashApi, canFetch, run]);
 
     const results = useQueries({
         queries,

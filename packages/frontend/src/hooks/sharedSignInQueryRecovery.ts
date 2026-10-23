@@ -12,9 +12,19 @@ import {
     type QueryKey,
     useQueryClient,
 } from '@tanstack/react-query';
-import { useEffect, useId, useLayoutEffect } from 'react';
+import {
+    useCallback,
+    useContext,
+    useEffect,
+    useId,
+    useLayoutEffect,
+    useSyncExternalStore,
+    useState,
+} from 'react';
 import {
     getActiveWarehouseSignInPreflight,
+    WarehouseSignInPreflightContext,
+    WarehouseSignInCataloguePendingContext,
     useWarehouseSignInPreflightStore,
     warehouseSignInBindingKey,
     type WarehouseSignInBinding,
@@ -63,39 +73,47 @@ const catalogueFailures = new WeakMap<
     Query,
     { scope: QueryScope; error: unknown }
 >();
-export const runWarehouseCatalogueQuery = async <T>(
+const catalogueBinding = (
+    client: QueryClient,
+    projectUuid: string,
+    connection: WarehouseSignInBinding,
+) =>
+    connection !== null &&
+    client
+        .getQueryData<SqlRunnerWarehouseConnection[]>([
+            'sqlRunner',
+            'connections',
+            projectUuid,
+        ])
+        ?.some(
+            (item) =>
+                item.warehouseConnectionUuid === connection && item.isOriginal,
+        )
+        ? null
+        : connection;
+const runWarehouseCatalogueQuery = async <T>(
     client: QueryClient,
     key: QueryKey,
     projectUuid: string,
     connection: WarehouseSignInBinding,
     request: () => Promise<T>,
+    store: WarehouseSignInPreflight | null,
 ): Promise<T> => {
-    const original =
-        connection !== null &&
-        client
-            .getQueryData<SqlRunnerWarehouseConnection[]>([
-                'sqlRunner',
-                'connections',
-                projectUuid,
-            ])
-            ?.some(
-                (item) =>
-                    item.warehouseConnectionUuid === connection &&
-                    item.isOriginal,
-            );
-    const binding = original ? null : connection;
-    const store = getActiveWarehouseSignInPreflight();
+    const binding = catalogueBinding(client, projectUuid, connection);
+    const check = store?.checks.get(warehouseSignInBindingKey(binding));
     const scope: QueryScope | null =
         store?.enabled &&
         !store.loading &&
+        check &&
+        getActiveWarehouseSignInPreflight() === store &&
         store.identity.projectUuid === projectUuid &&
         store.hasPreferredBinding(binding)
             ? {
-                  ...store.captureCurrentOrNextExecution(binding),
+                  ...store.identity,
+                  binding,
+                  generation: check.generation,
                   recoveryGeneration: store.recoveryGeneration,
-                  personalSignIn:
-                      store.checks.get(warehouseSignInBindingKey(binding))
-                          ?.status?.personalSignIn ?? null,
+                  personalSignIn: check.status?.personalSignIn ?? null,
               }
             : null;
     const query = client.getQueryCache().find(key, { exact: true });
@@ -121,6 +139,60 @@ export const runWarehouseCatalogueQuery = async <T>(
             catalogueFailures.set(query, { scope, error });
         throw error;
     }
+};
+const noCatalogueSubscription = () => () => {};
+const emptyCatalogueRevision = () => 0;
+export const useWarehouseCatalogueRecovery = () => {
+    const store = useContext(WarehouseSignInPreflightContext);
+    const client = useQueryClient();
+    const pending = useContext(WarehouseSignInCataloguePendingContext);
+    useSyncExternalStore(
+        store?.subscribe ?? noCatalogueSubscription,
+        store?.snapshot ?? emptyCatalogueRevision,
+    );
+    const [admitted] = useState(() => new WeakSet<Query>());
+    const admittedKeys: QueryKey[] = [];
+    useLayoutEffect(() => {
+        for (const key of admittedKeys) {
+            const query = client.getQueryCache().find(key, { exact: true });
+            if (query) admitted.add(query);
+        }
+    });
+    const canFetch = (
+        key: QueryKey,
+        projectUuid: string,
+        connection: WarehouseSignInBinding,
+    ) => {
+        const query = client.getQueryCache().find(key, { exact: true });
+        if (query && admitted.has(query)) return true;
+        if (pending || store?.loading) return false;
+        const binding = catalogueBinding(client, projectUuid, connection);
+        const allowed =
+            !store?.enabled ||
+            store.identity.projectUuid !== projectUuid ||
+            !store.hasPreferredBinding(binding) ||
+            store.checks.has(warehouseSignInBindingKey(binding));
+        if (allowed) admittedKeys.push(key);
+        return allowed;
+    };
+    const run = useCallback(
+        <T>(
+            key: QueryKey,
+            projectUuid: string,
+            connection: WarehouseSignInBinding,
+            request: () => Promise<T>,
+        ) =>
+            runWarehouseCatalogueQuery(
+                client,
+                key,
+                projectUuid,
+                connection,
+                request,
+                store,
+            ),
+        [client, store],
+    );
+    return { canFetch, run };
 };
 export const rememberSharedSignInFailure = (
     error: ApiErrorDetail,

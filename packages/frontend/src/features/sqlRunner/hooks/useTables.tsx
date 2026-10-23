@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../api';
-import { runWarehouseCatalogueQuery } from '../../../hooks/sharedSignInQueryRecovery';
+import { useWarehouseCatalogueRecovery } from '../../../hooks/sharedSignInQueryRecovery';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export type GetTablesParams = {
@@ -41,7 +41,7 @@ export type TablesBySchema =
 
 export const useTables = ({ projectUuid }: GetTablesParams) => {
     const lightdashApi = useLightdashApi();
-    const client = useQueryClient();
+    const { canFetch, run } = useWarehouseCatalogueRecovery();
     const queryKey = ['sqlRunner', 'tables', projectUuid];
     return useQuery<
         ApiWarehouseTablesCatalog,
@@ -50,18 +50,13 @@ export const useTables = ({ projectUuid }: GetTablesParams) => {
     >({
         queryKey,
         queryFn: () =>
-            runWarehouseCatalogueQuery(
-                client,
-                queryKey,
-                projectUuid,
-                null,
-                () =>
-                    fetchTables(lightdashApi, {
-                        projectUuid,
-                    }),
+            run(queryKey, projectUuid, null, () =>
+                fetchTables(lightdashApi, {
+                    projectUuid,
+                }),
             ),
         retry: false,
-        enabled: !!projectUuid,
+        enabled: !!projectUuid && canFetch(queryKey, projectUuid, null),
     });
 };
 

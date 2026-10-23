@@ -15,7 +15,7 @@ import {
 } from '@tanstack/react-query';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useEffect } from 'react';
+import { StrictMode, useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter, useNavigate } from 'react-router';
 import { useMultipleTableFields } from '../../features/sqlRunner/hooks/useMultipleTableFields';
@@ -38,8 +38,10 @@ import {
     completeSharedSignInRestoration,
     canReplayRestoredSql,
     captureSharedSignInQueryScope,
+    getSharedSignInQueryScope,
 } from '../../hooks/sharedSignInQueryRecovery';
 import { shouldSuppressSharedSignInToast } from '../../hooks/toaster/sharedSignInToastSuppression';
+import type * as ActiveProjectHooks from '../../hooks/useActiveProject';
 import {
     useGetReadyQueryResults,
     useInfiniteQueryResults,
@@ -49,6 +51,9 @@ import {
     SHARED_SIGN_IN_RECONNECTED,
 } from '../../hooks/useReconnectSharedSignIn';
 import { reportSharedSignInQueryFailure } from '../../hooks/useReconnectSharedSignIn';
+import type * as FlagHooks from '../../hooks/useServerOrClientFeatureFlag';
+import AppProvider from '../../providers/App/AppProvider';
+import type * as AppHooks from '../../providers/App/useApp';
 import { SharedSignInExpiryListener } from './SharedSignInExpiryListener';
 import { SharedSignInQueryBoundary } from './SharedSignInQueryBoundary';
 import { WarehouseSignInBanner } from './WarehouseSignInBanner';
@@ -62,8 +67,10 @@ import {
 } from './warehouseSignInPreflight';
 
 const state = vi.hoisted(() => ({
+    realApp: false,
     userUuid: 'user_a' as string | null,
     projectUuid: 'project_a',
+    projectLoading: false,
     higherPriority: false,
     reconnect: true,
     expiry: true,
@@ -91,15 +98,29 @@ const state = vi.hoisted(() => ({
     deliberateDisabled: true,
     toastError: vi.fn(),
 }));
-vi.mock('../../providers/App/useApp', () => ({
-    default: () => ({
-        user: {
-            data: state.userUuid ? { userUuid: state.userUuid } : undefined,
-        },
-    }),
+vi.mock('../../providers/App/useApp', async (importOriginal) => {
+    const actual = await importOriginal<typeof AppHooks>();
+    return {
+        default: () =>
+            state.realApp
+                ? actual.default()
+                : {
+                      user: {
+                          data: state.userUuid
+                              ? { userUuid: state.userUuid }
+                              : undefined,
+                      },
+                  },
+    };
+});
+vi.mock('../../hooks/user/useAccount', () => ({
+    useAccount: () => ({ data: { isRegisteredUser: () => true } }),
 }));
-vi.mock('../../hooks/useActiveProject', () => ({
-    useActiveProjectUuid: () => ({ activeProjectUuid: state.projectUuid }),
+vi.mock('../../hooks/useActiveProject', async (importOriginal) => ({
+    ...(await importOriginal<typeof ActiveProjectHooks>()),
+    useActiveProjectUuid: () => ({
+        activeProjectUuid: state.projectLoading ? undefined : state.projectUuid,
+    }),
 }));
 vi.mock('../../providers/LightdashApi/useLightdashApi', () => ({
     useLightdashApi: () => state.api,
@@ -120,17 +141,23 @@ vi.mock('../../hooks/useExplore', () => ({
 vi.mock('../../hooks/useProject', () => ({
     useProject: () => ({ data: { name: 'Project A' } }),
 }));
-vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: (flag: FeatureFlags) => ({
-        isLoading: false,
-        data: {
-            enabled:
-                flag === FeatureFlags.SharedSignInReconnect
-                    ? state.reconnect
-                    : state.expiry,
-        },
-    }),
-}));
+vi.mock('../../hooks/useServerOrClientFeatureFlag', async (importOriginal) => {
+    const actual = await importOriginal<typeof FlagHooks>();
+    return {
+        useServerFeatureFlag: (flag: FeatureFlags) =>
+            state.realApp
+                ? actual.useServerFeatureFlag(flag)
+                : {
+                      isLoading: false,
+                      data: {
+                          enabled:
+                              flag === FeatureFlags.SharedSignInReconnect
+                                  ? state.reconnect
+                                  : state.expiry,
+                      },
+                  },
+    };
+});
 vi.mock('../../hooks/toaster/useToaster', () => ({
     default: () => ({
         showToastWarning: state.warning,
@@ -422,19 +449,30 @@ const mount = (
         logger: { log: () => {}, warn: () => {}, error: () => {} },
     });
     configureClient?.(client);
-    const tree = () => (
-        <MantineProvider env="test">
-            <QueryClientProvider client={client}>
-                <MemoryRouter initialEntries={[path]}>
-                    <Harness />
-                </MemoryRouter>
-            </QueryClientProvider>
-        </MantineProvider>
-    );
+    const tree = () => {
+        const content = (
+            <MantineProvider env="test">
+                <QueryClientProvider client={client}>
+                    <MemoryRouter initialEntries={[path]}>
+                        {state.realApp ? (
+                            <AppProvider>
+                                <Harness />
+                            </AppProvider>
+                        ) : (
+                            <Harness />
+                        )}
+                    </MemoryRouter>
+                </QueryClientProvider>
+            </MantineProvider>
+        );
+        return state.realApp ? <StrictMode>{content}</StrictMode> : content;
+    };
     return { ...render(tree()), client, tree };
 };
 beforeEach(() => {
     vi.clearAllMocks();
+    state.realApp = false;
+    state.projectLoading = false;
     state.userUuid = 'user_a';
     state.projectUuid = 'project_a';
     state.higherPriority = false;
@@ -2144,7 +2182,7 @@ test.each([
         const view = mount();
         try {
             if (kind.startsWith('pending-')) {
-                await waitFor(() => expect(calls.tables).toBe(1));
+                expect(calls.tables).toBe(0);
                 await act(async () => {});
                 expect(getActiveWarehouseSignInPreflight()!.checks.size).toBe(
                     0,
@@ -2331,7 +2369,7 @@ test('recovers catalogue requested by the real SQL connection scope while its in
     mount();
     await screen.findByRole('dialog');
     expect(calls).toBe(1);
-    expect(registrations[0]).toBe(0);
+    expect(registrations[0]).toBe(1);
     expect(sqlStore.getState().sqlRunner.connectionRoute.route).toBe('single');
     await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
     await userEvent.click(screen.getByRole('button', { name: 'Reconnect' }));
@@ -2343,3 +2381,269 @@ test('recovers catalogue requested by the real SQL connection scope while its in
     expect(await screen.findByText(/table_a/)).toBeVisible();
     expect(screen.queryByRole('dialog')).toBeNull();
 });
+
+test.each(
+    [
+        'ready',
+        'user',
+        'flags',
+        'project',
+        'both',
+        'page-return',
+        'project-return',
+    ].flatMap((pending) =>
+        [personal, shared].map((status) => ({ pending, status })),
+    ),
+)(
+    'retains the catalogue request origin through the real strict app boundary lifecycle: $pending / $status.expired',
+    async ({ pending, status }) => {
+        state.realApp = true;
+        state.catalogue = true;
+        state.realCatalogueScope = true;
+        sqlStore.dispatch(resetState());
+        sqlStore.dispatch(setProjectUuid('project_a'));
+        if (pending === 'project') state.projectLoading = true;
+        const user = { userUuid: 'user_a', abilityRules: [] };
+        const pendingUser = Promise.withResolvers<typeof user>();
+        const pendingFlags = Promise.withResolvers<{ enabled: boolean }>();
+        let repaired = false;
+        let calls = 0;
+        let fields = 0;
+        state.api.mockImplementation(async ({ url }: { url: string }) => {
+            if (url.startsWith('/health')) return { isAuthenticated: true };
+            if (url === '/user') return pendingUser.promise;
+            if (url.startsWith('/feature-flag/')) return pendingFlags.promise;
+            if (url.includes('shared-sign-in'))
+                return {
+                    ...status,
+                    expired: status.personalSignIn ? false : !repaired,
+                    personalSignIn: status.personalSignIn
+                        ? { ...status.personalSignIn, expired: !repaired }
+                        : undefined,
+                };
+            if (url.endsWith('/sqlRunner/tables')) {
+                calls += 1;
+                if (!repaired)
+                    throw {
+                        status: 'error',
+                        error: status.personalSignIn
+                            ? { ...personalError, statusCode: 401 }
+                            : {
+                                  ...personalError,
+                                  statusCode: 401,
+                                  data: {
+                                      sharedSignIn: {
+                                          projectUuid: 'project_a',
+                                          provider: shared.provider,
+                                          subjectUserUuid: 'user_a',
+                                          subjectBasis: shared.subjectBasis,
+                                      },
+                                  },
+                              },
+                    };
+                return { database_a: { schema_a: { table_a: {} } } };
+            }
+            if (url.includes('/sqlRunner/fields')) fields += 1;
+            return { field_a: 'string' };
+        });
+        const { client, rerender, tree } = mount(undefined, (queryClient) => {
+            queryClient.setQueryData(['health'], { isAuthenticated: true });
+            if (pending !== 'user' && pending !== 'both')
+                queryClient.setQueryData(['user'], user);
+            if (pending !== 'flags' && pending !== 'both') {
+                for (const flag of [
+                    FeatureFlags.SharedSignInReconnect,
+                    FeatureFlags.SharedSignInExpiryMessage,
+                ])
+                    queryClient.setQueryData(['feature-flag', flag], {
+                        enabled: true,
+                    });
+            }
+        });
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+        });
+        if (['user', 'flags', 'project', 'both'].includes(pending))
+            expect(calls).toBe(0);
+        if (pending === 'project') {
+            state.projectLoading = false;
+            rerender(tree());
+        }
+        await act(async () => {
+            pendingUser.resolve(user);
+            pendingFlags.resolve({ enabled: true });
+        });
+        await screen.findByRole('dialog');
+        await waitFor(() => expect(calls).toBe(1));
+        expect(screen.getByText('Catalogue unavailable')).toBeVisible();
+        const failedQuery = client
+            .getQueryCache()
+            .find(['sqlRunner', 'tables', 'project_a'], { exact: true });
+        const origin = getSharedSignInQueryScope(failedQuery!);
+        expect(origin).toMatchObject({
+            projectUuid: 'project_a',
+            userUuid: 'user_a',
+            binding: null,
+            recoveryGeneration: 0,
+        });
+        expect(getActiveWarehouseSignInPreflight()!.isCurrent(origin!)).toBe(
+            true,
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+        if (pending === 'page-return') {
+            await userEvent.click(screen.getByRole('button', { name: 'Home' }));
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Query route' }),
+            );
+        }
+        if (pending === 'project-return') {
+            sqlStore.dispatch(setProjectUuid('project_b'));
+            state.projectUuid = 'project_b';
+            rerender(tree());
+            await waitFor(() =>
+                expect(
+                    getActiveWarehouseSignInPreflight()!.identity.projectUuid,
+                ).toBe('project_b'),
+            );
+            sqlStore.dispatch(setProjectUuid('project_a'));
+            state.projectUuid = 'project_a';
+            rerender(tree());
+        }
+        if (pending.endsWith('-return')) {
+            await waitFor(() =>
+                expect(
+                    screen.queryByRole('dialog') ??
+                        screen.queryByRole('button', { name: 'Reconnect' }),
+                ).not.toBeNull(),
+            );
+            if (screen.queryByRole('dialog'))
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Not now' }),
+                );
+            if (pending === 'project-return') {
+                expect(calls).toBe(3);
+                const current = getSharedSignInQueryScope(failedQuery!);
+                expect(current).not.toBe(origin);
+                expect(
+                    getActiveWarehouseSignInPreflight()!.isCurrent(current!),
+                ).toBe(true);
+            } else expect(getSharedSignInQueryScope(failedQuery!)).toBe(origin);
+            expect(
+                getActiveWarehouseSignInPreflight()!.isCurrent(origin!),
+            ).toBe(false);
+        }
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Reconnect' }),
+        );
+        repaired = true;
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Sign in with Google' }),
+        );
+        await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+        const eligible = pending !== 'page-return';
+        await waitFor(() =>
+            expect(calls).toBe(
+                pending === 'project-return' ? 4 : eligible ? 2 : 1,
+            ),
+        );
+        if (eligible) expect(await screen.findByText(/table_a/)).toBeVisible();
+        else expect(screen.getByText('Catalogue unavailable')).toBeVisible();
+        const query = client
+            .getQueryCache()
+            .find(['sqlRunner', 'tables', 'project_a'], { exact: true });
+        expect(getSharedSignInQueryScope(query!)).not.toBeNull();
+        expect(fields).toBe(pending === 'project-return' ? 3 : 1);
+        expect(screen.queryByRole('dialog')).toBeNull();
+    },
+);
+
+test.each(['off', 'unknown', 'unrelated'] as const)(
+    'does not adopt an unscoped %s request after the real app resolves enabled flags',
+    async (initial) => {
+        state.realApp = true;
+        state.catalogue = true;
+        state.realCatalogueScope = true;
+        sqlStore.dispatch(resetState());
+        sqlStore.dispatch(setProjectUuid('project_a'));
+        const pending = Promise.withResolvers<never>();
+        const user = { userUuid: 'user_a', abilityRules: [] };
+        let enabled = initial === 'unrelated';
+        let repaired = false;
+        let calls = 0;
+        let statusCalls = 0;
+        state.api.mockImplementation(async ({ url }: { url: string }) => {
+            if (url.startsWith('/health')) return { isAuthenticated: true };
+            if (url === '/user') return user;
+            if (url.startsWith('/feature-flag/')) {
+                if (initial === 'unknown' && !enabled)
+                    throw {
+                        status: 'error',
+                        error: {
+                            name: 'NetworkError',
+                            statusCode: 500,
+                            message: 'Unavailable',
+                        },
+                    };
+                return { enabled };
+            }
+            if (url.includes('shared-sign-in')) {
+                statusCalls += 1;
+                return {
+                    ...personal,
+                    personalSignIn: {
+                        ...personal.personalSignIn!,
+                        expired: !repaired,
+                    },
+                };
+            }
+            if (url.endsWith('/sqlRunner/tables')) {
+                calls += 1;
+                return pending.promise;
+            }
+            return { field_a: 'string' };
+        });
+        const { client } = mount(
+            initial === 'unrelated' ? '/projects/project_a/home' : undefined,
+            (queryClient) => {
+                queryClient.setQueryData(['health'], { isAuthenticated: true });
+                queryClient.setQueryData(['user'], user);
+            },
+        );
+        await waitFor(() => expect(calls).toBe(1));
+        expect(statusCalls).toBe(0);
+        const query = client
+            .getQueryCache()
+            .find(['sqlRunner', 'tables', 'project_a'], { exact: true });
+        expect(getSharedSignInQueryScope(query!)).toBeNull();
+        enabled = true;
+        if (initial === 'unrelated')
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Query route' }),
+            );
+        else
+            await act(async () => {
+                await client.refetchQueries(['feature-flag']);
+            });
+        await screen.findByRole('dialog');
+        await act(async () => {
+            pending.reject({
+                status: 'error',
+                error: { ...personalError, statusCode: 401 },
+            });
+        });
+        await screen.findByText('Catalogue unavailable');
+        expect(getSharedSignInQueryScope(query!)).toBeNull();
+        await userEvent.click(screen.getByRole('button', { name: 'Not now' }));
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Reconnect' }),
+        );
+        repaired = true;
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Sign in with Google' }),
+        );
+        await waitFor(() => expect(state.success).toHaveBeenCalledOnce());
+        expect(calls).toBe(1);
+        expect(getSharedSignInQueryScope(query!)).toBeNull();
+        expect(screen.getByText('Catalogue unavailable')).toBeVisible();
+    },
+);
