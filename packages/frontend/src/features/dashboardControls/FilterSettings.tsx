@@ -221,7 +221,7 @@ export const FilterSettings: FC<Props> = ({
             parameterValues={parameterValues}
         >
             <DropdownClass className={contractClasses?.filterDropdown ?? null}>
-                <Box className={classes.value} data-controls-value>
+                <Box data-controls-value>
                     <FilterValueSettings
                         isEditMode={!isViewer}
                         isCreatingNew={isViewer && isNew}

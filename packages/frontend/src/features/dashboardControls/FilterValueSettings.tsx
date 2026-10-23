@@ -11,6 +11,7 @@ import {
     getFilterRuleWithDisabledState,
     isLockedRequiredMissingValue,
 } from '../dashboardFilters/FilterConfiguration/utils';
+import classes from './ControlSidebar.module.css';
 import { isDefaultValueIncomplete } from './sidebarState';
 
 type Props = {
@@ -77,7 +78,7 @@ export const FilterValueSettings: FC<Props> = ({
 
     return (
         <Stack gap="xs" ref={root}>
-            <Stack key={refusals} gap="xs">
+            <Stack key={refusals} gap="xs" className={classes.valueForm}>
                 <FilterValueSection
                     isEditMode={isEditMode}
                     isCreatingNew={isCreatingNew}

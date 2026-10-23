@@ -118,7 +118,8 @@
 }
 
 .editedHead {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md) 0;
+    padding-block: var(--mantine-spacing-xs) 0;
+    padding-inline: var(--mantine-spacing-md);
     /* A click on it collapses the filter */
     cursor: pointer;
 }
@@ -129,14 +130,15 @@
 }
 
 /* The shipped clear X sits beside the value input, so the operator select
-   above it ends where the value input does */
-.value:has(
-        :global(
-            .mantine-Stack-root > .mantine-Group-root > .mantine-ActionIcon-root
-        )
+   above it ends where the value input does. Both are direct children of the
+   form (`FilterValueSettings`); a date's own selects are nested deeper */
+.valueForm:has(
+        > :global(.mantine-Group-root) > :global(.mantine-ActionIcon-root)
     )
-    :global(.mantine-Stack-root > .mantine-Select-root) {
-    margin-right: calc(var(--controls-action-size) + var(--mantine-spacing-xs));
+    > :global(.mantine-Select-root) {
+    margin-inline-end: calc(
+        var(--controls-action-size) + var(--mantine-spacing-xs)
+    );
 }
 
 .nameInput {
@@ -174,11 +176,11 @@
     width: 100%;
     min-height: 40px;
     /* The chevron is centred on the row actions' column */
-    padding: var(--mantine-spacing-xs)
+    padding-block: var(--mantine-spacing-xs);
+    padding-inline: var(--mantine-spacing-md)
         calc(
             var(--mantine-spacing-md) + (var(--controls-action-size) - 14px) / 2
-        )
-        var(--mantine-spacing-xs) var(--mantine-spacing-md);
+        );
     transition: background-color var(--controls-duration-hover)
         var(--controls-ease);
 }
