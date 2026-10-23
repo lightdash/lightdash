@@ -437,4 +437,21 @@ describe('TabCounts', () => {
 
         TAB_UUIDS.forEach((tabUuid) => expect(badgeText(tabUuid)).toBe(''));
     });
+
+    it('scrolls the active tab into view once its badge shows', () => {
+        const scrollIntoView = vi.fn();
+        mockContainers.current['tab-2'].scrollIntoView = scrollIntoView;
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            activeTab: { uuid: 'tab-2', name: 'tab-2', order: 1 },
+        };
+        const { rerender } = renderWithProviders(<TabCounts />);
+        rerender(<TabCounts />);
+
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+        expect(scrollIntoView).toHaveBeenCalledWith({
+            block: 'nearest',
+            inline: 'nearest',
+        });
+    });
 });

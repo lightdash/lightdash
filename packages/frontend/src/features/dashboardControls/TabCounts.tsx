@@ -1,10 +1,11 @@
 import { interpolateUiString } from '@lightdash/common';
 import { Badge, Tooltip } from '@mantine/core';
-import { useMemo, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    selectActiveTabUuid,
     selectDashboardTabs,
     selectDashboardTiles,
     useDashboardSelector,
@@ -59,6 +60,17 @@ export const TabCounts: FC = () => {
         isEnabled,
         false,
     );
+
+    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    const activeTabElement =
+        activeTabUuid === undefined ? undefined : targets[activeTabUuid];
+    // The badges widen the tabs past a narrow screen: keep the one in view seen
+    useEffect(() => {
+        activeTabElement?.scrollIntoView({
+            block: 'nearest',
+            inline: 'nearest',
+        });
+    }, [activeTabElement]);
 
     const counts = useMemo(() => {
         const tiles = dashboardTiles ?? [];

@@ -885,8 +885,10 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - A selected row keeps Mantine's `:focus-visible` ring; it only drops the
   outline it would get without keyboard focus.
 - A waiting field's row carries `data-waiting` and a dashed border.
-- A tab with a count badge keeps its natural width (`TabCounts.module.css`),
-  so the tab strip scrolls instead of cutting the names.
+- A tab with a count badge keeps its natural width (`TabCounts.module.css`,
+  over the shipped tab's inline `maw`), so the tab strip scrolls instead of
+  cutting the names. `TabCounts` scrolls the active tab into view when its
+  badge mounts.
 - The per-tile cards (`TileOverlay`) are memoised with `areTilePropsEqual`
   and read no context. The list component derives each
   tile's props, the highlight string included, and passes primitives, stable
