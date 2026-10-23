@@ -1,8 +1,4 @@
-import {
-    FeatureFlags,
-    LightdashInstallType,
-    LightdashMode,
-} from '@lightdash/common';
+import { LightdashInstallType, LightdashMode } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import {
@@ -538,37 +534,16 @@ describe('fast decisions in health', () => {
             learnSandboxService: learnSandboxServiceMock,
         });
 
-    it('is off without a decision key whatever the flag says', async () => {
-        vi.mocked(featureFlagModelMock.get).mockResolvedValue({
-            id: FeatureFlags.AiDecisions,
-            enabled: true,
-        });
+    it('is off without a decision key', async () => {
         expect(
             (await build(lightdashConfigMock).getHealthState(userMock)).ai
                 .fastDecisionsEnabled,
         ).toBe(false);
     });
 
-    it('follows the org flag when the key is set', async () => {
-        vi.mocked(featureFlagModelMock.get).mockImplementation(
-            async ({ featureFlagId }) => ({
-                id: featureFlagId,
-                enabled: featureFlagId !== FeatureFlags.AiDecisions,
-            }),
-        );
+    it('is on with a decision key', async () => {
         expect(
             (await build(withKey).getHealthState(userMock)).ai
-                .fastDecisionsEnabled,
-        ).toBe(false);
-        expect(featureFlagModelMock.get).toHaveBeenCalledWith({
-            user: { organizationUuid: userMock.organizationUuid },
-            featureFlagId: FeatureFlags.AiDecisions,
-        });
-    });
-
-    it('reports the key to anonymous callers', async () => {
-        expect(
-            (await build(withKey).getHealthState(undefined)).ai
                 .fastDecisionsEnabled,
         ).toBe(true);
     });
