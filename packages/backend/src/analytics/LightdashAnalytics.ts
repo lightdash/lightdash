@@ -1410,9 +1410,7 @@ type TrainingProjectProvisionedEvent = BaseTrack & {
     };
 };
 
-export type TrainingProjectSkippedReason =
-    | 'learn_disabled'
-    | 'training_project_already_exists';
+export type TrainingProjectSkippedReason = 'training_project_already_exists';
 
 type TrainingProjectSkippedEvent = BaseTrack & {
     event: 'training_project.skipped';

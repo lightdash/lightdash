@@ -22,10 +22,11 @@ Code is the reference for anything finer-grained. Specs live in Linear (CS-207, 
   `data-tour-*` markers beside the permission checks that gate them; a build-time script reads those markers and
   the docs repository and writes each walkthrough's steps as data. The library, the titles, the explanatory text
   and the checks that enforce the rules all derive from that.
-- **Off by default.** The `enable-learn` feature flag turns Learn on per organization through the Console.
-  Self-hosted operators add it to `LIGHTDASH_ENABLE_FEATURE_FLAGS`; previews enable it automatically. When it is off
-  there is no Learn icon, no page, no endpoints and no permission layer, even if a training project already
-  exists.
+- **Available everywhere.** Learn has no feature flag. Every Lightdash Cloud and self-hosted organization has it,
+  and every member holds `view:Learn`, so the icon and library show as soon as the instance runs this version. An
+  organization admin still presses Enable Learn once to create the training project. Modules that need something
+  the instance lacks (an Enterprise licence, the sandbox tools, soft delete) are hidden one by one; the rest of
+  Learn stays. See [Self-hosted setup](#self-hosted-setup).
 
 ## Actors
 
@@ -244,6 +245,41 @@ browser, because the learner walks straight to the new field and a cached list w
   developer lessons, in the order they are declared, behind the `contentAsCode` gate (an Enterprise licence and
   the sandbox). `curriculum.ts` leaves them out, as it does developer lessons.
 
+## Self-hosted setup
+
+Learn runs on a self-hosted instance built from the official Docker image with no extra configuration. The
+table lists what each part needs and what happens without it.
+
+| Requirement | Where it comes from | Without it |
+| ----------- | ------------------- | ---------- |
+| Playground bundle (`jaffle_shop.duckdb`, `explores.json`, `content.json`, `SHA256SUMS`) | `packages/backend/assets/playground`, copied into the image. `PLAYGROUND_DATA_DIR` points at it: the image sets it, and from source the default resolves to the same folder | Enable Learn fails with the bundle error, tracks `training_project.failed` and creates nothing |
+| An organization admin with an email address | Presses Enable Learn (`manage:Organization`) | Admins see the Enable Learn call to action; other members are told to ask an admin |
+| Personal access tokens (`DISABLE_PAT` is not `true`) | On by default | `learnSandbox.enabled` is false, so the Developer lessons and content-as-code modules are hidden |
+| `lightdash`, `dbt` with dbt-duckdb, and `node` on the sandbox PATH | The image ships `/usr/local/dbt1.12/bin` (the default `LEARN_SANDBOX_PATH_PREFIX`) and a `lightdash` wrapper in `/usr/local/bin`. From source, install them and set `LEARN_SANDBOX_PATH_PREFIX` | Same as above: the sandbox modules are hidden |
+| A scheduler worker with the same binaries (`SCHEDULER_ENABLED` is not `false`) | Sandbox commands run on the worker | Commands are queued but never run |
+| A backend that can reach its own API | `LEARN_SANDBOX_API_URL`, which defaults to `SITE_URL` | `lightdash deploy` and `download` fail in the terminal. Set the variable when the backend host cannot reach `SITE_URL` |
+| `SOFT_DELETE_ENABLED=true` | Off by default | The deleted-content module is hidden |
+| Enterprise licence (`LIGHTDASH_LICENSE_KEY`) | Licence | Every Enterprise module is hidden: Enterprise scopes, AI agents and deep research, data apps and content as code. Seeding skips the agent, the research run and the data app |
+| Data apps: licence, `enable-data-apps` and S3 (`S3_*`, optionally `APPS_S3_BUCKET`) | Licence, flag and S3 config | Without the licence or the flag the data-app modules are hidden. Without S3 the seed skips the data app |
+| AI agents: licence, AI copilot and agents visible | Licence and organization AI settings | The AI agent modules are hidden |
+
+Nothing else is needed:
+
+- Walkthroughs, the curriculum, library search and thumbnails are bundled into the frontend at build time. The
+  docs repository is read only when a developer runs `pnpm scope-tours:generate`.
+- The only external URLs are docs.lightdash.com links in step text, which open in a new tab. Learn loads nothing
+  from a CDN at runtime: no images, videos or model downloads. Seeding makes no LLM call; the seeded agent and
+  research run are rows in the database.
+- Learn's analytics events go through the instance's normal analytics and stop with
+  `RUDDERSTACK_ANALYTICS_DISABLED=true`. The backend sends `training_project.provisioned`, `.skipped` and `.failed`;
+  the frontend sends `learn_library.viewed` and `learn_walkthrough.started`, `.completed` and `.dismissed`. Nothing
+  in Learn waits on them.
+
+The library reads every gate from `useLearnAvailability` (`features/learn/availability.ts`): the licence from
+`health.license.hasLicenseKey`, the sandbox from `health.learnSandbox.enabled` and soft delete from
+`health.softDelete.enabled`, plus the data apps flag and the AI settings. A module whose gate is closed is left
+out of the library. Modules with no gate always show.
+
 ## Boundaries and invariants
 
 | Boundary                         | Enforced by                                                                 |
@@ -253,7 +289,8 @@ browser, because the learner walks straight to the new field and a cached list w
 | No real data reachable                            | embedded read-only DuckDB file, SELECT-only gate, no filesystem or network functions |
 | No way outside the copy                           | trainee set excludes deliveries, sheets, git, source, external connections; agents in training refuse Slack and MCP; moving an agent checks the destination |
 | One copy per learner, bounded lifetime            | per-user advisory lock, cooldown, 24 h expiry, app files deleted with the copy |
-| Nothing shows when Learn is off                   | `enable-learn` gates the icon, page, endpoints and the permission layer    |
+| Learn only for users who may see it               | `view:Learn` gates the icon, page, endpoints and the permission layer      |
+| A module shows only where it can run              | `useLearnAvailability` hides a module whose licence, flag or tools are missing |
 
 ## Traps
 
@@ -276,8 +313,10 @@ browser, because the learner walks straight to the new field and a cached list w
   `lightdash` or `dbt` is missing from `LEARN_SANDBOX_PATH_PREFIX` plus the backend's own PATH, and the terminal
   disappears with no other explanation. The same allowlist means the child cannot see a host variable simply
   because the shell that started the backend had it.
-- **`enable-learn` off closes Learn for the organization.** No icon, no page, no endpoints and no trainee scopes,
-  even with a training project in the database. Cached session abilities expire on their existing TTL.
+- **A custom role without `view:Learn` closes Learn for that user.** No icon, no page, no endpoints and no trainee
+  scopes, even with a training project in the database. Cached session abilities expire on their existing TTL.
+  There is no organization or instance switch: to remove Learn from an organization, delete its training project
+  and leave it unenabled.
 
 ## Where it is going
 
@@ -290,5 +329,6 @@ module" route (CS-258, CS-259), and progress stored server-side rather than in t
 
 Stack 1 (PRs #28710 to #28716) carries the type, the permission layer and copies, the seeded content, the tour
 kit, the host and generator, the library, and Enable Learn. Walkthrough content follows in further pull requests.
-Learn remains off until `enable-learn` is enabled for the organization in the Console, or added to
-`LIGHTDASH_ENABLE_FEATURE_FLAGS` on self-hosted instances. Previews enable the flag automatically.
+Learn was behind the `enable-learn` flag (on for Lightdash Cloud from #30067) until the flag was removed; it is now
+on for every instance, Cloud and self-hosted. An `enable-learn` entry left in `LIGHTDASH_ENABLE_FEATURE_FLAGS`,
+`LIGHTDASH_DISABLE_FEATURE_FLAGS` or the feature flag tables is ignored.

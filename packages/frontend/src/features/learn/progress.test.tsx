@@ -5,12 +5,32 @@ import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 vi.mock('../../api');
 
-// Learn's organization switch: the library and the navbar link read it, and
-// progress is only asked for where it is on.
-const learnFlag = vi.hoisted(() => ({ enabled: true }));
-vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: learnFlag.enabled } }),
-}));
+// Whether the user can see Learn: the library and the navbar link read the
+// same ability, and progress is only asked for where it holds.
+const learnAccess = vi.hoisted(() => ({ granted: true }));
+vi.mock('../../providers/App/useApp', async () => {
+    const { Ability } = await import('@casl/ability');
+    return {
+        default: () => ({
+            user: {
+                data: {
+                    organizationUuid: 'org-1',
+                    ability: new Ability(
+                        learnAccess.granted
+                            ? [
+                                  {
+                                      action: 'view',
+                                      subject: 'Learn',
+                                      conditions: { organizationUuid: 'org-1' },
+                                  },
+                              ]
+                            : [],
+                    ),
+                },
+            },
+        }),
+    };
+});
 
 import { sharedLightdashApi } from '../../api';
 import { createQueryClient } from '../../providers/ReactQuery/createQueryClient';
@@ -51,11 +71,11 @@ describe('useLearnProgress', () => {
     beforeEach(() => {
         localStorage.clear();
         api.mockReset();
-        learnFlag.enabled = true;
+        learnAccess.granted = true;
     });
 
-    it('asks for nothing where Learn is switched off', async () => {
-        learnFlag.enabled = false;
+    it('asks for nothing where the user cannot see Learn', async () => {
+        learnAccess.granted = false;
         localStorage.setItem(
             'lightdash.learn.completed',
             JSON.stringify(['view:Dashboard']),
@@ -67,7 +87,7 @@ describe('useLearnProgress', () => {
         );
         expect(api).not.toHaveBeenCalled();
         expect(result.current.progress.completed).toEqual([]);
-        // The browser's copy is left alone for an instance that turns Learn on.
+        // The browser's copy is left alone for a user who is given Learn later.
         expect(localStorage.getItem('lightdash.learn.completed')).toBe(
             JSON.stringify(['view:Dashboard']),
         );

@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     ConflictError,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     isUserWithOrg,
@@ -26,7 +25,6 @@ import path from 'node:path';
 import { fromSession } from '../../auth/account/account';
 import { assertOAuthCredentialOperationAllowed } from '../../auth/oauthScopes/credentials';
 import { LightdashConfig } from '../../config/parseConfig';
-import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { LearnWorkspaceModel } from '../../models/LearnWorkspaceModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
@@ -114,7 +112,6 @@ type LearnSandboxServiceArguments = {
     lightdashConfig: Pick<LightdashConfig, 'siteUrl' | 'auth'>;
     learnWorkspaceModel: LearnWorkspaceModel;
     projectModel: Pick<ProjectModel, 'getSummary'>;
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     personalAccessTokenService: Pick<
         PersonalAccessTokenService,
         'createPersonalAccessToken' | 'deletePersonalAccessToken'
@@ -138,8 +135,6 @@ export class LearnSandboxService extends BaseService {
     private readonly learnWorkspaceModel: LearnWorkspaceModel;
 
     private readonly projectModel: Pick<ProjectModel, 'getSummary'>;
-
-    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
 
     private readonly personalAccessTokenService: Pick<
         PersonalAccessTokenService,
@@ -172,7 +167,6 @@ export class LearnSandboxService extends BaseService {
         this.lightdashConfig = args.lightdashConfig;
         this.learnWorkspaceModel = args.learnWorkspaceModel;
         this.projectModel = args.projectModel;
-        this.featureFlagModel = args.featureFlagModel;
         this.personalAccessTokenService = args.personalAccessTokenService;
         this.userService = args.userService;
         this.schedulerClient = args.schedulerClient;
@@ -197,15 +191,6 @@ export class LearnSandboxService extends BaseService {
     ): Promise<void> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
-        }
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.EnableLearn,
-        });
-        if (!enabled) {
-            throw new NotFoundError(
-                'Learn is not enabled for this organization',
-            );
         }
         const project = await this.projectModel.getSummary(projectUuid);
         if (
