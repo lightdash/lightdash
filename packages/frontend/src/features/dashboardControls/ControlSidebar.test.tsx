@@ -18,6 +18,7 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { ControlSidebar } from './ControlSidebar';
+import { RailContractClasses } from './railContractClasses';
 import { type ControlsSidebarContextValue } from './useControlsSidebar';
 import { LABEL_COMMIT_DELAY } from './useLabelDraft';
 
@@ -939,6 +940,24 @@ describe('ControlSidebar', () => {
             expect(row?.tagName).not.toBe('BUTTON');
             fireEvent.click(row as Element);
             expect(open).not.toHaveBeenCalled();
+        });
+
+        it('carries the class an embed gives the rail', () => {
+            setSidebar({ isViewer: true, editing: null, editingRule: null });
+            const { container } = renderWithProviders(
+                <RailContractClasses.Provider
+                    value={{
+                        rail: 'ld-dashboard-filter-rail',
+                        addFilterDropdown: 'add-list',
+                        filterDropdown: 'value-list',
+                    }}
+                >
+                    <ControlSidebar />
+                </RailContractClasses.Provider>,
+            );
+            expect(
+                container.querySelector('[data-controls-editor]'),
+            ).toHaveClass('ld-dashboard-filter-rail');
         });
 
         it('lets the locked row take focus and says why it is locked', async () => {

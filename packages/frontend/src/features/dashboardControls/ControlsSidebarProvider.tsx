@@ -56,6 +56,10 @@ import {
     withoutDefaultTileTargets,
 } from './peers';
 import {
+    RailContractClasses,
+    type RailContractClassNames,
+} from './railContractClasses';
+import {
     canKeepFilterRule,
     findFilterRule,
     haveFiltersChangedSince,
@@ -290,11 +294,14 @@ type ProviderProps = PropsWithChildren<{
     canAddFilters?: boolean;
     /** The dashboard's mode where no route says it, as in an embed (default: the route's). */
     isEditMode?: boolean;
+    /** An embed's public class names on the rail (default none). */
+    contractClasses?: RailContractClassNames | null;
 }>;
 
 export const ControlsSidebarProvider: FC<ProviderProps> = ({
     canAddFilters = true,
     isEditMode: isEditModeInput,
+    contractClasses = null,
     children,
 }) => {
     // A mode change closes the edit as Done does; in the app the header guard
@@ -1363,7 +1370,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
 
     return (
         <ControlsSidebarContext.Provider value={value}>
-            {children}
+            <RailContractClasses.Provider value={contractClasses}>
+                {children}
+            </RailContractClasses.Provider>
             <FocusReturn target={focusReturn} />
         </ControlsSidebarContext.Provider>
     );

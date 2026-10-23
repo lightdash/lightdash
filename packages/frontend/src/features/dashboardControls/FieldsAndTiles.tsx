@@ -30,10 +30,12 @@ import {
 import FilterFieldSelect from '../dashboardFilters/FilterConfiguration/FilterFieldSelect';
 import SqlColumnSelect from '../dashboardFilters/FilterConfiguration/SqlColumnSelect';
 import { getUniqueSqlColumns } from '../dashboardFilters/FilterConfiguration/utils';
+import { DropdownClass } from './DropdownClass';
 import { getFieldCandidates } from './fieldCandidates';
 import { FieldRow } from './FieldRow';
 import classes from './FieldsAndTiles.module.css';
 import { applyFieldToUnfilteredTiles, getFilterFields } from './peers';
+import { useRailContractClasses } from './railContractClasses';
 import { useControlsSidebar } from './useControlsSidebar';
 import { useFieldTileActions } from './useFieldTileActions';
 import { useFilterRuleField } from './useFilterRuleField';
@@ -104,6 +106,7 @@ export const FieldsAndTiles: FC = () => {
         setHoveredFieldId,
     } = useControlsSidebar();
     const getUiString = useUiStrings();
+    const contractClasses = useRailContractClasses();
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
@@ -214,43 +217,49 @@ export const FieldsAndTiles: FC = () => {
         const hasFields = starterFields.length > 0;
         return (
             <Stack gap="xs" ref={starterRef} data-controls-start>
-                {hasFields ? (
-                    <FilterFieldSelect
-                        fields={starterFields}
-                        availableTileFilters={availableTileFilters}
-                        tiles={tiles}
-                        tabs={dashboardTabs}
-                        activeTabUuid={activeTabUuid}
-                        selectedField={undefined}
-                        withLabel={false}
-                        placeholder={getUiString('filters.rail.searchFields')}
-                        withinPortal
-                        onChange={(field) => {
-                            addFirstField(field);
-                            // Naming it comes next
-                            focusLabelInput();
-                        }}
-                    />
-                ) : (
-                    <SqlColumnSelect
-                        columns={sqlColumnOptions}
-                        value={undefined}
-                        onChange={(column) => {
-                            addFirstSqlColumn(
-                                column,
-                                Object.fromEntries(
-                                    Object.entries(sqlChartTilesMetadata).map(
-                                        ([tileUuid, metadata]) => [
+                <DropdownClass
+                    className={contractClasses?.addFilterDropdown ?? null}
+                >
+                    {hasFields ? (
+                        <FilterFieldSelect
+                            fields={starterFields}
+                            availableTileFilters={availableTileFilters}
+                            tiles={tiles}
+                            tabs={dashboardTabs}
+                            activeTabUuid={activeTabUuid}
+                            selectedField={undefined}
+                            withLabel={false}
+                            placeholder={getUiString(
+                                'filters.rail.searchFields',
+                            )}
+                            withinPortal
+                            onChange={(field) => {
+                                addFirstField(field);
+                                // Naming it comes next
+                                focusLabelInput();
+                            }}
+                        />
+                    ) : (
+                        <SqlColumnSelect
+                            columns={sqlColumnOptions}
+                            value={undefined}
+                            onChange={(column) => {
+                                addFirstSqlColumn(
+                                    column,
+                                    Object.fromEntries(
+                                        Object.entries(
+                                            sqlChartTilesMetadata,
+                                        ).map(([tileUuid, metadata]) => [
                                             tileUuid,
                                             metadata.columns,
-                                        ],
+                                        ]),
                                     ),
-                                ),
-                            );
-                            focusLabelInput();
-                        }}
-                    />
-                )}
+                                );
+                                focusLabelInput();
+                            }}
+                        />
+                    )}
+                </DropdownClass>
                 <Text fz="xs" c="dimmed">
                     {getUiString(
                         hasFields

@@ -52,6 +52,7 @@ import {
 } from '../../../../../features/dashboardControls/ControlSidebar';
 import { ControlsSidebarProvider } from '../../../../../features/dashboardControls/ControlsSidebarProvider';
 import { FieldTilesBar } from '../../../../../features/dashboardControls/FieldTilesBar';
+import { type RailContractClassNames } from '../../../../../features/dashboardControls/railContractClasses';
 import { TabCounts } from '../../../../../features/dashboardControls/TabCounts';
 import { TileOverlays } from '../../../../../features/dashboardControls/TileOverlay';
 import GuidedFilterSetupOverlay from '../../../../../features/dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
@@ -91,6 +92,12 @@ import EmbedDataAppTile from './EmbedDataAppTile';
 import { EmbedHeadingTile } from './EmbedHeadingTile';
 import { EmbedMarkdownTile } from './EmbedMarkdownTile';
 import '../../../../../styles/react-grid.css';
+
+const RAIL_CONTRACT_CLASSES: RailContractClassNames = {
+    rail: embedContractClass('ld-dashboard-filter-rail'),
+    addFilterDropdown: embedContractClass('ld-dashboard-add-filter-dropdown'),
+    filterDropdown: embedContractClass('ld-dashboard-filter-dropdown'),
+};
 
 const EMBED_EDIT_TILE_TYPES = [
     DashboardTileTypes.SAVED_CHART,
@@ -1208,6 +1215,7 @@ const EmbedDashboard: FC<{
                 canAddFilters={canAddDashboardFiltersInEmbed(
                     dashboard.dashboardFiltersInteractivity,
                 )}
+                contractClasses={RAIL_CONTRACT_CLASSES}
             >
                 {currentDashboardTiles.length === 0 ? (
                     <>

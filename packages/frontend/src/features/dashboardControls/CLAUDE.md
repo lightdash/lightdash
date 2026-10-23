@@ -210,6 +210,17 @@ In `FilterConfiguration/`:
   where viewers may not add filters, and `EditingStrip` while the rail is
   open. `AddControl` renders nothing while `canAddFilters` is false. URL
   sync, and its skip in SDK mode, stay the shipped `DashboardFiltersSync`.
+- The rail's part of the class contract comes in through the provider's
+  `contractClasses` (default null; `EmbedDashboard` passes them, so the
+  contract test finds them there) and `useRailContractClasses`:
+  `ld-dashboard-filter-rail` on `EditorShell`'s root,
+  `ld-dashboard-add-filter-dropdown` on the placeholder's field or column
+  search list, and `ld-dashboard-filter-dropdown` on the portalled lists of
+  the edited filter's value (`FilterValueSettings`). The lists get theirs
+  from `DropdownClass`: a nested
+  `MantineThemeProvider` that gives `ComboboxDropdown` and `PopoverDropdown`
+  a default `className`, so no shared input takes a prop for it. Outside an
+  embed it renders its children alone.
 - An embed resolves the flag with no user (JWT), so only instance-wide
   enablement reaches it, never a Console organisation override.
 

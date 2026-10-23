@@ -32,6 +32,7 @@ export const EMBED_CLASS_CONTRACT = [
     'ld-dashboard-parameter-dropdown', // portalled
     'ld-dashboard-guided-setup', // modal shown while filter rules are unmet (portalled)
     'ld-dashboard-export-all', // dashboard-level "Export all" (CSV/XLSX ZIP) button
+    'ld-dashboard-filter-rail', // the filter rail beside the tiles
     'ld-sdk-root', // inline container the React SDK renders into
     'ld-sdk-portal', // body-level container for the SDK's dropdowns, modals and notifications
 ] as const satisfies readonly `ld-${EmbedSurface}-${string}`[];

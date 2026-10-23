@@ -31,7 +31,9 @@ import { useDashboardFilterField } from '../dashboardFilters/FilterRequirements/
 import { useFilterBarPopovers } from '../dashboardFilters/FilterRequirements/useFilterBarPopovers';
 import { getDashboardFilterRuleLabel } from '../dashboardFilters/FilterRequirements/utils';
 import classes from './ControlSidebar.module.css';
+import { DropdownClass } from './DropdownClass';
 import { FilterValueSettings } from './FilterValueSettings';
+import { useRailContractClasses } from './railContractClasses';
 import {
     getLockSummary,
     getRequiredSummary,
@@ -180,6 +182,7 @@ export const FilterSettings: FC<Props> = ({
     const isSavedValue = useControlsSidebarSelector((c) => c.isSavedValue);
     const isNew = useControlsSidebarSelector((c) => c.isNew);
     const getUiString = useUiStrings();
+    const contractClasses = useRailContractClasses();
     const setActiveSection = useControlsSidebarSelector(
         (c) => c.setActiveSection,
     );
@@ -223,14 +226,16 @@ export const FilterSettings: FC<Props> = ({
             activeTabUuid={activeTabUuid}
             parameterValues={parameterValues}
         >
-            <FilterValueSettings
-                isEditMode={!isViewer}
-                isCreatingNew={isViewer && isNew}
-                filterType={filterType}
-                field={field}
-                filterRule={rule}
-                onChange={onChange}
-            />
+            <DropdownClass className={contractClasses?.filterDropdown ?? null}>
+                <FilterValueSettings
+                    isEditMode={!isViewer}
+                    isCreatingNew={isViewer && isNew}
+                    filterType={filterType}
+                    field={field}
+                    filterRule={rule}
+                    onChange={onChange}
+                />
+            </DropdownClass>
             {/* A viewer changes a saved filter's value, nothing else */}
             {isViewer && !isSavedValue && (
                 <Text fz="xs" c="dimmed">

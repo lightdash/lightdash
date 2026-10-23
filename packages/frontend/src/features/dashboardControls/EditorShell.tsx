@@ -17,6 +17,7 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { AddControl } from './AddControl';
 import classes from './ControlSidebar.module.css';
+import { useRailContractClasses } from './railContractClasses';
 import { useRailTop } from './useRailTop';
 
 type Props = {
@@ -40,8 +41,17 @@ export const EditorShell: FC<Props> = ({
     const ref = useRef<HTMLDivElement>(null);
     useRailTop(ref);
     const getUiString = useUiStrings();
+    const contractClasses = useRailContractClasses();
     return (
-        <Paper ref={ref} className={classes.root} data-controls-editor>
+        <Paper
+            ref={ref}
+            className={
+                contractClasses
+                    ? `${contractClasses.rail} ${classes.root}`
+                    : classes.root
+            }
+            data-controls-editor
+        >
             <Group
                 justify="space-between"
                 wrap="nowrap"
