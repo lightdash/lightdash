@@ -1,3 +1,10 @@
+## [3.44.1](https://github.com/lightdash/lightdash/compare/3.44.0...3.44.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* gate SCIM token management and provisioning on scim-token-management flag ([#31474](https://github.com/lightdash/lightdash/issues/31474)) ([380e2c9](https://github.com/lightdash/lightdash/commit/380e2c9a59d786df164cdee849e93e49a38363fb))
+
 # [3.44.0](https://github.com/lightdash/lightdash/compare/3.43.0...3.44.0) (2026-10-23)
 
 
