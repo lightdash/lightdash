@@ -1,15 +1,8 @@
-import { CommercialFeatureFlags } from '@lightdash/common';
-import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import type { LightdashConfig } from '../../config/parseConfig';
 
-// The one question every pre-aggregate entry point asks. Resolves the
-// instance infra gate and the organization's Console override together.
-export const isPreAggregatesEnabled = async (
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>,
-    organizationUuid: string,
-): Promise<boolean> => {
-    const { enabled } = await featureFlagModel.get({
-        user: { organizationUuid },
-        featureFlagId: CommercialFeatureFlags.PreAggregates,
-    });
-    return enabled;
-};
+// The one question every pre-aggregate entry point asks. On for every
+// organization when the instance has a licence, PRE_AGGREGATES_ENABLED=true
+// and pre-aggregate results storage (S3); there is no per-organization switch.
+export const isPreAggregatesEnabled = (
+    lightdashConfig: Pick<LightdashConfig, 'preAggregates'>,
+): boolean => lightdashConfig.preAggregates.enabled;

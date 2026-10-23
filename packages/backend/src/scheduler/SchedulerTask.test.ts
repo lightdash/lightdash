@@ -5048,7 +5048,7 @@ describe('connection compile jobs', () => {
             ...({} as TaskDeps),
             getAgentConnectionGrantService: () => ({ assertActiveExecution }),
             analytics: { track: vi.fn() },
-            featureFlagModel: { get: vi.fn(async () => ({ enabled: true })) },
+            lightdashConfig: { preAggregates: { enabled: true } },
             userService: {
                 getSessionByUserUuid: getSession,
                 getAccountByUserUuid: getAccount,
@@ -5512,7 +5512,7 @@ describe('connection compile jobs', () => {
     });
 });
 
-describe('pre-aggregates switched off for an organization', () => {
+describe('pre-aggregates gated on instance config', () => {
     const definition = (organizationUuid: string, suffix: string) => ({
         organizationUuid,
         projectUuid: `project-${suffix}`,
@@ -5522,42 +5522,53 @@ describe('pre-aggregates switched off for an organization', () => {
         schedulerTimezone: 'UTC',
         preAggExploreName: `explore_${suffix}`,
     });
-    const flagModel = (enabledOrganizationUuid: string) =>
-        asDep<'featureFlagModel'>({
-            get: vi.fn(
-                async ({ user }: { user?: { organizationUuid: string } }) => ({
-                    id: 'pre-aggregates',
-                    enabled: user?.organizationUuid === enabledOrganizationUuid,
-                }),
-            ),
-        });
+    const config = (enabled: boolean) =>
+        asDep<'lightdashConfig'>({ preAggregates: { enabled } });
 
-    it('does not schedule cron materializations for it', async () => {
+    it('schedules cron materializations for every organization when enabled', async () => {
         const schedulePreAggregateCronJobs = vi.fn(async () => []);
         const task = makeTaskWithDeps({
             preAggregateModel: asDep<'preAggregateModel'>({
                 getProjectSchedulerDetailsForPreAggregates: vi.fn(async () => [
-                    definition('org-on', 'a'),
-                    definition('org-off', 'b'),
+                    definition('org-a', 'a'),
+                    definition('org-b', 'b'),
                 ]),
             }),
             schedulerClient: asDep<'schedulerClient'>({
                 schedulePreAggregateCronJobs,
             }),
-            featureFlagModel: flagModel('org-on'),
+            lightdashConfig: config(true),
         });
 
         await task['generateDailyPreAggregateMaterializationJobs'](new Date());
 
-        expect(schedulePreAggregateCronJobs).toHaveBeenCalledTimes(1);
-        expect(schedulePreAggregateCronJobs).toHaveBeenCalledWith(
-            [expect.objectContaining({ organizationUuid: 'org-on' })],
-            expect.any(Date),
-            true,
-        );
+        expect(schedulePreAggregateCronJobs).toHaveBeenCalledTimes(2);
     });
 
-    it('does not run a queued materialization for it', async () => {
+    it('does not schedule cron materializations when infra is off', async () => {
+        const getProjectSchedulerDetailsForPreAggregates = vi.fn(async () => [
+            definition('org-a', 'a'),
+        ]);
+        const schedulePreAggregateCronJobs = vi.fn(async () => []);
+        const task = makeTaskWithDeps({
+            preAggregateModel: asDep<'preAggregateModel'>({
+                getProjectSchedulerDetailsForPreAggregates,
+            }),
+            schedulerClient: asDep<'schedulerClient'>({
+                schedulePreAggregateCronJobs,
+            }),
+            lightdashConfig: config(false),
+        });
+
+        await task['generateDailyPreAggregateMaterializationJobs'](new Date());
+
+        expect(
+            getProjectSchedulerDetailsForPreAggregates,
+        ).not.toHaveBeenCalled();
+        expect(schedulePreAggregateCronJobs).not.toHaveBeenCalled();
+    });
+
+    it('does not run a queued materialization when infra is off', async () => {
         const materializePreAggregate = vi.fn();
         const logSchedulerJob = vi.fn(async () => undefined);
         const task = makeTaskWithDeps({
@@ -5566,14 +5577,14 @@ describe('pre-aggregates switched off for an organization', () => {
                     materializePreAggregate,
                 }),
             schedulerService: asDep<'schedulerService'>({ logSchedulerJob }),
-            featureFlagModel: flagModel('org-on'),
+            lightdashConfig: config(false),
         });
 
         await task['materializePreAggregate']('job-uuid', new Date(), {
-            organizationUuid: 'org-off',
-            projectUuid: 'project-b',
+            organizationUuid: 'org-a',
+            projectUuid: 'project-a',
             userUuid: 'user-uuid',
-            preAggregateDefinitionUuid: 'definition-b',
+            preAggregateDefinitionUuid: 'definition-a',
             trigger: 'cron',
         });
 

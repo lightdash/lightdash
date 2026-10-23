@@ -11,10 +11,4 @@ export enum CommercialFeatureFlags {
      * `manage:PersonalAccessToken` instead of inheriting the deployment default.
      */
     PatScopeAuthoritative = 'pat-scope-authoritative',
-    /**
-     * Per-organization kill switch for pre-aggregates. On wherever the
-     * instance has a licence and pre-aggregate storage; a Console override
-     * can only switch an organization off.
-     */
-    PreAggregates = 'pre-aggregates',
 }

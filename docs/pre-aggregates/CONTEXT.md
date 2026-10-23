@@ -199,19 +199,24 @@ _Avoid_: stats, usage, metrics (in this context)
 
 ## Enablement
 
-Two switches, one question:
+One instance-wide switch, no feature flag. Pre-aggregates are available to
+every organization when the instance has all of:
 
-- **Instance infra**: `LIGHTDASH_LICENSE_KEY` plus pre-aggregate storage
-  (`PRE_AGGREGATES_ENABLED=true` and `PRE_AGGREGATE_RESULTS_S3_*`), parsed into
-  `lightdashConfig.preAggregates.enabled`. Without it nothing runs and no
-  override can turn it on.
-- **Organization kill switch**: the `pre-aggregates` commercial feature flag,
-  on by default wherever the infra is present. A Console override switches one
-  organization off.
+- `LIGHTDASH_LICENSE_KEY` (a valid licence)
+- `PRE_AGGREGATES_ENABLED=true`
+- pre-aggregate results storage (`PRE_AGGREGATE_RESULTS_S3_*`); startup fails
+  if `PRE_AGGREGATES_ENABLED=true` is set without it
 
-Backend code asks `isPreAggregatesEnabled(featureFlagModel, organizationUuid)`
+These parse into `lightdashConfig.preAggregates.enabled`. Without them nothing
+runs. Preview mode, `LIGHTDASH_ENABLED_FEATURE_FLAGS` and Console overrides do
+not turn pre-aggregates on or off.
+
+Backend code asks `isPreAggregatesEnabled(lightdashConfig)`
 (`packages/backend/src/ee/preAggregates/isPreAggregatesEnabled.ts`) and never
-reads the config or the env directly. See
-[Adding and operating feature flags](../feature-flags.md#pre-aggregates) for
-the list of gated entry points.
+reads the env directly. Gated entry points: compile-time registry sync and
+materialization enqueue, CLI deploy explore enhancement, query routing, the
+daily cron generator, the materialize task, manual refresh, the pre-aggregate
+match check, pre-aggregate explore visibility, the autopilot candidates tool,
+and `/api/v1/health`. The compile post-processor that generates virtual
+pre-aggregate explores checks the same config.
 
