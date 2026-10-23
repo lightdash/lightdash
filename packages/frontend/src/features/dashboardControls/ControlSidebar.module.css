@@ -100,7 +100,9 @@
 
 .rowIcon {
     flex: 0 0 auto;
-    margin-top: 3px;
+    /* Even, so it centres on the name's first line both in a row aligned to
+       the top and in the head aligned to the centre */
+    margin-block: 3px;
 }
 
 .required {
