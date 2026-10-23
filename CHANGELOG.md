@@ -1,3 +1,10 @@
+# [3.38.0](https://github.com/lightdash/lightdash/compare/3.37.0...3.38.0) (2026-10-23)
+
+
+### Features
+
+* **ai:** equivalent filter value hints on empty composer query results ([#31431](https://github.com/lightdash/lightdash/issues/31431)) ([ddf6111](https://github.com/lightdash/lightdash/commit/ddf6111464f578444c90d520645c0711c5b8482e))
+
 # [3.37.0](https://github.com/lightdash/lightdash/compare/3.36.0...3.37.0) (2026-10-23)
 
 
