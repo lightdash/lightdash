@@ -1,3 +1,10 @@
+# [3.41.0](https://github.com/lightdash/lightdash/compare/3.40.0...3.41.0) (2026-10-23)
+
+
+### Features
+
+* **ai:** Slack chart images for composer artifacts ([#31465](https://github.com/lightdash/lightdash/issues/31465)) ([59d0d9b](https://github.com/lightdash/lightdash/commit/59d0d9bc2ebc4ac916efc70b5520d37e013a6777))
+
 # [3.40.0](https://github.com/lightdash/lightdash/compare/3.39.0...3.40.0) (2026-10-23)
 
 
