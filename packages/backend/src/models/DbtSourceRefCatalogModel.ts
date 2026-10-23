@@ -23,30 +23,33 @@ export class DbtSourceRefCatalogModel {
             .where('project_uuid', projectUuid);
     }
 
-    async upsertProvisional({
-        projectUuid,
-        dbtSourceUuid,
-        connectionGroup,
-        projectName,
-        dbtVersion,
-        nodes,
-        referencedProjects,
-        compileJobUuid,
-    }: {
-        projectUuid: string;
-        dbtSourceUuid: string;
-        connectionGroup: string;
-        projectName: string;
-        dbtVersion: string;
-        nodes: DbtExternalModelNode[];
-        referencedProjects: string[];
-        compileJobUuid: string | null;
-    }): Promise<string> {
+    async upsertProvisional(
+        {
+            projectUuid,
+            dbtSourceUuid,
+            connectionGroup,
+            projectName,
+            dbtVersion,
+            nodes,
+            referencedProjects,
+            compileJobUuid,
+        }: {
+            projectUuid: string;
+            dbtSourceUuid: string;
+            connectionGroup: string;
+            projectName: string;
+            dbtVersion: string;
+            nodes: DbtExternalModelNode[];
+            referencedProjects: string[];
+            compileJobUuid: string | null;
+        },
+        trx?: Knex.Transaction,
+    ): Promise<string> {
         const serialized = JSON.stringify(nodes);
         const digest = createHash('sha256')
             .update(JSON.stringify({ nodes, referencedProjects }))
             .digest('hex');
-        await this.database(DbtSourceRefCatalogsTableName)
+        await (trx ?? this.database)(DbtSourceRefCatalogsTableName)
             .insert({
                 project_uuid: projectUuid,
                 dbt_source_uuid: dbtSourceUuid,
@@ -73,17 +76,20 @@ export class DbtSourceRefCatalogModel {
         return digest;
     }
 
-    async confirm({
-        projectUuid,
-        connectionGroup,
-        entries,
-    }: {
-        projectUuid: string;
-        connectionGroup: string;
-        entries: { dbtSourceUuid: string; nodesDigest: string }[];
-    }): Promise<void> {
+    async confirm(
+        {
+            projectUuid,
+            connectionGroup,
+            entries,
+        }: {
+            projectUuid: string;
+            connectionGroup: string;
+            entries: { dbtSourceUuid: string; nodesDigest: string }[];
+        },
+        trx?: Knex.Transaction,
+    ): Promise<void> {
         if (entries.length === 0) return;
-        await this.database(DbtSourceRefCatalogsTableName)
+        await (trx ?? this.database)(DbtSourceRefCatalogsTableName)
             .where({
                 project_uuid: projectUuid,
                 connection_group: connectionGroup,

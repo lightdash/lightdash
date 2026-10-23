@@ -1167,6 +1167,7 @@ export class ServiceRepository
             'projectService',
             () =>
                 new ProjectService({
+                    projectCompileModel: this.models.getProjectCompileModel(),
                     dbtSourceRefCatalogModel:
                         this.models.getDbtSourceRefCatalogModel(),
                     getAgentConnectionGrantService: () =>
@@ -1327,6 +1328,7 @@ export class ServiceRepository
             'asyncQueryService',
             () =>
                 new AsyncQueryService({
+                    projectCompileModel: this.models.getProjectCompileModel(),
                     dbtSourceRefCatalogModel:
                         this.models.getDbtSourceRefCatalogModel(),
                     refreshTokenRotation: this.models.getRefreshTokenRotation(),

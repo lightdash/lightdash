@@ -8,6 +8,7 @@ import {
     DeploySessionStatus,
     DimensionType,
     ExploreType,
+    FeatureFlags,
     getCatalogMissingEntries,
     getModelsFromManifest,
     isExploreError,
@@ -25,6 +26,7 @@ import {
     type CreateWarehouseCredentials,
     type DbtManifest,
     type DbtProjectConfig,
+    type DbtRawModelNode,
     type Explore,
     type ExploreError,
     type PossibleAbilities,
@@ -41,7 +43,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { gunzipSync } from 'node:zlib';
+import { gunzipSync, gzipSync } from 'node:zlib';
 import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
@@ -53,9 +55,11 @@ import { GithubAppInstallationsModel } from '../../../models/GithubAppInstallati
 import { JobModel } from '../../../models/JobModel/JobModel';
 import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../../models/ProjectCompileLogModel';
+import { ProjectCompileModel } from '../../../models/ProjectCompileModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import { rewriteAllocatedExplore } from '../../../models/ProjectModel/allocatedExploreReferences';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionCompileModel } from '../../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -87,6 +91,10 @@ import {
 } from '../../../services/WarehouseClientFactory/WarehouseClientFactory';
 import { WarehouseConnectionBindingService } from '../../../services/WarehouseConnectionBindingService/WarehouseConnectionBindingService';
 import { getAdminDatabase } from '../../../testing/migratedDatabase';
+import {
+    type DbtManifestFetchOptions,
+    type DbtManifestFetchResult,
+} from '../../../types';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import {
     createMigratedTestDatabase,
@@ -518,6 +526,7 @@ describe('Multi-connection compile on the real schema', () => {
         });
         compileCredentials = new ProjectService({
             lightdashConfig: lightdashConfigMock,
+            projectCompileModel: new ProjectCompileModel({ database }),
             featureFlagModel: {
                 get: async () => ({ id: 'flag', enabled: false }),
             },
@@ -855,9 +864,15 @@ describe('Multi-connection compile on the real schema', () => {
 
         type CompileServiceOptions = {
             multiDbtSources: boolean;
+            peerDbtSources?: boolean;
+            crossSourceDbtRefs?: boolean;
             dbtProjectDir: string | undefined;
             primaryModels?: FixtureModel[];
             failedSources?: string[];
+            fetchSourceManifest?: (
+                source: string,
+                options: DbtManifestFetchOptions,
+            ) => Promise<DbtManifestFetchResult>;
         };
         const defaultCompileServiceOptions: CompileServiceOptions = {
             multiDbtSources: true,
@@ -919,6 +934,7 @@ describe('Multi-connection compile on the real schema', () => {
                 lightdashConfig: lightdashConfigMock,
                 analytics,
                 projectModel,
+                projectCompileModel: new ProjectCompileModel({ database }),
                 projectDbtSourcesModel,
                 dbtSourceRefCatalogModel: new DbtSourceRefCatalogModel({
                     database,
@@ -940,10 +956,23 @@ describe('Multi-connection compile on the real schema', () => {
                     database,
                 }),
                 featureFlagModel: {
-                    get: async () => ({
-                        id: 'flag',
-                        enabled: options.multiDbtSources,
-                    }),
+                    get: async ({
+                        featureFlagId,
+                    }: {
+                        featureFlagId: FeatureFlags;
+                    }) => {
+                        let enabled = options.multiDbtSources;
+                        if (featureFlagId === FeatureFlags.PeerDbtSources) {
+                            enabled = options.peerDbtSources ?? false;
+                        } else if (
+                            featureFlagId === FeatureFlags.CrossSourceDbtRefs
+                        ) {
+                            enabled =
+                                options.crossSourceDbtRefs ??
+                                options.multiDbtSources;
+                        }
+                        return { id: 'flag', enabled };
+                    },
                 },
                 catalogModel: {
                     getCatalogItemsWithTags: async () => [],
@@ -960,10 +989,9 @@ describe('Multi-connection compile on the real schema', () => {
                         yamlTagsToCreateOrUpdate: [],
                     }),
                 },
-                projectParametersModel: {
-                    replace: async () => {},
-                    find: async () => [],
-                },
+                projectParametersModel: new ProjectParametersModel({
+                    database,
+                }),
             } as never);
             const internals = service as unknown as CompileInternals;
             vi.spyOn(internals, 'withCompileAdapter').mockImplementation(
@@ -1008,14 +1036,22 @@ describe('Multi-connection compile on the real schema', () => {
                                 timings: { gitRefreshMs: null, depsMs: null },
                             };
                         },
-                        getDbtManifest: async () => ({
-                            manifest: sourceManifests[name],
-                            timings: {
-                                gitRefreshMs: null,
-                                depsMs: null,
-                                manifestMs: 0,
-                            },
-                        }),
+                        getDbtManifest: async (
+                            fetchOptions: DbtManifestFetchOptions,
+                        ) =>
+                            options.fetchSourceManifest
+                                ? options.fetchSourceManifest(
+                                      name,
+                                      fetchOptions,
+                                  )
+                                : {
+                                      manifest: sourceManifests[name],
+                                      timings: {
+                                          gitRefreshMs: null,
+                                          depsMs: null,
+                                          manifestMs: 0,
+                                      },
+                                  },
                         releaseDisk: async () => {},
                         destroy: async () => {},
                     };
@@ -3512,6 +3548,1054 @@ Sources in this project: Core models, marketing, finance.`;
                     });
                     expect(await dump(fixture.projectUuid)).toEqual(before);
                 });
+            });
+        });
+
+        describe('peer compile publication generations', () => {
+            const options = (enabled = true): CompileServiceOptions => ({
+                ...defaultCompileServiceOptions,
+                peerDbtSources: enabled,
+            });
+            const deferred = () => {
+                let resolve!: () => void;
+                const promise = new Promise<void>((done) => {
+                    resolve = done;
+                });
+                return { promise, resolve };
+            };
+            const sourceExplore = (name: string, source: string) => {
+                const result = explore(name, [name]);
+                result.tables[name].dbtPackageName = source;
+                return result;
+            };
+            const deploy = (
+                service: ProjectService,
+                fixture: Fixture,
+                userUuid: string,
+                source: string,
+                name: string,
+                peerCompileSlices?: Awaited<
+                    ReturnType<ProjectService['capturePeerCompileSlices']>
+                >,
+            ) =>
+                service.saveDeployExplores({
+                    userUuid,
+                    projectUuid: fixture.projectUuid,
+                    explores: [sourceExplore(name, source)],
+                    compilationSource: 'cli_deploy',
+                    jobUuid: null,
+                    requestMethod: 'cli',
+                    complete: true,
+                    cliDeploy: {
+                        sourceUuid: fixture.sourceUuids[source],
+                        target: null,
+                    },
+                    ...(peerCompileSlices === undefined
+                        ? {}
+                        : { peerCompileSlices }),
+                });
+            const publicationState = async (projectUuid: string) => ({
+                explores: await dump(projectUuid),
+                allocations: await database('explore_name_allocations')
+                    .where('project_uuid', projectUuid)
+                    .orderBy('name'),
+                pins: await database('project_compile_pins')
+                    .where('project_uuid', projectUuid)
+                    .orderBy('compile_job_uuid'),
+                slices: await database('project_source_generations')
+                    .where('project_uuid', projectUuid)
+                    .orderBy('source_uuid'),
+                generations: await database(
+                    'project_catalogue_generations',
+                ).where('project_uuid', projectUuid),
+                refCatalogs: await database('dbt_source_ref_catalogs')
+                    .where('project_uuid', projectUuid)
+                    .orderBy('dbt_source_uuid')
+                    .orderBy('connection_group'),
+            });
+
+            test('a refresh with project parameters publishes once and completes', async () => {
+                const fixture = await createProject();
+                const dbtProjectDir = mkdtempSync(
+                    path.join(tmpdir(), 'peer-compile-config-'),
+                );
+                writeFileSync(
+                    path.join(dbtProjectDir, 'lightdash.config.yml'),
+                    'parameters:\n  minimum_amount:\n    label: Minimum amount\n    type: number\n    default: 7\n    allow_custom_values: true\n',
+                );
+                try {
+                    const { service } = compileService(fixture.projectUuid, {
+                        ...options(),
+                        dbtProjectDir,
+                    });
+                    const user = await compilingUser(fixture.projectUuid);
+                    const jobUuid = await createJob(
+                        fixture.projectUuid,
+                        user.userUuid,
+                    );
+                    await service.compileProject(
+                        user,
+                        fixture.projectUuid,
+                        RequestMethod.WEB_APP,
+                        jobUuid,
+                    );
+                    expect(
+                        (await new JobModel({ database }).get(jobUuid))
+                            .jobStatus,
+                    ).toBe(JobStatusType.DONE);
+                    const state = await publicationState(fixture.projectUuid);
+                    expect(state.pins).toHaveLength(1);
+                    expect(Number(state.generations[0].generation)).toBe(1);
+                    expect(
+                        await database('project_parameters')
+                            .where('project_uuid', fixture.projectUuid)
+                            .select('name', 'config'),
+                    ).toEqual([
+                        {
+                            name: 'minimum_amount',
+                            config: {
+                                label: 'Minimum amount',
+                                type: 'number',
+                                default: 7,
+                                allow_custom_values: true,
+                            },
+                        },
+                    ]);
+                } finally {
+                    rmSync(dbtProjectDir, { recursive: true, force: true });
+                }
+            });
+
+            test.each([false, true])(
+                'an older deploy finishing last preserves flag compatibility (peer flag %s)',
+                async (enabled) => {
+                    const fixture = await createProject();
+                    await compile(fixture);
+                    const user = await compilingUser(fixture.projectUuid);
+                    const older = compileService(
+                        fixture.projectUuid,
+                        options(enabled),
+                    );
+                    const newer = compileService(
+                        fixture.projectUuid,
+                        options(enabled),
+                    );
+                    const reached = deferred();
+                    const release = deferred();
+                    const prepare =
+                        older.internals.multiConnectionCompiler.prepareSourceDeploy.bind(
+                            older.internals.multiConnectionCompiler,
+                        );
+                    vi.spyOn(
+                        older.internals.multiConnectionCompiler,
+                        'prepareSourceDeploy',
+                    ).mockImplementationOnce(async (...args) => {
+                        const prepared = await prepare(...args);
+                        reached.resolve();
+                        await release.promise;
+                        return prepared;
+                    });
+                    const oldPublish = deploy(
+                        older.service,
+                        fixture,
+                        user.userUuid,
+                        'finance',
+                        'model_old',
+                    );
+                    try {
+                        await reached.promise;
+                        await deploy(
+                            newer.service,
+                            fixture,
+                            user.userUuid,
+                            'finance',
+                            'model_new',
+                        );
+                        const newerState = await publicationState(
+                            fixture.projectUuid,
+                        );
+                        release.resolve();
+                        if (enabled) {
+                            await expect(oldPublish).rejects.toThrow(
+                                'A newer deploy or refresh of source finance was published while this one ran, so nothing was changed. Run it again if you still need it.',
+                            );
+                            expect(
+                                await publicationState(fixture.projectUuid),
+                            ).toEqual(newerState);
+                            expect(newerState.pins).toHaveLength(1);
+                            expect(newerState.pins[0].pins).toEqual([
+                                expect.objectContaining({
+                                    sourceUuid: fixture.sourceUuids.finance,
+                                    commitSha: null,
+                                    dbtProjectName: 'finance',
+                                    deployMetadata: {
+                                        userUuid: user.userUuid,
+                                        requestMethod: 'cli',
+                                        compilationSource: 'cli_deploy',
+                                    },
+                                }),
+                            ]);
+                        } else {
+                            await oldPublish;
+                            expect(
+                                Object.keys(
+                                    await bindings(fixture.projectUuid),
+                                ),
+                            ).toContain('model_old');
+                            expect(
+                                Object.keys(
+                                    await bindings(fixture.projectUuid),
+                                ),
+                            ).not.toContain('model_new');
+                            const state = await publicationState(
+                                fixture.projectUuid,
+                            );
+                            expect(state.pins).toEqual([]);
+                            expect(state.slices).toEqual([]);
+                            expect(state.generations).toEqual([]);
+                        }
+                    } finally {
+                        release.resolve();
+                        await oldPublish.catch(() => {});
+                    }
+                },
+            );
+
+            test('two peers captured before either publication can both deploy', async () => {
+                const fixture = await createProject();
+                await compile(fixture);
+                const user = await compilingUser(fixture.projectUuid);
+                const first = compileService(
+                    fixture.projectUuid,
+                    options(),
+                ).service;
+                const second = compileService(
+                    fixture.projectUuid,
+                    options(),
+                ).service;
+                const [firstSlices, secondSlices] = await Promise.all([
+                    first.capturePeerCompileSlices(fixture.projectUuid),
+                    second.capturePeerCompileSlices(fixture.projectUuid),
+                ]);
+                await Promise.all([
+                    deploy(
+                        first,
+                        fixture,
+                        user.userUuid,
+                        'finance',
+                        'model_a',
+                        firstSlices,
+                    ),
+                    deploy(
+                        second,
+                        fixture,
+                        user.userUuid,
+                        'marketing',
+                        'model_b',
+                        secondSlices,
+                    ),
+                ]);
+                expect(await bindings(fixture.projectUuid)).toMatchObject({
+                    model_a: fixture.extraConnectionUuid,
+                    model_b: null,
+                });
+                const state = await publicationState(fixture.projectUuid);
+                expect(state.pins).toHaveLength(2);
+                expect(state.slices).toHaveLength(2);
+                expect(Number(state.generations[0].generation)).toBe(2);
+            });
+
+            test('a batched deploy captures its slices at session start and rejects stale finalization', async () => {
+                const fixture = await createProject();
+                await compile(fixture);
+                const user = await compilingUser(fixture.projectUuid);
+                const projectService = compileService(
+                    fixture.projectUuid,
+                    options(),
+                ).service;
+                const sessionModel = new DeploySessionModel(database);
+                const service = new DeployService({
+                    deploySessionModel: sessionModel,
+                    projectModel,
+                    projectService,
+                    schedulerClient: {
+                        generateValidation: async () => {},
+                    } as never,
+                });
+                const { deploySessionUuid } = await service.startDeploySession(
+                    fromSession(user, 'session-cookie'),
+                    fixture.projectUuid,
+                );
+                expect(
+                    await sessionModel.getPeerCompileSlices(deploySessionUuid),
+                ).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({
+                            sourceUuid: fixture.sourceUuids.finance,
+                            generation: 0,
+                        }),
+                    ]),
+                );
+                await service.addDeployBatch(
+                    user,
+                    fixture.projectUuid,
+                    deploySessionUuid,
+                    [sourceExplore('model_old', 'finance')],
+                    0,
+                    true,
+                );
+                await deploy(
+                    projectService,
+                    fixture,
+                    user.userUuid,
+                    'finance',
+                    'model_new',
+                );
+                const before = await publicationState(fixture.projectUuid);
+                await expect(
+                    service.finalizeDeploy(
+                        user,
+                        fixture.projectUuid,
+                        deploySessionUuid,
+                        'cli-1',
+                        undefined,
+                        {
+                            sourceUuid: fixture.sourceUuids.finance,
+                            target: null,
+                        },
+                    ),
+                ).rejects.toThrow(
+                    'A newer deploy or refresh of source finance was published while this one ran, so nothing was changed. Run it again if you still need it.',
+                );
+                expect(await publicationState(fixture.projectUuid)).toEqual(
+                    before,
+                );
+                expect(
+                    (await sessionModel.getSession(deploySessionUuid)).status,
+                ).toBe(DeploySessionStatus.FAILED);
+            });
+
+            test('a legacy partial deploy records its cached source owner without changing peer routing', async () => {
+                const fixture = await createProject();
+                await routeSingle(fixture.projectUuid);
+                const primary = await projectModel.getDbtSourceIdentity(
+                    fixture.projectUuid,
+                );
+                const original = sourceExplore('model_a', 'primary');
+                original.tables.model_a.dbtSourceUuid = primary.dbtSourceUuid;
+                const peer = sourceExplore('model_b', 'finance');
+                peer.tables.model_b.dbtSourceUuid = fixture.sourceUuids.finance;
+                const untouched = sourceExplore('model_c', 'marketing');
+                untouched.tables.model_c.dbtSourceUuid =
+                    fixture.sourceUuids.marketing;
+                await projectModel.saveExploresToCache(
+                    fixture.projectUuid,
+                    [original, peer, untouched],
+                    true,
+                );
+                expect(
+                    await projectModel.hasExploreNameAllocations(
+                        fixture.projectUuid,
+                    ),
+                ).toBe(false);
+                const before = await dump(fixture.projectUuid);
+                const user = await compilingUser(fixture.projectUuid);
+                const { service, internals } = compileService(
+                    fixture.projectUuid,
+                    options(),
+                );
+                const prepare = vi.spyOn(
+                    internals.multiConnectionCompiler,
+                    'prepareSourceDeploy',
+                );
+                const uploaded = sourceExplore('model_b', 'finance');
+                uploaded.label = 'Updated model';
+                await service.saveDeployExplores({
+                    userUuid: user.userUuid,
+                    projectUuid: fixture.projectUuid,
+                    explores: [uploaded],
+                    compilationSource: 'cli_deploy',
+                    jobUuid: null,
+                    requestMethod: 'cli',
+                    complete: false,
+                    cliDeploy: { sourceUuid: null, target: null },
+                });
+                expect(prepare).not.toHaveBeenCalled();
+                const state = await publicationState(fixture.projectUuid);
+                expect(
+                    state.explores.filter(({ name }) => name !== 'model_b'),
+                ).toEqual(before.filter(({ name }) => name !== 'model_b'));
+                expect(
+                    state.explores.find(({ name }) => name === 'model_b')
+                        ?.explore.label,
+                ).toBe('Updated model');
+                expect(state.allocations).toEqual([]);
+                expect(state.pins).toHaveLength(1);
+                expect(state.pins[0].pins).toEqual([
+                    expect.objectContaining({
+                        sourceUuid: fixture.sourceUuids.finance,
+                        commitSha: null,
+                        dbtProjectName: 'finance',
+                        deployMetadata: {
+                            userUuid: user.userUuid,
+                            requestMethod: 'cli',
+                            compilationSource: 'cli_deploy',
+                        },
+                    }),
+                ]);
+                expect(state.slices).toHaveLength(3);
+                expect(
+                    state.slices.every(
+                        ({ generation }) => Number(generation) === 1,
+                    ),
+                ).toBe(true);
+            });
+
+            test('turning the peer flag off after a batched snapshot restores last-writer-wins without metadata writes', async () => {
+                const fixture = await createProject();
+                await compile(fixture);
+                const user = await compilingUser(fixture.projectUuid);
+                const mutableOptions = options();
+                const projectService = compileService(
+                    fixture.projectUuid,
+                    mutableOptions,
+                ).service;
+                const sessionModel = new DeploySessionModel(database);
+                const service = new DeployService({
+                    deploySessionModel: sessionModel,
+                    projectModel,
+                    projectService,
+                    schedulerClient: {
+                        generateValidation: async () => {},
+                    } as never,
+                });
+                const { deploySessionUuid } = await service.startDeploySession(
+                    fromSession(user, 'session-cookie'),
+                    fixture.projectUuid,
+                );
+                expect(
+                    await sessionModel.getPeerCompileSlices(deploySessionUuid),
+                ).not.toBeNull();
+                await service.addDeployBatch(
+                    user,
+                    fixture.projectUuid,
+                    deploySessionUuid,
+                    [sourceExplore('model_old', 'finance')],
+                    0,
+                    true,
+                );
+                mutableOptions.peerDbtSources = false;
+                await deploy(
+                    projectService,
+                    fixture,
+                    user.userUuid,
+                    'finance',
+                    'model_new',
+                );
+                const result = await service.finalizeDeploy(
+                    user,
+                    fixture.projectUuid,
+                    deploySessionUuid,
+                    'cli-1',
+                    undefined,
+                    { sourceUuid: fixture.sourceUuids.finance, target: null },
+                );
+                expect(result.status).toBe(DeploySessionStatus.COMPLETED);
+                const state = await publicationState(fixture.projectUuid);
+                expect(state.explores.map(({ name }) => name)).toContain(
+                    'model_old',
+                );
+                expect(state.explores.map(({ name }) => name)).not.toContain(
+                    'model_new',
+                );
+                expect(state.pins).toEqual([]);
+                expect(state.slices).toEqual([]);
+                expect(state.generations).toEqual([]);
+            });
+
+            test('turning the peer flag off during a single-connection refresh still publishes its manifest and ref catalogs', async () => {
+                const fixture = await createProject();
+                await routeSingle(fixture.projectUuid);
+                const stale = dbtManifest('project_a', [
+                    {
+                        name: 'model_stale',
+                        database: ORIGINAL_DB,
+                        table: 'orders',
+                    },
+                ]);
+                await projectModel.upsertMergedManifest(
+                    fixture.projectUuid,
+                    gzipSync(JSON.stringify(stale)),
+                );
+                await projectModel.saveExploresToCache(
+                    fixture.projectUuid,
+                    [explore('model_stale', ['orders'])],
+                    true,
+                );
+                const user = await compilingUser(fixture.projectUuid);
+                const mutableOptions = options();
+                const { service } = compileService(
+                    fixture.projectUuid,
+                    mutableOptions,
+                );
+                const reached = deferred();
+                const release = deferred();
+                const save =
+                    projectModel.saveMultiConnectionExplores.bind(projectModel);
+                vi.spyOn(
+                    projectModel,
+                    'saveMultiConnectionExplores',
+                ).mockImplementationOnce(async (...args) => {
+                    reached.resolve();
+                    await release.promise;
+                    return save(...args);
+                });
+                const jobUuid = await createJob(
+                    fixture.projectUuid,
+                    user.userUuid,
+                );
+                const refresh = service.compileProject(
+                    user,
+                    fixture.projectUuid,
+                    RequestMethod.WEB_APP,
+                    jobUuid,
+                );
+                try {
+                    await reached.promise;
+                    mutableOptions.peerDbtSources = false;
+                    release.resolve();
+                    await refresh;
+                    expect(
+                        (await new JobModel({ database }).get(jobUuid))
+                            .jobStatus,
+                    ).toBe(JobStatusType.DONE);
+                    const state = await publicationState(fixture.projectUuid);
+                    expect(state.explores.map(({ name }) => name)).toEqual([
+                        'campaigns',
+                        'customers',
+                        'orders',
+                        'payments',
+                    ]);
+                    const serialized = gunzipSync(
+                        await projectModel.getMergedManifest(
+                            fixture.projectUuid,
+                        ),
+                    ).toString();
+                    let merged: DbtManifest;
+                    try {
+                        merged = JSON.parse(serialized) as DbtManifest;
+                    } catch (error) {
+                        throw new Error(
+                            'The published merged manifest is invalid',
+                            { cause: error },
+                        );
+                    }
+                    expect(Object.keys(merged.nodes).sort()).toEqual([
+                        'model.finance.payments',
+                        'model.marketing.campaigns',
+                        'model.primary.customers',
+                        'model.primary.orders',
+                    ]);
+                    expect(state.refCatalogs).toHaveLength(3);
+                    expect(
+                        state.refCatalogs.every(
+                            ({ status }) => status === 'confirmed',
+                        ),
+                    ).toBe(true);
+                    expect(state.pins).toEqual([]);
+                    expect(state.slices).toEqual([]);
+                    expect(state.generations).toEqual([]);
+                } finally {
+                    release.resolve();
+                    await refresh.catch(() => {});
+                }
+            });
+
+            test.each([
+                'enabled',
+                'disabled before finalize',
+                'disabled during prepare',
+            ] as const)(
+                'a deploy of a peer added after its stored snapshot respects the current flag (%s)',
+                async (mode) => {
+                    const fixture = await createProject();
+                    await compile(fixture);
+                    const user = await compilingUser(fixture.projectUuid);
+                    const mutableOptions = options();
+                    const { service, internals } = compileService(
+                        fixture.projectUuid,
+                        mutableOptions,
+                    );
+                    const snapshot = await service.capturePeerCompileSlices(
+                        fixture.projectUuid,
+                    );
+                    expect(snapshot).not.toBeNull();
+                    const added = await projectDbtSourcesModel.createSource(
+                        fixture.projectUuid,
+                        {
+                            name: 'up_new',
+                            isPrimary: false,
+                            precedence: 3,
+                            dbtConnection: githubDbtConnection('org/up_new'),
+                            warehouseLocation: { database: null, schema: null },
+                        },
+                    );
+                    fixture.sourceUuids.up_new = added.projectDbtSourceUuid;
+                    const before = await publicationState(fixture.projectUuid);
+                    const oldBindings = await bindings(fixture.projectUuid);
+                    if (mode === 'disabled before finalize')
+                        mutableOptions.peerDbtSources = false;
+                    if (mode === 'disabled during prepare') {
+                        const prepare =
+                            internals.multiConnectionCompiler.prepareSourceDeploy.bind(
+                                internals.multiConnectionCompiler,
+                            );
+                        vi.spyOn(
+                            internals.multiConnectionCompiler,
+                            'prepareSourceDeploy',
+                        ).mockImplementationOnce(async (...args) => {
+                            const prepared = await prepare(...args);
+                            mutableOptions.peerDbtSources = false;
+                            return prepared;
+                        });
+                    }
+                    const published = deploy(
+                        service,
+                        fixture,
+                        user.userUuid,
+                        'up_new',
+                        'model_new',
+                        snapshot,
+                    );
+                    if (mode === 'enabled') {
+                        await expect(published).rejects.toThrow(
+                            'The dbt sources changed while this compile ran, so nothing was changed. Run it again.',
+                        );
+                        expect(
+                            await publicationState(fixture.projectUuid),
+                        ).toEqual(before);
+                    } else {
+                        await published;
+                        expect(await bindings(fixture.projectUuid)).toEqual({
+                            ...oldBindings,
+                            model_new: null,
+                        });
+                        const state = await publicationState(
+                            fixture.projectUuid,
+                        );
+                        expect(
+                            state.explores.filter(
+                                ({ name }) => name !== 'model_new',
+                            ),
+                        ).toEqual(before.explores);
+                        const incoming = await projectModel.getExploreFromCache(
+                            fixture.projectUuid,
+                            'model_new',
+                        );
+                        expect(incoming.tables?.model_new.dbtSourceUuid).toBe(
+                            added.projectDbtSourceUuid,
+                        );
+                        expect(state.pins).toEqual([]);
+                        expect(state.slices).toEqual([]);
+                        expect(state.generations).toEqual([]);
+                    }
+                },
+            );
+
+            test('adding a peer after a full refresh snapshot rejects publication without partial changes', async () => {
+                const fixture = await createProject();
+                await compile(fixture);
+                const user = await compilingUser(fixture.projectUuid);
+                const { service, internals } = compileService(
+                    fixture.projectUuid,
+                    options(),
+                );
+                const reached = deferred();
+                const release = deferred();
+                const save = internals.multiConnectionCompiler.save.bind(
+                    internals.multiConnectionCompiler,
+                );
+                vi.spyOn(
+                    internals.multiConnectionCompiler,
+                    'save',
+                ).mockImplementationOnce(async (...args) => {
+                    reached.resolve();
+                    await release.promise;
+                    return save(...args);
+                });
+                const jobUuid = await createJob(
+                    fixture.projectUuid,
+                    user.userUuid,
+                );
+                const refresh = service.compileProject(
+                    user,
+                    fixture.projectUuid,
+                    RequestMethod.WEB_APP,
+                    jobUuid,
+                );
+                try {
+                    await reached.promise;
+                    await projectDbtSourcesModel.createSource(
+                        fixture.projectUuid,
+                        {
+                            name: 'up_new',
+                            isPrimary: false,
+                            precedence: 3,
+                            dbtConnection: githubDbtConnection('org/up_new'),
+                            warehouseLocation: { database: null, schema: null },
+                        },
+                    );
+                    const before = await publicationState(fixture.projectUuid);
+                    release.resolve();
+                    await refresh;
+                    const job = await new JobModel({ database }).get(jobUuid);
+                    expect(job.jobStatus).toBe(JobStatusType.ERROR);
+                    expect(job.steps).toEqual(
+                        expect.arrayContaining([
+                            expect.objectContaining({
+                                stepStatus: JobStepStatusType.ERROR,
+                                stepError: expect.stringContaining(
+                                    'The dbt sources changed while this compile ran, so nothing was changed. Run it again.',
+                                ),
+                            }),
+                        ]),
+                    );
+                    expect(await publicationState(fixture.projectUuid)).toEqual(
+                        before,
+                    );
+                } finally {
+                    release.resolve();
+                    await refresh.catch(() => {});
+                }
+            });
+
+            test.each(['single', 'multi'] as const)(
+                'a %s connection refresh records pins with cross-source refs disabled',
+                async (route) => {
+                    const fixture = await createProject();
+                    if (route === 'single')
+                        await routeSingle(fixture.projectUuid);
+                    const { job } = await runCompileProject(
+                        fixture.projectUuid,
+                        {
+                            ...options(),
+                            crossSourceDbtRefs: false,
+                        },
+                    );
+                    expect(job.jobStatus).toBe(JobStatusType.DONE);
+                    const state = await publicationState(fixture.projectUuid);
+                    expect(state.pins).toHaveLength(1);
+                    expect(state.pins[0].pins).toHaveLength(3);
+                    expect(
+                        state.pins[0].pins.map(({ sourceUuid }) => sourceUuid),
+                    ).toEqual(
+                        expect.arrayContaining(
+                            Object.values(fixture.sourceUuids),
+                        ),
+                    );
+                    expect(state.pins[0].bindings).toEqual([]);
+                },
+            );
+
+            test('a failed peer retains its last good slice and records only successful input pins', async () => {
+                const fixture = await createProject();
+                await compile(fixture);
+                const before = (await dump(fixture.projectUuid)).find(
+                    ({ name }) => name === 'payments',
+                );
+                const { job } = await runCompileProject(fixture.projectUuid, {
+                    ...options(),
+                    failedSources: ['finance'],
+                });
+                expect(job.jobStatus).toBe(JobStatusType.DONE);
+                expect(
+                    (await dump(fixture.projectUuid)).find(
+                        ({ name }) => name === 'payments',
+                    ),
+                ).toEqual(before);
+                const state = await publicationState(fixture.projectUuid);
+                expect(state.pins).toHaveLength(1);
+                expect(state.pins[0].pins).toHaveLength(2);
+                expect(
+                    state.pins[0].pins.map(({ sourceUuid }) => sourceUuid),
+                ).not.toContain(fixture.sourceUuids.finance);
+                expect(state.slices).toHaveLength(3);
+                expect(
+                    state.slices.every(
+                        ({ generation }) => Number(generation) === 1,
+                    ),
+                ).toBe(true);
+            });
+
+            test('the peer flag leaves a project without extra sources unchanged', async () => {
+                const fixture = await createProject(
+                    postgresWarehouse(EXTRA_DB),
+                    { listAllDatabases: false, additionalDatabases: [] },
+                    false,
+                );
+                await routeSingle(fixture.projectUuid);
+                await runCompileProject(fixture.projectUuid, options(false));
+                const before = await publicationState(fixture.projectUuid);
+                const { service } = compileService(
+                    fixture.projectUuid,
+                    options(),
+                );
+                expect(
+                    await service.capturePeerCompileSlices(fixture.projectUuid),
+                ).toBeNull();
+                const { job } = await runCompileProject(
+                    fixture.projectUuid,
+                    options(),
+                );
+                expect(job.jobStatus).toBe(JobStatusType.DONE);
+                expect(await publicationState(fixture.projectUuid)).toEqual(
+                    before,
+                );
+                expect(before.pins).toEqual([]);
+                expect(before.slices).toEqual([]);
+                expect(before.generations).toEqual([]);
+            });
+
+            test('a real resolver compile stores versioned and two-argument bindings with its pins', async () => {
+                const fixture = await createProject();
+                await routeSingle(fixture.projectUuid);
+                const provider = dbtManifest('finance', [
+                    {
+                        name: 'payments',
+                        database: ORIGINAL_DB,
+                        table: 'payments',
+                    },
+                ]);
+                const base = provider.nodes[
+                    'model.finance.payments'
+                ] as DbtRawModelNode & DbtManifest['nodes'][string];
+                provider.nodes = Object.fromEntries(
+                    [1, 2].map((version) => {
+                        const node = {
+                            ...base,
+                            unique_id: `model.finance.payments.v${version}`,
+                            version,
+                            latest_version: 2,
+                        };
+                        return [node.unique_id, node];
+                    }),
+                );
+                sourceManifests.finance = provider;
+                const refs = [
+                    { package: 'finance', name: 'payments', version: '1' },
+                    { package: 'finance', name: 'payments', version: null },
+                    { package: 'primary', name: 'payments', version: null },
+                ];
+                const primary = dbtManifest('primary', [
+                    {
+                        name: 'payments',
+                        database: ORIGINAL_DB,
+                        table: 'payments',
+                    },
+                ]);
+                const { service } = compileService(fixture.projectUuid, {
+                    ...options(),
+                    primaryModels: [
+                        {
+                            name: 'payments',
+                            database: ORIGINAL_DB,
+                            table: 'payments',
+                        },
+                    ],
+                    fetchSourceManifest: async (source, { externalNodes }) => {
+                        const manifest = structuredClone(
+                            sourceManifests[source],
+                        );
+                        if (source === 'marketing') {
+                            const consumer = manifest.nodes[
+                                'model.marketing.campaigns'
+                            ] as DbtRawModelNode;
+                            consumer.refs = refs;
+                            consumer.depends_on = { nodes: [] };
+                            for (const ref of refs) {
+                                const node = externalNodes.find(
+                                    (candidate) =>
+                                        candidate.package_name ===
+                                            ref.package &&
+                                        candidate.name === ref.name &&
+                                        (ref.version === null
+                                            ? candidate.version === null ||
+                                              String(candidate.version) ===
+                                                  String(
+                                                      candidate.latest_version,
+                                                  )
+                                            : String(candidate.version) ===
+                                              ref.version),
+                                );
+                                if (!node)
+                                    throw new DbtError(
+                                        `Model 'model.marketing.campaigns' depends on a node named '${ref.name}'${ref.version === null ? '' : ` with version '${ref.version}'`} in package or project '${ref.package}' which was not found`,
+                                    );
+                                const id = `model.${node.package_name}.${node.name}${node.version === null ? '' : `.v${node.version}`}`;
+                                const original = (
+                                    node.package_name === 'finance'
+                                        ? provider
+                                        : primary
+                                ).nodes[id];
+                                manifest.nodes[id] = {
+                                    ...original,
+                                    path: '',
+                                    original_file_path: '',
+                                } as DbtRawModelNode &
+                                    DbtManifest['nodes'][string];
+                                consumer.depends_on.nodes!.push(id);
+                            }
+                        }
+                        return {
+                            manifest,
+                            timings: {
+                                gitRefreshMs: 0,
+                                depsMs: 0,
+                                manifestMs: 0,
+                            },
+                            commitSha: (source === 'finance'
+                                ? 'a'
+                                : 'b'
+                            ).repeat(40),
+                        };
+                    },
+                });
+                const user = await compilingUser(fixture.projectUuid);
+                const jobUuid = await createJob(
+                    fixture.projectUuid,
+                    user.userUuid,
+                );
+                await service.compileProject(
+                    user,
+                    fixture.projectUuid,
+                    RequestMethod.WEB_APP,
+                    jobUuid,
+                );
+                expect(
+                    (await new JobModel({ database }).get(jobUuid)).jobStatus,
+                ).toBe(JobStatusType.DONE);
+                const persisted = await new ProjectCompileModel({
+                    database,
+                }).get(fixture.projectUuid, jobUuid);
+                expect(persisted?.pins).toHaveLength(3);
+                expect(persisted?.pins).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({
+                            sourceUuid: fixture.sourceUuids.finance,
+                            commitSha: 'a'.repeat(40),
+                            dbtProjectName: 'finance',
+                        }),
+                        expect.objectContaining({
+                            sourceUuid: fixture.sourceUuids.marketing,
+                            commitSha: 'b'.repeat(40),
+                            dbtProjectName: 'marketing',
+                        }),
+                    ]),
+                );
+                const identity = await projectModel.getDbtSourceIdentity(
+                    fixture.projectUuid,
+                );
+                expect(persisted?.bindings).toHaveLength(3);
+                expect(persisted?.bindings).toEqual(
+                    expect.arrayContaining([
+                        expect.objectContaining({
+                            consumerSourceUuid: fixture.sourceUuids.marketing,
+                            consumerNodeId: 'model.marketing.campaigns',
+                            refPackage: 'finance',
+                            refName: 'payments',
+                            requestedVersion: '1',
+                            providerSourceUuid: fixture.sourceUuids.finance,
+                            providerPackage: 'finance',
+                            providerName: 'payments',
+                            resolvedVersion: '1',
+                            providerCommitSha: 'a'.repeat(40),
+                        }),
+                        expect.objectContaining({
+                            refPackage: 'finance',
+                            requestedVersion: null,
+                            resolvedVersion: '2',
+                        }),
+                        expect.objectContaining({
+                            refPackage: 'primary',
+                            providerSourceUuid: identity.dbtSourceUuid,
+                            requestedVersion: null,
+                            resolvedVersion: null,
+                        }),
+                    ]),
+                );
+                expect(persisted!.metadata_bytes).toBe(
+                    Buffer.byteLength(JSON.stringify(persisted!.pins)) +
+                        Buffer.byteLength(JSON.stringify(persisted!.bindings)),
+                );
+                expect(persisted!.metadata_bytes).toBeLessThan(10_000);
+            });
+
+            test('a full refresh started before a peer deploy cannot overwrite any slice', async () => {
+                const fixture = await createProject();
+                await compile(fixture);
+                const user = await compilingUser(fixture.projectUuid);
+                const refreshing = compileService(
+                    fixture.projectUuid,
+                    options(),
+                ).service;
+                const deploying = compileService(
+                    fixture.projectUuid,
+                    options(),
+                ).service;
+                const reached = deferred();
+                const release = deferred();
+                const capture =
+                    refreshing.capturePeerCompileSlices.bind(refreshing);
+                vi.spyOn(
+                    refreshing,
+                    'capturePeerCompileSlices',
+                ).mockImplementationOnce(async (...args) => {
+                    const slices = await capture(...args);
+                    reached.resolve();
+                    await release.promise;
+                    return slices;
+                });
+                const jobUuid = await createJob(
+                    fixture.projectUuid,
+                    user.userUuid,
+                );
+                const refresh = refreshing.compileProject(
+                    user,
+                    fixture.projectUuid,
+                    RequestMethod.WEB_APP,
+                    jobUuid,
+                );
+                try {
+                    await reached.promise;
+                    await deploy(
+                        deploying,
+                        fixture,
+                        user.userUuid,
+                        'finance',
+                        'model_new',
+                    );
+                    const before = await publicationState(fixture.projectUuid);
+                    release.resolve();
+                    await refresh;
+                    const job = await new JobModel({ database }).get(jobUuid);
+                    expect(job.jobStatus).toBe(JobStatusType.ERROR);
+                    expect(job.steps).toEqual(
+                        expect.arrayContaining([
+                            expect.objectContaining({
+                                stepStatus: JobStepStatusType.ERROR,
+                                stepError: expect.stringContaining(
+                                    'A newer deploy or refresh of source finance was published while this one ran',
+                                ),
+                            }),
+                        ]),
+                    );
+                    expect(await publicationState(fixture.projectUuid)).toEqual(
+                        before,
+                    );
+                } finally {
+                    release.resolve();
+                    await refresh.catch(() => {});
+                }
             });
         });
 

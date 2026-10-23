@@ -1,3 +1,4 @@
+import { type Knex } from 'knex';
 import { placeholderExternalNode } from '../dbt/dbtExternalNodes';
 import Logger from '../logging/logger';
 import { type DbtSourceRefCatalogModel } from '../models/DbtSourceRefCatalogModel';
@@ -11,7 +12,7 @@ const nodes = [
         latestVersion: null,
     }),
 ];
-const setup = () => {
+const setup = (deferWrites = false) => {
     const model = {
         get: vi.fn(
             async () =>
@@ -31,6 +32,7 @@ const setup = () => {
         'original',
         'v1.9',
         'compile-job',
+        deferWrites,
     );
     return { model, cache };
 };
@@ -134,3 +136,60 @@ it('does not confirm nodes from a consumer that was skipped after resolution', a
         entries: [{ dbtSourceUuid: 'healthy', nodesDigest: 'digest' }],
     });
 });
+
+it('defers provisional writes until publication and discards skipped sources before flushing', async () => {
+    const { model, cache } = setup(true);
+    const trx = {} as Knex.Transaction;
+    await cache.resolved('up_1', nodes, 'project_a', []);
+    await cache.resolved('up_2', nodes, 'project_b', ['project_a']);
+    expect(model.upsertProvisional).not.toHaveBeenCalled();
+    expect(model.confirm).not.toHaveBeenCalled();
+    cache.discard('up_2');
+    await cache.confirm(trx);
+    expect(model.upsertProvisional).toHaveBeenCalledExactlyOnceWith(
+        {
+            projectUuid: 'project',
+            dbtSourceUuid: 'up_1',
+            connectionGroup: 'original',
+            projectName: 'project_a',
+            dbtVersion: 'v1.9',
+            nodes,
+            referencedProjects: [],
+            compileJobUuid: 'compile-job',
+        },
+        trx,
+    );
+    expect(model.confirm).toHaveBeenCalledExactlyOnceWith(
+        {
+            projectUuid: 'project',
+            connectionGroup: 'original',
+            entries: [{ dbtSourceUuid: 'up_1', nodesDigest: 'digest' }],
+        },
+        trx,
+    );
+});
+
+it.each(['upsertProvisional', 'confirm'] as const)(
+    'propagates a deferred %s failure so the publication transaction can roll back',
+    async (method) => {
+        const { model, cache } = setup(true);
+        const trx = {} as Knex.Transaction;
+        const error = new Error('Publication artifact write failed');
+        model[method].mockRejectedValue(error);
+        await cache.resolved('up_1', nodes, 'project_a', []);
+        await expect(cache.confirm(trx)).rejects.toBe(error);
+        expect(model.upsertProvisional).toHaveBeenCalledWith(
+            expect.objectContaining({ dbtSourceUuid: 'up_1' }),
+            trx,
+        );
+        if (method === 'upsertProvisional')
+            expect(model.confirm).not.toHaveBeenCalled();
+        else
+            expect(model.confirm).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    entries: [{ dbtSourceUuid: 'up_1', nodesDigest: 'digest' }],
+                }),
+                trx,
+            );
+    },
+);

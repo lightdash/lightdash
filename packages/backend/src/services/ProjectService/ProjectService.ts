@@ -392,6 +392,10 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
+import {
+    ProjectCompileModel,
+    type CompileSlice,
+} from '../../models/ProjectCompileModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { type ExploreNaming } from '../../models/ProjectModel/exploreNameAllocation';
 import {
@@ -598,6 +602,11 @@ import {
 } from './connectionSqlRunner';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
+import {
+    peerCompileContext,
+    recordPeerResolution,
+    type PeerCompileContext,
+} from './peerCompileContext';
 import { mergePersonalWarehouseCredentials } from './personalWarehouseCredentials';
 import {
     reconcilePlaygroundBundles,
@@ -698,6 +707,7 @@ export type ProjectServiceArguments = {
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     dbtSourceRefCatalogModel: DbtSourceRefCatalogModel;
+    projectCompileModel: ProjectCompileModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
     preAggregateModel: PreAggregateModel;
     onboardingModel: OnboardingModel;
@@ -834,6 +844,7 @@ type SaveCompiledExploresArgs = {
     requestMethod?: string | null;
     projectConfigDefaults?: ProjectDefaults;
     cliVersion?: string | null;
+    peerCompileSlices?: CompileSlice[] | null;
     complete?: boolean;
     dbtModelNames?: string[];
     connectionWarnings?: string[];
@@ -876,6 +887,7 @@ export class ProjectService
     projectModel: ProjectModel;
 
     dbtSourceRefCatalogModel: DbtSourceRefCatalogModel;
+    projectCompileModel: ProjectCompileModel;
     projectDbtSourcesModel: ProjectDbtSourcesModel;
 
     preAggregateModel: PreAggregateModel;
@@ -1001,6 +1013,7 @@ export class ProjectService
         projectModel,
         projectDbtSourcesModel,
         dbtSourceRefCatalogModel,
+        projectCompileModel,
         preAggregateModel,
         onboardingModel,
         savedChartModel,
@@ -1060,6 +1073,7 @@ export class ProjectService
         this.projectModel = projectModel;
         this.projectDbtSourcesModel = projectDbtSourcesModel;
         this.dbtSourceRefCatalogModel = dbtSourceRefCatalogModel;
+        this.projectCompileModel = projectCompileModel;
         this.preAggregateModel = preAggregateModel;
         this.onboardingModel = onboardingModel;
         this.snowflakeOAuthCredentialResolver =
@@ -3837,8 +3851,105 @@ export class ProjectService
         assertPreAggregateRefresh(stored, explores);
     }
 
+    private async isPeerCompileEnabled(projectUuid: string): Promise<boolean> {
+        if (!(await this.projectDbtSourcesModel.hasSources(projectUuid)))
+            return false;
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.PeerDbtSources,
+            user: { organizationUuid },
+        });
+        return enabled;
+    }
+
+    async capturePeerCompileSlices(
+        projectUuid: string,
+    ): Promise<CompileSlice[] | null> {
+        if (!(await this.isPeerCompileEnabled(projectUuid))) return null;
+        const sources =
+            await this.projectDbtSourcesModel.getSources(projectUuid);
+        if (sources.length === 0) return null;
+        const identity =
+            await this.projectModel.getDbtSourceIdentity(projectUuid);
+        return this.projectCompileModel.capture(projectUuid, [
+            {
+                sourceUuid: identity.dbtSourceUuid,
+                sourceName: identity.dbtSourceName,
+            },
+            ...sources.map((source) => ({
+                sourceUuid: source.projectDbtSourceUuid,
+                sourceName: source.name,
+            })),
+        ]);
+    }
+
+    private async publishPeerCompile(
+        trx: Knex.Transaction,
+        projectUuid: string,
+    ): Promise<void> {
+        const context = peerCompileContext.getStore();
+        if (!context || context.projectUuid !== projectUuid) return;
+        const project = await trx('projects')
+            .join(
+                'organizations',
+                'projects.organization_id',
+                'organizations.organization_id',
+            )
+            .select(
+                'organizations.organization_uuid',
+                'projects.dbt_source_uuid',
+            )
+            .where('projects.project_uuid', projectUuid)
+            .first();
+        const { enabled } = await this.featureFlagModel.get(
+            {
+                featureFlagId: FeatureFlags.PeerDbtSources,
+                user: { organizationUuid: project!.organization_uuid },
+            },
+            { trx },
+        );
+        if (enabled) {
+            const sources = await trx('project_dbt_sources')
+                .select('project_dbt_source_uuid')
+                .where('project_uuid', projectUuid);
+            const current = new Set([
+                project!.dbt_source_uuid ?? projectUuid,
+                ...sources.map((source) => source.project_dbt_source_uuid),
+            ]);
+            const captured = new Set(
+                context.slices.map((slice) => slice.sourceUuid),
+            );
+            if (
+                (context.writeKind === 'all' &&
+                    current.size !== captured.size) ||
+                [...captured].some((uuid) => !current.has(uuid)) ||
+                context.requestedSourceUuids?.some(
+                    (uuid) => !captured.has(uuid),
+                ) ||
+                context.pins.some((pin) => !captured.has(pin.sourceUuid))
+            ) {
+                this.logger.warn('compile.publish.conflict', {
+                    event: 'compile.publish.conflict',
+                    projectUuid,
+                    compileJobUuid: context.compileJobUuid,
+                    reason: 'source_membership_changed',
+                });
+                throw new ConflictError(
+                    'The dbt sources changed while this compile ran, so nothing was changed. Run it again.',
+                );
+            }
+            await this.projectCompileModel.publish(trx, context);
+        }
+        await context.artifacts.reduce(async (previous, artifact) => {
+            await previous;
+            await artifact(trx);
+        }, Promise.resolve());
+    }
+
     private getConnectionExploreWriteChecks(
         projectUuid: string,
+        publishCompile = false,
     ):
         | []
         | [
@@ -3847,10 +3958,15 @@ export class ProjectService
                   explores?: (Explore | ExploreError)[],
               ) => Promise<void>,
           ] {
-        if (!agentExecutionContext.getStore()?.agentConnectionExecution)
-            return [];
+        const checkConnection =
+            !!agentExecutionContext.getStore()?.agentConnectionExecution;
+        const peerCompile = publishCompile && peerCompileContext.getStore();
+        if (!checkConnection && !peerCompile) return [];
         return [
             async (trx, explores = []) => {
+                if (peerCompile)
+                    await this.publishPeerCompile(trx, projectUuid);
+                if (!checkConnection) return;
                 const stored =
                     await this.projectModel.getPreAggregateRefreshSummary(
                         projectUuid,
@@ -3867,10 +3983,12 @@ export class ProjectService
         const signal = getCompileShutdownSignal();
         const checkConnection =
             !!agentExecutionContext.getStore()?.agentConnectionExecution;
-        if (!checkConnection && !signal) return [];
+        const peerCompile = peerCompileContext.getStore();
+        if (!checkConnection && !signal && !peerCompile) return [];
         return [
             async (trx, saveUuid) => {
                 signal?.throwIfAborted();
+                await this.publishPeerCompile(trx, projectUuid);
                 if (!checkConnection) return;
                 const stored =
                     await this.projectModel.getPreAggregateRefreshSummary(
@@ -4212,6 +4330,7 @@ export class ProjectService
             saveExplores: async (summary) => {
                 const [beforeWrite] = this.getConnectionExploreWriteChecks(
                     args.projectUuid,
+                    true,
                 );
                 const writeCheckArgs: [undefined?, ExploreWriteCheck?] =
                     beforeWrite ? [undefined, beforeWrite] : [];
@@ -4320,6 +4439,37 @@ export class ProjectService
             cliDeploy: CliDeploySelection;
         },
     ): Promise<string> {
+        let slices = args.peerCompileSlices;
+        if (slices === undefined)
+            slices = await this.capturePeerCompileSlices(args.projectUuid);
+        else if (
+            slices !== null &&
+            !(await this.isPeerCompileEnabled(args.projectUuid))
+        )
+            slices = null;
+        const context: PeerCompileContext | undefined =
+            slices === null
+                ? undefined
+                : {
+                      projectUuid: args.projectUuid,
+                      compileJobUuid: args.jobUuid ?? uuidv4(),
+                      slices,
+                      writeKind: 'all',
+                      pins: [],
+                      bindings: [],
+                      artifacts: [],
+                  };
+        return peerCompileContext.run(context, () =>
+            this.saveDeployExploresWithPins(args),
+        );
+    }
+
+    private async saveDeployExploresWithPins(
+        args: SaveCompiledExploresArgs & {
+            explores: (Explore | ExploreError)[];
+            cliDeploy: CliDeploySelection;
+        },
+    ): Promise<string> {
         if (agentExecutionContext.getStore()?.agentConnectionExecution)
             await this.assertConnectionPreAggregateRefresh(
                 args.projectUuid,
@@ -4384,6 +4534,49 @@ export class ProjectService
                 args.projectUuid,
             ))
         ) {
+            const peerCompile = peerCompileContext.getStore();
+            if (peerCompile) {
+                const cached = await this.projectModel.getAllExploresFromCache(
+                    args.projectUuid,
+                );
+                const cachedByName = new Map(
+                    Object.values(cached).map((explore) => [
+                        explore.name,
+                        explore,
+                    ]),
+                );
+                const identity = await this.projectModel.getDbtSourceIdentity(
+                    args.projectUuid,
+                );
+                const inputsBySource = new Map<string, Set<string>>();
+                args.explores.forEach((explore) => {
+                    const previous = cachedByName.get(explore.name);
+                    const sourceUuid =
+                        previous?.tables?.[previous.baseTable ?? previous.name]
+                            ?.dbtSourceUuid ?? identity.dbtSourceUuid;
+                    const packages =
+                        inputsBySource.get(sourceUuid) ?? new Set<string>();
+                    const packageName =
+                        explore.tables?.[explore.baseTable ?? explore.name]
+                            ?.dbtPackageName;
+                    if (packageName) packages.add(packageName);
+                    inputsBySource.set(sourceUuid, packages);
+                });
+                peerCompile.pins = [...inputsBySource].map(
+                    ([sourceUuid, packages]) => ({
+                        sourceUuid,
+                        commitSha: null,
+                        dbtProjectName:
+                            packages.size === 1 ? [...packages][0] : null,
+                        capturedAt: new Date().toISOString(),
+                        deployMetadata: {
+                            userUuid: args.userUuid,
+                            requestMethod: args.requestMethod ?? 'cli',
+                            compilationSource: args.compilationSource,
+                        },
+                    }),
+                );
+            }
             return this.saveExploresToCacheAndIndexCatalogWithRefreshCheck(
                 deploy,
                 false,
@@ -4451,6 +4644,48 @@ export class ProjectService
                       args.projectUuid,
                       selection,
                   );
+        const peerCompile = peerCompileContext.getStore();
+        if (peerCompile) {
+            peerCompile.writeKind = 'slices';
+            let writtenSourceUuids = peerCompile.slices.map(
+                (slice) => slice.sourceUuid,
+            );
+            if (previewSources) writtenSourceUuids = previewSourceUuids;
+            else if (projectDbtSourceUuid)
+                writtenSourceUuids = [projectDbtSourceUuid];
+            const writtenSources = new Set(writtenSourceUuids);
+            peerCompile.requestedSourceUuids = [...writtenSources];
+            peerCompile.slices = peerCompile.slices.filter((slice) =>
+                writtenSources.has(slice.sourceUuid),
+            );
+            peerCompile.pins = peerCompile.slices.map((slice) => {
+                const packageNames = args.explores.flatMap((explore) => {
+                    const packageName =
+                        explore.tables?.[explore.baseTable ?? explore.name]
+                            ?.dbtPackageName;
+                    return packageName &&
+                        (!previewSources ||
+                            previewSources.get(packageName) ===
+                                slice.sourceUuid)
+                        ? [packageName]
+                        : [];
+                });
+                return {
+                    sourceUuid: slice.sourceUuid,
+                    commitSha: null,
+                    dbtProjectName:
+                        [...new Set(packageNames)].length === 1
+                            ? packageNames[0]
+                            : null,
+                    capturedAt: new Date().toISOString(),
+                    deployMetadata: {
+                        userUuid: args.userUuid,
+                        requestMethod: args.requestMethod ?? 'cli',
+                        compilationSource: args.compilationSource,
+                    },
+                };
+            });
+        }
         const { explores: uploadedExplores, ...metadata } = deploy;
         const uploadedExploreCount = uploadedExplores.length;
         const explores = sourceSelection?.explores ?? uploadedExplores;
@@ -4674,7 +4909,8 @@ export class ProjectService
                                 : {}),
                             exploreStream: observedExplores(),
                             ...(agentExecutionContext.getStore()
-                                ?.agentConnectionExecution
+                                ?.agentConnectionExecution &&
+                            !peerCompileContext.getStore()
                                 ? { persistArtifacts: async () => {} }
                                 : {}),
                         },
@@ -4701,7 +4937,8 @@ export class ProjectService
         });
         if (
             multiConnection &&
-            agentExecutionContext.getStore()?.agentConnectionExecution
+            agentExecutionContext.getStore()?.agentConnectionExecution &&
+            !peerCompileContext.getStore()
         ) {
             const result = await saving;
             await this.assertAgentConnectionEffect(
@@ -6913,6 +7150,37 @@ export class ProjectService
         jobUuid: string,
         compilationSource: CompilationSource = 'refresh_dbt',
     ) {
+        const slices = await this.capturePeerCompileSlices(projectUuid);
+        return peerCompileContext.run(
+            slices === null
+                ? undefined
+                : {
+                      projectUuid,
+                      compileJobUuid: jobUuid,
+                      slices,
+                      writeKind: 'all',
+                      pins: [],
+                      bindings: [],
+                      artifacts: [],
+                  },
+            () =>
+                this.testAndCompileProjectWithPins(
+                    user,
+                    projectUuid,
+                    method,
+                    jobUuid,
+                    compilationSource,
+                ),
+        );
+    }
+
+    private async testAndCompileProjectWithPins(
+        user: SessionUser,
+        projectUuid: string,
+        method: RequestMethod,
+        jobUuid: string,
+        compilationSource: CompilationSource,
+    ) {
         const totalStartTime = performance.now();
 
         if (!isUserWithOrg(user)) {
@@ -7112,6 +7380,25 @@ export class ProjectService
                             timings.getConfig.end = performance.now();
 
                             throwIfCompileAborted();
+                            const publishExplores = () =>
+                                this.saveExploreStreamToCacheAndIndexCatalog({
+                                    userUuid: user.userUuid,
+                                    projectUuid,
+                                    exploreStream,
+                                    multiConnection,
+                                    connectionWarnings,
+                                    failedDbtSourceUuids,
+                                    exploreNaming,
+                                    compilationSource,
+                                    jobUuid: job.jobUuid,
+                                    requestMethod: method,
+                                    projectConfigDefaults:
+                                        lightdashProjectConfig.defaults,
+                                });
+                            const peerCompile = peerCompileContext.getStore();
+                            const peerResult = peerCompile
+                                ? await publishExplores()
+                                : null;
                             timings.yaml.start = performance.now();
                             await this.replaceYamlTagsWithoutPermissionCheck(
                                 user,
@@ -7157,23 +7444,9 @@ export class ProjectService
                             );
                             timings.parameters.end = performance.now();
                             timings.cacheExplores.start = performance.now();
-                            const result =
-                                await this.saveExploreStreamToCacheAndIndexCatalog(
-                                    {
-                                        userUuid: user.userUuid,
-                                        projectUuid,
-                                        exploreStream,
-                                        multiConnection,
-                                        connectionWarnings,
-                                        failedDbtSourceUuids,
-                                        exploreNaming,
-                                        compilationSource,
-                                        jobUuid: job.jobUuid,
-                                        requestMethod: method,
-                                        projectConfigDefaults:
-                                            lightdashProjectConfig.defaults,
-                                    },
-                                );
+                            const result = peerCompile
+                                ? peerResult!
+                                : await publishExplores();
                             await this.persistMergedManifest(
                                 projectUuid,
                                 stagedMergedManifest,
@@ -8593,6 +8866,7 @@ export class ProjectService
         projectUuid: string,
         stagedMergedManifest: Buffer | undefined,
     ): Promise<void> {
+        if (peerCompileContext.getStore()) return;
         if (!stagedMergedManifest) {
             return;
         }
@@ -8615,6 +8889,14 @@ export class ProjectService
         projectUuid: string,
         afterCompile = false,
     ): Promise<void> {
+        const peerCompile = peerCompileContext.getStore();
+        if (peerCompile) {
+            if (!afterCompile)
+                peerCompile.artifacts.push((trx) =>
+                    this.projectModel.deleteMergedManifest(projectUuid, trx),
+                );
+            return;
+        }
         if (
             agentExecutionContext.getStore()?.agentConnectionExecution &&
             !afterCompile
@@ -8875,6 +9157,7 @@ export class ProjectService
                   'original',
                   resolveDbtVersion(primary.dbtVersionOption),
                   jobUuid ?? null,
+                  !!peerCompileContext.getStore(),
               )
             : null;
         const cachedCatalogs = await catalogCache?.load([
@@ -8891,6 +9174,7 @@ export class ProjectService
             uuid: string;
         }>({
             enabled: crossSourceRefsEnabled,
+            ...(peerCompileContext.getStore() ? { captureBindings: true } : {}),
             signal: armCompileShutdown(),
             onSourceFailure: async (task, error, phase) => {
                 const skipped = await isolation.skip(
@@ -9156,6 +9440,7 @@ export class ProjectService
                 },
             );
         }
+        recordPeerResolution(resolution, (context) => context.uuid);
         const fetched = resolution.results.map(({ task, result }) => {
             const { manifest, selectedModelIds } = result;
             const selectedManifest = manifestWithCompilationSelection(
@@ -9309,6 +9594,17 @@ export class ProjectService
             projectUuid,
             mergedManifest,
         );
+        const peerCompile = peerCompileContext.getStore();
+        if (peerCompile && stagedMergedManifest) {
+            peerCompile.artifacts.push(async (trx) => {
+                await this.projectModel.upsertMergedManifest(
+                    projectUuid,
+                    stagedMergedManifest,
+                    trx,
+                );
+                await catalogCache?.confirm(trx);
+            });
+        }
         if (stagedMergedManifest && catalogCache)
             this.sourceRefCatalogConfirmations.set(
                 stagedMergedManifest,
@@ -9468,7 +9764,11 @@ export class ProjectService
         );
         const primaryManifest = crossSourceRefsEnabled
             ? null
-            : await primary.adapter.getDbtManifest();
+            : await primary.adapter.getDbtManifest(
+                  peerCompileContext.getStore()
+                      ? { externalNodes: [], capturePins: true }
+                      : undefined,
+              );
         return this.multiConnectionCompiler.compile({
             onSourceWarning: async (warning) => {
                 if (jobUuid)
@@ -13667,6 +13967,37 @@ export class ProjectService
         jobUuid: string | undefined,
         consumePrepared: (prepared: PreparedExploreStream) => Promise<T>,
     ): Promise<T> {
+        const slices = await this.capturePeerCompileSlices(projectUuid);
+        return peerCompileContext.run(
+            slices === null
+                ? undefined
+                : {
+                      projectUuid,
+                      compileJobUuid: jobUuid ?? uuidv4(),
+                      slices,
+                      writeKind: 'all',
+                      pins: [],
+                      bindings: [],
+                      artifacts: [],
+                  },
+            () =>
+                this.refreshTablesAndProjectConfigWithPins(
+                    user,
+                    projectUuid,
+                    requestMethod,
+                    jobUuid,
+                    consumePrepared,
+                ),
+        );
+    }
+
+    private async refreshTablesAndProjectConfigWithPins<T>(
+        user: Pick<SessionUser, 'userUuid'>,
+        projectUuid: string,
+        requestMethod: RequestMethod,
+        jobUuid: string | undefined,
+        consumePrepared: (prepared: PreparedExploreStream) => Promise<T>,
+    ): Promise<T> {
         const consume = agentExecutionContext.getStore()
             ?.agentConnectionExecution
             ? async (prepared: PreparedExploreStream) => {
@@ -14351,6 +14682,29 @@ export class ProjectService
                                 multiConnection,
                             }) => {
                                 throwIfCompileAborted();
+                                const publishExplores = () =>
+                                    this.saveExploreStreamToCacheAndIndexCatalog(
+                                        {
+                                            userUuid: user.userUuid,
+                                            projectUuid,
+                                            exploreStream,
+                                            onCompiled,
+                                            multiConnection,
+                                            connectionWarnings,
+                                            failedDbtSourceUuids,
+                                            exploreNaming,
+                                            compilationSource: 'refresh_dbt',
+                                            jobUuid: job.jobUuid,
+                                            requestMethod,
+                                            projectConfigDefaults:
+                                                lightdashProjectConfig.defaults,
+                                        },
+                                    );
+                                const peerCompile =
+                                    peerCompileContext.getStore();
+                                const peerResult = peerCompile
+                                    ? await publishExplores()
+                                    : null;
                                 timings.yaml.start = performance.now();
                                 if (
                                     agentExecutionContext.getStore()
@@ -14437,24 +14791,9 @@ export class ProjectService
                                 );
                                 timings.parameters.end = performance.now();
                                 timings.cacheExplores.start = performance.now();
-                                const result =
-                                    await this.saveExploreStreamToCacheAndIndexCatalog(
-                                        {
-                                            userUuid: user.userUuid,
-                                            projectUuid,
-                                            exploreStream,
-                                            onCompiled,
-                                            multiConnection,
-                                            connectionWarnings,
-                                            failedDbtSourceUuids,
-                                            exploreNaming,
-                                            compilationSource: 'refresh_dbt',
-                                            jobUuid: job.jobUuid,
-                                            requestMethod,
-                                            projectConfigDefaults:
-                                                lightdashProjectConfig.defaults,
-                                        },
-                                    );
+                                const result = peerCompile
+                                    ? peerResult!
+                                    : await publishExplores();
                                 if (
                                     agentExecutionContext.getStore()
                                         ?.agentConnectionExecution

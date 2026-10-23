@@ -346,6 +346,14 @@ import {
     PinnedSpaceTableName,
 } from '../database/entities/pinnedList';
 import {
+    ProjectCatalogueGenerationsTable,
+    ProjectCatalogueGenerationsTableName,
+    ProjectCompilePinsTable,
+    ProjectCompilePinsTableName,
+    ProjectSourceGenerationsTable,
+    ProjectSourceGenerationsTableName,
+} from '../database/entities/projectCompilePins';
+import {
     ProjectDbtSourcesTable,
     ProjectDbtSourcesTableName,
 } from '../database/entities/projectDbtSources';
@@ -812,6 +820,9 @@ declare module 'knex/types/tables' {
         [ProjectTableName]: ProjectTable;
         [PlaygroundBundleVersionsTableName]: PlaygroundBundleVersionsTable;
         [ProjectDbtSourcesTableName]: ProjectDbtSourcesTable;
+        [ProjectCatalogueGenerationsTableName]: ProjectCatalogueGenerationsTable;
+        [ProjectSourceGenerationsTableName]: ProjectSourceGenerationsTable;
+        [ProjectCompilePinsTableName]: ProjectCompilePinsTable;
         [SavedChartsTableName]: SavedChartTable;
         [SavedChartSlugMappingsTableName]: SavedChartSlugMappingTable;
         [DashboardSlugMappingsTableName]: DashboardSlugMappingTable;

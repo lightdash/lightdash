@@ -1,4 +1,4 @@
-import { SupportedDbtVersions } from '@lightdash/common';
+import { SupportedDbtVersions, type DbtManifest } from '@lightdash/common';
 import fs from 'fs/promises';
 import path from 'path';
 import { warehouseClientMock } from '../utils/QueryBuilder/MetricQueryBuilder.mock';
@@ -38,6 +38,56 @@ const buildAdapter = () =>
 
 describe('git adapter disk release', () => {
     afterEach(() => vi.restoreAllMocks());
+    it('waits for checkout pin capture before releasing the manifest checkout', async () => {
+        const adapter = buildAdapter();
+        vi.spyOn(GitRepository.prototype, 'refresh').mockResolvedValue(
+            undefined,
+        );
+        vi.spyOn(adapter.dbtClient, 'installDeps').mockResolvedValue(undefined);
+        vi.spyOn(adapter.dbtClient, 'cleanup').mockResolvedValue(undefined);
+        let finish!: (sha: string) => void;
+        const revparse = vi.fn(
+            () =>
+                new Promise<string>((resolve) => {
+                    finish = resolve;
+                }),
+        );
+        adapter.git = {
+            cwd: vi.fn(() => ({ revparse })),
+        } as unknown as DbtGitProjectAdapter['git'];
+        vi.spyOn(adapter.dbtClient, 'getDbtManifest').mockImplementation(
+            async () => {
+                await expect(
+                    fs.stat(adapter.localRepositoryDir),
+                ).resolves.toBeDefined();
+                return { manifest: { nodes: {} } as DbtManifest };
+            },
+        );
+        const fetch = adapter.getDbtManifest({
+            externalNodes: [],
+            capturePins: true,
+        });
+        await vi.waitFor(() => expect(finish).toBeDefined());
+        let released = false;
+        const release = adapter.releaseDisk().then(() => {
+            released = true;
+        });
+        await new Promise((resolve) => {
+            setImmediate(resolve);
+        });
+        expect(released).toBe(false);
+        finish('a'.repeat(40));
+        await expect(fetch).resolves.toMatchObject({
+            commitSha: 'a'.repeat(40),
+        });
+        await release;
+        await expect(fs.stat(adapter.localRepositoryDir)).rejects.toMatchObject(
+            {
+                code: 'ENOENT',
+            },
+        );
+        await adapter.destroy();
+    });
     it('removes the checkout after client cleanup and supports later destroy', async () => {
         const adapter = buildAdapter();
         const directory = adapter.localRepositoryDir;

@@ -15,6 +15,7 @@ import {
     type WeekDay,
 } from '@lightdash/common';
 import { DeploySessionModel } from '../models/DeploySessionModel';
+import { type CompileSlice } from '../models/ProjectCompileModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SchedulerClient } from '../scheduler/SchedulerClient';
 import { captureAgentConnectionTask } from '../utils/agentConnectionExecution';
@@ -36,6 +37,9 @@ export type DeployExploreEnhancer = (
 ) => Promise<(Explore | ExploreError)[]>;
 
 type ProjectServiceInterface = {
+    capturePeerCompileSlices: (
+        projectUuid: string,
+    ) => Promise<CompileSlice[] | null>;
     assertAgentConnectionEffect: (
         projectUuid: string,
         effect: AgentConnectionTaskEffect,
@@ -56,6 +60,7 @@ type ProjectServiceInterface = {
         complete?: boolean;
         dbtModelNames?: string[];
         cliDeploy: CliDeploySelection;
+        peerCompileSlices?: CompileSlice[] | null;
     }) => Promise<string>;
     getDeployStartOfWeekByExplore: (args: {
         userUuid: string;
@@ -154,12 +159,19 @@ export class DeployService extends BaseService {
                 projectUuid,
             );
 
+        const peerCompileSlices =
+            await this.projectService.capturePeerCompileSlices(projectUuid);
         // Create a new deploy session
         const sessionUuid = await this.deploySessionModel.createSession(
             projectUuid,
             account.user.id,
         );
 
+        if (peerCompileSlices !== null)
+            await this.deploySessionModel.setPeerCompileSlices(
+                sessionUuid,
+                peerCompileSlices,
+            );
         this.logger.info(
             `Started deploy session ${sessionUuid} for project ${projectUuid}`,
         );
@@ -357,6 +369,10 @@ export class DeployService extends BaseService {
                 complete: deployData.complete,
                 dbtModelNames,
                 cliDeploy,
+                peerCompileSlices:
+                    await this.deploySessionModel.getPeerCompileSlices(
+                        sessionUuid,
+                    ),
             });
 
             // Schedule validation (same as in original finalizeDeploy)

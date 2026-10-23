@@ -88,6 +88,7 @@ describe('DeployService', () => {
                 }),
             },
             projectService: {
+                capturePeerCompileSlices: vi.fn().mockResolvedValue(null),
                 assertConnectionPreAggregateRefresh: vi.fn(),
                 assertAgentConnectionEffect: vi.fn(),
             },
@@ -111,6 +112,7 @@ describe('DeployService', () => {
         'passes batched completeness $complete and model inventory $dbtModelNames to the cache write',
         async ({ complete, dbtModelNames }) => {
             const projectService = {
+                capturePeerCompileSlices: vi.fn().mockResolvedValue(null),
                 assertConnectionPreAggregateRefresh: vi.fn(),
                 assertAgentConnectionEffect: vi.fn(),
                 saveDeployExplores: vi.fn().mockResolvedValue('index-job-uuid'),
@@ -130,6 +132,7 @@ describe('DeployService', () => {
                     createdAt: new Date(),
                 }),
                 updateStatus: vi.fn().mockResolvedValue(undefined),
+                getPeerCompileSlices: vi.fn().mockResolvedValue(null),
                 getDeployData: vi.fn().mockResolvedValue({
                     explores: [],
                     complete,
@@ -213,6 +216,7 @@ describe('DeployService', () => {
                     createdAt: new Date(),
                 }),
                 updateStatus,
+                getPeerCompileSlices: vi.fn().mockResolvedValue(null),
                 getDeployData: vi
                     .fn()
                     .mockResolvedValue({ explores: [], complete: true }),
@@ -226,6 +230,7 @@ describe('DeployService', () => {
                 }),
             },
             projectService: {
+                capturePeerCompileSlices: vi.fn().mockResolvedValue(null),
                 assertConnectionPreAggregateRefresh: vi.fn(),
                 assertAgentConnectionEffect: vi.fn(),
                 saveDeployExplores,
@@ -313,6 +318,7 @@ describe('DeployService', () => {
                     createdAt: new Date(),
                 }),
                 updateStatus,
+                getPeerCompileSlices: vi.fn().mockResolvedValue(null),
                 getDeployData: vi
                     .fn()
                     .mockResolvedValue({ explores: [], complete: true }),
@@ -326,6 +332,7 @@ describe('DeployService', () => {
                 }),
             },
             projectService: {
+                capturePeerCompileSlices: vi.fn().mockResolvedValue(null),
                 assertConnectionPreAggregateRefresh: vi.fn(),
                 assertAgentConnectionEffect: vi.fn(),
                 saveDeployExplores: vi.fn().mockResolvedValue('index-job-uuid'),
@@ -401,6 +408,7 @@ describe('DeployService', () => {
             },
             projectModel: { getSummary, getWithSensitiveFields },
             projectService: {
+                capturePeerCompileSlices: vi.fn().mockResolvedValue(null),
                 assertConnectionPreAggregateRefresh: vi.fn(),
                 assertAgentConnectionEffect: vi.fn(),
                 trackCliSourceDeploy: vi.fn().mockResolvedValue(undefined),

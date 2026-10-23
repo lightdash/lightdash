@@ -684,7 +684,7 @@ it('start and two batches change only deploy staging, leaving every project-visi
     await f.finish(uuid, [firstExplore, secondExplore]);
 });
 
-it('keeps the part 1 SQL order and HTTP answers with exactly one project summary read, and no credential read, before finalize writes', async () => {
+it('keeps the SQL order and HTTP answers with read-only peer probes and one project summary read before finalize writes', async () => {
     const f = await deployFixture(migrated.database, server);
     const trace = captureSql(f.database);
     try {
@@ -725,7 +725,18 @@ it('keeps the part 1 SQL order and HTTP answers with exactly one project summary
         'update "deploy_sessions" set "status" = $1 where "deploy_session_uuid" = $2',
     );
     expect(mainDeploySql[58]).toBe(mainDeploySql[10]);
-    expect(trace.statements).toEqual(mainDeploySql);
+    const expectedSql = [...mainDeploySql];
+    expectedSql.splice(
+        11,
+        0,
+        'select * from "project_dbt_sources" where "project_uuid" = $1 limit $2',
+    );
+    expectedSql.splice(
+        61,
+        0,
+        'select "peer_compile_slices" from "deploy_sessions" where "deploy_session_uuid" = $1 limit $2',
+    );
+    expect(trace.statements).toEqual(expectedSql);
 });
 
 it.each(['session', 'PAT'] as const)(

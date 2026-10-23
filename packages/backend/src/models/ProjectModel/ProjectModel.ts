@@ -605,8 +605,9 @@ export class ProjectModel {
     async upsertMergedManifest(
         projectUuid: string,
         manifest: Buffer,
+        trx?: Knex.Transaction,
     ): Promise<void> {
-        await ProjectMergedManifestsTable(this.database)
+        await ProjectMergedManifestsTable(trx ?? this.database)
             .insert({
                 project_uuid: projectUuid,
                 manifest,
@@ -632,8 +633,11 @@ export class ProjectModel {
         return artifact.manifest;
     }
 
-    async deleteMergedManifest(projectUuid: string): Promise<void> {
-        await ProjectMergedManifestsTable(this.database)
+    async deleteMergedManifest(
+        projectUuid: string,
+        trx?: Knex.Transaction,
+    ): Promise<void> {
+        await ProjectMergedManifestsTable(trx ?? this.database)
             .where('project_uuid', projectUuid)
             .delete();
     }

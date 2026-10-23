@@ -491,3 +491,68 @@ An existing extra cannot change its type with either flag value; add a new
 connection instead. It does not remove
 saved connections or change query execution. Mixed-type extras keep their own
 user-credential requirement; same-type extras still inherit the original's.
+
+## Peer dbt source publication
+
+`peer-dbt-sources` (`FeatureFlags.PeerDbtSources`) gates publication generations,
+compile pins, and resolver binding records for projects with extra dbt sources.
+It is off by default on Cloud and self-hosted. It has no custom resolver handler
+and no preview default. Resolution uses the project's organization; personal
+user overrides do not apply. Standard ENV precedence and restart rules apply.
+
+Compile entry checks source membership even when the flag is off. Batched
+finalization also reads the stored snapshot. These read-only checks do not add
+publication writes or change API responses with the flag off.
+
+A refresh captures all source generations before it reads dbt inputs. A complete
+CLI deploy captures generations before source selection and preparation. A
+batched deploy stores its snapshot when the upload session starts, so another
+API pod can finalize it. The server cannot observe an old CLI's local compilation
+before its first request. This guard covers overlapping server operations, not
+an upload of old local artifacts that arrives after another publication.
+
+Publication checks the written slices under the existing publication transaction.
+Each slice uses an atomic generation comparison and increment. A project counter
+orders successful publications but does not reject independent peer deploys.
+Full refreshes guard every source, including a failed source whose last good
+explores are carried. The legacy partial-deploy path keeps its model-name routing
+and conservatively guards all slices. It records uploaded inputs using existing
+cached ownership. Source membership changes invalidate a full-refresh snapshot.
+
+A conflict returns HTTP 409 and rolls back explores, name allocation, generations,
+pins, and published manifest/catalog artifacts. It does not retry old compiled
+inputs. Resolver cache writes stay in memory until publication in peer mode.
+Job status, warnings, staging cleanup, and the structured conflict log remain
+available after a rejected job. Configuration from the primary project is saved
+only after successful explore publication in peer mode.
+
+Pins record the actual checkout HEAD, source identity, project name when known,
+and capture time. CLI uploads use a null commit and deploy metadata. A pin set
+lists fresh inputs; carried last-good slices keep their prior provenance. Resolver
+bindings record the final provider, ref identity, requested version (null means
+latest), resolved version, and provider commit. CLI uploads do not run the server
+resolver, so their binding list is empty. The model exposes records for internal
+diagnostics; no public API response changes. Resolver bindings have a 100,000-row
+and 16 MiB limit. The complete persisted metadata has a 32 MiB limit. Exceeding a
+limit fails publication instead of truncating the evidence.
+
+The flag is checked at start and again in the publication transaction. Disabling
+it restores last-writer-wins publication and stops new generation/pin writes,
+including for a previously captured upload session. Stored sessions recheck rollout
+eligibility at finalization and retain their original generations when enabled.
+Requested-source validation also runs under the publication-time flag check.
+Re-enabling it uses retained
+generations. Writes made while the flag is off do not advance those generations,
+so keep the flag stable while guarded jobs run; an intervening unguarded write
+cannot be detected after re-enablement. Projects without extra sources skip all
+new metadata writes with either flag value.
+
+Old workers do not check or advance generations. During a rolling upgrade, an old
+worker can overwrite a guarded publication, and a new worker cannot detect an
+intervening old-worker write. Enable this experimental flag after API and worker
+rollout completes, and drain jobs and upload sessions that started without a
+snapshot. Those operations remain unguarded after enablement. No CLI minimum
+version is introduced. New and old CLIs keep the existing request formats; an old
+server keeps its existing save behavior.
+Rollback can leave the additive schema and diagnostic rows in place. The down
+migration removes the new schema after all workers using it have stopped.

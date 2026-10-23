@@ -15,6 +15,7 @@ import {
     type SupportedDbtVersions,
     type WarehouseCatalog,
 } from '@lightdash/common';
+import { type Knex } from 'knex';
 import { promisify } from 'node:util';
 import { gzip } from 'node:zlib';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
@@ -72,6 +73,10 @@ import {
     type TrackingParams,
 } from '../../types';
 import { runWithConcurrency } from '../../utils/runWithConcurrency';
+import {
+    peerCompileContext,
+    recordPeerResolution,
+} from '../ProjectService/peerCompileContext';
 import { projectMergedManifest } from '../ProjectService/projectMergedManifest';
 import { type ConnectionContext } from '../WarehouseClientFactory/ConnectionContext';
 import {
@@ -144,7 +149,10 @@ export type MultiConnectionSave = {
     exploreStream: AsyncIterable<Explore | ExploreError>;
     bindingOf: (exploreName: string) => string | null;
     carry: MultiConnectionCarry;
-    persistArtifacts: (options?: { exploresCommitted: true }) => Promise<void>;
+    persistArtifacts: (options?: {
+        exploresCommitted?: true;
+        transaction?: Knex.Transaction;
+    }) => Promise<void>;
     signal?: AbortSignal;
     naming?: ExploreNaming;
 };
@@ -391,7 +399,25 @@ export class MultiConnectionCompiler {
         if (!enabled) {
             const primarySources: SourceManifest[] = [];
             if (primaryTask) {
-                const result = await primaryTask.fetch({ externalNodes: [] });
+                const result = await primaryTask.fetch({
+                    externalNodes: [],
+                    ...(peerCompileContext.getStore()
+                        ? { capturePins: true }
+                        : {}),
+                });
+                recordPeerResolution(
+                    {
+                        results: [
+                            { task: primaryTask, result, injectedFrom: [] },
+                        ],
+                        rounds: 0,
+                        attempts: 1,
+                        warnings: [],
+                        scan: { known: 0, ordered: 0 },
+                        firstAttemptInjected: 0,
+                    },
+                    (context) => context.dbtSourceUuid,
+                );
                 await primaryTask.releaseDisk?.();
                 primarySources.push({
                     ...primaryTask.context,
@@ -406,7 +432,12 @@ export class MultiConnectionCompiler {
                         sourceTasks,
                         concurrency,
                         async (task) => {
-                            const fetch = task.fetch({ externalNodes: [] });
+                            const fetch = task.fetch({
+                                externalNodes: [],
+                                ...(peerCompileContext.getStore()
+                                    ? { capturePins: true }
+                                    : {}),
+                            });
                             activeFetches.add(fetch);
                             let result: CrossSourceFetchResult;
                             try {
@@ -425,6 +456,19 @@ export class MultiConnectionCompiler {
                             } finally {
                                 activeFetches.delete(fetch);
                             }
+                            recordPeerResolution(
+                                {
+                                    results: [
+                                        { task, result, injectedFrom: [] },
+                                    ],
+                                    rounds: 0,
+                                    attempts: 1,
+                                    warnings: [],
+                                    scan: { known: 0, ordered: 0 },
+                                    firstAttemptInjected: 0,
+                                },
+                                (context) => context.dbtSourceUuid,
+                            );
                             return {
                                 ...task.context,
                                 manifest: result.manifest,
@@ -469,6 +513,7 @@ export class MultiConnectionCompiler {
                     referencedProjects,
                 ),
             enabled,
+            ...(peerCompileContext.getStore() ? { captureBindings: true } : {}),
             concurrency,
             tasks,
             signal: armCompileShutdown(),
@@ -518,6 +563,7 @@ export class MultiConnectionCompiler {
                 },
             );
         }
+        recordPeerResolution(resolution, (context) => context.dbtSourceUuid);
         return resolution.results.map(({ task, result }) => ({
             ...task.context,
             manifest: result.manifest,
@@ -1050,6 +1096,7 @@ export class MultiConnectionCompiler {
                             group,
                             dbtVersion,
                             compileJobUuid,
+                            !!peerCompileContext.getStore(),
                         ),
                     );
                 return catalogCaches.get(group)!;
@@ -1415,14 +1462,18 @@ export class MultiConnectionCompiler {
                     if (originalManifest === null) {
                         await this.projectModel.deleteMergedManifest(
                             projectUuid,
+                            options?.transaction,
                         );
                     } else {
                         await this.projectModel.upsertMergedManifest(
                             projectUuid,
                             originalManifest,
+                            options?.transaction,
                         );
                     }
-                    await catalogCaches.get('original')?.confirm();
+                    await catalogCaches
+                        .get('original')
+                        ?.confirm(options?.transaction);
                     await Promise.all(
                         compiledExtraGroups.map(async (group) => {
                             await this.warehouseConnectionCompileModel.saveCompileArtifacts(
@@ -1432,10 +1483,11 @@ export class MultiConnectionCompiler {
                                     manifest: group.manifest,
                                     catalog: group.catalog,
                                 },
+                                options?.transaction,
                             );
                             await catalogCaches
                                 .get(group.plan.warehouseConnectionUuid)
-                                ?.confirm();
+                                ?.confirm(options?.transaction);
                         }),
                     );
                 },
@@ -1452,11 +1504,16 @@ export class MultiConnectionCompiler {
         beforeWrite?: StagedExploreWriteCheck,
     ): Promise<{ cachedExploreUuids: string[] }> {
         compilation.signal?.throwIfAborted();
+        const peerCompile = peerCompileContext.getStore();
         const checkBeforeWrite: StagedExploreWriteCheck | undefined =
-            compilation.signal
-                ? async (...args) => {
-                      await beforeWrite?.(...args);
+            compilation.signal || peerCompile
+                ? async (trx, saveUuid) => {
+                      await beforeWrite?.(trx, saveUuid);
                       compilation.signal?.throwIfAborted();
+                      if (peerCompile)
+                          await compilation.persistArtifacts({
+                              transaction: trx,
+                          });
                   }
                 : beforeWrite;
         const saved = await this.projectModel.saveMultiConnectionExplores(
@@ -1476,7 +1533,8 @@ export class MultiConnectionCompiler {
             compilation.naming,
         );
         markCompilePublished();
-        await compilation.persistArtifacts({ exploresCommitted: true });
+        if (!peerCompile)
+            await compilation.persistArtifacts({ exploresCommitted: true });
         return saved;
     }
 

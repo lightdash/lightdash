@@ -157,32 +157,34 @@ export class WarehouseConnectionCompileModel {
             manifest: Buffer | null;
             catalog: WarehouseCatalog | null;
         },
+        trx?: Knex.Transaction,
     ): Promise<void> {
+        const database = trx ?? this.database;
         await this.assertConnectionInProject(
-            this.database,
+            database,
             projectUuid,
             warehouseConnectionUuid,
         );
         if (artifacts.manifest !== null) {
-            await this.database(MANIFESTS_TABLE)
+            await database(MANIFESTS_TABLE)
                 .insert({
                     warehouse_connection_uuid: warehouseConnectionUuid,
                     manifest: artifacts.manifest,
-                    created_at: this.database.fn.now(),
+                    created_at: database.fn.now(),
                 })
                 .onConflict('warehouse_connection_uuid')
                 .merge(['manifest', 'created_at']);
         } else {
-            await this.database(MANIFESTS_TABLE)
+            await database(MANIFESTS_TABLE)
                 .where('warehouse_connection_uuid', warehouseConnectionUuid)
                 .delete();
         }
         if (artifacts.catalog !== null) {
-            await this.database(CATALOG_CACHE_TABLE)
+            await database(CATALOG_CACHE_TABLE)
                 .insert({
                     warehouse_connection_uuid: warehouseConnectionUuid,
                     warehouse: JSON.stringify(artifacts.catalog),
-                    created_at: this.database.fn.now(),
+                    created_at: database.fn.now(),
                 })
                 .onConflict('warehouse_connection_uuid')
                 .merge(['warehouse', 'created_at']);

@@ -13,6 +13,7 @@ import {
     type DbDeploySessionBatch,
     type DbDeploySessionBatchInsert,
 } from '../database/entities/deploySessions';
+import { type CompileSlice } from './ProjectCompileModel';
 
 type StoredDeploySessionBatch = {
     explores: (Explore | ExploreError)[];
@@ -41,6 +42,30 @@ export class DeploySessionModel {
             .returning('deploy_session_uuid');
 
         return session.deploy_session_uuid;
+    }
+
+    async setPeerCompileSlices(
+        sessionUuid: string,
+        slices: CompileSlice[],
+    ): Promise<void> {
+        await DeploySessionsTable(this.database)
+            .where('deploy_session_uuid', sessionUuid)
+            .update({
+                peer_compile_slices: this.database.raw('?::jsonb', [
+                    JSON.stringify(slices),
+                ]),
+            });
+    }
+
+    async getPeerCompileSlices(
+        sessionUuid: string,
+    ): Promise<CompileSlice[] | null> {
+        const session = await DeploySessionsTable(this.database)
+            .select('peer_compile_slices')
+            .where('deploy_session_uuid', sessionUuid)
+            .first();
+        if (!session) throw new NotFoundError('Deploy session not found');
+        return session.peer_compile_slices;
     }
 
     async getSession(sessionUuid: string): Promise<DeploySession> {

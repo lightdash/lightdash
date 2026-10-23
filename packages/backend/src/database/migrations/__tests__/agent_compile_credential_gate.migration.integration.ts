@@ -567,7 +567,7 @@ const recordMethods = (target: object, name: string, calls: string[]) => {
 
 [false, true].forEach((factory) => {
     test.each(['refresh', 'multi', 'deploy'])(
-        `ordinary %s matches the main ordered call and SQL baseline (factory ${factory})`,
+        `ordinary %s keeps the ordered call and SQL baseline with peer eligibility reads (factory ${factory})`,
         async (operation) => {
             const f = await fixture(factory, operation === 'multi');
             const calls: string[] = [];

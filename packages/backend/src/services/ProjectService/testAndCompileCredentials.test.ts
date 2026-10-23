@@ -202,6 +202,9 @@ const setup = (
             },
         },
         projectModel,
+        projectDbtSourcesModel: {
+            hasSources: vi.fn(async () => false),
+        },
         sshKeyPairModel: {
             find: vi.fn(async () => ({
                 organizationUuid: project.organizationUuid,
