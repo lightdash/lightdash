@@ -647,10 +647,16 @@ describe('DataAppAnalysisService unsupported contexts', () => {
         [
             'investigate',
             (service: DataAppAnalysisService) =>
-                service.investigate(jwt(), 'proj-1', 'app-1', 'analysis-1', {
-                    anomalyId: 'anom-1',
-                    agentUuid: 'agent-1',
-                }),
+                service.investigate(
+                    jwt(),
+                    'proj-1',
+                    { kind: 'app', appUuid: 'app-1' },
+                    'analysis-1',
+                    {
+                        anomalyId: 'anom-1',
+                        agentUuid: 'agent-1',
+                    },
+                ),
         ],
         [
             'getAnalysis',
@@ -1764,7 +1770,7 @@ describe('DataAppAnalysisService.investigate', () => {
             service.investigate(
                 buildAccount(),
                 'proj-1',
-                'app-1',
+                { kind: 'app', appUuid: 'app-1' },
                 'analysis-1',
                 {
                     anomalyId: 'anom-1',
@@ -1789,7 +1795,7 @@ describe('DataAppAnalysisService.investigate', () => {
             service.investigate(
                 buildAccount(),
                 'proj-1',
-                'app-1',
+                { kind: 'app', appUuid: 'app-1' },
                 'analysis-1',
                 {
                     anomalyId: 'forged',
@@ -1803,10 +1809,16 @@ describe('DataAppAnalysisService.investigate', () => {
     it('returns 404 for an analysis the viewer does not own', async () => {
         const { service } = buildInvestigateService({ stored: null });
         await expect(
-            service.investigate(buildAccount(), 'proj-1', 'app-1', 'other', {
-                anomalyId: 'anom-1',
-                agentUuid: 'agent-1',
-            }),
+            service.investigate(
+                buildAccount(),
+                'proj-1',
+                { kind: 'app', appUuid: 'app-1' },
+                'other',
+                {
+                    anomalyId: 'anom-1',
+                    agentUuid: 'agent-1',
+                },
+            ),
         ).rejects.toMatchObject({ statusCode: 404 });
     });
 
@@ -1818,7 +1830,7 @@ describe('DataAppAnalysisService.investigate', () => {
             service.investigate(
                 buildAccount(),
                 'proj-1',
-                'other-app',
+                { kind: 'app', appUuid: 'other-app' },
                 'analysis-1',
                 { anomalyId: 'anom-1', agentUuid: 'agent-1' },
             ),
@@ -1843,7 +1855,7 @@ describe('DataAppAnalysisService.investigate', () => {
             service.investigate(
                 buildAccount(),
                 'proj-1',
-                'app-1',
+                { kind: 'app', appUuid: 'app-1' },
                 'analysis-1',
                 { anomalyId: 'anom-1', agentUuid: 'agent-1' },
             ),
@@ -1866,7 +1878,7 @@ describe('DataAppAnalysisService.investigate', () => {
             service.investigate(
                 buildAccount(),
                 'proj-1',
-                'app-1',
+                { kind: 'app', appUuid: 'app-1' },
                 'analysis-1',
                 { anomalyId: 'anom-1', agentUuid: 'agent-1' },
             ),
@@ -1930,7 +1942,7 @@ describe('DataAppAnalysisService.investigate', () => {
             service.investigate(
                 buildAccount(),
                 'proj-1',
-                'app-1',
+                { kind: 'app', appUuid: 'app-1' },
                 'analysis-1',
                 {
                     anomalyId: 'anom-1',
@@ -2095,7 +2107,7 @@ describe('DataAppAnalysisService.investigate', () => {
             service.investigate(
                 buildAccount(),
                 'proj-1',
-                'app-1',
+                { kind: 'app', appUuid: 'app-1' },
                 'analysis-1',
                 { anomalyId: 'anom-1', agentUuid: 'agent-x' },
             ),
@@ -2105,6 +2117,94 @@ describe('DataAppAnalysisService.investigate', () => {
             outcome: 'denied',
             agentUuid: 'agent-x',
         });
+    });
+    it('queues a dashboard investigation with the target in the payload', async () => {
+        const { service, dataAppInvestigate } = buildInvestigateService();
+        await expect(
+            service.investigate(
+                buildAccount(),
+                'proj-1',
+                { kind: 'dashboard', dashboardUuid: 'dash-1' },
+                'analysis-1',
+                { anomalyId: 'anom-1', agentUuid: 'agent-1' },
+            ),
+        ).resolves.toEqual({ jobId: 'job-1' });
+        expect(dataAppInvestigate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                target: { kind: 'dashboard', dashboardUuid: 'dash-1' },
+                analysisId: 'analysis-1',
+            }),
+        );
+        expect(dataAppInvestigate.mock.calls[0][0].appUuid).toBeUndefined();
+    });
+
+    it('runs a dashboard investigation on a restricted thread with dashboard context', async () => {
+        const { service } = buildInvestigateService();
+        const { create } = primeRunInvestigation(
+            service,
+            async () => 'because of returns',
+        );
+        const { createAgentThread } = (
+            service as unknown as Record<string, unknown>
+        ).aiAgentService as Record<string, ReturnType<typeof vi.fn>>;
+        await service.runInvestigation(
+            {
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+                userUuid: 'user-1',
+                target: { kind: 'dashboard', dashboardUuid: 'dash-1' },
+                analysisId: 'analysis-1',
+                anomalyId: 'anom-1',
+                agentUuid: 'agent-1',
+            },
+            'job-1',
+            new Date('2026-09-15T10:00:00Z'),
+        );
+        // The restricted legacy origin, until every pod reads the staged
+        // 'dashboard_analysis' origin; the context item carries the target.
+        expect(createAgentThread).toHaveBeenCalledWith(
+            expect.anything(),
+            'agent-1',
+            expect.objectContaining({
+                context: [{ type: 'dashboard', dashboardUuid: 'dash-1' }],
+            }),
+            'data_app',
+        );
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                operation: 'investigate',
+                target: { kind: 'dashboard', dashboardUuid: 'dash-1' },
+            }),
+        );
+    });
+
+    it('runs a legacy app-keyed payload as an app investigation', async () => {
+        const { service } = buildInvestigateService();
+        const { create } = primeRunInvestigation(
+            service,
+            async () => 'because',
+        );
+        const { createAgentThread } = (
+            service as unknown as Record<string, unknown>
+        ).aiAgentService as Record<string, ReturnType<typeof vi.fn>>;
+        await service.runInvestigation(
+            jobPayload,
+            'job-1',
+            new Date('2026-09-15T10:00:00Z'),
+        );
+        expect(createAgentThread).toHaveBeenCalledWith(
+            expect.anything(),
+            'agent-1',
+            expect.objectContaining({
+                context: [{ type: 'data_app', appUuid: 'app-1' }],
+            }),
+            'data_app',
+        );
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                target: { kind: 'app', appUuid: 'app-1', appVersion: 3 },
+            }),
+        );
     });
 });
 

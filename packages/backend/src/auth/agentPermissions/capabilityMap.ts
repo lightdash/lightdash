@@ -763,6 +763,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'DataAppAnalysisController.prompt': [AgentCapability.Query],
     'DashboardAnalysisController.detect': [AgentCapability.Query],
     'DashboardAnalysisController.getAnalysis': [AgentCapability.ReadDiscover],
+    'DashboardAnalysisController.investigate': [AgentCapability.Query],
     'DashboardAnalysisController.lookup': [AgentCapability.ReadDiscover],
     'DatabricksSSOController.get': [AgentCapability.ReadDiscover],
     'DeployController.addDeployBatch': [AgentCapability.DeployUpload],

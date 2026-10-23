@@ -25,6 +25,7 @@ const CHANNEL_LABELS: Record<AiUsageChannel, string> = {
     evals: 'Evals',
     scheduler: 'Scheduled deliveries',
     data_app: 'Data apps',
+    dashboard_analysis: 'Dashboard analysis',
 };
 
 // Calls recorded before the channel was tracked have no channel.

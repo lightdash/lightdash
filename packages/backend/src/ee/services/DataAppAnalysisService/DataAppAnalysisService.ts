@@ -1407,12 +1407,18 @@ export class DataAppAnalysisService extends BaseService {
 
     private async getDetectionForViewer(
         user: SessionUser,
-        appUuid: string,
+        locator: AnalysisTargetLocator,
         analysisId: string,
     ): Promise<DbDataAppAnalysis & { operation: 'detect' }> {
         const row = await this.dataAppAnalysisModel.find(
             analysisId,
-            { kind: 'app', targetUuid: appUuid },
+            {
+                kind: locator.kind,
+                targetUuid:
+                    locator.kind === 'app'
+                        ? locator.appUuid
+                        : locator.dashboardUuid,
+            },
             user.userUuid,
         );
         if (!row || row.operation !== 'detect') {
@@ -1467,7 +1473,7 @@ export class DataAppAnalysisService extends BaseService {
     async investigate(
         account: Account,
         projectUuid: string,
-        appUuid: string,
+        locator: AnalysisTargetLocator,
         analysisId: string,
         body: DataAppInvestigateRequest,
     ): Promise<{ jobId: string }> {
@@ -1476,7 +1482,7 @@ export class DataAppAnalysisService extends BaseService {
             return await this.investigateChecked(
                 account,
                 projectUuid,
-                appUuid,
+                locator,
                 analysisId,
                 body,
             );
@@ -1485,7 +1491,7 @@ export class DataAppAnalysisService extends BaseService {
             await this.trackOutcome(
                 DataAppAnalysisService.idsFromAccount(account),
                 projectUuid,
-                { kind: 'app', appUuid },
+                locator,
                 {
                     operation: 'investigate',
                     outcome: outcomeForError(e),
@@ -1503,32 +1509,34 @@ export class DataAppAnalysisService extends BaseService {
     private async investigateChecked(
         account: Account,
         projectUuid: string,
-        appUuid: string,
+        locator: AnalysisTargetLocator,
         analysisId: string,
         body: DataAppInvestigateRequest,
     ): Promise<{ jobId: string }> {
-        const { user } = await this.assertAppViewer(
-            account,
-            projectUuid,
-            appUuid,
-        );
+        const { user } = await this.assertViewer(account, projectUuid, locator);
         const detection = await this.getDetectionForViewer(
             user,
-            appUuid,
+            locator,
             analysisId,
         );
         if (!detection.result.anomalies.some((a) => a.id === body.anomalyId)) {
             throw new NotFoundError('Anomaly not found in this analysis');
         }
         await this.assertAgentUsable(user, projectUuid, body.agentUuid);
-        await this.assertRate(user.userUuid, appUuid, 'investigate');
+        await this.assertRate(
+            user.userUuid,
+            locator.kind === 'app' ? locator.appUuid : locator.dashboardUuid,
+            'investigate',
+        );
         await this.assertDailyBudget(user.organizationUuid!, 'investigate');
 
         return this.schedulerClient.dataAppInvestigate({
             organizationUuid: user.organizationUuid!,
             projectUuid,
             userUuid: user.userUuid,
-            appUuid,
+            target: locator,
+            // Legacy key: a not-yet-upgraded worker can still run app jobs.
+            ...(locator.kind === 'app' ? { appUuid: locator.appUuid } : {}),
             analysisId,
             anomalyId: body.anomalyId,
             agentUuid: body.agentUuid,
@@ -1544,7 +1552,7 @@ export class DataAppAnalysisService extends BaseService {
             .map(([fieldId, value]) => `${fieldId} = ${value}`)
             .join(', ');
         return [
-            'A viewer of a data app asked why one data point on the page is notable. Investigate the possible drivers and explain the supporting evidence.',
+            'A viewer asked why one data point on the page they have open is notable. Investigate the possible drivers and explain the supporting evidence.',
             '',
             `Finding: ${anomaly.text}`,
             `Source query: ${sourceLabel ?? anomaly.queryUuid}`,
@@ -1655,16 +1663,17 @@ export class DataAppAnalysisService extends BaseService {
                     payload.organizationUuid,
                 );
             const account = fromSession(sessionUser);
+            const locator = DataAppAnalysisService.payloadLocator(payload);
             // Re-run every gate: consent or access may have changed since queueing.
-            const { user, appVersion } = await this.assertAppViewer(
+            const { user, target } = await this.assertViewer(
                 account,
                 payload.projectUuid,
-                payload.appUuid,
+                locator,
             );
-            meta.appVersion = appVersion;
+            meta.appVersion = target.kind === 'app' ? target.appVersion : null;
             const detection = await this.getDetectionForViewer(
                 user,
-                payload.appUuid,
+                locator,
                 payload.analysisId,
             );
             const anomaly = detection.result.anomalies.find(
@@ -1696,8 +1705,24 @@ export class DataAppAnalysisService extends BaseService {
                         source?.label ?? null,
                         content,
                     ),
-                    context: [{ type: 'data_app', appUuid: payload.appUuid }],
+                    context: [
+                        target.kind === 'app'
+                            ? { type: 'data_app', appUuid: target.appUuid }
+                            : {
+                                  type: 'dashboard',
+                                  dashboardUuid: target.dashboardUuid,
+                              },
+                    ],
                 },
+                // Dashboard investigations also write the data_app origin
+                // for now: during a rolling deploy an older pod reading
+                // 'dashboard_analysis' would treat the thread as
+                // unrestricted (no investigation tool allowlist, no
+                // deep-research block, no continue consent). The read side
+                // already handles both origins; flip this write to
+                // 'dashboard_analysis' once a release with that read support
+                // is the deployment floor. The dashboard context item on the
+                // thread carries the real target.
                 'data_app',
             );
             if (!thread) {
@@ -1751,7 +1776,7 @@ export class DataAppAnalysisService extends BaseService {
             const row = await this.dataAppAnalysisModel.create({
                 organizationUuid: payload.organizationUuid,
                 projectUuid: payload.projectUuid,
-                target: { kind: 'app', appUuid: payload.appUuid, appVersion },
+                target,
                 createdByUserUuid: user.userUuid,
                 operation: 'investigate',
                 sources: source ? [source] : [],
@@ -1785,7 +1810,7 @@ export class DataAppAnalysisService extends BaseService {
             await this.trackOutcome(
                 DataAppAnalysisService.idsFromPayload(payload),
                 payload.projectUuid,
-                { kind: 'app', appUuid: payload.appUuid },
+                DataAppAnalysisService.payloadLocator(payload),
                 {
                     operation: 'investigate',
                     outcome: 'ok',
@@ -1807,7 +1832,7 @@ export class DataAppAnalysisService extends BaseService {
             await this.trackOutcome(
                 DataAppAnalysisService.idsFromPayload(payload),
                 payload.projectUuid,
-                { kind: 'app', appUuid: payload.appUuid },
+                DataAppAnalysisService.payloadLocator(payload),
                 {
                     operation: 'investigate',
                     outcome: outcomeForError(e),
@@ -1828,7 +1853,7 @@ export class DataAppAnalysisService extends BaseService {
         await this.trackOutcome(
             DataAppAnalysisService.idsFromPayload(payload),
             payload.projectUuid,
-            { kind: 'app', appUuid: payload.appUuid },
+            DataAppAnalysisService.payloadLocator(payload),
             {
                 operation: 'investigate',
                 outcome: 'timeout',
@@ -1846,6 +1871,17 @@ export class DataAppAnalysisService extends BaseService {
             userId: account.user.id,
             organizationId: account.organization?.organizationUuid ?? null,
         };
+    }
+
+    /** Pre-target jobs carried only appUuid; they are app investigations. */
+    private static payloadLocator(
+        payload: DataAppInvestigateJobPayload,
+    ): AnalysisTargetLocator {
+        if (payload.target) return payload.target;
+        if (payload.appUuid) {
+            return { kind: 'app', appUuid: payload.appUuid };
+        }
+        throw new ParameterError('Investigation job names no target');
     }
 
     private static idsFromPayload(
