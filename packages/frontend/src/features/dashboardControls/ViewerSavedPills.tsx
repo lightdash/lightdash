@@ -7,6 +7,7 @@ import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    selectControlSections,
     selectDashboardFilters,
     selectDashboardTiles,
     selectParameterValues,
@@ -19,12 +20,23 @@ import {
     isFilterHiddenOnTab,
     useFilterTabPlacement,
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
+import { isRuleInSection } from './sections';
 import { useFiltersStartOfWeek } from './useFiltersStartOfWeek';
+
+export type PillPopoverState = {
+    openPopoverId: string | undefined;
+    onPopoverOpen: (id: string) => void;
+    onPopoverClose: () => void;
+};
 
 type Props = {
     activeTabUuid: string | undefined;
     triggerClassName: string | undefined;
     dropdownClassName: string | undefined;
+    /** `undefined`: every saved rule; `null`: the unsectioned ones; a section's members */
+    sectionId: string | null | undefined;
+    /** Shared across passes of one bar; local when absent */
+    popover: PillPopoverState | undefined;
 };
 
 type Group = 'dimensions' | 'metrics';
@@ -36,13 +48,19 @@ export const ViewerSavedPills: FC<Props> = ({
     activeTabUuid,
     triggerClassName,
     dropdownClassName,
+    sectionId,
+    popover,
 }) => {
     const projectUuid = useProjectUuid();
     const startOfWeek = useFiltersStartOfWeek(projectUuid);
-    const [openPopoverId, setOpenPopoverId] = useState<string>();
-    const closePopover = useCallback(() => setOpenPopoverId(undefined), []);
+    const [localOpenId, setLocalOpenId] = useState<string>();
+    const closeLocal = useCallback(() => setLocalOpenId(undefined), []);
+    const openPopoverId = popover ? popover.openPopoverId : localOpenId;
+    const onPopoverOpen = popover ? popover.onPopoverOpen : setLocalOpenId;
+    const onPopoverClose = popover ? popover.onPopoverClose : closeLocal;
 
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
+    const sections = useDashboardSelector(selectControlSections);
     const allFilters = useDashboardAllFilters();
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const parameterValues = useDashboardSelector(selectParameterValues);
@@ -84,7 +102,10 @@ export const ViewerSavedPills: FC<Props> = ({
             parameterValues={parameterValues}
         >
             {GROUPS.flatMap((group) =>
+                // The index is the saved one: remove and update need it
                 dashboardFilters[group].map((item, index) => {
+                    if (!isRuleInSection(item, sectionId, sections))
+                        return null;
                     const appliesToTabs = getTabsUsingFilter(item);
                     if (isFilterHiddenOnTab(appliesToTabs, activeTabUuid))
                         return null;
@@ -119,8 +140,8 @@ export const ViewerSavedPills: FC<Props> = ({
                             triggerClassName={triggerClassName}
                             dropdownClassName={dropdownClassName}
                             openPopoverId={openPopoverId}
-                            onPopoverOpen={setOpenPopoverId}
-                            onPopoverClose={closePopover}
+                            onPopoverOpen={onPopoverOpen}
+                            onPopoverClose={onPopoverClose}
                             onRemove={remove}
                             onUpdate={(value) =>
                                 (group === 'metrics'

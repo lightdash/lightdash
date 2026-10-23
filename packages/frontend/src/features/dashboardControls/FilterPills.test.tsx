@@ -918,6 +918,89 @@ describe('FilterPills', () => {
             ).toHaveLength(5);
         });
 
+        describe('by section', () => {
+            const inSection = { ...noDefaultRule, sectionId: 'a' };
+            const clickApply = async (
+                user: ReturnType<typeof userEvent.setup>,
+                name: RegExp,
+            ) => {
+                await user.click(pill(name));
+                await user.click(
+                    await screen.findByRole('button', { name: 'Apply' }),
+                );
+            };
+
+            beforeEach(() => {
+                setContext({
+                    dashboard: {
+                        uuid: 'dashboard-1',
+                        filters: noFilters,
+                        config: { controlSections: [{ id: 'a', name: 'A' }] },
+                    },
+                    dashboardFilters: {
+                        ...filters,
+                        dimensions: [savedRule, inSection],
+                    },
+                });
+            });
+
+            it('renders every saved rule and the own pills by default', () => {
+                renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+                expect(pill(/^Status/)).toBeInTheDocument();
+                expect(pill(/^Region/)).toBeInTheDocument();
+                expect(pill(/^Order region/)).toBeInTheDocument();
+            });
+
+            it('renders the unsectioned rules and the own pills for null', () => {
+                renderWithProviders(
+                    <FilterPills activeTabUuid={undefined} sectionId={null} />,
+                );
+                expect(pill(/^Status/)).toBeInTheDocument();
+                expect(queryPill(/^Region/)).toBeNull();
+                expect(pill(/^Order region/)).toBeInTheDocument();
+            });
+
+            it("renders a section's rules alone, writing on the saved index", async () => {
+                const user = userEvent.setup();
+                const updateDimensionDashboardFilter = vi.fn();
+                setContext({ updateDimensionDashboardFilter });
+                renderWithProviders(
+                    <FilterPills activeTabUuid={undefined} sectionId="a" />,
+                );
+                expect(queryPill(/^Status/)).toBeNull();
+                expect(queryPill(/^Order region/)).toBeNull();
+
+                await clickApply(user, /^Region/);
+                expect(updateDimensionDashboardFilter).toHaveBeenCalledWith(
+                    expect.objectContaining({ id: 'no-default' }),
+                    1,
+                    false,
+                    false,
+                );
+            });
+
+            it('opens one popover across passes through the shared state', async () => {
+                const user = userEvent.setup();
+                const onPopoverOpen = vi.fn();
+                renderWithProviders(
+                    <FilterPills
+                        activeTabUuid={undefined}
+                        sectionId="a"
+                        popover={{
+                            openPopoverId: undefined,
+                            onPopoverOpen,
+                            onPopoverClose: vi.fn(),
+                        }}
+                    />,
+                );
+
+                await user.click(pill(/^Region/));
+                // The shipped pill names its popover with its own id
+                expect(onPopoverOpen).toHaveBeenCalledWith(expect.any(String));
+                expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            });
+        });
+
         it('leaves a locked saved pill read-only, as the shipped pill', async () => {
             const user = userEvent.setup();
             setContext({

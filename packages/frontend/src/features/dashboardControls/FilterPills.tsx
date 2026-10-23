@@ -28,10 +28,18 @@ import { FilterPill, type FilterPillKind } from './FilterPill';
 import { isPlaceholderRule } from './sidebarState';
 import { TemporaryFilterPills } from './TemporaryFilterPills';
 import { useControlsSidebarSelector } from './useControlsSidebar';
-import { ViewerSavedPills } from './ViewerSavedPills';
+import { ViewerSavedPills, type PillPopoverState } from './ViewerSavedPills';
 
 type Props = {
     activeTabUuid: string | undefined;
+    /**
+     * View mode only. `undefined` (default): every saved rule and the
+     * viewer's own; `null`: the unsectioned saved rules and the viewer's own;
+     * a string: that section's saved rules alone.
+     */
+    sectionId?: string | null;
+    /** A viewer's saved popover state, shared across the bar's passes (default: local) */
+    popover?: PillPopoverState;
     /** An embed's class contract hook on each pill (default none). */
     triggerClassName?: string;
     /** An embed's class contract hook on a saved pill's popover (default none). */
@@ -44,6 +52,8 @@ const GROUPS: FilterPillGroup[] = ['dimensions', 'metrics'];
 
 export const FilterPills: FC<Props> = ({
     activeTabUuid,
+    sectionId,
+    popover,
     triggerClassName,
     dropdownClassName,
 }) => {
@@ -158,6 +168,8 @@ export const FilterPills: FC<Props> = ({
                     activeTabUuid={activeTabUuid}
                     triggerClassName={triggerClassName}
                     dropdownClassName={dropdownClassName}
+                    sectionId={sectionId}
+                    popover={popover}
                 />
             ) : (
                 GROUPS.map((group) => {
@@ -199,8 +211,9 @@ export const FilterPills: FC<Props> = ({
                 })
             )}
             {/* A viewer's own filters open in the rail too; in edit mode
-                they keep the shipped popover */}
+                they keep the shipped popover. They are never in a section */}
             {isViewer ? (
+                typeof sectionId !== 'string' &&
                 GROUPS.flatMap((group) =>
                     temporaryFilters[group].map((filter) => {
                         const pill = renderPill(filter, group, 'viewerOwn');
