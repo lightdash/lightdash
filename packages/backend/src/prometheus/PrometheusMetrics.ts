@@ -33,6 +33,7 @@ import {
     type ComposerQuerySource,
     type ComposerQueryStage,
 } from '../services/AsyncQueryService/composerQueryStage';
+import type { WarehouseExecutionSource } from '../services/AsyncQueryService/types';
 import {
     serializeOtelHttpMetrics,
     shutdownOtelHttpMetrics,
@@ -1612,7 +1613,7 @@ export default class PrometheusMetrics {
 
     public observeS3ResultsUploadDuration(
         durationMs: number,
-        source: 'warehouse' | 'pre_aggregate_duckdb',
+        source: WarehouseExecutionSource,
     ) {
         this.s3ResultsUploadDurationHistogram?.observe(
             { source },

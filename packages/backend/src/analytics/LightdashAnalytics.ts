@@ -671,7 +671,8 @@ type QueryExecutionSource =
     | 'warehouse'
     | 'pre_aggregate_duckdb'
     | 'pre_aggregate_warehouse'
-    | 'external_source_duckdb';
+    | 'external_source_duckdb'
+    | 'composer_duckdb';
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';

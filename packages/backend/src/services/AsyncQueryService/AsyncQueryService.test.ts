@@ -2458,7 +2458,10 @@ describe('AsyncQueryService', () => {
                 instanceCacheKey: COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
             });
             expect(runAsyncWarehouseSpy.mock.calls[0][0]).toMatchObject({
-                warehouseClientOverride: warehouseClientMock,
+                warehouseClientOverride: {
+                    client: warehouseClientMock,
+                    executionSource: 'composer_duckdb',
+                },
                 query: expect.stringContaining(
                     "read_json('s3://mock_bucket/referenced-results.jsonl'",
                 ),
@@ -11122,7 +11125,10 @@ describe('AsyncQueryService', () => {
                     client.executeAsyncQuery.mockRejectedValueOnce(queryError);
                 const run = service.runAsyncWarehouseQuery({
                     ...args,
-                    warehouseClientOverride: client,
+                    warehouseClientOverride: {
+                        client,
+                        executionSource: 'pre_aggregate_duckdb',
+                    },
                     resultProducerOverride: {
                         version: 1,
                         warehouseConnectionUuid: null,
@@ -15940,7 +15946,10 @@ describe('runDuckdbQuery', () => {
             'sql_query_explorer_one',
         ]);
         expect(executed.pivotConfiguration).toBeUndefined();
-        expect(executed.warehouseClientOverride).toBe(warehouseClient);
+        expect(executed.warehouseClientOverride).toEqual({
+            client: warehouseClient,
+            executionSource: 'composer_duckdb',
+        });
         expect(update).toHaveBeenCalledWith(
             'duckdb-query-uuid',
             projectUuid,
@@ -16145,9 +16154,12 @@ describe('runDuckdbQuery', () => {
             ],
         });
         expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
-        expect(runWarehouseQuery.mock.calls[0][0].warehouseClientOverride).toBe(
-            warehouseClientMock,
-        );
+        expect(
+            runWarehouseQuery.mock.calls[0][0].warehouseClientOverride,
+        ).toEqual({
+            client: warehouseClientMock,
+            executionSource: 'composer_duckdb',
+        });
     });
 
     it('bound references attach without waiting on any query and persist the stored SQL', async () => {
