@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import type {
     CreateOrUpdateArtifactFn,
+    ResolveCustomChartTypeFn,
     RunComposerQueriesFn,
 } from '../types/aiAgentDependencies';
 import { getVisualize } from './visualize';
@@ -72,6 +73,27 @@ const barConfig: ToolVisualizeArgs['vizConfig'] = {
     labels: null,
 };
 
+const customConfig: ToolVisualizeArgs['vizConfig'] = {
+    type: 'custom',
+    customChartTypeSlug: 'status-ribbon',
+    fieldMapping: {
+        month: 'orders_order_date_month',
+        status: 'orders_status',
+        amount: 'orders_total_order_amount',
+    },
+    options: null,
+};
+
+const resolveStatusRibbon: ResolveCustomChartTypeFn = async (slug) =>
+    slug === 'status-ribbon'
+        ? {
+              dataAppVizUuid: 'viz-uuid',
+              name: 'Status ribbon',
+              dataAppVizVersion: 3,
+              schema: { fields: [], configOptions: [], colorPalette: null },
+          }
+        : null;
+
 const makeRun = (
     rows: Record<string, unknown>[],
 ): Awaited<ReturnType<RunComposerQueriesFn>> => ({
@@ -101,10 +123,12 @@ const makeTool = ({
     threadNodes = [ordersNode, shareNode, unrelatedNode],
     rows = [],
     currentPrompt = prompt,
+    resolveCustomChartType = resolveStatusRibbon,
 }: {
     threadNodes?: ThreadComposerQueryNode[];
     rows?: Record<string, unknown>[];
     currentPrompt?: AiWebAppPrompt;
+    resolveCustomChartType?: ResolveCustomChartTypeFn;
 } = {}) => {
     const versions: Parameters<CreateOrUpdateArtifactFn>[0][] = [];
     const runComposerQueries = vi.fn(async () => makeRun(rows));
@@ -112,6 +136,7 @@ const makeTool = ({
         getPrompt: async () => currentPrompt,
         listThreadComposerQueryNodes: async () => threadNodes,
         runComposerQueries,
+        resolveCustomChartType,
         createOrUpdateArtifact: async (data) => {
             versions.push(data);
             return {
@@ -306,5 +331,37 @@ describe('visualize', () => {
         expect(slack.runComposerQueries).not.toHaveBeenCalled();
         expect(webTable.metadata).toMatchObject({ queryUuid: null });
         expect(slackChart.metadata).toMatchObject({ queryUuid: null });
+    });
+
+    it('pins the custom chart type version it resolved from the slug', async () => {
+        const { visualize, versions, runComposerQueries } = makeTool();
+
+        const output = await visualize({ vizConfig: customConfig });
+
+        expect(output.metadata.status).toBe('success');
+        expect(versions[0].vizConfig).toMatchObject({
+            schemaVersion: 2,
+            terminalNodeId: 'orders',
+            vizConfig: {
+                ...customConfig,
+                dataAppVizUuid: 'viz-uuid',
+                dataAppVizVersion: 3,
+            },
+        });
+        expect(runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unknown custom chart type slug without writing a card', async () => {
+        const { visualize, versions } = makeTool();
+
+        const output = await visualize({
+            vizConfig: { ...customConfig, customChartTypeSlug: 'sankey' },
+        });
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain(
+            'Custom chart type "sankey" does not exist in this project',
+        );
+        expect(versions).toEqual([]);
     });
 });

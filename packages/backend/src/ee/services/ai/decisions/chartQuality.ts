@@ -2,6 +2,7 @@ import {
     DimensionType,
     isCustomChartTypeSlugChartConfig,
     type ComposerBuiltinChartVizConfig,
+    type ComposerChartVizConfig,
     type ResultColumns,
     type ToolRunQueryArgsTransformed,
 } from '@lightdash/common';
@@ -67,13 +68,16 @@ const getSeriesSplit = (vizConfig: ComposerBuiltinChartVizConfig) =>
 
 /** Whether composerChartQualityHints may note anything, so reading rows is worth it. */
 export const composerChartQualityHintsNeedRows = (
-    vizConfig: ComposerBuiltinChartVizConfig,
-): boolean => vizConfig.type === 'pie' || getSeriesSplit(vizConfig).length > 0;
+    vizConfig: ComposerChartVizConfig,
+): boolean =>
+    vizConfig.type !== 'custom' &&
+    (vizConfig.type === 'pie' || getSeriesSplit(vizConfig).length > 0);
 
 export const composerChartQualityHints = (
-    vizConfig: ComposerBuiltinChartVizConfig,
+    vizConfig: ComposerChartVizConfig,
     { columns, rows }: { columns: ResultColumns; rows: Rows },
 ): string[] => {
+    if (vizConfig.type === 'custom') return [];
     const groups = getSeriesSplit(vizConfig);
     // A pie without x slices by the first non-numeric column, as it renders.
     const pieDimension =

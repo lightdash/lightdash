@@ -248,6 +248,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             getPrompt: noop,
             listThreadComposerQueryNodes: noop,
             runComposerQueries: noop,
+            resolveCustomChartType: noop,
             createOrUpdateArtifact: noop,
             updateProgress: noopAsync,
         }),

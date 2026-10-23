@@ -22065,6 +22065,78 @@ Pie and series-split charts return readability notes when they have many slices 
           ],
           "type": "object",
         },
+        "__schema8": {
+          "anyOf": [
+            {
+              "type": "string",
+            },
+            {
+              "items": {
+                "description": "A result column reference of the presented node",
+                "type": "string",
+              },
+              "type": "array",
+            },
+          ],
+          "description": "A result column reference of the presented node",
+        },
+        "__schema9": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "colors": {
+                    "items": {
+                      "type": "string",
+                    },
+                    "maxItems": 5,
+                    "minItems": 2,
+                    "type": "array",
+                  },
+                  "max": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                      },
+                      {
+                        "const": "auto",
+                        "type": "string",
+                      },
+                    ],
+                  },
+                  "min": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                      },
+                      {
+                        "const": "auto",
+                        "type": "string",
+                      },
+                    ],
+                  },
+                },
+                "required": [
+                  "colors",
+                  "min",
+                  "max",
+                ],
+                "type": "object",
+              },
+              {
+                "type": "string",
+              },
+              {
+                "type": "number",
+              },
+              {
+                "type": "boolean",
+              },
+            ],
+          },
+          "type": "object",
+        },
       },
       "properties": {
         "description": {
@@ -22083,95 +22155,138 @@ Pie and series-split charts return readability notes when they have many slices 
           "type": "string",
         },
         "vizConfig": {
-          "additionalProperties": false,
-          "properties": {
-            "groupBy": {
-              "description": "Columns that split y into one series per value. bar/line/area/scatter only. Must not include x.",
-              "items": {
-                "description": "A result column reference of the presented node",
-                "type": "string",
-              },
-              "type": [
-                "array",
-                "null",
-              ],
-            },
-            "horizontal": {
-              "description": "bar only: draw bars horizontally.",
-              "type": [
-                "boolean",
-                "null",
-              ],
-            },
-            "labels": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/__schema6",
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "groupBy": {
+                  "description": "Columns that split y into one series per value. bar/line/area/scatter only. Must not include x.",
+                  "items": {
+                    "description": "A result column reference of the presented node",
+                    "type": "string",
+                  },
+                  "type": [
+                    "array",
+                    "null",
+                  ],
                 },
-                {
-                  "type": "null",
+                "horizontal": {
+                  "description": "bar only: draw bars horizontally.",
+                  "type": [
+                    "boolean",
+                    "null",
+                  ],
                 },
-              ],
-              "description": "Axis titles. big_number uses labels.y as its label.",
-            },
-            "stack": {
-              "description": "bar: stack series on top of each other. area always stacks. Ignored elsewhere.",
-              "type": [
-                "boolean",
-                "null",
-              ],
-            },
-            "type": {
-              "description": "Chart type. area is a filled line.",
-              "enum": [
-                "table",
-                "big_number",
-                "bar",
-                "line",
-                "area",
-                "scatter",
-                "pie",
-                "funnel",
-              ],
-              "type": "string",
-            },
-            "x": {
-              "description": "Category or time column. bar/line/area/scatter/pie/funnel. null for table/big_number, or to use the first non-numeric column.",
-              "type": [
-                "string",
-                "null",
-              ],
-            },
-            "y": {
-              "description": "Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.",
-              "items": {
-                "description": "A result column reference of the presented node",
-                "type": "string",
+                "labels": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/__schema6",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Axis titles. big_number uses labels.y as its label.",
+                },
+                "stack": {
+                  "description": "bar: stack series on top of each other. area always stacks. Ignored elsewhere.",
+                  "type": [
+                    "boolean",
+                    "null",
+                  ],
+                },
+                "type": {
+                  "description": "Chart type. area is a filled line.",
+                  "enum": [
+                    "table",
+                    "big_number",
+                    "bar",
+                    "line",
+                    "area",
+                    "scatter",
+                    "pie",
+                    "funnel",
+                  ],
+                  "type": "string",
+                },
+                "x": {
+                  "description": "Category or time column. bar/line/area/scatter/pie/funnel. null for table/big_number, or to use the first non-numeric column.",
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "y": {
+                  "description": "Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.",
+                  "items": {
+                    "description": "A result column reference of the presented node",
+                    "type": "string",
+                  },
+                  "type": [
+                    "array",
+                    "null",
+                  ],
+                },
+                "y2": {
+                  "description": "Column on a secondary (right) y axis. bar/line/area (drawn as a line on area). Must not be in y.",
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
               },
-              "type": [
-                "array",
-                "null",
+              "required": [
+                "type",
+                "x",
+                "y",
+                "groupBy",
+                "stack",
+                "horizontal",
+                "y2",
+                "labels",
               ],
+              "type": "object",
             },
-            "y2": {
-              "description": "Column on a secondary (right) y axis. bar/line/area (drawn as a line on area). Must not be in y.",
-              "type": [
-                "string",
-                "null",
+            {
+              "additionalProperties": false,
+              "properties": {
+                "customChartTypeSlug": {
+                  "description": "Slug of the custom chart type.",
+                  "type": "string",
+                },
+                "fieldMapping": {
+                  "additionalProperties": {
+                    "$ref": "#/definitions/__schema8",
+                  },
+                  "description": "Binds each slot of the type, by slot name, to a column, or ordered columns for a multiple slot. The slot's kind sets the column's role: a metric slot is measured, a series slot splits the chart into one series per value, and a dimension or column slot groups, so a numeric column there is grouped, not measured. A measure split by series goes in a metric slot.",
+                  "type": "object",
+                },
+                "options": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/__schema9",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                  "description": "Values for the type's options; null for defaults.",
+                },
+                "type": {
+                  "const": "custom",
+                  "description": "Renders one of this project's custom chart types.",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "type",
+                "customChartTypeSlug",
+                "fieldMapping",
+                "options",
               ],
+              "type": "object",
             },
-          },
-          "required": [
-            "type",
-            "x",
-            "y",
-            "groupBy",
-            "stack",
-            "horizontal",
-            "y2",
-            "labels",
           ],
-          "type": "object",
         },
       },
       "required": [

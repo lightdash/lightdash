@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
-import { composerBuiltinChartVizConfigSchemaV1 } from './composerChartVizConfigSchema';
+import { composerChartVizConfigSchema } from './composerChartVizConfigSchema';
 
 export const TOOL_VISUALIZE_DESCRIPTION = `Visualize a node's result for the user as a chart or table. Each call adds one card to the thread; a result stays hidden until it is visualized.
 
@@ -23,7 +23,7 @@ const toolVisualizeArgsSchemaV1 = createToolSchema()
             .describe(
                 'One sentence on what the card shows, only when the title is not enough. Null otherwise.',
             ),
-        vizConfig: composerBuiltinChartVizConfigSchemaV1,
+        vizConfig: composerChartVizConfigSchema,
     })
     .build();
 

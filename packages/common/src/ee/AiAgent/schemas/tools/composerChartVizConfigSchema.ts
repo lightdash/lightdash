@@ -63,12 +63,14 @@ export const composerBuiltinChartVizConfigSchemaV1 = z.object({
 });
 
 const composerCustomChartVizConfigSchemaV1 = z.object({
-    type: z.literal('custom').describe('Renders a custom chart type.'),
+    type: z
+        .literal('custom')
+        .describe("Renders one of this project's custom chart types."),
     customChartTypeSlug: z.string().describe('Slug of the custom chart type.'),
     fieldMapping: z
         .record(z.string(), z.union([refSchema, z.array(refSchema)]))
         .describe(
-            'Binds each slot of the custom chart type to a column, or ordered columns for a multiple slot.',
+            "Binds each slot of the type, by slot name, to a column, or ordered columns for a multiple slot. The slot's kind sets the column's role: a metric slot is measured, a series slot splits the chart into one series per value, and a dimension or column slot groups, so a numeric column there is grouped, not measured. A measure split by series goes in a metric slot.",
         ),
     options: z
         .record(z.string(), customChartTypeOptionValueSchema)
@@ -76,7 +78,7 @@ const composerCustomChartVizConfigSchemaV1 = z.object({
         .describe("Values for the type's options; null for defaults."),
 });
 
-const composerChartVizConfigSchemaV1 = z.discriminatedUnion('type', [
+const composerChartVizConfigSchemaV1 = z.union([
     composerBuiltinChartVizConfigSchemaV1,
     composerCustomChartVizConfigSchemaV1,
 ]);
