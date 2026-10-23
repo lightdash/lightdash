@@ -43,7 +43,7 @@ import { type UnderlyingDataConfig } from './types';
 import UnderlyingDataFilterBadges from './UnderlyingDataFilterBadges';
 import {
     combineUnderlyingDataFilters,
-    getUnderlyingDataFilterParts,
+    getUnderlyingDataFilterPartsFromConfig,
 } from './underlyingDataFilters';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
@@ -136,23 +136,15 @@ const UnderlyingDataModalContent: FC<{
     // Flat rules scoping the results to the clicked chart segment/cell, kept
     // separate from the grouped explore filters so they can be surfaced in the
     // header filter summary
-    const filterParts = useMemo(() => {
-        if (!underlyingDataConfig) return null;
-        const { item, fieldValues, pivotReference, value, dateZoom } =
-            underlyingDataConfig;
-
-        if (item === undefined) return null;
-
-        return getUnderlyingDataFilterParts({
-            item,
-            value,
-            fieldValues,
-            pivotReference,
-            dateZoom,
-            allDimensions,
-            resolvedTimezone,
-        });
-    }, [underlyingDataConfig, allDimensions, resolvedTimezone]);
+    const filterParts = useMemo(
+        () =>
+            getUnderlyingDataFilterPartsFromConfig({
+                underlyingDataConfig,
+                allDimensions,
+                resolvedTimezone,
+            }),
+        [underlyingDataConfig, allDimensions, resolvedTimezone],
+    );
 
     const filters = useMemo<Filters>(() => {
         if (!filterParts) return {};
