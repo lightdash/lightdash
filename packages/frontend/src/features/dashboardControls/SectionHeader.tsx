@@ -10,6 +10,8 @@ import {
     IconChevronRight,
     IconDots,
     IconGripVertical,
+    IconPencil,
+    IconTrash,
 } from '@tabler/icons-react';
 import { useRef, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -182,10 +184,23 @@ export const SectionHeader: FC<Props> = ({
                             </ActionIcon>
                         </Menu.Target>
                         <Menu.Dropdown>
-                            <Menu.Item fz="xs" onClick={onRename}>
+                            <Menu.Item
+                                fz="xs"
+                                leftSection={
+                                    <MantineIcon icon={IconPencil} size={14} />
+                                }
+                                onClick={onRename}
+                            >
                                 Rename
                             </Menu.Item>
-                            <Menu.Item fz="xs" color="red" onClick={onRemove}>
+                            <Menu.Item
+                                fz="xs"
+                                color="red"
+                                leftSection={
+                                    <MantineIcon icon={IconTrash} size={14} />
+                                }
+                                onClick={onRemove}
+                            >
                                 Remove section
                             </Menu.Item>
                         </Menu.Dropdown>
