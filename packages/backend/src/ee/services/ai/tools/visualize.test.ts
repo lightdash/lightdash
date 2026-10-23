@@ -142,6 +142,7 @@ const makeTool = ({
         listThreadComposerQueryNodes: async () => threadNodes,
         runComposerQueries,
         resolveCustomChartType,
+        maxQueryLimit: 1000,
         createOrUpdateArtifact: async (data) => {
             versions.push(data);
             return {
@@ -208,34 +209,92 @@ describe('visualize', () => {
         expect(runComposerQueries).not.toHaveBeenCalled();
     });
 
-    it('draws a stacked bar by status from a series split', async () => {
+    it('writes a classic semantic version for a lone semantic node', async () => {
         const { visualize, versions, runComposerQueries } = makeTool({
             rows: [
                 { orders_status: 'completed' },
                 { orders_status: 'returned' },
             ],
         });
-        const stacked = {
-            ...barConfig,
-            groupBy: ['orders_status'],
-            stack: true,
-        };
 
-        const output = await visualize({ vizConfig: stacked });
+        const output = await visualize({
+            vizConfig: {
+                ...barConfig,
+                groupBy: ['orders_status'],
+                stack: true,
+                labels: { x: 'Month', y: 'Amount', y2: null },
+            },
+        });
 
-        expect(output.metadata.status).toBe('success');
-        expect(output.structuredContent).toEqual({
-            nodeId: 'orders',
-            hints: [],
+        expect(output.metadata).toMatchObject({
+            status: 'success',
+            versionUuid: 'version-1',
         });
-        expect(versions[0].vizConfig).toMatchObject({
-            schemaVersion: 2,
-            terminalNodeId: 'orders',
-            vizConfig: stacked,
-        });
+        expect(versions).toEqual([
+            {
+                threadUuid: 'thread-uuid',
+                promptUuid: 'prompt-uuid',
+                artifactType: 'chart',
+                title: 'Order amount by month',
+                vizConfig: {
+                    source: 'semantic',
+                    config: {
+                        title: 'Order amount by month',
+                        description: '',
+                        queryConfig: {
+                            exploreName: 'orders',
+                            dimensions: [
+                                'orders_order_date_month',
+                                'orders_status',
+                            ],
+                            metrics: ['orders_total_order_amount'],
+                            filters: null,
+                            sorts: [],
+                            limit: 500,
+                            parameters: null,
+                            customMetrics: null,
+                            tableCalculations: null,
+                        },
+                        chartConfig: {
+                            defaultVizType: 'bar',
+                            xAxisDimension: 'orders_order_date_month',
+                            yAxisMetrics: ['orders_total_order_amount'],
+                            groupBy: ['orders_status'],
+                            xAxisType: null,
+                            stackBars: true,
+                            lineType: null,
+                            xAxisLabel: 'Month',
+                            yAxisLabel: 'Amount',
+                            secondaryYAxisMetric: null,
+                            secondaryYAxisLabel: null,
+                        },
+                        mergeConfig: null,
+                    },
+                },
+            },
+        ]);
         expect(runComposerQueries).toHaveBeenCalledWith({
             queries: [ordersNode],
             terminalNodeId: 'orders',
+        });
+    });
+
+    it('writes a composer version for a lone semantic node classic charts cannot draw', async () => {
+        const { visualize, versions } = makeTool();
+        const bigNumber = {
+            ...barConfig,
+            type: 'big_number' as const,
+            x: null,
+        };
+
+        await visualize({ vizConfig: bigNumber });
+
+        expect(versions[0].vizConfig).toEqual({
+            source: 'composer',
+            schemaVersion: 2,
+            queries: [ordersNode],
+            terminalNodeId: 'orders',
+            vizConfig: bigNumber,
         });
     });
 
@@ -257,8 +316,11 @@ describe('visualize', () => {
     it('writes one version per call, so two calls show two cards', async () => {
         const { visualize, versions } = makeTool();
 
-        await visualize();
-        await visualize({ vizConfig: { ...barConfig, type: 'line' } });
+        await visualize({ nodeId: 'share' });
+        await visualize({
+            nodeId: 'share',
+            vizConfig: { ...barConfig, type: 'line' },
+        });
 
         expect(versions).toHaveLength(2);
         expect(versions.map((v) => v.vizConfig.vizConfig)).toEqual([
@@ -409,12 +471,15 @@ describe('visualize', () => {
     it('pins the custom chart type version it resolved from the slug', async () => {
         const { visualize, versions, runComposerQueries } = makeTool();
 
-        const output = await visualize({ vizConfig: customConfig });
+        const output = await visualize({
+            nodeId: 'share',
+            vizConfig: customConfig,
+        });
 
         expect(output.metadata.status).toBe('success');
         expect(versions[0].vizConfig).toMatchObject({
             schemaVersion: 2,
-            terminalNodeId: 'orders',
+            terminalNodeId: 'share',
             vizConfig: {
                 ...customConfig,
                 dataAppVizUuid: 'viz-uuid',
@@ -422,6 +487,27 @@ describe('visualize', () => {
             },
         });
         expect(runComposerQueries).not.toHaveBeenCalled();
+    });
+
+    it('writes a classic custom chart type version for a lone semantic node', async () => {
+        const { visualize, versions } = makeTool();
+
+        await visualize({ vizConfig: customConfig });
+
+        expect(versions[0].vizConfig).toEqual({
+            source: 'customChartType',
+            schemaVersion: 1,
+            dataAppVizUuid: 'viz-uuid',
+            dataAppVizVersion: 3,
+            config: expect.objectContaining({
+                chartConfig: {
+                    customChartTypeSlug: 'status-ribbon',
+                    fieldMapping: customConfig.fieldMapping,
+                    options: null,
+                },
+                mergeConfig: null,
+            }),
+        });
     });
 
     it('rejects an unknown custom chart type slug without writing a card', async () => {

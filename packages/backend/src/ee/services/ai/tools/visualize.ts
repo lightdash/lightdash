@@ -3,9 +3,14 @@ import {
     isComposerSlackImageVizConfig,
     isSlackPrompt,
     ParameterError,
+    QuerySourceType,
     toComposerChartArtifactVersion,
+    toComposerSemanticArtifactVersion,
     visualizeToolDefinition,
+    type AiComposerArtifactVersion,
+    type AiComposerSemanticArtifactVersion,
     type ComposerChartVizConfig,
+    type ComposerPipelineNode,
     type ComposerStoredChartVizConfig,
     type ThreadComposerQueryNode,
 } from '@lightdash/common';
@@ -40,6 +45,7 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
     deferSlackVisualization?: DeferSlackVisualizationFn;
     slackLinksOnly: boolean;
+    maxQueryLimit: number;
 };
 
 type VisualizeOutput =
@@ -88,6 +94,45 @@ const toStoredVizConfig = async (
     };
 };
 
+// A lone semantic-layer node presents as a classic semantic version, keeping its interactions.
+const toArtifactVersion = ({
+    title,
+    description,
+    queries,
+    terminalNodeId,
+    vizConfig,
+    maxQueryLimit,
+}: {
+    title: string;
+    description: string | null;
+    queries: ComposerPipelineNode[];
+    terminalNodeId: string;
+    vizConfig: ComposerStoredChartVizConfig;
+    maxQueryLimit: number;
+}): AiComposerArtifactVersion | AiComposerSemanticArtifactVersion => {
+    const [node, ...rest] = queries;
+    const semantic =
+        rest.length === 0 && node.sourceType === QuerySourceType.SEMANTIC_LAYER
+            ? toComposerSemanticArtifactVersion({
+                  title,
+                  description,
+                  node,
+                  vizConfig,
+                  maxQueryLimit,
+              })
+            : null;
+    return (
+        semantic ??
+        toComposerChartArtifactVersion({
+            title,
+            description,
+            queries,
+            terminalNodeId,
+            vizConfig,
+        })
+    );
+};
+
 export const getVisualize = ({
     getPrompt,
     listThreadComposerQueryNodes,
@@ -97,6 +142,7 @@ export const getVisualize = ({
     updateProgress,
     deferSlackVisualization,
     slackLinksOnly,
+    maxQueryLimit,
 }: Dependencies) =>
     tool({
         description: toolDefinition.description,
@@ -157,12 +203,13 @@ export const getVisualize = ({
                 const artifact = await createOrUpdateArtifact({
                     threadUuid,
                     promptUuid,
-                    ...toComposerChartArtifactVersion({
+                    ...toArtifactVersion({
                         title,
                         description,
                         queries,
                         terminalNodeId: nodeId,
                         vizConfig: storedVizConfig,
+                        maxQueryLimit,
                     }),
                 });
 
