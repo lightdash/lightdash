@@ -6,8 +6,8 @@ referenced result files into `/work/in`, runs `python3 -I runner.py`, and reads
 `/work/out/result.jsonl` and `/work/out/meta.json` back. The sandbox has no
 egress and no credentials.
 
-- Production: `SANDBOX_PROVIDER=e2b`, template `E2B_PYTHON_TEMPLATE_NAME` (default
-  `lightdash-python-runner`) at tag `E2B_PYTHON_TEMPLATE_TAG` (default: running version).
+- Production: `SANDBOX_PROVIDER=e2b`, the warm template (see below) at the running
+  version unless legacy `E2B_PYTHON_TEMPLATE_*` settings are set.
 - Local: `SANDBOX_PROVIDER=docker`, image `SANDBOX_PYTHON_DOCKER_IMAGE` (default
   `lightdash-python-runner:local`), built with `./build-local-image.sh`.
 - Cloud Run: `SANDBOX_PROVIDER=gcp-cloud-run`. The gateway bakes in one image, so
@@ -57,7 +57,7 @@ The backend uses the warm template by default, with tags defaulting to the
 running Lightdash version. Restart API/workers after ENV changes. The composer
 endpoint still requires `compose-sql-runner`.
 
-`E2B_PYTHON_TEMPLATE_NAME` and `E2B_PYTHON_TEMPLATE_TAG` remain backend
-compatibility fallbacks when the corresponding warm setting is absent. Explicit
-custom templates remain supported. Release publishing keeps both variants for
-older backends and explicit overrides.
+If neither `E2B_PYTHON_WARM_TEMPLATE_*` setting is set but `E2B_PYTHON_TEMPLATE_NAME`
+or `E2B_PYTHON_TEMPLATE_TAG` is, the backend keeps their previous meaning (default
+name `lightdash-python-runner`), so self-built cold templates keep working. Release
+publishing keeps both variants for older backends and those settings.
