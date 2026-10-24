@@ -7,6 +7,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     ParameterError,
+    QueryHistoryStatus,
     QuerySourceType,
     UnexpectedServerError,
     type Account,
@@ -18,6 +19,7 @@ import {
     type SourceQuery,
     type SourceQuerySubmission,
 } from '@lightdash/common';
+import { setTimeout as delay } from 'node:timers/promises';
 import { sourceRequiresRawSql } from '../../auth/agentConnectionGrants/operationContracts';
 import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -67,6 +69,13 @@ type ValidatedQuery = {
 
 const MAX_QUERIES = 25;
 const MAX_STATUS_QUERY_UUIDS = 50;
+const MAX_STATUS_WAIT_MS = 10_000;
+const STATUS_WAIT_INTERVAL_MS = 50;
+const RUNNING_QUERY_STATUSES: ReadonlySet<QueryHistoryStatus> = new Set([
+    QueryHistoryStatus.PENDING,
+    QueryHistoryStatus.QUEUED,
+    QueryHistoryStatus.EXECUTING,
+]);
 const NODE_ID_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
 const UUID_PATTERN =
     /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -549,6 +558,60 @@ export class QuerySourceService extends BaseService {
      * query_history. Statuses are creator-scoped, like fetching results.
      */
     async getSourceQueryStatuses(
+        account: Account,
+        projectUuid: string,
+        queryUuids: string[],
+        wait?: { waitMs: number; signal: AbortSignal },
+    ): Promise<ApiGetSourceQueryStatusResults> {
+        const waitMs = Math.min(wait?.waitMs ?? 0, MAX_STATUS_WAIT_MS);
+        const deadline = Date.now() + waitMs;
+        const results = await this.readSourceQueryStatuses(
+            account,
+            projectUuid,
+            queryUuids,
+        );
+        const runningUuids = (
+            statuses: { queryUuid: string; status: QueryHistoryStatus }[],
+        ) =>
+            statuses
+                .filter(({ status }) => RUNNING_QUERY_STATUSES.has(status))
+                .map(({ queryUuid }) => queryUuid);
+        let running = runningUuids(results.statuses);
+        if (!wait || !(waitMs > 0) || running.length === 0) return results;
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.ComposerOptimizationQueryPushReadiness,
+        });
+        if (!enabled) return results;
+
+        const initiallyRunning = running.length;
+        while (running.length > 0 && Date.now() < deadline) {
+            // eslint-disable-next-line no-await-in-loop
+            const slept = await delay(
+                Math.min(STATUS_WAIT_INTERVAL_MS, deadline - Date.now()),
+                true,
+                { signal: wait.signal },
+            ).catch(() => false);
+            // Disconnected client: nobody reads the response
+            if (!slept) return results;
+            // Only re-read running rows; the final full read repeats all checks
+            // eslint-disable-next-line no-await-in-loop
+            const histories = await Promise.all(
+                running.map((queryUuid) =>
+                    this.queryHistoryModel.get(queryUuid, projectUuid, account),
+                ),
+            );
+            running = runningUuids(histories);
+        }
+        return running.length < initiallyRunning
+            ? this.readSourceQueryStatuses(account, projectUuid, queryUuids)
+            : results;
+    }
+
+    private async readSourceQueryStatuses(
         account: Account,
         projectUuid: string,
         queryUuids: string[],

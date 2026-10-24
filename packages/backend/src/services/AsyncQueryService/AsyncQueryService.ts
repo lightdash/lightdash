@@ -803,7 +803,10 @@ export class AsyncQueryService extends ProjectService {
 
     private readonly composeEngineClient: ComposeEngineClient;
 
-    private pythonSandboxRunner: PythonSandboxRunner | undefined;
+    private readonly pythonSandboxRunners = new Map<
+        boolean,
+        PythonSandboxRunner
+    >();
 
     private readonly getQuerySourceService: () => QuerySourceService;
     private readonly getDocumentService: () => DocumentService;
@@ -10921,15 +10924,18 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
-    private getPythonSandboxRunner(): PythonSandboxRunner {
-        if (!this.pythonSandboxRunner) {
-            this.pythonSandboxRunner = new PythonSandboxRunner({
+    private getPythonSandboxRunner(warmTemplate: boolean): PythonSandboxRunner {
+        let runner = this.pythonSandboxRunners.get(warmTemplate);
+        if (!runner) {
+            runner = new PythonSandboxRunner({
                 lightdashConfig: this.lightdashConfig,
                 logger: this.logger,
                 metrics: this.prometheusMetrics ?? null,
+                warmTemplate,
             });
+            this.pythonSandboxRunners.set(warmTemplate, runner);
         }
-        return this.pythonSandboxRunner;
+        return runner;
     }
 
     /**
@@ -11220,7 +11226,22 @@ export class AsyncQueryService extends ProjectService {
                                 resultsFileName: history.resultsFileName,
                             };
                         });
-                    const sandbox = this.getPythonSandboxRunner();
+                    const [
+                        { enabled: warmTemplate },
+                        { enabled: batchSandboxCalls },
+                    ] = await Promise.all([
+                        this.featureFlagModel.get({
+                            user: { organizationUuid },
+                            featureFlagId:
+                                FeatureFlags.ComposerOptimizationPythonWarmTemplate,
+                        }),
+                        this.featureFlagModel.get({
+                            user: { organizationUuid },
+                            featureFlagId:
+                                FeatureFlags.ComposerOptimizationPythonBatchSandboxCalls,
+                        }),
+                    ]);
+                    const sandbox = this.getPythonSandboxRunner(warmTemplate);
                     // Keyed on the files it reads, not the rows it referenced:
                     // an input served from cache mints a new row over the same file
                     const sharedResultsKey = QueryHistoryModel.getCacheKey(
@@ -11350,6 +11371,7 @@ export class AsyncQueryService extends ProjectService {
                         inputs,
                         inputMeta,
                         timeoutMs: AsyncQueryService.PYTHON_RUN_TIMEOUT_MS,
+                        batchSandboxCalls,
                     });
 
                     const { meta, rows } = await this.traceComposerQueryStage(

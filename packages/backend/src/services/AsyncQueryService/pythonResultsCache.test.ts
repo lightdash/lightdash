@@ -1,6 +1,7 @@
 import {
     DimensionType,
     FeatureFlags,
+    PREVIEW_ENABLED_FEATURE_FLAGS,
     QueryExecutionContext,
     QueryHistoryStatus,
     type QueryHistory,
@@ -244,7 +245,12 @@ const buildHarness = ({
             assertCanReadResultsForQueries: vi.fn(async () => new Map()),
         },
     } as unknown as ConstructorParameters<typeof AsyncQueryService>[0]);
-    Object.assign(service, { pythonSandboxRunner: sandbox });
+    Object.assign(service, {
+        pythonSandboxRunners: new Map([
+            [false, sandbox],
+            [true, sandbox],
+        ]),
+    });
     vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
         userAttributes: {},
         intrinsicUserAttributes: {},
@@ -271,7 +277,7 @@ const buildHarness = ({
         return rows.get(queryUuid)!;
     };
 
-    return { submit, sandbox, uploads, rows };
+    return { submit, sandbox, uploads, rows, service };
 };
 
 describe('python transformations and the results cache', () => {
@@ -414,5 +420,65 @@ describe('python transformations and the results cache', () => {
 
             expect(sandbox.run).toHaveBeenCalledTimes(1);
         });
+    });
+});
+
+describe('python warm template flag', () => {
+    test('stays off in preview defaults', () => {
+        expect(
+            PREVIEW_ENABLED_FEATURE_FLAGS.has(
+                FeatureFlags.ComposerOptimizationPythonWarmTemplate,
+            ),
+        ).toBe(false);
+    });
+    test('resolves the flag for the organization on every query', async () => {
+        const flags: Partial<Record<FeatureFlags, boolean>> = {};
+        const { submit, sandbox, service } = buildHarness({ flags });
+        const selected: boolean[] = [];
+        Object.assign(service, {
+            pythonSandboxRunners: {
+                get: (warm: boolean) => {
+                    selected.push(warm);
+                    return sandbox;
+                },
+            },
+        });
+        for (const enabled of [false, true, false]) {
+            flags[FeatureFlags.ComposerOptimizationPythonWarmTemplate] =
+                enabled;
+            // eslint-disable-next-line no-await-in-loop
+            await submit({ invalidateCache: true });
+        }
+        expect(selected).toEqual([false, true, false]);
+        expect(service.featureFlagModel.get).toHaveBeenCalledWith({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.ComposerOptimizationPythonWarmTemplate,
+        });
+    });
+});
+
+describe('python batch sandbox flag', () => {
+    test('resolves organization overrides per query', async () => {
+        const flags: Partial<Record<FeatureFlags, boolean>> = {};
+        const { submit, sandbox, service } = buildHarness({ flags });
+        for (const batchSandboxCalls of [false, true, false]) {
+            flags[FeatureFlags.ComposerOptimizationPythonBatchSandboxCalls] =
+                batchSandboxCalls;
+            // eslint-disable-next-line no-await-in-loop
+            await submit({ invalidateCache: true });
+            expect(sandbox.run).toHaveBeenLastCalledWith(
+                expect.objectContaining({ batchSandboxCalls }),
+            );
+        }
+        expect(service.featureFlagModel.get).toHaveBeenCalledWith({
+            user: { organizationUuid },
+            featureFlagId:
+                FeatureFlags.ComposerOptimizationPythonBatchSandboxCalls,
+        });
+        expect(
+            PREVIEW_ENABLED_FEATURE_FLAGS.has(
+                FeatureFlags.ComposerOptimizationPythonBatchSandboxCalls,
+            ),
+        ).toBe(false);
     });
 });

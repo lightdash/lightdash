@@ -533,6 +533,8 @@ export const lightdashConfigMock: LightdashConfig = {
         sandboxPythonDockerImage: 'lightdash-python-runner:local',
         e2bPythonTemplateName: 'lightdash-python-runner',
         e2bPythonTemplateTag: '',
+        e2bPythonWarmTemplateName: 'lightdash-python-runner-warm',
+        e2bPythonWarmTemplateTag: '',
         sandboxAgentOnboardingDockerImage: 'lightdash-agent-onboarding:local',
         sandboxIdleTimeoutMs: 30 * 60 * 1000,
         sandboxSnapshotRetentionMs: 7 * 24 * 60 * 60 * 1000,

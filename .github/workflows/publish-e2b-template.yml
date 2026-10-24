@@ -24,6 +24,9 @@ on:
       template_source_tag_env:
         required: true
         type: string
+      template_args:
+        default: ''
+        type: string
       additional_watch_paths:
         default: ''
         type: string
@@ -116,6 +119,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
           TEMPLATE_NAME: ${{ inputs.template_name }}
+          TEMPLATE_ARGS: ${{ inputs.template_args }}
           TEMPLATE_NAME_ENV: ${{ inputs.template_name_env }}
           TEMPLATE_TAG_ENV: ${{ inputs.template_tag_env }}
           TEMPLATE_EXTRA_TAGS_ENV: ${{ inputs.template_extra_tags_env }}
@@ -124,7 +128,7 @@ jobs:
             "$TEMPLATE_NAME_ENV=$TEMPLATE_NAME" \
             "$TEMPLATE_TAG_ENV=$RELEASE_TAG" \
             "$TEMPLATE_EXTRA_TAGS_ENV=latest" \
-            pnpm run build
+            pnpm run build $TEMPLATE_ARGS
 
       - name: Re-tag latest build with release version
         if: steps.plan.outputs.action == 'retag'
@@ -132,6 +136,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
           TEMPLATE_NAME: ${{ inputs.template_name }}
+          TEMPLATE_ARGS: ${{ inputs.template_args }}
           TEMPLATE_NAME_ENV: ${{ inputs.template_name_env }}
           TEMPLATE_TAG_ENV: ${{ inputs.template_tag_env }}
           TEMPLATE_SOURCE_TAG_ENV: ${{ inputs.template_source_tag_env }}
@@ -140,4 +145,4 @@ jobs:
             "$TEMPLATE_NAME_ENV=$TEMPLATE_NAME" \
             "$TEMPLATE_TAG_ENV=$RELEASE_TAG" \
             "$TEMPLATE_SOURCE_TAG_ENV=latest" \
-            pnpm exec tsx assign-tag.ts
+            pnpm exec tsx assign-tag.ts $TEMPLATE_ARGS
