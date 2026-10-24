@@ -1877,9 +1877,6 @@ export type LightdashConfig = {
             enablePostMessage: boolean;
         };
     };
-    serviceAccount: {
-        enabled: boolean;
-    };
     organizationWarehouseCredentials: {
         enabled: boolean;
     };
@@ -3029,10 +3026,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // endpoint) and EmbedService (allowAll config). Keep the config field, but
     // translate the env var to the unified allowlist for the flag system.
     ['EMBEDDING_ENABLED', 'embedding'],
-    // SERVICE_ACCOUNT_ENABLED is also read by HealthService (exposed via the
-    // health endpoint). Keep the config field, but translate the env var to
-    // the unified allowlist for the flag system.
-    ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
     ['SCIM_ENABLED', 'scim-token-management'],
     // ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED is also read by HealthService
     // (exposed via the health endpoint). Keep the config field, but translate
@@ -4083,9 +4076,6 @@ export const parseConfig = (): LightdashConfig => {
                     process.env.EMBED_EVENT_SYSTEM_POST_MESSAGE_ENABLED ===
                     'true',
             },
-        },
-        serviceAccount: {
-            enabled: process.env.SERVICE_ACCOUNT_ENABLED === 'true',
         },
         organizationWarehouseCredentials: {
             enabled:

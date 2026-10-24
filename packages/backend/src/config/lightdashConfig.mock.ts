@@ -402,9 +402,6 @@ export const lightdashConfigMock: LightdashConfig = {
     microsoftTeams: {
         enabled: false,
     },
-    serviceAccount: {
-        enabled: false,
-    },
     organizationWarehouseCredentials: {
         enabled: false,
     },
