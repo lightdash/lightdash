@@ -161,6 +161,7 @@ import {
     getOrganizationSystemRoleScopes,
     validateOrganizationScopesCanBeGranted,
 } from '../utils/organizationRolePermissions';
+import { isPersonalSignInExpiryEnabled } from '../utils/personalSignIn';
 import { processAvatarImage } from '../utils/processAvatarImage';
 import { assertHumanManagedMutation } from './AgentPermissionService/assertHumanManagedMutation';
 import {
@@ -3583,8 +3584,15 @@ export class UserService extends BaseService {
     async getWarehouseCredentials(
         user: SessionUser,
     ): Promise<UserWarehouseCredentialsWithAgentStatus[]> {
+        const includeSignInStatus = await isPersonalSignInExpiryEnabled(
+            this.featureFlagModel,
+            user,
+        );
         const [defaults, ai] = await Promise.all([
-            this.userWarehouseCredentialsModel.getAllByUserUuid(user.userUuid),
+            this.userWarehouseCredentialsModel.getAllByUserUuid(
+                user.userUuid,
+                includeSignInStatus,
+            ),
             this.userWarehouseCredentialsModel.getAiCredentialsByUserUuid(
                 user.userUuid,
             ),
@@ -4113,6 +4121,7 @@ export class UserService extends BaseService {
         });
         return this.userWarehouseCredentialsModel.getByUuid(
             userWarehouseCredentialsUuid,
+            await isPersonalSignInExpiryEnabled(this.featureFlagModel, user),
         );
     }
 
@@ -4129,6 +4138,7 @@ export class UserService extends BaseService {
                 organizationUuid: user.organizationUuid ?? null,
                 userUuid: user.userUuid,
             }),
+            await isPersonalSignInExpiryEnabled(this.featureFlagModel, user),
         );
         this.analytics.track({
             userId: user.userUuid,
@@ -4140,6 +4150,7 @@ export class UserService extends BaseService {
         });
         return this.userWarehouseCredentialsModel.getByUuid(
             userWarehouseCredentialsUuid,
+            await isPersonalSignInExpiryEnabled(this.featureFlagModel, user),
         );
     }
 

@@ -5931,6 +5931,7 @@ describe('UserService', () => {
                     }),
                 }),
                 { strictPersonalOverlay: true },
+                true,
             );
             expect(credentialsModel.create).not.toHaveBeenCalled();
         });
@@ -5952,6 +5953,7 @@ describe('UserService', () => {
                 'sso-credentials-uuid',
                 expect.objectContaining({ name: 'My Snowflake login' }),
                 { strictPersonalOverlay: true },
+                true,
             );
         });
 
@@ -5993,6 +5995,7 @@ describe('UserService', () => {
                 'newest-sso-credentials-uuid',
                 expect.anything(),
                 { strictPersonalOverlay: true },
+                true,
             );
         });
 
@@ -6317,7 +6320,7 @@ describe('warehouse credential agent client status', () => {
 
 describe('strict personal overlay (agent-identity on)', () => {
     test('Google callback saves credentials for an org-less user with the flag off', async () => {
-        const flags = { get: vi.fn() };
+        const flags = { get: vi.fn().mockResolvedValue({ enabled: false }) };
         const model = {
             create: vi.fn(async () => 'credential'),
             getByUuid: vi.fn(),
@@ -6354,7 +6357,10 @@ describe('strict personal overlay (agent-identity on)', () => {
             { strictPersonalOverlay: false },
             undefined,
         );
-        expect(flags.get).not.toHaveBeenCalled();
+        expect(flags.get).toHaveBeenCalledExactlyOnceWith({
+            featureFlagId: FeatureFlags.SharedSignInExpiryMessage,
+            user: { userUuid: sessionUser.userUuid },
+        });
     });
     test('strict BigQuery re-auth validates before deleting old credentials', async () => {
         const flags = {
@@ -6437,6 +6443,7 @@ describe('strict personal overlay (agent-identity on)', () => {
                 'credential',
                 data,
                 { strictPersonalOverlay: enabled },
+                enabled,
             );
             expect(flags.get).toHaveBeenCalledWith({
                 featureFlagId: FeatureFlags.AgentIdentity,
@@ -6590,7 +6597,7 @@ describe('strict personal overlay (agent-identity on)', () => {
                     startUrl: 'https://sso.example.test/start',
                     expiresAt: Date.now() + 60000,
                 },
-                { accountId: '123456789012', roleName: 'analyst' },
+                { accountId: '0'.repeat(12), roleName: 'analyst' },
             );
             expect(model.create).toHaveBeenCalledWith(
                 sessionUser.userUuid,
@@ -6612,5 +6619,117 @@ describe('strict personal overlay (agent-identity on)', () => {
                 },
             });
         },
+    );
+});
+
+describe('warehouse sign-in mark kill switch', () => {
+    test.each([true, false])(
+        'gates status reads and reconnect clearing when enabled=%s',
+        async (enabled) => {
+            const flags = { get: vi.fn().mockResolvedValue({ enabled }) };
+            const model = {
+                getAllByUserUuid: vi.fn().mockResolvedValue([]),
+                getAiCredentialsByUserUuid: vi.fn().mockResolvedValue([]),
+                update: vi.fn().mockResolvedValue('credential_a'),
+                getByUuid: vi.fn().mockResolvedValue({ uuid: 'credential_a' }),
+            };
+            const service = createUserService(lightdashConfigMock, {
+                featureFlagModel: flags,
+                userWarehouseCredentialsModel: model,
+            });
+            const user = {
+                ...sessionUser,
+                userUuid: 'user_a',
+                organizationUuid: 'organization_a',
+            };
+            await service.getWarehouseCredentials(user);
+            expect(model.getAllByUserUuid).toHaveBeenCalledExactlyOnceWith(
+                'user_a',
+                enabled,
+            );
+            await service.updateWarehouseCredentials(user, 'credential_a', {
+                name: 'credential_a',
+                credentials: {
+                    type: WarehouseTypes.BIGQUERY,
+                    keyfileContents: {
+                        type: 'authorized_user',
+                        refresh_token: 'personal_token_a',
+                    },
+                },
+            });
+            expect(model.update).toHaveBeenCalledWith(
+                'user_a',
+                'credential_a',
+                expect.anything(),
+                expect.anything(),
+                enabled,
+            );
+            expect(model.getByUuid).toHaveBeenCalledWith(
+                'credential_a',
+                enabled,
+            );
+        },
+    );
+});
+
+test('credential APIs succeed when the advisory flag fails after a reconnect write', async () => {
+    const flags = {
+        get: vi.fn().mockImplementation(async ({ featureFlagId }) => {
+            if (featureFlagId === FeatureFlags.SharedSignInExpiryMessage) {
+                throw new Error('policy_unavailable');
+            }
+            return { enabled: false };
+        }),
+    };
+    const credential = { uuid: 'credential_a' };
+    const model = {
+        getAllByUserUuid: vi.fn().mockResolvedValue([credential]),
+        getAiCredentialsByUserUuid: vi.fn().mockResolvedValue([]),
+        update: vi.fn().mockResolvedValue('credential_a'),
+        getByUuid: vi.fn().mockResolvedValue(credential),
+    };
+    const service = createUserService(lightdashConfigMock, {
+        featureFlagModel: flags,
+        userWarehouseCredentialsModel: model,
+    });
+    const user = {
+        ...sessionUser,
+        userUuid: 'user_a',
+        organizationUuid: 'organization_a',
+    };
+    await expect(service.getWarehouseCredentials(user)).resolves.toEqual([
+        { ...credential, agentClientCurrent: null },
+    ]);
+    expect(model.getAllByUserUuid).toHaveBeenCalledExactlyOnceWith(
+        'user_a',
+        false,
+    );
+    flags.get.mockImplementation(async () => ({ enabled: true }));
+    model.update.mockImplementation(async () => {
+        flags.get.mockRejectedValue(new Error('policy_unavailable'));
+        return 'credential_a';
+    });
+    await expect(
+        service.updateWarehouseCredentials(user, 'credential_a', {
+            name: 'credential_a',
+            credentials: {
+                type: WarehouseTypes.BIGQUERY,
+                keyfileContents: {
+                    type: 'authorized_user',
+                    refresh_token: 'personal_token_a',
+                },
+            },
+        }),
+    ).resolves.toBe(credential);
+    expect(model.update).toHaveBeenCalledExactlyOnceWith(
+        'user_a',
+        'credential_a',
+        expect.anything(),
+        expect.anything(),
+        true,
+    );
+    expect(model.getByUuid).toHaveBeenCalledExactlyOnceWith(
+        'credential_a',
+        false,
     );
 });

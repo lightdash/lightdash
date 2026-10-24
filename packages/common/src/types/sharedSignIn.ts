@@ -117,6 +117,21 @@ export type SharedSignInExpiry = {
     subjectBasis: SignInSubjectBasis | null;
 };
 
+export type PersonalSignInExpiry = {
+    projectUuid: string;
+    provider: PersonSignInProvider;
+    userWarehouseCredentialsUuid: string;
+};
+
+export const getExpiredPersonalSignInMessage = (
+    expiry: Pick<PersonalSignInExpiry, 'provider'>,
+): string => {
+    const provider = PERSON_SIGN_IN_LABELS[expiry.provider];
+    const warehouse =
+        expiry.provider === PersonSignInProvider.GOOGLE ? 'BigQuery' : provider;
+    return `Your ${warehouse} sign-in has expired. Sign in with ${provider} again to load this.`;
+};
+
 export const getExpiredSharedSignInMessage = (
     expiry: Omit<SharedSignInExpiry, 'projectUuid'>,
     viewerUserUuid: string | null,

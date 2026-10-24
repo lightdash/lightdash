@@ -1,3 +1,4 @@
+import { NotFoundError } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
     UserOAuthGrantProvider,
@@ -35,11 +36,38 @@ export class UserOAuthGrantsModel {
     }
 
     async upsertGrant(grant: UpsertUserOAuthGrant): Promise<void> {
+        let observedEmptyCiphertext: Buffer | null = null;
+        if (!grant.refreshToken) {
+            const existingGrant = await this.database(UserOAuthGrantsTableName)
+                .where({ user_uuid: grant.userUuid, provider: grant.provider })
+                .first('encrypted_refresh_token');
+            if (existingGrant) {
+                if (
+                    this.encryptionUtil.decrypt(
+                        existingGrant.encrypted_refresh_token,
+                    )
+                )
+                    return;
+                observedEmptyCiphertext = existingGrant.encrypted_refresh_token;
+            } else {
+                try {
+                    const legacyRefreshToken =
+                        await this.userModel.getRefreshToken(
+                            grant.userUuid,
+                            grant.provider,
+                        );
+                    if (legacyRefreshToken) return;
+                } catch (error) {
+                    if (!(error instanceof NotFoundError)) throw error;
+                }
+            }
+        }
+
         const encryptedRefreshToken = this.encryptionUtil.encrypt(
             grant.refreshToken,
         );
         const scopes = [...new Set(grant.scopes)];
-        await this.database(UserOAuthGrantsTableName)
+        const upsert = this.database(UserOAuthGrantsTableName)
             .insert({
                 user_uuid: grant.userUuid,
                 provider: grant.provider,
@@ -48,8 +76,12 @@ export class UserOAuthGrantsModel {
                 scopes,
                 encrypted_refresh_token: encryptedRefreshToken,
             })
-            .onConflict(['user_uuid', 'provider'])
-            .merge({
+            .onConflict(['user_uuid', 'provider']);
+
+        if (!grant.refreshToken && !observedEmptyCiphertext) {
+            await upsert.ignore();
+        } else {
+            const merge = upsert.merge({
                 provider_subject: grant.subject,
                 provider_email: grant.email,
                 scopes: this.database.raw(
@@ -59,6 +91,14 @@ export class UserOAuthGrantsModel {
                 encrypted_refresh_token: encryptedRefreshToken,
                 updated_at: new Date(),
             });
+            if (observedEmptyCiphertext) {
+                merge.where(
+                    `${UserOAuthGrantsTableName}.encrypted_refresh_token`,
+                    observedEmptyCiphertext,
+                );
+            }
+            await merge;
+        }
     }
 
     async getRefreshToken(
