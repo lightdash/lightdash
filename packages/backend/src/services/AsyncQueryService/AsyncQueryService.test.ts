@@ -15878,6 +15878,39 @@ describe('runDuckdbQuery', () => {
         ...overrides,
     });
 
+    it.each([false, true])(
+        'selects the column probe from the org flag: %s',
+        async (enabled) => {
+            const { warehouseClient, streamQuery } = probingClient({
+                one: { type: DimensionType.NUMBER },
+            });
+            const { service, run } = buildService();
+            const get = vi.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => ({
+                    id: featureFlagId,
+                    enabled:
+                        enabled &&
+                        featureFlagId ===
+                            FeatureFlags.ComposerOptimizationDuckdbColumnProbe,
+                }),
+            );
+            Object.assign(service, { featureFlagModel: { get } });
+            await run(
+                baseArgs({ engine: { kind: 'client', warehouseClient } }),
+            );
+            expect(get).toHaveBeenCalledWith({
+                user: { organizationUuid: projectSummary.organizationUuid },
+                featureFlagId:
+                    FeatureFlags.ComposerOptimizationDuckdbColumnProbe,
+            });
+            expect(streamQuery.mock.calls[0][0]).toBe(
+                enabled
+                    ? 'DESCRIBE SELECT 1 AS one'
+                    : 'SELECT 1 AS one LIMIT 1',
+            );
+        },
+    );
+
     it('times each stage of a run over query references', async () => {
         const { warehouseClient } = probingClient({
             one: { type: DimensionType.NUMBER },
@@ -28052,6 +28085,7 @@ describe('fresh execution producer to result reader', () => {
             Object.assign(auth.grant, { revokedAt: new Date() });
             await expect(
                 f.service['preflightDiscoveredPivot']({
+                    organizationUuid: projectSummary.organizationUuid,
                     account: auth.req.account!,
                     projectUuid,
                     sql: 'SELECT * FROM source',

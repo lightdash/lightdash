@@ -291,6 +291,22 @@ export const getDuckdbTimestampDomainFromString = (
     return undefined;
 };
 
+export const mapFieldTypeFromDuckdbTypeName = (
+    typeName: string,
+): DimensionType => {
+    const upper = typeName.toUpperCase();
+    const typeId = {
+        'TIMESTAMP WITH TIME ZONE': DuckDBTypeId.TIMESTAMP_TZ,
+        TIMESTAMPTZ: DuckDBTypeId.TIMESTAMP_TZ,
+        'TIME WITH TIME ZONE': DuckDBTypeId.TIME_TZ,
+        TIMETZ: DuckDBTypeId.TIME_TZ,
+        REAL: DuckDBTypeId.FLOAT,
+        NUMERIC: DuckDBTypeId.DECIMAL,
+        ...DuckDBTypeId,
+    }[upper.replace(/\(.*\)$/, '') as keyof typeof DuckDBTypeId];
+    return mapFieldTypeFromTypeId(typeof typeId === 'number' ? typeId : 0);
+};
+
 const mapFieldTypeFromString = (typeName: string): DimensionType => {
     const upper = typeName.toUpperCase();
     if (upper === 'DATE') return DimensionType.DATE;

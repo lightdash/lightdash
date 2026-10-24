@@ -478,3 +478,18 @@ An existing extra cannot change its type with either flag value; add a new
 connection instead. It does not remove
 saved connections or change query execution. Mixed-type extras keep their own
 user-credential requirement; same-type extras still inherit the original's.
+
+### DuckDB column probe
+
+`composer-optimization-duckdb-column-probe` is off by default on Cloud,
+self-hosted and previews. DuckDB queries that discover their output columns
+resolve it for the project's organization, without a user override, through
+`FeatureFlagModel`: on the worker before execution, and at submission for pivot
+preflight. Console changes apply to the next resolution; ENV changes require an
+API/worker restart.
+
+When enabled, `DESCRIBE` binds the SQL instead of running it with `LIMIT 1`.
+Syntax and binding errors still fail column resolution; runtime-only errors,
+such as failed casts, surface during execution instead. Zero-row results keep
+their columns. The `duckdb.query.resolve_columns` span reports
+`lightdash.columnsMode=describe`.

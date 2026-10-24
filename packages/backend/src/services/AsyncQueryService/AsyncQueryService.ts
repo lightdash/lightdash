@@ -193,6 +193,7 @@ import {
 } from '@lightdash/common';
 import {
     DuckdbWarehouseClient,
+    mapFieldTypeFromDuckdbTypeName,
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import { trace } from '@opentelemetry/api';
@@ -11562,6 +11563,7 @@ export class AsyncQueryService extends ProjectService {
         // fields and columns once referenced results exist.
         const resolved = await this.resolveDuckdbQueryPlan({
             plan,
+            organizationUuid,
             account,
             projectUuid,
             context,
@@ -11919,6 +11921,7 @@ export class AsyncQueryService extends ProjectService {
      */
     private async resolveDuckdbQueryPlan({
         plan,
+        organizationUuid,
         account,
         projectUuid,
         context,
@@ -11931,6 +11934,7 @@ export class AsyncQueryService extends ProjectService {
         queryTags,
     }: {
         plan: DuckdbQueryPlan;
+        organizationUuid: string;
         account: Account;
         projectUuid: string;
         context: QueryExecutionContext;
@@ -12004,6 +12008,7 @@ export class AsyncQueryService extends ProjectService {
         AsyncQueryService.throwIfMissingParameterValues(placeholderComposer);
         if (pivotConfiguration) {
             await this.preflightDiscoveredPivot({
+                organizationUuid,
                 account,
                 projectUuid,
                 sql,
@@ -12046,6 +12051,7 @@ export class AsyncQueryService extends ProjectService {
      * ready; otherwise the run checks it once columns exist.
      */
     private async preflightDiscoveredPivot({
+        organizationUuid,
         account,
         projectUuid,
         sql,
@@ -12056,6 +12062,7 @@ export class AsyncQueryService extends ProjectService {
         warehouseClient,
         queryTags,
     }: {
+        organizationUuid: string;
         account: Account;
         projectUuid: string;
         sql: string;
@@ -12118,6 +12125,13 @@ export class AsyncQueryService extends ProjectService {
                 Object.fromEntries(referenced),
             );
             columns = await this.probeDuckdbQueryColumns({
+                useDescribe: (
+                    await this.featureFlagModel.get({
+                        user: { organizationUuid },
+                        featureFlagId:
+                            FeatureFlags.ComposerOptimizationDuckdbColumnProbe,
+                    })
+                ).enabled,
                 sql,
                 referenceCtes: bound.referenceCtes,
                 parameters,
@@ -12674,6 +12688,15 @@ export class AsyncQueryService extends ProjectService {
                     return;
                 }
             }
+            const useDescribe =
+                columns.mode === 'discover' &&
+                (
+                    await this.featureFlagModel.get({
+                        user: { organizationUuid },
+                        featureFlagId:
+                            FeatureFlags.ComposerOptimizationDuckdbColumnProbe,
+                    })
+                ).enabled;
             const execution = await this.traceComposerQueryStage(
                 'duckdb',
                 'resolve_columns',
@@ -12681,11 +12704,14 @@ export class AsyncQueryService extends ProjectService {
                     name: 'duckdb.query.resolve_columns',
                     attributes: {
                         'lightdash.queryUuid': queryUuid,
-                        'lightdash.columnsMode': columns.mode,
+                        'lightdash.columnsMode': useDescribe
+                            ? 'describe'
+                            : columns.mode,
                     },
                 },
                 () =>
                     this.resolveDuckdbQueryColumns({
+                        useDescribe,
                         sql,
                         referenceCtes: bound.referenceCtes,
                         columns,
@@ -13174,12 +13200,14 @@ export class AsyncQueryService extends ProjectService {
      * and pivot as they are.
      */
     private async resolveDuckdbQueryColumns({
+        useDescribe,
         sql,
         referenceCtes,
         columns,
         warehouseClient,
         queryTags,
     }: {
+        useDescribe: boolean;
         sql: string;
         referenceCtes: string[];
         columns: DuckdbQueryColumns;
@@ -13200,6 +13228,7 @@ export class AsyncQueryService extends ProjectService {
                 };
             case 'discover':
                 return this.discoverDuckdbQueryColumns({
+                    useDescribe,
                     sql,
                     referenceCtes,
                     limit: columns.limit,
@@ -13216,14 +13245,16 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
-    /** Column discovery (LIMIT 1) also validates the SQL, so parameters resolve first and a missing value refuses here. */
+    /** Resolve parameters before either column probe validates the SQL. */
     private async probeDuckdbQueryColumns({
+        useDescribe,
         sql,
         referenceCtes,
         parameters,
         warehouseClient,
         queryTags,
     }: {
+        useDescribe: boolean;
         sql: string;
         referenceCtes: string[];
         parameters: ParametersValuesMap;
@@ -13248,15 +13279,35 @@ export class AsyncQueryService extends ProjectService {
         // The limit is applied to the user's statement alone: the reference
         // CTEs name result files, and the limit strips what reads as a
         // comment even inside a string literal
-        const columnDiscoverySql = AsyncQueryService.wrapSqlWithReferenceCtes(
-            applyLimitToSqlQuery({ sqlQuery: sqlWithParameters, limit: 1 }),
-            referenceCtes,
-        );
+        const columnDiscoverySql = useDescribe
+            ? `DESCRIBE ${AsyncQueryService.wrapSqlWithReferenceCtes(
+                  applyLimitToSqlQuery({
+                      sqlQuery: sqlWithParameters,
+                      limit: undefined,
+                  }),
+                  referenceCtes,
+              )}`
+            : AsyncQueryService.wrapSqlWithReferenceCtes(
+                  applyLimitToSqlQuery({
+                      sqlQuery: sqlWithParameters,
+                      limit: 1,
+                  }),
+                  referenceCtes,
+              );
         try {
             await warehouseClient.streamQuery(
                 columnDiscoverySql,
                 (chunk) => {
-                    if (columns.length === 0 && chunk.fields) {
+                    if (useDescribe) {
+                        chunk.rows.forEach((row) => {
+                            columns.push({
+                                name: String(row.column_name),
+                                type: mapFieldTypeFromDuckdbTypeName(
+                                    String(row.column_type),
+                                ),
+                            });
+                        });
+                    } else if (columns.length === 0 && chunk.fields) {
                         Object.keys(chunk.fields).forEach((key) => {
                             columns.push({
                                 name: key,
@@ -13279,10 +13330,17 @@ export class AsyncQueryService extends ProjectService {
             if (e instanceof LightdashError) throw e;
             throw new WarehouseQueryError(getErrorMessage(e));
         }
-        return columns;
+        return useDescribe
+            ? Object.values(
+                  Object.fromEntries(
+                      columns.map((column) => [column.name, column]),
+                  ),
+              )
+            : columns;
     }
 
     private async discoverDuckdbQueryColumns({
+        useDescribe,
         sql,
         referenceCtes,
         limit,
@@ -13291,6 +13349,7 @@ export class AsyncQueryService extends ProjectService {
         warehouseClient,
         queryTags,
     }: {
+        useDescribe: boolean;
         sql: string;
         referenceCtes: string[];
         limit: number | undefined;
@@ -13300,6 +13359,7 @@ export class AsyncQueryService extends ProjectService {
         queryTags: RunQueryTags;
     }): Promise<DuckdbQueryExecution> {
         const columns = await this.probeDuckdbQueryColumns({
+            useDescribe,
             sql,
             referenceCtes,
             parameters,
