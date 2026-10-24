@@ -1,0 +1,4 @@
+version: 2
+models:
+    - name: shared_model
+      access: public

@@ -1,0 +1,16 @@
+config:
+    send_anonymous_usage_stats: false
+
+last_good_climb:
+    target: dev
+    outputs:
+        dev:
+            type: postgres
+            host: "{{ env_var('PGHOST') }}"
+            port: "{{ env_var('PGPORT') | int }}"
+            user: "{{ env_var('PGUSER') }}"
+            password: "{{ env_var('PGPASSWORD') }}"
+            dbname: "{{ env_var('PGDATABASE') }}"
+            schema: sim
+            threads: 1
+            sslmode: disable

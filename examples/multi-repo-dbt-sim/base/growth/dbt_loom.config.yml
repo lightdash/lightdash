@@ -1,0 +1,10 @@
+manifests:
+    - name: payments
+      type: file
+      config:
+          path: ../../published/payments/manifest.json
+      excluded_packages: [merchants]
+    - name: merchants
+      type: file
+      config:
+          path: ../../published/merchants/manifest.json

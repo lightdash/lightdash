@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+fixture_root=$(cd -- "$(dirname -- "$0")" && pwd)
+venv="$fixture_root/.work/venvs/dbt1120"
+mkdir -p "$fixture_root/.work"
+if [[ ! -x "$venv/bin/dbt" ]]; then
+  requirements="$fixture_root/last-good-climb/requirements.txt"
+  if command -v uv >/dev/null 2>&1; then
+    uv venv --python 3.12 "$venv"
+    if command -v sfw >/dev/null 2>&1; then
+      sfw uv pip install --python "$venv/bin/python" -r "$requirements"
+    else
+      uv pip install --python "$venv/bin/python" -r "$requirements"
+    fi
+  else
+    python3.12 -m venv "$venv"
+    if command -v sfw >/dev/null 2>&1; then
+      sfw "$venv/bin/pip" install -r "$requirements"
+    else
+      "$venv/bin/pip" install -r "$requirements"
+    fi
+  fi
+fi
+exec "$venv/bin/python" -u "$fixture_root/last_good_scale.py" \
+  --dbt "$venv/bin/dbt" \
+  --work "$fixture_root/.work/last-good-scale" \
+  --report "$fixture_root/reports/last-good-scale.json" \
+  "$@"

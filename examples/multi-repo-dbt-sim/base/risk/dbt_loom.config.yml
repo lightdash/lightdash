@@ -1,0 +1,10 @@
+manifests:
+    - name: finance
+      type: file
+      config:
+          path: ../../published/finance/manifest.json
+      excluded_packages: [risk, merchants]
+    - name: merchants
+      type: file
+      config:
+          path: ../../published/merchants/manifest.json
