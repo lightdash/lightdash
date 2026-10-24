@@ -1939,6 +1939,27 @@ export class UserService extends BaseService {
             );
         }
 
+        const nameChanged =
+            (data.firstName !== undefined &&
+                data.firstName !== user.firstName) ||
+            (data.lastName !== undefined && data.lastName !== user.lastName);
+        if (nameChanged && user.organizationUuid) {
+            try {
+                await this.ensureDefaultUserSpacesForUser({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                });
+            } catch (error) {
+                this.logger.warn(
+                    'Failed to sync default user space names after profile update',
+                    {
+                        userUuid: user.userUuid,
+                        error: getErrorMessage(error),
+                    },
+                );
+            }
+        }
+
         return updatedUser;
     }
 
@@ -3157,6 +3178,7 @@ export class UserService extends BaseService {
                         userUuid: sessionUser.userUuid,
                         firstName: sessionUser.firstName,
                         lastName: sessionUser.lastName,
+                        email: sessionUser.email,
                     },
                 );
             }),

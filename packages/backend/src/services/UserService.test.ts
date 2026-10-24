@@ -899,6 +899,49 @@ describe('UserService', () => {
             );
             expect(userModel.updateUser).not.toHaveBeenCalled();
         });
+
+        test('syncs default user space names when the name changes', async () => {
+            const ensureSpy = vi
+                .spyOn(userService, 'ensureDefaultUserSpacesForUser')
+                .mockResolvedValue(undefined);
+
+            await userService.updateUser(sessionUser, {
+                firstName: 'Jane',
+                lastName: 'Doe',
+            });
+
+            expect(ensureSpy).toHaveBeenCalledWith({
+                userUuid: sessionUser.userUuid,
+                organizationUuid: sessionUser.organizationUuid,
+            });
+            ensureSpy.mockRestore();
+        });
+
+        test('does not sync default user space names when the name is unchanged', async () => {
+            const ensureSpy = vi
+                .spyOn(userService, 'ensureDefaultUserSpacesForUser')
+                .mockResolvedValue(undefined);
+
+            await userService.updateUser(sessionUser, {
+                firstName: sessionUser.firstName,
+                lastName: sessionUser.lastName,
+                isMarketingOptedIn: true,
+            });
+
+            expect(ensureSpy).not.toHaveBeenCalled();
+            ensureSpy.mockRestore();
+        });
+
+        test('still returns the updated user when the space name sync fails', async () => {
+            const ensureSpy = vi
+                .spyOn(userService, 'ensureDefaultUserSpacesForUser')
+                .mockRejectedValue(new Error('db down'));
+
+            await expect(
+                userService.updateUser(sessionUser, { firstName: 'Jane' }),
+            ).resolves.toBeDefined();
+            ensureSpy.mockRestore();
+        });
     });
 
     describe('completeUserSetup', () => {
@@ -5753,6 +5796,7 @@ describe('UserService', () => {
                     userUuid: interactiveViewer.userUuid,
                     firstName: interactiveViewer.firstName,
                     lastName: interactiveViewer.lastName,
+                    email: interactiveViewer.email,
                 },
             );
         });
