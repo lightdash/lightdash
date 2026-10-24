@@ -7,6 +7,8 @@
 export enum FeatureFlags {
     /** Organization-scoped, off by default. Plan DuckDB column probes with DESCRIBE. */
     ComposerOptimizationDuckdbColumnProbe = 'composer-optimization-duckdb-column-probe',
+    /** Organization-scoped, off by default. Allow bounded composer status waits. */
+    ComposerOptimizationQueryPushReadiness = 'composer-optimization-query-push-readiness',
     /** Organization-scoped, off by default. Use the E2B template with warmed Python imports. */
     ComposerOptimizationPythonWarmTemplate = 'composer-optimization-python-warm-template',
     /** Organization-scoped, off by default. Retry missing cross-project refs with sibling models injected through a generated dbt plugin. */

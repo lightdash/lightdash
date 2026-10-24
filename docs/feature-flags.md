@@ -509,3 +509,25 @@ region. Other providers retain their normal image. The actual template is part
 of the Python results cache key and `lightdash.templateRef` trace attribute.
 Disabling restores the cold template for subsequent queries; in-flight queries
 finish with their selected template.
+
+### Composer query readiness
+
+`composer-optimization-query-push-readiness` is off by default on Cloud,
+self-hosted and previews. The composer batch status endpoint accepts `waitMs`,
+clamped to 0–10000ms. With the flag on, it checks query history every 50ms until
+all requested queries are terminal or the deadline expires, returning the same
+response shape. Without the flag, or without a positive wait, responses remain
+immediate. Result retrieval and MCP internal polling are unchanged.
+
+The API resolves the project's organization through `FeatureFlagModel`, without
+a user override. Console changes affect the next wait request; disabling does
+not cancel an existing wait. Standard ENV precedence applies; ENV changes need
+an API restart. No separate ENV setting or worker change is required.
+
+Query history is shared across API and worker pods. It has no completion
+notification; NATS currently dispatches jobs only. The short server-side checks
+work across pods without holding a database connection between checks. Checks
+re-read only still-running query history rows; the response comes from one
+final full status read. Client disconnect cancels the sleep, stops checks and
+returns without an error. Held HTTP connections and up to 20 single-row reads
+per running query per second increase API and database load.
