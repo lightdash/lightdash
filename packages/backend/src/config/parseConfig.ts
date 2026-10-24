@@ -2219,8 +2219,6 @@ export type AppRuntimeConfig = {
     /** E2B template name+tag for the python query runner sandbox. */
     e2bPythonTemplateName: string;
     e2bPythonTemplateTag: string;
-    e2bPythonWarmTemplateName: string;
-    e2bPythonWarmTemplateTag: string;
     /** OCI image used by managed project onboarding with the Docker provider. */
     sandboxAgentOnboardingDockerImage: string;
     /**
@@ -2717,6 +2715,37 @@ const parseChartRegistryAllowInsecure = (): boolean => {
     return enabled;
 };
 
+/**
+ * Warm template by default. Explicit legacy settings without warm settings
+ * keep their previous meaning, so self-built cold templates keep working.
+ */
+const parseE2bPythonTemplate = (): Pick<
+    AppRuntimeConfig,
+    'e2bPythonTemplateName' | 'e2bPythonTemplateTag'
+> => {
+    const legacy =
+        process.env.E2B_PYTHON_WARM_TEMPLATE_NAME === undefined &&
+        process.env.E2B_PYTHON_WARM_TEMPLATE_TAG === undefined &&
+        (process.env.E2B_PYTHON_TEMPLATE_NAME !== undefined ||
+            process.env.E2B_PYTHON_TEMPLATE_TAG !== undefined);
+    return legacy
+        ? {
+              e2bPythonTemplateName:
+                  process.env.E2B_PYTHON_TEMPLATE_NAME ||
+                  'lightdash-python-runner',
+              e2bPythonTemplateTag:
+                  process.env.E2B_PYTHON_TEMPLATE_TAG ?? (VERSION as string),
+          }
+        : {
+              e2bPythonTemplateName:
+                  process.env.E2B_PYTHON_WARM_TEMPLATE_NAME ||
+                  'lightdash-python-runner-warm',
+              e2bPythonTemplateTag:
+                  process.env.E2B_PYTHON_WARM_TEMPLATE_TAG ??
+                  (VERSION as string),
+          };
+};
+
 const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
     const dataAppCodingAgent = (() => {
         const value = process.env.APPS_CODING_AGENT?.trim().toLowerCase();
@@ -2825,15 +2854,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         sandboxPythonDockerImage:
             process.env.SANDBOX_PYTHON_DOCKER_IMAGE ||
             'lightdash-python-runner:local',
-        e2bPythonWarmTemplateName:
-            process.env.E2B_PYTHON_WARM_TEMPLATE_NAME ||
-            'lightdash-python-runner-warm',
-        e2bPythonWarmTemplateTag:
-            process.env.E2B_PYTHON_WARM_TEMPLATE_TAG ?? (VERSION as string),
-        e2bPythonTemplateName:
-            process.env.E2B_PYTHON_TEMPLATE_NAME || 'lightdash-python-runner',
-        e2bPythonTemplateTag:
-            process.env.E2B_PYTHON_TEMPLATE_TAG ?? (VERSION as string),
+        ...parseE2bPythonTemplate(),
         sandboxAgentOnboardingDockerImage:
             process.env.SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE ||
             'lightdash-agent-onboarding:local',

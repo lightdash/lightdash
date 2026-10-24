@@ -559,6 +559,21 @@ export class QueryHistoryModel {
         return this.convertAccountScopedRow(result, account);
     }
 
+    /** Status only, in one read; rows the account can't see are omitted. */
+    async getStatuses(
+        queryUuids: string[],
+        projectUuid: string,
+        account: Account,
+    ): Promise<{ queryUuid: string; status: QueryHistoryStatus }[]> {
+        const rows = await this.getAccountScopedQuery(projectUuid, account)
+            .whereIn('query_uuid', queryUuids)
+            .select('query_uuid', 'status');
+        return rows.map((row) => ({
+            queryUuid: row.query_uuid,
+            status: row.status,
+        }));
+    }
+
     async findMostRecentByCacheKey(
         cacheKey: string,
         projectUuid: string,

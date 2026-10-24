@@ -144,8 +144,7 @@ export class QuerySourceController extends BaseController {
      * error message for failed queries. Poll this after Execute source
      * queries; fetch each ready query's rows with the standard async query
      * results endpoint. Statuses are visible to the query creator only.
-     * With waitMs, waits up to 10000ms for all queries to become terminal when
-     * the organization has composer-optimization-query-push-readiness enabled.
+     * A positive waitMs waits up to 10000ms for all queries to become terminal.
      * @summary Get source query status
      */
     @Middlewares([
