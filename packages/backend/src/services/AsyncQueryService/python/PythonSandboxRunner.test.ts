@@ -345,3 +345,119 @@ describe('PythonSandboxRunner stage instrumentation', () => {
         },
     );
 });
+
+describe('PythonSandboxRunner batching', () => {
+    beforeEach(() => silentLogger.warn.mockClear());
+    it('batches uploads, keeps the compile check, detaches cleanup', async () => {
+        let rejectDestroy: (error: Error) => void = () => {};
+        destroy.mockImplementationOnce(
+            () =>
+                new Promise<void>((_resolve, reject) => {
+                    rejectDestroy = reject;
+                }),
+        );
+        const handle = {
+            sandboxId: 'batch-test',
+            files: {
+                write: vi.fn(),
+                writeMany: vi.fn(
+                    async (
+                        _files: {
+                            path: string;
+                            contents: string | Uint8Array;
+                        }[],
+                    ) => {},
+                ),
+                readBytes: vi.fn(async () => Buffer.from('{"x":1}\n')),
+                read: vi.fn(async () => '{}'),
+            },
+            commands: {
+                run: vi.fn(async () => ({
+                    stdout: 'user logs',
+                    stderr: '',
+                    exitCode: 0,
+                })),
+            },
+        };
+        create.mockResolvedValueOnce(handle);
+        const runner = new PythonSandboxRunner({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                appRuntime: {
+                    ...lightdashConfigMock.appRuntime,
+                    sandboxProvider: 'e2b',
+                },
+            },
+            logger: silentLogger,
+            metrics: null,
+        });
+        const result = await runner.run({
+            queryUuid: 'query',
+            code: 'def run(inputs, params):\n    return inputs["a"]',
+            inputs: [{ name: 'a', jsonl: Buffer.from('{"x":1}\n') }],
+            inputMeta: { inputs: {}, params: {}, limit: 10 },
+            timeoutMs: 1000,
+            batchSandboxCalls: true,
+        });
+        expect(result.stdout).toBe('user logs');
+        expect(handle.files.write).not.toHaveBeenCalled();
+        expect(handle.files.writeMany).toHaveBeenCalledOnce();
+        expect(handle.files.writeMany.mock.calls[0][0]).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ path: '/work/main.py' }),
+                expect.objectContaining({ path: '/work/runner.py' }),
+                {
+                    path: '/work/in/a.jsonl',
+                    contents: Buffer.from('{"x":1}\n'),
+                },
+                expect.objectContaining({ path: '/work/in/meta.json' }),
+                { path: '/work/out/.keep', contents: '' },
+            ]),
+        );
+        expect(handle.commands.run).toHaveBeenCalledTimes(2);
+        expect(create).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                onTimeout: 'kill',
+                timeoutMs: 61000,
+            }),
+        );
+        expect(destroy).toHaveBeenLastCalledWith('batch-test');
+        rejectDestroy(new Error('cleanup unavailable'));
+        await vi.waitFor(() =>
+            expect(silentLogger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('cleanup unavailable'),
+            ),
+        );
+    });
+    it('destroys the sandbox when a batched upload fails', async () => {
+        const error = new Error('upload failed');
+        const handle = {
+            sandboxId: 'failed-upload',
+            files: { writeMany: vi.fn().mockRejectedValue(error) },
+        };
+        create.mockResolvedValueOnce(handle);
+        destroy.mockResolvedValueOnce(undefined);
+        const runner = new PythonSandboxRunner({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                appRuntime: {
+                    ...lightdashConfigMock.appRuntime,
+                    sandboxProvider: 'e2b',
+                },
+            },
+            logger: silentLogger,
+            metrics: null,
+        });
+        await expect(
+            runner.run({
+                queryUuid: 'query',
+                code: 'code',
+                inputs: [],
+                inputMeta: { inputs: {}, params: {}, limit: 10 },
+                timeoutMs: 1000,
+                batchSandboxCalls: true,
+            }),
+        ).rejects.toBe(error);
+        expect(destroy).toHaveBeenLastCalledWith('failed-upload');
+    });
+});

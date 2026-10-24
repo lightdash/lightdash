@@ -11226,12 +11226,21 @@ export class AsyncQueryService extends ProjectService {
                                 resultsFileName: history.resultsFileName,
                             };
                         });
-                    const { enabled: warmTemplate } =
-                        await this.featureFlagModel.get({
+                    const [
+                        { enabled: warmTemplate },
+                        { enabled: batchSandboxCalls },
+                    ] = await Promise.all([
+                        this.featureFlagModel.get({
                             user: { organizationUuid },
                             featureFlagId:
                                 FeatureFlags.ComposerOptimizationPythonWarmTemplate,
-                        });
+                        }),
+                        this.featureFlagModel.get({
+                            user: { organizationUuid },
+                            featureFlagId:
+                                FeatureFlags.ComposerOptimizationPythonBatchSandboxCalls,
+                        }),
+                    ]);
                     const sandbox = this.getPythonSandboxRunner(warmTemplate);
                     // Keyed on the files it reads, not the rows it referenced:
                     // an input served from cache mints a new row over the same file
@@ -11362,6 +11371,7 @@ export class AsyncQueryService extends ProjectService {
                         inputs,
                         inputMeta,
                         timeoutMs: AsyncQueryService.PYTHON_RUN_TIMEOUT_MS,
+                        batchSandboxCalls,
                     });
 
                     const { meta, rows } = await this.traceComposerQueryStage(

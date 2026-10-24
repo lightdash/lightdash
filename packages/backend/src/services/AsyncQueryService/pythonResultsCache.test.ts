@@ -456,3 +456,29 @@ describe('python warm template flag', () => {
         });
     });
 });
+
+describe('python batch sandbox flag', () => {
+    test('resolves organization overrides per query', async () => {
+        const flags: Partial<Record<FeatureFlags, boolean>> = {};
+        const { submit, sandbox, service } = buildHarness({ flags });
+        for (const batchSandboxCalls of [false, true, false]) {
+            flags[FeatureFlags.ComposerOptimizationPythonBatchSandboxCalls] =
+                batchSandboxCalls;
+            // eslint-disable-next-line no-await-in-loop
+            await submit({ invalidateCache: true });
+            expect(sandbox.run).toHaveBeenLastCalledWith(
+                expect.objectContaining({ batchSandboxCalls }),
+            );
+        }
+        expect(service.featureFlagModel.get).toHaveBeenCalledWith({
+            user: { organizationUuid },
+            featureFlagId:
+                FeatureFlags.ComposerOptimizationPythonBatchSandboxCalls,
+        });
+        expect(
+            PREVIEW_ENABLED_FEATURE_FLAGS.has(
+                FeatureFlags.ComposerOptimizationPythonBatchSandboxCalls,
+            ),
+        ).toBe(false);
+    });
+});

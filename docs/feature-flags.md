@@ -510,6 +510,24 @@ of the Python results cache key and `lightdash.templateRef` trace attribute.
 Disabling restores the cold template for subsequent queries; in-flight queries
 finish with their selected template.
 
+### Python batched sandbox calls
+
+`composer-optimization-python-batch-sandbox-calls` is off by default on Cloud,
+self-hosted and previews. Python queries resolve it for the project's organization
+in parallel with the warm-template flag, without a user override. Standard
+ENV/database precedence applies. Console changes affect the next query; ENV
+changes require an API/worker restart. Both flags combine independently. This
+experiment only changes E2B execution.
+
+One SDK multi-file write uploads code, harness, inputs and metadata and creates
+the output directory. Output still uses bounded file reads: a stdout envelope
+would compete with user logs for the 1 MiB command limit and require escaping
+and fallback framing. Destruction starts in finally without blocking results;
+errors are logged. Single-use E2B sandboxes use kill-on-timeout as a backstop
+if cleanup fails or the worker exits, bounding a leak to the run timeout plus
+60 seconds. No new template is needed. Disabling restores awaited cleanup and
+ordinary writes for subsequent queries.
+
 ### Composer query readiness
 
 `composer-optimization-query-push-readiness` is off by default on Cloud,
