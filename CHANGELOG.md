@@ -1,3 +1,11 @@
+## [3.53.4](https://github.com/lightdash/lightdash/compare/3.53.3...3.53.4) (2026-10-24)
+
+
+### Bug Fixes
+
+* **docker:** drop the distrusted emSign root from dbt 1.9+ CA bundles ([#31535](https://github.com/lightdash/lightdash/issues/31535)) ([37e2c14](https://github.com/lightdash/lightdash/commit/37e2c14af41ff3f80427a5e24ab9400797c1af46))
+* **sandboxes:** pin sandbox templates to Node.js 24.22.1 ([#31536](https://github.com/lightdash/lightdash/issues/31536)) ([8d1c450](https://github.com/lightdash/lightdash/commit/8d1c4501c8969e8138d3e6cd6504e4fb41e13cf5))
+
 ## [3.53.3](https://github.com/lightdash/lightdash/compare/3.53.2...3.53.3) (2026-10-24)
 
 
