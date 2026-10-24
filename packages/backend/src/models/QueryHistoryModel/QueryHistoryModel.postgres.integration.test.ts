@@ -190,6 +190,67 @@ describe('QueryHistoryModel (PostgreSQL)', () => {
         expect(await cancel([])).toEqual([]);
     });
 
+    describe('retention cleanup', () => {
+        const cutoff = new Date('2026-01-31T00:00:00Z');
+        const expired = new Date('2026-01-01T00:00:00Z');
+        const recent = new Date('2026-02-15T00:00:00Z');
+        const insertAt = (createdAt: Date, count: number) =>
+            tx<{
+                query_uuid: string;
+                project_uuid: string;
+                status: QueryHistoryStatus;
+                created_by_user_uuid: string;
+                context: QueryExecutionContext;
+                request_parameters: Record<string, never>;
+                created_at: Date;
+            }>('query_history').insert(
+                Array.from({ length: count }, () => ({
+                    query_uuid: randomUUID(),
+                    project_uuid: projectUuid,
+                    status: QueryHistoryStatus.READY,
+                    created_by_user_uuid: account.user.id,
+                    context: QueryExecutionContext.EXPLORE,
+                    request_parameters: {},
+                    created_at: createdAt,
+                })),
+            );
+        const remainingRows = () =>
+            tx<{ created_at: Date }>('query_history').select('created_at');
+        const generous = {
+            batchSize: 10,
+            delayMs: 0,
+            maxBatches: 10,
+        };
+
+        it('clears a backlog spanning many batches within the caps and keeps rows inside retention', async () => {
+            await insertAt(expired, 25);
+            await insertAt(recent, 5);
+
+            const result = await model.cleanupBatch(cutoff, generous);
+
+            expect(result).toMatchObject({ totalDeleted: 25, completed: true });
+            const rows = await remainingRows();
+            expect(rows).toHaveLength(5);
+            expect(rows.every((row) => row.created_at >= cutoff)).toBe(true);
+            expect(await model.countOlderThan(cutoff)).toBe(0);
+        });
+
+        it('stops at the batch cap and reports the backlog left behind', async () => {
+            await insertAt(expired, 25);
+
+            const result = await model.cleanupBatch(cutoff, {
+                ...generous,
+                maxBatches: 2,
+            });
+
+            expect(result).toMatchObject({
+                totalDeleted: 20,
+                completed: false,
+            });
+            expect(await model.countOlderThan(cutoff)).toBe(5);
+        });
+    });
+
     describe('result cache provenance', () => {
         const producer: QueryResultProducer = {
             version: 1,
