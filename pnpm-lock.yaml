@@ -974,8 +974,8 @@ importers:
         specifier: 0.38.4
         version: 0.38.4
       '@yao-pkg/pkg':
-        specifier: 6.23.0
-        version: 6.23.0(supports-color@9.1.0)
+        specifier: 6.24.0
+        version: 6.24.0(supports-color@9.1.0)
       copyfiles:
         specifier: 2.4.1
         version: 2.4.1
@@ -8084,12 +8084,12 @@ packages:
   '@xyflow/system@0.0.46':
     resolution: {integrity: sha512-bmFXvboVdiydIFZmDCjrbBCYgB0d5pYdkcZPWbAxGmhMRUZ+kW3CksYgYxWabrw51rwpWitLEadvLrivG0mVfA==}
 
-  '@yao-pkg/pkg-fetch@3.6.6':
-    resolution: {integrity: sha512-Nu9ytHewcV6FuH4WvdpYZxz2XwiP2p30jlPBzbvwsS3OPYN7RRTyGrXhcmhS59O3AdXz/LW+4bozhV3alN+MEA==}
+  '@yao-pkg/pkg-fetch@3.6.7':
+    resolution: {integrity: sha512-uEeU5druVgHffruTAXzW6nf0wHfREWlCq5LBtQ4hCdLBDbwTteuym5NrxREur3EgNcqFRenEi6Rivwo723PkHg==}
     hasBin: true
 
-  '@yao-pkg/pkg@6.23.0':
-    resolution: {integrity: sha512-+d8iqRcmDxPpTE5fbSmsn1rShktIKvMcQGcFhwLdH15A4g2fBcRVLXppeQmu9fbF98bhYXjCOj6UTf3odXxWiA==}
+  '@yao-pkg/pkg@6.24.0':
+    resolution: {integrity: sha512-SMwFLic12noHLbqxhhQVClVX6YZlQtzwwez6dq7Xj64rXX6OFgZTTQbPgw4wgec5IoUN+6rCRKgyW/cnVPOwkA==}
     engines: {node: '>=22.0.0'}
     hasBin: true
 
@@ -24304,7 +24304,7 @@ snapshots:
       d3-selection: 3.0.0
       d3-zoom: 3.0.0
 
-  '@yao-pkg/pkg-fetch@3.6.6':
+  '@yao-pkg/pkg-fetch@3.6.7':
     dependencies:
       picocolors: 1.1.1
       progress: 2.0.3
@@ -24316,14 +24316,14 @@ snapshots:
       - bare-abort-controller
       - bare-buffer
 
-  '@yao-pkg/pkg@6.23.0(supports-color@9.1.0)':
+  '@yao-pkg/pkg@6.24.0(supports-color@9.1.0)':
     dependencies:
       '@babel/generator': 7.29.1
       '@babel/parser': 7.29.0
       '@babel/traverse': 7.29.0(supports-color@9.1.0)
       '@babel/types': 7.29.0
       '@roberts_lando/vfs': 0.3.3
-      '@yao-pkg/pkg-fetch': 3.6.6
+      '@yao-pkg/pkg-fetch': 3.6.7
       esbuild: 0.28.2
       into-stream: 9.1.0
       multistream: 4.1.0
