@@ -418,6 +418,7 @@
         "metrics.compareMetricTooltip": "„{metric}“-ის სხვა მეტრიკასთან შედარება",
         "metrics.comparisonMetric": "შესადარებელი მეტრიკა",
         "filters.closeFacet": "{filter} ფილტრის დახურვა",
+        "filters.sectionSummary": "{total}-დან {set} დაყენებულია",
         "metrics.ownerDetails": "მფლობელის დეტალები: {owner}",
         "agentAttribution.changedBy": "შეცვლილია აგენტის მიერ {person}-ის სახელით · {surface}",
         "agentAttribution.serviceAccount": "სერვისის ანგარიში",

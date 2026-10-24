@@ -134,7 +134,8 @@ In `FilterConfiguration/`:
   `filterArea`: the slot that replaces `DashboardFilters` and the requirements
   button. In edit mode it holds `AddControl`, `FilterPills` and the shipped
   requirements button; in view mode `AddControl` and `FilterPills` only, as
-  the shipped view bar has no requirements button. While the rail is open (`isRailOpen`, a filter
+  the shipped view bar has no requirements button, or `SectionedFilters`
+  once the dashboard has sections (see "Sections"). While the rail is open (`isRailOpen`, a filter
   expanded or not) all three fold away: the rail lists the filters and its
   footer has "Add filter". In their place `EditingStrip` says what is being
   edited, after the bar's own filter icon: "Editing filters" (semibold,
@@ -1085,6 +1086,27 @@ the language map, as tab names are.
   dropped on a header, or on one of its rows, reorders the sections. Drag is
   off while a filter is expanded or a name is being edited; there is no
   drop target to unsection a row other than another unsectioned row.
+- Bar, view mode only (edit mode stays flat): with `selectControlSections`
+  non-empty and the rail closed, `ControlsBar` renders `SectionedFilters` in
+  place of `AddControl` + `FilterPills`. It is `AddControl placement="bar"`,
+  `FilterPills sectionId={null}` (the unsectioned saved pills and the
+  viewer's own pills, which are never in a section) and then one capsule per
+  section in `controlSections` order that has a saved member visible on this
+  tab (`groupRulesBySection`, `useFilterTabPlacement` /
+  `isFilterHiddenOnTab`); a section with none renders nothing, and no
+  capsule renders while the filters load. A capsule (`.capsule` in
+  `SectionedFilters.module.css`: `ldGray-1`, default border, pill radius and
+  height) is a toggle (chevron and the name, `aria-expanded`) and, open,
+  `FilterPills sectionId={section.id}`; folded, the dimmed
+  `filters.sectionSummary` ("{set} of {total} set", `hasFilterValueSet` over
+  the visible members) that the toggle names with `aria-describedby`. Open by
+  default; a fold is local state keyed by section id, nothing saved and
+  nothing in the URL. `FilterPills` threads `sectionId` (`undefined`: every
+  saved rule, the default; `null`; a string) and a shared `popover` state to
+  `ViewerSavedPills`, which filters with `isRuleInSection` and keeps the
+  saved index for remove and update; `SectionedFilters` owns the popover
+  state so one saved popover is open across the whole bar, and a lone
+  `FilterPills` keeps its own.
 
 ## Motion
 
