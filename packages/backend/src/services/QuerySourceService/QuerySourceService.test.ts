@@ -85,7 +85,7 @@ type Mocks = {
     permissions: { loadRequest: Mock; assertOperationWithRequest: Mock };
     featureFlagModel: { get: Mock };
     projectModel: { getSummary: Mock };
-    queryHistoryModel: { get: Mock };
+    queryHistoryModel: { get: Mock; getStatuses: Mock };
 };
 
 const createService = (registry: QuerySourceRegistry) => {
@@ -108,6 +108,12 @@ const createService = (registry: QuerySourceRegistry) => {
                 status: QueryHistoryStatus.READY,
                 error: null,
             })),
+            getStatuses: vi.fn(async (queryUuids: string[]) =>
+                queryUuids.map((queryUuid) => ({
+                    queryUuid,
+                    status: QueryHistoryStatus.READY,
+                })),
+            ),
         },
     };
 
@@ -606,6 +612,9 @@ describe('QuerySourceService', () => {
                     error: null,
                 })
                 .mockResolvedValue({ queryUuid: 'query', status, error: null });
+            mocks.queryHistoryModel.getStatuses.mockResolvedValue([
+                { queryUuid: 'query', status },
+            ]);
             const result = await service.getSourceQueryStatuses(
                 account,
                 projectUuid,
@@ -616,18 +625,28 @@ describe('QuerySourceService', () => {
                 },
             );
             expect(result.statuses[0].status).toBe(status);
-            expect(mocks.queryHistoryModel.get).toHaveBeenCalledTimes(3);
+            expect(mocks.queryHistoryModel.getStatuses).toHaveBeenCalledOnce();
+            expect(mocks.queryHistoryModel.get).toHaveBeenCalledTimes(2);
         });
 
         it('returns latest statuses on timeout', async () => {
             const { service, mocks } = createService(
                 createRegistryWithFakes().registry,
             );
-            mocks.queryHistoryModel.get.mockResolvedValue({
-                queryUuid: 'query',
-                status: QueryHistoryStatus.EXECUTING,
-                error: null,
-            });
+            mocks.queryHistoryModel.get
+                .mockResolvedValueOnce({
+                    queryUuid: 'query',
+                    status: QueryHistoryStatus.PENDING,
+                    error: null,
+                })
+                .mockResolvedValue({
+                    queryUuid: 'query',
+                    status: QueryHistoryStatus.EXECUTING,
+                    error: null,
+                });
+            mocks.queryHistoryModel.getStatuses.mockResolvedValue([
+                { queryUuid: 'query', status: QueryHistoryStatus.EXECUTING },
+            ]);
             const started = Date.now();
             const result = await service.getSourceQueryStatuses(
                 account,
@@ -642,9 +661,7 @@ describe('QuerySourceService', () => {
             expect(result.statuses[0].status).toBe(
                 QueryHistoryStatus.EXECUTING,
             );
-            expect(
-                mocks.queryHistoryModel.get.mock.calls.length,
-            ).toBeGreaterThan(1);
+            expect(mocks.queryHistoryModel.getStatuses).toHaveBeenCalled();
         });
 
         it('caps the wait deadline at ten seconds', async () => {
@@ -652,11 +669,6 @@ describe('QuerySourceService', () => {
                 createRegistryWithFakes().registry,
             );
             const clock = vi.spyOn(Date, 'now').mockReturnValue(0);
-            mocks.queryHistoryModel.get.mockResolvedValue({
-                queryUuid: 'query',
-                status: QueryHistoryStatus.EXECUTING,
-                error: null,
-            });
             mocks.queryHistoryModel.get.mockImplementation(async () => {
                 clock.mockReturnValue(10000);
                 return {
@@ -675,7 +687,9 @@ describe('QuerySourceService', () => {
                         signal: new AbortController().signal,
                     },
                 );
-                expect(mocks.queryHistoryModel.get).toHaveBeenCalledOnce();
+                expect(
+                    mocks.queryHistoryModel.getStatuses,
+                ).not.toHaveBeenCalled();
             } finally {
                 clock.mockRestore();
             }
@@ -690,6 +704,9 @@ describe('QuerySourceService', () => {
                 status: QueryHistoryStatus.EXECUTING,
                 error: null,
             });
+            mocks.queryHistoryModel.getStatuses.mockResolvedValue([
+                { queryUuid: 'query', status: QueryHistoryStatus.EXECUTING },
+            ]);
             const controller = new AbortController();
             const result = service.getSourceQueryStatuses(
                 account,
@@ -714,11 +731,15 @@ describe('QuerySourceService', () => {
                     },
                 ],
             });
-            const checks = mocks.queryHistoryModel.get.mock.calls.length;
+            const checks =
+                mocks.queryHistoryModel.getStatuses.mock.calls.length;
             await new Promise((resolve) => {
                 setTimeout(resolve, 70);
             });
-            expect(mocks.queryHistoryModel.get).toHaveBeenCalledTimes(checks);
+            expect(mocks.queryHistoryModel.getStatuses).toHaveBeenCalledTimes(
+                checks,
+            );
+            expect(mocks.queryHistoryModel.get).toHaveBeenCalledOnce();
         });
 
         it('refuses protected status and error before emitting a batch', async () => {
