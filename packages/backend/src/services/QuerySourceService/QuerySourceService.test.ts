@@ -617,11 +617,6 @@ describe('QuerySourceService', () => {
             );
             expect(result.statuses[0].status).toBe(status);
             expect(mocks.queryHistoryModel.get).toHaveBeenCalledTimes(3);
-            expect(mocks.featureFlagModel.get).toHaveBeenCalledWith({
-                user: { organizationUuid },
-                featureFlagId:
-                    FeatureFlags.ComposerOptimizationQueryPushReadiness,
-            });
         });
 
         it('returns latest statuses on timeout', async () => {
@@ -662,16 +657,14 @@ describe('QuerySourceService', () => {
                 status: QueryHistoryStatus.EXECUTING,
                 error: null,
             });
-            mocks.featureFlagModel.get.mockImplementation(
-                async ({ featureFlagId }) => {
-                    if (
-                        featureFlagId ===
-                        FeatureFlags.ComposerOptimizationQueryPushReadiness
-                    )
-                        clock.mockReturnValue(10000);
-                    return { enabled: true };
-                },
-            );
+            mocks.queryHistoryModel.get.mockImplementation(async () => {
+                clock.mockReturnValue(10000);
+                return {
+                    queryUuid: 'query',
+                    status: QueryHistoryStatus.EXECUTING,
+                    error: null,
+                };
+            });
             try {
                 await service.getSourceQueryStatuses(
                     account,
@@ -686,34 +679,6 @@ describe('QuerySourceService', () => {
             } finally {
                 clock.mockRestore();
             }
-        });
-
-        it('ignores waitMs when flag is off', async () => {
-            const { service, mocks } = createService(
-                createRegistryWithFakes().registry,
-            );
-            mocks.featureFlagModel.get.mockImplementation(
-                async ({ featureFlagId }) => ({
-                    enabled:
-                        featureFlagId !==
-                        FeatureFlags.ComposerOptimizationQueryPushReadiness,
-                }),
-            );
-            mocks.queryHistoryModel.get.mockResolvedValue({
-                queryUuid: 'query',
-                status: QueryHistoryStatus.EXECUTING,
-                error: null,
-            });
-            await service.getSourceQueryStatuses(
-                account,
-                projectUuid,
-                ['query'],
-                {
-                    waitMs: 10000,
-                    signal: new AbortController().signal,
-                },
-            );
-            expect(mocks.queryHistoryModel.get).toHaveBeenCalledOnce();
         });
 
         it('cancels the wait and stops checking after disconnect', async () => {
@@ -736,13 +701,7 @@ describe('QuerySourceService', () => {
                 },
             );
             await vi.waitFor(
-                () =>
-                    expect(mocks.featureFlagModel.get).toHaveBeenCalledWith(
-                        expect.objectContaining({
-                            featureFlagId:
-                                FeatureFlags.ComposerOptimizationQueryPushReadiness,
-                        }),
-                    ),
+                () => expect(mocks.queryHistoryModel.get).toHaveBeenCalled(),
                 { interval: 1 },
             );
             controller.abort();

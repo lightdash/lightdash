@@ -22,7 +22,7 @@ Publishing: `post-release.yml` builds `lightdash-python-runner:<version>` in bot
 E2B regions on every release where this directory changed, and retags `:latest`
 otherwise. Local builds use `pnpm run build` (`build-sandbox.ts`).
 
-## Warm E2B variant
+## Default warm E2B template
 
 `pnpm run build --warm` uses the same Dockerfile, then runs an isolated Python
 process importing numpy, pandas, scipy.stats and pyarrow. The ready check waits
@@ -51,10 +51,13 @@ Configure the local backend with the existing E2B credentials/domain and:
 SANDBOX_PROVIDER=e2b
 E2B_PYTHON_WARM_TEMPLATE_NAME=lightdash-python-runner-exp-warm
 E2B_PYTHON_WARM_TEMPLATE_TAG=exp
-LIGHTDASH_ENABLE_FEATURE_FLAGS=composer-optimization-python-warm-template
 ```
 
-Preserve other entries in `LIGHTDASH_ENABLE_FEATURE_FLAGS`; the composer endpoint
-still requires `compose-sql-runner`. Alternatively, enable the warm flag for the
-project's organization through Console, with no ENV force-on. Backend warm tags
-default to the running Lightdash version. Restart API/workers after ENV changes.
+The backend uses the warm template by default, with tags defaulting to the
+running Lightdash version. Restart API/workers after ENV changes. The composer
+endpoint still requires `compose-sql-runner`.
+
+`E2B_PYTHON_TEMPLATE_NAME` and `E2B_PYTHON_TEMPLATE_TAG` remain backend
+compatibility fallbacks when the corresponding warm setting is absent. Explicit
+custom templates remain supported. Release publishing keeps both variants for
+older backends and explicit overrides.

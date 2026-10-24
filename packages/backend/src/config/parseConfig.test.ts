@@ -40,6 +40,35 @@ beforeEach(() => {
     };
 });
 
+describe('Python E2B template configuration', () => {
+    it('defaults to the warm template at the running version', () => {
+        expect(parseConfig().appRuntime).toMatchObject({
+            e2bPythonTemplateName: 'lightdash-python-runner-warm',
+            e2bPythonTemplateTag: VERSION,
+        });
+    });
+
+    it('preserves legacy template overrides', () => {
+        process.env.E2B_PYTHON_TEMPLATE_NAME = 'custom-python';
+        process.env.E2B_PYTHON_TEMPLATE_TAG = 'custom-tag';
+        expect(parseConfig().appRuntime).toMatchObject({
+            e2bPythonTemplateName: 'custom-python',
+            e2bPythonTemplateTag: 'custom-tag',
+        });
+    });
+
+    it('prefers warm settings and preserves an explicitly untagged template', () => {
+        process.env.E2B_PYTHON_TEMPLATE_NAME = 'custom-python';
+        process.env.E2B_PYTHON_TEMPLATE_TAG = 'custom-tag';
+        process.env.E2B_PYTHON_WARM_TEMPLATE_NAME = 'warm-python';
+        process.env.E2B_PYTHON_WARM_TEMPLATE_TAG = '';
+        expect(parseConfig().appRuntime).toMatchObject({
+            e2bPythonTemplateName: 'warm-python',
+            e2bPythonTemplateTag: '',
+        });
+    });
+});
+
 describe('agent result identity check configuration', () => {
     it.each([
         [undefined, true],

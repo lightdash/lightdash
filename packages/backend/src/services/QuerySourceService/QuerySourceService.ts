@@ -579,14 +579,6 @@ export class QuerySourceService extends BaseService {
         let running = runningUuids(results.statuses);
         if (!wait || !(waitMs > 0) || running.length === 0) return results;
 
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
-        const { enabled } = await this.featureFlagModel.get({
-            user: { organizationUuid },
-            featureFlagId: FeatureFlags.ComposerOptimizationQueryPushReadiness,
-        });
-        if (!enabled) return results;
-
         const initiallyRunning = running.length;
         while (running.length > 0 && Date.now() < deadline) {
             // eslint-disable-next-line no-await-in-loop
