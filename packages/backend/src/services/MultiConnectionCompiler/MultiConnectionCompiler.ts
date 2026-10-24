@@ -144,7 +144,11 @@ export type MultiConnectionSave = {
     exploreStream: AsyncIterable<Explore | ExploreError>;
     bindingOf: (exploreName: string) => string | null;
     carry: MultiConnectionCarry;
-    persistArtifacts: (options?: { exploresCommitted: true }) => Promise<void>;
+    persistArtifacts: (options?: {
+        exploresCommitted: true;
+        successfulCompile?: boolean;
+        failedSourceUuids?: readonly string[];
+    }) => Promise<void>;
     signal?: AbortSignal;
     naming?: ExploreNaming;
 };
@@ -229,7 +233,6 @@ type MultiConnectionCompileInput = SourceDiskLifecycle & {
     trackingParams?: TrackingParams;
     analytics?: LightdashAnalytics;
     crossSourceTimeouts?: CrossSourceTimeouts;
-    crossSourceMaxPasses?: number;
     compileJobUuid?: string | null;
 };
 
@@ -287,7 +290,6 @@ export class MultiConnectionCompiler {
             isolation?: SourceFailureIsolation;
             signal?: AbortSignal;
             timeouts?: CrossSourceTimeouts;
-            maxPasses?: number;
             catalogCache?: CrossSourceCatalogCache;
             resolutionElapsedMs?: number;
             connectionName?: string;
@@ -486,20 +488,19 @@ export class MultiConnectionCompiler {
         warnings.push(...resolution.warnings);
         if (enabled) {
             Logger.info(
-                `dbt.compile.crossSourceRefsResolved diskEvictions=${resolutionOptions.diskStats?.diskEvictions ?? 0} diskRecreations=${resolutionOptions.diskStats?.diskRecreations ?? 0}`,
+                `dbt.compile.crossSourceRefsResolved diskEvictions=${resolutionOptions.diskStats?.diskEvictions ?? 0} diskRecreations=${resolutionOptions.diskStats?.diskRecreations ?? 0} ownedInjected=${resolution.ownedInjected} packageNodesOmitted=${resolution.packageNodesOmitted}`,
                 {
                     ...resolutionOptions.diskStats,
                     event: 'dbt.compile.crossSourceRefsResolved',
                     projectUuid,
                     rounds: resolution.rounds,
-                    passes: resolution.passes,
-                    stubs: resolution.stubs,
-                    contradictions: resolution.contradictions,
                     sourceTimings: resolution.sources,
                     cacheRowsLoaded: catalogCache?.rowsLoaded ?? 0,
                     cacheRowsWritten: catalogCache?.rowsWritten ?? 0,
                     scannedEdges: resolution.scan.known,
                     firstAttemptInjected: resolution.firstAttemptInjected,
+                    ownedInjected: resolution.ownedInjected,
+                    packageNodesOmitted: resolution.packageNodesOmitted,
                     dbtLsRuns: resolution.attempts,
                     preflightWarnings: resolution.preflightWarnings,
                     timeouts:
@@ -796,7 +797,6 @@ export class MultiConnectionCompiler {
             trackingParams,
             analytics,
             crossSourceTimeouts = DEFAULT_CROSS_SOURCE_TIMEOUTS,
-            crossSourceMaxPasses = 3,
             compileJobUuid = null,
             withSourceDisk,
             prepareSourceFetch,
@@ -1065,7 +1065,6 @@ export class MultiConnectionCompiler {
                     ? {
                           signal: compileSignal,
                           timeouts: crossSourceTimeouts,
-                          maxPasses: crossSourceMaxPasses,
                           catalogCache: cacheFor(plan),
                           get resolutionElapsedMs() {
                               return Date.now() - resolutionStartedAt;
@@ -1422,7 +1421,6 @@ export class MultiConnectionCompiler {
                             originalManifest,
                         );
                     }
-                    await catalogCaches.get('original')?.confirm();
                     await Promise.all(
                         compiledExtraGroups.map(async (group) => {
                             await this.warehouseConnectionCompileModel.saveCompileArtifacts(
@@ -1433,11 +1431,17 @@ export class MultiConnectionCompiler {
                                     catalog: group.catalog,
                                 },
                             );
-                            await catalogCaches
-                                .get(group.plan.warehouseConnectionUuid)
-                                ?.confirm();
                         }),
                     );
+                    if (options?.successfulCompile !== false)
+                        await Promise.all(
+                            [...catalogCaches.values()].map((cache) => {
+                                for (const sourceUuid of options?.failedSourceUuids ??
+                                    [])
+                                    cache.discard(sourceUuid);
+                                return cache.confirm();
+                            }),
+                        );
                 },
             };
         } catch (error) {
@@ -1459,10 +1463,25 @@ export class MultiConnectionCompiler {
                       compilation.signal?.throwIfAborted();
                   }
                 : beforeWrite;
+        let successfulCompile = true;
+        const failedSourceUuids = new Set<string>();
         const saved = await this.projectModel.saveMultiConnectionExplores(
             projectUuid,
             (async function* boundExplores(): AsyncIterable<BoundExplore> {
                 for await (const explore of compilation.exploreStream) {
+                    if (isExploreError(explore)) {
+                        const sourceUuid =
+                            explore.dbtModelIdentity?.sourceUuid ??
+                            explore.tables?.[explore.baseTable ?? explore.name]
+                                ?.dbtSourceUuid ??
+                            (
+                                explore as ExploreError & {
+                                    dbtSourceUuid?: string;
+                                }
+                            ).dbtSourceUuid;
+                        if (sourceUuid) failedSourceUuids.add(sourceUuid);
+                        else successfulCompile = false;
+                    }
                     yield {
                         explore,
                         warehouseConnectionUuid: compilation.bindingOf(
@@ -1476,7 +1495,13 @@ export class MultiConnectionCompiler {
             compilation.naming,
         );
         markCompilePublished();
-        await compilation.persistArtifacts({ exploresCommitted: true });
+        await compilation.persistArtifacts({
+            exploresCommitted: true,
+            ...(successfulCompile ? {} : { successfulCompile: false }),
+            ...(failedSourceUuids.size > 0
+                ? { failedSourceUuids: [...failedSourceUuids] }
+                : {}),
+        });
         return saved;
     }
 

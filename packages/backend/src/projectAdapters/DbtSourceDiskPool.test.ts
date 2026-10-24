@@ -1,4 +1,7 @@
-import { DbtError, type DbtManifest } from '@lightdash/common';
+import {
+    getExternalModelNodesFromManifest,
+    type DbtManifest,
+} from '@lightdash/common';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -18,6 +21,7 @@ const result = (key: string) => ({
                 original_file_path: 'models/orders.sql',
                 schema: 'public',
                 resource_type: 'model',
+                access: 'public',
                 package_name: key,
                 config: { materialized: 'table' },
             },
@@ -166,7 +170,7 @@ describe('DbtSourceDiskPool', () => {
         await expect(pool.release('leaf_a')).rejects.toBe(failure);
     });
 
-    it('bounds 16 scanned sources through eviction, recreation and a retry', async () => {
+    it('bounds 16 scanned sources through eviction and recreation with one parse each', async () => {
         const root = await fs.mkdtemp(path.join(os.tmpdir(), 'disk-pool-'));
         await fs.mkdir(path.join(root, 'primary'));
         const pool = new DbtSourceDiskPool(2);
@@ -218,7 +222,8 @@ describe('DbtSourceDiskPool', () => {
                             return {
                                 projectName: key,
                                 installedPackages: [],
-                                declaredUpstreams: [],
+                                declaredUpstreams:
+                                    index === 0 ? ['leaf_15'] : [],
                                 referencedProjects:
                                     index === 0 ? ['leaf_1'] : [],
                                 refs:
@@ -246,16 +251,10 @@ describe('DbtSourceDiskPool', () => {
                             await fs.stat(path.join(root, key)),
                         ).toBeDefined();
                         attempts.set(key, (attempts.get(key) ?? 0) + 1);
-                        if (
-                            index === 0 &&
-                            !externalNodes.some(
-                                (node) => node.package_name === 'leaf_15',
-                            )
-                        ) {
-                            throw new DbtError(
-                                "depends on a node named 'orders' in package or project 'leaf_15' which was not found",
-                            );
-                        }
+                        if (index === 0)
+                            expect(
+                                externalNodes.map((node) => node.package_name),
+                            ).toEqual(['leaf_1', 'leaf_15']);
                         return result(key);
                     } finally {
                         active.delete(key);
@@ -266,13 +265,22 @@ describe('DbtSourceDiskPool', () => {
         try {
             const resolved = await resolveCrossSourceManifests({
                 tasks,
+                cache: tasks.map((task) => ({
+                    key: task.key,
+                    projectName: task.key,
+                    referencedProjects: [],
+                    nodes: getExternalModelNodesFromManifest(
+                        result(task.key).manifest,
+                    ),
+                })),
                 concurrency: 2,
                 enabled: true,
                 onSourceFinal: (task) => pool.release(task.key),
             });
             expect(resolved.results).toHaveLength(16);
             expect(peak).toBe(3);
-            expect(attempts.get('leaf_0')).toBe(2);
+            expect([...attempts.values()]).toEqual(Array(16).fill(1));
+            expect(resolved.attempts).toBe(16);
             expect([...scans.values()]).toEqual(Array(16).fill(1));
             expect(pool.stats.diskEvictions).toBeGreaterThan(0);
             expect(pool.stats.diskRecreations).toBeGreaterThan(0);

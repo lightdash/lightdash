@@ -172,3 +172,82 @@ it('includes Python models in the default model path', async () => {
     await write('models/py_v2.py', 'pass');
     expect((await scanDbtProject(directory)).localModels).toEqual(['py']);
 });
+
+it('finds local and installed seeds and snapshots in configured resource paths', async () => {
+    await write(
+        'dbt_project.yml',
+        'name: consumer\nseed-paths: [lookups]\nsnapshot-paths: [history]',
+    );
+    await write('lookups/countries_v2.csv', 'id\n1\n');
+    await write(
+        'history/events.sql',
+        '{% snapshot event_history %} select 1 {% endsnapshot %}',
+    );
+    await write(
+        'history/multiple.sql',
+        '{%- snapshot first_history -%} select 1 {% endsnapshot %} {% snapshot second_history %} select 2 {% endsnapshot %}',
+    );
+    await write(
+        'models/resources.yml',
+        'seeds:\n  - name: schema_seed\nsnapshots:\n  - name: schema_snapshot\nmodels:\n  - name: schema_model',
+    );
+    await write('seeds/ignored.csv', 'id\n1\n');
+    await write(
+        'snapshots/ignored.sql',
+        '{% snapshot ignored_history %} select 1 {% endsnapshot %}',
+    );
+    await write('other/ignored.yml', 'seeds:\n  - name: ignored_schema_seed');
+    await write(
+        'dbt_packages/shared/dbt_project.yml',
+        'name: shared\nseed-paths: [data]\nsnapshot-paths: [audit]',
+    );
+    await write('dbt_packages/shared/data/package_seed.csv', 'id\n1\n');
+    await write(
+        'dbt_packages/shared/audit/snapshots.sql',
+        "{% snapshot package_snapshot %} select * from {{ ref('other', 'ignored') }} {% endsnapshot %}",
+    );
+    await write(
+        'dbt_packages/shared/models/resources.yml',
+        'seeds:\n  - name: package_schema_seed\nsnapshots:\n  - name: package_schema_snapshot',
+    );
+    expect(await scanDbtProject(directory)).toMatchObject({
+        localModels: [
+            'countries_v2',
+            'event_history',
+            'first_history',
+            'schema_model',
+            'schema_seed',
+            'schema_snapshot',
+            'second_history',
+        ],
+        installedPackageModels: [
+            'package_schema_seed',
+            'package_schema_snapshot',
+            'package_seed',
+            'package_snapshot',
+        ],
+        referencedProjects: [],
+    });
+});
+
+it('records seed filenames without reading their contents or applying the text size limit', async () => {
+    await write('seeds/large_seed.csv', `id\n${'1\n'.repeat(2 * 1024 * 1024)}`);
+    await write(
+        'snapshots/history.sql',
+        '{% snapshot local_history %} select 1 {% endsnapshot %}',
+    );
+    const read = vi.spyOn(fs, 'readFile');
+    try {
+        expect((await scanDbtProject(directory)).localModels).toEqual([
+            'large_seed',
+            'local_history',
+        ]);
+        expect(
+            read.mock.calls.some(([filename]) =>
+                String(filename).endsWith('.csv'),
+            ),
+        ).toBe(false);
+    } finally {
+        read.mockRestore();
+    }
+});

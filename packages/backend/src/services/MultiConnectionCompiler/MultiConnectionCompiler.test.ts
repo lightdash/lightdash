@@ -4,6 +4,7 @@ import {
     DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
+    getExternalModelNodesFromManifest,
     InlineErrorType,
     JobStepStatusType,
     JobStepType,
@@ -312,15 +313,25 @@ describe('cross-source compilation', () => {
     });
 
     it.each([false, true])(
-        'prepares sources, reuses fetches and returns warnings with scanned=%s',
+        'fetches each source once with scan or confirmed dependency metadata, scanned=%s',
         async (scanned) => {
             const resolveManifests = vi.spyOn(
                 crossSourceRefs,
                 'resolveCrossSourceManifests',
             );
             const log = vi.spyOn(Logger, 'info');
+            const cacheRows: crossSourceRefs.CrossSourceCatalog[] = [];
             const compiler = new MultiConnectionCompiler({
-                dbtSourceRefCatalogModel: {} as never,
+                dbtSourceRefCatalogModel: {
+                    get: vi.fn(async () =>
+                        cacheRows.map((row) => ({
+                            dbt_source_uuid: `${row.key}-uuid`,
+                            project_name: row.projectName,
+                            referenced_projects: row.referencedProjects,
+                            nodes: row.nodes,
+                        })),
+                    ),
+                } as never,
                 projectModel: {
                     getDbtSourceIdentity: vi.fn().mockResolvedValue({
                         dbtSourceName: 'primary',
@@ -379,6 +390,14 @@ describe('cross-source compilation', () => {
                 metadata: { ...manifest.metadata, project_name: 'shared' },
                 nodes: { [sharedNode.unique_id]: sharedNode },
             };
+            cacheRows.push({
+                key: 'shared',
+                projectName: 'shared',
+                referencedProjects: [],
+                nodes: getExternalModelNodesFromManifest(
+                    upstream as unknown as DbtManifest,
+                ),
+            });
             const primaryManifest = {
                 ...manifest,
                 metadata: { ...manifest.metadata, project_name: 'analytics' },
@@ -407,11 +426,14 @@ describe('cross-source compilation', () => {
                 timings,
             });
             if (!scanned)
-                fetchManifest.mockRejectedValueOnce(
-                    new DbtError(
-                        "depends on a node named 'calendar' in package or project 'shared' which was not found",
+                cacheRows.push({
+                    key: 'primary',
+                    projectName: 'analytics',
+                    referencedProjects: ['shared'],
+                    nodes: getExternalModelNodesFromManifest(
+                        primaryManifest as unknown as DbtManifest,
                     ),
-                );
+                });
             const preparePrimary = vi.fn(async () =>
                 scanned
                     ? {
@@ -485,10 +507,12 @@ describe('cross-source compilation', () => {
                 expect.objectContaining({ concurrency: 1 }),
             );
             expect(log).toHaveBeenCalledWith(
-                'dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0',
+                'dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=1 packageNodesOmitted=0',
                 expect.objectContaining({
                     projectUuid: 'project-uuid',
-                    rounds: scanned ? 1 : 2,
+                    rounds: 1,
+                    ownedInjected: 1,
+                    packageNodesOmitted: 0,
                     sources: expect.arrayContaining([
                         expect.objectContaining({
                             name: 'primary',
@@ -498,8 +522,8 @@ describe('cross-source compilation', () => {
                     ]),
                 }),
             );
-            expect(fetchManifest).toHaveBeenCalledTimes(scanned ? 1 : 2);
-            expect(fetchManifest.mock.calls[scanned ? 0 : 1][0]).toEqual({
+            expect(fetchManifest).toHaveBeenCalledTimes(1);
+            expect(fetchManifest.mock.calls[0][0]).toEqual({
                 signal: expect.any(AbortSignal),
                 externalNodes: [
                     expect.objectContaining({

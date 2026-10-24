@@ -960,6 +960,7 @@ export const isExternalDbtNode = (
 ): boolean => !node.path && !node.original_file_path;
 
 export type DbtExternalModelNode = {
+    resource_type?: 'model' | 'seed' | 'snapshot';
     name: string;
     package_name: string;
     identifier: string;
@@ -972,15 +973,54 @@ export type DbtExternalModelNode = {
     depends_on_nodes: string[];
 };
 
+export const getExternalDbtNodeUniqueId = (
+    node: Pick<
+        DbtExternalModelNode,
+        'resource_type' | 'package_name' | 'name' | 'version'
+    >,
+): string =>
+    `${node.resource_type ?? 'model'}.${node.package_name}.${node.name}${node.version === null ? '' : `.v${node.version}`}`;
+
+export type DbtSourceManifest = {
+    projectName: string;
+    dbtVersion: string;
+    nodes: DbtExternalModelNode[];
+    referencedProjects: string[];
+};
+
 export const getExternalModelNodesFromManifest = (
     manifest: DbtManifest,
+    projectName = manifest.metadata.project_name,
 ): DbtExternalModelNode[] => {
-    const models = Object.values(manifest.nodes)
-        .filter((node) => node.resource_type === 'model')
-        .map((node) => node as DbtRawModelNode)
-        .filter((node) => !isExternalDbtNode(node));
-    const modelIds = new Set(models.map((node) => node.unique_id));
-    return models.map((node) => ({
+    if (!projectName) return [];
+    const resources = Object.values(manifest.nodes)
+        .filter((node) =>
+            ['model', 'seed', 'snapshot'].includes(node.resource_type),
+        )
+        .map(
+            (node) =>
+                node as Omit<DbtRawModelNode, 'resource_type' | 'config'> & {
+                    resource_type: 'model' | 'seed' | 'snapshot';
+                    config?: DbtRawModelNode['config'] & { access?: string };
+                },
+        )
+        .filter(
+            (node) =>
+                node.package_name === projectName && !isExternalDbtNode(node),
+        );
+    const resourceIds = new Set(
+        Object.values(manifest.nodes)
+            .filter((node) =>
+                ['model', 'seed', 'snapshot'].includes(node.resource_type),
+            )
+            .map((node) => node.unique_id),
+    );
+    return resources.map((node) => ({
+        ...(node.resource_type !== 'model'
+            ? {
+                  resource_type: node.resource_type,
+              }
+            : {}),
         name: node.name,
         package_name: node.package_name,
         identifier: node.alias ?? node.name,
@@ -989,9 +1029,12 @@ export const getExternalModelNodesFromManifest = (
         relation_name: node.relation_name ?? null,
         version: node.version ?? null,
         latest_version: node.latest_version ?? null,
-        access: node.access ?? null,
+        access:
+            node.access ??
+            (node.resource_type !== 'model' ? node.config?.access : null) ??
+            null,
         depends_on_nodes: (node.depends_on?.nodes ?? []).filter((id) =>
-            modelIds.has(id),
+            resourceIds.has(id),
         ),
     }));
 };

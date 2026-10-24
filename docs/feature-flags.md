@@ -123,6 +123,62 @@ For a temporary Cloud ENV workaround, record its removal: once the normal
 Console-controlled path is deployed, remove the forced ENV setting and restart
 so Console can turn the feature off again.
 
+### Cross-source dbt refs and last-good manifests
+
+`cross-source-dbt-refs` is off by default. Server compilation resolves it for the
+project's organisation and requesting user through the standard resolver. Console
+overrides apply on the next compile or deploy; ENV changes require API and worker
+restarts. Connected-source compilation also requires `multi-dbt-sources`.
+
+With the flag on, each refresh captures the confirmed ref catalogue for each
+connected source in its warehouse connection group. The v1 projection stores
+project-owned models, seeds and snapshots, including relation, version, access and
+dependency fields. A node belongs to the project when its `package_name` matches
+the root project name. Installed-package resources stay local to each project and
+never enter its cross-project share surface. This filter also applies to older
+confirmed snapshots. Only explicit `access: public` resources cross sources.
+Seed and snapshot access comes from their explicit `config.access`. Missing or null access defaults
+to protected. Protected and private resources do not cross.
+
+The stitcher uses scans, declared upstreams and stored references to choose
+providers. It injects each referenced provider's whole public surface and retains
+only dependency links whose targets are in that injection. Each model ID must
+have one provider. Ambiguous providers fail. Each source parses once; missing-ref
+errors provide diagnostics and never trigger retries or placeholder injection.
+Dynamic refs must identify their provider through a declaration or stored reference
+when the scan cannot identify it.
+
+A provider's successful parse in the current refresh takes precedence over its
+confirmed snapshot. Providers parse before their consumers where dependencies
+allow it, so a new public model can be used in the same refresh. A confirmed
+snapshot supplies the fallback if a provider has not parsed yet or its parse
+failed. Each consumer keeps the bindings used for its single parse. In a seeded
+ring, the first source can use a confirmed fallback before the other source parses.
+
+If an upstream has no confirmed snapshot, the resolver warns with its name and
+compiles unseeded providers in dependency order. A cold dependency cycle that
+cannot bootstrap still fails loudly. New snapshots stay in memory until their
+provider's work publishes successfully. An explore error blocks confirmation for
+its own source; errors in unrelated sources do not block healthy providers. If an
+error cannot be attributed to a source, confirmation is withheld. A publication
+or required artefact write failure retains the previous snapshots.
+
+Successful selective CLI deploys also seed: `-s` selects explores, but the parsed
+manifest is complete. Existing restrictions on selective explore publication in
+multi-connection projects still apply; a rejected deploy cannot seed. Older CLI
+uploads without source manifest metadata do not seed the store.
+`--combine-manifest` keeps the local source's projection separate from added models.
+
+Routing a primary source with zero additional sources through the merged adapter
+under `cross-source-dbt-refs` is intentional. It seeds that source for later
+consumers and still requires `multi-dbt-sources`. The merged-manifest blob and
+per-source projections both remain in use. No loom dependency is added to the API
+or worker image, and no manifest URL field is introduced.
+
+Deploy the updated API and workers before enabling this policy. With the flag off,
+ordinary compilation and deploy behaviour applies, and the stitcher does not read
+the stored snapshots.
+
 ## Refresh, caching, and restart expectations
 
 - The standard backend `FeatureFlagModel.get` does not cache database flag

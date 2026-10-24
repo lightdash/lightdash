@@ -108,9 +108,12 @@ describe('DbtMetadataApiClient', () => {
             expect(
                 result.manifest.nodes['model.project.pull_requests'],
             ).toMatchObject(expected);
-            expect(getExternalModelNodesFromManifest(result.manifest)).toEqual([
-                expect.objectContaining(expected),
-            ]);
+            expect(getExternalModelNodesFromManifest(result.manifest)).toEqual(
+                [],
+            );
+            expect(
+                getExternalModelNodesFromManifest(result.manifest, 'project'),
+            ).toEqual([expect.objectContaining(expected)]);
         },
     );
 

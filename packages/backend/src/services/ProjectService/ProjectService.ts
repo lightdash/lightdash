@@ -288,6 +288,7 @@ import {
     type ChartUsageIn,
     type DashboardTileParameterInputs,
     type DataTimezonePreviewRequest,
+    type DbtSourceManifest,
     type MergeCompiledLeg,
     type MergeItemEntry,
     type MergeTypedColumn,
@@ -4314,10 +4315,66 @@ export class ProjectService
         }
     }
 
+    private async prepareDeploySourceManifest({
+        projectUuid,
+        userUuid,
+        explores,
+        dbtSourceManifest,
+        sourceUuid,
+    }: {
+        projectUuid: string;
+        userUuid: string;
+        explores: (Explore | ExploreError)[];
+        dbtSourceManifest?: DbtSourceManifest;
+        sourceUuid: string | null;
+    }): Promise<CrossSourceCatalogCache | null> {
+        if (!dbtSourceManifest || explores.some(isExploreError)) return null;
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+            user: { userUuid, organizationUuid },
+        });
+        if (!enabled) return null;
+        const identity =
+            await this.projectModel.getDbtSourceIdentity(projectUuid);
+        const dbtSourceUuid = sourceUuid ?? identity.dbtSourceUuid;
+        const source =
+            dbtSourceUuid === identity.dbtSourceUuid
+                ? null
+                : (
+                      await this.projectDbtSourcesModel.getSourcesWithBindings(
+                          projectUuid,
+                      )
+                  ).find(
+                      (candidate) =>
+                          candidate.projectDbtSourceUuid === dbtSourceUuid,
+                  );
+        if (dbtSourceUuid !== identity.dbtSourceUuid && !source)
+            throw new ParameterError(
+                'The selected dbt source does not belong to this project.',
+            );
+        const cache = new CrossSourceCatalogCache(
+            this.dbtSourceRefCatalogModel,
+            projectUuid,
+            source?.warehouseConnectionUuid ?? 'original',
+            dbtSourceManifest.dbtVersion,
+            null,
+        );
+        await cache.resolved(
+            dbtSourceUuid,
+            dbtSourceManifest.nodes,
+            dbtSourceManifest.projectName,
+            dbtSourceManifest.referencedProjects,
+        );
+        return cache;
+    }
+
     async saveDeployExplores(
         args: SaveCompiledExploresArgs & {
             explores: (Explore | ExploreError)[];
             cliDeploy: CliDeploySelection;
+            dbtSourceManifest?: DbtSourceManifest;
         },
     ): Promise<string> {
         if (agentExecutionContext.getStore()?.agentConnectionExecution)
@@ -4325,7 +4382,7 @@ export class ProjectService
                 args.projectUuid,
                 args.explores,
             );
-        const { cliDeploy, ...deploy } = args;
+        const { cliDeploy, dbtSourceManifest, ...deploy } = args;
         const connectionRoute = await this.projectModel.getConnectionRoute(
             args.projectUuid,
             { kind: 'original' },
@@ -4384,11 +4441,19 @@ export class ProjectService
                 args.projectUuid,
             ))
         ) {
-            return this.saveExploresToCacheAndIndexCatalogWithRefreshCheck(
-                deploy,
-                false,
-                hasAdditionalDbtSources,
-            );
+            const sourceManifest = await this.prepareDeploySourceManifest({
+                ...args,
+                dbtSourceManifest,
+                sourceUuid: cliDeploy.sourceUuid,
+            });
+            const result =
+                await this.saveExploresToCacheAndIndexCatalogWithRefreshCheck(
+                    deploy,
+                    false,
+                    hasAdditionalDbtSources,
+                );
+            await sourceManifest?.confirm();
+            return result;
         }
         if (args.complete !== true) {
             throw new ParameterError(
@@ -4451,6 +4516,11 @@ export class ProjectService
                       args.projectUuid,
                       selection,
                   );
+        const sourceManifest = await this.prepareDeploySourceManifest({
+            ...args,
+            dbtSourceManifest,
+            sourceUuid: projectDbtSourceUuid,
+        });
         const { explores: uploadedExplores, ...metadata } = deploy;
         const uploadedExploreCount = uploadedExplores.length;
         const explores = sourceSelection?.explores ?? uploadedExplores;
@@ -4546,6 +4616,7 @@ export class ProjectService
                 );
             }
         }
+        await sourceManifest?.confirm();
         return result.indexCatalogJobUuid;
     }
 
@@ -4595,9 +4666,11 @@ export class ProjectService
             onCompiled?: (summary: ExploreCompilationSummary) => void;
             multiConnection: PreparedMultiConnectionSave | null;
             exploreNaming?: ExploreNaming;
+            stagedMergedManifest?: Buffer;
         },
     ) {
         const {
+            stagedMergedManifest,
             exploreStream: incomingStream,
             onCompiled,
             multiConnection: preparedMultiConnection,
@@ -4635,6 +4708,11 @@ export class ProjectService
                   incomingStream,
               )
             : incomingStream;
+        const sourceConfirmation = stagedMergedManifest
+            ? this.sourceRefCatalogConfirmations.get(stagedMergedManifest)
+            : undefined;
+        const failedConfirmationSourceUuids = new Set<string>();
+        let hasUnattributedExploreError = false;
         const saving = this.saveExploresAndIndexCatalog({
             ...metadata,
             complete: true,
@@ -4642,6 +4720,26 @@ export class ProjectService
             saveExplores: async (summary) => {
                 async function* observedExplores() {
                     for await (const explore of exploreStream) {
+                        if (isExploreError(explore)) {
+                            const sourceUuid =
+                                explore.dbtModelIdentity?.sourceUuid ??
+                                explore.tables?.[
+                                    explore.baseTable ?? explore.name
+                                ]?.dbtSourceUuid ??
+                                (
+                                    explore as ExploreError & {
+                                        dbtSourceUuid?: string;
+                                    }
+                                ).dbtSourceUuid;
+                            if (sourceUuid) {
+                                failedConfirmationSourceUuids.add(sourceUuid);
+                                sourceConfirmation?.cache.discard(sourceUuid);
+                            } else {
+                                hasUnattributedExploreError = true;
+                                if (sourceConfirmation)
+                                    sourceConfirmation.successfulCompile = false;
+                            }
+                        }
                         if (!multiConnection?.naming)
                             summary.add(explore, onCompiled !== undefined);
                         yield explore;
@@ -4708,7 +4806,13 @@ export class ProjectService
                 args.projectUuid,
                 'compileProject',
             );
-            await multiConnection.persistArtifacts({ exploresCommitted: true });
+            await multiConnection.persistArtifacts({
+                exploresCommitted: true,
+                failedSourceUuids: [...failedConfirmationSourceUuids],
+                ...(hasUnattributedExploreError
+                    ? { successfulCompile: false }
+                    : {}),
+            });
             return result;
         }
         return saving;
@@ -6091,6 +6195,7 @@ export class ProjectService
         complete?: boolean,
         dbtModelNames?: string[],
         cliDeploy: CliDeploySelection = NO_CLI_DEPLOY_SELECTION,
+        dbtSourceManifest?: DbtSourceManifest,
     ): Promise<ApiDeployExploresResults> {
         const deployAnalytics = {
             userUuid: user.userUuid,
@@ -6106,6 +6211,7 @@ export class ProjectService
                 complete,
                 dbtModelNames,
                 cliDeploy,
+                dbtSourceManifest,
             );
             await this.trackCliSourceDeploy(deployAnalytics, {
                 status: 'success',
@@ -6163,6 +6269,7 @@ export class ProjectService
         complete?: boolean,
         dbtModelNames?: string[],
         cliDeploy: CliDeploySelection = NO_CLI_DEPLOY_SELECTION,
+        dbtSourceManifest?: DbtSourceManifest,
     ): Promise<ApiDeployExploresResults> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -6227,6 +6334,7 @@ export class ProjectService
             complete,
             dbtModelNames,
             cliDeploy,
+            dbtSourceManifest,
         });
 
         if (agentExecutionContext.getStore()?.agentConnectionExecution)
@@ -7021,9 +7129,6 @@ export class ProjectService
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
-                        // Merge additional dbt sources (flag-gated, N=0
-                        // short-circuit) so "Test & deploy" yields the same
-                        // combined explore set as "Refresh dbt".
                         let compileAdapter = primaryAdapter;
                         let stagedMergedManifest: Buffer | undefined;
                         let connectionWarnings: string[] | undefined;
@@ -7157,6 +7262,7 @@ export class ProjectService
                                         userUuid: user.userUuid,
                                         projectUuid,
                                         exploreStream,
+                                        stagedMergedManifest,
                                         multiConnection,
                                         connectionWarnings,
                                         failedDbtSourceUuids,
@@ -8580,7 +8686,7 @@ export class ProjectService
 
     private readonly sourceRefCatalogConfirmations = new WeakMap<
         Buffer,
-        CrossSourceCatalogCache
+        { cache: CrossSourceCatalogCache; successfulCompile: boolean }
     >();
 
     private async persistMergedManifest(
@@ -8595,9 +8701,10 @@ export class ProjectService
                 projectUuid,
                 stagedMergedManifest,
             );
-            await this.sourceRefCatalogConfirmations
-                .get(stagedMergedManifest)
-                ?.confirm();
+            const confirmation =
+                this.sourceRefCatalogConfirmations.get(stagedMergedManifest);
+            if (confirmation?.successfulCompile)
+                await confirmation.cache.confirm();
         } catch (error) {
             this.logger.warn(
                 `Failed to persist merged dbt manifest for project ${projectUuid}: ${getErrorMessage(error)}`,
@@ -8906,7 +9013,6 @@ export class ProjectService
             ...(crossSourceRefsEnabled
                 ? {
                       signal: armCompileShutdown(),
-                      maxPasses: this.lightdashConfig.dbt.crossSourceMaxPasses,
                       cache: cachedCatalogs,
                       onSourceResolved: async ({
                           task,
@@ -9112,20 +9218,19 @@ export class ProjectService
         });
         if (crossSourceRefsEnabled) {
             this.logger.info(
-                `dbt.compile.crossSourceRefsResolved diskEvictions=${diskPool.stats.diskEvictions} diskRecreations=${diskPool.stats.diskRecreations}`,
+                `dbt.compile.crossSourceRefsResolved diskEvictions=${diskPool.stats.diskEvictions} diskRecreations=${diskPool.stats.diskRecreations} ownedInjected=${resolution.ownedInjected} packageNodesOmitted=${resolution.packageNodesOmitted}`,
                 {
                     ...diskPool.stats,
                     event: 'dbt.compile.crossSourceRefsResolved',
                     projectUuid,
                     rounds: resolution.rounds,
-                    passes: resolution.passes,
-                    stubs: resolution.stubs,
-                    contradictions: resolution.contradictions,
                     sourceTimings: resolution.sources,
                     cacheRowsLoaded: catalogCache?.rowsLoaded ?? 0,
                     cacheRowsWritten: catalogCache?.rowsWritten ?? 0,
                     scannedEdges: resolution.scan.known,
                     firstAttemptInjected: resolution.firstAttemptInjected,
+                    ownedInjected: resolution.ownedInjected,
+                    packageNodesOmitted: resolution.packageNodesOmitted,
                     dbtLsRuns: resolution.attempts,
                     preflightWarnings: resolution.preflightWarnings,
                     timeouts: {
@@ -9304,10 +9409,10 @@ export class ProjectService
             mergedManifest,
         );
         if (stagedMergedManifest && catalogCache)
-            this.sourceRefCatalogConfirmations.set(
-                stagedMergedManifest,
-                catalogCache,
-            );
+            this.sourceRefCatalogConfirmations.set(stagedMergedManifest, {
+                cache: catalogCache,
+                successfulCompile: true,
+            });
 
         return {
             adapter: await projectAdapterFromConfig(
@@ -9536,8 +9641,6 @@ export class ProjectService
             mixedWarehouseConnectionsEnabled,
             ...(crossSourceRefsEnabled
                 ? {
-                      crossSourceMaxPasses:
-                          this.lightdashConfig.dbt.crossSourceMaxPasses,
                       compileJobUuid: jobUuid ?? null,
                       crossSourceTimeouts: {
                           prepareMs:
@@ -9598,10 +9701,6 @@ export class ProjectService
     }
 
     /**
-     * Resolve the adapter to compile a project with. When the MultiDbtSources
-     * flag is on and the project has additional sources, returns a merged
-     * manifest adapter (the union of every source); otherwise returns the
-     * primary adapter unchanged (N=0 short-circuit / regression firewall).
      * Source git clones are pushed onto `manifestFetchAdapters` for the caller
      * to destroy. Shared by both compile entry points (compileProject /
      * testAndCompileProject) so "Refresh dbt" and "Test & deploy" merge alike.
@@ -9662,7 +9761,14 @@ export class ProjectService
         }
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
-        if (sources.length === 0) {
+        const { enabled: crossSourceRefsEnabled } =
+            sources.length === 0
+                ? await this.featureFlagModel.get({
+                      featureFlagId: FeatureFlags.CrossSourceDbtRefs,
+                      user: { userUuid, organizationUuid },
+                  })
+                : { enabled: false };
+        if (sources.length === 0 && !crossSourceRefsEnabled) {
             await this.deleteMergedManifestBestEffort(projectUuid);
             onDbtSourceCount?.(1);
             return {
@@ -13735,10 +13841,6 @@ export class ProjectService
                     primaryAdapter = buildResult.adapter;
                     let { adapter } = buildResult;
                     try {
-                        // Multiple dbt sources: merge every source's manifest into one before
-                        // compiling, so cross-source ref()/joins resolve and the explore set is
-                        // the union of all sources. A project with zero registered sources runs
-                        // the unchanged single-source path (N=0 short-circuit / regression firewall).
                         let dbtSourceCount = 1;
                         let stagedMergedManifest: Buffer | undefined;
                         let connectionWarnings: string[] | undefined;
@@ -14427,6 +14529,7 @@ export class ProjectService
                                             userUuid: user.userUuid,
                                             projectUuid,
                                             exploreStream,
+                                            stagedMergedManifest,
                                             onCompiled,
                                             multiConnection,
                                             connectionWarnings,

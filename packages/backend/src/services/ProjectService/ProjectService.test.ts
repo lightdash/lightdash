@@ -14525,11 +14525,10 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         return (await adapter).adapter;
     };
 
-    it('writes provisional source catalogues and confirms only when the merged artifact is saved', async () => {
+    it('publishes staged source catalogues only when the merged artifact is saved', async () => {
         const cacheModel = {
             get: vi.fn(async () => []),
-            upsertProvisional: vi.fn(async () => 'digest'),
-            confirm: vi.fn(async () => undefined),
+            replaceConfirmed: vi.fn(async () => undefined),
         };
         const projectService = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
@@ -14575,35 +14574,24 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             jobUuid: 'compile-job',
         });
         expect(cacheModel.get).toHaveBeenCalledWith('project-uuid', 'original');
-        expect(cacheModel.upsertProvisional).toHaveBeenCalledTimes(2);
-        expect(cacheModel.upsertProvisional).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: 'project-uuid',
-                connectionGroup: 'original',
-                compileJobUuid: 'compile-job',
-                dbtSourceUuid: 'primary-source-uuid',
-                projectName: 'catalogue_a',
-                referencedProjects: [],
-            }),
-        );
-        expect(cacheModel.upsertProvisional).toHaveBeenCalledWith(
-            expect.objectContaining({
-                projectUuid: 'project-uuid',
-                connectionGroup: 'original',
-                dbtSourceUuid: 'source-b-uuid',
-            }),
-        );
-        expect(cacheModel.confirm).not.toHaveBeenCalled();
+        expect(cacheModel.replaceConfirmed).not.toHaveBeenCalled();
         await projectService.persistMergedManifest(
             'project-uuid',
             built.stagedMergedManifest,
         );
-        expect(cacheModel.confirm).toHaveBeenCalledWith(
+        expect(cacheModel.replaceConfirmed).toHaveBeenCalledWith(
             expect.objectContaining({
                 projectUuid: 'project-uuid',
                 connectionGroup: 'original',
                 entries: expect.arrayContaining([
-                    expect.objectContaining({ nodesDigest: 'digest' }),
+                    expect.objectContaining({
+                        dbtSourceUuid: 'primary-source-uuid',
+                        projectName: 'catalogue_a',
+                    }),
+                    expect.objectContaining({
+                        dbtSourceUuid: 'source-b-uuid',
+                        projectName: 'catalogue_b',
+                    }),
                 ]),
             }),
         );
@@ -14702,9 +14690,13 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     });
 
     it.each([true, false])(
-        'gates managed cross-source retries with flag enabled=%s',
+        'gates managed cross-source injection with flag enabled=%s',
         async (enabled) => {
             const { projectService } = buildServiceWithMocks(true, []);
+            const info = vi.spyOn(
+                (projectService as unknown as ProjectServiceInternals).logger,
+                'info',
+            );
             projectService.featureFlagModel.get = vi.fn(
                 async (args: unknown) => {
                     const { featureFlagId } = args as {
@@ -14721,6 +14713,40 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 },
             ]);
             upstream.metadata.project_name = 'shared';
+            Object.assign(upstream.nodes['model.shared.calendar'], {
+                access: 'public',
+            });
+            Object.assign(projectService, {
+                dbtSourceRefCatalogModel: {
+                    get: vi.fn(async () => [
+                        {
+                            dbt_source_uuid: 'analytics-uuid',
+                            project_name: 'analytics',
+                            referenced_projects: ['shared'],
+                            nodes: [],
+                        },
+                        {
+                            dbt_source_uuid: 'primary-source-uuid',
+                            project_name: 'shared',
+                            referenced_projects: [],
+                            nodes: [
+                                {
+                                    name: 'calendar',
+                                    package_name: 'shared',
+                                    identifier: 'calendar',
+                                    schema: 'public',
+                                    database: null,
+                                    relation_name: null,
+                                    version: null,
+                                    latest_version: null,
+                                    access: 'public',
+                                    depends_on_nodes: [],
+                                },
+                            ],
+                        },
+                    ]),
+                },
+            });
             const downstream = buildManifest([
                 {
                     uniqueId: 'model.analytics.orders',
@@ -14745,17 +14771,22 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             const downstreamAdapter = buildAdapterWithManifest(downstream);
             const fetchManifest = vi
                 .mocked(downstreamAdapter.getDbtManifest)
-                .mockRejectedValueOnce(error)
-                .mockResolvedValueOnce({
-                    manifest: {
-                        ...downstream,
-                        nodes: { ...downstream.nodes, [stub.unique_id]: stub },
-                    },
-                    selectedModelIds: [
-                        stub.unique_id,
-                        'model.analytics.orders',
-                    ],
-                    timings: NO_FETCH_TIMINGS,
+                .mockImplementation(async (options) => {
+                    if (!options?.externalNodes?.length) throw error;
+                    return {
+                        manifest: {
+                            ...downstream,
+                            nodes: {
+                                ...downstream.nodes,
+                                [stub.unique_id]: stub,
+                            },
+                        },
+                        selectedModelIds: [
+                            stub.unique_id,
+                            'model.analytics.orders',
+                        ],
+                        timings: NO_FETCH_TIMINGS,
+                    };
                 });
             const build = vi
                 .spyOn(projectService, 'buildSourceAdapter')
@@ -14773,6 +14804,14 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             });
             if (enabled) {
                 const { adapter, connectionWarnings } = await resolution;
+                expect(info).toHaveBeenCalledWith(
+                    'dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=1 packageNodesOmitted=0',
+                    expect.objectContaining({
+                        event: 'dbt.compile.crossSourceRefsResolved',
+                        ownedInjected: 1,
+                        packageNodesOmitted: 0,
+                    }),
+                );
                 expect(connectionWarnings).toEqual([
                     "Model \"orders\" in dbt source \"analytics\" uses ref('calendar'), which resolved to external model model.shared.calendar from another dbt source. Use ref('shared', 'calendar') to make the cross-source reference explicit.",
                 ]);
@@ -14781,13 +14820,13 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 expect(merged.manifest.nodes[stub.unique_id]).toMatchObject({
                     path: 'models/calendar.sql',
                 });
-                expect(fetchManifest).toHaveBeenCalledTimes(2);
+                expect(fetchManifest).toHaveBeenCalledTimes(1);
                 expect(downstreamAdapter.releaseDisk).toHaveBeenCalledOnce();
                 expect(
                     vi.mocked(downstreamAdapter.releaseDisk).mock
                         .invocationCallOrder[0],
-                ).toBeGreaterThan(fetchManifest.mock.invocationCallOrder[1]);
-                expect(fetchManifest.mock.calls[1][0]?.externalNodes).toEqual([
+                ).toBeGreaterThan(fetchManifest.mock.invocationCallOrder[0]);
+                expect(fetchManifest.mock.calls[0][0]?.externalNodes).toEqual([
                     expect.objectContaining({
                         package_name: 'shared',
                         name: 'calendar',

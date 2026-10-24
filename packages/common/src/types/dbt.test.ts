@@ -5,6 +5,7 @@ import {
     flattenAiHints,
     getDbtManifestPackageNames,
     getEffectiveFieldAiHints,
+    getExternalDbtNodeUniqueId,
     getExternalModelNodesFromManifest,
     getModelsFromManifest,
     isExternalDbtNode,
@@ -450,6 +451,13 @@ describe('patchPathParts', () => {
 });
 
 describe('external dbt model nodes', () => {
+    const ownedManifest = (nodes: Record<string, object>): DbtManifest => {
+        const result = makeManifest(nodes);
+        return {
+            ...result,
+            metadata: { ...result.metadata, project_name: 'test' },
+        };
+    };
     const stub = {
         ...baseModel,
         name: 'external',
@@ -481,7 +489,7 @@ describe('external dbt model nodes', () => {
             getModelsFromManifest(manifest).map((node) => node.unique_id),
         ).toEqual([local.unique_id]);
     });
-    it('exports real models including ephemeral models, keeps only dependencies on exported models and preserves relation and version fields', () => {
+    it('exports real models and retains dependencies on local and injected models with relation and version fields', () => {
         const ephemeral = {
             ...local,
             name: 'ephemeral',
@@ -496,11 +504,16 @@ describe('external dbt model nodes', () => {
             },
         };
         const nodes = getExternalModelNodesFromManifest(
-            makeManifest({
+            ownedManifest({
                 stub,
                 local,
                 ephemeral,
-                seed: { ...local, resource_type: 'seed' },
+                seed: {
+                    ...local,
+                    name: 'raw',
+                    unique_id: 'seed.test.raw',
+                    resource_type: 'seed',
+                },
             }),
         );
         expect(nodes).toEqual([
@@ -514,7 +527,7 @@ describe('external dbt model nodes', () => {
                 version: null,
                 latest_version: null,
                 access: null,
-                depends_on_nodes: [],
+                depends_on_nodes: [stub.unique_id],
             },
             {
                 name: 'ephemeral',
@@ -526,12 +539,29 @@ describe('external dbt model nodes', () => {
                 version: 2,
                 latest_version: 3,
                 access: 'public',
-                depends_on_nodes: [local.unique_id],
+                depends_on_nodes: [
+                    local.unique_id,
+                    'seed.test.raw',
+                    stub.unique_id,
+                ],
+            },
+            {
+                resource_type: 'seed',
+                name: 'raw',
+                package_name: 'test',
+                identifier: 'model',
+                schema: 'public',
+                database: 'db',
+                relation_name: baseModel.relation_name,
+                version: null,
+                latest_version: null,
+                access: null,
+                depends_on_nodes: [stub.unique_id],
             },
         ]);
         expect(
             getExternalModelNodesFromManifest(
-                makeManifest({
+                ownedManifest({
                     minimal: {
                         ...local,
                         database: undefined,
@@ -545,6 +575,85 @@ describe('external dbt model nodes', () => {
             relation_name: null,
             depends_on_nodes: [],
         });
+    });
+    it('retains native seed and snapshot identities and explicit access from config', () => {
+        const nodes = getExternalModelNodesFromManifest(
+            ownedManifest({
+                seed: {
+                    ...local,
+                    name: 'lookup',
+                    unique_id: 'seed.test.lookup',
+                    resource_type: 'seed',
+                    config: { materialized: 'seed', access: 'public' },
+                },
+                snapshot: {
+                    ...local,
+                    name: 'history',
+                    unique_id: 'snapshot.test.history',
+                    resource_type: 'snapshot',
+                    config: { materialized: 'snapshot', access: 'public' },
+                    depends_on: { nodes: ['seed.test.lookup'], macros: [] },
+                },
+                protectedSnapshot: {
+                    ...local,
+                    name: 'internal_history',
+                    unique_id: 'snapshot.test.internal_history',
+                    resource_type: 'snapshot',
+                },
+                externalSeed: { ...stub, resource_type: 'seed' },
+                externalSnapshot: { ...stub, resource_type: 'snapshot' },
+            }),
+        );
+        expect(nodes.map(getExternalDbtNodeUniqueId)).toEqual([
+            'seed.test.lookup',
+            'snapshot.test.history',
+            'snapshot.test.internal_history',
+        ]);
+        expect(nodes.map((node) => node.access)).toEqual([
+            'public',
+            'public',
+            null,
+        ]);
+        expect(nodes[1].depends_on_nodes).toEqual(['seed.test.lookup']);
+        expect(
+            getExternalDbtNodeUniqueId({
+                ...nodes[0],
+                resource_type: undefined,
+                version: 0,
+            }),
+        ).toBe('model.test.lookup.v0');
+    });
+    it('exports only project-owned resources even when installed packages are public', () => {
+        const resources = ['model', 'seed', 'snapshot'].flatMap(
+            (resourceType) =>
+                ['test', 'installed'].map((packageName) => ({
+                    ...local,
+                    name: 'shared_name',
+                    package_name: packageName,
+                    unique_id: `${resourceType}.${packageName}.shared_name`,
+                    resource_type: resourceType,
+                    access: 'public',
+                })),
+        );
+        const projected = getExternalModelNodesFromManifest(
+            ownedManifest(
+                Object.fromEntries(
+                    resources.map((node) => [node.unique_id, node]),
+                ),
+            ),
+        );
+        expect(projected.map(getExternalDbtNodeUniqueId)).toEqual([
+            'model.test.shared_name',
+            'seed.test.shared_name',
+            'snapshot.test.shared_name',
+        ]);
+    });
+    it('requires an explicit project identity instead of inferring it from installed packages', () => {
+        const withoutOwner = makeManifest({ local });
+        expect(getExternalModelNodesFromManifest(withoutOwner)).toEqual([]);
+        expect(getExternalModelNodesFromManifest(withoutOwner, 'test')).toEqual(
+            getExternalModelNodesFromManifest(ownedManifest({ local })),
+        );
     });
     it('strips stubs without changing dependencies or mutating the input', () => {
         const stripped = stripExternalDbtNodes(manifest);

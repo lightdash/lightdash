@@ -1,15 +1,20 @@
-import { placeholderExternalNode } from '../dbt/dbtExternalNodes';
 import Logger from '../logging/logger';
 import { type DbtSourceRefCatalogModel } from '../models/DbtSourceRefCatalogModel';
 import { CrossSourceCatalogCache } from './crossSourceCatalogCache';
 
 const nodes = [
-    placeholderExternalNode({
-        packageName: 'provider',
+    {
+        package_name: 'provider',
         name: 'orders',
+        identifier: 'orders',
+        schema: 'public',
+        database: 'warehouse',
+        relation_name: 'warehouse.public.orders',
         version: null,
-        latestVersion: null,
-    }),
+        latest_version: null,
+        access: 'public',
+        depends_on_nodes: [] as string[],
+    },
 ];
 const setup = () => {
     const model = {
@@ -22,8 +27,7 @@ const setup = () => {
                     nodes: typeof nodes;
                 }[],
         ),
-        upsertProvisional: vi.fn(async () => 'digest'),
-        confirm: vi.fn(async () => undefined),
+        replaceConfirmed: vi.fn(async () => undefined),
     };
     const cache = new CrossSourceCatalogCache(
         model as unknown as DbtSourceRefCatalogModel,
@@ -35,7 +39,7 @@ const setup = () => {
     return { model, cache };
 };
 
-it('loads provisional or confirmed catalogues by source uuid and writes the compile job identity', async () => {
+it('loads last-good catalogues by source uuid and stages writes until publication', async () => {
     const { model, cache } = setup();
     model.get.mockResolvedValue([
         {
@@ -56,21 +60,22 @@ it('loads provisional or confirmed catalogues by source uuid and writes the comp
         },
     ]);
     await cache.resolved('source', nodes, 'provider', ['upstream']);
-    expect(model.upsertProvisional).toHaveBeenCalledWith({
-        projectUuid: 'project',
-        dbtSourceUuid: 'source',
-        connectionGroup: 'original',
-        projectName: 'provider',
-        dbtVersion: 'v1.9',
-        nodes,
-        referencedProjects: ['upstream'],
-        compileJobUuid: 'compile-job',
-    });
+    expect(model.replaceConfirmed).not.toHaveBeenCalled();
+    expect(cache.rowsWritten).toBe(0);
     await cache.confirm();
-    expect(model.confirm).toHaveBeenCalledWith({
+    expect(model.replaceConfirmed).toHaveBeenCalledWith({
         projectUuid: 'project',
         connectionGroup: 'original',
-        entries: [{ dbtSourceUuid: 'source', nodesDigest: 'digest' }],
+        dbtVersion: 'v1.9',
+        compileJobUuid: 'compile-job',
+        entries: [
+            {
+                dbtSourceUuid: 'source',
+                projectName: 'provider',
+                nodes,
+                referencedProjects: ['upstream'],
+            },
+        ],
     });
     expect(cache.rowsLoaded).toBe(1);
     expect(cache.rowsWritten).toBe(1);
@@ -80,8 +85,7 @@ it('never fails a compile when cache reads, writes or confirmation fail', async 
     const { model, cache } = setup();
     const error = new Error('cache unavailable');
     model.get.mockRejectedValue(error);
-    model.upsertProvisional.mockRejectedValue(error);
-    model.confirm.mockRejectedValue(error);
+    model.replaceConfirmed.mockRejectedValue(error);
     expect(await cache.load([])).toEqual([]);
     await expect(
         cache.resolved('source', nodes, 'provider', ['upstream']),
@@ -128,9 +132,96 @@ it('does not confirm nodes from a consumer that was skipped after resolution', a
     await cache.resolved('skipped', nodes, 'consumer', ['provider']);
     cache.discard('skipped');
     await cache.confirm();
-    expect(model.confirm).toHaveBeenCalledWith({
+    expect(model.replaceConfirmed).toHaveBeenCalledWith({
         projectUuid: 'project',
         connectionGroup: 'original',
-        entries: [{ dbtSourceUuid: 'healthy', nodesDigest: 'digest' }],
+        dbtVersion: 'v1.9',
+        compileJobUuid: 'compile-job',
+        entries: [
+            {
+                dbtSourceUuid: 'healthy',
+                projectName: 'provider',
+                nodes,
+                referencedProjects: [],
+            },
+        ],
     });
+});
+
+it('keeps last-good rows unchanged when a refresh stops after resolving a source', async () => {
+    const { model, cache } = setup();
+    const lastGood = {
+        dbt_source_uuid: 'source',
+        project_name: 'provider',
+        nodes,
+        referenced_projects: [],
+    };
+    model.get.mockResolvedValue([lastGood]);
+    await cache.resolved('source', [], 'provider', []);
+    const nextRefresh = new CrossSourceCatalogCache(
+        model as unknown as DbtSourceRefCatalogModel,
+        'project',
+        'original',
+        'v1.9',
+        'next-job',
+    );
+    expect(
+        await nextRefresh.load([{ key: 'provider', uuid: 'source' }]),
+    ).toEqual([
+        {
+            key: 'provider',
+            projectName: 'provider',
+            nodes,
+            referencedProjects: [],
+        },
+    ]);
+    expect(model.replaceConfirmed).not.toHaveBeenCalled();
+});
+
+it('logs the written batch only after confirmation succeeds', async () => {
+    const { model, cache } = setup();
+    const info = vi.spyOn(Logger, 'info');
+    await cache.resolved('first', nodes, 'provider', []);
+    await cache.resolved('second', nodes, 'provider', []);
+    let complete: () => void = () => undefined;
+    model.replaceConfirmed.mockImplementationOnce(
+        () =>
+            new Promise<undefined>((resolve) => {
+                complete = () => resolve(undefined);
+            }),
+    );
+    const confirmation = cache.confirm();
+    expect(info).not.toHaveBeenCalled();
+    expect(cache.rowsWritten).toBe(0);
+    complete();
+    await confirmation;
+    expect(cache.rowsWritten).toBe(2);
+    expect(info).toHaveBeenLastCalledWith(
+        'dbt.compile.crossSourceLastGoodConfirmed rowsWritten=2 projectUuid=project connectionGroup=original',
+        {
+            event: 'dbt.compile.crossSourceLastGoodConfirmed',
+            projectUuid: 'project',
+            connectionGroup: 'original',
+            rowsWritten: 2,
+        },
+    );
+    await cache.resolved('third', nodes, 'provider', []);
+    await cache.confirm();
+    expect(cache.rowsWritten).toBe(3);
+    expect(info).toHaveBeenLastCalledWith(
+        'dbt.compile.crossSourceLastGoodConfirmed rowsWritten=1 projectUuid=project connectionGroup=original',
+        expect.objectContaining({ rowsWritten: 1 }),
+    );
+    info.mockRestore();
+});
+
+it('does not log a successful confirmation when replacement fails', async () => {
+    const { model, cache } = setup();
+    const info = vi.spyOn(Logger, 'info');
+    model.replaceConfirmed.mockRejectedValue(new Error('write failed'));
+    await cache.resolved('source', nodes, 'provider', []);
+    await cache.confirm();
+    expect(info).not.toHaveBeenCalled();
+    expect(cache.rowsWritten).toBe(0);
+    info.mockRestore();
 });

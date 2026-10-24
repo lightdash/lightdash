@@ -8,6 +8,7 @@ import {
     ApiStartDeploySessionResponse,
     assertRegisteredAccount,
     LightdashCliVersionHeader,
+    type DbtSourceManifest,
     type DeployTarget,
 } from '@lightdash/common';
 import {
@@ -56,9 +57,10 @@ export class DeployController extends BaseController {
         @Body() body: {
             explores: AnyType[];
             complete: boolean;
-            dbtModelNames: string[];
+            dbtModelNames?: string[];
             sourceUuid?: string;
             target?: DeployTarget;
+            dbtSourceManifest?: DbtSourceManifest;
         },
     ): Promise<ApiSetExploresResponse> {
         assertAgentConnectionGrantOperation(req.account, {
@@ -68,20 +70,19 @@ export class DeployController extends BaseController {
             deploymentOverrides: body,
         });
         assertRegisteredAccount(req.account);
-        const results = await this.services
-            .getProjectService()
-            .setExplores(
-                toSessionUser(req.account),
-                projectUuid,
-                body.explores,
-                req.header(LightdashCliVersionHeader),
-                body.complete,
-                body.dbtModelNames,
-                {
-                    sourceUuid: body.sourceUuid ?? null,
-                    target: body.target ?? null,
-                },
-            );
+        const results = await this.services.getProjectService().setExplores(
+            toSessionUser(req.account),
+            projectUuid,
+            body.explores,
+            req.header(LightdashCliVersionHeader),
+            body.complete,
+            body.dbtModelNames,
+            {
+                sourceUuid: body.sourceUuid ?? null,
+                target: body.target ?? null,
+            },
+            body.dbtSourceManifest,
+        );
         return { status: 'ok', results };
     }
 
@@ -199,6 +200,7 @@ export class DeployController extends BaseController {
             dbtModelNames?: string[];
             sourceUuid?: string;
             target?: DeployTarget;
+            dbtSourceManifest?: DbtSourceManifest;
         },
     ): Promise<ApiFinalizeDeployResponse> {
         assertAgentConnectionGrantOperation(req.account, {
@@ -226,19 +228,18 @@ export class DeployController extends BaseController {
         }
         assertRegisteredAccount(req.account);
         this.setStatus(200);
-        const result = await this.services
-            .getDeployService()
-            .finalizeDeploy(
-                toSessionUser(req.account),
-                projectUuid,
-                sessionUuid,
-                req.header(LightdashCliVersionHeader),
-                body?.dbtModelNames,
-                {
-                    sourceUuid: body?.sourceUuid ?? null,
-                    target: body?.target ?? null,
-                },
-            );
+        const result = await this.services.getDeployService().finalizeDeploy(
+            toSessionUser(req.account),
+            projectUuid,
+            sessionUuid,
+            req.header(LightdashCliVersionHeader),
+            body?.dbtModelNames,
+            {
+                sourceUuid: body?.sourceUuid ?? null,
+                target: body?.target ?? null,
+            },
+            body?.dbtSourceManifest,
+        );
         return {
             status: 'ok',
             results: result,
