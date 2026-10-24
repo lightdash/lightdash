@@ -1,3 +1,10 @@
+## [3.53.1](https://github.com/lightdash/lightdash/compare/3.53.0...3.53.1) (2026-10-24)
+
+
+### Performance Improvements
+
+* flag-gated composer latency optimizations ([#31534](https://github.com/lightdash/lightdash/issues/31534)) ([305c28d](https://github.com/lightdash/lightdash/commit/305c28d2e93b574eec6a5ef557229e428aff985c))
+
 # [3.53.0](https://github.com/lightdash/lightdash/compare/3.52.0...3.53.0) (2026-10-24)
 
 

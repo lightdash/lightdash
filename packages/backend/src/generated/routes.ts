@@ -143719,6 +143719,7 @@ export function RegisterRoutes(app: Router) {
             array: { dataType: 'refAlias', ref: 'UUID' },
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        waitMs: { in: 'query', name: 'waitMs', dataType: 'double' },
     };
     app.get(
         '/api/v2/projects/:projectUuid/query-sources/queries/status',
