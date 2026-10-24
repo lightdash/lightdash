@@ -1,3 +1,5 @@
+import type { AiAgent } from '@lightdash/common';
+
 const FILTER_EXPRESSION_SKILL_REMINDER =
     '- Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values';
 
@@ -106,4 +108,15 @@ export const getMcpAnalystPrompt = ({
         documentsEnabled,
         agentIdentityEnabled,
     );
+};
+
+export const getMcpPinnedAgentPrompt = (
+    agent: Pick<AiAgent, 'uuid' | 'name' | 'instruction'>,
+): string => {
+    const instruction = agent.instruction?.trim();
+    const pin = `## Pinned agent
+This connection is pinned to the "${agent.name}" agent (agentUuid ${agent.uuid}). The server applies its scope to every project-scoped tool, so agentUuid can be omitted, and refuses any other agentUuid. route_agent and list_agents return this agent only.`;
+    return instruction
+        ? `${pin}\n\nInstructions from this agent's configuration:\n${instruction}`
+        : pin;
 };
