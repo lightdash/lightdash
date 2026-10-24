@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { ForbiddenError } from '@lightdash/common';
 import type { AiAgentWithContext } from '@lightdash/common';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -459,6 +460,33 @@ describe('McpService pinned agent', () => {
             ),
         ).rejects.toThrow(ForbiddenError);
         expect(aiAgentService.getAgent).not.toHaveBeenCalled();
+    });
+
+    it('rejects a pinned agent when its project is not viewable', async () => {
+        const { service, aiAgentService } = makeMcpService();
+        const relevantRuleFor = vi
+            .spyOn(defaultSessionUser.ability, 'relevantRuleFor')
+            .mockReturnValueOnce(null);
+        try {
+            const result = service.getPinnedAgent(
+                { ...defaultSessionUser, userUuid, organizationUuid },
+                { agentUuid: selectedAgent.uuid, projectUuid: undefined },
+            );
+            await expect(result).rejects.toThrow(ForbiddenError);
+            await expect(result).rejects.toThrow(
+                'You do not have access to this project',
+            );
+            expect(aiAgentService.getAgent).toHaveResolvedWith(selectedAgent);
+            expect(relevantRuleFor).toHaveBeenCalledWith(
+                'view',
+                subject('Project', {
+                    projectUuid: selectedAgent.projectUuid,
+                    organizationUuid: selectedAgent.organizationUuid,
+                }),
+            );
+        } finally {
+            relevantRuleFor.mockRestore();
+        }
     });
 
     it.each([undefined, selectedAgent.uuid])(
