@@ -31,20 +31,12 @@ const HatchedBarPreview: FC<{ color: string }> = ({ color }) => {
 };
 
 const DashedLinePreview: FC<{ color: string }> = ({ color }) => (
-    <svg width="28" height="14" aria-hidden>
+    <svg width="18" height="14" aria-hidden>
         <path
-            d="M1,11 L12,7"
+            d="M0,7 H18"
             stroke={color}
             strokeWidth={2}
-            fill="none"
-            strokeLinecap="round"
-        />
-        <path
-            d="M12,7 L27,3"
-            stroke={color}
-            strokeWidth={2}
-            fill="none"
-            strokeDasharray="3 2"
+            strokeDasharray="4 3"
         />
     </svg>
 );
