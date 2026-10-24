@@ -16,6 +16,7 @@ import {
     applyIncompletePeriodStyle,
     getHatchPattern,
     getIncompletePeriodRowIndexes,
+    hasIncompletePeriod,
     isIncompletePeriodEligible,
 } from './incompletePeriod';
 
@@ -102,7 +103,10 @@ describe('getIncompletePeriodRowIndexes', () => {
             getIncompletePeriodRowIndexes({
                 rows,
                 xKey: 'orders_created_week',
-                field: { ...weekDimension, timeInterval: TimeFrames.RAW },
+                field: {
+                    ...weekDimension,
+                    timeInterval: TimeFrames.RAW,
+                } as Dimension,
                 timezone: undefined,
                 now,
             }).size,
@@ -326,5 +330,42 @@ describe('applyIncompletePeriodStyle', () => {
                 { dimensionNames: ['orders_created_week', 'orders_total'] },
             ]),
         );
+    });
+});
+
+describe('hasIncompletePeriod', () => {
+    const xValues = rows.map((row) => row.orders_created_week);
+
+    test('is true when an x value is in the current period', () => {
+        expect(
+            hasIncompletePeriod({
+                field: weekDimension,
+                xValues,
+                timezone: undefined,
+                now,
+            }),
+        ).toBe(true);
+    });
+
+    test('is false for finished periods and ineligible fields', () => {
+        expect(
+            hasIncompletePeriod({
+                field: weekDimension,
+                xValues: xValues.slice(0, 2),
+                timezone: undefined,
+                now,
+            }),
+        ).toBe(false);
+        expect(
+            hasIncompletePeriod({
+                field: {
+                    ...weekDimension,
+                    timeInterval: TimeFrames.RAW,
+                } as Dimension,
+                xValues,
+                timezone: undefined,
+                now,
+            }),
+        ).toBe(false);
     });
 });

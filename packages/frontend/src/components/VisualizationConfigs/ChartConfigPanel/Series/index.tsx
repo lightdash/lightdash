@@ -16,7 +16,6 @@ import {
     type Series as SeriesType,
     type TableCalculation,
 } from '@lightdash/common';
-import { isIncompletePeriodEligible } from '@lightdash/visualization/editor';
 import { Checkbox, Divider, Stack, Switch } from '@mantine/core';
 import React, { Fragment, useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
@@ -34,6 +33,7 @@ import { Config } from '../../common/Config';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import { CustomColors } from './CustomColors';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
+import { IncompletePeriodSection } from './IncompletePeriodSection';
 import InvalidSeriesConfiguration from './InvalidSeriesConfiguration';
 import { SeriesDrawOrderBar } from './SeriesDrawOrder';
 
@@ -60,7 +60,6 @@ export const Series: FC<Props> = ({ items }) => {
         pivotDimensions,
         resultsData,
         colorPalette,
-        itemsMap,
     } = useVisualizationState();
 
     const yField = isCartesianVisualizationConfig(visualizationConfig)
@@ -163,7 +162,6 @@ export const Series: FC<Props> = ({ items }) => {
         setAllCategoryColorOverrides,
         conditionalFormattings,
         onSetConditionalFormattings,
-        setShowIncompletePeriod,
     } = visualizationConfig.chartConfig;
 
     const allSeries = dirtyEchartsConfig?.series ?? [];
@@ -221,20 +219,7 @@ export const Series: FC<Props> = ({ items }) => {
     return (
         <Stack gap="md">
             <ColorPaletteSection />
-            {isIncompletePeriodEligible(
-                dirtyLayout?.xField
-                    ? itemsMap?.[dirtyLayout.xField]
-                    : undefined,
-            ) && (
-                <Checkbox
-                    size="xs"
-                    label="Mark incomplete period"
-                    checked={!!dirtyLayout?.showIncompletePeriod}
-                    onChange={(e) =>
-                        setShowIncompletePeriod(e.currentTarget.checked)
-                    }
-                />
-            )}
+            <IncompletePeriodSection />
             <Divider />
             {hasMultipleSeries && (
                 <SeriesDrawOrderBar
