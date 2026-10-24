@@ -12,7 +12,7 @@
  * Usage:
  *   npx tsx build-sandbox.ts
  */
-import { Template } from 'e2b';
+import { Template, waitForFile } from 'e2b';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -29,19 +29,26 @@ const dockerfile = fs.readFileSync('e2b.Dockerfile', 'utf-8');
 
 async function main() {
     try {
-        const template = Template({
+        const warm = process.argv.includes('--warm');
+        const base = Template({
             fileContextPath: path.resolve('.'),
         }).fromDockerfile(dockerfile);
 
+        const template = warm
+            ? base.setStartCmd(
+                  `python3 -I -c 'import numpy, pandas, scipy.stats, pyarrow; from pathlib import Path; import time; Path("/tmp/python-warm-ready").touch(); time.sleep(10**9)'`,
+                  waitForFile('/tmp/python-warm-ready'),
+              )
+            : base;
+        const envPrefix = warm
+            ? 'E2B_PYTHON_WARM_TEMPLATE'
+            : 'E2B_PYTHON_TEMPLATE';
         const templateName =
-            process.env.E2B_PYTHON_TEMPLATE_NAME ||
-            'lightdash-python-runner';
+            process.env[`${envPrefix}_NAME`] ||
+            (warm ? 'lightdash-python-runner-warm' : 'lightdash-python-runner');
 
-        const primaryTag =
-            process.env.E2B_PYTHON_TEMPLATE_TAG?.trim() || '';
-        const extraTags = (
-            process.env.E2B_PYTHON_TEMPLATE_EXTRA_TAGS || ''
-        )
+        const primaryTag = process.env[`${envPrefix}_TAG`]?.trim() || '';
+        const extraTags = (process.env[`${envPrefix}_EXTRA_TAGS`] || '')
             .split(',')
             .map((t) => t.trim())
             .filter(Boolean);
@@ -58,16 +65,12 @@ async function main() {
 
         const skipCache = process.argv.includes('--no-cache');
 
-        const info = await Template.buildInBackground(
-            template,
-            buildTarget,
-            {
-                cpuCount: 1,
-                memoryMB: 1024,
-                ...(extraTags.length ? { tags: extraTags } : {}),
-                ...(skipCache ? { skipCache: true } : {}),
-            },
-        );
+        const info = await Template.buildInBackground(template, buildTarget, {
+            cpuCount: 1,
+            memoryMB: 1024,
+            ...(extraTags.length ? { tags: extraTags } : {}),
+            ...(skipCache ? { skipCache: true } : {}),
+        });
 
         console.log(`Template: ${info.name}`);
         console.log(`Template ID: ${info.templateId}`);

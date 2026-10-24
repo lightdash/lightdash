@@ -82,16 +82,20 @@ export class PythonSandboxRunner {
 
     private readonly metrics: ComposerQueryStageMetrics | null;
 
+    private readonly warmTemplate: boolean;
+
     private provider: SandboxProvider | undefined;
 
     constructor(args: {
         lightdashConfig: LightdashConfig;
         logger: SandboxLogger;
         metrics: ComposerQueryStageMetrics | null;
+        warmTemplate?: boolean;
     }) {
         this.lightdashConfig = args.lightdashConfig;
         this.logger = args.logger;
         this.metrics = args.metrics;
+        this.warmTemplate = args.warmTemplate ?? false;
     }
 
     private traceStage<T>(
@@ -174,7 +178,9 @@ export class PythonSandboxRunner {
         const { appRuntime } = this.lightdashConfig;
         switch (appRuntime.sandboxProvider) {
             case 'e2b':
-                return `${appRuntime.e2bPythonTemplateName}:${appRuntime.e2bPythonTemplateTag}`;
+                return this.warmTemplate
+                    ? `${appRuntime.e2bPythonWarmTemplateName}:${appRuntime.e2bPythonWarmTemplateTag}`
+                    : `${appRuntime.e2bPythonTemplateName}:${appRuntime.e2bPythonTemplateTag}`;
             // The gateway bakes in its image; the ref only feeds `version`.
             case 'gcp-cloud-run':
                 return CLOUD_RUN_PYTHON_TEMPLATE_REF;

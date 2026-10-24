@@ -2222,6 +2222,8 @@ export type AppRuntimeConfig = {
     /** E2B template name+tag for the python query runner sandbox. */
     e2bPythonTemplateName: string;
     e2bPythonTemplateTag: string;
+    e2bPythonWarmTemplateName: string;
+    e2bPythonWarmTemplateTag: string;
     /** OCI image used by managed project onboarding with the Docker provider. */
     sandboxAgentOnboardingDockerImage: string;
     /**
@@ -2826,6 +2828,11 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         sandboxPythonDockerImage:
             process.env.SANDBOX_PYTHON_DOCKER_IMAGE ||
             'lightdash-python-runner:local',
+        e2bPythonWarmTemplateName:
+            process.env.E2B_PYTHON_WARM_TEMPLATE_NAME ||
+            'lightdash-python-runner-warm',
+        e2bPythonWarmTemplateTag:
+            process.env.E2B_PYTHON_WARM_TEMPLATE_TAG ?? (VERSION as string),
         e2bPythonTemplateName:
             process.env.E2B_PYTHON_TEMPLATE_NAME || 'lightdash-python-runner',
         e2bPythonTemplateTag:
