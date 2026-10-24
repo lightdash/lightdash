@@ -20,6 +20,18 @@ import { convertTrinoSchema } from './targets/trino';
 import { renderProfilesYml } from './templating';
 import { LoadProfileArgs, Profiles, Target } from './types';
 
+export class DbtTargetNotFoundError extends ParseError {
+    constructor(
+        profileName: string,
+        readonly targetName: string,
+        profilePath: string,
+    ) {
+        super(
+            `Couldn't find target "${targetName}" for profile ${profileName} in profiles.yml at ${profilePath}`,
+        );
+    }
+}
+
 export const loadDbtTarget = async ({
     profilesDir,
     profileName,
@@ -46,8 +58,10 @@ export const loadDbtTarget = async ({
     const selectedTargetName = targetName || profile.target;
     const target = profile.outputs[selectedTargetName];
     if (target === undefined) {
-        throw new ParseError(
-            `Couldn't find target "${selectedTargetName}" for profile ${profileName} in profiles.yml at ${profilePath}`,
+        throw new DbtTargetNotFoundError(
+            profileName,
+            selectedTargetName,
+            profilePath,
         );
     }
     return {

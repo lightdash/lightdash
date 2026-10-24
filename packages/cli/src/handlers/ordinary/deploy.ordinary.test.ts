@@ -11,6 +11,9 @@ import {
 } from './harness.mocks';
 
 const location = vi.hoisted(() => ({ home: '' }));
+vi.mock('../deployMetadata', () => ({
+    getDeployMetadata: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('os', async (original) => ({
     ...(await original<typeof import('os')>()),
     homedir: () => location.home,

@@ -448,6 +448,22 @@ exports[`pins every real admitted contract, base requirement and payload effect 
         "capabilities": [
           "deploy_upload",
         ],
+        "key": "DeployController.getDeployCapabilities",
+        "mapped": true,
+      },
+    ],
+    "key": "DeployController.getDeployCapabilities",
+    "kind": "path_project",
+    "required": [
+      "deploy_upload",
+    ],
+  },
+  {
+    "candidates": [
+      {
+        "capabilities": [
+          "deploy_upload",
+        ],
         "key": "DeployController.startDeploySession",
         "mapped": true,
       },

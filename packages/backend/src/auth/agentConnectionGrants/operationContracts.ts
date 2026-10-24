@@ -139,6 +139,7 @@ const operationContracts = {
         overrides: 'legacy_query',
     },
     'DeployController.deployExplores': deployBody,
+    'DeployController.getDeployCapabilities': pathProject,
     'DeployController.startDeploySession': deployBody,
     'DeployController.addDeployBatch': {
         kind: 'deployment_session',

@@ -35,6 +35,7 @@ import { getAgentConnectionSelection } from '../credentials';
 import { getDbtContext } from '../dbt/context';
 import {
     combineManifests,
+    getDbtProjectName,
     loadCombineManifest,
     loadManifest,
 } from '../dbt/manifest';
@@ -66,6 +67,7 @@ export type CompileHandlerOptions = DbtCompileOptions & {
 };
 
 export type CompileProjectResult = {
+    dbtProjectName?: string;
     dbtModelNames?: string[];
     explores: (Explore | ExploreError)[];
     isProjectComplete: boolean;
@@ -436,6 +438,7 @@ export const compileProject = async (
     let dbtMetrics: DbtManifest['metrics'] | null = null;
     let isProjectComplete = true;
     let dbtModelNames: string[] | undefined;
+    let dbtProjectName: string | undefined;
 
     explores = await getExploresFromLightdashYmlProject({
         projectDir: absoluteProjectPath,
@@ -470,6 +473,16 @@ export const compileProject = async (
         const context = await getDbtContext({
             projectDir: absoluteProjectPath,
             targetPath: options.targetPath,
+        }).catch((error: unknown) => {
+            if (!options.skipDbtCompile || !options.targetPath) throw error;
+            return {
+                projectName: undefined,
+                profileName: options.profile ?? '',
+                targetDir: path.resolve(
+                    absoluteProjectPath,
+                    options.targetPath,
+                ),
+            };
         });
 
         const { compiledModelIds, originallySelectedModelIds } =
@@ -477,9 +490,14 @@ export const compileProject = async (
                 { targetDir: context.targetDir },
                 options,
             );
-        let manifest = stripExternalDbtNodes(
-            await loadManifest({ targetDir: context.targetDir }),
+        const localDbtManifest = await loadManifest({
+            targetDir: context.targetDir,
+        });
+        dbtProjectName = getDbtProjectName(
+            localDbtManifest,
+            context.projectName,
         );
+        let manifest = stripExternalDbtNodes(localDbtManifest);
         const projectManifestModels = getModelsFromManifest(manifest);
         if (
             !options.combineManifest &&
@@ -855,7 +873,7 @@ export const compileProject = async (
             durationMs: Date.now() - startTime,
         },
     });
-    return { explores, isProjectComplete, dbtModelNames };
+    return { explores, isProjectComplete, dbtModelNames, dbtProjectName };
 };
 
 export const compile = async (

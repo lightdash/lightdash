@@ -9,6 +9,7 @@ export enum FeatureFlags {
     ComposerOptimizationDuckdbColumnProbe = 'composer-optimization-duckdb-column-probe',
     /** Organization-scoped, off by default. Retry missing cross-project refs with sibling models injected through a generated dbt plugin. */
     CrossSourceDbtRefs = 'cross-source-dbt-refs',
+    PeerDbtSources = 'peer-dbt-sources',
     DbtExplicitCredentials = 'dbt-explicit-credentials',
     /**
      * Agent identity gates agent query identity, organisation settings and
