@@ -1,3 +1,10 @@
+# [3.53.0](https://github.com/lightdash/lightdash/compare/3.52.0...3.53.0) (2026-10-24)
+
+
+### Features
+
+* **composer-queries:** DESCRIBE column probe for DuckDB nodes behind flag ([#31531](https://github.com/lightdash/lightdash/issues/31531)) ([cb67200](https://github.com/lightdash/lightdash/commit/cb67200b2fcfc540ab65ed60514828056bc14dd4))
+
 # [3.52.0](https://github.com/lightdash/lightdash/compare/3.51.0...3.52.0) (2026-10-23)
 
 
