@@ -29,7 +29,7 @@ overrides:
   express-rate-limit: 8.3.0
   '@hapi/content': 6.0.2
   undici: 6.28.1
-  handlebars: 4.7.9
+  handlebars: 4.7.10
   basic-ftp: 5.3.1
   'vite@>=7.0.0 <7.3.2': 7.3.5
   systeminformation: 5.31.7
@@ -113,6 +113,8 @@ minimumReleaseAgeExclude:
   # Security update: Node.js 24.22.1 base binaries for the Homebrew CLI (GHSA-9vrh-hg26-pgj3)
   - "@yao-pkg/pkg@6.24.0"
   - "@yao-pkg/pkg-fetch@3.6.7"
+  # Renovate security update: handlebars@4.7.10
+  - handlebars@4.7.10
 
 # pnpm 11 defaults verifyDepsBeforeRun to `install`, which re-verifies (and
 # reinstalls) node_modules before running any package script. The production
