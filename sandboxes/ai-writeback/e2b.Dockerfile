@@ -8,7 +8,7 @@ RUN apt-get update \
         build-essential \
         gnupg \
     && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
+    && apt-get install -y --no-install-recommends nodejs=24.22.1-1nodesource1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install the supported dbt versions, each in its own venv at /usr/local/dbt<X.Y>.
