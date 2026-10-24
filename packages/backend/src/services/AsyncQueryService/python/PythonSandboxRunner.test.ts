@@ -243,76 +243,92 @@ describe('PythonSandboxRunner provider selection', () => {
 });
 
 describe('PythonSandboxRunner stage instrumentation', () => {
-    it('traces the selected template and stages', async () => {
-        const handle = {
-            sandboxId: 'sandbox-1',
-            commands: {
-                run: vi.fn(async () => ({
-                    stdout: '',
-                    stderr: '',
-                    exitCode: 0,
-                })),
-            },
-            files: {
-                write: vi.fn(),
-                readBytes: vi.fn(async () => Buffer.from('{}')),
-                read: vi.fn(async () => '{}'),
-            },
-        } as unknown as SandboxHandle;
-        create.mockResolvedValue(handle);
-        destroy.mockResolvedValue(undefined);
-        const observeComposerQueryStageDuration = vi.fn();
-        spans.length = 0;
-
-        await new PythonSandboxRunner({
-            lightdashConfig: {
-                ...lightdashConfigMock,
-                appRuntime: {
-                    ...lightdashConfigMock.appRuntime,
-                    sandboxProvider: 'e2b',
-                    e2bPythonTemplateName: 'warm-template',
-                    e2bPythonTemplateTag: 'warm-tag',
-                },
-            },
-            logger: silentLogger,
-            metrics: { observeComposerQueryStageDuration },
-        }).run({
-            queryUuid: 'query',
-            code: 'def run(inputs, params):\n    return inputs["a"]',
-            inputs: [
-                { name: 'a', jsonl: Buffer.from('{"x":1}\n') },
-                { name: 'b', jsonl: Buffer.from('{}\n') },
+    it.each([
+        {
+            sandboxProvider: 'e2b' as const,
+            templateRef: 'warm-template:warm-tag',
+            stages: ['create', 'write_inputs', 'compile'],
+            inputSpans: [],
+        },
+        {
+            sandboxProvider: 'docker' as const,
+            templateRef: 'lightdash-python-runner:local',
+            stages: ['create', 'compile', 'write_inputs'],
+            inputSpans: [
+                { 'lightdash.inputName': 'a', 'lightdash.inputBytes': 8 },
+                { 'lightdash.inputName': 'b', 'lightdash.inputBytes': 3 },
             ],
-            inputMeta: { inputs: {}, params: {}, limit: 10 },
-            timeoutMs: 1000,
-        });
+        },
+    ])(
+        'traces the template and stages on $sandboxProvider',
+        async ({ sandboxProvider, templateRef, stages, inputSpans }) => {
+            const handle = {
+                sandboxId: 'sandbox-1',
+                commands: {
+                    run: vi.fn(async () => ({
+                        stdout: '',
+                        stderr: '',
+                        exitCode: 0,
+                    })),
+                },
+                files: {
+                    write: vi.fn(),
+                    readBytes: vi.fn(async () => Buffer.from('{}')),
+                    read: vi.fn(async () => '{}'),
+                },
+            } as unknown as SandboxHandle;
+            create.mockResolvedValue(handle);
+            destroy.mockResolvedValue(undefined);
+            const observeComposerQueryStageDuration = vi.fn();
+            spans.length = 0;
 
-        expect(
-            spans.find(({ name }) => name === 'python.sandbox.run')?.attributes,
-        ).toMatchObject({
-            'lightdash.sandboxId': 'sandbox-1',
-            'lightdash.templateRef': 'warm-template:warm-tag',
-        });
-        expect(create).toHaveBeenLastCalledWith(
-            expect.objectContaining({
-                templateRef: 'warm-template:warm-tag',
-            }),
-        );
-        await vi.waitFor(() =>
+            await new PythonSandboxRunner({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    appRuntime: {
+                        ...lightdashConfigMock.appRuntime,
+                        sandboxProvider,
+                        e2bPythonTemplateName: 'warm-template',
+                        e2bPythonTemplateTag: 'warm-tag',
+                    },
+                },
+                logger: silentLogger,
+                metrics: { observeComposerQueryStageDuration },
+            }).run({
+                queryUuid: 'query',
+                code: 'def run(inputs, params):\n    return inputs["a"]',
+                inputs: [
+                    { name: 'a', jsonl: Buffer.from('{"x":1}\n') },
+                    { name: 'b', jsonl: Buffer.from('{}\n') },
+                ],
+                inputMeta: { inputs: {}, params: {}, limit: 10 },
+                timeoutMs: 1000,
+            });
+
             expect(
-                observeComposerQueryStageDuration.mock.calls.map(
-                    ([source, stage]) => `${source}.${stage}`,
-                ),
-            ).toEqual([
-                'python.create',
-                'python.write_inputs',
-                'python.compile',
-                'python.run',
-                'python.read_output',
-                'python.destroy',
-            ]),
-        );
-    });
+                spans
+                    .filter(({ name }) => name === 'python.sandbox.write_input')
+                    .map(({ attributes }) => attributes),
+            ).toEqual(inputSpans);
+            expect(
+                spans.find(({ name }) => name === 'python.sandbox.run')
+                    ?.attributes,
+            ).toMatchObject({
+                'lightdash.sandboxId': 'sandbox-1',
+                'lightdash.templateRef': templateRef,
+            });
+            expect(create).toHaveBeenLastCalledWith(
+                expect.objectContaining({ templateRef }),
+            );
+            await vi.waitFor(() =>
+                expect(
+                    observeComposerQueryStageDuration.mock.calls.map(
+                        ([, stage]) => stage,
+                    ),
+                ).toEqual([...stages, 'run', 'read_output', 'destroy']),
+            );
+        },
+    );
 });
 
 describe('PythonSandboxRunner batching', () => {
