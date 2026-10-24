@@ -1,4 +1,3 @@
-import { CartesianSeriesType } from '@lightdash/common';
 import { hasIncompletePeriod } from '@lightdash/visualization/editor';
 import { Checkbox, Group } from '@mantine/core';
 import { useId, useMemo, type FC } from 'react';
@@ -6,7 +5,7 @@ import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/
 import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 
-const HatchedBarPreview: FC<{ color: string }> = ({ color }) => {
+const HatchPreview: FC<{ color: string }> = ({ color }) => {
     const patternId = useId();
     return (
         <svg width="14" height="14" aria-hidden>
@@ -29,17 +28,6 @@ const HatchedBarPreview: FC<{ color: string }> = ({ color }) => {
         </svg>
     );
 };
-
-const DashedLinePreview: FC<{ color: string }> = ({ color }) => (
-    <svg width="18" height="14" aria-hidden>
-        <path
-            d="M0,7 H18"
-            stroke={color}
-            strokeWidth={2}
-            strokeDasharray="4 3"
-        />
-    </svg>
-);
 
 export const IncompletePeriodSection: FC = () => {
     const { visualizationConfig, itemsMap, resultsData, getSeriesColor } =
@@ -66,15 +54,8 @@ export const IncompletePeriodSection: FC = () => {
 
     if (!chartConfig || !hasIncomplete) return null;
 
-    const series = chartConfig.dirtyEchartsConfig?.series ?? [];
-    const [firstSeries] = series;
+    const [firstSeries] = chartConfig.dirtyEchartsConfig?.series ?? [];
     const color = firstSeries ? getSeriesColor(firstSeries) : undefined;
-    const hasBars = series.some((s) => s.type === CartesianSeriesType.BAR);
-    const hasLines = series.some(
-        (s) =>
-            s.type === CartesianSeriesType.LINE ||
-            s.type === CartesianSeriesType.AREA,
-    );
 
     return (
         <Config>
@@ -85,12 +66,7 @@ export const IncompletePeriodSection: FC = () => {
                     label={
                         <Group gap="xs" wrap="nowrap">
                             Indicate incomplete periods
-                            {color && hasBars && (
-                                <HatchedBarPreview color={color} />
-                            )}
-                            {color && hasLines && (
-                                <DashedLinePreview color={color} />
-                            )}
+                            {color && <HatchPreview color={color} />}
                         </Group>
                     }
                     checked={!!chartConfig.dirtyLayout?.showIncompletePeriod}
