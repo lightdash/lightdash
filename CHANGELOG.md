@@ -1,3 +1,10 @@
+## [3.53.6](https://github.com/lightdash/lightdash/compare/3.53.5...3.53.6) (2026-10-24)
+
+
+### Bug Fixes
+
+* **charts:** show the incomplete period setting in the series tab with a preview ([#31538](https://github.com/lightdash/lightdash/issues/31538)) ([fdd0154](https://github.com/lightdash/lightdash/commit/fdd0154198feae74d2edfcfcc3757da637250654))
+
 ## [3.53.5](https://github.com/lightdash/lightdash/compare/3.53.4...3.53.5) (2026-10-24)
 
 
