@@ -41,6 +41,7 @@ import {
     ForbiddenError,
     getErrorMessage,
     getReviewItemProjectContextEntry,
+    isAiAdminScopedProjectType,
     isHiddenAiAgentReviewRootCause,
     isToolEditDbtProjectResult,
     isValidRetentionWindowHours,
@@ -55,7 +56,6 @@ import {
     MissingConfigError,
     NotFoundError,
     ParameterError,
-    ProjectType,
     PullRequestProvider,
     PullRequestSource,
     RequestMethod,
@@ -77,7 +77,6 @@ import {
     type AiAgentReviewRemediationEventType,
     type AiAgentReviewRemediationLiveState,
     type AiAgentReviewRemediationStatus,
-    type OrganizationProject,
     type PullRequest,
     type SessionUser,
 } from '@lightdash/common';
@@ -590,9 +589,7 @@ export class AiAgentAdminService extends BaseService {
         const projects =
             await this.projectModel.getAllByOrganizationUuid(organizationUuid);
         const projectUuids = projects
-            .filter((project) =>
-                AiAgentAdminService.isAdminScopedProject(project),
-            )
+            .filter((project) => isAiAdminScopedProjectType(project.type))
             .filter((project) =>
                 ability.can(
                     'manage',
@@ -610,20 +607,6 @@ export class AiAgentAdminService extends BaseService {
             );
         }
         return { kind: 'projects', projectUuids };
-    }
-
-    private static isAdminScopedProject({
-        type,
-    }: Pick<OrganizationProject, 'type'>): boolean {
-        switch (type) {
-            case ProjectType.DEFAULT:
-                return true;
-            case ProjectType.PREVIEW:
-            case ProjectType.TRAINING:
-                return false;
-            default:
-                return assertUnreachable(type, `Unknown project type ${type}`);
-        }
     }
 
     /** Narrows admin filters to a principal's readable projects. */
