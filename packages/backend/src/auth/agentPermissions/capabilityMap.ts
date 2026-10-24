@@ -963,15 +963,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'GitIntegrationController.PreviewPullRequestForCustomDimensions': [
         AgentCapability.ReadDiscover,
     ],
-    'GitIntegrationController.createPullRequestForFileChange': [
-        AgentCapability.DbtWriteback,
-    ],
-    'GitIntegrationController.getFileForExplore': [
-        AgentCapability.ReadDiscover,
-    ],
-    'GitIntegrationController.getFilePathForExplore': [
-        AgentCapability.ReadDiscover,
-    ],
     'GoogleDriveController.get': [AgentCapability.ReadDiscover],
     'GoogleDriveController.post': [AgentCapability.Export],
     'GoogleDriveController.postFromRows': [AgentCapability.Export],
