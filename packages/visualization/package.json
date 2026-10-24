@@ -93,7 +93,7 @@
         "oxlint": "1.75.0",
         "oxlint-tsgolint": "7.0.2001",
         "typescript": "7.0.2",
-        "vite": "8.0.16",
+        "vite": "8.1.6",
         "vitest": "4.1.11"
     }
 }
