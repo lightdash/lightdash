@@ -79,7 +79,7 @@ Unknown flag ids are rejected, so a typo can't silently create a dead override.
 2. In preview environments, a stored override for the user or organization,
    consulted only for flags the environment forces on.
 3. `PREVIEW_ENABLED_FEATURE_FLAGS`, in preview environments.
-4. Per-flag config handlers (for example `EDIT_YAML_IN_UI_ENABLED`).
+4. Per-flag config handlers (for example `LIGHTDASH_ENABLE_TIMEZONE_SUPPORT`).
 5. Database: user override, then organization override, then flag default.
 
 The preview override check adds indexed lookups to the forced-on path. Ordinary
