@@ -1,3 +1,10 @@
+## [3.53.3](https://github.com/lightdash/lightdash/compare/3.53.2...3.53.3) (2026-10-24)
+
+
+### Bug Fixes
+
+* **cli:** bundle Node 24.22.1 in the Homebrew binary ([#31537](https://github.com/lightdash/lightdash/issues/31537)) ([cfd5b33](https://github.com/lightdash/lightdash/commit/cfd5b338bc6c5b0e4e61154fe62439e503f391f0))
+
 ## [3.53.2](https://github.com/lightdash/lightdash/compare/3.53.1...3.53.2) (2026-10-24)
 
 
