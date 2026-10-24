@@ -17,6 +17,7 @@ import {
     snowflakeSecrets,
     trinoSecrets,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
+import { createLegacyWarehouseCredentialReader } from '../../models/WarehouseCredentialReader/createLegacyWarehouseCredentialReader';
 import {
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,
@@ -110,6 +111,16 @@ describe.each([
             ...childConnection,
             warehouseConnectionUuid: 'parent-extra',
         };
+        const aiServiceAccountCredentialsModel = {
+            getSecrets: vi.fn(
+                async (uuid: string, connection: string | null) =>
+                    slots.get(`${uuid}:${connection}`) ?? null,
+            ),
+            getSlot: vi.fn(
+                async (uuid: string, connection: string | null) =>
+                    slots.get(`${uuid}:${connection}`)?.slot ?? null,
+            ),
+        };
         const deps = {
             projectModel: {
                 getSummary: vi.fn(async (uuid: string) => {
@@ -118,16 +129,11 @@ describe.each([
                     return project;
                 }),
             },
-            aiServiceAccountCredentialsModel: {
-                getSecrets: vi.fn(
-                    async (uuid: string, connection: string | null) =>
-                        slots.get(`${uuid}:${connection}`) ?? null,
-                ),
-                getSlot: vi.fn(
-                    async (uuid: string, connection: string | null) =>
-                        slots.get(`${uuid}:${connection}`)?.slot ?? null,
-                ),
-            },
+            aiServiceAccountCredentialsModel,
+            warehouseCredentialReader: createLegacyWarehouseCredentialReader({
+                aiServiceAccountCredentialsModel:
+                    aiServiceAccountCredentialsModel as never,
+            }),
             warehouseConnectionModel: {
                 getProject: vi.fn(async (projectUuid: string) => ({
                     projectUuid,

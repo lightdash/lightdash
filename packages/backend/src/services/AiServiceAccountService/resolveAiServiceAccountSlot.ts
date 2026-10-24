@@ -6,11 +6,16 @@ import {
 import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import type { WarehouseCredentialReader } from '../../models/WarehouseCredentialReader/WarehouseCredentialReader';
 
 export type AiServiceAccountSlotDependencies = {
+    warehouseCredentialReader: Pick<
+        WarehouseCredentialReader,
+        'aiServiceAccount'
+    >;
     aiServiceAccountCredentialsModel: Pick<
         AiServiceAccountCredentialsModel,
-        'getSecrets' | 'getSlot'
+        'getSlot'
     >;
     projectModel: Pick<ProjectModel, 'getSummary'>;
     warehouseConnectionModel: Pick<
@@ -146,12 +151,15 @@ export class AiServiceAccountSlotResolver {
     }
 
     async resolve(input: Input) {
-        return this.resolveWith(input, ({ projectUuid, connection }) =>
-            this.deps.aiServiceAccountCredentialsModel.getSecrets(
-                projectUuid,
-                connection,
-                true,
-            ),
+        return this.resolveWith(
+            input,
+            async ({ projectUuid, connection }) =>
+                (
+                    await this.deps.warehouseCredentialReader.aiServiceAccount.readSlotWithSecrets(
+                        projectUuid,
+                        connection,
+                    )
+                ).value,
         );
     }
 
@@ -172,12 +180,16 @@ export class AiServiceAccountSlotResolver {
         const parent = await this.parent(normalized, project);
         return parent === null
             ? null
-            : this.read(parent, true, ({ projectUuid, connection }) =>
-                  this.deps.aiServiceAccountCredentialsModel.getSecrets(
-                      projectUuid,
-                      connection,
-                      true,
-                  ),
+            : this.read(
+                  parent,
+                  true,
+                  async ({ projectUuid, connection }) =>
+                      (
+                          await this.deps.warehouseCredentialReader.aiServiceAccount.readSlotWithSecrets(
+                              projectUuid,
+                              connection,
+                          )
+                      ).value,
               );
     }
 
