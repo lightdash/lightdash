@@ -1,3 +1,10 @@
+## [3.53.2](https://github.com/lightdash/lightdash/compare/3.53.1...3.53.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* make service accounts licence-only, drop the service-accounts flag ([#31476](https://github.com/lightdash/lightdash/issues/31476)) ([08f9c98](https://github.com/lightdash/lightdash/commit/08f9c98c0c08afb0ef2e9a8651f95a6279eeda6b))
+
 ## [3.53.1](https://github.com/lightdash/lightdash/compare/3.53.0...3.53.1) (2026-10-24)
 
 
