@@ -292,16 +292,68 @@ const parseMissing = async (input: { text: string }) => {
     return { productSha: gitSha(), missingRefs: parseMissingDbtNodeReferences(input.text) };
 };
 
+const cliHint = async (input: {
+    binDir: string;
+    projectDir: string;
+    profilesDir: string;
+    profileName: string;
+    target: string;
+    dbtText: string;
+}) => {
+    process.env.PATH = `${input.binDir}${path.delimiter}${process.env.PATH ?? ''}`;
+    const common = await product('packages/common/src/index.ts');
+    const { dbtList } = await product('packages/cli/src/handlers/dbt/compile.ts');
+    const options = {
+        profilesDir: input.profilesDir,
+        projectDir: input.projectDir,
+        target: input.target,
+        profile: input.profileName,
+        select: undefined,
+        models: undefined,
+        vars: undefined,
+        threads: undefined,
+        noVersionCheck: undefined,
+        exclude: undefined,
+        selector: undefined,
+        state: undefined,
+        fullRefresh: undefined,
+        skipDbtCompile: undefined,
+        skipWarehouseCatalog: undefined,
+        useDbtList: true,
+        defer: undefined,
+        targetPath: undefined,
+        favorState: undefined,
+        combineManifest: undefined,
+    };
+    let dbtListError: { errorClass: string | null; message: string } | null = null;
+    let models: string[] | null = null;
+    try {
+        models = await dbtList(options);
+    } catch (error: any) {
+        dbtListError = {
+            errorClass: error?.constructor?.name ?? null,
+            message: error?.message ?? String(error),
+        };
+    }
+    return {
+        productSha: gitSha(),
+        hint: common.CROSS_SOURCE_MODEL_HINT,
+        hintedDbtText: common.withCrossSourceDbtCliHint(input.dbtText),
+        dbtList: { models, error: dbtListError },
+    };
+};
+
 const main = async () => {
     const [command, inputPath, outputPath] = process.argv.slice(2);
     if (!command || !inputPath || !outputPath) {
-        throw new Error('usage: product_path.ts <compile-explores|resolve-refs|parse-missing> <input.json> <output.json>');
+        throw new Error('usage: product_path.ts <compile-explores|resolve-refs|parse-missing|cli-hint> <input.json> <output.json>');
     }
     const input = readJson(inputPath) as any;
     let output: unknown;
     if (command === 'compile-explores') output = await compileExplores(input);
     else if (command === 'resolve-refs') output = await resolveRefs(input);
     else if (command === 'parse-missing') output = await parseMissing(input);
+    else if (command === 'cli-hint') output = await cliHint(input);
     else throw new Error(`unknown command ${command}`);
     fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`, 'utf8');
 };

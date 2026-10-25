@@ -25,7 +25,7 @@ link_entries() {
 }
 link_entries "$checkout_root/node_modules" "$target/node_modules"
 mkdir -p "$target/node_modules/.pnpm-task-run-state-v1"
-for package in common warehouses backend; do
+for package in common warehouses backend cli; do
   source_modules="$checkout_root/packages/$package/node_modules"
   [[ -d "$source_modules" ]] || continue
   destination="$target/packages/$package/node_modules"

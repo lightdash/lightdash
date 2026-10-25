@@ -60,10 +60,11 @@ def dbt_bin_dir(work, dbt):
     """Expose the harness dbt as the ``dbt1.12`` command the product client runs."""
     bin_dir = Path(work) / "product-bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
-    link = bin_dir / DBT_COMMAND_NAME
-    if link.is_symlink() or link.exists():
-        link.unlink()
-    link.symlink_to(Path(dbt).resolve())
+    for name in (DBT_COMMAND_NAME, "dbt"):
+        link = bin_dir / name
+        if link.is_symlink() or link.exists():
+            link.unlink()
+        link.symlink_to(Path(dbt).resolve())
     return bin_dir
 
 
@@ -145,6 +146,22 @@ def resolve_refs(
 
 def parse_missing(text, work):
     return run("parse-missing", {"text": text}, work)["missingRefs"]
+
+
+def cli_hint(*, work, dbt, project_dir, profiles_dir, profile_name, target, dbt_text):
+    """Run the CLI's dbtList handler in-process and apply withCrossSourceDbtCliHint to dbt text."""
+    return run(
+        "cli-hint",
+        {
+            "binDir": str(dbt_bin_dir(work, dbt)),
+            "projectDir": str(project_dir),
+            "profilesDir": str(profiles_dir),
+            "profileName": profile_name,
+            "target": target,
+            "dbtText": dbt_text,
+        },
+        work,
+    )
 
 
 WORDING_TEST_FILE = "src/projectAdapters/crossSourceRefs.realDbt.test.ts"

@@ -558,6 +558,29 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
         self.assertIn(
             "fresh manifest", climb.missing_ref_reason("a", ref, "b", "fresh")
         )
+        self.assertEqual(
+            climb.fresh_unconfirmed_reason(
+                "access_downstream",
+                {"model": "absent", "packageName": "access_upstream", "version": None},
+                "access_upstream",
+            ),
+            "dbt source \"access_downstream\" references ref('access_upstream', 'absent'), "
+            'but the fresh manifest of dbt source "access_upstream" does not define that '
+            'model (or version). dbt source "access_upstream" has no confirmed last-good '
+            "manifest yet. Check that the model (or version) is present in the provider "
+            "project and has access: public.",
+        )
+        dbt_line = (
+            "Model 'model.consumer.report' (models/report.sql) depends on a node named "
+            "'orders' in package or project 'provider' which was not found"
+        )
+        self.assertEqual(
+            climb.cli_hinted(dbt_line),
+            dbt_line
+            + " Check that the model (or version) is present in the provider project and "
+            "has access: public. Local dbt commands must resolve cross-project refs before "
+            "deployment.",
+        )
         self.assertTrue(
             climb.unresolved_ref_reason("a", ref).endswith(
                 "Declare the upstream project in dependencies.yml or use a literal "

@@ -109,8 +109,24 @@ def ref_label(ref):
     return f"ref({package}'{ref['model']}'{version})"
 
 
+# packages/common/src/dbt/crossSourceRefs.ts:21
+CROSS_SOURCE_MODEL_HINT = (
+    "Check that the model (or version) is present in the provider project and "
+    "has access: public."
+)
+# packages/common/src/dbt/crossSourceRefs.ts:33
+CLI_HINT_SUFFIX = (
+    f" {CROSS_SOURCE_MODEL_HINT} Local dbt commands must resolve cross-project "
+    "refs before deployment."
+)
+
+
+def cli_hinted(dbt_text):
+    return f"{dbt_text}{CLI_HINT_SUFFIX}"
+
+
 def missing_ref_reason(consumer, ref, provider, catalog_source):
-    # packages/backend/src/projectAdapters/crossSourceRefs.ts:541
+    # packages/backend/src/projectAdapters/crossSourceRefs.ts:561
     manifest = (
         "fresh manifest"
         if catalog_source == "fresh"
@@ -122,8 +138,17 @@ def missing_ref_reason(consumer, ref, provider, catalog_source):
     )
 
 
+def fresh_unconfirmed_reason(consumer, ref, provider):
+    # packages/backend/src/projectAdapters/crossSourceRefs.ts:564
+    return (
+        f"{missing_ref_reason(consumer, ref, provider, 'fresh')} "
+        f'dbt source "{provider}" has no confirmed last-good manifest yet. '
+        f"{CROSS_SOURCE_MODEL_HINT}"
+    )
+
+
 def unresolved_ref_reason(consumer, ref):
-    # packages/backend/src/projectAdapters/crossSourceRefs.ts:544
+    # packages/backend/src/projectAdapters/crossSourceRefs.ts:568
     return (
         f'dbt source "{consumer}" references {ref_label(ref)}, which could not be '
         "resolved from its selected public upstreams. Declare the upstream project "
@@ -132,7 +157,7 @@ def unresolved_ref_reason(consumer, ref):
 
 
 def product_cold_start_reason(consumer, ref, provider, project_name):
-    # packages/backend/src/projectAdapters/crossSourceRefs.ts:390 and :519
+    # packages/backend/src/projectAdapters/crossSourceRefs.ts:398 and :540
     return (
         f'Cold start: dbt source "{consumer}" references dbt source "{provider}" '
         f'(project "{project_name}"), but that upstream source has no confirmed '
@@ -1842,12 +1867,11 @@ def publication_case(dbt, work, store, events):
 
 
 MISSING_MODEL = "absent_model"
-WORDING_FINDING = (
-    "The consumer parsed with the provider's confirmed last-good manifest, but the "
-    "message says 'fresh manifest'. crossSourceRefs.ts:541 chooses the word from "
-    "freshCatalogs.has(provider) when the failure is reported at the end of the "
-    "refresh, after the provider has parsed; the catalogue the consumer was given "
-    "is tracked in suppliedConfirmed (crossSourceRefs.ts:454) and is not consulted."
+CLI_PUNCTUATION_FINDING = (
+    "withCrossSourceDbtCliHint joins the hint to dbt's text with a space, so the "
+    "CLI reads '... which was not found Check that the model ...' with no full "
+    "stop between the two sentences; the server text at crossSourceRefs.ts:564 "
+    "ends each sentence with a full stop."
 )
 
 
@@ -1902,7 +1926,7 @@ def missing_ref_wording_case(dbt, work, store):
         "ring_confirmed_missing": (
             [resolver_task("proj_alpha", alpha_missing), ring[1]],
             seeded_cache,
-            missing_ref_reason("proj_alpha", missing, "proj_beta", FRESH),
+            missing_ref_reason("proj_alpha", missing, "proj_beta", CONFIRMED),
         ),
         "leaf_fresh_missing": (
             [
@@ -1918,7 +1942,7 @@ def missing_ref_wording_case(dbt, work, store):
                 resolver_task("proj_beta", beta_leaf),
             ],
             None,
-            unresolved_ref_reason("proj_alpha", missing),
+            fresh_unconfirmed_reason("proj_alpha", missing, "proj_beta"),
         ),
         "ring_withheld": (
             ring,
@@ -1971,10 +1995,6 @@ def missing_ref_wording_case(dbt, work, store):
             row["matches_expected"] = result["message"] == expected
             if name == "ring_confirmed_missing":
                 row["catalog_supplied_to_consumer"] = CONFIRMED
-                row["semantic_expectation"] = missing_ref_reason(
-                    "proj_alpha", missing, "proj_beta", CONFIRMED
-                )
-                row["finding"] = WORDING_FINDING
             row["dbt_missing_refs"] = parse_missing_refs(dbt_text)
             row["product_missing_refs"] = product_path.parse_missing(
                 dbt_text, root / name
@@ -1986,14 +2006,53 @@ def missing_ref_wording_case(dbt, work, store):
             ]
         scenarios[name] = row
     product_test = product_path.run_wording_test(root / "product-test", dbt)
+    withheld_line = next(
+        line
+        for line in scenarios["ring_withheld"]["dbt_error_lines"]
+        if "alpha_report" in line
+    ).strip()
+    cli = product_path.cli_hint(
+        work=root / "cli",
+        dbt=dbt,
+        project_dir=DISK / "proj_alpha",
+        profiles_dir=PROFILES,
+        profile_name="last_good_climb",
+        target="dev",
+        dbt_text=withheld_line,
+    )
+    cli_message = cli["dbtList"]["error"]["message"] if cli["dbtList"]["error"] else ""
+    cli_plain = re.sub(r"\x1b\[[0-9;]*m", "", cli_message)
+    cli_case = {
+        "handler": "packages/cli/src/handlers/dbt/compile.ts:210 (dbtList), hint from :96 and :210",
+        "hint_source": "packages/common/src/dbt/crossSourceRefs.ts:21 and :24",
+        "project": "proj_alpha with no injected nodes",
+        "models": cli["dbtList"]["models"],
+        "error_class": cli["dbtList"]["error"]["errorClass"]
+        if cli["dbtList"]["error"]
+        else None,
+        "message": cli_plain.replace(str(SIM), "examples/multi-repo-dbt-sim"),
+        "dbt_text": withheld_line,
+        "expected_hinted_text": cli_hinted(withheld_line),
+        "hinted_text": cli["hintedDbtText"],
+        "hint": cli["hint"],
+        "hint_follows_without_full_stop": "which was not found Check that" in cli_plain,
+        "finding": CLI_PUNCTUATION_FINDING,
+    }
     healthy = scenarios["ring_healthy"]
     failing = [name for name in plan if name != "ring_healthy"]
     checks = {
-        "product_test_names_confirmed_provider_fresh": not product_test["passed"]
-        and product_test["expected"] is not None
-        and "confirmed last-good manifest" in product_test["expected"]
-        and product_test["received"] is not None
-        and "fresh manifest" in product_test["received"],
+        "product_wording_test_passes": product_test["passed"],
+        "cli_appends_the_hint_to_dbt_text": cli["hintedDbtText"]
+        == cli_hinted(withheld_line)
+        and cli["hint"] == CROSS_SOURCE_MODEL_HINT,
+        "cli_dbt_ls_fails_with_the_hinted_error": cli["dbtList"]["models"] is None
+        and cli_case["error_class"] == "ParseError"
+        and cli_plain.startswith("Error executing 'dbt ls':\n  ")
+        and cli_hinted(withheld_line) in cli_plain
+        and cli_plain.endswith(
+            "\nEnsure you're on the latest patch version. '--use-dbt-list' is true by "
+            "default; if you encounter issues, try using '--use-dbt-list=false"
+        ),
         "product_resolver_binds_the_ring": healthy["ok"]
         and healthy["bindings"] == BINDINGS
         and healthy["owned_injected"] == 5,
@@ -2002,13 +2061,13 @@ def missing_ref_wording_case(dbt, work, store):
             and scenarios[name]["error_class"] == "ParameterError"
             for name in failing
         ),
-        "confirmed_provider_is_named_fresh_by_the_product": scenarios[
-            "ring_confirmed_missing"
-        ].get("matches_expected", False),
+        "confirmed_wording_is_exact": scenarios["ring_confirmed_missing"].get(
+            "matches_expected", False
+        ),
         "fresh_wording_is_exact": scenarios["leaf_fresh_missing"].get(
             "matches_expected", False
         ),
-        "unconfirmed_fresh_provider_gets_generic_wording": scenarios[
+        "unconfirmed_fresh_wording_is_exact": scenarios[
             "leaf_fresh_missing_unconfirmed"
         ].get("matches_expected", False),
         "withheld_wording_is_exact": scenarios["ring_withheld"].get(
@@ -2024,9 +2083,10 @@ def missing_ref_wording_case(dbt, work, store):
     }
     return {
         "resolver": "resolveCrossSourceManifests over DbtCliClient (dbt1.12 -> harness dbt)",
-        "wording_source": "packages/backend/src/projectAdapters/crossSourceRefs.ts:519,541,544",
-        "parser_source": "packages/backend/src/dbt/dbtExternalNodes.ts:98",
+        "wording_source": "packages/backend/src/projectAdapters/crossSourceRefs.ts:398,540,561,564,568",
+        "parser_source": "packages/common/src/dbt/crossSourceRefs.ts:1 (re-exported by packages/backend/src/dbt/dbtExternalNodes.ts)",
         "product_test": product_test,
+        "cli": cli_case,
         "scenarios": scenarios,
         "checks": checks,
         "success": all(checks.values()),

@@ -17,7 +17,7 @@ its owner in `metadata.project_name`. Only public models, seeds, and
 snapshots whose `package_name` is that owner cross to another project. Nodes
 from an installed dbt package stay local to the project that installs them.
 A manifest with no owner identity exports no nodes. This mirrors the product
-tip `009bd64189` on #31471.
+tip `b741e1618e` on #31471.
 
 That tip also steers two policies that this fixture expresses. A provider
 that parses successfully in the current refresh supplies its fresh catalogue
@@ -94,15 +94,16 @@ python3 -m unittest examples/multi-repo-dbt-sim/tests/test_last_good_climb.py
 The explore compile, the resolver wording and the product's own wording test
 run real product TypeScript through `tsx`. `product_path.ts` imports
 `DbtBaseProjectAdapter._validateDbtModel`, `attachTypesToModels`,
-`convertExplores`, `resolveCrossSourceManifests`, `DbtCliClient` and
-`parseMissingDbtNodeReferences` from a checkout and writes JSON for
+`convertExplores`, `resolveCrossSourceManifests`, `DbtCliClient`,
+`parseMissingDbtNodeReferences`, the CLI `dbtList` handler and
+`withCrossSourceDbtCliHint` from a checkout and writes JSON for
 `product_path.py` to read. The checkout defaults to the repository that
 contains this fixture. To measure against another revision, prepare a
 detached checkout in the ignored work directory and point the runner at it:
 
 ```bash
-examples/multi-repo-dbt-sim/last-good-climb/product-checkout.sh 009bd6418922b760be5e5793217238d929299b88
-LAST_GOOD_PRODUCT_ROOT=examples/multi-repo-dbt-sim/.work/product/009bd6418922b760be5e5793217238d929299b88 \
+examples/multi-repo-dbt-sim/last-good-climb/product-checkout.sh b741e1618ed6e0364d053e22409ed34ebba58642
+LAST_GOOD_PRODUCT_ROOT=examples/multi-repo-dbt-sim/.work/product/b741e1618ed6e0364d053e22409ed34ebba58642 \
   examples/multi-repo-dbt-sim/run-last-good
 ```
 
@@ -114,9 +115,9 @@ secret and storage settings to load; `product_path.py` supplies harness-only
 placeholder values. The report records the checkout and its revision under
 `product_path`.
 
-The product's dbt client runs a `dbt1.12` command from `PATH`. The harness
-exposes its venv `dbt` under that name in the work directory for the
-resolver and the product test only.
+The product's dbt client runs a `dbt1.12` command from `PATH` and the CLI
+handler runs `dbt`. The harness exposes its venv `dbt` under both names in
+the work directory for the resolver, the CLI case and the product test only.
 
 ## Present
 
@@ -336,8 +337,9 @@ Pass:
 dbt reports a missing ref as
 `Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on
 a node named 'measure' in package or project 'proj_beta' which was not
-found`. The product parses that with the regular expression at
-`packages/backend/src/dbt/dbtExternalNodes.ts:98` and rewrites it in
+found`. The product parses that with the regular expression in
+`packages/common/src/dbt/crossSourceRefs.ts:1` (re-exported by
+`packages/backend/src/dbt/dbtExternalNodes.ts`) and rewrites it in
 `packages/backend/src/projectAdapters/crossSourceRefs.ts` (`failureReason`).
 The harness carries the same regular expression, checks it against every
 failing dbt output in the withheld and failed-provider runs, and compares
@@ -352,89 +354,55 @@ message with the text composed from the product's templates:
 | Scenario | Store | Projects | Expected template |
 | --- | --- | --- | --- |
 | `ring_healthy` | seeded | ring | no error; binds v3 and `alpha_base`, 5 stubs |
-| `ring_confirmed_missing` | seeded | `proj_alpha` plus `uses_missing` -> `ref('proj_beta', 'absent_model')`, ring `proj_beta` | `crossSourceRefs.ts:541`, see the finding below |
-| `leaf_fresh_missing` | seeded | the same consumer, `proj_beta` without `beta_report` so it parses first | `crossSourceRefs.ts:541` with `fresh manifest` |
-| `leaf_fresh_missing_unconfirmed` | none | the same pair | `crossSourceRefs.ts:544`, the generic text |
-| `ring_withheld` | none | ring | `crossSourceRefs.ts:390` plus `:519` for each source |
+| `ring_confirmed_missing` | seeded | `proj_alpha` plus `uses_missing` -> `ref('proj_beta', 'absent_model')`, ring `proj_beta` | `crossSourceRefs.ts:561` with `confirmed last-good manifest` |
+| `leaf_fresh_missing` | seeded | the same consumer, `proj_beta` without `beta_report` so it parses first | `crossSourceRefs.ts:561` with `fresh manifest` |
+| `leaf_fresh_missing_unconfirmed` | none | the same pair | `crossSourceRefs.ts:561` plus `:564`: no last-good yet and the model hint |
+| `ring_withheld` | none | ring | `crossSourceRefs.ts:398` plus `:540` for each source |
 
 Exact texts the tip emits on this fixture:
 
 ```text
+dbt source "proj_alpha" references ref('proj_beta', 'absent_model'), but the confirmed last-good manifest of dbt source "proj_beta" does not define that model (or version).
 dbt source "proj_alpha" references ref('proj_beta', 'absent_model'), but the fresh manifest of dbt source "proj_beta" does not define that model (or version).
-dbt source "proj_alpha" references ref('proj_beta', 'absent_model'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model').
+dbt source "proj_alpha" references ref('proj_beta', 'absent_model'), but the fresh manifest of dbt source "proj_beta" does not define that model (or version). dbt source "proj_beta" has no confirmed last-good manifest yet. Check that the model (or version) is present in the provider project and has access: public.
 Cold start: dbt source "proj_alpha" references dbt source "proj_beta" (project "proj_beta"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source "proj_alpha" could not resolve ref('proj_beta', 'measure') during its single parse.
 ```
 
-Finding, confirmed-provider wording. In `ring_confirmed_missing` the
-consumer parses first and is handed `proj_beta`'s confirmed last-good
-catalogue, yet the message says `fresh manifest`. The word is chosen at
-`crossSourceRefs.ts:541` from `freshCatalogs.has(provider)` when the
-failures are reported after the whole refresh (`:743`), by which time
-`proj_beta` has parsed on its own. The catalogue the consumer actually
-received is tracked in `suppliedConfirmed` (`:454`) and is not consulted.
-The product's own real-dbt test pins the semantic text,
-`crossSourceRefs.realDbt.test.ts:1132`
-(`names the consumer, provider and missing numeric version`, expecting
-`confirmed last-good manifest`), and it fails on the tip with `fresh
-manifest`. That test only runs when `LIGHTDASH_TEST_DBT_EXECUTABLES` is
-set, so CI has not exercised it. The harness runs that test from the
-checkout and records its expected and received text under
-`missing_ref_wording.product_test`. The check
-`product_test_names_confirmed_provider_fresh` and the scenario expectation
-pin today's behaviour; both flip when the resolver is fixed, which is the
-signal to move the expectation to `confirmed last-good manifest`. No
-product code is changed here.
+The confirmed case now names the catalogue the consumer was given:
+`bindingCatalogs` records `fresh` and `confirmed` per provider when the
+consumer's payload is built (`crossSourceRefs.ts:472`), and `failureReason`
+reads that record. The product's real-dbt test
+`crossSourceRefs.realDbt.test.ts` (`names the consumer, provider and
+missing numeric version`) that failed on the earlier tip `009bd64189`
+passes here; the harness runs it from the checkout and records the result
+under `missing_ref_wording.product_test`. CI now runs that file with a
+real dbt (`.github/workflows/pr.yml`).
 
-Finding, unconfirmed fresh provider. In `leaf_fresh_missing_unconfirmed`
-the provider parsed in this refresh and its fresh manifest lacks the model,
-but it has no confirmed row, so the branch at `:536` is skipped and the
-consumer gets the generic `:544` text, which advises declaring the project
-in `dependencies.yml` or using a literal `ref('project', 'model')`. The
-consumer already uses the literal form. The informative `fresh manifest ...
-does not define that model` text is reserved for providers that also have a
-confirmed row.
+The CLI appends a hint to dbt's own error. `packages/cli/src/handlers/dbt/compile.ts:96` (`dbtCompile`) and `:210` (`dbtList`) pass the
+execa message through `withCrossSourceDbtCliHint`
+(`packages/common/src/dbt/crossSourceRefs.ts:24`), which appends
+`Check that the model (or version) is present in the provider project and
+has access: public. Local dbt commands must resolve cross-project refs
+before deployment.` when the text carries a two-argument missing ref. The
+harness calls the CLI's `dbtList` handler in-process from the checkout on
+`disk/proj_alpha` with no injected nodes, with the harness dbt on `PATH`
+as `dbt`, and also applies `withCrossSourceDbtCliHint` to the withheld
+dbt line. Pass: `dbt ls` fails, the handler throws `ParseError` whose
+message starts `Error executing 'dbt ls':`, contains dbt's sentence
+followed by the hint, and ends with the handler's fixed `--use-dbt-list`
+advice. This is the handler function, not the packaged `lightdash` binary;
+the `dbtCompile` path shares the same hint call and is not run.
 
-The CLI has no cross-source wording of its own. `lightdash compile` runs
-dbt locally without injected nodes and surfaces dbt's `which was not found`
-text; the server adds `CROSS_SOURCE_REFS_HINT` to that text only when the
-organisation flag is off (`dbtExternalNodes.ts:137`).
+Finding, CLI punctuation. `withCrossSourceDbtCliHint` joins the hint with
+a space, and dbt's sentence has no terminal full stop, so the CLI reads
+`... in package or project 'proj_beta' which was not found Check that the
+model (or version) is present ...`. The server text ends every sentence
+with a full stop. The report records `hint_follows_without_full_stop`.
+The CLI also leaves dbt's ANSI colour codes in the message because it does
+not pass `--no-use-colors`; the harness strips them before comparing.
 
-## Log markers
-
-The product tip logs two markers that a post-merge success watch reads. The
-runner emits the same text and the same structured fields, and the contract
-checks them on the happy path.
-
-`dbt.compile.crossSourceLastGoodConfirmed` is emitted once per confirmed
-store write, after the manifests are on disk. The text is
-`dbt.compile.crossSourceLastGoodConfirmed rowsWritten=N projectUuid=<uuid>
-connectionGroup=original`; the fields are `event`, `projectUuid`,
-`connectionGroup` and `rowsWritten`. The ring seed writes 2 rows and the
-package seed writes 2 rows. The per-provider scenarios write 2, 1 and 0
-rows in that order and the unattributed scenario logs nothing. The healthy
-publication save writes 2 rows; the three publication failures log no
-confirmation, and the store write failure logs
-`dbt.compile.crossSourceCacheError` with `event`, `message` and `code`
-instead, as `CrossSourceCatalogCache.confirm` does. The withheld run writes
-nothing and must not log a confirmation. The project UUID and connection
-group are fixed synthetic values; the harness has no project table.
-
-`dbt.compile.crossSourceRefsResolved` is emitted once per resolution. The
-text ends with ` ownedInjected=X packageNodesOmitted=Y`; the fields include
-`event`, `projectUuid`, `ownedInjected`, `packageNodesOmitted` and a
-`sources` list with `injectedFrom` and `injectedStubs`. The harness has no
-disk pool, so `diskEvictions` and `diskRecreations` are 0. The ring
-resolution reports 4 and 0. The package resolution reports 2 and 2. The
-three fresh-over-seed runs report 5, 5 and 4 with 0 omitted, and each
-per-provider and publication scenario reports 5 and 0. The contract fails
-if a count, the text suffix, or a field name drifts.
-
-The harness counts each stored manifest once per resolution. The product
-counts package nodes when it loads older confirmed rows and again when it
-projects a fresh manifest, so the same node can count twice there.
-
-Every marker is kept under `markers` in the report with its message and
-fields.
+The earlier tip's divergence, a confirmed provider named as `fresh
+manifest`, is fixed on this tip and the harness expectation moved with it.
 
 ## Observed
 
@@ -482,7 +450,7 @@ The fresh-over-seed runs used the same disk and store. `alpha_first` read
 `confirmed` and bound `measure.v3`. The store digests were unchanged.
 
 The per-provider scenarios compiled explores with the product compiler
-from checkout `009bd6418922b760be5e5793217238d929299b88`. `healthy`
+from checkout `b741e1618ed6e0364d053e22409ed34ebba58642`. `healthy`
 compiled all 6 real models (2 in `proj_alpha`, 4 in `proj_beta`) with no
 error. `other_source_error` compiled 6 of 7 and reported one
 `METADATA_PARSE_ERROR` on `bad_meta` attributed to `proj_beta`:
@@ -509,14 +477,15 @@ and no confirmation, and `proj_alpha` bound `measure.v3`. `healthy_save`
 wrote both files and both rows and `proj_alpha` bound `measure.v2`.
 
 The resolver scenarios ran the product `resolveCrossSourceManifests` with
-`DbtCliClient` on the harness dbt. `ring_healthy` bound
+`DbtCliClient` on the harness dbt from checkout
+`b741e1618ed6e0364d053e22409ed34ebba58642`. `ring_healthy` bound
 `model.proj_beta.measure.v3` and `model.proj_alpha.alpha_base` with 5
 stubs, the same as the Python climb. The four failing scenarios each threw
-`ParameterError` with the texts quoted under Missing-ref wording;
-`ring_confirmed_missing` said `fresh manifest`, the harness regular
-expression and `parseMissingDbtNodeReferences` agreed on every dbt output,
-and the product's own wording test failed with the expected and received
-texts recorded in the report.
+`ParameterError` with the texts quoted under Missing-ref wording, the
+harness regular expression and `parseMissingDbtNodeReferences` agreed on
+every dbt output, the product's own wording test passed, and the CLI
+`dbtList` handler threw `ParseError` with the hint appended directly after
+dbt's `which was not found`.
 
 The dbt outputs of the withheld and failed-provider runs parsed to
 `measure` in `proj_beta`, `alpha_base` in `proj_alpha`, and
