@@ -9,7 +9,9 @@ sys.path.insert(0, str(SIM))
 sys.path.insert(0, str(SIM / "last-good-climb"))
 
 import climb
+
 import last_good_scale as scale
+import scale_additions
 
 
 def _node(name, access):
@@ -295,6 +297,208 @@ class LastGoodScaleTests(unittest.TestCase):
                 scale.previous_inject_all(path)["fixtures"][0]["peak_rss_bytes"],
                 100,
             )
+
+    def test_scale_additions_write_public_assets_and_a_package_control(self):
+        registry = {
+            "sources": [
+                {
+                    "name": "proj_core",
+                    "upstreams": ["proj_bank", "proj_bank_reporting"],
+                },
+                {"name": "proj_bank", "upstreams": []},
+                {"name": "proj_bank_reporting", "upstreams": []},
+            ]
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for source in registry["sources"]:
+                (root / "repos" / source["name"] / "models").mkdir(parents=True)
+            added = scale_additions.apply(root, registry, "proj_core")
+            self.assertEqual(added["installers"], ["proj_bank", "proj_bank_reporting"])
+            self.assertEqual(added["reference_upstream"], "proj_bank")
+            self.assertEqual(
+                added["consumer_refs"],
+                [
+                    "seed.proj_bank.proj_bank_public_seed",
+                    "snapshot.proj_bank.proj_bank_history",
+                ],
+            )
+            seed_yaml = json.loads(
+                (root / "repos/proj_core/seeds/public_seed.yml").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(seed_yaml["seeds"][0]["config"]["access"], "public")
+            self.assertNotIn("access", seed_yaml["seeds"][0])
+            snapshot_yaml = json.loads(
+                (root / "repos/proj_core/snapshots/proj_core_history.yml").read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(
+                snapshot_yaml["snapshots"][0]["relation"],
+                "ref('proj_core_public_seed')",
+            )
+            self.assertEqual(
+                snapshot_yaml["snapshots"][0]["config"]["access"], "public"
+            )
+            self.assertTrue((root / "repos/proj_bank/packages.yml").is_file())
+            self.assertFalse((root / "repos/proj_core/packages.yml").exists())
+            package = root / "packages" / scale_additions.PACKAGE_NAME
+            self.assertTrue((package / "seeds" / "pkg_shared_seed.csv").is_file())
+            self.assertTrue(
+                (package / "snapshots" / "pkg_shared_history.yml").is_file()
+            )
+            consumer_sql = (
+                root / "repos/proj_core/models/uses_public_assets.sql"
+            ).read_text(encoding="utf-8")
+            self.assertIn("var('sim_bootstrap', false)", consumer_sql)
+            self.assertIn("ref('proj_bank', 'proj_bank_public_seed')", consumer_sql)
+            self.assertIn("ref('proj_bank', 'proj_bank_history')", consumer_sql)
+            self.assertTrue(
+                all(not path.startswith("..") for path in added["files_written"])
+            )
+
+    def test_injection_summary_omits_installed_package_resources(self):
+        def resource(package, name, resource_type, access):
+            node = _node(name, None if resource_type != "model" else access)
+            node["resource_type"] = resource_type
+            node["package_name"] = package
+            node["unique_id"] = f"{resource_type}.{package}.{name}"
+            node["path"] = f"{name}.csv" if resource_type == "seed" else f"{name}.sql"
+            if resource_type != "model":
+                node["config"] = {"access": access}
+            return node["unique_id"], node
+
+        nodes = dict(
+            [
+                resource("proj_bank", "proj_bank_base", "model", "public"),
+                resource("proj_bank", "proj_bank_public_seed", "seed", "public"),
+                resource("proj_bank", "proj_bank_seed", "seed", None),
+                resource("proj_bank", "proj_bank_history", "snapshot", "public"),
+                resource(
+                    scale_additions.PACKAGE_NAME, "pkg_shared_seed", "seed", "public"
+                ),
+                resource(
+                    scale_additions.PACKAGE_NAME,
+                    "pkg_shared_history",
+                    "snapshot",
+                    "public",
+                ),
+                resource(
+                    scale_additions.PACKAGE_NAME, "pkg_shared_model", "model", "public"
+                ),
+            ]
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            store = Path(directory)
+            (store / "proj_bank").mkdir()
+            (store / "proj_bank" / "manifest.json").write_text(
+                json.dumps({"metadata": {"project_name": "proj_bank"}, "nodes": nodes}),
+                encoding="utf-8",
+            )
+            nodes_path = store / "nodes.json"
+            self.assertEqual(scale.write_injection(store, ["proj_bank"], nodes_path), 3)
+            summary = json.loads(nodes_path.with_suffix(".summary.json").read_text())
+            self.assertEqual(summary["package_nodes_omitted"], 3)
+            self.assertEqual(
+                summary["injected_by_type"], {"model": 1, "seed": 1, "snapshot": 1}
+            )
+            self.assertEqual(summary["non_public_seeds_omitted"], 1)
+            injected = json.loads(nodes_path.read_text(encoding="utf-8"))
+            self.assertTrue(
+                all(node["package_name"] == "proj_bank" for node in injected)
+            )
+
+    def test_delta_against_the_previous_public_only_run(self):
+        case = {
+            "fixture": "large-org",
+            "source_count": 19,
+            "models": 49,
+            "manifest_model_nodes": 49,
+            "artefact_bytes_total": 120,
+            "artefact_bytes_per_source": [
+                {"source": "proj_a", "bytes": 70},
+                {"source": "proj_b", "bytes": 50},
+            ],
+            "injected_node_count": 80,
+            "injected_payload_bytes": 20000,
+            "public_injected_node_count": 80,
+            "peak_rss_bytes": 150,
+            "parse_seconds": 2.6,
+            "climb": {"injector_peak_rss_bytes": 90, "injector_seconds": 0.1},
+            "baseline": {
+                "checkout_bytes_total": 30,
+                "parse_seconds": 50.0,
+                "peak_rss_bytes": 140,
+            },
+            "withheld": {"parse_seconds": 2.4, "peak_rss_bytes": 130},
+        }
+        prior = {
+            "fixtures": [
+                {
+                    "fixture": "large-org",
+                    "artefact_bytes_total": 100,
+                    "injected_node_count": 44,
+                    "injected_payload_bytes": 12000,
+                    "peak_rss_bytes": 100,
+                    "parse_seconds": 2.5,
+                    "injector_peak_rss_bytes": 80,
+                    "injector_seconds": 0.1,
+                    "baseline_checkout_bytes": 20,
+                    "baseline_parse_seconds": 48.5,
+                    "baseline_peak_rss_bytes": 130,
+                    "withheld_parse_seconds": 2.4,
+                    "withheld_peak_rss_bytes": 120,
+                }
+            ],
+            "artefact_bytes_per_source": {"large-org": {"proj_a": 60, "proj_b": 50}},
+        }
+        delta = scale.delta_vs_previous(case, prior)
+        self.assertEqual(delta["delta"]["artefact_bytes_total"], 20)
+        self.assertEqual(delta["delta"]["peak_rss_bytes"], 50)
+        self.assertEqual(delta["delta"]["injected_node_count"], 36)
+        self.assertEqual(
+            delta["artefact_bytes_per_source_delta"], {"proj_a": 10, "proj_b": 0}
+        )
+        self.assertIsNone(
+            scale.delta_vs_previous(
+                {"fixture": "full", "artefact_bytes_per_source": []}, prior
+            )
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "last-good-scale.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "injection_policy": "access-public",
+                        "toolchain": {"packages": {}},
+                        "fixtures": [case],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            previous = scale.previous_public_only(path)
+            self.assertEqual(previous["fixtures"][0]["artefact_bytes_total"], 120)
+            self.assertEqual(
+                previous["artefact_bytes_per_source"]["large-org"],
+                {"proj_a": 70, "proj_b": 50},
+            )
+            path.write_text(
+                json.dumps(
+                    {
+                        "injection_policy": "access-public",
+                        "scale_additions": {"consumer": "proj_core"},
+                        "previous_public_only": previous,
+                        "fixtures": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            self.assertEqual(scale.previous_public_only(path), previous)
+        machine = scale.machine_info()
+        self.assertTrue(machine["hostname"])
+        self.assertIsInstance(machine["cpu_count"], int)
 
     def test_gnu_time_rss_is_kilobytes(self):
         match = climb.GNU_TIME_RSS.search("Maximum resident set size (kbytes): 2048\n")

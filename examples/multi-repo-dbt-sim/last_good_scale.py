@@ -1,6 +1,9 @@
 import argparse
 import json
+import os
+import platform
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -11,6 +14,8 @@ sys.path.insert(0, str(SIM))
 sys.path.insert(0, str(SIM / "last-good-climb"))
 
 import climb
+
+import scale_additions
 
 BOOTSTRAP_VARS = "{sim_bootstrap: true}"
 SKIP_DIRS = {"target", "logs", "dbt_packages", ".git"}
@@ -45,7 +50,62 @@ TOP_LEVEL = (
     "climb",
     "baseline",
     "withheld",
+    "scale_additions",
+    "resource_counts",
+    "injected_by_type",
+    "package_control",
+    "consumer_public_asset_bindings",
 )
+HEADLINE_DELTA_FIELDS = (
+    "artefact_bytes_total",
+    "injected_node_count",
+    "injected_payload_bytes",
+    "peak_rss_bytes",
+    "parse_seconds",
+    "injector_peak_rss_bytes",
+    "injector_seconds",
+    "baseline_checkout_bytes",
+    "baseline_parse_seconds",
+    "baseline_peak_rss_bytes",
+    "withheld_parse_seconds",
+    "withheld_peak_rss_bytes",
+)
+
+
+def machine_info():
+    cpu_model = None
+    mem_total_bytes = None
+    try:
+        for line in Path("/proc/cpuinfo").read_text(encoding="utf-8").splitlines():
+            if line.startswith("model name"):
+                cpu_model = line.split(":", 1)[1].strip()
+                break
+        for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
+            if line.startswith("MemTotal"):
+                mem_total_bytes = int(line.split()[1]) * 1024
+                break
+    except OSError:
+        pass
+    return {
+        "hostname": socket.gethostname(),
+        "kernel": platform.release(),
+        "cpu_model": cpu_model,
+        "cpu_count": os.cpu_count(),
+        "mem_total_bytes": mem_total_bytes,
+    }
+
+
+def resource_counts(manifest):
+    counts = {"models": 0, "seeds": 0, "snapshots": 0, "package_nodes": 0}
+    owner = climb.owner_identity(manifest)
+    for node in manifest["nodes"].values():
+        if not climb._is_real_resource(node):
+            continue
+        if node.get("package_name") != owner:
+            counts["package_nodes"] += 1
+            continue
+        counts[f"{node['resource_type']}s"] += 1
+    return counts
 
 
 def tree_bytes(root):
@@ -142,6 +202,13 @@ def case_report(measurement):
         "climb": climb_row,
         "baseline": measurement["baseline"],
         "withheld": measurement["withheld"],
+        "scale_additions": measurement.get("scale_additions"),
+        "resource_counts": measurement.get("resource_counts"),
+        "injected_by_type": measurement.get("injected_by_type"),
+        "package_control": measurement.get("package_control"),
+        "consumer_public_asset_bindings": measurement.get(
+            "consumer_public_asset_bindings"
+        ),
     }
 
 
@@ -188,10 +255,74 @@ def previous_inject_all(report_path):
     }
 
 
-def report_document(cases, pins, command, prior):
+def previous_public_only(report_path):
+    """Keep the headline of the public-only run that predates the seed and snapshot fixtures."""
+    path = Path(report_path)
+    if not path.is_file():
+        return None
+    document = json.loads(path.read_text(encoding="utf-8"))
+    if document.get("injection_policy") != INJECTION_POLICY:
+        return None
+    if document.get("scale_additions") is not None:
+        return document.get("previous_public_only")
+    return {
+        "injection_policy": INJECTION_POLICY,
+        "note": (
+            "Headline figures from the public-only scale run on this branch "
+            "before the fixtures gained public seeds, snapshots and the "
+            "installed-package control. Its machine was not recorded."
+        ),
+        "toolchain": document.get("toolchain"),
+        "fixtures": [_headline(case) for case in document["fixtures"]],
+        "artefact_bytes_per_source": {
+            case["fixture"]: {
+                item["source"]: item["bytes"]
+                for item in case["artefact_bytes_per_source"]
+            }
+            for case in document["fixtures"]
+        },
+    }
+
+
+def delta_vs_previous(case, prior):
+    if prior is None:
+        return None
+    previous = next(
+        (item for item in prior["fixtures"] if item["fixture"] == case["fixture"]), None
+    )
+    if previous is None:
+        return None
+    headline = _headline(case)
+    per_source_before = prior.get("artefact_bytes_per_source", {}).get(
+        case["fixture"], {}
+    )
+    per_source_after = {
+        item["source"]: item["bytes"] for item in case["artefact_bytes_per_source"]
+    }
+    return {
+        "before": {field: previous.get(field) for field in HEADLINE_DELTA_FIELDS},
+        "after": {field: headline.get(field) for field in HEADLINE_DELTA_FIELDS},
+        "delta": {
+            field: (
+                None
+                if previous.get(field) is None or headline.get(field) is None
+                else round(headline[field] - previous[field], 3)
+            )
+            for field in HEADLINE_DELTA_FIELDS
+        },
+        "artefact_bytes_per_source_delta": {
+            source: per_source_after[source] - per_source_before[source]
+            for source in sorted(per_source_after)
+            if source in per_source_before
+        },
+    }
+
+
+def report_document(cases, pins, command, prior, previous=None, machine=None):
     primary = cases[0]
     document = {
         "command": command,
+        "machine": machine,
         "rss_measurement": RSS_MEASUREMENT,
         "injection_policy": INJECTION_POLICY,
         "injection_policy_note": (
@@ -202,11 +333,15 @@ def report_document(cases, pins, command, prior):
             "ref_filtered_* is recorded and was not applied to the timed parse."
         ),
         "previous_inject_all": prior,
+        "previous_public_only": previous,
         "not_measured": NOT_MEASURED,
         "toolchain": pins,
     }
     document.update({key: primary[key] for key in TOP_LEVEL})
-    document["fixtures"] = cases
+    document["fixtures"] = [
+        {**case, "delta_vs_previous_public_only": delta_vs_previous(case, previous)}
+        for case in cases
+    ]
     return document
 
 
@@ -253,14 +388,21 @@ def write_injection(store, upstreams, nodes_path):
     omitted = {"model": 0, "seed": 0, "snapshot": 0}
     for upstream in upstreams:
         manifest = json.loads(climb.manifest_path(store, upstream).read_text())
+        owner = climb.owner_identity(manifest)
         for node in manifest["nodes"].values():
-            if not climb._is_real_resource(node):
+            if not climb._is_real_resource(node) or node.get("package_name") != owner:
                 continue
             if climb.resolved_access(node) != "public":
                 omitted[node["resource_type"]] += 1
-    nodes = climb.injection_for(store, upstreams)
+    report = climb.injection_report(store, upstreams)
+    nodes = report["nodes"]
     if any(node.get("access") != "public" for node in nodes):
         raise RuntimeError("Non-public node injected")
+    if any(node["package_name"] == scale_additions.PACKAGE_NAME for node in nodes):
+        raise RuntimeError("An installed-package node crossed into the payload")
+    injected_by_type = {"model": 0, "seed": 0, "snapshot": 0}
+    for node in nodes:
+        injected_by_type[node.get("resource_type") or "model"] += 1
     injected_ids = set()
     for node in nodes:
         injected_ids.add(climb.canonical_injected_id(node))
@@ -287,6 +429,8 @@ def write_injection(store, upstreams, nodes_path):
                 "non_public_models_omitted": omitted["model"],
                 "non_public_seeds_omitted": omitted["seed"],
                 "non_public_snapshots_omitted": omitted["snapshot"],
+                "package_nodes_omitted": report["package_nodes_omitted"],
+                "injected_by_type": injected_by_type,
             }
         ),
         encoding="utf-8",
@@ -336,15 +480,26 @@ def measure_fixture(dbt, work, name):
     registry = prepare_fixture(name, fixture_root)
     sources = registry["sources"]
     consumer = choose_consumer(sources)
+    additions = scale_additions.apply(fixture_root, registry, consumer)
     store = work / f"{name}-last-good"
     store.mkdir(parents=True)
     checkouts = []
     artefacts = []
     baseline_sources = []
     manifest_nodes = 0
+    counts = {"models": 0, "seeds": 0, "snapshots": 0, "package_nodes": 0}
+    installed = {}
     for source in sources:
         project = source["name"]
         repo = fixture_root / "repos" / project
+        if project in additions["installers"]:
+            installed[project] = climb.run_deps(
+                dbt,
+                repo,
+                work / name / "deps-logs" / project,
+                profiles_dir=fixture_root / "profiles",
+                profile="multi_repo_sim",
+            )
         checkout = tree_bytes(repo)
         checkouts.append({"source": project, "bytes": checkout})
         parsed = _parse(
@@ -355,6 +510,8 @@ def measure_fixture(dbt, work, name):
             variables=BOOTSTRAP_VARS,
         )
         manifest_nodes += real_model_nodes(parsed["manifest"])
+        for key, value in resource_counts(parsed["manifest"]).items():
+            counts[key] += value
         parsed["manifest"] = None
         climb.publish_manifest(
             work / name / "baseline-target" / project, store, project
@@ -406,6 +563,19 @@ def measure_fixture(dbt, work, name):
     if climb_parse["returncode"] != 0 or climb_parse["manifest"] is None:
         raise RuntimeError(_excerpt(climb_parse["output"], fixture_root))
     cycle = climb.find_cycle(climb.model_edges(climb_parse["manifest"], False))
+    consumer_bindings = sorted(
+        climb.binding(climb_parse["manifest"], consumer, additions["consumer_model"])
+        or []
+    )
+    if consumer_bindings != sorted(additions["consumer_refs"]):
+        raise RuntimeError(
+            f"Consumer did not bind the upstream public seed and snapshot: {consumer_bindings}"
+        )
+    if any(
+        node.get("package_name") == scale_additions.PACKAGE_NAME
+        for node in climb_parse["manifest"]["nodes"].values()
+    ):
+        raise RuntimeError("An installed-package node reached the consumer manifest")
     climb_parse["manifest"] = None
     if cycle is not None or climb_parse["cycle_error"]:
         raise RuntimeError(f"Climb reported a model cycle: {cycle}")
@@ -438,6 +608,19 @@ def measure_fixture(dbt, work, name):
         "non_public_snapshots_omitted": summary["non_public_snapshots_omitted"],
         "ref_filtered_node_count": len(filtered),
         "ref_filtered_payload_bytes": payload_bytes(filtered),
+        "scale_additions": {
+            key: value for key, value in additions.items() if key != "files_written"
+        },
+        "resource_counts": counts,
+        "injected_by_type": summary["injected_by_type"],
+        "package_control": {
+            "package": scale_additions.PACKAGE_NAME,
+            "installers": additions["installers"],
+            "installed_packages": installed,
+            "package_nodes_omitted": summary["package_nodes_omitted"],
+            "package_nodes_in_payload": 0,
+        },
+        "consumer_public_asset_bindings": consumer_bindings,
         "climb": {
             "dbt_peak_rss_bytes": climb_parse["peak_rss_bytes"],
             "parse_seconds": climb_parse["parse_seconds"],
@@ -498,13 +681,15 @@ def main():
         raise SystemExit("Scale probe requires dbt-core 1.12.0 and no dbt-loom")
     cases = []
     prior = previous_inject_all(args.report)
+    previous = previous_public_only(args.report)
+    machine = machine_info()
     command = "examples/multi-repo-dbt-sim/run-last-good-scale"
     if args.fixture != "large-org":
         command += f" --fixture {args.fixture}"
     for name in names:
         print(f"scale fixture {name}", flush=True)
         cases.append(measure_fixture(args.dbt, args.work, name))
-        document = report_document(cases, pins, command, prior)
+        document = report_document(cases, pins, command, prior, previous, machine)
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
         print(
