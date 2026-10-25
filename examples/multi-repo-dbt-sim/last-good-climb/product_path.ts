@@ -298,7 +298,7 @@ const cliHint = async (input: {
     profilesDir: string;
     profileName: string;
     target: string;
-    dbtText: string;
+    dbtTexts: Record<string, string>;
 }) => {
     process.env.PATH = `${input.binDir}${path.delimiter}${process.env.PATH ?? ''}`;
     const common = await product('packages/common/src/index.ts');
@@ -338,7 +338,12 @@ const cliHint = async (input: {
     return {
         productSha: gitSha(),
         hint: common.CROSS_SOURCE_MODEL_HINT,
-        hintedDbtText: common.withCrossSourceDbtCliHint(input.dbtText),
+        hintedDbtTexts: Object.fromEntries(
+            Object.entries(input.dbtTexts).map(([name, text]) => [
+                name,
+                common.withCrossSourceDbtCliHint(text),
+            ]),
+        ),
         dbtList: { models, error: dbtListError },
     };
 };

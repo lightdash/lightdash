@@ -574,18 +574,24 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
             "Model 'model.consumer.report' (models/report.sql) depends on a node named "
             "'orders' in package or project 'provider' which was not found"
         )
-        self.assertEqual(
-            climb.cli_hinted(dbt_line),
-            dbt_line
-            + " Check that the model (or version) is present in the provider project and "
+        hint = (
+            " Check that the model (or version) is present in the provider project and "
             "has access: public. Local dbt commands must resolve cross-project refs before "
-            "deployment.",
+            "deployment."
         )
-        self.assertTrue(
-            climb.unresolved_ref_reason("a", ref).endswith(
-                "Declare the upstream project in dependencies.yml or use a literal "
-                "ref('project', 'model')."
-            )
+        self.assertEqual(climb.cli_hinted(dbt_line), f"{dbt_line}.{hint}")
+        for ending in (".", "?", "!"):
+            with self.subTest(ending=ending):
+                self.assertEqual(
+                    climb.cli_hinted(f"{dbt_line}{ending}"), f"{dbt_line}{ending}{hint}"
+                )
+        self.assertEqual(
+            climb.cli_hinted(f"\x1b[31m{dbt_line}\x1b[0m \n"),
+            f"\x1b[31m{dbt_line}.\x1b[0m \n{hint}",
+        )
+        self.assertEqual(
+            climb.cli_hinted(f"\x1b[31m{dbt_line}.\x1b[0m \n"),
+            f"\x1b[31m{dbt_line}.\x1b[0m \n{hint}",
         )
         cold = climb.product_cold_start_reason(
             "proj_alpha", ref, "proj_beta", "proj_beta"

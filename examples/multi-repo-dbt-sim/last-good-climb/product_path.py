@@ -148,8 +148,8 @@ def parse_missing(text, work):
     return run("parse-missing", {"text": text}, work)["missingRefs"]
 
 
-def cli_hint(*, work, dbt, project_dir, profiles_dir, profile_name, target, dbt_text):
-    """Run the CLI's dbtList handler in-process and apply withCrossSourceDbtCliHint to dbt text."""
+def cli_hint(*, work, dbt, project_dir, profiles_dir, profile_name, target, dbt_texts):
+    """Run the CLI's dbtList handler in-process and apply withCrossSourceDbtCliHint to each dbt text."""
     return run(
         "cli-hint",
         {
@@ -158,7 +158,7 @@ def cli_hint(*, work, dbt, project_dir, profiles_dir, profile_name, target, dbt_
             "profilesDir": str(profiles_dir),
             "profileName": profile_name,
             "target": target,
-            "dbtText": dbt_text,
+            "dbtTexts": dict(dbt_texts),
         },
         work,
     )

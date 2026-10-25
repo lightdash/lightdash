@@ -114,15 +114,20 @@ CROSS_SOURCE_MODEL_HINT = (
     "Check that the model (or version) is present in the provider project and "
     "has access: public."
 )
-# packages/common/src/dbt/crossSourceRefs.ts:33
+# packages/common/src/dbt/crossSourceRefs.ts:40
 CLI_HINT_SUFFIX = (
     f" {CROSS_SOURCE_MODEL_HINT} Local dbt commands must resolve cross-project "
     "refs before deployment."
 )
+# packages/common/src/dbt/crossSourceRefs.ts:33
+TRAILING_FORMATTING = re.compile(r"(?:\s|\x1b\[[0-?]*[ -/]*[@-~])+$")
 
 
 def cli_hinted(dbt_text):
-    return f"{dbt_text}{CLI_HINT_SUFFIX}"
+    """Mirror withCrossSourceDbtCliHint: end dbt's sentence with a full stop unless it has one, keep its trailing formatting, then add the hint."""
+    body = TRAILING_FORMATTING.sub("", dbt_text)
+    punctuation = "" if re.search(r"[.!?]$", body) else "."
+    return f"{body}{punctuation}{dbt_text[len(body) :]}{CLI_HINT_SUFFIX}"
 
 
 def missing_ref_reason(consumer, ref, provider, catalog_source):
@@ -1867,12 +1872,6 @@ def publication_case(dbt, work, store, events):
 
 
 MISSING_MODEL = "absent_model"
-CLI_PUNCTUATION_FINDING = (
-    "withCrossSourceDbtCliHint joins the hint to dbt's text with a space, so the "
-    "CLI reads '... which was not found Check that the model ...' with no full "
-    "stop between the two sentences; the server text at crossSourceRefs.ts:564 "
-    "ends each sentence with a full stop."
-)
 
 
 def write_missing_ref_copy(project_dir, destination, provider, model=MISSING_MODEL):
@@ -2011,6 +2010,14 @@ def missing_ref_wording_case(dbt, work, store):
         for line in scenarios["ring_withheld"]["dbt_error_lines"]
         if "alpha_report" in line
     ).strip()
+    hint_inputs = {
+        "plain": withheld_line,
+        "full_stop": f"{withheld_line}.",
+        "question": f"{withheld_line}?",
+        "exclamation": f"{withheld_line}!",
+        "trailing_formatting": f"\x1b[31m{withheld_line}\x1b[0m \n",
+        "unqualified": withheld_line.replace(" in package or project 'proj_beta'", ""),
+    }
     cli = product_path.cli_hint(
         work=root / "cli",
         dbt=dbt,
@@ -2018,13 +2025,17 @@ def missing_ref_wording_case(dbt, work, store):
         profiles_dir=PROFILES,
         profile_name="last_good_climb",
         target="dev",
-        dbt_text=withheld_line,
+        dbt_texts=hint_inputs,
     )
     cli_message = cli["dbtList"]["error"]["message"] if cli["dbtList"]["error"] else ""
     cli_plain = re.sub(r"\x1b\[[0-9;]*m", "", cli_message)
+    expected_hints = {
+        name: text if name == "unqualified" else cli_hinted(text)
+        for name, text in hint_inputs.items()
+    }
     cli_case = {
         "handler": "packages/cli/src/handlers/dbt/compile.ts:210 (dbtList), hint from :96 and :210",
-        "hint_source": "packages/common/src/dbt/crossSourceRefs.ts:21 and :24",
+        "hint_source": "packages/common/src/dbt/crossSourceRefs.ts:21 and :24-40",
         "project": "proj_alpha with no injected nodes",
         "models": cli["dbtList"]["models"],
         "error_class": cli["dbtList"]["error"]["errorClass"]
@@ -2032,18 +2043,18 @@ def missing_ref_wording_case(dbt, work, store):
         else None,
         "message": cli_plain.replace(str(SIM), "examples/multi-repo-dbt-sim"),
         "dbt_text": withheld_line,
-        "expected_hinted_text": cli_hinted(withheld_line),
-        "hinted_text": cli["hintedDbtText"],
         "hint": cli["hint"],
-        "hint_follows_without_full_stop": "which was not found Check that" in cli_plain,
-        "finding": CLI_PUNCTUATION_FINDING,
+        "hinted_texts": cli["hintedDbtTexts"],
+        "expected_hinted_texts": expected_hints,
+        "hint_follows_a_full_stop": f"{withheld_line}. {CROSS_SOURCE_MODEL_HINT}"
+        in cli_plain,
     }
     healthy = scenarios["ring_healthy"]
     failing = [name for name in plan if name != "ring_healthy"]
     checks = {
         "product_wording_test_passes": product_test["passed"],
-        "cli_appends_the_hint_to_dbt_text": cli["hintedDbtText"]
-        == cli_hinted(withheld_line)
+        "cli_appends_the_hint_after_a_full_stop": cli["hintedDbtTexts"]
+        == expected_hints
         and cli["hint"] == CROSS_SOURCE_MODEL_HINT,
         "cli_dbt_ls_fails_with_the_hinted_error": cli["dbtList"]["models"] is None
         and cli_case["error_class"] == "ParseError"

@@ -573,13 +573,13 @@
       "--output-keys",
       "unique_id"
     ],
-    "explore_error_signal": "real: the product explore compiler (b741e1618ed6e0364d053e22409ed34ebba58642) over the fresh manifests",
+    "explore_error_signal": "real: the product explore compiler (80cfe321e7d7d8ad8db7213fc490be5269802fd6) over the fresh manifests",
     "scenarios": {
       "healthy": {
         "broken_explore": [],
         "attributed": true,
         "explores": {
-          "product_sha": "b741e1618ed6e0364d053e22409ed34ebba58642",
+          "product_sha": "80cfe321e7d7d8ad8db7213fc490be5269802fd6",
           "attributed": true,
           "compiled": {
             "proj_alpha": {
@@ -639,7 +639,7 @@
         ],
         "attributed": true,
         "explores": {
-          "product_sha": "b741e1618ed6e0364d053e22409ed34ebba58642",
+          "product_sha": "80cfe321e7d7d8ad8db7213fc490be5269802fd6",
           "attributed": true,
           "compiled": {
             "proj_alpha": {
@@ -713,7 +713,7 @@
         ],
         "attributed": true,
         "explores": {
-          "product_sha": "b741e1618ed6e0364d053e22409ed34ebba58642",
+          "product_sha": "80cfe321e7d7d8ad8db7213fc490be5269802fd6",
           "attributed": true,
           "compiled": {
             "proj_alpha": {
@@ -797,7 +797,7 @@
         ],
         "attributed": false,
         "explores": {
-          "product_sha": "b741e1618ed6e0364d053e22409ed34ebba58642",
+          "product_sha": "80cfe321e7d7d8ad8db7213fc490be5269802fd6",
           "attributed": false,
           "compiled": {
             "proj_alpha": {
@@ -935,7 +935,7 @@
         "error": {
           "type": "PermissionError",
           "errno": "EPERM",
-          "message": "[Errno 1] Operation not permitted: '.work/last-good-climb/publication/publication_failure/published/explores.json.tmp-32059'"
+          "message": "[Errno 1] Operation not permitted: '.work/last-good-climb/publication/publication_failure/published/explores.json.tmp-29740'"
         },
         "rows_written": null,
         "confirmations_logged": 0,
@@ -1082,17 +1082,30 @@
     },
     "cli": {
       "handler": "packages/cli/src/handlers/dbt/compile.ts:210 (dbtList), hint from :96 and :210",
-      "hint_source": "packages/common/src/dbt/crossSourceRefs.ts:21 and :24",
+      "hint_source": "packages/common/src/dbt/crossSourceRefs.ts:21 and :24-40",
       "project": "proj_alpha with no injected nodes",
       "models": null,
       "error_class": "ParseError",
-      "message": "Error executing 'dbt ls':\n  Command failed with exit code 2: dbt ls --profiles-dir examples/multi-repo-dbt-sim/last-good-climb/profiles --project-dir examples/multi-repo-dbt-sim/last-good-climb/disk/proj_alpha --target dev --profile last_good_climb --output json --output-keys unique_id --quiet\n13:59:51  [ERROR]: Encountered an error:\nCompilation Error\n  Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.\nEnsure you're on the latest patch version. '--use-dbt-list' is true by default; if you encounter issues, try using '--use-dbt-list=false",
+      "message": "Error executing 'dbt ls':\n  Command failed with exit code 2: dbt ls --profiles-dir examples/multi-repo-dbt-sim/last-good-climb/profiles --project-dir examples/multi-repo-dbt-sim/last-good-climb/disk/proj_alpha --target dev --profile last_good_climb --output json --output-keys unique_id --quiet\n14:28:16  [ERROR]: Encountered an error:\nCompilation Error\n  Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found. Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.\nEnsure you're on the latest patch version. '--use-dbt-list' is true by default; if you encounter issues, try using '--use-dbt-list=false",
       "dbt_text": "Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found",
-      "expected_hinted_text": "Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.",
-      "hinted_text": "Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.",
       "hint": "Check that the model (or version) is present in the provider project and has access: public.",
-      "hint_follows_without_full_stop": true,
-      "finding": "withCrossSourceDbtCliHint joins the hint to dbt's text with a space, so the CLI reads '... which was not found Check that the model ...' with no full stop between the two sentences; the server text at crossSourceRefs.ts:564 ends each sentence with a full stop."
+      "hinted_texts": {
+        "plain": "Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found. Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.",
+        "full_stop": "Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found. Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.",
+        "question": "Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found? Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.",
+        "exclamation": "Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found! Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.",
+        "trailing_formatting": "\u001b[31mModel 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found.\u001b[0m \n Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.",
+        "unqualified": "Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' which was not found"
+      },
+      "expected_hinted_texts": {
+        "plain": "Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found. Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.",
+        "full_stop": "Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found. Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.",
+        "question": "Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found? Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.",
+        "exclamation": "Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found! Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.",
+        "trailing_formatting": "\u001b[31mModel 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found.\u001b[0m \n Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.",
+        "unqualified": "Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' which was not found"
+      },
+      "hint_follows_a_full_stop": true
     },
     "scenarios": {
       "ring_healthy": {
@@ -1102,7 +1115,7 @@
           "proj_beta"
         ],
         "ok": true,
-        "product_sha": "b741e1618ed6e0364d053e22409ed34ebba58642",
+        "product_sha": "80cfe321e7d7d8ad8db7213fc490be5269802fd6",
         "bindings": {
           "proj_alpha": {
             "alpha_report": [
@@ -1132,7 +1145,7 @@
           "proj_beta"
         ],
         "ok": false,
-        "product_sha": "b741e1618ed6e0364d053e22409ed34ebba58642",
+        "product_sha": "80cfe321e7d7d8ad8db7213fc490be5269802fd6",
         "error_class": "ParameterError",
         "message": "dbt source \"proj_alpha\" references ref('proj_beta', 'absent_model'), but the confirmed last-good manifest of dbt source \"proj_beta\" does not define that model (or version).",
         "expected": "dbt source \"proj_alpha\" references ref('proj_beta', 'absent_model'), but the confirmed last-good manifest of dbt source \"proj_beta\" does not define that model (or version).",
@@ -1163,7 +1176,7 @@
           "proj_beta"
         ],
         "ok": false,
-        "product_sha": "b741e1618ed6e0364d053e22409ed34ebba58642",
+        "product_sha": "80cfe321e7d7d8ad8db7213fc490be5269802fd6",
         "error_class": "ParameterError",
         "message": "dbt source \"proj_alpha\" references ref('proj_beta', 'absent_model'), but the fresh manifest of dbt source \"proj_beta\" does not define that model (or version).",
         "expected": "dbt source \"proj_alpha\" references ref('proj_beta', 'absent_model'), but the fresh manifest of dbt source \"proj_beta\" does not define that model (or version).",
@@ -1193,7 +1206,7 @@
           "proj_beta"
         ],
         "ok": false,
-        "product_sha": "b741e1618ed6e0364d053e22409ed34ebba58642",
+        "product_sha": "80cfe321e7d7d8ad8db7213fc490be5269802fd6",
         "error_class": "ParameterError",
         "message": "dbt source \"proj_alpha\" references ref('proj_beta', 'absent_model'), but the fresh manifest of dbt source \"proj_beta\" does not define that model (or version). dbt source \"proj_beta\" has no confirmed last-good manifest yet. Check that the model (or version) is present in the provider project and has access: public.",
         "expected": "dbt source \"proj_alpha\" references ref('proj_beta', 'absent_model'), but the fresh manifest of dbt source \"proj_beta\" does not define that model (or version). dbt source \"proj_beta\" has no confirmed last-good manifest yet. Check that the model (or version) is present in the provider project and has access: public.",
@@ -1223,7 +1236,7 @@
           "proj_beta"
         ],
         "ok": false,
-        "product_sha": "b741e1618ed6e0364d053e22409ed34ebba58642",
+        "product_sha": "80cfe321e7d7d8ad8db7213fc490be5269802fd6",
         "error_class": "ParameterError",
         "message": "Cold start: dbt source \"proj_alpha\" references dbt source \"proj_beta\" (project \"proj_beta\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"proj_alpha\" could not resolve ref('proj_beta', 'measure') during its single parse. Cold start: dbt source \"proj_beta\" references dbt source \"proj_alpha\" (project \"proj_alpha\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"proj_beta\" could not resolve ref('proj_alpha', 'alpha_base') during its single parse.",
         "expected": "Cold start: dbt source \"proj_alpha\" references dbt source \"proj_beta\" (project \"proj_beta\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"proj_alpha\" could not resolve ref('proj_beta', 'measure') during its single parse. Cold start: dbt source \"proj_beta\" references dbt source \"proj_alpha\" (project \"proj_alpha\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"proj_beta\" could not resolve ref('proj_alpha', 'alpha_base') during its single parse.",
@@ -1260,7 +1273,7 @@
     },
     "checks": {
       "product_wording_test_passes": true,
-      "cli_appends_the_hint_to_dbt_text": true,
+      "cli_appends_the_hint_after_a_full_stop": true,
       "cli_dbt_ls_fails_with_the_hinted_error": true,
       "product_resolver_binds_the_ring": true,
       "every_missing_ref_fails_closed": true,
@@ -1273,8 +1286,8 @@
     "success": true
   },
   "product_path": {
-    "root": "examples/multi-repo-dbt-sim/.work/product/b741e1618ed6e0364d053e22409ed34ebba58642",
-    "sha": "b741e1618ed6e0364d053e22409ed34ebba58642",
+    "root": "examples/multi-repo-dbt-sim/.work/product/80cfe321e7d7d8ad8db7213fc490be5269802fd6",
+    "sha": "80cfe321e7d7d8ad8db7213fc490be5269802fd6",
     "steps": [
       "compile-explores: DbtBaseProjectAdapter._validateDbtModel, attachTypesToModels, convertExplores",
       "resolve-refs: resolveCrossSourceManifests over DbtCliClient",
@@ -1698,7 +1711,7 @@
       "message": "dbt.compile.crossSourceCacheError",
       "meta": {
         "event": "dbt.compile.crossSourceCacheError",
-        "message": "[Errno 1] Operation not permitted: 'examples/multi-repo-dbt-sim/.work/last-good-climb/publication/store_write_failure/last-good/proj_alpha/manifest.json.tmp-32059'",
+        "message": "[Errno 1] Operation not permitted: 'examples/multi-repo-dbt-sim/.work/last-good-climb/publication/store_write_failure/last-good/proj_alpha/manifest.json.tmp-29740'",
         "code": "EPERM"
       }
     }

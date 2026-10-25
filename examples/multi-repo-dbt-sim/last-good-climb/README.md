@@ -17,7 +17,7 @@ its owner in `metadata.project_name`. Only public models, seeds, and
 snapshots whose `package_name` is that owner cross to another project. Nodes
 from an installed dbt package stay local to the project that installs them.
 A manifest with no owner identity exports no nodes. This mirrors the product
-tip `b741e1618e` on #31471.
+tip `80cfe321e7` on #31471.
 
 That tip also steers two policies that this fixture expresses. A provider
 that parses successfully in the current refresh supplies its fresh catalogue
@@ -102,8 +102,8 @@ contains this fixture. To measure against another revision, prepare a
 detached checkout in the ignored work directory and point the runner at it:
 
 ```bash
-examples/multi-repo-dbt-sim/last-good-climb/product-checkout.sh b741e1618ed6e0364d053e22409ed34ebba58642
-LAST_GOOD_PRODUCT_ROOT=examples/multi-repo-dbt-sim/.work/product/b741e1618ed6e0364d053e22409ed34ebba58642 \
+examples/multi-repo-dbt-sim/last-good-climb/product-checkout.sh 80cfe321e7d7d8ad8db7213fc490be5269802fd6
+LAST_GOOD_PRODUCT_ROOT=examples/multi-repo-dbt-sim/.work/product/80cfe321e7d7d8ad8db7213fc490be5269802fd6 \
   examples/multi-repo-dbt-sim/run-last-good
 ```
 
@@ -380,26 +380,37 @@ real dbt (`.github/workflows/pr.yml`).
 
 The CLI appends a hint to dbt's own error. `packages/cli/src/handlers/dbt/compile.ts:96` (`dbtCompile`) and `:210` (`dbtList`) pass the
 execa message through `withCrossSourceDbtCliHint`
-(`packages/common/src/dbt/crossSourceRefs.ts:24`), which appends
-`Check that the model (or version) is present in the provider project and
-has access: public. Local dbt commands must resolve cross-project refs
-before deployment.` when the text carries a two-argument missing ref. The
-harness calls the CLI's `dbtList` handler in-process from the checkout on
-`disk/proj_alpha` with no injected nodes, with the harness dbt on `PATH`
-as `dbt`, and also applies `withCrossSourceDbtCliHint` to the withheld
-dbt line. Pass: `dbt ls` fails, the handler throws `ParseError` whose
-message starts `Error executing 'dbt ls':`, contains dbt's sentence
-followed by the hint, and ends with the handler's fixed `--use-dbt-list`
-advice. This is the handler function, not the packaged `lightdash` binary;
-the `dbtCompile` path shares the same hint call and is not run.
+(`packages/common/src/dbt/crossSourceRefs.ts:24`). When the text carries a
+two-argument missing ref, the function strips trailing whitespace and ANSI
+escape sequences (`:33`), ends dbt's sentence with a full stop unless it
+already ends in `.`, `!` or `?` (`:37`), puts the stripped tail back and
+appends `Check that the model (or version) is present in the provider
+project and has access: public. Local dbt commands must resolve
+cross-project refs before deployment.` (`:40`). The harness `cli_hinted`
+mirrors that join and the unit tests pin the plain, punctuated and
+trailing-formatting cases. The live case calls the CLI's `dbtList` handler
+in-process from the checkout on `disk/proj_alpha` with no injected nodes,
+with the harness dbt on `PATH` as `dbt`, and feeds the product function
+six variants of the withheld dbt line (plain, ending `.`, `?` and `!`,
+wrapped in colour codes with trailing whitespace, and with the package
+qualifier removed, which must come back unchanged). Pass: `dbt ls` fails,
+the handler throws `ParseError` whose message starts `Error executing 'dbt
+ls':`, contains dbt's sentence, a full stop and then the hint, and ends
+with the handler's fixed `--use-dbt-list` advice; every variant from the
+product function equals the harness mirror. This is the handler function,
+not the packaged `lightdash` binary; the `dbtCompile` path shares the same
+hint call and is not run.
 
-Finding, CLI punctuation. `withCrossSourceDbtCliHint` joins the hint with
-a space, and dbt's sentence has no terminal full stop, so the CLI reads
-`... in package or project 'proj_beta' which was not found Check that the
-model (or version) is present ...`. The server text ends every sentence
-with a full stop. The report records `hint_follows_without_full_stop`.
-The CLI also leaves dbt's ANSI colour codes in the message because it does
-not pass `--no-use-colors`; the harness strips them before comparing.
+Exact CLI text on this fixture, colour codes stripped:
+
+```text
+Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found. Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.
+```
+
+The CLI leaves dbt's ANSI colour codes in the message because it does not
+pass `--no-use-colors`; the harness strips them before comparing. The
+earlier missing full stop between dbt's sentence and the hint is fixed on
+this tip.
 
 The earlier tip's divergence, a confirmed provider named as `fresh
 manifest`, is fixed on this tip and the harness expectation moved with it.
@@ -450,7 +461,7 @@ The fresh-over-seed runs used the same disk and store. `alpha_first` read
 `confirmed` and bound `measure.v3`. The store digests were unchanged.
 
 The per-provider scenarios compiled explores with the product compiler
-from checkout `b741e1618ed6e0364d053e22409ed34ebba58642`. `healthy`
+from checkout `80cfe321e7d7d8ad8db7213fc490be5269802fd6`. `healthy`
 compiled all 6 real models (2 in `proj_alpha`, 4 in `proj_beta`) with no
 error. `other_source_error` compiled 6 of 7 and reported one
 `METADATA_PARSE_ERROR` on `bad_meta` attributed to `proj_beta`:
@@ -478,13 +489,13 @@ wrote both files and both rows and `proj_alpha` bound `measure.v2`.
 
 The resolver scenarios ran the product `resolveCrossSourceManifests` with
 `DbtCliClient` on the harness dbt from checkout
-`b741e1618ed6e0364d053e22409ed34ebba58642`. `ring_healthy` bound
+`80cfe321e7d7d8ad8db7213fc490be5269802fd6`. `ring_healthy` bound
 `model.proj_beta.measure.v3` and `model.proj_alpha.alpha_base` with 5
 stubs, the same as the Python climb. The four failing scenarios each threw
 `ParameterError` with the texts quoted under Missing-ref wording, the
 harness regular expression and `parseMissingDbtNodeReferences` agreed on
 every dbt output, the product's own wording test passed, and the CLI
-`dbtList` handler threw `ParseError` with the hint appended directly after
+`dbtList` handler threw `ParseError` with a full stop and the hint after
 dbt's `which was not found`.
 
 The dbt outputs of the withheld and failed-provider runs parsed to
