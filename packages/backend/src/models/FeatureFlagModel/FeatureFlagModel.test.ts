@@ -351,12 +351,17 @@ describe('FeatureFlagModel', () => {
         it('disable-allowlist forces off even when a config handler would enable', async () => {
             // Self-hoster kill switch wins over default-on flags.
             const model = buildModel({
-                disabledFeatureFlags: new Set([FeatureFlags.EditYamlInUi]),
-                editYamlInUi: { enabled: true },
+                disabledFeatureFlags: new Set([
+                    FeatureFlags.EnableTimezoneSupport,
+                ]),
+                query: {
+                    ...lightdashConfigMock.query,
+                    enableTimezoneSupport: true,
+                },
             });
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.EditYamlInUi,
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
             });
 
             expect(result.enabled).toBe(false);
@@ -381,12 +386,17 @@ describe('FeatureFlagModel', () => {
     describe('resolution priority', () => {
         it('env var override takes precedence over config handlers', async () => {
             const model = buildModel({
-                enabledFeatureFlags: new Set([FeatureFlags.EditYamlInUi]),
-                editYamlInUi: { enabled: false },
+                enabledFeatureFlags: new Set([
+                    FeatureFlags.EnableTimezoneSupport,
+                ]),
+                query: {
+                    ...lightdashConfigMock.query,
+                    enableTimezoneSupport: false,
+                },
             });
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.EditYamlInUi,
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
             });
 
             expect(result.enabled).toBe(true);
@@ -501,13 +511,15 @@ describe('FeatureFlagModel', () => {
             const model = buildModel(
                 {
                     ...previewConfig,
-                    enabledFeatureFlags: new Set([FeatureFlags.EditYamlInUi]),
+                    enabledFeatureFlags: new Set([
+                        FeatureFlags.EnableTimezoneSupport,
+                    ]),
                 },
                 buildFakeDatabase({ orgOverride: { enabled: false } }),
             );
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.EditYamlInUi,
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
                 user: dbUser,
             });
 
@@ -516,12 +528,16 @@ describe('FeatureFlagModel', () => {
 
         it('ignores stored overrides outside preview environments', async () => {
             const model = buildModel(
-                { enabledFeatureFlags: new Set([FeatureFlags.EditYamlInUi]) },
+                {
+                    enabledFeatureFlags: new Set([
+                        FeatureFlags.EnableTimezoneSupport,
+                    ]),
+                },
                 buildFakeDatabase({ orgOverride: { enabled: false } }),
             );
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.EditYamlInUi,
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
                 user: dbUser,
             });
 
@@ -532,26 +548,32 @@ describe('FeatureFlagModel', () => {
     describe('config handler resolution', () => {
         it('resolves config-driven flags without hitting the DB', async () => {
             const model = buildModel({
-                editYamlInUi: { enabled: true },
+                query: {
+                    ...lightdashConfigMock.query,
+                    enableTimezoneSupport: true,
+                },
             });
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.EditYamlInUi,
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
             });
 
             expect(result).toEqual({
-                id: FeatureFlags.EditYamlInUi,
+                id: FeatureFlags.EnableTimezoneSupport,
                 enabled: true,
             });
         });
 
         it('respects config disabled state', async () => {
             const model = buildModel({
-                editYamlInUi: { enabled: false },
+                query: {
+                    ...lightdashConfigMock.query,
+                    enableTimezoneSupport: false,
+                },
             });
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.EditYamlInUi,
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
             });
 
             expect(result.enabled).toBe(false);
