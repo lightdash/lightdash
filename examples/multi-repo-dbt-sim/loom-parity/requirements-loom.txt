@@ -1,0 +1,3 @@
+dbt-core==1.12.0
+dbt-postgres~=1.10.0
+dbt-loom==0.9.6

@@ -1,0 +1,315 @@
+{
+ "S1a-both-public-one-arg": {
+  "seed": 0,
+  "status": "parameter-error",
+  "message": "dbt source \"src_proj_x\" references ref('orders'), but the name 'orders' is defined by several dbt sources. Use ref('project', 'model') to select a source.",
+  "summary": "proj_a[seeded]: orders=public | proj_b[seeded]: orders=public | proj_x[cold]: report=public refs ?.orders",
+  "invariantFailures": [],
+  "injectedTotal": 0,
+  "sources": 3,
+  "seeded": 2,
+  "classes": [
+   "ambiguous-one-arg"
+  ],
+  "expect": "ambiguous-one-arg",
+  "injectedIds": []
+ },
+ "S1b-unique-one-arg": {
+  "seed": 0,
+  "status": "resolved",
+  "message": "",
+  "summary": "proj_a[seeded]: orders=public | proj_b[seeded]: other=public | proj_x[cold]: report=public refs ?.orders",
+  "invariantFailures": [],
+  "injectedTotal": 1,
+  "sources": 3,
+  "seeded": 2,
+  "classes": [],
+  "expect": "resolved",
+  "injectedIds": [
+   "model.proj_a.orders"
+  ]
+ },
+ "S2-public-vs-protected-one-arg": {
+  "seed": 0,
+  "status": "resolved",
+  "message": "",
+  "summary": "proj_a[seeded]: orders=public | proj_b[seeded]: orders=protected | proj_x[cold]: report=public refs ?.orders",
+  "invariantFailures": [],
+  "injectedTotal": 1,
+  "sources": 3,
+  "seeded": 2,
+  "classes": [],
+  "expect": "resolved",
+  "injectedIds": [
+   "model.proj_a.orders"
+  ]
+ },
+ "S3-only-nonpublic": {
+  "seed": 0,
+  "status": "parameter-error",
+  "message": "dbt source \"src_proj_x\" references ref('proj_a', 'orders'), but dbt source \"src_proj_a\" does not expose that model (or version) with access: public.",
+  "summary": "proj_a[seeded]: orders=protected | proj_x[cold]: report=public refs proj_a.orders",
+  "invariantFailures": [],
+  "injectedTotal": 0,
+  "sources": 2,
+  "seeded": 1,
+  "classes": [
+   "not-public"
+  ],
+  "expect": "not-public",
+  "injectedIds": []
+ },
+ "S5-protected-seed-under-public-model": {
+  "seed": 0,
+  "status": "resolved",
+  "message": "",
+  "summary": "proj_a[seeded]: seed:base_seed=protected; orders=public local base_seed | proj_x[cold]: report=public refs proj_a.orders",
+  "invariantFailures": [],
+  "injectedTotal": 1,
+  "sources": 2,
+  "seeded": 1,
+  "classes": [],
+  "expect": "resolved",
+  "injectedIds": [
+   "model.proj_a.orders"
+  ]
+ },
+ "S6-latest-version-unversioned-ref": {
+  "seed": 0,
+  "status": "resolved",
+  "message": "",
+  "summary": "proj_a[seeded]: measure.v1(latest 2)=public; measure.v2(latest 2)=public | proj_x[cold]: report=public refs proj_a.measure",
+  "invariantFailures": [],
+  "injectedTotal": 2,
+  "sources": 2,
+  "seeded": 1,
+  "classes": [],
+  "expect": "resolved",
+  "injectedIds": [
+   "model.proj_a.measure.v1",
+   "model.proj_a.measure.v2"
+  ]
+ },
+ "S7-explicit-v2": {
+  "seed": 0,
+  "status": "resolved",
+  "message": "",
+  "summary": "proj_a[seeded]: measure.v1(latest 2)=public; measure.v2(latest 2)=public | proj_x[cold]: report=public refs proj_a.measure.v2",
+  "invariantFailures": [],
+  "injectedTotal": 2,
+  "sources": 2,
+  "seeded": 1,
+  "classes": [],
+  "expect": "resolved",
+  "injectedIds": [
+   "model.proj_a.measure.v1",
+   "model.proj_a.measure.v2"
+  ]
+ },
+ "S7b-missing-v3": {
+  "seed": 0,
+  "status": "parameter-error",
+  "message": "dbt source \"src_proj_x\" references ref('proj_a', 'measure', v=3), but the confirmed last-good manifest of dbt source \"src_proj_a\" does not define that model (or version).",
+  "summary": "proj_a[seeded]: measure.v1(latest 2)=public; measure.v2(latest 2)=public | proj_x[cold]: report=public refs proj_a.measure.v3",
+  "invariantFailures": [],
+  "injectedTotal": 2,
+  "sources": 2,
+  "seeded": 1,
+  "classes": [
+   "missing-in-last-good"
+  ],
+  "expect": "missing-in-last-good",
+  "injectedIds": [
+   "model.proj_a.measure.v1",
+   "model.proj_a.measure.v2"
+  ]
+ },
+ "S8-ordered-cold-chain": {
+  "seed": 0,
+  "status": "resolved",
+  "message": "",
+  "summary": "proj_a[cold]: base=public | proj_b[cold]: mid=public refs proj_a.base | proj_x[cold]: top=public refs proj_b.mid",
+  "invariantFailures": [],
+  "injectedTotal": 2,
+  "sources": 3,
+  "seeded": 0,
+  "classes": [],
+  "expect": "resolved",
+  "injectedIds": [
+   "model.proj_a.base",
+   "model.proj_b.mid"
+  ]
+ },
+ "S9-cold-ring": {
+  "seed": 0,
+  "status": "parameter-error",
+  "message": "Cold start: dbt source \"src_proj_a\" references dbt source \"src_proj_b\" (project \"proj_b\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_a\" could not resolve ref('proj_b', 'b_base') during its single parse. Cold start: dbt source \"src_proj_b\" references dbt source \"src_proj_a\" (project \"proj_a\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"src_proj_b\" could not resolve ref('proj_a', 'a_base') during its single parse.",
+  "summary": "proj_a[cold]: a_base=public; a_top=public refs proj_b.b_base | proj_b[cold]: b_base=public; b_top=public refs proj_a.a_base",
+  "invariantFailures": [],
+  "injectedTotal": 0,
+  "sources": 2,
+  "seeded": 0,
+  "classes": [
+   "cold-start"
+  ],
+  "expect": "cold-start",
+  "injectedIds": []
+ },
+ "S9b-model-cycle-seeded": {
+  "seed": 0,
+  "status": "parameter-error",
+  "message": "dbt models form a cycle across dbt sources: model.proj_a.x -> model.proj_b.y -> model.proj_a.x. Break the cycle in one of these models.",
+  "summary": "proj_a[seeded]: x=public refs proj_b.y | proj_b[seeded]: y=public refs proj_a.x",
+  "invariantFailures": [],
+  "injectedTotal": 2,
+  "sources": 2,
+  "seeded": 2,
+  "classes": [
+   "cycle"
+  ],
+  "expect": "cycle",
+  "injectedIds": [
+   "model.proj_b.y",
+   "model.proj_a.x"
+  ]
+ },
+ "S9c-cycle-via-protected-intermediate": {
+  "seed": 0,
+  "status": "parameter-error",
+  "message": "dbt models form a cycle across dbt sources: model.proj_a.prot -> model.proj_b.m -> model.proj_a.pub -> model.proj_a.prot. Break the cycle in one of these models.",
+  "summary": "proj_a[seeded]: pub=public local prot; prot=protected refs proj_b.m | proj_b[seeded]: m=public refs proj_a.pub",
+  "invariantFailures": [],
+  "injectedTotal": 2,
+  "sources": 2,
+  "seeded": 2,
+  "classes": [
+   "cycle"
+  ],
+  "expect": "cycle",
+  "injectedIds": [
+   "model.proj_b.m",
+   "model.proj_a.pub"
+  ]
+ },
+ "S9b-stale-acyclic-seeds-disk-now-cyclic": {
+  "seed": 0,
+  "status": "resolved",
+  "message": "",
+  "summary": "proj_a[seeded]: x=public refs proj_b.y | proj_b[seeded]: y=public refs proj_a.x",
+  "invariantFailures": [],
+  "injectedTotal": 2,
+  "sources": 2,
+  "seeded": 2,
+  "classes": [],
+  "expect": "cycle",
+  "injectedIds": [
+   "model.proj_b.y",
+   "model.proj_a.x"
+  ]
+ },
+ "S10-withheld-seeded-consumer-unseeded-provider": {
+  "seed": 0,
+  "status": "resolved",
+  "message": "",
+  "summary": "proj_a[cold]: orders=public | proj_x[cold]: report=public refs proj_a.orders",
+  "invariantFailures": [],
+  "injectedTotal": 1,
+  "sources": 2,
+  "seeded": 0,
+  "classes": [],
+  "expect": "resolved",
+  "injectedIds": [
+   "model.proj_a.orders"
+  ]
+ },
+ "S13-provider-manifest-with-installed-package-nodes": {
+  "seed": 0,
+  "status": "resolved",
+  "message": "",
+  "summary": "S13-provider-manifest-with-installed-package-nodes",
+  "invariantFailures": [],
+  "injectedTotal": 0,
+  "sources": 2,
+  "seeded": 1,
+  "classes": [],
+  "expect": "resolved",
+  "injectedIds": [
+   "model.proj_a.orders",
+   "model.shared_pkg.shared_model"
+  ]
+ },
+ "D2-shared-package-in-two-providers-consumer-refs-one": {
+  "seed": 0,
+  "status": "parameter-error",
+  "message": "External model \"model.shared_pkg.shared_model\" is provided by several dbt sources: \"src_proj_a\", \"src_proj_b\". Connect only one source for this model.",
+  "summary": "D2-shared-package-in-two-providers-consumer-refs-one",
+  "invariantFailures": [],
+  "injectedTotal": 0,
+  "sources": 3,
+  "seeded": 1,
+  "classes": [
+   "duplicate-provider-id"
+  ],
+  "expect": "resolved",
+  "injectedIds": []
+ },
+ "D3-shared-package-in-two-providers-consumer-refs-package": {
+  "seed": 0,
+  "status": "parameter-error",
+  "message": "External model \"model.shared_pkg.shared_model\" is provided by several dbt sources: \"src_proj_a\", \"src_proj_b\". Connect only one source for this model.",
+  "summary": "D3-shared-package-in-two-providers-consumer-refs-package",
+  "invariantFailures": [],
+  "injectedTotal": 0,
+  "sources": 3,
+  "seeded": 1,
+  "classes": [
+   "duplicate-provider-id"
+  ],
+  "expect": "duplicate-provider-id",
+  "injectedIds": []
+ },
+ "S14-missing-upstream-no-optional": {
+  "seed": 0,
+  "status": "parameter-error",
+  "message": "dbt source \"src_proj_x\" references ref('ghost', 'orders'), but no connected dbt source provides project \"ghost\".",
+  "summary": "proj_x[cold]: report=public refs ghost.orders",
+  "invariantFailures": [],
+  "injectedTotal": 0,
+  "sources": 1,
+  "seeded": 0,
+  "classes": [
+   "no-provider"
+  ],
+  "expect": "no-provider",
+  "injectedIds": []
+ },
+ "S15-zero-sources": {
+  "seed": 0,
+  "status": "resolved",
+  "message": "",
+  "summary": "proj_x[cold]: report=public",
+  "invariantFailures": [],
+  "injectedTotal": 0,
+  "sources": 1,
+  "seeded": 0,
+  "classes": [],
+  "expect": "resolved",
+  "injectedIds": []
+ },
+ "D-duplicate-public-id-two-providers-explicit": {
+  "seed": 0,
+  "status": "resolved",
+  "message": "",
+  "summary": "proj_a[seeded]: orders=public | proj_b[seeded]: orders=public | proj_x[cold]: report=public refs proj_a.orders,proj_b.orders",
+  "invariantFailures": [],
+  "injectedTotal": 2,
+  "sources": 3,
+  "seeded": 2,
+  "classes": [],
+  "expect": "resolved",
+  "injectedIds": [
+   "model.proj_a.orders",
+   "model.proj_b.orders"
+  ]
+ }
+}
