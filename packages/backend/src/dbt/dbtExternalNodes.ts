@@ -1,11 +1,14 @@
 import {
     DbtError,
+    parseMissingDbtNodeReferences,
     SupportedDbtVersions,
     type DbtExternalModelNode,
 } from '@lightdash/common';
 import * as fs from 'fs/promises';
 import path from 'path';
 import { DbtSourceError } from './DbtSourceError';
+
+export { parseMissingDbtNodeReferences } from '@lightdash/common';
 
 export const DBT_EXTERNAL_NODES_PLUGIN_FILENAME =
     'dbt_lightdash_external_nodes.py';
@@ -88,26 +91,6 @@ export const writeDbtExternalNodesPlugin = async (
         LIGHTDASH_DBT_EXTERNAL_NODES: nodesPath,
     };
 };
-
-export const parseMissingDbtNodeReferences = (
-    output: string,
-): { model: string; packageName: string | null; version: string | null }[] => [
-    ...new Map(
-        Array.from(
-            output.matchAll(
-                /depends on a node named '([^']+)'(?: with version '([^']*)')?(?: in package or project '([^']+)'(?: with version '([^']*)')?)? which was not found/g,
-            ),
-            ([, model, modelVersion, packageName, projectVersion]) => ({
-                model,
-                packageName: packageName ?? null,
-                version: modelVersion ?? projectVersion ?? null,
-            }),
-        ).map((ref) => [
-            `${ref.packageName}.${ref.model}.${ref.version ?? ''}`,
-            ref,
-        ]),
-    ).values(),
-];
 
 export const getMissingDbtNodeReferences = (
     error: unknown,

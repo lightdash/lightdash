@@ -1,4 +1,5 @@
 import {
+    CROSS_SOURCE_MODEL_HINT,
     DbtError,
     findDbtNodeCycle,
     getExternalDbtNodeUniqueId,
@@ -257,7 +258,14 @@ export const resolveCrossSourceManifests = async <T>({
         >();
         const bindingCatalogs = new Map<
             CrossSourceFetchTask<T>,
-            DbtExternalModelNode[]
+            Map<
+                CrossSourceFetchTask<T>,
+                {
+                    nodes: DbtExternalModelNode[];
+                    fresh: boolean;
+                    confirmed: boolean;
+                }
+            >
         >();
         const stats = new Map(
             tasks.map((task) => [
@@ -463,9 +471,19 @@ export const resolveCrossSourceManifests = async <T>({
             );
             bindingCatalogs.set(
                 consumer,
-                tasks
-                    .filter((provider) => provider !== consumer)
-                    .flatMap(catalog),
+                new Map(
+                    tasks
+                        .filter((provider) => provider !== consumer)
+                        .map((provider) => [
+                            provider,
+                            {
+                                nodes: catalog(provider),
+                                fresh: freshCatalogs.has(provider),
+                                confirmed:
+                                    cachedCatalog(provider) !== undefined,
+                            },
+                        ]),
+                ),
             );
             return [...byProvider.values()].flat();
         };
@@ -500,6 +518,9 @@ export const resolveCrossSourceManifests = async <T>({
                     if (ref.packageName === null && candidates.length > 1)
                         return `dbt source "${task.key}" references ${refLabel(ref)}, but the name '${ref.name}' is defined by several dbt sources. Use ref('project', 'model') to select a source.`;
                     const provider = candidates[0];
+                    const binding = provider
+                        ? bindingCatalogs.get(task)?.get(provider)
+                        : undefined;
                     const crossConnection =
                         ref.packageName === null
                             ? null
@@ -523,10 +544,8 @@ export const resolveCrossSourceManifests = async <T>({
                     }
                     if (
                         provider &&
-                        catalog(provider).some((node) =>
-                            matchesRef(node, ref),
-                        ) &&
-                        !catalog(provider).some(
+                        binding?.nodes.some((node) => matchesRef(node, ref)) &&
+                        !binding.nodes.some(
                             (node) =>
                                 node.access === 'public' &&
                                 matchesRef(node, ref),
@@ -535,10 +554,15 @@ export const resolveCrossSourceManifests = async <T>({
                         return `dbt source "${task.key}" references ${refLabel(ref)}, but dbt source "${provider.key}" does not expose that model (or version) with access: public.`;
                     if (
                         provider &&
-                        cachedCatalog(provider) &&
-                        !catalog(provider).some((node) => matchesRef(node, ref))
-                    )
-                        return `dbt source "${task.key}" references ${refLabel(ref)}, but the ${freshCatalogs.has(provider) ? 'fresh manifest' : 'confirmed last-good manifest'} of dbt source "${provider.key}" does not define that model (or version).`;
+                        binding &&
+                        (binding.fresh || binding.confirmed) &&
+                        !binding.nodes.some((node) => matchesRef(node, ref))
+                    ) {
+                        const reason = `dbt source "${task.key}" references ${refLabel(ref)}, but the ${binding.fresh ? 'fresh manifest' : 'confirmed last-good manifest'} of dbt source "${provider.key}" does not define that model (or version).`;
+                        return binding.confirmed
+                            ? reason
+                            : `${reason} dbt source "${provider.key}" has no confirmed last-good manifest yet. ${CROSS_SOURCE_MODEL_HINT}`;
+                    }
                     if (!provider && ref.packageName !== null)
                         return `dbt source "${task.key}" references ${refLabel(ref)}, but no connected dbt source provides project "${ref.packageName}".`;
                     return `dbt source "${task.key}" references ${refLabel(ref)}, which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model').`;
@@ -778,7 +802,8 @@ export const resolveCrossSourceManifests = async <T>({
         await discardFailedConsumers();
         for (const [consumer, { result: fetched }] of resolved) {
             const available = new Map(
-                (bindingCatalogs.get(consumer) ?? [])
+                [...(bindingCatalogs.get(consumer)?.values() ?? [])]
+                    .flatMap(({ nodes }) => nodes)
                     .filter((node) => node.access === 'public')
                     .map((node) => [getExternalDbtNodeUniqueId(node), node]),
             );

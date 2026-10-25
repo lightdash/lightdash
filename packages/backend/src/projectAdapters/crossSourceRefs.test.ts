@@ -629,6 +629,41 @@ it('uses fresh relation metadata during the single parse', async () => {
     );
 });
 
+it.each(['missing', 'newly public'])(
+    'describes the confirmed catalogue served before a %s provider finishes',
+    async (condition) => {
+        const consumer = withRefs('consumer', [ref('provider', 'absent')]);
+        consumer.fetch.mockRejectedValue(missing('provider', 'absent'));
+        const provider = withRefs('provider', [ref('consumer')]);
+        const fresh = result('provider');
+        if (condition === 'newly public') {
+            const added = model('provider', 'absent');
+            fresh.manifest.nodes[added.unique_id] = added;
+        }
+        provider.fetch.mockResolvedValue(fresh);
+        await expect(
+            resolve([consumer, provider], true, 2, [seed('provider')]),
+        ).rejects.toThrow(
+            `dbt source "consumer" references ref('provider', 'absent'), but the confirmed last-good manifest of dbt source "provider" does not define that model (or version).`,
+        );
+        expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(
+            seed('provider').nodes,
+        );
+        expect(provider.fetch).toHaveBeenCalledOnce();
+    },
+);
+
+it('explains a missing fresh model when the provider has no confirmed manifest', async () => {
+    const consumer = withRefs('consumer', [ref('provider', 'absent')]);
+    consumer.fetch.mockRejectedValue(missing('provider', 'absent'));
+    await expect(resolve([consumer, scannedTask('provider')])).rejects.toThrow(
+        `dbt source "consumer" references ref('provider', 'absent'), but the fresh manifest of dbt source "provider" does not define that model (or version). dbt source "provider" has no confirmed last-good manifest yet. Check that the model (or version) is present in the provider project and has access: public.`,
+    );
+    expect(consumer.fetch.mock.calls[0][0].externalNodes).toEqual(
+        seed('provider').nodes,
+    );
+});
+
 it('ignores cache rows whose project name no longer matches the scan', async () => {
     const consumer = withRefs('b', [ref('a')]);
     consumer.fetch.mockImplementation(async ({ externalNodes }) =>

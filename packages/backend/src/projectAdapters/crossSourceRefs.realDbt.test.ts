@@ -1133,6 +1133,29 @@ describe.skipIf(!executables)('cross-source refs with real dbt', () => {
                 );
             }, 120_000);
 
+            it('explains a missing fresh model without a confirmed provider manifest', async () => {
+                const consumer = await task('access_downstream');
+                await fs.writeFile(
+                    path.join(
+                        clients[clients.length - 1].dbtProjectDirectory,
+                        'models',
+                        'uses_missing.sql',
+                    ),
+                    "select * from {{ ref('access_upstream', 'absent') }}\n",
+                );
+                const provider = await task('access_upstream');
+                await expect(
+                    resolveCrossSourceManifests({
+                        tasks: [consumer, provider],
+                        enabled: true,
+                        concurrency: 2,
+                        cache: [],
+                    }),
+                ).rejects.toThrow(
+                    `dbt source "access_downstream" references ref('access_upstream', 'absent'), but the fresh manifest of dbt source "access_upstream" does not define that model (or version). dbt source "access_upstream" has no confirmed last-good manifest yet. Check that the model (or version) is present in the provider project and has access: public.`,
+                );
+            }, 120_000);
+
             it('uses a fresh public provider despite a private confirmed seed', async () => {
                 const tasks = await Promise.all(
                     ['access_downstream', 'access_upstream'].map((name) =>
