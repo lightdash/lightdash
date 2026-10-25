@@ -30,5 +30,12 @@ export const withCrossSourceDbtCliHint = (message: string): string => {
     ) {
         return message;
     }
-    return `${message} ${CROSS_SOURCE_MODEL_HINT} Local dbt commands must resolve cross-project refs before deployment.`;
+    const messageWithoutTrailingFormatting = message.replace(
+        /(?:\s|\u001B\[[0-?]*[ -/]*[@-~])+$/g,
+        '',
+    );
+    const punctuation = /[.!?]$/.test(messageWithoutTrailingFormatting)
+        ? ''
+        : '.';
+    return `${messageWithoutTrailingFormatting}${punctuation}${message.slice(messageWithoutTrailingFormatting.length)} ${CROSS_SOURCE_MODEL_HINT} Local dbt commands must resolve cross-project refs before deployment.`;
 };

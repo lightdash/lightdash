@@ -48,20 +48,34 @@ beforeEach(() => {
 describe.each([false, true])(
     'dbt missing refs with useDbtList=%s',
     (useDbtList) => {
-        it('adds a cross-project hint to missing qualified refs', async () => {
-            vi.mocked(execa).mockRejectedValue(new Error(missingQualifiedRef));
+        it.each([
+            [missingQualifiedRef, `${missingQualifiedRef}.`],
+            [`${missingQualifiedRef}.`, `${missingQualifiedRef}.`],
+            [
+                `\u001B[31m${missingQualifiedRef}\u001B[0m \n`,
+                `\u001B[31m${missingQualifiedRef}.\u001B[0m \n`,
+            ],
+            [
+                `\u001B[31m${missingQualifiedRef}.\u001B[0m \n`,
+                `\u001B[31m${missingQualifiedRef}.\u001B[0m \n`,
+            ],
+        ])(
+            'separates the cross-project hint from %s',
+            async (message, punctuatedMessage) => {
+                vi.mocked(execa).mockRejectedValue(new Error(message));
 
-            const result = maybeCompileModelsAndJoins(
-                { targetDir: '/unused' },
-                { ...options, useDbtList },
-            );
+                const result = maybeCompileModelsAndJoins(
+                    { targetDir: '/unused' },
+                    { ...options, useDbtList },
+                );
 
-            await expect(result).rejects.toBeInstanceOf(ParseError);
-            await expect(result).rejects.toThrow(missingQualifiedRef);
-            await expect(result).rejects.toThrow(
-                'Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.',
-            );
-        });
+                await expect(result).rejects.toBeInstanceOf(ParseError);
+                await expect(result).rejects.toThrow(missingQualifiedRef);
+                await expect(result).rejects.toThrow(
+                    `${punctuatedMessage} Check that the model (or version) is present in the provider project and has access: public. Local dbt commands must resolve cross-project refs before deployment.`,
+                );
+            },
+        );
 
         it.each([
             "Model 'model.consumer.report' depends on a node named 'orders' which was not found",

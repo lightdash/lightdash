@@ -16,7 +16,25 @@ describe('cross-project missing ref hints', () => {
 
     it('preserves the original failure and adds actionable local dbt advice', () => {
         expect(withCrossSourceDbtCliHint(missing)).toBe(
-            `${missing} ${CROSS_SOURCE_MODEL_HINT} Local dbt commands must resolve cross-project refs before deployment.`,
+            `${missing}. ${CROSS_SOURCE_MODEL_HINT} Local dbt commands must resolve cross-project refs before deployment.`,
+        );
+    });
+
+    it.each(['.', '!', '?'])(
+        'keeps existing punctuation %s before trailing colour codes and whitespace',
+        (punctuation) => {
+            const message = `\u001B[31m${missing}${punctuation}\u001B[0m \n\u001B[39m  `;
+            expect(withCrossSourceDbtCliHint(message)).toBe(
+                `${message} ${CROSS_SOURCE_MODEL_HINT} Local dbt commands must resolve cross-project refs before deployment.`,
+            );
+        },
+    );
+
+    it('adds a full stop before trailing colour codes and whitespace', () => {
+        expect(
+            withCrossSourceDbtCliHint(`\u001B[31m${missing}\u001B[0m \n`),
+        ).toBe(
+            `\u001B[31m${missing}.\u001B[0m \n ${CROSS_SOURCE_MODEL_HINT} Local dbt commands must resolve cross-project refs before deployment.`,
         );
     });
 
