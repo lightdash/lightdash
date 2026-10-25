@@ -248,6 +248,7 @@
           "proj_beta"
         ],
         "broken": [],
+        "broken_explore": [],
         "fresh_parsed": [
           "proj_alpha",
           "proj_beta"
@@ -259,6 +260,7 @@
             "unresolved": false,
             "cycle_error": false,
             "error_excerpt": [],
+            "missing_refs": [],
             "bindings": {
               "alpha_report": [
                 "model.proj_beta.measure.v3"
@@ -294,6 +296,7 @@
             "unresolved": false,
             "cycle_error": false,
             "error_excerpt": [],
+            "missing_refs": [],
             "bindings": {
               "beta_report": [
                 "model.proj_alpha.alpha_base"
@@ -351,6 +354,7 @@
           "proj_alpha"
         ],
         "broken": [],
+        "broken_explore": [],
         "fresh_parsed": [
           "proj_alpha",
           "proj_beta"
@@ -362,6 +366,7 @@
             "unresolved": false,
             "cycle_error": false,
             "error_excerpt": [],
+            "missing_refs": [],
             "bindings": {
               "beta_report": [
                 "model.proj_alpha.alpha_base"
@@ -385,6 +390,7 @@
             "unresolved": false,
             "cycle_error": false,
             "error_excerpt": [],
+            "missing_refs": [],
             "bindings": {
               "alpha_report": [
                 "model.proj_beta.measure.v2"
@@ -456,6 +462,7 @@
         "broken": [
           "proj_beta"
         ],
+        "broken_explore": [],
         "fresh_parsed": [
           "proj_alpha"
         ],
@@ -469,6 +476,13 @@
             "cycle_error": false,
             "error_excerpt": [
               "  Model 'model.proj_beta.broken' (models/broken.sql) depends on a node named 'missing_model' which was not found"
+            ],
+            "missing_refs": [
+              {
+                "model": "missing_model",
+                "packageName": null,
+                "version": null
+              }
             ],
             "bindings": null,
             "catalog_sources": {
@@ -489,6 +503,7 @@
             "unresolved": false,
             "cycle_error": false,
             "error_excerpt": [],
+            "missing_refs": [],
             "bindings": {
               "alpha_report": [
                 "model.proj_beta.measure.v3"
@@ -558,9 +573,33 @@
       "--output-keys",
       "unique_id"
     ],
-    "explore_error_signal": "modelled; the harness compiles no explores",
+    "explore_error_signal": "real: the product explore compiler (009bd6418922b760be5e5793217238d929299b88) over the fresh manifests",
     "scenarios": {
       "healthy": {
+        "broken_explore": [],
+        "attributed": true,
+        "explores": {
+          "product_sha": "009bd6418922b760be5e5793217238d929299b88",
+          "attributed": true,
+          "compiled": {
+            "proj_alpha": {
+              "models": 2,
+              "validated": 2,
+              "validationErrors": 0
+            },
+            "proj_beta": {
+              "models": 4,
+              "validated": 4,
+              "validationErrors": 0
+            }
+          },
+          "explores_compiled": 6,
+          "expected_explores": 6,
+          "errors": [],
+          "failed_sources": [],
+          "unattributed": false,
+          "unattributed_errors": 0
+        },
         "failed_sources": [],
         "unattributed": false,
         "rows_written": 2,
@@ -595,6 +634,46 @@
         }
       },
       "other_source_error": {
+        "broken_explore": [
+          "proj_beta"
+        ],
+        "attributed": true,
+        "explores": {
+          "product_sha": "009bd6418922b760be5e5793217238d929299b88",
+          "attributed": true,
+          "compiled": {
+            "proj_alpha": {
+              "models": 2,
+              "validated": 2,
+              "validationErrors": 0
+            },
+            "proj_beta": {
+              "models": 5,
+              "validated": 4,
+              "validationErrors": 1
+            }
+          },
+          "explores_compiled": 6,
+          "expected_explores": 7,
+          "errors": [
+            {
+              "source": "proj_beta",
+              "name": "bad_meta",
+              "errors": [
+                {
+                  "type": "METADATA_PARSE_ERROR",
+                  "message": "Model \"bad_meta\" from dbt source \"proj_beta\": Field at /meta/metrics/broken/type must be equal to one of the allowed values. Update this field in your dbt model, then deploy again.\nModel \"bad_meta\" from dbt source \"proj_beta\": Field at /meta must be null. Update this field in your dbt model, then deploy again.\nModel \"bad_meta\" from dbt source \"proj_beta\": Field at /meta must match exactly one schema in oneOf. Update this field in your dbt model, then deploy again."
+                }
+              ],
+              "attributed_source": "proj_beta"
+            }
+          ],
+          "failed_sources": [
+            "proj_beta"
+          ],
+          "unattributed": false,
+          "unattributed_errors": 0
+        },
         "failed_sources": [
           "proj_beta"
         ],
@@ -628,6 +707,59 @@
         }
       },
       "every_source_error": {
+        "broken_explore": [
+          "proj_alpha",
+          "proj_beta"
+        ],
+        "attributed": true,
+        "explores": {
+          "product_sha": "009bd6418922b760be5e5793217238d929299b88",
+          "attributed": true,
+          "compiled": {
+            "proj_alpha": {
+              "models": 3,
+              "validated": 2,
+              "validationErrors": 1
+            },
+            "proj_beta": {
+              "models": 5,
+              "validated": 4,
+              "validationErrors": 1
+            }
+          },
+          "explores_compiled": 6,
+          "expected_explores": 8,
+          "errors": [
+            {
+              "source": "proj_alpha",
+              "name": "bad_meta",
+              "errors": [
+                {
+                  "type": "METADATA_PARSE_ERROR",
+                  "message": "Model \"bad_meta\" from dbt source \"proj_alpha\": Field at /meta/metrics/broken/type must be equal to one of the allowed values. Update this field in your dbt model, then deploy again.\nModel \"bad_meta\" from dbt source \"proj_alpha\": Field at /meta must be null. Update this field in your dbt model, then deploy again.\nModel \"bad_meta\" from dbt source \"proj_alpha\": Field at /meta must match exactly one schema in oneOf. Update this field in your dbt model, then deploy again."
+                }
+              ],
+              "attributed_source": "proj_alpha"
+            },
+            {
+              "source": "proj_beta",
+              "name": "bad_meta",
+              "errors": [
+                {
+                  "type": "METADATA_PARSE_ERROR",
+                  "message": "Model \"bad_meta\" from dbt source \"proj_beta\": Field at /meta/metrics/broken/type must be equal to one of the allowed values. Update this field in your dbt model, then deploy again.\nModel \"bad_meta\" from dbt source \"proj_beta\": Field at /meta must be null. Update this field in your dbt model, then deploy again.\nModel \"bad_meta\" from dbt source \"proj_beta\": Field at /meta must match exactly one schema in oneOf. Update this field in your dbt model, then deploy again."
+                }
+              ],
+              "attributed_source": "proj_beta"
+            }
+          ],
+          "failed_sources": [
+            "proj_alpha",
+            "proj_beta"
+          ],
+          "unattributed": false,
+          "unattributed_errors": 0
+        },
         "failed_sources": [
           "proj_alpha",
           "proj_beta"
@@ -660,6 +792,44 @@
         }
       },
       "unattributed_error": {
+        "broken_explore": [
+          "proj_beta"
+        ],
+        "attributed": false,
+        "explores": {
+          "product_sha": "009bd6418922b760be5e5793217238d929299b88",
+          "attributed": false,
+          "compiled": {
+            "proj_alpha": {
+              "models": 2,
+              "validated": 2,
+              "validationErrors": 0
+            },
+            "proj_beta": {
+              "models": 5,
+              "validated": 4,
+              "validationErrors": 1
+            }
+          },
+          "explores_compiled": 6,
+          "expected_explores": 7,
+          "errors": [
+            {
+              "source": "proj_beta",
+              "name": "bad_meta",
+              "errors": [
+                {
+                  "type": "METADATA_PARSE_ERROR",
+                  "message": "Model \"bad_meta\": Field at /meta/metrics/broken/type must be equal to one of the allowed values. Update this field in your dbt model, then deploy again.\nModel \"bad_meta\": Field at /meta must be null. Update this field in your dbt model, then deploy again.\nModel \"bad_meta\": Field at /meta must match exactly one schema in oneOf. Update this field in your dbt model, then deploy again."
+                }
+              ],
+              "attributed_source": null
+            }
+          ],
+          "failed_sources": [],
+          "unattributed": true,
+          "unattributed_errors": 1
+        },
         "failed_sources": [],
         "unattributed": true,
         "rows_written": null,
@@ -690,7 +860,9 @@
       }
     },
     "checks": {
+      "healthy_compiles_every_explore": true,
       "healthy_confirms_every_provider": true,
+      "explore_error_is_real_and_attributed_to_its_source": true,
       "unrelated_error_does_not_block_healthy_provider": true,
       "failed_provider_keeps_its_seed": true,
       "every_attributed_error_writes_nothing": true,
@@ -698,6 +870,402 @@
       "seed_store_unchanged": true
     },
     "success": true
+  },
+  "publication": {
+    "command": [
+      "ls",
+      "--output",
+      "json",
+      "--output-keys",
+      "unique_id"
+    ],
+    "order": [
+      "publish explores",
+      "write merged manifest",
+      "confirm last-good rows"
+    ],
+    "scenarios": {
+      "healthy_save": {
+        "mechanism": null,
+        "error": null,
+        "rows_written": 2,
+        "confirmations_logged": 1,
+        "cache_errors_logged": 0,
+        "store_changed": [
+          "proj_alpha",
+          "proj_beta"
+        ],
+        "store_matches_seed": false,
+        "published_changed": [
+          "artefacts/merged-manifest.json.gz",
+          "explores.json"
+        ],
+        "published_files": [
+          "artefacts/merged-manifest.json.gz",
+          "explores.json"
+        ],
+        "stray_temp_files": [],
+        "fresh_explores": {
+          "compiled": 6,
+          "errors": 0
+        },
+        "alpha_refresh_after_save": {
+          "returncode": 0,
+          "bindings": {
+            "alpha_report": [
+              "model.proj_beta.measure.v2"
+            ]
+          },
+          "measure_versions": [
+            2,
+            3
+          ]
+        },
+        "resolution": {
+          "fresh_parsed": [
+            "proj_alpha",
+            "proj_beta"
+          ],
+          "owned_injected": 5,
+          "package_nodes_omitted": 0
+        }
+      },
+      "publication_failure": {
+        "mechanism": "immutable directory (chattr +i)",
+        "error": {
+          "type": "PermissionError",
+          "errno": "EPERM",
+          "message": "[Errno 1] Operation not permitted: '.work/last-good-climb/publication/publication_failure/published/explores.json.tmp-30404'"
+        },
+        "rows_written": null,
+        "confirmations_logged": 0,
+        "cache_errors_logged": 0,
+        "store_changed": [],
+        "store_matches_seed": true,
+        "published_changed": [],
+        "published_files": [
+          "artefacts/merged-manifest.json.gz",
+          "explores.json"
+        ],
+        "stray_temp_files": [],
+        "fresh_explores": {
+          "compiled": 6,
+          "errors": 0
+        },
+        "alpha_refresh_after_save": {
+          "returncode": 0,
+          "bindings": {
+            "alpha_report": [
+              "model.proj_beta.measure.v3"
+            ]
+          },
+          "measure_versions": [
+            3
+          ]
+        },
+        "resolution": {
+          "fresh_parsed": [
+            "proj_alpha",
+            "proj_beta"
+          ],
+          "owned_injected": 5,
+          "package_nodes_omitted": 0
+        }
+      },
+      "artefact_write_failure": {
+        "mechanism": "tmpfs of 4096 bytes",
+        "error": {
+          "type": "OSError",
+          "errno": "ENOSPC",
+          "message": "[Errno 28] No space left on device"
+        },
+        "rows_written": null,
+        "confirmations_logged": 0,
+        "cache_errors_logged": 0,
+        "store_changed": [],
+        "store_matches_seed": true,
+        "published_changed": [
+          "explores.json"
+        ],
+        "published_files": [
+          "artefacts/merged-manifest.json.gz",
+          "explores.json"
+        ],
+        "stray_temp_files": [],
+        "fresh_explores": {
+          "compiled": 6,
+          "errors": 0
+        },
+        "alpha_refresh_after_save": {
+          "returncode": 0,
+          "bindings": {
+            "alpha_report": [
+              "model.proj_beta.measure.v3"
+            ]
+          },
+          "measure_versions": [
+            3
+          ]
+        },
+        "resolution": {
+          "fresh_parsed": [
+            "proj_alpha",
+            "proj_beta"
+          ],
+          "owned_injected": 5,
+          "package_nodes_omitted": 0
+        }
+      },
+      "store_write_failure": {
+        "mechanism": "immutable directory (chattr +i)",
+        "error": null,
+        "rows_written": null,
+        "confirmations_logged": 0,
+        "cache_errors_logged": 1,
+        "store_changed": [],
+        "store_matches_seed": true,
+        "published_changed": [
+          "artefacts/merged-manifest.json.gz",
+          "explores.json"
+        ],
+        "published_files": [
+          "artefacts/merged-manifest.json.gz",
+          "explores.json"
+        ],
+        "stray_temp_files": [],
+        "fresh_explores": {
+          "compiled": 6,
+          "errors": 0
+        },
+        "alpha_refresh_after_save": {
+          "returncode": 0,
+          "bindings": {
+            "alpha_report": [
+              "model.proj_beta.measure.v3"
+            ]
+          },
+          "measure_versions": [
+            3
+          ]
+        },
+        "resolution": {
+          "fresh_parsed": [
+            "proj_alpha",
+            "proj_beta"
+          ],
+          "owned_injected": 5,
+          "package_nodes_omitted": 0
+        }
+      }
+    },
+    "checks": {
+      "healthy_save_publishes_and_confirms": true,
+      "publication_failure_is_a_real_write_error": true,
+      "publication_failure_keeps_last_good": true,
+      "artefact_write_failure_is_a_real_write_error": true,
+      "artefact_write_failure_keeps_last_good": true,
+      "store_write_failure_logs_cache_error_not_confirmation": true,
+      "seed_store_unchanged": true
+    },
+    "success": true
+  },
+  "missing_ref_wording": {
+    "resolver": "resolveCrossSourceManifests over DbtCliClient (dbt1.12 -> harness dbt)",
+    "wording_source": "packages/backend/src/projectAdapters/crossSourceRefs.ts:519,541,544",
+    "parser_source": "packages/backend/src/dbt/dbtExternalNodes.ts:98",
+    "product_test": {
+      "test": "src/projectAdapters/crossSourceRefs.realDbt.test.ts > names the consumer, provider and missing numeric version",
+      "returncode": 1,
+      "passed": false,
+      "expected": "dbt source \"versioned_ring_a\" references ref('versioned_ring_b', 'dim', v=4), but the confirmed last-good manifest of dbt source \"versioned_ring_b\" does not define that model (or version).",
+      "received": "dbt source \"versioned_ring_a\" references ref('versioned_ring_b', 'dim', v=4), but the fresh manifest of dbt source \"versioned_ring_b\" does not define that model (or version)."
+    },
+    "scenarios": {
+      "ring_healthy": {
+        "cache": "seeded",
+        "tasks": [
+          "proj_alpha",
+          "proj_beta"
+        ],
+        "ok": true,
+        "product_sha": "009bd6418922b760be5e5793217238d929299b88",
+        "bindings": {
+          "proj_alpha": {
+            "alpha_report": [
+              "model.proj_beta.measure.v3"
+            ]
+          },
+          "proj_beta": {
+            "beta_report": [
+              "model.proj_alpha.alpha_base"
+            ]
+          }
+        },
+        "injected_from": {
+          "proj_alpha": [
+            "proj_beta"
+          ],
+          "proj_beta": [
+            "proj_alpha"
+          ]
+        },
+        "owned_injected": 5
+      },
+      "ring_confirmed_missing": {
+        "cache": "seeded",
+        "tasks": [
+          "proj_alpha",
+          "proj_beta"
+        ],
+        "ok": false,
+        "product_sha": "009bd6418922b760be5e5793217238d929299b88",
+        "error_class": "ParameterError",
+        "message": "dbt source \"proj_alpha\" references ref('proj_beta', 'absent_model'), but the fresh manifest of dbt source \"proj_beta\" does not define that model (or version).",
+        "expected": "dbt source \"proj_alpha\" references ref('proj_beta', 'absent_model'), but the fresh manifest of dbt source \"proj_beta\" does not define that model (or version).",
+        "matches_expected": true,
+        "catalog_supplied_to_consumer": "confirmed",
+        "semantic_expectation": "dbt source \"proj_alpha\" references ref('proj_beta', 'absent_model'), but the confirmed last-good manifest of dbt source \"proj_beta\" does not define that model (or version).",
+        "finding": "The consumer parsed with the provider's confirmed last-good manifest, but the message says 'fresh manifest'. crossSourceRefs.ts:541 chooses the word from freshCatalogs.has(provider) when the failure is reported at the end of the refresh, after the provider has parsed; the catalogue the consumer was given is tracked in suppliedConfirmed (crossSourceRefs.ts:454) and is not consulted.",
+        "dbt_missing_refs": [
+          {
+            "model": "absent_model",
+            "packageName": "proj_beta",
+            "version": null
+          }
+        ],
+        "product_missing_refs": [
+          {
+            "model": "absent_model",
+            "packageName": "proj_beta",
+            "version": null
+          }
+        ],
+        "dbt_error_lines": [
+          "  Model 'model.proj_alpha.uses_missing' (models/uses_missing.sql) depends on a node named 'absent_model' in package or project 'proj_beta' which was not found"
+        ]
+      },
+      "leaf_fresh_missing": {
+        "cache": "seeded",
+        "tasks": [
+          "proj_alpha",
+          "proj_beta"
+        ],
+        "ok": false,
+        "product_sha": "009bd6418922b760be5e5793217238d929299b88",
+        "error_class": "ParameterError",
+        "message": "dbt source \"proj_alpha\" references ref('proj_beta', 'absent_model'), but the fresh manifest of dbt source \"proj_beta\" does not define that model (or version).",
+        "expected": "dbt source \"proj_alpha\" references ref('proj_beta', 'absent_model'), but the fresh manifest of dbt source \"proj_beta\" does not define that model (or version).",
+        "matches_expected": true,
+        "dbt_missing_refs": [
+          {
+            "model": "absent_model",
+            "packageName": "proj_beta",
+            "version": null
+          }
+        ],
+        "product_missing_refs": [
+          {
+            "model": "absent_model",
+            "packageName": "proj_beta",
+            "version": null
+          }
+        ],
+        "dbt_error_lines": [
+          "  Model 'model.proj_alpha.uses_missing' (models/uses_missing.sql) depends on a node named 'absent_model' in package or project 'proj_beta' which was not found"
+        ]
+      },
+      "leaf_fresh_missing_unconfirmed": {
+        "cache": "none",
+        "tasks": [
+          "proj_alpha",
+          "proj_beta"
+        ],
+        "ok": false,
+        "product_sha": "009bd6418922b760be5e5793217238d929299b88",
+        "error_class": "ParameterError",
+        "message": "dbt source \"proj_alpha\" references ref('proj_beta', 'absent_model'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model').",
+        "expected": "dbt source \"proj_alpha\" references ref('proj_beta', 'absent_model'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model').",
+        "matches_expected": true,
+        "dbt_missing_refs": [
+          {
+            "model": "absent_model",
+            "packageName": "proj_beta",
+            "version": null
+          }
+        ],
+        "product_missing_refs": [
+          {
+            "model": "absent_model",
+            "packageName": "proj_beta",
+            "version": null
+          }
+        ],
+        "dbt_error_lines": [
+          "  Model 'model.proj_alpha.uses_missing' (models/uses_missing.sql) depends on a node named 'absent_model' in package or project 'proj_beta' which was not found"
+        ]
+      },
+      "ring_withheld": {
+        "cache": "none",
+        "tasks": [
+          "proj_alpha",
+          "proj_beta"
+        ],
+        "ok": false,
+        "product_sha": "009bd6418922b760be5e5793217238d929299b88",
+        "error_class": "ParameterError",
+        "message": "Cold start: dbt source \"proj_alpha\" references dbt source \"proj_beta\" (project \"proj_beta\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"proj_alpha\" could not resolve ref('proj_beta', 'measure') during its single parse. Cold start: dbt source \"proj_beta\" references dbt source \"proj_alpha\" (project \"proj_alpha\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"proj_beta\" could not resolve ref('proj_alpha', 'alpha_base') during its single parse.",
+        "expected": "Cold start: dbt source \"proj_alpha\" references dbt source \"proj_beta\" (project \"proj_beta\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"proj_alpha\" could not resolve ref('proj_beta', 'measure') during its single parse. Cold start: dbt source \"proj_beta\" references dbt source \"proj_alpha\" (project \"proj_alpha\"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source \"proj_beta\" could not resolve ref('proj_alpha', 'alpha_base') during its single parse.",
+        "matches_expected": true,
+        "dbt_missing_refs": [
+          {
+            "model": "measure",
+            "packageName": "proj_beta",
+            "version": null
+          },
+          {
+            "model": "alpha_base",
+            "packageName": "proj_alpha",
+            "version": null
+          }
+        ],
+        "product_missing_refs": [
+          {
+            "model": "measure",
+            "packageName": "proj_beta",
+            "version": null
+          },
+          {
+            "model": "alpha_base",
+            "packageName": "proj_alpha",
+            "version": null
+          }
+        ],
+        "dbt_error_lines": [
+          "  Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found",
+          "  Model 'model.proj_beta.beta_report' (models/beta_report.sql) depends on a node named 'alpha_base' in package or project 'proj_alpha' which was not found"
+        ]
+      }
+    },
+    "checks": {
+      "product_test_names_confirmed_provider_fresh": true,
+      "product_resolver_binds_the_ring": true,
+      "every_missing_ref_fails_closed": true,
+      "confirmed_provider_is_named_fresh_by_the_product": true,
+      "fresh_wording_is_exact": true,
+      "unconfirmed_fresh_provider_gets_generic_wording": true,
+      "withheld_wording_is_exact": true,
+      "harness_regex_matches_product_parser": true
+    },
+    "success": true
+  },
+  "product_path": {
+    "root": "examples/multi-repo-dbt-sim/.work/product/009bd6418922b760be5e5793217238d929299b88",
+    "sha": "009bd6418922b760be5e5793217238d929299b88",
+    "steps": [
+      "compile-explores: DbtBaseProjectAdapter._validateDbtModel, attachTypesToModels, convertExplores",
+      "resolve-refs: resolveCrossSourceManifests over DbtCliClient",
+      "parse-missing: parseMissingDbtNodeReferences"
+    ]
   },
   "markers": [
     {
@@ -990,6 +1558,135 @@
           }
         ]
       }
+    },
+    {
+      "message": "dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=5 packageNodesOmitted=0",
+      "meta": {
+        "event": "dbt.compile.crossSourceRefsResolved",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "diskEvictions": 0,
+        "diskRecreations": 0,
+        "cacheRowsLoaded": 2,
+        "ownedInjected": 5,
+        "packageNodesOmitted": 0,
+        "sources": [
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 3
+          },
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
+            ],
+            "injectedStubs": 2
+          }
+        ]
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceLastGoodConfirmed rowsWritten=2 projectUuid=7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a connectionGroup=original",
+      "meta": {
+        "event": "dbt.compile.crossSourceLastGoodConfirmed",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "connectionGroup": "original",
+        "rowsWritten": 2
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=5 packageNodesOmitted=0",
+      "meta": {
+        "event": "dbt.compile.crossSourceRefsResolved",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "diskEvictions": 0,
+        "diskRecreations": 0,
+        "cacheRowsLoaded": 2,
+        "ownedInjected": 5,
+        "packageNodesOmitted": 0,
+        "sources": [
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 3
+          },
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
+            ],
+            "injectedStubs": 2
+          }
+        ]
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=5 packageNodesOmitted=0",
+      "meta": {
+        "event": "dbt.compile.crossSourceRefsResolved",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "diskEvictions": 0,
+        "diskRecreations": 0,
+        "cacheRowsLoaded": 2,
+        "ownedInjected": 5,
+        "packageNodesOmitted": 0,
+        "sources": [
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 3
+          },
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
+            ],
+            "injectedStubs": 2
+          }
+        ]
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceRefsResolved diskEvictions=0 diskRecreations=0 ownedInjected=5 packageNodesOmitted=0",
+      "meta": {
+        "event": "dbt.compile.crossSourceRefsResolved",
+        "projectUuid": "7d1f3c2e-9a4b-4c5d-8e6f-0b1c2d3e4f5a",
+        "diskEvictions": 0,
+        "diskRecreations": 0,
+        "cacheRowsLoaded": 2,
+        "ownedInjected": 5,
+        "packageNodesOmitted": 0,
+        "sources": [
+          {
+            "name": "proj_alpha",
+            "injectedFrom": [
+              "proj_beta"
+            ],
+            "injectedStubs": 3
+          },
+          {
+            "name": "proj_beta",
+            "injectedFrom": [
+              "proj_alpha"
+            ],
+            "injectedStubs": 2
+          }
+        ]
+      }
+    },
+    {
+      "message": "dbt.compile.crossSourceCacheError",
+      "meta": {
+        "event": "dbt.compile.crossSourceCacheError",
+        "message": "[Errno 1] Operation not permitted: 'examples/multi-repo-dbt-sim/.work/last-good-climb/publication/store_write_failure/last-good/proj_alpha/manifest.json.tmp-30404'",
+        "code": "EPERM"
+      }
     }
   ],
   "withheld": {
@@ -1023,6 +1720,13 @@
         "success": false,
         "error_excerpt": [
           "  Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a node named 'measure' in package or project 'proj_beta' which was not found"
+        ],
+        "missing_refs": [
+          {
+            "model": "measure",
+            "packageName": "proj_beta",
+            "version": null
+          }
         ]
       },
       "proj_beta": {
@@ -1032,6 +1736,13 @@
         "success": false,
         "error_excerpt": [
           "  Model 'model.proj_beta.beta_report' (models/beta_report.sql) depends on a node named 'alpha_base' in package or project 'proj_alpha' which was not found"
+        ],
+        "missing_refs": [
+          {
+            "model": "alpha_base",
+            "packageName": "proj_alpha",
+            "version": null
+          }
         ]
       }
     }

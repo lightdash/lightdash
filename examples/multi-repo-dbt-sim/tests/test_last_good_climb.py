@@ -417,15 +417,16 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
                 "proj_beta", [("measure", 2, 2), ("measure", 3, 2)]
             ),
         }
-        for scenario, rows, changed, logged in (
-            ("healthy", 2, ["proj_alpha", "proj_beta"], 1),
-            ("other_source_error", 1, ["proj_alpha"], 1),
-            ("every_source_error", 0, [], 1),
-            ("unattributed_error", None, [], 0),
+        for scenario, failed, unattributed, rows, changed, logged in (
+            ("healthy", (), False, 2, ["proj_alpha", "proj_beta"], 1),
+            ("other_source_error", ("proj_beta",), False, 1, ["proj_alpha"], 1),
+            ("every_source_error", climb.PROJECTS, False, 0, [], 1),
+            ("unattributed_error", (), True, None, [], 0),
         ):
-            with self.subTest(
-                scenario=scenario
-            ), tempfile.TemporaryDirectory() as directory:
+            with (
+                self.subTest(scenario=scenario),
+                tempfile.TemporaryDirectory() as directory,
+            ):
                 store = Path(directory)
                 self._write_store(
                     store, {"proj_alpha": seed_alpha, "proj_beta": seed_beta}
@@ -433,7 +434,7 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
                 before = climb.store_digest(store)
                 events = climb.EventLog()
                 written = climb.confirm_fresh(
-                    store, fresh, events, **climb.CONFIRM_SCENARIOS[scenario]
+                    store, fresh, events, failed, unattributed
                 )
                 after = climb.store_digest(store)
                 self.assertEqual(written, rows)
@@ -446,6 +447,7 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
                         events.named(climb.CONFIRMED_EVENT)[0]["meta"]["rowsWritten"],
                         rows,
                     )
+                self.assertEqual(climb.stray_temp_files(store), [])
                 beta_latest = [
                     node["latest_version"]
                     for node in climb.projection(
@@ -454,8 +456,126 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
                 ]
                 self.assertEqual(beta_latest, [2, 2] if "proj_beta" in changed else [3])
         self.assertEqual(
-            climb.CONFIRM_SCENARIOS["every_source_error"]["failed_sources"],
+            climb.CONFIRM_SCENARIOS["every_source_error"]["broken_explore"],
             climb.PROJECTS,
+        )
+        self.assertFalse(climb.CONFIRM_SCENARIOS["unattributed_error"]["attributed"])
+        self.assertEqual(
+            climb.CONFIRM_SCENARIOS["unattributed_error"]["broken_explore"],
+            ("proj_beta",),
+        )
+
+    def test_confirm_on_an_unwritable_store_logs_the_cache_error(self):
+        fresh = {
+            "proj_alpha": self._ring_manifest(
+                "proj_alpha", [("alpha_base", None, None)]
+            )
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            store = Path(directory) / "store"
+            store.write_text("not a directory", encoding="utf-8")
+            events = climb.EventLog()
+            self.assertIsNone(climb.confirm_fresh(store, fresh, events))
+            self.assertEqual(events.named(climb.CONFIRMED_EVENT), [])
+            cache_errors = events.named(climb.CACHE_ERROR_EVENT)
+            self.assertEqual(len(cache_errors), 1)
+            self.assertEqual(cache_errors[0]["message"], climb.CACHE_ERROR_EVENT)
+            self.assertEqual(set(cache_errors[0]["meta"]), {"event", "message", "code"})
+            self.assertEqual(cache_errors[0]["meta"]["code"], "ENOTDIR")
+            self.assertEqual(store.read_text(encoding="utf-8"), "not a directory")
+
+    def test_atomic_write_leaves_nothing_behind_on_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            blocker = Path(directory) / "published"
+            blocker.write_text("occupied", encoding="utf-8")
+            with self.assertRaises(OSError):
+                climb.atomic_write_bytes(blocker / "explores.json", b"{}")
+            self.assertEqual(
+                sorted(p.name for p in Path(directory).iterdir()), ["published"]
+            )
+            target = Path(directory) / "artefacts" / "merged.json.gz"
+            climb.atomic_write_bytes(target, b"first")
+            climb.atomic_write_bytes(target, b"second")
+            self.assertEqual(target.read_bytes(), b"second")
+            self.assertEqual(climb.stray_temp_files(Path(directory)), [])
+
+    def test_tmpfs_size_leaves_less_free_space_than_the_incoming_artefact(self):
+        self.assertEqual(climb.tmpfs_bytes_short_of(b"x" * 3000, 3500), 4096)
+        self.assertEqual(climb.tmpfs_bytes_short_of(b"x" * 5000, 9000), 8192 + 8192)
+        self.assertEqual(climb.tmpfs_bytes_short_of(b"x" * 4096, 4096), 4096)
+
+    def test_broken_explore_copy_parses_in_dbt_and_fails_lightdash_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            copy = climb.write_broken_explore_copy(
+                climb.DISK / "proj_beta", Path(directory) / "proj_beta"
+            )
+            schema = (copy / "models" / "bad_meta.yml").read_text(encoding="utf-8")
+            self.assertIn("type: not_a_metric_type", schema)
+            self.assertIn("access: protected", schema)
+            self.assertEqual(
+                (copy / "models" / "bad_meta.sql").read_text(encoding="utf-8"),
+                "select 1 as id\n",
+            )
+            self.assertFalse(
+                (climb.DISK / "proj_beta" / "models" / "bad_meta.sql").exists()
+            )
+            self.assertEqual(climb.sql_refs(copy)["bad_meta"], [])
+
+    def test_missing_ref_parser_and_wording_mirror_the_product(self):
+        output = (
+            "Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on a "
+            "node named 'measure' in package or project 'proj_beta' which was not found\n"
+            "Model 'model.proj_beta.broken' (models/broken.sql) depends on a node named "
+            "'missing_model' which was not found\n"
+            "Model 'model.a.b' (models/b.sql) depends on a node named 'dim' with version '4' "
+            "in package or project 'other' which was not found\n"
+            "Model 'model.a.b' (models/b.sql) depends on a node named 'dim' with version '4' "
+            "in package or project 'other' which was not found\n"
+        )
+        self.assertEqual(
+            climb.parse_missing_refs(output),
+            [
+                {"model": "measure", "packageName": "proj_beta", "version": None},
+                {"model": "missing_model", "packageName": None, "version": None},
+                {"model": "dim", "packageName": "other", "version": "4"},
+            ],
+        )
+        self.assertEqual(climb.parse_missing_refs("nothing missing"), [])
+        ref = {"model": "dim", "packageName": "versioned_ring_b", "version": "4"}
+        self.assertEqual(climb.ref_label(ref), "ref('versioned_ring_b', 'dim', v=4)")
+        self.assertEqual(
+            climb.ref_label({"model": "measure", "packageName": None, "version": None}),
+            "ref('measure')",
+        )
+        self.assertEqual(
+            climb.missing_ref_reason(
+                "versioned_ring_a", ref, "versioned_ring_b", "confirmed"
+            ),
+            "dbt source \"versioned_ring_a\" references ref('versioned_ring_b', 'dim', v=4), "
+            'but the confirmed last-good manifest of dbt source "versioned_ring_b" does not '
+            "define that model (or version).",
+        )
+        self.assertIn(
+            "fresh manifest", climb.missing_ref_reason("a", ref, "b", "fresh")
+        )
+        self.assertTrue(
+            climb.unresolved_ref_reason("a", ref).endswith(
+                "Declare the upstream project in dependencies.yml or use a literal "
+                "ref('project', 'model')."
+            )
+        )
+        cold = climb.product_cold_start_reason(
+            "proj_alpha", ref, "proj_beta", "proj_beta"
+        )
+        self.assertTrue(
+            cold.startswith(
+                'Cold start: dbt source "proj_alpha" references dbt source "proj_beta" (project "proj_beta")'
+            )
+        )
+        self.assertTrue(cold.endswith("during its single parse."))
+        self.assertEqual(
+            climb.WITHHELD_MISSING_REFS["proj_alpha"],
+            [{"model": "measure", "packageName": "proj_beta", "version": None}],
         )
 
     def test_broken_copy_adds_a_missing_ref_and_leaves_the_fixture_alone(self):
@@ -541,6 +661,25 @@ class LastGoodClimbFixtureTests(unittest.TestCase):
         self.assertEqual(
             climb.expected_resolutions(present, package, fresh, confirm),
             [(4, 0), (2, 2), (5, 0), (5, 0), (5, 0)],
+        )
+        publication = {
+            "scenarios": {
+                "healthy_save": {
+                    "rows_written": 2,
+                    "resolution": {"owned_injected": 5, "package_nodes_omitted": 0},
+                },
+                "publication_failure": {
+                    "rows_written": None,
+                    "resolution": {"owned_injected": 5, "package_nodes_omitted": 0},
+                },
+            }
+        }
+        self.assertEqual(
+            climb.expected_confirmations(confirm, publication), [2, 2, 1, 2]
+        )
+        self.assertEqual(
+            climb.expected_resolutions(present, package, fresh, confirm, publication),
+            [(4, 0), (2, 2), (5, 0), (5, 0), (5, 0), (5, 0), (5, 0)],
         )
         extended = climb.EventLog()
         extended.entries = json.loads(json.dumps(events.entries))

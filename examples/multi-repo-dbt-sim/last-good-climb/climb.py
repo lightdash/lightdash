@@ -1,4 +1,7 @@
 import argparse
+import errno
+import functools
+import gzip
 import hashlib
 import importlib.metadata
 import importlib.util
@@ -10,6 +13,8 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+
+import product_path
 
 FIXTURE = Path(__file__).resolve().parent
 SIM = FIXTURE.parent
@@ -47,6 +52,16 @@ RESOLVED_PATTERN = re.compile(
     r"diskRecreations=(\d+) ownedInjected=(\d+) packageNodesOmitted=(\d+)$"
 )
 EXPECTED_OWNED_INJECTED = {"proj_alpha": 3, "proj_beta": 1}
+SOURCE_UUIDS = {
+    "proj_alpha": "a1b2c3d4-0001-4a00-8000-00000000a1fa",
+    "proj_beta": "a1b2c3d4-0002-4a00-8000-00000000be7a",
+}
+# packages/backend/src/dbt/dbtExternalNodes.ts:98 (parseMissingDbtNodeReferences)
+DBT_MISSING_REF = re.compile(
+    r"depends on a node named '([^']+)'(?: with version '([^']*)')?"
+    r"(?: in package or project '([^']+)'(?: with version '([^']*)')?)? which was not found"
+)
+CACHE_ERROR_EVENT = "dbt.compile.crossSourceCacheError"
 PACKAGE = FIXTURE / "package"
 PACKAGE_NAME = "shared_pkg"
 PACKAGE_OWNERS = ("proj_owner_one", "proj_owner_two")
@@ -67,6 +82,63 @@ def cold_start_warning(consumer, upstreams):
         f"last-good manifests are not seeded for upstreams: {names}. "
         "Seed each upstream with a successful compile or deploy. "
         "No manifest was invented."
+    )
+
+
+def parse_missing_refs(output):
+    """Mirror parseMissingDbtNodeReferences: one entry per distinct missing ref."""
+    refs = {}
+    for model, model_version, package, project_version in DBT_MISSING_REF.findall(
+        output
+    ):
+        ref = {
+            "model": model,
+            "packageName": package or None,
+            "version": model_version or project_version or None,
+        }
+        refs.setdefault(
+            f"{ref['packageName']}.{ref['model']}.{ref['version'] or ''}", ref
+        )
+    return list(refs.values())
+
+
+def ref_label(ref):
+    # packages/backend/src/projectAdapters/crossSourceRefs.ts:93
+    package = "" if ref["packageName"] is None else f"'{ref['packageName']}', "
+    version = "" if ref["version"] is None else f", v={ref['version']}"
+    return f"ref({package}'{ref['model']}'{version})"
+
+
+def missing_ref_reason(consumer, ref, provider, catalog_source):
+    # packages/backend/src/projectAdapters/crossSourceRefs.ts:541
+    manifest = (
+        "fresh manifest"
+        if catalog_source == "fresh"
+        else "confirmed last-good manifest"
+    )
+    return (
+        f'dbt source "{consumer}" references {ref_label(ref)}, but the {manifest} '
+        f'of dbt source "{provider}" does not define that model (or version).'
+    )
+
+
+def unresolved_ref_reason(consumer, ref):
+    # packages/backend/src/projectAdapters/crossSourceRefs.ts:544
+    return (
+        f'dbt source "{consumer}" references {ref_label(ref)}, which could not be '
+        "resolved from its selected public upstreams. Declare the upstream project "
+        "in dependencies.yml or use a literal ref('project', 'model')."
+    )
+
+
+def product_cold_start_reason(consumer, ref, provider, project_name):
+    # packages/backend/src/projectAdapters/crossSourceRefs.ts:390 and :519
+    return (
+        f'Cold start: dbt source "{consumer}" references dbt source "{provider}" '
+        f'(project "{project_name}"), but that upstream source has no confirmed '
+        "last-good manifest. This refresh will try to seed the upstream in "
+        f'dependency order before compiling this consumer. dbt source "{consumer}" '
+        f"could not resolve {ref_label(ref)} during its single parse."
     )
 
 
@@ -696,6 +768,7 @@ def withheld_case(dbt, work, store, events):
             "cycle_error": parsed["cycle_error"],
             "success": parsed["returncode"] == 0,
             "error_excerpt": excerpt,
+            "missing_refs": parse_missing_refs(parsed["output"]),
         }
     return {
         "command": list(REFRESH_COMMAND),
@@ -817,7 +890,8 @@ def refresh_cycle_probe(dbt, work):
     }
 
 
-def run_deps(dbt, project_dir, logs):
+def run_deps(dbt, project_dir, logs, *, profiles_dir=None, profile="last_good_climb"):
+    logs = Path(logs)
     if logs.exists():
         shutil.rmtree(logs)
     completed = subprocess.run(
@@ -828,9 +902,9 @@ def run_deps(dbt, project_dir, logs):
             "--project-dir",
             str(project_dir),
             "--profiles-dir",
-            str(PROFILES),
+            str(profiles_dir or PROFILES),
             "--profile",
-            "last_good_climb",
+            profile,
             "--target",
             "dev",
             "--log-path",
@@ -990,7 +1064,7 @@ def injected_summary(nodes):
     )
 
 
-def ring_refresh(dbt, work, store, order, broken=()):
+def ring_refresh(dbt, work, store, order, broken=(), broken_explore=()):
     """Refresh the ring in `order`; a provider that parsed this run supplies its fresh manifest, otherwise its confirmed store manifest."""
     work = Path(work)
     work.mkdir(parents=True, exist_ok=True)
@@ -1020,11 +1094,14 @@ def ring_refresh(dbt, work, store, order, broken=()):
         )
         nodes_path = work / f"{project}-nodes.json"
         nodes_path.write_text(json.dumps(injection["nodes"]))
-        project_dir = (
-            write_broken_copy(DISK / project, work / "broken" / project)
-            if project in broken
-            else DISK / project
-        )
+        if project in broken:
+            project_dir = write_broken_copy(DISK / project, work / "broken" / project)
+        elif project in broken_explore:
+            project_dir = write_broken_explore_copy(
+                DISK / project, work / "broken-explore" / project
+            )
+        else:
+            project_dir = DISK / project
         parsed = run_parse(
             dbt, project_dir, work / project, nodes_path, command=REFRESH_COMMAND
         )
@@ -1048,6 +1125,7 @@ def ring_refresh(dbt, work, store, order, broken=()):
                 for line in parsed["output"].splitlines()
                 if UNRESOLVED_TEXT in line
             ],
+            "missing_refs": parse_missing_refs(parsed["output"]),
             "bindings": bindings,
             "catalog_sources": injection["catalog_sources"],
             "owned_injected": injection["owned_injected"],
@@ -1057,6 +1135,7 @@ def ring_refresh(dbt, work, store, order, broken=()):
         "command": list(REFRESH_COMMAND),
         "order": list(order),
         "broken": list(broken),
+        "broken_explore": list(broken_explore),
         "fresh_parsed": sorted(fresh),
         "failed": failed,
         "projects": projects,
@@ -1145,23 +1224,167 @@ def fresh_over_seed_case(dbt, work, store, events):
 
 
 def confirm_fresh(store, fresh, events, failed_sources=(), unattributed=False):
-    """Mirror persistArtifacts: attributed explore errors discard their source; an unattributed error withholds every confirmation."""
+    """Mirror persistArtifacts and CrossSourceCatalogCache.confirm.
+
+    Attributed explore errors discard their source; an unattributed error
+    withholds every confirmation. Rows are staged and renamed together, and a
+    failed write logs the product's cache error instead of a confirmation.
+    """
     if unattributed:
         return None
     entries = [project for project in fresh if project not in set(failed_sources)]
-    for project in entries:
-        destination = manifest_path(store, project)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(json.dumps(fresh[project]), encoding="utf-8")
+    staged = []
+    try:
+        for project in entries:
+            destination = manifest_path(store, project)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            temp = destination.with_name(f"manifest.json.tmp-{os.getpid()}")
+            with open(temp, "wb") as handle:
+                handle.write(json.dumps(fresh[project]).encode("utf-8"))
+                handle.flush()
+                os.fsync(handle.fileno())
+            staged.append((temp, destination))
+        for temp, destination in staged:
+            os.replace(temp, destination)
+    except OSError as error:
+        for temp, _ in staged:
+            try:
+                temp.unlink()
+            except OSError:
+                pass
+        events.info(*cache_error_message(error))
+        return None
     events.info(*confirmed_message(len(entries)))
     return len(entries)
 
 
+def cache_error_message(error):
+    # packages/backend/src/projectAdapters/crossSourceCatalogCache.ts:6
+    return (
+        CACHE_ERROR_EVENT,
+        {
+            "event": CACHE_ERROR_EVENT,
+            "message": str(error),
+            "code": errno.errorcode.get(error.errno) if error.errno else None,
+        },
+    )
+
+
+BROKEN_EXPLORE_MODEL = "bad_meta"
+
+
+def write_broken_explore_copy(project_dir, destination):
+    """A model dbt parses but the explore compiler rejects: an unknown metric type."""
+    destination = Path(destination)
+    if destination.exists():
+        shutil.rmtree(destination)
+    shutil.copytree(project_dir, destination)
+    (destination / "models" / f"{BROKEN_EXPLORE_MODEL}.sql").write_text(
+        "select 1 as id\n", encoding="utf-8"
+    )
+    (destination / "models" / f"{BROKEN_EXPLORE_MODEL}.yml").write_text(
+        "version: 2\n"
+        "models:\n"
+        f"    - name: {BROKEN_EXPLORE_MODEL}\n"
+        "      access: protected\n"
+        "      config:\n"
+        "          meta:\n"
+        "              metrics:\n"
+        "                  broken:\n"
+        "                      type: not_a_metric_type\n"
+        "      columns:\n"
+        "          - name: id\n"
+        "            data_type: integer\n",
+        encoding="utf-8",
+    )
+    return destination
+
+
+def atomic_write_bytes(destination, data):
+    """Write through a sibling temp file and rename; a failed write leaves nothing behind."""
+    destination = Path(destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temp = destination.with_name(f"{destination.name}.tmp-{os.getpid()}")
+    try:
+        with open(temp, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp, destination)
+    except OSError:
+        try:
+            temp.unlink()
+        except OSError:
+            pass
+        raise
+
+
+def write_fresh_manifests(fresh, directory):
+    paths = {}
+    for project, manifest in fresh.items():
+        path = Path(directory) / project / "manifest.json"
+        atomic_write_bytes(path, json.dumps(manifest).encode("utf-8"))
+        paths[project] = path
+    return paths
+
+
+def real_model_count(manifest):
+    return sum(
+        1
+        for node in manifest["nodes"].values()
+        if node.get("resource_type") == "model"
+        and (node.get("path") or node.get("original_file_path"))
+    )
+
+
+def compile_fresh_explores(fresh, work, attributed=True):
+    """Compile fresh manifests with the product explore compiler; attribute errors as persistArtifacts does."""
+    paths = write_fresh_manifests(fresh, Path(work) / "fresh-manifests")
+    result = product_path.compile_explores(
+        [
+            {
+                "name": project,
+                "uuid": SOURCE_UUIDS[project] if attributed else None,
+                "manifestPath": str(path),
+            }
+            for project, path in paths.items()
+        ],
+        Path(work) / "compile-explores",
+    )
+    by_uuid = {uuid: project for project, uuid in SOURCE_UUIDS.items()}
+    attribution = result["attribution"]
+    return {
+        "product_sha": result["productSha"],
+        "attributed": attributed,
+        "compiled": result["compiled"],
+        "rows": result["explores"],
+        "explores_compiled": sum(1 for row in result["explores"] if not row["error"]),
+        "expected_explores": sum(
+            real_model_count(manifest) for manifest in fresh.values()
+        ),
+        "errors": [
+            {
+                "source": row["source"],
+                "name": row["name"],
+                "errors": row["errors"],
+                "attributed_source": by_uuid.get(row["attributedSourceUuid"]),
+            }
+            for row in result["explores"]
+            if row["error"]
+        ],
+        "failed_sources": sorted(
+            by_uuid[uuid] for uuid in attribution["failedSourceUuids"]
+        ),
+        "unattributed": not attribution["successfulCompile"],
+        "unattributed_errors": attribution["unattributedErrors"],
+    }
+
+
 CONFIRM_SCENARIOS = {
-    "healthy": {"failed_sources": (), "unattributed": False},
-    "other_source_error": {"failed_sources": ("proj_beta",), "unattributed": False},
-    "every_source_error": {"failed_sources": PROJECTS, "unattributed": False},
-    "unattributed_error": {"failed_sources": (), "unattributed": True},
+    "healthy": {"broken_explore": (), "attributed": True},
+    "other_source_error": {"broken_explore": ("proj_beta",), "attributed": True},
+    "every_source_error": {"broken_explore": PROJECTS, "attributed": True},
+    "unattributed_error": {"broken_explore": ("proj_beta",), "attributed": False},
 }
 
 
@@ -1175,7 +1398,13 @@ def per_provider_confirm_case(dbt, work, store, events):
         scenario_store = root / name / "last-good"
         shutil.copytree(store, scenario_store)
         confirmed_before = len(events.named(CONFIRMED_EVENT))
-        run = ring_refresh(dbt, root / name / "refresh", scenario_store, PROJECTS)
+        run = ring_refresh(
+            dbt,
+            root / name / "refresh",
+            scenario_store,
+            PROJECTS,
+            broken_explore=scenario["broken_explore"],
+        )
         if run["failed"]:
             raise RuntimeError(f"ring refresh failed before confirmation: {run}")
         events.info(
@@ -1183,7 +1412,16 @@ def per_provider_confirm_case(dbt, work, store, events):
                 run["owned_injected"], run["package_nodes_omitted"], run["sources"]
             )
         )
-        rows_written = confirm_fresh(scenario_store, run["fresh"], events, **scenario)
+        explores = compile_fresh_explores(
+            run["fresh"], root / name, attributed=scenario["attributed"]
+        )
+        rows_written = confirm_fresh(
+            scenario_store,
+            run["fresh"],
+            events,
+            explores["failed_sources"],
+            explores["unattributed"],
+        )
         after = store_digest(scenario_store)
         changed = sorted(
             project for project in PROJECTS if after[project] != seed_digest[project]
@@ -1193,8 +1431,13 @@ def per_provider_confirm_case(dbt, work, store, events):
         )
         alpha_after = fallback["projects"]["proj_alpha"]
         scenarios[name] = {
-            "failed_sources": list(scenario["failed_sources"]),
-            "unattributed": scenario["unattributed"],
+            "broken_explore": list(scenario["broken_explore"]),
+            "attributed": scenario["attributed"],
+            "explores": {
+                key: value for key, value in explores.items() if key != "rows"
+            },
+            "failed_sources": explores["failed_sources"],
+            "unattributed": explores["unattributed"],
             "rows_written": rows_written,
             "confirmations_logged": len(events.named(CONFIRMED_EVENT))
             - confirmed_before,
@@ -1221,23 +1464,55 @@ def per_provider_confirm_case(dbt, work, store, events):
     other = scenarios["other_source_error"]
     every = scenarios["every_source_error"]
     unattributed = scenarios["unattributed_error"]
+
+    def broken_errors(scenario, source):
+        return [
+            error
+            for error in scenario["explores"]["errors"]
+            if error["source"] == source
+        ]
+
+    def only_broken_model(scenario, sources):
+        return all(
+            error["name"] == BROKEN_EXPLORE_MODEL
+            and error["attributed_source"] == error["source"]
+            and [item["type"] for item in error["errors"]] == ["METADATA_PARSE_ERROR"]
+            for error in scenario["explores"]["errors"]
+        ) and sorted(
+            {error["source"] for error in scenario["explores"]["errors"]}
+        ) == sorted(sources)
+
     checks = {
+        "healthy_compiles_every_explore": healthy["explores"]["errors"] == []
+        and healthy["explores"]["explores_compiled"]
+        == healthy["explores"]["expected_explores"]
+        > 0,
         "healthy_confirms_every_provider": healthy["rows_written"] == len(PROJECTS)
         and healthy["store_changed"] == sorted(PROJECTS)
         and healthy["store_measure_latest"] == [2, 2]
         and healthy["alpha_refresh_after_confirm"]["bindings"]
         == {"alpha_report": ["model.proj_beta.measure.v2"]},
+        "explore_error_is_real_and_attributed_to_its_source": only_broken_model(
+            other, ["proj_beta"]
+        )
+        and len(broken_errors(other, "proj_beta")) == 1
+        and other["failed_sources"] == ["proj_beta"]
+        and not other["unattributed"],
         "unrelated_error_does_not_block_healthy_provider": other["rows_written"] == 1
         and other["store_changed"] == ["proj_alpha"]
         and other["confirmations_logged"] == 1,
         "failed_provider_keeps_its_seed": other["store_measure_latest"] == [3]
         and other["alpha_refresh_after_confirm"]["bindings"] == BINDINGS["proj_alpha"]
         and other["alpha_refresh_after_confirm"]["measure_versions"] == [3],
-        "every_attributed_error_writes_nothing": every["rows_written"] == 0
+        "every_attributed_error_writes_nothing": only_broken_model(every, PROJECTS)
+        and every["failed_sources"] == sorted(PROJECTS)
+        and every["rows_written"] == 0
         and every["store_changed"] == []
         and every["confirmations_logged"] == 1,
-        "unattributed_error_withholds_confirmation": unattributed["rows_written"]
-        is None
+        "unattributed_error_withholds_confirmation": unattributed["unattributed"]
+        and unattributed["explores"]["unattributed_errors"] == 1
+        and unattributed["failed_sources"] == []
+        and unattributed["rows_written"] is None
         and unattributed["store_changed"] == []
         and unattributed["confirmations_logged"] == 0
         and unattributed["alpha_refresh_after_confirm"]["bindings"]
@@ -1246,43 +1521,552 @@ def per_provider_confirm_case(dbt, work, store, events):
     }
     return {
         "command": list(REFRESH_COMMAND),
-        "explore_error_signal": "modelled; the harness compiles no explores",
+        "explore_error_signal": (
+            "real: the product explore compiler "
+            f"({healthy['explores']['product_sha']}) over the fresh manifests"
+        ),
         "scenarios": scenarios,
         "checks": checks,
         "success": all(checks.values()),
     }
 
 
-def expected_confirmations(confirm=None):
+def tree_digest(directory):
+    root = Path(directory)
+    return {
+        str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
+def stray_temp_files(*directories):
+    return sorted(
+        str(path.relative_to(directory))
+        for directory in directories
+        for path in Path(directory).rglob("*.tmp-*")
+    )
+
+
+def merged_manifest_bytes(fresh):
+    """Stand in for upsertMergedManifest: one gzip of the merged source manifests."""
+    merged = {"metadata": {"sources": sorted(fresh)}, "nodes": {}}
+    for project in sorted(fresh):
+        merged["nodes"].update(fresh[project]["nodes"])
+    return gzip.compress(json.dumps(merged, sort_keys=True).encode("utf-8"), mtime=0)
+
+
+EXPLORES_FILE = "explores.json"
+MERGED_MANIFEST_FILE = "artefacts/merged-manifest.json.gz"
+
+
+def publish_explores(published, rows):
+    atomic_write_bytes(
+        Path(published) / EXPLORES_FILE,
+        json.dumps(rows, indent=1, sort_keys=True).encode("utf-8"),
+    )
+
+
+def write_merged_manifest(published, fresh):
+    atomic_write_bytes(
+        Path(published) / MERGED_MANIFEST_FILE, merged_manifest_bytes(fresh)
+    )
+
+
+def save_refresh(store, published, run, explores, events):
+    """Mirror MultiConnectionCompiler.save: publish explores, then persistArtifacts writes the merged manifest and confirms."""
+    publish_explores(published, explores["rows"])
+    write_merged_manifest(published, run["fresh"])
+    return confirm_fresh(
+        store,
+        run["fresh"],
+        events,
+        explores["failed_sources"],
+        explores["unattributed"],
+    )
+
+
+def _run_quiet(argv):
+    return subprocess.run(argv, text=True, capture_output=True, check=False)
+
+
+def make_immutable(directory):
+    if shutil.which("chattr") is None or shutil.which("lsattr") is None:
+        return None
+    if _run_quiet(["chattr", "+i", str(directory)]).returncode != 0:
+        return None
+    listed = _run_quiet(["lsattr", "-d", str(directory)]).stdout.split()
+    if not listed or "i" not in listed[0]:
+        return None
+    return "immutable directory (chattr +i)"
+
+
+def clear_immutable(directory):
+    if Path(directory).exists() and shutil.which("chattr") is not None:
+        _run_quiet(["chattr", "-i", str(directory)])
+
+
+def mount_tiny_tmpfs(directory, size_bytes):
+    if os.geteuid() != 0 or shutil.which("mount") is None:
+        return None
+    pages = -(-size_bytes // 4096) * 4096
+    completed = _run_quiet(
+        [
+            "mount",
+            "-t",
+            "tmpfs",
+            "-o",
+            f"size={pages}",
+            "last-good-harness",
+            str(directory),
+        ]
+    )
+    return f"tmpfs of {pages} bytes" if completed.returncode == 0 else None
+
+
+def tmpfs_bytes_short_of(previous, incoming):
+    """A tmpfs that holds the previous artefact and has less free space than the incoming one."""
+    pages = -(-len(previous) // 4096)
+    free_pages = max(-(-incoming // 4096) - 1, 0)
+    return (pages + free_pages) * 4096
+
+
+def unmount(directory):
+    if Path(directory).exists():
+        _run_quiet(["umount", str(directory)])
+
+
+def release_failure_mechanisms(root):
+    root = Path(root)
+    if not root.exists():
+        return
+    for scenario in root.iterdir():
+        unmount(scenario / "published" / "artefacts")
+        for directory in (
+            scenario / "published",
+            scenario / "published" / "artefacts",
+            *(scenario / "last-good" / project for project in PROJECTS),
+        ):
+            clear_immutable(directory)
+
+
+PUBLICATION_SCENARIOS = (
+    "healthy_save",
+    "publication_failure",
+    "artefact_write_failure",
+    "store_write_failure",
+)
+
+
+def publication_case(dbt, work, store, events):
+    """Real publication and artefact-write failures must leave the last-good state served and unconfirmed."""
+    root = work / "publication"
+    release_failure_mechanisms(root)
+    if root.exists():
+        shutil.rmtree(root)
+    seed_manifests = {project: load_manifest(store, project) for project in PROJECTS}
+    seed_digest = store_digest(store)
+    scenarios = {}
+    for name in PUBLICATION_SCENARIOS:
+        base = root / name
+        scenario_store = base / "last-good"
+        shutil.copytree(store, scenario_store)
+        published = base / "published"
+        (published / "artefacts").mkdir(parents=True)
+        seed_explores = compile_fresh_explores(seed_manifests, base / "seed-explores")
+        publish_explores(published, seed_explores["rows"])
+        write_merged_manifest(published, seed_manifests)
+        confirmed_before = len(events.named(CONFIRMED_EVENT))
+        cache_errors_before = len(events.named(CACHE_ERROR_EVENT))
+        run = ring_refresh(dbt, base / "refresh", scenario_store, PROJECTS)
+        if run["failed"]:
+            raise RuntimeError(f"ring refresh failed before publication: {run}")
+        events.info(
+            *resolved_message(
+                run["owned_injected"], run["package_nodes_omitted"], run["sources"]
+            )
+        )
+        explores = compile_fresh_explores(run["fresh"], base)
+        mechanism = None
+        cleanup = []
+        if name == "publication_failure":
+            mechanism = make_immutable(published)
+            cleanup.append(functools.partial(clear_immutable, published))
+        elif name == "artefact_write_failure":
+            artefacts = published / "artefacts"
+            previous = (published / MERGED_MANIFEST_FILE).read_bytes()
+            incoming = len(merged_manifest_bytes(run["fresh"]))
+            shutil.rmtree(artefacts)
+            artefacts.mkdir()
+            mechanism = mount_tiny_tmpfs(
+                artefacts, tmpfs_bytes_short_of(previous, incoming)
+            )
+            if mechanism is not None:
+                cleanup.append(functools.partial(unmount, artefacts))
+            atomic_write_bytes(published / MERGED_MANIFEST_FILE, previous)
+            if mechanism is None:
+                mechanism = make_immutable(artefacts)
+                cleanup.append(functools.partial(clear_immutable, artefacts))
+        elif name == "store_write_failure":
+            flags = [make_immutable(scenario_store / project) for project in PROJECTS]
+            cleanup.extend(
+                functools.partial(clear_immutable, scenario_store / project)
+                for project in PROJECTS
+            )
+            mechanism = flags[0] if all(flags) else None
+        if name != "healthy_save" and mechanism is None:
+            for action in cleanup:
+                action()
+            raise RuntimeError(
+                f"{name}: this machine offers no way to make the target unwritable"
+            )
+        before = {
+            "store": store_digest(scenario_store),
+            "published": tree_digest(published),
+        }
+        error = None
+        try:
+            rows_written = save_refresh(
+                scenario_store, published, run, explores, events
+            )
+        except OSError as caught:
+            rows_written = None
+            error = {
+                "type": type(caught).__name__,
+                "errno": errno.errorcode.get(caught.errno) if caught.errno else None,
+                "message": str(caught).replace(str(work), ".work/last-good-climb"),
+            }
+        finally:
+            stray = stray_temp_files(published, scenario_store)
+            after = {
+                "store": store_digest(scenario_store),
+                "published": tree_digest(published),
+            }
+            for action in cleanup:
+                action()
+        fallback = ring_refresh(
+            dbt, base / "after-save", scenario_store, ("proj_alpha",)
+        )
+        alpha_after = fallback["projects"]["proj_alpha"]
+        scenarios[name] = {
+            "mechanism": mechanism,
+            "error": error,
+            "rows_written": rows_written,
+            "confirmations_logged": len(events.named(CONFIRMED_EVENT))
+            - confirmed_before,
+            "cache_errors_logged": len(events.named(CACHE_ERROR_EVENT))
+            - cache_errors_before,
+            "store_changed": sorted(
+                project
+                for project in PROJECTS
+                if after["store"][project] != before["store"][project]
+            ),
+            "store_matches_seed": after["store"] == seed_digest,
+            "published_changed": sorted(
+                path
+                for path in set(before["published"]) | set(after["published"])
+                if before["published"].get(path) != after["published"].get(path)
+            ),
+            "published_files": sorted(after["published"]),
+            "stray_temp_files": stray,
+            "fresh_explores": {
+                "compiled": explores["explores_compiled"],
+                "errors": len(explores["errors"]),
+            },
+            "alpha_refresh_after_save": {
+                "returncode": alpha_after["returncode"],
+                "bindings": alpha_after["bindings"],
+                "measure_versions": [
+                    node["version"] for node in measure_nodes(alpha_after)
+                ],
+            },
+            "resolution": {
+                key: value
+                for key, value in run.items()
+                if key in ("owned_injected", "package_nodes_omitted", "fresh_parsed")
+            },
+        }
+    healthy = scenarios["healthy_save"]
+    publication = scenarios["publication_failure"]
+    artefact = scenarios["artefact_write_failure"]
+    store_failure = scenarios["store_write_failure"]
+    seed_binding = {"alpha_report": ["model.proj_beta.measure.v3"]}
+    checks = {
+        "healthy_save_publishes_and_confirms": healthy["error"] is None
+        and healthy["rows_written"] == len(PROJECTS)
+        and healthy["published_changed"]
+        == sorted([EXPLORES_FILE, MERGED_MANIFEST_FILE])
+        and healthy["store_changed"] == sorted(PROJECTS)
+        and healthy["stray_temp_files"] == []
+        and healthy["alpha_refresh_after_save"]["bindings"]
+        == {"alpha_report": ["model.proj_beta.measure.v2"]},
+        "publication_failure_is_a_real_write_error": publication["error"] is not None
+        and publication["error"]["errno"] in ("EPERM", "EACCES", "EROFS", "ENOSPC"),
+        "publication_failure_keeps_last_good": publication["rows_written"] is None
+        and publication["confirmations_logged"] == 0
+        and publication["store_changed"] == []
+        and publication["store_matches_seed"]
+        and publication["published_changed"] == []
+        and publication["stray_temp_files"] == []
+        and publication["alpha_refresh_after_save"]["bindings"] == seed_binding,
+        "artefact_write_failure_is_a_real_write_error": artefact["error"] is not None
+        and artefact["error"]["errno"] in ("ENOSPC", "EPERM", "EACCES", "EROFS"),
+        "artefact_write_failure_keeps_last_good": artefact["rows_written"] is None
+        and artefact["confirmations_logged"] == 0
+        and artefact["store_changed"] == []
+        and artefact["store_matches_seed"]
+        and artefact["published_changed"] == [EXPLORES_FILE]
+        and artefact["stray_temp_files"] == []
+        and artefact["alpha_refresh_after_save"]["bindings"] == seed_binding,
+        "store_write_failure_logs_cache_error_not_confirmation": store_failure["error"]
+        is None
+        and store_failure["rows_written"] is None
+        and store_failure["confirmations_logged"] == 0
+        and store_failure["cache_errors_logged"] == 1
+        and store_failure["store_changed"] == []
+        and store_failure["stray_temp_files"] == []
+        and store_failure["alpha_refresh_after_save"]["bindings"] == seed_binding,
+        "seed_store_unchanged": store_digest(store) == seed_digest,
+    }
+    return {
+        "command": list(REFRESH_COMMAND),
+        "order": [
+            "publish explores",
+            "write merged manifest",
+            "confirm last-good rows",
+        ],
+        "scenarios": scenarios,
+        "checks": checks,
+        "success": all(checks.values()),
+    }
+
+
+MISSING_MODEL = "absent_model"
+WORDING_FINDING = (
+    "The consumer parsed with the provider's confirmed last-good manifest, but the "
+    "message says 'fresh manifest'. crossSourceRefs.ts:541 chooses the word from "
+    "freshCatalogs.has(provider) when the failure is reported at the end of the "
+    "refresh, after the provider has parsed; the catalogue the consumer was given "
+    "is tracked in suppliedConfirmed (crossSourceRefs.ts:454) and is not consulted."
+)
+
+
+def write_missing_ref_copy(project_dir, destination, provider, model=MISSING_MODEL):
+    destination = Path(destination)
+    if destination.exists():
+        shutil.rmtree(destination)
+    shutil.copytree(project_dir, destination)
+    (destination / "models" / "uses_missing.sql").write_text(
+        f"select * from {{{{ ref('{provider}', '{model}') }}}}\n", encoding="utf-8"
+    )
+    return destination
+
+
+def write_leaf_copy(project_dir, destination, drop=("beta_report",)):
+    destination = Path(destination)
+    if destination.exists():
+        shutil.rmtree(destination)
+    shutil.copytree(project_dir, destination)
+    for model in drop:
+        (destination / "models" / f"{model}.sql").unlink()
+    return destination
+
+
+def resolver_task(key, project_dir):
+    return {"key": key, "projectDir": str(project_dir), "bindings": list(BINDINGS[key])}
+
+
+def missing_ref_wording_case(dbt, work, store):
+    """Run the product resolver on real dbt and hold it to the exact missing-ref wording."""
+    root = work / "missing-ref-wording"
+    if root.exists():
+        shutil.rmtree(root)
+    environment = {
+        key: dbt_environment()[key]
+        for key in ("PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE")
+    }
+    seeded_cache = [
+        {"key": project, "manifestPath": str(manifest_path(store, project))}
+        for project in PROJECTS
+    ]
+    alpha_missing = write_missing_ref_copy(
+        DISK / "proj_alpha", root / "projects" / "alpha-missing", "proj_beta"
+    )
+    beta_leaf = write_leaf_copy(DISK / "proj_beta", root / "projects" / "beta-leaf")
+    ring = [resolver_task(project, DISK / project) for project in PROJECTS]
+    missing = {"model": MISSING_MODEL, "packageName": "proj_beta", "version": None}
+    measure = {"model": VERSIONED_MODEL, "packageName": "proj_beta", "version": None}
+    alpha_base = {"model": "alpha_base", "packageName": "proj_alpha", "version": None}
+    plan = {
+        "ring_healthy": (ring, seeded_cache, None),
+        "ring_confirmed_missing": (
+            [resolver_task("proj_alpha", alpha_missing), ring[1]],
+            seeded_cache,
+            missing_ref_reason("proj_alpha", missing, "proj_beta", FRESH),
+        ),
+        "leaf_fresh_missing": (
+            [
+                resolver_task("proj_alpha", alpha_missing),
+                resolver_task("proj_beta", beta_leaf),
+            ],
+            seeded_cache,
+            missing_ref_reason("proj_alpha", missing, "proj_beta", FRESH),
+        ),
+        "leaf_fresh_missing_unconfirmed": (
+            [
+                resolver_task("proj_alpha", alpha_missing),
+                resolver_task("proj_beta", beta_leaf),
+            ],
+            None,
+            unresolved_ref_reason("proj_alpha", missing),
+        ),
+        "ring_withheld": (
+            ring,
+            None,
+            " ".join(
+                [
+                    product_cold_start_reason(
+                        "proj_alpha", measure, "proj_beta", "proj_beta"
+                    ),
+                    product_cold_start_reason(
+                        "proj_beta", alpha_base, "proj_alpha", "proj_alpha"
+                    ),
+                ]
+            ),
+        ),
+    }
+    scenarios = {}
+    for name, (tasks, cache, expected) in plan.items():
+        result = product_path.resolve_refs(
+            work=root / name,
+            dbt=dbt,
+            profiles_dir=PROFILES,
+            profile_name="last_good_climb",
+            target="dev",
+            environment=environment,
+            tasks=tasks,
+            cache=cache,
+        )
+        row = {
+            "cache": "seeded" if cache else "none",
+            "tasks": [task["key"] for task in tasks],
+            "ok": result["ok"],
+            "product_sha": result["productSha"],
+        }
+        if result["ok"]:
+            row["bindings"] = {
+                entry["key"]: entry["bindings"] for entry in result["results"]
+            }
+            row["injected_from"] = {
+                entry["key"]: entry["injectedFrom"] for entry in result["results"]
+            }
+            row["owned_injected"] = result["ownedInjected"]
+        else:
+            dbt_text = "\n".join(
+                line for lines in result["dbtLogs"].values() for line in lines
+            )
+            row["error_class"] = result["errorClass"]
+            row["message"] = result["message"]
+            row["expected"] = expected
+            row["matches_expected"] = result["message"] == expected
+            if name == "ring_confirmed_missing":
+                row["catalog_supplied_to_consumer"] = CONFIRMED
+                row["semantic_expectation"] = missing_ref_reason(
+                    "proj_alpha", missing, "proj_beta", CONFIRMED
+                )
+                row["finding"] = WORDING_FINDING
+            row["dbt_missing_refs"] = parse_missing_refs(dbt_text)
+            row["product_missing_refs"] = product_path.parse_missing(
+                dbt_text, root / name
+            )
+            row["dbt_error_lines"] = [
+                line.replace(str(work), ".work/last-good-climb")
+                for line in dbt_text.splitlines()
+                if UNRESOLVED_TEXT in line
+            ]
+        scenarios[name] = row
+    product_test = product_path.run_wording_test(root / "product-test", dbt)
+    healthy = scenarios["ring_healthy"]
+    failing = [name for name in plan if name != "ring_healthy"]
+    checks = {
+        "product_test_names_confirmed_provider_fresh": not product_test["passed"]
+        and product_test["expected"] is not None
+        and "confirmed last-good manifest" in product_test["expected"]
+        and product_test["received"] is not None
+        and "fresh manifest" in product_test["received"],
+        "product_resolver_binds_the_ring": healthy["ok"]
+        and healthy["bindings"] == BINDINGS
+        and healthy["owned_injected"] == 5,
+        "every_missing_ref_fails_closed": all(
+            not scenarios[name]["ok"]
+            and scenarios[name]["error_class"] == "ParameterError"
+            for name in failing
+        ),
+        "confirmed_provider_is_named_fresh_by_the_product": scenarios[
+            "ring_confirmed_missing"
+        ].get("matches_expected", False),
+        "fresh_wording_is_exact": scenarios["leaf_fresh_missing"].get(
+            "matches_expected", False
+        ),
+        "unconfirmed_fresh_provider_gets_generic_wording": scenarios[
+            "leaf_fresh_missing_unconfirmed"
+        ].get("matches_expected", False),
+        "withheld_wording_is_exact": scenarios["ring_withheld"].get(
+            "matches_expected", False
+        ),
+        "harness_regex_matches_product_parser": all(
+            scenarios[name]["dbt_missing_refs"]
+            and scenarios[name]["dbt_missing_refs"]
+            == scenarios[name]["product_missing_refs"]
+            for name in failing
+            if not scenarios[name]["ok"]
+        ),
+    }
+    return {
+        "resolver": "resolveCrossSourceManifests over DbtCliClient (dbt1.12 -> harness dbt)",
+        "wording_source": "packages/backend/src/projectAdapters/crossSourceRefs.ts:519,541,544",
+        "parser_source": "packages/backend/src/dbt/dbtExternalNodes.ts:98",
+        "product_test": product_test,
+        "scenarios": scenarios,
+        "checks": checks,
+        "success": all(checks.values()),
+    }
+
+
+def expected_confirmations(confirm=None, publication=None):
     expected = [len(PROJECTS), len(PACKAGE_OWNERS)]
-    for scenario in (confirm or {"scenarios": {}})["scenarios"].values():
-        if scenario["rows_written"] is not None:
-            expected.append(scenario["rows_written"])
+    for case in (confirm, publication):
+        for scenario in (case or {"scenarios": {}})["scenarios"].values():
+            if scenario["rows_written"] is not None:
+                expected.append(scenario["rows_written"])
     return expected
 
 
-def expected_resolutions(present, package, fresh=None, confirm=None):
+def expected_resolutions(present, package, fresh=None, confirm=None, publication=None):
     expected = [
         (present["owned_injected"], present["package_nodes_omitted"]),
         (package["owned_injected"], package["package_nodes_omitted"]),
     ]
     for run in (fresh or {"runs": {}})["runs"].values():
         expected.append((run["owned_injected"], run["package_nodes_omitted"]))
-    for scenario in (confirm or {"scenarios": {}})["scenarios"].values():
-        expected.append(
-            (
-                scenario["resolution"]["owned_injected"],
-                scenario["resolution"]["package_nodes_omitted"],
+    for case in (confirm, publication):
+        for scenario in (case or {"scenarios": {}})["scenarios"].values():
+            expected.append(
+                (
+                    scenario["resolution"]["owned_injected"],
+                    scenario["resolution"]["package_nodes_omitted"],
+                )
             )
-        )
     return expected
 
 
-def assert_markers(events, present, package, withheld, fresh=None, confirm=None):
+def assert_markers(
+    events, present, package, withheld, fresh=None, confirm=None, publication=None
+):
     errors = []
     confirmed = events.named(CONFIRMED_EVENT)
     if [entry["meta"]["rowsWritten"] for entry in confirmed] != expected_confirmations(
-        confirm
+        confirm, publication
     ):
         errors.append(
             "last-good confirmations were not logged once per confirmed store"
@@ -1303,7 +2087,7 @@ def assert_markers(events, present, package, withheld, fresh=None, confirm=None)
     if withheld["confirmations_logged"] != 0:
         errors.append("withheld run logged a last-good confirmation")
     resolved = events.named(RESOLVED_EVENT)
-    expected = expected_resolutions(present, package, fresh, confirm)
+    expected = expected_resolutions(present, package, fresh, confirm, publication)
     if [
         (entry["meta"]["ownedInjected"], entry["meta"]["packageNodesOmitted"])
         for entry in resolved
@@ -1325,10 +2109,46 @@ def assert_markers(events, present, package, withheld, fresh=None, confirm=None)
     return errors
 
 
+WITHHELD_MISSING_REFS = {
+    "proj_alpha": [
+        {"model": VERSIONED_MODEL, "packageName": "proj_beta", "version": None}
+    ],
+    "proj_beta": [
+        {"model": "alpha_base", "packageName": "proj_alpha", "version": None}
+    ],
+}
+FAILED_PROVIDER_MISSING_REFS = [
+    {"model": BROKEN_REF, "packageName": None, "version": None}
+]
+
+
 def assert_contract(
-    present, withheld, fidelity, pins, package, events, fresh=None, confirm=None
+    present,
+    withheld,
+    fidelity,
+    pins,
+    package,
+    events,
+    fresh=None,
+    confirm=None,
+    publication=None,
+    wording=None,
 ):
     errors = []
+    if {
+        project: row["missing_refs"] for project, row in withheld["projects"].items()
+    } != WITHHELD_MISSING_REFS:
+        errors.append(
+            "withheld dbt output did not match the product missing-ref parser"
+        )
+    if (
+        fresh is not None
+        and fresh["runs"]["failed_provider"]["projects"]["proj_beta"]["missing_refs"]
+        != FAILED_PROVIDER_MISSING_REFS
+    ):
+        errors.append(
+            "failed provider output did not match the product missing-ref parser"
+        )
     if pins["packages"].get("dbt-core") != "1.12.0":
         errors.append("dbt-core is not pinned to 1.12.0")
     if pins["dbt_loom_installed"]:
@@ -1393,19 +2213,28 @@ def assert_contract(
         errors.append("owner projection did not export exactly its own public model")
     if package["ownerless_projection"]["nodes"] != 0:
         errors.append("a manifest without an owner identity exported nodes")
-    for label, case in (("fresh-over-seed", fresh), ("per-provider confirm", confirm)):
+    for label, case in (
+        ("fresh-over-seed", fresh),
+        ("per-provider confirm", confirm),
+        ("publication", publication),
+        ("missing-ref wording", wording),
+    ):
         if case is None:
             continue
         for check, passed in case["checks"].items():
             if not passed:
                 errors.append(f"{label} check failed: {check}")
-    errors.extend(assert_markers(events, present, package, withheld, fresh, confirm))
+    errors.extend(
+        assert_markers(events, present, package, withheld, fresh, confirm, publication)
+    )
     return errors
 
 
 def relative_output(value):
     return json.loads(
-        json.dumps(value).replace(str(SIM), "examples/multi-repo-dbt-sim")
+        json.dumps(value)
+        .replace(str(SIM), "examples/multi-repo-dbt-sim")
+        .replace(str(product_path.product_root()), "<product-root>")
     )
 
 
@@ -1451,9 +2280,31 @@ def main():
     package = package_case(args.dbt, args.work, events)
     fresh = fresh_over_seed_case(args.dbt, args.work, store, events)
     confirm = per_provider_confirm_case(args.dbt, args.work, store, events)
+    publication = publication_case(args.dbt, args.work, store, events)
+    wording = missing_ref_wording_case(args.dbt, args.work, store)
     errors = assert_contract(
-        present, withheld, fidelity, pins, package, events, fresh, confirm
+        present,
+        withheld,
+        fidelity,
+        pins,
+        package,
+        events,
+        fresh,
+        confirm,
+        publication,
+        wording,
     )
+    product = {
+        "root": str(product_path.product_root()),
+        "sha": product_path.product_sha(),
+        "steps": [
+            "compile-explores: DbtBaseProjectAdapter._validateDbtModel, attachTypesToModels, convertExplores",
+            "resolve-refs: resolveCrossSourceManifests over DbtCliClient",
+            "parse-missing: parseMissingDbtNodeReferences",
+        ],
+    }
+    if product["sha"] is None:
+        errors.append("product checkout revision could not be read")
     report = relative_output(
         {
             "case": "last-good-manifest-climb",
@@ -1470,6 +2321,9 @@ def main():
             "package_share": package,
             "fresh_over_seed": fresh,
             "per_provider_confirm": confirm,
+            "publication": publication,
+            "missing_ref_wording": wording,
+            "product_path": product,
             "markers": events.entries,
             "withheld": {
                 key: value for key, value in withheld.items() if key != "projects"
@@ -1498,7 +2352,7 @@ def main():
         return 1
     print(
         "present PASS withheld PASS package-share PASS fresh-over-seed PASS "
-        "per-provider-confirm PASS",
+        "per-provider-confirm PASS publication PASS missing-ref-wording PASS",
         flush=True,
     )
     return 0

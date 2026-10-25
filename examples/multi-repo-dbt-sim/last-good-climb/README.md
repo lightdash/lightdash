@@ -26,6 +26,11 @@ has not parsed yet or whose parse failed. Each provider confirms on its own:
 an explore error attributed to one source withholds only that source's
 confirmation, an unattributed error withholds every confirmation.
 
+Three steps run the product's own code from a checkout of the tip rather
+than a harness model of it: explore compilation, the cross-source resolver
+with its exact missing-ref wording, and the product's real-dbt wording test.
+See [Product checkout](#product-checkout).
+
 ## Graph
 
 `proj_alpha` and `proj_beta` form a project ring:
@@ -83,6 +88,35 @@ Unit checks that do not invoke dbt:
 ```bash
 python3 -m unittest examples/multi-repo-dbt-sim/tests/test_last_good_climb.py
 ```
+
+## Product checkout
+
+The explore compile, the resolver wording and the product's own wording test
+run real product TypeScript through `tsx`. `product_path.ts` imports
+`DbtBaseProjectAdapter._validateDbtModel`, `attachTypesToModels`,
+`convertExplores`, `resolveCrossSourceManifests`, `DbtCliClient` and
+`parseMissingDbtNodeReferences` from a checkout and writes JSON for
+`product_path.py` to read. The checkout defaults to the repository that
+contains this fixture. To measure against another revision, prepare a
+detached checkout in the ignored work directory and point the runner at it:
+
+```bash
+examples/multi-repo-dbt-sim/last-good-climb/product-checkout.sh 009bd6418922b760be5e5793217238d929299b88
+LAST_GOOD_PRODUCT_ROOT=examples/multi-repo-dbt-sim/.work/product/009bd6418922b760be5e5793217238d929299b88 \
+  examples/multi-repo-dbt-sim/run-last-good
+```
+
+The script adds a `git worktree` at that revision, reuses this checkout's
+installed `node_modules` by symlink with the `@lightdash/*` entries pointed
+at the detached sources, and builds `common` and `warehouses` there. It
+installs nothing and changes no branch. The backend config parser needs a
+secret and storage settings to load; `product_path.py` supplies harness-only
+placeholder values. The report records the checkout and its revision under
+`product_path`.
+
+The product's dbt client runs a `dbt1.12` command from `PATH`. The harness
+exposes its venv `dbt` under that name in the work directory for the
+resolver and the product test only.
 
 ## Present
 
@@ -207,31 +241,163 @@ an unattributed explore error sets `successfulCompile` false and nothing
 confirms. `replaceConfirmed` upserts, so a discarded provider keeps its
 earlier confirmed row.
 
-The harness compiles no explores, so the explore error is a modelled
-signal: each scenario declares which sources failed, or that the error has
-no source. The parse and the store writes are real. Each scenario copies
-the seeded store, runs the ring in `alpha_first` order, confirms, then
-refreshes `proj_alpha` once more against the scenario store.
+The explore errors are real. Each scenario runs the ring, writes the fresh
+manifests to the work directory, and compiles them with the product's
+explore compiler from the checkout: external nodes are stripped
+(`stripExternalDbtNodes`), model and seed nodes are stamped with a fixed
+synthetic `lightdash_source_uuid` as `CompileGroup` does, then
+`DbtBaseProjectAdapter._validateDbtModel`, `attachTypesToModels` over a
+catalogue built from the schema `data_type`s, and `convertExplores` with
+`includeModelIdentity` run. The harness has no warehouse, so that catalogue
+stands in for the warehouse fetch. Attribution follows
+`MultiConnectionCompiler.save`: `dbtModelIdentity.sourceUuid`, then the
+base table's `dbtSourceUuid`, then the stamped `dbtSourceUuid`; an error
+with none of those is unattributed.
 
-| Scenario | Explore error | Rows written | Store rows replaced | `proj_alpha` after confirm |
-| --- | --- | ---: | --- | --- |
-| `healthy` | none | 2 | both | binds `measure.v2` from the new `proj_beta` row |
-| `other_source_error` | attributed to `proj_beta` | 1 | `proj_alpha` only | binds `measure.v3` from the retained seed |
-| `every_source_error` | attributed to both | 0 | none | binds `measure.v3` |
-| `unattributed_error` | no source | none | none | binds `measure.v3` |
+A broken source is a copy of its disk project plus `bad_meta`, a protected
+model dbt parses but whose Lightdash metadata declares a metric of type
+`not_a_metric_type`. The schema validator rejects it with
+`METADATA_PARSE_ERROR`. The model is protected so the injection counts do
+not move. The unattributed scenario compiles the same broken manifest
+without stamping a source identity, which is the product's
+`sourceUuid: null` fallback.
+
+| Scenario | Broken source | Identity stamped | Rows written | Store rows replaced | `proj_alpha` after confirm |
+| --- | --- | --- | ---: | --- | --- |
+| `healthy` | none | yes | 2 | both | binds `measure.v2` from the new `proj_beta` row |
+| `other_source_error` | `proj_beta` | yes | 1 | `proj_alpha` only | binds `measure.v3` from the retained seed |
+| `every_source_error` | both | yes | 0 | none | binds `measure.v3` |
+| `unattributed_error` | `proj_beta` | no | none | none | binds `measure.v3` |
 
 Pass:
 
-- `healthy` writes both rows and the stored `proj_beta` row now declares
-  latest version 2
-- `other_source_error` writes one row and logs one confirmation; the
-  `proj_beta` row still declares latest version 3 and the next `proj_alpha`
-  refresh binds v3
-- `every_source_error` writes nothing and logs `rowsWritten=0`, because
-  `confirm()` logs after `replaceConfirmed` returns early on an empty entry
-  list
-- `unattributed_error` writes nothing and logs no confirmation
+- `healthy` compiles every real model into an explore with no error, writes
+  both rows, and the stored `proj_beta` row now declares latest version 2
+- `other_source_error` has exactly one explore error, on `bad_meta`,
+  attributed to `proj_beta`; it writes one row and logs one confirmation;
+  the `proj_beta` row still declares latest version 3 and the next
+  `proj_alpha` refresh binds v3
+- `every_source_error` has one `bad_meta` error per source, writes nothing
+  and logs `rowsWritten=0`, because `confirm()` logs after
+  `replaceConfirmed` returns early on an empty entry list
+- `unattributed_error` has one error with no source, writes nothing and
+  logs no confirmation
 - the seeded store used by the other cases is unchanged
+
+## Publication and artefact writes
+
+`MultiConnectionCompiler.save` publishes the explores first, then
+`persistArtifacts` writes the merged manifest and finally confirms the
+last-good rows. A throw in publication means `persistArtifacts` never runs;
+a throw in the merged-manifest write means `confirm()` never runs. The
+store write itself is wrapped: `CrossSourceCatalogCache.confirm` catches,
+logs `dbt.compile.crossSourceCacheError` and writes no row.
+
+The harness mirrors that order with real file writes in the work directory:
+`published/explores.json` for the publication, then
+`published/artefacts/merged-manifest.json.gz` for the merged manifest, then
+the store rows. Every write goes through a sibling temp file and a rename,
+and a failed write removes its temp file. Each scenario first publishes the
+seeded state as the previous good publication, then runs the ring, compiles
+the fresh explores, and saves. The failures are real operating-system
+errors at the write boundary, not flags:
+
+| Scenario | Mechanism | Error | Explores published | Merged manifest | Rows written |
+| --- | --- | --- | --- | --- | --- |
+| `healthy_save` | none | none | yes | written | 2 |
+| `publication_failure` | `chattr +i` on `published/` | `EPERM` | no | unchanged | none |
+| `artefact_write_failure` | tmpfs on `artefacts/` with less free space than the incoming gzip | `ENOSPC` | yes | unchanged | none |
+| `store_write_failure` | `chattr +i` on both store directories | caught, `EPERM` | yes | written | none |
+
+The tmpfs is sized to hold the previous artefact and leave fewer free bytes
+than the incoming one, so the write runs out of space rather than being
+refused up front. Both mechanisms need root on a filesystem that supports
+the immutable attribute; the run fails loudly when neither is available
+instead of simulating.
+
+Pass:
+
+- `healthy_save` changes both published files and both store rows, leaves
+  no temp file, and the next `proj_alpha` refresh binds `measure.v2`
+- `publication_failure` raises a real `EPERM`; the previous explores and
+  merged manifest are byte-identical, no store row changes, no confirmation
+  is logged, no temp file remains, and `proj_alpha` still binds `measure.v3`
+- `artefact_write_failure` raises a real `ENOSPC` after the explores were
+  published, as the product would have committed them; the previous merged
+  manifest is byte-identical, no store row changes, no confirmation is
+  logged, no temp file remains, and `proj_alpha` still binds `measure.v3`
+- `store_write_failure` raises nothing to the caller, logs one
+  `dbt.compile.crossSourceCacheError` with `code` `EPERM` and no
+  confirmation, changes no store row, and `proj_alpha` still binds
+  `measure.v3`
+
+## Missing-ref wording
+
+dbt reports a missing ref as
+`Model 'model.proj_alpha.alpha_report' (models/alpha_report.sql) depends on
+a node named 'measure' in package or project 'proj_beta' which was not
+found`. The product parses that with the regular expression at
+`packages/backend/src/dbt/dbtExternalNodes.ts:98` and rewrites it in
+`packages/backend/src/projectAdapters/crossSourceRefs.ts` (`failureReason`).
+The harness carries the same regular expression, checks it against every
+failing dbt output in the withheld and failed-provider runs, and compares
+its parse with the product's `parseMissingDbtNodeReferences` on the same
+text.
+
+The wording itself comes from the product resolver. The harness runs
+`resolveCrossSourceManifests` over `DbtCliClient` tasks on the ring, with
+and without the seeded catalogues, and compares the thrown `ParameterError`
+message with the text composed from the product's templates:
+
+| Scenario | Store | Projects | Expected template |
+| --- | --- | --- | --- |
+| `ring_healthy` | seeded | ring | no error; binds v3 and `alpha_base`, 5 stubs |
+| `ring_confirmed_missing` | seeded | `proj_alpha` plus `uses_missing` -> `ref('proj_beta', 'absent_model')`, ring `proj_beta` | `crossSourceRefs.ts:541`, see the finding below |
+| `leaf_fresh_missing` | seeded | the same consumer, `proj_beta` without `beta_report` so it parses first | `crossSourceRefs.ts:541` with `fresh manifest` |
+| `leaf_fresh_missing_unconfirmed` | none | the same pair | `crossSourceRefs.ts:544`, the generic text |
+| `ring_withheld` | none | ring | `crossSourceRefs.ts:390` plus `:519` for each source |
+
+Exact texts the tip emits on this fixture:
+
+```text
+dbt source "proj_alpha" references ref('proj_beta', 'absent_model'), but the fresh manifest of dbt source "proj_beta" does not define that model (or version).
+dbt source "proj_alpha" references ref('proj_beta', 'absent_model'), which could not be resolved from its selected public upstreams. Declare the upstream project in dependencies.yml or use a literal ref('project', 'model').
+Cold start: dbt source "proj_alpha" references dbt source "proj_beta" (project "proj_beta"), but that upstream source has no confirmed last-good manifest. This refresh will try to seed the upstream in dependency order before compiling this consumer. dbt source "proj_alpha" could not resolve ref('proj_beta', 'measure') during its single parse.
+```
+
+Finding, confirmed-provider wording. In `ring_confirmed_missing` the
+consumer parses first and is handed `proj_beta`'s confirmed last-good
+catalogue, yet the message says `fresh manifest`. The word is chosen at
+`crossSourceRefs.ts:541` from `freshCatalogs.has(provider)` when the
+failures are reported after the whole refresh (`:743`), by which time
+`proj_beta` has parsed on its own. The catalogue the consumer actually
+received is tracked in `suppliedConfirmed` (`:454`) and is not consulted.
+The product's own real-dbt test pins the semantic text,
+`crossSourceRefs.realDbt.test.ts:1132`
+(`names the consumer, provider and missing numeric version`, expecting
+`confirmed last-good manifest`), and it fails on the tip with `fresh
+manifest`. That test only runs when `LIGHTDASH_TEST_DBT_EXECUTABLES` is
+set, so CI has not exercised it. The harness runs that test from the
+checkout and records its expected and received text under
+`missing_ref_wording.product_test`. The check
+`product_test_names_confirmed_provider_fresh` and the scenario expectation
+pin today's behaviour; both flip when the resolver is fixed, which is the
+signal to move the expectation to `confirmed last-good manifest`. No
+product code is changed here.
+
+Finding, unconfirmed fresh provider. In `leaf_fresh_missing_unconfirmed`
+the provider parsed in this refresh and its fresh manifest lacks the model,
+but it has no confirmed row, so the branch at `:536` is skipped and the
+consumer gets the generic `:544` text, which advises declaring the project
+in `dependencies.yml` or using a literal `ref('project', 'model')`. The
+consumer already uses the literal form. The informative `fresh manifest ...
+does not define that model` text is reserved for providers that also have a
+confirmed row.
+
+The CLI has no cross-source wording of its own. `lightdash compile` runs
+dbt locally without injected nodes and surfaces dbt's `which was not found`
+text; the server adds `CROSS_SOURCE_REFS_HINT` to that text only when the
+organisation flag is off (`dbtExternalNodes.ts:137`).
 
 ## Log markers
 
@@ -245,10 +411,13 @@ store write, after the manifests are on disk. The text is
 connectionGroup=original`; the fields are `event`, `projectUuid`,
 `connectionGroup` and `rowsWritten`. The ring seed writes 2 rows and the
 package seed writes 2 rows. The per-provider scenarios write 2, 1 and 0
-rows in that order and the unattributed scenario logs nothing. The
-withheld run writes nothing and must not log a confirmation. The project
-UUID and connection group are fixed synthetic values; the harness has no
-project table.
+rows in that order and the unattributed scenario logs nothing. The healthy
+publication save writes 2 rows; the three publication failures log no
+confirmation, and the store write failure logs
+`dbt.compile.crossSourceCacheError` with `event`, `message` and `code`
+instead, as `CrossSourceCatalogCache.confirm` does. The withheld run writes
+nothing and must not log a confirmation. The project UUID and connection
+group are fixed synthetic values; the harness has no project table.
 
 `dbt.compile.crossSourceRefsResolved` is emitted once per resolution. The
 text ends with ` ownedInjected=X packageNodesOmitted=Y`; the fields include
@@ -257,8 +426,8 @@ text ends with ` ownedInjected=X packageNodesOmitted=Y`; the fields include
 disk pool, so `diskEvictions` and `diskRecreations` are 0. The ring
 resolution reports 4 and 0. The package resolution reports 2 and 2. The
 three fresh-over-seed runs report 5, 5 and 4 with 0 omitted, and each
-per-provider scenario reports 5 and 0. The contract fails if a count, the
-text suffix, or a field name drifts.
+per-provider and publication scenario reports 5 and 0. The contract fails
+if a count, the text suffix, or a field name drifts.
 
 The harness counts each stored manifest once per resolution. The product
 counts package nodes when it loads older confirmed rows and again when it
@@ -312,15 +481,51 @@ The fresh-over-seed runs used the same disk and store. `alpha_first` read
 'missing_model' which was not found`; `proj_alpha` then read `proj_beta` as
 `confirmed` and bound `measure.v3`. The store digests were unchanged.
 
-The per-provider scenarios wrote 2, 1, 0 rows and then nothing. After the
+The per-provider scenarios compiled explores with the product compiler
+from checkout `009bd6418922b760be5e5793217238d929299b88`. `healthy`
+compiled all 6 real models (2 in `proj_alpha`, 4 in `proj_beta`) with no
+error. `other_source_error` compiled 6 of 7 and reported one
+`METADATA_PARSE_ERROR` on `bad_meta` attributed to `proj_beta`:
+`Model "bad_meta" from dbt source "proj_beta": Field at
+/meta/metrics/broken/type must be equal to one of the allowed values.`
+`every_source_error` compiled 6 of 8 with one such error per source.
+`unattributed_error` compiled 6 of 7 and its error read `Model
+"bad_meta": Field at ...` with no source name and no source UUID. The
+scenarios wrote 2, 1, 0 rows and then nothing. After the
 `other_source_error` confirm the `proj_alpha` row held the fresh manifest
 and the `proj_beta` row still declared latest version 3; the next
 `proj_alpha` refresh bound `measure.v3`. After the `healthy` confirm the
 same refresh bound `measure.v2`.
 
-The markers recorded were confirmations with `rowsWritten` 2, 2, 2, 1, 0
-and resolutions with `ownedInjected` 4, 2, 5, 5, 4, 5, 5, 5, 5
-(`packageNodesOmitted` 2 for the package resolution and 0 elsewhere).
+The publication scenarios ran as root on ext4. `publication_failure` hit
+`EPERM` opening `explores.json.tmp-<pid>` inside the immutable `published/`
+directory; nothing was published, nothing confirmed, no temp file remained,
+and `proj_alpha` bound `measure.v3`. `artefact_write_failure` mounted a
+4096-byte tmpfs holding the previous gzip and hit `ENOSPC` on the incoming
+one; `explores.json` had been published, the gzip was byte-identical, no
+row changed and no confirmation was logged. `store_write_failure` logged
+one `dbt.compile.crossSourceCacheError` with `code` `EPERM`, wrote no row
+and no confirmation, and `proj_alpha` bound `measure.v3`. `healthy_save`
+wrote both files and both rows and `proj_alpha` bound `measure.v2`.
+
+The resolver scenarios ran the product `resolveCrossSourceManifests` with
+`DbtCliClient` on the harness dbt. `ring_healthy` bound
+`model.proj_beta.measure.v3` and `model.proj_alpha.alpha_base` with 5
+stubs, the same as the Python climb. The four failing scenarios each threw
+`ParameterError` with the texts quoted under Missing-ref wording;
+`ring_confirmed_missing` said `fresh manifest`, the harness regular
+expression and `parseMissingDbtNodeReferences` agreed on every dbt output,
+and the product's own wording test failed with the expected and received
+texts recorded in the report.
+
+The dbt outputs of the withheld and failed-provider runs parsed to
+`measure` in `proj_beta`, `alpha_base` in `proj_alpha`, and
+`missing_model` with no package, matching the product parser.
+
+The markers recorded were confirmations with `rowsWritten` 2, 2, 2, 1, 0,
+2 and resolutions with `ownedInjected` 4, 2, 5, 5, 4, then 5 for each of
+the eight per-provider and publication refreshes (`packageNodesOmitted` 2
+for the package resolution and 0 elsewhere), plus one cache error.
 
 ## Recorded divergences
 
@@ -342,19 +547,18 @@ These are harness notes. They are not product changes.
   it. This harness does not copy that check. A cycle whose two ends are
   both injected is a different case: `dbt ls` reports `Found a cycle` and
   `dbt parse` does not. The runner checks that pair.
-- Explore errors are modelled. The per-provider scenarios declare which
-  sources carry an explore error instead of compiling explores. The
-  product attributes an error through `dbtModelIdentity.sourceUuid`, the
-  base table's `dbtSourceUuid`, or the stamped `dbtSourceUuid`; the
-  harness has none of those and takes the source name directly.
-- Fresh-manifest wording is not checked. The product's missing-ref message
-  says `fresh manifest` when the provider parsed this run and `confirmed
-  last-good manifest` otherwise. The harness never produces that message:
-  a missing ref surfaces as the dbt `which was not found` failure.
-- Publication and artefact-write failures are not run. The product
-  withholds every confirmation when explore publication or the merged
-  manifest write throws. The harness has neither step, so it covers the
-  attributed, every-source and unattributed error paths only.
+- Explore types come from the schema. The product attaches column types
+  from a warehouse catalogue fetch; the harness has no warehouse and
+  builds that catalogue from each column's `data_type`. The validator,
+  type attachment and conversion are the product's.
+- The harness cold-start warning is its own text. The product's cold-start
+  sentence (`crossSourceRefs.ts:390`) is asserted through the resolver
+  scenarios; the Python withheld run prints the shorter harness warning.
+- Publication and the merged manifest are files. The product writes both
+  to Postgres; the harness writes them under `published/` with temp-file
+  renames and forces failures with the immutable attribute and a tiny
+  tmpfs. The per-row store write is staged and renamed together, where the
+  product's `replaceConfirmed` is one upsert.
 - Duplicate ids are not a divergence. `injection_for` raises before dbt
   when two upstreams export the same public id. With the owner filter that
   needs two sources that claim the same project name; two owners of the
@@ -368,13 +572,9 @@ no-store baseline. Both this proof and the scale probe inject only real
 models, seeds, and snapshots whose resolved access is `public` and whose
 `package_name` is the stored manifest's owner. Protected and private nodes
 are omitted, including when `access` is unset. That is the dbt Mesh share
-surface limited to project-owned resources. The scale fixtures install no
-package, so the owner filter changes none of their counts; the recorded
-scale run predates it and was not re-measured. The climb does not inject
-every real model and then filter by ref. The recorded scale timings below are
-still `dbt parse`. The refresh proof above is `dbt ls`. The scale probe
-was not re-run for that command change, so its table is the earlier
-public-only measurement.
+surface limited to project-owned resources. The climb does not inject
+every real model and then filter by ref. The scale timings are `dbt parse`;
+the refresh proof above is `dbt ls`.
 
 ```bash
 examples/multi-repo-dbt-sim/run-last-good-scale
@@ -389,55 +589,86 @@ examples/multi-repo-dbt-sim/run-last-good-scale --fixture both
 
 It writes `examples/multi-repo-dbt-sim/reports/last-good-scale.json`.
 Top-level fields are the large-org case. `fixtures` lists every measured
-case. `--fixture full` measures only the 22-source generator.
+case. `--fixture full` measures only the 22-source generator. `machine`
+records the host, kernel, CPU model, CPU count and memory of the run.
+
+The generators keep their recorded shapes; `scale_additions.py` applies
+three additions to the generated fixture before anything is parsed, and
+the report records them under `scale_additions`:
+
+- every source gets `<source>_public_seed`, a seed with `config.access:
+  public`, and `<source>_history`, a YAML snapshot of that seed with
+  `config.access: public`. The generators' existing `<source>_seed` has no
+  access and stays local;
+- `pkg_shared_assets` is a local dbt package with a public seed, a public
+  snapshot and a public model. The consumer's first two upstreams install
+  it with `packages.yml`, and the probe runs `dbt deps` in those two repos
+  before their baseline parse. The three package nodes appear in each
+  installer's stored manifest and must not cross: the injector counts them
+  under `package_nodes_omitted`, refuses a payload that carries one, and
+  the climb refuses a consumer manifest that contains one;
+- the consumer gets `uses_public_assets`, which references its first
+  upstream's public seed and snapshot under the bootstrap stub. The climb
+  manifest must bind `seed.<upstream>.<upstream>_public_seed` and
+  `snapshot.<upstream>.<upstream>_history`, so the injected seeds and
+  snapshots are proven to resolve, not only to be present.
 
 RSS uses `/usr/bin/time -v`. The field is `Maximum resident set size
-(kbytes)`, multiplied by 1024. `peak_rss_bytes` is the recorded climb
-`dbt parse`, not the refresh `dbt ls`.
+(kbytes)`, multiplied by 1024. `peak_rss_bytes` is the climb `dbt parse`.
 `injector_peak_rss_bytes` is a separate Python process that loads the other
-manifests and writes the external-node payload. `baseline.peak_rss_bytes`
-is the highest per-source stubbed parse. Each timed command is one process.
-The large-org profile's compile concurrency is 4; this probe does not
-reproduce that. It also does not start the loopback Git server, so
-`checkout_bytes` is the materialized project tree (`target/`, `logs/`,
-`dbt_packages/`, and `.git` excluded), not pack transfer or a disk eviction.
+manifests and writes the external-node payload; it now also imports the
+fixture generator module for the package name, so it is not comparable
+with the earlier injector figure. `baseline.peak_rss_bytes` is the highest
+per-source stubbed parse. Each timed command is one process. The large-org
+profile's compile concurrency is 4; this probe does not reproduce that. It
+also does not start the loopback Git server, so `checkout_bytes` is the
+materialized project tree (`target/`, `logs/`, `dbt_packages/`, and `.git`
+excluded), not pack transfer or a disk eviction.
 
 The timed climb injects public models, seeds, and snapshots from every
-other source. It does not apply the ref filter. These fixtures set
-`access: public` on every model. Their seeds have no access, and they have
-no snapshots, so seeds and snapshots stay out of the inject surface. The
-omitted non-public model count is 0 and the injected node count matches
-the earlier public-only run. The recorded scale numbers below were not
-re-run when the inject surface grew, and they were not re-run when the
-refresh proof moved to `dbt ls`. `ref_filtered_*` is the smaller payload
-that a ref filter would keep. The withheld scale command is still
-`dbt parse`. It injects nothing, must exit non-zero with
-`which was not found`, and must not create a manifest.
+other source. It does not apply the ref filter. `ref_filtered_*` is the
+smaller payload that a ref filter would keep. The withheld scale command is
+still `dbt parse`. It injects nothing, must exit non-zero with `which was
+not found`, and must not create a manifest.
 
-On the recorded public-only run, dbt-core was 1.12.0, dbt-postgres resolved
-to 1.10.2, dbt-loom was absent, and Python was 3.12.3.
+The run on 25 October 2026 used dbt-core 1.12.0, dbt-postgres 1.10.2, no
+dbt-loom and Python 3.12.3 on `charlie-lightdash-dev` (AMD EPYC 9554P, 8
+CPUs, 33648496640 bytes of memory, kernel 6.12.113). The earlier public-only
+run did not record its machine. Its headline is kept under
+`previous_public_only` and each fixture carries
+`delta_vs_previous_public_only`.
 
-| Fixture | Sources | Models | Artefact bytes | Climb RSS bytes | Climb seconds | Baseline checkout bytes | Baseline parse seconds | Baseline peak RSS bytes |
+| Fixture | Sources | Models | Artefact bytes before | after | delta | Climb RSS bytes before | after | delta | Climb seconds before | after | delta |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| large-org healthy | 19 | 49 | 10321720 | 10460982 | +139262 | 133611520 | 136982528 | +3371008 | 2.53 | 3.548 | +1.018 |
+| full | 22 | 3000 | 24698281 | 24855437 | +157156 | 178114560 | 180355072 | +2240512 | 4.224 | 5.87 | +1.646 |
+
+| Fixture | Baseline parse seconds before | after | delta | Baseline peak RSS before | after | delta | Baseline checkout bytes before | after |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| large-org healthy | 19 | 49 | 10321720 | 133611520 | 2.53 | 125473 | 48.577 | 133357568 |
-| full | 22 | 3000 | 24698281 | 178114560 | 4.224 | 4509327 | 70.394 | 188633088 |
+| large-org healthy | 48.577 | 63.472 | +14.895 | 133357568 | 136777728 | +3420160 | 125473 | 161422 |
+| full | 70.394 | 94.176 | +23.782 | 188633088 | 190586880 | +1953792 | 4509327 | 4552215 |
 
-The full fixture has 3001 manifest model nodes. The extra node is the
-versioned `rate` model. Large-org injected 44 public nodes (12117 bytes)
-into `proj_core` and omitted 0 non-public models. Full injected 2901
-public nodes (862923 bytes) into `growth` and omitted 0. The ref filter
-would have kept 2 nodes in each case (630 and 525 bytes). Those filtered
-payloads were not the timed parses. Injector RSS was 24023040 bytes
-(0.086 seconds) and 72302592 bytes (0.211 seconds). Withheld parses exited
-2: 2.414 seconds and 130748416 bytes, then 2.762 seconds and 133718016
-bytes.
+Large-org injected 80 nodes into `proj_core`: 44 models, 18 public seeds
+and 18 public snapshots, 23973 payload bytes (12117 before). It omitted 18
+non-public seeds, 0 non-public models and 6 installed-package nodes from
+`proj_bank` and `proj_bank_reporting`; 0 package nodes reached the payload
+or the consumer manifest. `uses_public_assets` bound
+`seed.proj_bank.proj_bank_public_seed` and
+`snapshot.proj_bank.proj_bank_history`. The ref filter would have kept 4
+nodes (1302 bytes). Full injected 2943 nodes into `growth`: 2901 models,
+21 seeds and 21 snapshots, 876819 payload bytes (862923 before), omitted 21
+non-public seeds and 6 package nodes from `payments` and `merchants`, and
+bound `seed.payments.payments_public_seed` and
+`snapshot.payments.payments_history`. Per-source artefacts grew between
+5911 and 16817 bytes on large-org and between 5838 and 16295 bytes on full;
+the two installers in each fixture carry the larger growth because their
+manifests also hold the package nodes. Withheld parses exited 2 in 3.212
+and 3.938 seconds. The climb that previously bound only models now also
+carries the seed and snapshot nodes dbt must resolve, so the parse-time
+deltas include that work as well as run-to-run noise; no climb exceeded
+the baseline per-source parse.
 
-The prior inject-all run, kept under `previous_inject_all` in the JSON,
-injected the same 44 and 2901 nodes and the same 12117 and 862923 payload
-bytes. Artefact totals moved by 86 and 65 bytes. Climb RSS moved from
-133746688 to 133611520 bytes and from 178040832 to 178114560 bytes. Climb
-time moved from 2.531 to 2.53 seconds and from 4.343 to 4.224 seconds.
-Checkout bytes were unchanged. Per-source sizes are in the JSON.
+The prior inject-all run is kept under `previous_inject_all` in the JSON.
 
 ## Out of scope
 

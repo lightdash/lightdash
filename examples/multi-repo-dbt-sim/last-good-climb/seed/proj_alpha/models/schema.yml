@@ -2,3 +2,9 @@ version: 2
 models:
     - name: alpha_base
       access: public
+      columns:
+          - name: id
+            data_type: integer
+            meta:
+                dimension:
+                    type: number
