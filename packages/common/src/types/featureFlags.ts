@@ -14,7 +14,6 @@ export enum FeatureFlags {
      */
     AgentIdentity = 'agent-identity',
     OAuthScopeEnforcement = 'oauth-scope-enforcement',
-    AgentIdentitySilentRefresh = 'agent-identity-silent-refresh',
 
     MultiConnectionProjects = 'multi-connection-projects',
     /** Extra warehouse connections of a different type to the project's original connection. */
@@ -88,12 +87,6 @@ export enum FeatureFlags {
      * sandbox provider, but still keeps installed chart types usable.
      */
     EnableDataApps = 'enable-data-apps',
-
-    /**
-     * Read hyphenated warehouse identifiers in agent SQL scope checks.
-     * On by default; the flag is a kill switch only.
-     */
-    AgentSqlScopeHyphenatedIdentifiers = 'agent-sql-scope-hyphenated-identifiers',
 
     /**
      * AI access (in-app agent, Slack agent, MCP) skips the results cache,

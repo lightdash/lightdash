@@ -8,18 +8,12 @@ export type AgentCredentialFailure =
               | 'missing'
               | 'unusable'
               | 'source_changed'
-              | 'binding_mismatch'
-              | 'expired';
+              | 'binding_mismatch';
       }
     | { kind: 'client'; classification: 'missing' }
     | {
           kind: 'refresh';
-          classification:
-              | 'grant_gone'
-              | 'temporary'
-              | 'configuration'
-              | 'legacy_grant_gone'
-              | 'legacy_failure';
+          classification: 'grant_gone' | 'temporary' | 'configuration';
       }
     | {
           kind: 'session';

@@ -144,6 +144,10 @@
                     "mcp": []
                 }
             }
+        },
+        "agent-refresh-and-sql-lexer-flags-removed": {
+            "reason": "The AgentIdentitySilentRefresh and AgentSqlScopeHyphenatedIdentifiers members are removed from the exported FeatureFlags enum. TypeScript consumers that reference these rollout flags must remove those references. Snowflake agent sign-ins always use silent refresh, and agent SQL scope checks always support hyphenated identifiers. Existing authorization and warehouse setup requirements still apply.",
+            "requiredStop": false
         }
     }
 }

@@ -1,12 +1,10 @@
 import {
     AgentIdentityConnectEntryPoint,
     assertUnreachable,
-    FeatureFlags,
     type UserWarehouseCredentialsWithAgentStatus,
 } from '@lightdash/common';
 import { Badge, Button, Group, Paper, Stack, Text, Title } from '@mantine/core';
 import { useState } from 'react';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     SnowflakeSignInPopupBlockedError,
     useSnowflakeAiLoginPopup,
@@ -17,7 +15,6 @@ import {
     getSnowflakeAgentStatus,
     type SnowflakeAgentStatus,
 } from './snowflakeAgentStatus';
-import { useExpiryTimer } from './useExpiryTimer';
 
 const getStatusBadge = (status: SnowflakeAgentStatus) => {
     switch (status) {
@@ -129,10 +126,6 @@ export const SnowflakeAgentConnectionCard = ({
     statusOverride?: SnowflakeAgentStatus;
     allowDisconnect?: boolean;
 }) => {
-    const { data: silentRefreshFlag } = useServerFeatureFlag(
-        FeatureFlags.AgentIdentitySilentRefresh,
-    );
-    const silentRefreshEnabled = silentRefreshFlag?.enabled ?? false;
     const login = useSnowflakeAiLoginPopup(
         {
             entryPoint: AgentIdentityConnectEntryPoint.MY_AGENT_CONNECTIONS,
@@ -144,20 +137,13 @@ export const SnowflakeAgentConnectionCard = ({
         !!login.error &&
         login.error instanceof SnowflakeSignInPopupBlockedError;
     const [isRemoving, setIsRemoving] = useState(false);
-    useExpiryTimer(
-        !silentRefreshEnabled && credential?.expiresAt
-            ? new Date(credential.expiresAt).getTime()
-            : null,
-    );
     const now = Date.now();
     const status =
         statusOverride ??
         getSnowflakeAgentStatus(
             credential,
             !!login.error && !isPopupBlocked,
-            now,
             snowflakeConfigured,
-            silentRefreshEnabled,
         );
     const badge = getStatusBadge(status);
     return (

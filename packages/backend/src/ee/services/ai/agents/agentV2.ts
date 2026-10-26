@@ -1996,7 +1996,6 @@ export const getAgentTools = (
                           approval: sqlApproval,
                           maxLimit: args.runSqlMaxLimit,
                           sqlScope: args.sqlScope ?? null,
-                          hyphenatedIdentifiers: args.hyphenatedIdentifiers,
                       }
                     : null,
             }),
@@ -2176,7 +2175,6 @@ export const getAgentTools = (
                 enableDataAccess: args.enableDataAccess,
                 slackLinksOnly: args.slackLinksOnly,
                 sqlScope: args.sqlScope,
-                hyphenatedIdentifiers: args.hyphenatedIdentifiers,
                 autoApproveSql: args.autoApproveSql,
                 autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
                 useSlackStreamCard: args.useSlackStreamCard,

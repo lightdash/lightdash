@@ -1376,7 +1376,6 @@ describe('AiAccessService', () => {
             expect(analytics.track).not.toHaveBeenCalled();
             expect(registry).toHaveBeenCalledWith(WarehouseTypes.SNOWFLAKE);
             expect(provider.missingPrerequisite).toHaveBeenCalledWith({
-                silentRefresh: true,
                 connection: { type: WarehouseTypes.SNOWFLAKE },
                 person: {
                     organizationUuid: 'org',
@@ -4968,7 +4967,7 @@ describe('silent refresh routing', () => {
         ).rejects.toBe(error);
         expect(analytics.track).not.toHaveBeenCalled();
     });
-    test('does not read the kill switch or credentials with agent identity off', async () => {
+    test('does not read credentials with agent identity off', async () => {
         const { service, flags, credentials, organizationRules, provider } =
             setup();
         flags.get.mockResolvedValue({ enabled: false });
@@ -4983,33 +4982,17 @@ describe('silent refresh routing', () => {
         expect(organizationRules.get).not.toHaveBeenCalled();
         expect(provider.mint).not.toHaveBeenCalled();
     });
-    test.each([true, false])(
-        'passes resolved silent refresh %s to mint and status',
-        async (enabled) => {
-            const { service, flags, provider } = setup();
-            flags.get
-                .mockResolvedValueOnce({ enabled: true })
-                .mockResolvedValueOnce({ enabled });
-            await service.resolvePlan({ ...args, connection: snowflake });
-            expect(flags.get).toHaveBeenLastCalledWith({
-                user: { userUuid: 'user', organizationUuid: 'org' },
-                featureFlagId: FeatureFlags.AgentIdentitySilentRefresh,
-            });
-            expect(provider.mint).toHaveBeenCalledWith(
-                expect.objectContaining({ silentRefresh: enabled }),
-            );
-            flags.get
-                .mockResolvedValueOnce({ enabled: true })
-                .mockResolvedValueOnce({ enabled });
-            await service.getAiAccessForUser({
-                ...args,
-                connection: snowflake,
-            });
-            expect(provider.missingPrerequisite).toHaveBeenCalledWith(
-                expect.objectContaining({ silentRefresh: enabled }),
-            );
-        },
-    );
+    test('checks agent identity before mint and status', async () => {
+        const { service, flags, provider } = setup();
+        await service.resolvePlan({ ...args, connection: snowflake });
+        expect(flags.get).toHaveBeenCalledExactlyOnceWith({
+            user: { userUuid: 'user', organizationUuid: 'org' },
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+        expect(provider.mint).toHaveBeenCalled();
+        await service.getAiAccessForUser({ ...args, connection: snowflake });
+        expect(provider.missingPrerequisite).toHaveBeenCalled();
+    });
 });
 
 describe('preview AI service account inheritance', () => {
@@ -5533,24 +5516,12 @@ describe('agent resolver refusal mapping', () => {
             AiAccessRefusalReason.SIGN_IN_EXPIRED,
         ],
         [
-            { kind: 'credential', classification: 'expired' },
-            AiAccessRefusalReason.SIGN_IN_EXPIRED,
-        ],
-        [
             { kind: 'client', classification: 'missing' },
             AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED,
         ],
         [
             { kind: 'refresh', classification: 'grant_gone' },
             AiAccessRefusalReason.SIGN_IN_EXPIRED,
-        ],
-        [
-            { kind: 'refresh', classification: 'legacy_grant_gone' },
-            AiAccessRefusalReason.SIGN_IN_EXPIRED,
-        ],
-        [
-            { kind: 'refresh', classification: 'legacy_failure' },
-            AiAccessRefusalReason.NEEDS_SIGN_IN,
         ],
         [
             { kind: 'refresh', classification: 'configuration' },

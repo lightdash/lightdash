@@ -221,7 +221,6 @@ export const mapAgentCredentialResolutionError = (
         case 'credential':
             switch (failure.classification) {
                 case 'binding_mismatch':
-                case 'expired':
                     refusal = new AiAccessRefusedError(
                         AiAccessRefusalReason.SIGN_IN_EXPIRED,
                     );
@@ -257,35 +256,19 @@ export const mapAgentCredentialResolutionError = (
                 ),
             );
         case 'refresh': {
-            const legacy =
-                failure.classification === 'legacy_grant_gone' ||
-                failure.classification === 'legacy_failure';
             logger[context.evaluationKind === 'diagnostic' ? 'debug' : 'warn'](
                 'Agent sign-in refresh failed',
                 {
                     userUuid: context.userUuid,
                     organizationUuid: context.organizationUuid,
-                    ...(legacy
-                        ? {
-                              reason:
-                                  failure.classification === 'legacy_grant_gone'
-                                      ? AiAccessRefusalReason.SIGN_IN_EXPIRED
-                                      : AiAccessRefusalReason.NEEDS_SIGN_IN,
-                          }
-                        : { kind: failure.classification }),
+                    kind: failure.classification,
                     ...redactCredentialError(originalCause),
                 },
             );
             switch (failure.classification) {
                 case 'grant_gone':
-                case 'legacy_grant_gone':
                     refusal = new AiAccessRefusedError(
                         AiAccessRefusalReason.SIGN_IN_EXPIRED,
-                    );
-                    break;
-                case 'legacy_failure':
-                    refusal = new AiAccessRefusedError(
-                        AiAccessRefusalReason.NEEDS_SIGN_IN,
                     );
                     break;
                 case 'configuration':
@@ -645,13 +628,11 @@ export class AiAccessService extends BaseService {
             project.projectUuid,
             { kind: 'connection', warehouseConnectionUuid: null },
         );
-        const inspection = await this.agentSignInCredentialResolver.inspect(
-            { organizationUuid, userUuid, email: user.email ?? '' },
-            await this.isSilentRefreshEnabled(
-                { userUuid, organizationUuid },
-                WarehouseTypes.SNOWFLAKE,
-            ),
-        );
+        const inspection = await this.agentSignInCredentialResolver.inspect({
+            organizationUuid,
+            userUuid,
+            email: user.email ?? '',
+        });
         const reason = inspection
             ? mapAgentCredentialResolutionError(this.logger, inspection, {
                   userUuid,
@@ -1465,21 +1446,6 @@ export class AiAccessService extends BaseService {
         return enabled;
     }
 
-    private async isSilentRefreshEnabled(
-        args: Pick<AccessArgs, 'userUuid' | 'organizationUuid'>,
-        warehouseType: WarehouseTypes,
-    ): Promise<boolean> {
-        if (warehouseType !== WarehouseTypes.SNOWFLAKE) return false;
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: args.userUuid,
-                organizationUuid: args.organizationUuid,
-            },
-            featureFlagId: FeatureFlags.AgentIdentitySilentRefresh,
-        });
-        return enabled;
-    }
-
     private actorKind(args: AccessArgs): AiActorKind {
         return args.isServiceAccount ? 'service_account' : 'person';
     }
@@ -1891,10 +1857,6 @@ export class AiAccessService extends BaseService {
                             userUuid: args.userUuid,
                             email,
                         },
-                        silentRefresh: await this.isSilentRefreshEnabled(
-                            args,
-                            WarehouseTypes.SNOWFLAKE,
-                        ),
                         onRefresh: (event) =>
                             logAgentSignInRefresh(this.logger, event, {
                                 userUuid: args.userUuid,
@@ -2736,17 +2698,11 @@ export class AiAccessService extends BaseService {
                             'Agents need the person to have an email address.',
                         );
                     const missing =
-                        await this.agentSignInCredentialResolver.inspect(
-                            {
-                                organizationUuid: args.organizationUuid,
-                                userUuid: args.userUuid,
-                                email,
-                            },
-                            await this.isSilentRefreshEnabled(
-                                args,
-                                WarehouseTypes.SNOWFLAKE,
-                            ),
-                        );
+                        await this.agentSignInCredentialResolver.inspect({
+                            organizationUuid: args.organizationUuid,
+                            userUuid: args.userUuid,
+                            email,
+                        });
                     if (missing !== null)
                         throw mapAgentCredentialResolutionError(
                             this.logger,

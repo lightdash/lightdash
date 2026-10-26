@@ -338,7 +338,6 @@ export type AiAgentArgs = AnyAiModel & {
     maxQueryLimit: number;
     runSqlMaxLimit: number;
     sqlScope?: AgentSqlScope | null;
-    hyphenatedIdentifiers: boolean;
     /** Rows of a query result written into model context; the query keeps the rest. */
     maxContextRows: number;
     siteUrl: string;
