@@ -144,8 +144,6 @@ export class QuerySourceController extends BaseController {
      * error message for failed queries. Poll this after Execute source
      * queries; fetch each ready query's rows with the standard async query
      * results endpoint. Statuses are visible to the query creator only.
-     * With waitMs, waits up to 10000ms for all queries to become terminal when
-     * the organization has composer-optimization-query-push-readiness enabled.
      * @summary Get source query status
      */
     @Middlewares([
@@ -162,29 +160,11 @@ export class QuerySourceController extends BaseController {
         @Path() projectUuid: string,
         @Query() queryUuids: UUID[],
         @Request() req: express.Request,
-        @Query() waitMs?: number,
     ): Promise<ApiSuccess<ApiGetSourceQueryStatusResults>> {
         this.setStatus(200);
-        const abortController = new AbortController();
-        const abort = () => abortController.abort();
-        req.once('aborted', abort);
-        req.res?.once('close', abort);
-        if (req.aborted || req.res?.destroyed) abort();
-        try {
-            const results = await this.services
-                .getQuerySourceService()
-                .getSourceQueryStatuses(
-                    req.account!,
-                    projectUuid,
-                    queryUuids,
-                    waitMs === undefined
-                        ? undefined
-                        : { waitMs, signal: abortController.signal },
-                );
-            return { status: 'ok', results };
-        } finally {
-            req.off('aborted', abort);
-            req.res?.off('close', abort);
-        }
+        const results = await this.services
+            .getQuerySourceService()
+            .getSourceQueryStatuses(req.account!, projectUuid, queryUuids);
+        return { status: 'ok', results };
     }
 }
