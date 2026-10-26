@@ -238,3 +238,9 @@ export const setAnswer = async (answer: Config['answers']) => {
         answers: lodash.merge(config.answers, answer),
     });
 };
+
+export const unsetApiKey = async (): Promise<void> => {
+    const config = await getRawConfig();
+    if (config.context) delete config.context.apiKey;
+    await setConfig(config);
+};

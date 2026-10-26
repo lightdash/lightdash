@@ -27,6 +27,8 @@ export const AGENT_CLIENT_IDS = {
     [AgentActorSurface.SLACK_AGENT]: null,
 } as const;
 
+export const CLI_PERSONAL_SESSION_LIFETIME_SECONDS = 8 * 60 * 60;
+
 export type AgentSubjectRef = {
     type: 'user' | 'service_account';
     uuid: string;

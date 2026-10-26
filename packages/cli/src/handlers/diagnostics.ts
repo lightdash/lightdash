@@ -2,7 +2,7 @@ import { getErrorMessage } from '@lightdash/common';
 import execa from 'execa';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
-import { refuseAgentConnection } from '../credentials';
+import { refuseAgentConnection, resolveCredential } from '../credentials';
 import {
     CLI_VERSION,
     DEFAULT_DBT_PROFILES_DIR,
@@ -66,7 +66,7 @@ const getAuthStatus = async () => {
         const projectName = config.context?.projectName || 'Not set';
         const projectUuid = config.context?.project || 'Not set';
 
-        if (!(config.context?.apiKey && config.context?.serverUrl)) {
+        if (!config.context?.serverUrl) {
             return {
                 status: 'missing_credentials' as const,
                 serverUrl,
@@ -77,6 +77,7 @@ const getAuthStatus = async () => {
         }
 
         try {
+            await resolveCredential(config);
             const user = await getUserContext();
 
             return {
