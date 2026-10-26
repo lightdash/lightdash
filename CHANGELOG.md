@@ -1,3 +1,10 @@
+## [3.53.7](https://github.com/lightdash/lightdash/compare/3.53.6...3.53.7) (2026-10-26)
+
+
+### Bug Fixes
+
+* bound successful API request history ([#31542](https://github.com/lightdash/lightdash/issues/31542)) ([c93c957](https://github.com/lightdash/lightdash/commit/c93c957487574dc7ac746be39d340e11a3566837))
+
 ## [3.53.6](https://github.com/lightdash/lightdash/compare/3.53.5...3.53.6) (2026-10-24)
 
 
