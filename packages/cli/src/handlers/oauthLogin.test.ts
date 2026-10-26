@@ -46,7 +46,7 @@ beforeEach(async () => {
         .mockReset()
         .mockImplementation(async (authUrl: string) => {
             const params = new URL(authUrl).searchParams;
-            expect(params.get('resource')).toBe(instance);
+            expect(params.has('resource')).toBe(false);
             const callback = new URL(params.get('redirect_uri')!);
             callback.searchParams.set('code', 'auth-code');
             callback.searchParams.set('state', params.get('state')!);
@@ -81,7 +81,7 @@ afterEach(async () => {
     vi.unstubAllEnvs();
     await fs.rm(mocks.home, { recursive: true, force: true });
 });
-it('exchanges a resource-bound token with a user agent and saves OAuth tokens without minting a PAT', async () => {
+it('exchanges a token without a resource parameter with a user agent and saves OAuth tokens without minting a PAT', async () => {
     const { loginWithOauth } = await import('./oauthLogin');
     const startedAt = Date.now();
     const result = await loginWithOauth(instance);
@@ -98,12 +98,12 @@ it('exchanges a resource-bound token with a user agent and saves OAuth tokens wi
     expect(exchange.headers['User-Agent']).toBe(`lightdash-cli/${CLI_VERSION}`);
     expect(Object.fromEntries(exchange.body)).toEqual(
         expect.objectContaining({
-            resource: instance,
             client_id: 'lightdash-cli',
             grant_type: 'authorization_code',
             code: 'auth-code',
         }),
     );
+    expect(exchange.body.has('resource')).toBe(false);
     expect(mocks.fetch.mock.calls[1][1].headers.Authorization).toBe(
         'Bearer oauth-access',
     );
@@ -130,55 +130,105 @@ it('removes the saved API key from context on browser login while preserving the
     const { getConfig } = await import('../config');
     expect((await getConfig()).context?.apiKey).toBe('env-wins');
 });
-it('removes the OAuth record when an explicit token is used', async () => {
-    const { PersonalLoginStore } = await import('../personalLogin/store');
-    const store = new PersonalLoginStore();
-    await store.save(instance, loginFixture());
-    const { login } = await import('./login');
-    await login(instance, {
-        verbose: false,
-        token: 'explicit-pat',
-        project: 'project',
-    });
-    expect(await store.read(instance)).toBeNull();
-    const stored = yaml.load(await fs.readFile(configPath, 'utf8')) as {
-        context: { apiKey: string };
-    };
-    expect(stored.context.apiKey).toBe('explicit-pat');
-});
-it('keeps email login on a cookie-backed PAT with a user agent and removes the OAuth record', async () => {
-    vi.stubEnv('LIGHTDASH_CLI_PASSWORD', 'password');
-    const { PersonalLoginStore } = await import('../personalLogin/store');
-    const store = new PersonalLoginStore();
-    await store.save(instance, loginFixture());
-    mocks.fetch.mockImplementation(async (url: string) => ({
-        ok: true,
-        status: 200,
-        headers: { get: () => 'session=cookie' },
-        json: async () =>
-            url.endsWith('/personal-access-tokens')
-                ? { results: { token: 'email-pat' } }
-                : {
-                      results: {
-                          userUuid: loginFixture().personUuid,
-                          organizationUuid: loginFixture().organizationUuid,
+it.each([instance, 'http://internal.example:8080'])(
+    'replaces the OAuth record with an explicit token at %s',
+    async (targetInstance) => {
+        const { PersonalLoginStore } = await import('../personalLogin/store');
+        const store = new PersonalLoginStore();
+        await store.save(targetInstance, loginFixture());
+        const { login } = await import('./login');
+        await login(targetInstance, {
+            verbose: false,
+            token: 'explicit-pat',
+            project: 'project',
+        });
+        expect(await store.read(targetInstance)).toBeNull();
+        const stored = yaml.load(await fs.readFile(configPath, 'utf8')) as {
+            context: { apiKey: string };
+        };
+        expect(stored.context.apiKey).toBe('explicit-pat');
+    },
+);
+it.each([instance, 'http://internal.example:8080'])(
+    'replaces the OAuth record with a cookie-backed PAT at %s',
+    async (targetInstance) => {
+        vi.stubEnv('LIGHTDASH_CLI_PASSWORD', 'password');
+        const { PersonalLoginStore } = await import('../personalLogin/store');
+        const store = new PersonalLoginStore();
+        await store.save(targetInstance, loginFixture());
+        mocks.fetch.mockImplementation(async (url: string) => ({
+            ok: true,
+            status: 200,
+            headers: { get: () => 'session=cookie' },
+            json: async () =>
+                url.endsWith('/personal-access-tokens')
+                    ? { results: { token: 'email-pat' } }
+                    : {
+                          results: {
+                              userUuid: loginFixture().personUuid,
+                              organizationUuid: loginFixture().organizationUuid,
+                          },
                       },
-                  },
-    }));
-    const { login } = await import('./login');
-    await login(instance, {
-        verbose: false,
-        email: 'person@example.com',
-        project: 'project',
-    });
-    const pat = mocks.fetch.mock.calls.find(([url]) =>
-        url.endsWith('/personal-access-tokens'),
-    )!;
-    expect(pat[1].headers).toEqual(
-        expect.objectContaining({
-            Cookie: 'session=cookie',
-            'User-Agent': `lightdash-cli/${CLI_VERSION}`,
-        }),
+        }));
+        const { login } = await import('./login');
+        await login(targetInstance, {
+            verbose: false,
+            email: 'person@example.com',
+            project: 'project',
+        });
+        const pat = mocks.fetch.mock.calls.find(([url]) =>
+            url.endsWith('/personal-access-tokens'),
+        )!;
+        expect(pat[1].headers).toEqual(
+            expect.objectContaining({
+                Cookie: 'session=cookie',
+                'User-Agent': `lightdash-cli/${CLI_VERSION}`,
+            }),
+        );
+        expect(await store.read(targetInstance)).toBeNull();
+    },
+);
+
+it('exchanges browser login tokens over HTTP on an internal host', async () => {
+    const targetInstance = 'http://internal.example:8080';
+    const { loginWithOauth } = await import('./oauthLogin');
+    await loginWithOauth(targetInstance);
+    expect(mocks.openBrowser).toHaveBeenCalledWith(
+        expect.stringContaining(`${targetInstance}/api/v1/oauth/authorize?`),
     );
-    expect(await store.read(instance)).toBeNull();
+    expect(mocks.fetch.mock.calls.map(([url]) => url)).toEqual([
+        `${targetInstance}/api/v1/oauth/token`,
+        `${targetInstance}/api/v1/user`,
+    ]);
+    const { PersonalLoginStore } = await import('../personalLogin/store');
+    expect(await new PersonalLoginStore().read(targetInstance)).not.toBeNull();
 });
+
+it.each(['token', 'user'])(
+    'uses a fixed error for malformed %s JSON without exposing the response',
+    async (endpoint) => {
+        const validResponse = mocks.fetch.getMockImplementation()!;
+        mocks.fetch.mockImplementation(async (url: string) => {
+            if (url.endsWith(endpoint === 'token' ? '/oauth/token' : '/user'))
+                return {
+                    ok: true,
+                    headers: { get: () => null },
+                    json: async () => {
+                        throw new Error('private response content');
+                    },
+                };
+            return validResponse(url);
+        });
+        const { loginWithOauth } = await import('./oauthLogin');
+        await expect(loginWithOauth(instance)).rejects.toThrow(
+            endpoint === 'token'
+                ? 'The server returned an invalid token response. No login was saved.'
+                : 'The server returned invalid user information. No login was saved.',
+        );
+        const { PersonalLoginStore } = await import('../personalLogin/store');
+        expect(await new PersonalLoginStore().read(instance)).toBeNull();
+        expect(console.error).not.toHaveBeenCalledWith(
+            expect.stringContaining('private response content'),
+        );
+    },
+);
