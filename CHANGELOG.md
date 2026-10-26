@@ -1,3 +1,10 @@
+## [3.55.1](https://github.com/lightdash/lightdash/compare/3.55.0...3.55.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* **ai-agent:** collapse failed composer nodes by default ([#31568](https://github.com/lightdash/lightdash/issues/31568)) ([c7b4c7f](https://github.com/lightdash/lightdash/commit/c7b4c7f53a0f4c0f58714e1c4a33cf9b05cd304b))
+
 # [3.55.0](https://github.com/lightdash/lightdash/compare/3.54.0...3.55.0) (2026-10-26)
 
 
