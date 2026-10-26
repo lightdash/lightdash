@@ -1018,9 +1018,6 @@ export class AiAgentModel {
                 `),
             } satisfies Record<keyof AiAgentSummary, unknown>)
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
-            // System agents are an internal fallback — never surface them in
-            // normal listings, or they'd count as "an agent configured".
-            .where(`${AiAgentTableName}.is_system`, false)
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`);
 
         if (filter?.projectType) {
@@ -1121,7 +1118,6 @@ export class AiAgentModel {
             })
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
             .where(`${AiAgentTableName}.project_uuid`, projectUuid)
-            .where(`${AiAgentTableName}.is_system`, false)
             .orderBy(`${AiAgentTableName}.slug`, 'asc');
 
         if ((slugs?.length ?? 0) > 0 || (agentUuids?.length ?? 0) > 0) {
@@ -2326,7 +2322,6 @@ export class AiAgentModel {
             | 'threadRetentionHours'
         > & {
             organizationUuid: string;
-            isSystem?: boolean;
             slug?: string;
             imageUrl?: string | null;
         },
@@ -2363,7 +2358,6 @@ export class AiAgentModel {
                     ai_organization_provider_credential_uuid:
                         args.providerCredentialUuid ?? null,
                     version: args.version,
-                    is_system: args.isSystem ?? false,
                     thread_retention_hours: args.threadRetentionHours ?? null,
                 })
                 .returning('*');
@@ -2482,75 +2476,6 @@ export class AiAgentModel {
                 threadRetentionHours: agent.thread_retention_hours,
             };
         });
-    }
-
-    /**
-     * Returns the org's system (built-in fallback) agent for a project,
-     * creating it on first use. There is at most one per (org, project),
-     * enforced by a partial unique index — so a concurrent create losing the
-     * race is caught and re-read rather than erroring.
-     */
-    async getOrCreateSystemAgent({
-        organizationUuid,
-        projectUuid,
-        name,
-        instruction,
-    }: {
-        organizationUuid: string;
-        projectUuid: string;
-        name: string;
-        instruction: string;
-    }): Promise<AiAgent> {
-        const findExisting = () =>
-            this.database(AiAgentTableName)
-                .where('organization_uuid', organizationUuid)
-                .where('project_uuid', projectUuid)
-                .where('is_system', true)
-                .first();
-
-        const existing = await findExisting();
-        if (existing) {
-            return this.getAgent({
-                organizationUuid,
-                agentUuid: existing.ai_agent_uuid,
-            });
-        }
-
-        try {
-            return await this.createAgent({
-                name,
-                description: 'Built-in Lightdash assistant',
-                projectUuid,
-                organizationUuid,
-                tags: null,
-                integrations: [],
-                instruction,
-                groupAccess: [],
-                userAccess: [],
-                spaceAccess: [],
-                enableDataAccess: true,
-                enableSelfImprovement: false,
-                enableContentTools: false,
-                enableUserContext: false,
-                enableSqlMode: true,
-                modelConfig: null,
-                version: 1,
-                mcpServerUuids: [],
-                isSystem: true,
-            });
-        } catch (error) {
-            // Lost the create race against a concurrent mention — re-read.
-            if (isUniqueConstraintViolation(error)) {
-                const row = await findExisting();
-                if (row) {
-                    return this.getAgent({
-                        organizationUuid,
-                        agentUuid: row.ai_agent_uuid,
-                    });
-                }
-            }
-            throw error;
-        }
     }
 
     /**

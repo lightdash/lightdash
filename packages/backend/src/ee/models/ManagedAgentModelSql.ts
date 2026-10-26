@@ -172,7 +172,6 @@ agents AS (
   SELECT a.ai_agent_uuid, a.name, a.created_at, a.admin_only
   FROM ai_agent a, params
   WHERE a.project_uuid = ?
-    AND a.is_system = false
     AND a.created_at <= params.window_start
 ),
 router_enabled AS (

@@ -173,14 +173,6 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Enable the built-in system agent fallback in Slack. When enabled, if a
-     * Slack channel has no configured agent, the system will use the built-in
-     * system agent instead of showing an error. Independent of AiWriteback so
-     * the features can be toggled separately.
-     */
-    AiSlackSystemAgentFallback = 'ai-slack-system-agent-fallback',
-
-    /**
      * Gate the org-level export Limits settings panel (per-org query max rows
      * and CSV cells limit). Backend enforcement of any stored overrides is
      * always on; this flag only controls who can see/configure the panel.
