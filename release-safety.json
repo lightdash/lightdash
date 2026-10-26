@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.53.8",
-  "previousVersion": "3.53.7",
-  "releaseDate": "2026-10-26T08:16:53.381Z",
+  "version": "3.53.9",
+  "previousVersion": "3.53.8",
+  "releaseDate": "2026-10-26T08:55:13.687Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,10 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v2/projects/{projectUuid}/query-sources/queries/status — deleted the `query` request parameter `waitMs`"
-      ],
-      "advisoryCount": 1
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

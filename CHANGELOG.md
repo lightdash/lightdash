@@ -1,3 +1,10 @@
+## [3.53.9](https://github.com/lightdash/lightdash/compare/3.53.8...3.53.9) (2026-10-26)
+
+
+### Bug Fixes
+
+* isolate analytics snapshot failures and scope inventory scans ([#31545](https://github.com/lightdash/lightdash/issues/31545)) ([176628a](https://github.com/lightdash/lightdash/commit/176628a5b6bbe92911087314c0291770f76be79a))
+
 ## [3.53.8](https://github.com/lightdash/lightdash/compare/3.53.7...3.53.8) (2026-10-26)
 
 
