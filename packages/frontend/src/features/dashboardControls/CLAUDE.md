@@ -1076,9 +1076,8 @@ the language map, as tab names are.
   `filters.rail.removeFilter` / `confirmRemove`) shown on hover and
   `:focus-within`, which calls the provider's `removeFilterById` as the
   pill's X does; focus then goes to the next row, else the one before, else
-  the header's "Add" (`focusAfter`). A viewer's rows have none. Hairlines run between rows only, on the wrappers
-  (`.sortableRow + .sortableRow`, `.sectionRow + .sectionRow`), never under
-  a section's last row; the editor (`.edited`) keeps its `ldGray-1` fill
+  the header's "Add" (`focusAfter`). A viewer's rows have none. Rows have no hairlines between them; the
+  lines are the section headers' and the editor's; the editor (`.edited`) keeps its `ldGray-1` fill
   with a hairline above and below. The "Tiles" and "Rules" disclosures are
   compact (32px, `xs` dimmed, name `fw` 500, 12px chevron), inset to the
   editor's padding with one hairline above the pair. No uppercase or

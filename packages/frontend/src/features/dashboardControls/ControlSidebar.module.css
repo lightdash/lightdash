@@ -73,8 +73,8 @@
     margin-bottom: -1px;
 }
 
-/* Doubled so the padding outranks the group button's reset. Hairlines run
-   between rows only, on their wrappers */
+/* Doubled so the padding outranks the group button's reset. No hairlines
+   between rows: sections and the expanded filter carry the lines */
 .row.row {
     width: 100%;
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm)
@@ -260,11 +260,6 @@
 
 .sortableRow {
     position: relative;
-}
-
-.sortableRow + .sortableRow,
-.sectionRow + .sectionRow {
-    border-top: 1px solid var(--mantine-color-default-border);
 }
 
 /* A section's rows sit one step in; the grip keeps the first step */
