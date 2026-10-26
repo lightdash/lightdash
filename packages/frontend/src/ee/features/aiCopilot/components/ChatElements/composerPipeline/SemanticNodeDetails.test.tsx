@@ -10,8 +10,10 @@ import { screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../../../../testing/testUtils';
-import { SemanticNodeDetails } from './SemanticNodeDetails';
-import { type SemanticNodeQuery } from './useSemanticNodeSummary';
+import {
+    SemanticNodeDetails,
+    type SemanticNodeQuery,
+} from './SemanticNodeDetails';
 
 const dimension = (
     name: string,
@@ -65,7 +67,6 @@ const metricQuery: SemanticNodeQuery = {
         },
     },
     sorts: [{ fieldId: 'users_last_active_at_day', descending: true }],
-    limit: 500,
 };
 
 const renderDetails = (

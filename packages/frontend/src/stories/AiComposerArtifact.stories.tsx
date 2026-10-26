@@ -350,7 +350,7 @@ export const SemanticNodeDetails: Story = {
     },
     play: async ({ canvas, userEvent }) => {
         await userEvent.click(
-            canvas.getByRole('button', { name: /Fields \d/ }),
+            canvas.getByRole('button', { name: /View metric query/ }),
         );
     },
 };

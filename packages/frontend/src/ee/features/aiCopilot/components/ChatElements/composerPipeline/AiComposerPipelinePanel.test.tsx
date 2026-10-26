@@ -256,11 +256,14 @@ describe('AiComposerPipelinePanel query details', () => {
         });
         const row = document.getElementById('composer-pipeline-node-orders')!;
         const toggle = within(row).getByRole('button', {
-            name: 'Orders · Fields 2 · Filters 1 · Sort 1 · Parameters 1 · 500 rows',
+            name: 'View metric query · Orders · 500 rows',
         });
         fireEvent.click(toggle);
 
         expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(toggle).toHaveAccessibleName(
+            'Hide metric query · Orders · 500 rows',
+        );
         expect(within(row).getByText('completed')).toBeInTheDocument();
         expect(within(row).getByTestId('semantic-node-sort')).toHaveTextContent(
             'Orders count',

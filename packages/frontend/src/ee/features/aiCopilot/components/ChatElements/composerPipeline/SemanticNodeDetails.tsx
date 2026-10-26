@@ -1,4 +1,10 @@
-import { type ItemsMap, type ParametersValuesMap } from '@lightdash/common';
+import {
+    friendlyName,
+    getItemLabelWithoutTableName,
+    type ItemsMap,
+    type MetricQuery,
+    type ParametersValuesMap,
+} from '@lightdash/common';
 import { Badge, Box, Group, Stack } from '@mantine/core';
 import {
     IconArrowDown,
@@ -18,10 +24,16 @@ import AgentVisualizationFilters from '../AgentVisualizationFilters';
 import AgentVisualizationParameters from '../AgentVisualizationParameters';
 import { getVisualizationFiltersCount } from '../AiVisualizationRenderer.utils';
 import styles from './SemanticNodeDetails.module.css';
-import {
-    semanticItemLabel,
-    type SemanticNodeQuery,
-} from './useSemanticNodeSummary';
+
+export type SemanticNodeQuery = Pick<
+    MetricQuery,
+    'dimensions' | 'metrics' | 'filters' | 'sorts'
+>;
+
+const semanticItemLabel = (fieldsMap: ItemsMap, fieldId: string) => {
+    const item = fieldsMap[fieldId];
+    return item ? getItemLabelWithoutTableName(item) : friendlyName(fieldId);
+};
 
 const DetailsRow: FC<{ icon: Icon; children: ReactNode }> = ({
     icon,

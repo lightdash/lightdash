@@ -3,6 +3,7 @@ import {
     formatSql,
     friendlyName,
     getItemMap,
+    interpolateUiString,
     metricQueryOfSemanticNode,
     QuerySourceType,
     WarehouseTypes,
@@ -38,7 +39,6 @@ import {
 } from '@xyflow/react';
 import { clsx } from 'clsx';
 import {
-    Fragment,
     useEffect,
     useMemo,
     useRef,
@@ -56,6 +56,7 @@ import reactFlowStyles from '../../../../../../components/common/ReactFlow/react
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import { useExploreByProjectUuid } from '../../../../../../hooks/useExplore';
+import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import { useCanViewAiAgentSql } from '../../../hooks/useCanViewAiAgentSql';
 import { NodeStatusIndicator } from '../ComposerNodeStatusIndicator';
 import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
@@ -73,7 +74,6 @@ import {
     type PipelineFlowNode,
 } from './pipelineGraph';
 import { SemanticNodeDetails } from './SemanticNodeDetails';
-import { useSemanticNodeSummary } from './useSemanticNodeSummary';
 
 const TRANSFORMATIONS_HELP =
     'Transformations run in DuckDB or Python on top of the source results. They never touch the warehouse.';
@@ -178,31 +178,38 @@ const SemanticNodeSummary: FC<{
         () => metricQueryOfSemanticNode(query),
         [query],
     );
-    const parameters = query.parameters ?? {};
-    const summary = useSemanticNodeSummary(metricQuery, parameters);
-    const exploreLabel = explore?.label ?? friendlyName(query.exploreName);
+    const getUiString = useUiStrings();
+    const rowsLabel = interpolateUiString(
+        getUiString(
+            metricQuery.limit === 1
+                ? 'aiAgent.composer.semanticNode.rows.singular'
+                : 'aiAgent.composer.semanticNode.rows.plural',
+        ),
+        { count: metricQuery.limit },
+    );
+    const parts = [
+        getUiString(
+            open
+                ? 'aiAgent.composer.semanticNode.hide'
+                : 'aiAgent.composer.semanticNode.view',
+        ),
+        explore?.label ?? friendlyName(query.exploreName),
+        rowsLabel,
+    ];
     return (
         <Box
             className={styles.details}
             onClick={(event) => event.stopPropagation()}
         >
             <DisclosureToggle open={open} onToggle={() => setOpen((v) => !v)}>
-                <Box component="span" className={styles.exploreName}>
-                    {exploreLabel}
-                </Box>
-                {summary.map((part) => (
-                    <Fragment key={part}>
-                        <Box component="span">·</Box>
-                        {part}
-                    </Fragment>
-                ))}
+                {parts.join(' · ')}
             </DisclosureToggle>
             <Collapse expanded={open} {...disclosureCollapse}>
                 <Box className={styles.summaryBody}>
                     <SemanticNodeDetails
                         metricQuery={metricQuery}
                         fieldsMap={fieldsMap}
-                        parameters={parameters}
+                        parameters={query.parameters ?? {}}
                     />
                 </Box>
             </Collapse>

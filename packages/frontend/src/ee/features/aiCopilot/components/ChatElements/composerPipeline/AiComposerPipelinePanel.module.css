@@ -199,12 +199,6 @@
     overflow-wrap: anywhere;
 }
 
-.exploreName {
-    font-size: inherit;
-    font-weight: 600;
-    color: inherit;
-}
-
 /* Lines the rows up with the toggle text, past its chevron. */
 .summaryBody {
     padding: 6px 0 4px 16px;
