@@ -23,5 +23,15 @@ export type AnalyticsHistoryBackfillStatus = {
     pendingQueries: number;
     from: string | null;
     to: string | null;
+    /** Totals across every recoverable source; query fields remain compatible. */
+    missingRecords?: number;
+    existingRecords?: number;
+    pendingRecords?: number;
+    sources?: {
+        name: string;
+        missing: number;
+        existing: number;
+        pending: number;
+    }[];
     error?: string;
 };

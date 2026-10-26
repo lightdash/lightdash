@@ -8,6 +8,7 @@ import {
     QUERY_HISTORY_BACKFILL_EVENT,
     queryHistoryBackfillKey,
 } from '../../../analytics/eventStream/queryHistoryBackfill';
+import { usageHistoryKey } from '../../../analytics/eventStream/usageHistorySources';
 import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
 import { createS3AnalyticsSourceResolver } from './S3AnalyticsSource';
 
@@ -87,6 +88,37 @@ describe('signed analytics file manifests', () => {
         expect(source.emptyTables?.map(({ name }) => name)).toContain(
             'content_views',
         );
+    });
+
+    it('exposes AI history with event-ID precedence and keeps database activity in its own table', async () => {
+        send.mockResolvedValue({
+            Contents: [
+                { Key: usageHistoryKey(org, 'ai_usage') },
+                { Key: key('ai_usage') },
+                { Key: usageHistoryKey(org, 'historical_activity') },
+                { Key: key('content_views') },
+            ],
+        });
+        const source = await createS3AnalyticsSourceResolver(config)();
+        const ai = source.tables.find(({ name }) => name === 'ai_usage');
+        expect(ai).toMatchObject({
+            hivePartitioning: false,
+            fallbackRows: {
+                keyColumns: ['org_id', 'event_id'],
+                markerColumn: 'history_origin',
+                markerValue: 'database',
+            },
+        });
+        expect(ai?.columns).toContainEqual({
+            name: 'history_origin',
+            type: 'VARCHAR',
+        });
+        expect(
+            source.tables.find(({ name }) => name === 'historical_activity'),
+        ).toMatchObject({ hivePartitioning: false, fallbackRows: undefined });
+        expect(
+            source.tables.find(({ name }) => name === 'content_views')?.urls,
+        ).toHaveLength(1);
     });
 
     it('includes canonical query history and enables fallback reconciliation only for query events', async () => {
@@ -497,6 +529,7 @@ describe('signed analytics file manifests', () => {
             'content_views',
             'agent_request_events',
             'user_activity',
+            'historical_activity',
         ]);
         expect(getSignedUrl).toHaveBeenCalledTimes(4);
     });

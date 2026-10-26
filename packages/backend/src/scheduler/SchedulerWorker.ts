@@ -26,13 +26,13 @@ import { EventEmitter } from 'node:events';
 import pLimit from 'p-limit';
 import type { PoolClient } from 'pg';
 import { UsageEventsCompactor } from '../analytics/eventStream/UsageEventsCompactor';
-import { UsageQueryHistoryBackfill } from '../analytics/eventStream/UsageQueryHistoryBackfill';
+import { UsageHistoryBackfill } from '../analytics/eventStream/UsageHistoryBackfill';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
 import { type AgentActionLogModel } from '../models/AgentActionLogModel';
 import { type RetentionCleanupOptions } from '../models/retentionCleanup';
 import type { UsageDimensionsModel } from '../models/UsageDimensionsModel';
-import { UsageQueryHistoryModel } from '../models/UsageQueryHistoryModel';
+import type { UsageHistoryModel } from '../models/UsageHistoryModel';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { LEARN_SANDBOX_COMMAND_TIMEOUT_MS } from '../services/LearnSandboxService/runtime';
@@ -62,6 +62,7 @@ import { TypedTaskList } from './types';
 export type SchedulerWorkerArguments = SchedulerTaskArguments & {
     agentActionLogModel: AgentActionLogModel;
     usageDimensionsModel: UsageDimensionsModel;
+    usageHistoryModel: UsageHistoryModel;
     // When omitted, no pg-ping interval runs and the health probe falls back to
     // job-activity events alone.
     workerHealth?: SchedulerWorkerHealth;
@@ -185,6 +186,7 @@ export class SchedulerWorker extends SchedulerTask {
     private readonly prometheusMetrics: PrometheusMetrics | null;
 
     private readonly usageDimensionsModel: UsageDimensionsModel;
+    private readonly usageHistoryModel: UsageHistoryModel;
 
     private readonly activeCompiles = new Set<CompileShutdownContext>();
 
@@ -229,6 +231,7 @@ export class SchedulerWorker extends SchedulerTask {
             schedulerWorkerArgs.resolveOrganizationName;
         this.prometheusMetrics = schedulerWorkerArgs.prometheusMetrics ?? null;
         this.usageDimensionsModel = schedulerWorkerArgs.usageDimensionsModel;
+        this.usageHistoryModel = schedulerWorkerArgs.usageHistoryModel;
         this.dailyJobRetryBackoffMs =
             schedulerWorkerArgs.dailyJobRetryBackoffMs ??
             DEFAULT_DAILY_JOB_RETRY_BACKOFF_MS;
@@ -2377,11 +2380,9 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 });
                 if (!flag.enabled) throw new Error('Analytics is not enabled');
-                await new UsageQueryHistoryBackfill(
+                await new UsageHistoryBackfill(
                     usageEvents.s3,
-                    new UsageQueryHistoryModel(
-                        this.asyncQueryService.queryHistoryModel.database,
-                    ),
+                    this.usageHistoryModel,
                 ).run(payload.organizationUuid, this.usageDimensionsModel);
             },
             [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {

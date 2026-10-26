@@ -13,14 +13,16 @@ import Logger from '../../logging/logger';
 import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
 import type { UsageQueryHistoryModel } from '../../models/UsageQueryHistoryModel';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
-import { queryEventsCompactedColumns } from './queryEventsStream';
-import { queryHistoryBackfillKey } from './queryHistoryBackfill';
 import { UsageDimensionsRefresher } from './UsageDimensionsRefresher';
+import {
+    usageHistoryKey,
+    usageHistorySources,
+    type UsageHistorySource,
+} from './usageHistorySources';
 import { usageProcessingStartDate } from './usageProcessingWindow';
 
 const literal = (value: string) => `'${value.replace(/'/g, "''")}'`;
-const identity = ['org_id', 'project_id', 'query_id'];
-const sameIdentity = (left: string, right: string) =>
+const sameIdentity = (identity: string[], left: string, right: string) =>
     identity
         .map((key) => `${left}.${key} IS NOT DISTINCT FROM ${right}.${key}`)
         .join(' AND ');
@@ -30,6 +32,7 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
     constructor(
         private readonly storage: Omit<S3Config, 'expirationTime'>,
         private readonly history: Pick<UsageQueryHistoryModel, 'getJsonLines'>,
+        private readonly source: UsageHistorySource = usageHistorySources[0],
     ) {
         super(storage);
     }
@@ -67,8 +70,21 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
         publish: boolean,
         dimensions?: UsageDimensionsModel,
     ): Promise<AnalyticsHistoryBackfillStatus> {
-        if (!/^[a-f0-9-]{36}$/.test(org))
+        if (
+            !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
+                org,
+            )
+        )
             throw new Error('Invalid organization');
+        const {
+            name: streamName,
+            columns,
+            keyColumns,
+            replaceExisting,
+        } = this.source;
+        const historyKey = usageHistoryKey(org, streamName);
+        const matches = (left: string, right: string) =>
+            sameIdentity(keyColumns, left, right);
         const runtime = getDuckdbRuntimeConfig(this.storage);
         if (!runtime) throw new Error('Usage storage is not configured');
         const duckdb = new DuckdbWarehouseClient(
@@ -89,6 +105,7 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
         const directory = await mkdtemp(
             path.join(tmpdir(), 'usage-query-history-'),
         );
+        let phase = 'read database';
         try {
             const now = new Date();
             const input = path.join(directory, 'history.jsonl');
@@ -108,9 +125,14 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
                     from: null,
                     to: null,
                 };
+            phase = 'read storage';
             // Read raw before compacted: compaction publishes before deleting raw.
             const raw = (
-                await this.keys(`events/raw/org_id=${org}/stream=query_events/`)
+                streamName === 'historical_activity'
+                    ? []
+                    : await this.keys(
+                          `events/raw/org_id=${org}/stream=${streamName}/`,
+                      )
             ).filter((key) => {
                 const match =
                     /\/dt=(\d{4}-\d{2}-\d{2})\/[^/]+\.jsonl\.gz$/.exec(key);
@@ -121,9 +143,9 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
             const prefix = `events/compacted/org_id=${org}/`;
             const compacted = (await this.keys(prefix)).filter(
                 (key) =>
-                    /^stream=query_events\/dt=\d{4}-\d{2}-\d{2}\/[a-zA-Z0-9_-]+\.parquet$/.test(
-                        key.slice(prefix.length),
-                    ) || key === queryHistoryBackfillKey(org),
+                    new RegExp(
+                        `^stream=${streamName}/dt=\\d{4}-\\d{2}-\\d{2}/[a-zA-Z0-9_-]+\\.parquet$`,
+                    ).test(key.slice(prefix.length)) || key === historyKey,
             );
             const scheme = this.storage.authMode === 'gcp_oauth' ? 'gs' : 's3';
             const files = (keys: string[]) =>
@@ -132,29 +154,39 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
                         literal(`${scheme}://${this.storage.bucket}/${key}`),
                     )
                     .join(',');
-            const emptyIds =
-                'SELECT NULL::VARCHAR org_id, NULL::VARCHAR project_id, NULL::VARCHAR query_id WHERE false';
+            const empty = `SELECT ${columns.map(({ name, type }) => `NULL::${type} AS ${name}`).join(',')} WHERE false`;
+            const emptyIds = `SELECT ${keyColumns.map((key) => `NULL::VARCHAR ${key}`).join(',')} WHERE false`;
             const existing = compacted.length
-                ? `SELECT org_id, project_id, query_id FROM read_parquet([${files(compacted)}], union_by_name=true, hive_partitioning=false)`
-                : emptyIds;
+                ? `SELECT * FROM read_parquet([${files(compacted)}], union_by_name=true, hive_partitioning=false) UNION ALL BY NAME ${empty}`
+                : empty;
+            // Historical records may retain a mutable status/feedback snapshot.
+            // A changed row is importable again, but replaces its stable identity.
+            const sameExisting = replaceExisting
+                ? sameIdentity(
+                      columns.map(({ name: column }) => column),
+                      'h',
+                      'e',
+                  )
+                : matches('h', 'e');
             const pending = raw.length
-                ? `SELECT org_id, project_id, query_id FROM read_json([${files(raw)}], format='newline_delimited', columns={org_id:'VARCHAR',project_id:'VARCHAR',query_id:'VARCHAR'}, compression='gzip', hive_partitioning=false)`
+                ? `SELECT ${keyColumns.join(',')} FROM read_json([${files(raw)}], format='newline_delimited', columns={${keyColumns.map((key) => `${key}:'VARCHAR'`).join(',')}}, compression='gzip', hive_partitioning=false)`
                 : emptyIds;
-            const columns = queryEventsCompactedColumns;
             const defs = columns
                 .map(({ name, type }) => `${name}:'${type}'`)
                 .join(',');
             const source = `SELECT * FROM read_json(${literal(input)}, format='newline_delimited', columns={${defs}})`;
-            const missing = `SELECT h.* FROM history h WHERE NOT EXISTS (SELECT 1 FROM existing e WHERE ${sameIdentity('h', 'e')}) AND NOT EXISTS (SELECT 1 FROM pending p WHERE ${sameIdentity('h', 'p')})`;
+            const missing = `SELECT h.* FROM history h WHERE NOT EXISTS (SELECT 1 FROM existing e WHERE ${sameExisting}) AND NOT EXISTS (SELECT 1 FROM pending p WHERE ${matches('h', 'p')})`;
             const ctes = `WITH history AS (${source}), existing AS (${existing}), pending AS (${pending}), missing AS (${missing})`;
+            phase = 'reconcile history';
             const statsFile = path.join(directory, 'counts.json');
             await duckdb.runSqlWithMetrics(
-                `COPY (${ctes} SELECT (SELECT COUNT(*) FROM missing) missingQueries, (SELECT COUNT(*) FROM history h WHERE EXISTS (SELECT 1 FROM existing e WHERE ${sameIdentity('h', 'e')})) existingQueries, (SELECT COUNT(*) FROM history h WHERE NOT EXISTS (SELECT 1 FROM existing e WHERE ${sameIdentity('h', 'e')}) AND EXISTS (SELECT 1 FROM pending p WHERE ${sameIdentity('h', 'p')})) pendingQueries, (SELECT CAST(MIN(event_ts) AS DATE)::VARCHAR FROM missing) "from", (SELECT CAST(MAX(event_ts) AS DATE)::VARCHAR FROM missing) "to") TO ${literal(statsFile)} (FORMAT JSON, ARRAY true)`,
+                `COPY (${ctes} SELECT (SELECT COUNT(*) FROM missing) missingQueries, (SELECT COUNT(*) FROM history h WHERE EXISTS (SELECT 1 FROM existing e WHERE ${sameExisting})) existingQueries, (SELECT COUNT(*) FROM history h WHERE NOT EXISTS (SELECT 1 FROM existing e WHERE ${sameExisting}) AND EXISTS (SELECT 1 FROM pending p WHERE ${matches('h', 'p')})) pendingQueries, (SELECT CAST(MIN(event_ts) AS DATE)::VARCHAR FROM missing) "from", (SELECT CAST(MAX(event_ts) AS DATE)::VARCHAR FROM missing) "to") TO ${literal(statsFile)} (FORMAT JSON, ARRAY true)`,
             );
             const [counts] = JSON.parse(
                 await readFile(statsFile, 'utf8'),
             ) as Omit<AnalyticsHistoryBackfillStatus, 'running'>[];
             if (publish && counts.missingQueries > 0) {
+                phase = 'refresh metadata';
                 if (dimensions) {
                     const refreshed = await new UsageDimensionsRefresher(
                         this.storage,
@@ -171,15 +203,13 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
                             'Could not refresh current content metadata',
                         );
                 }
-                const empty = `SELECT ${columns.map(({ name, type }) => `NULL::${type} AS ${name}`).join(',')} WHERE false`;
-                const previous = compacted.includes(
-                    queryHistoryBackfillKey(org),
-                )
-                    ? `SELECT ${columns.map(({ name }) => name).join(',')} FROM (SELECT * FROM read_parquet([${files([queryHistoryBackfillKey(org)])}], hive_partitioning=false) UNION ALL BY NAME ${empty})`
+                const previous = compacted.includes(historyKey)
+                    ? `SELECT ${columns.map(({ name }) => name).join(',')} FROM (SELECT * FROM read_parquet([${files([historyKey])}], hive_partitioning=false) UNION ALL BY NAME ${empty})`
                     : empty;
+                phase = 'publish history';
                 const output = path.join(directory, 'history.parquet');
                 await duckdb.runSqlWithMetrics(
-                    `COPY (${ctes} SELECT * FROM (${previous}) UNION ALL SELECT * FROM missing) TO ${literal(output)} (FORMAT PARQUET, COMPRESSION zstd)`,
+                    `COPY (${ctes} SELECT * FROM (${previous}) p ${replaceExisting ? `WHERE NOT EXISTS (SELECT 1 FROM history h WHERE ${matches('h', 'p')})` : ''} UNION ALL SELECT * FROM ${replaceExisting ? 'history' : 'missing'} ORDER BY ${keyColumns.join(',')}) TO ${literal(output)} (FORMAT PARQUET, COMPRESSION zstd)`,
                 );
                 const body = createReadStream(output);
                 try {
@@ -189,7 +219,7 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
                         partSize: 8 * 1024 * 1024,
                         params: {
                             Bucket: this.storage.bucket,
-                            Key: queryHistoryBackfillKey(org),
+                            Key: historyKey,
                             Body: body,
                             ContentType: 'application/vnd.apache.parquet',
                         },
@@ -200,9 +230,14 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
             }
             return { ...counts, running: false };
         } catch {
-            // Storage/engine errors may include signed paths or connection details.
+            // Never log provider messages, which can include signed credentials.
+            Logger.error('Analytics history backfill failed', {
+                organizationUuid: org,
+                source: streamName,
+                phase,
+            });
             throw new Error(
-                'Unable to check or import retained query history. Check usage storage and retry.',
+                'Unable to check or import retained analytics history. Check usage storage and retry.',
             );
         } finally {
             await duckdb.close();
@@ -216,7 +251,7 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
     }
     async run(
         org: string,
-        dimensions: UsageDimensionsModel,
+        dimensions?: UsageDimensionsModel,
     ): Promise<AnalyticsHistoryBackfillStatus> {
         return this.process(org, true, dimensions);
     }

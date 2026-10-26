@@ -4,7 +4,7 @@ import {
     ForbiddenError,
     NotFoundError,
 } from '@lightdash/common';
-import { UsageQueryHistoryBackfill } from '../../analytics/eventStream/UsageQueryHistoryBackfill';
+import { UsageHistoryBackfill } from '../../analytics/eventStream/UsageHistoryBackfill';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
@@ -73,7 +73,11 @@ describe('AnalyticsProjectService', () => {
                 bufferMaxSize: 1000,
             },
         },
-        queryHistoryModel: { database: vi.fn() as never },
+        usageHistoryModel: {
+            getQueryJsonLines: vi.fn(),
+            getAiUsageJsonLines: vi.fn(),
+            getActivityJsonLines: vi.fn(),
+        },
         schedulerClient: {
             getUsageHistoryBackfillJob,
             scheduleUsageHistoryBackfill,
@@ -300,10 +304,7 @@ describe('AnalyticsProjectService', () => {
                 running: true,
                 failed: false,
             });
-            const inspect = vi.spyOn(
-                UsageQueryHistoryBackfill.prototype,
-                'inspect',
-            );
+            const inspect = vi.spyOn(UsageHistoryBackfill.prototype, 'inspect');
             await expect(
                 configuredService().getBackfillStatus(user),
             ).resolves.toMatchObject({ running: true });
@@ -319,7 +320,7 @@ describe('AnalyticsProjectService', () => {
                 failed: true,
             });
             const inspect = vi
-                .spyOn(UsageQueryHistoryBackfill.prototype, 'inspect')
+                .spyOn(UsageHistoryBackfill.prototype, 'inspect')
                 .mockResolvedValue(coverage);
             await expect(
                 configuredService().getBackfillStatus(user),
@@ -351,6 +352,53 @@ describe('AnalyticsProjectService', () => {
             });
         });
 
+        it('refreshes history models before enqueueing without overwriting charts or dashboards', async () => {
+            await configuredService().backfill(user);
+            expect(saveExploresToCache).toHaveBeenCalledWith(
+                analyticsProject.projectUuid,
+                analyticsExplores.createAnalyticsExplores(),
+                true,
+            );
+            expect(
+                saveExploresToCache.mock.invocationCallOrder[0],
+            ).toBeLessThan(
+                scheduleUsageHistoryBackfill.mock.invocationCallOrder[0],
+            );
+            expect(upsertChart).not.toHaveBeenCalled();
+            expect(upsertDashboard).not.toHaveBeenCalled();
+        });
+
+        it('does not queue a backfill when refreshing the models fails', async () => {
+            saveExploresToCache.mockRejectedValueOnce(
+                new Error('cache failed'),
+            );
+            await expect(configuredService().backfill(user)).rejects.toThrow(
+                'cache failed',
+            );
+            expect(scheduleUsageHistoryBackfill).not.toHaveBeenCalled();
+        });
+
+        it('offers retry when only non-query history is missing', async () => {
+            getUsageHistoryBackfillJob.mockResolvedValue({
+                running: false,
+                failed: true,
+            });
+            vi.spyOn(
+                UsageHistoryBackfill.prototype,
+                'inspect',
+            ).mockResolvedValue({
+                ...coverage,
+                missingQueries: 0,
+                missingRecords: 2,
+            });
+            await expect(
+                configuredService().getBackfillStatus(user),
+            ).resolves.toHaveProperty(
+                'error',
+                'The previous backfill failed. You can retry safely.',
+            );
+        });
+
         it('shares simultaneous settings checks for one organization and checks fresh data afterward', async () => {
             getUsageHistoryBackfillJob.mockResolvedValue({
                 running: false,
@@ -361,7 +409,7 @@ describe('AnalyticsProjectService', () => {
                 release = resolve;
             });
             const inspect = vi
-                .spyOn(UsageQueryHistoryBackfill.prototype, 'inspect')
+                .spyOn(UsageHistoryBackfill.prototype, 'inspect')
                 .mockImplementation(async () => {
                     await gate;
                     return coverage;
@@ -396,7 +444,7 @@ describe('AnalyticsProjectService', () => {
             let peak = 0;
             const otherCoverage = { ...coverage, missingQueries: 8 };
             const inspect = vi
-                .spyOn(UsageQueryHistoryBackfill.prototype, 'inspect')
+                .spyOn(UsageHistoryBackfill.prototype, 'inspect')
                 .mockImplementation(async (org) => {
                     active += 1;
                     peak = Math.max(peak, active);
@@ -428,7 +476,7 @@ describe('AnalyticsProjectService', () => {
                 failed: false,
             });
             const inspect = vi
-                .spyOn(UsageQueryHistoryBackfill.prototype, 'inspect')
+                .spyOn(UsageHistoryBackfill.prototype, 'inspect')
                 .mockRejectedValueOnce(new Error('storage unavailable'))
                 .mockResolvedValue(coverage);
             const configured = configuredService();

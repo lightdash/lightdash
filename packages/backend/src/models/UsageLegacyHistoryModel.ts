@@ -155,6 +155,7 @@ export class UsageLegacyHistoryModel {
                 // eslint-disable-next-line no-await-in-loop
                 const rows = await this.database.transaction(async (trx) => {
                     await trx.raw('SET TRANSACTION READ ONLY');
+                    await trx.raw("SET LOCAL TIME ZONE 'UTC'");
                     await trx.raw("SET LOCAL statement_timeout = '10s'");
                     await trx.raw("SET LOCAL lock_timeout = '1s'");
                     return query.transacting(trx);

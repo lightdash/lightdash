@@ -41,7 +41,7 @@ describe('AnalyticsHistoryBackfill', () => {
     it.each([
         ['no retained history', covered],
         [
-            'all retained queries already available',
+            'all retained records already available',
             { ...covered, existingQueries: 24 },
         ],
         [
@@ -53,7 +53,7 @@ describe('AnalyticsHistoryBackfill', () => {
         renderBackfill();
         await waitFor(() =>
             expect(
-                screen.queryByText('Checking available query history…'),
+                screen.queryByText('Checking available history…'),
             ).not.toBeInTheDocument(),
         );
         expect(
@@ -62,7 +62,7 @@ describe('AnalyticsHistoryBackfill', () => {
             }),
         ).not.toBeInTheDocument();
         expect(
-            screen.queryByText('Historical query activity'),
+            screen.queryByText('Historical activity'),
         ).not.toBeInTheDocument();
         expect(sharedLightdashApi).toHaveBeenCalledWith({
             url: '/org/analytics-project/backfill',
@@ -81,19 +81,17 @@ describe('AnalyticsHistoryBackfill', () => {
             }),
         ).toBeEnabled();
         expect(
-            screen.getByText('24 missing queries · 2026-09-01 to 2026-09-30'),
+            screen.getByText('24 records to import · 2026-09-01 to 2026-09-30'),
         ).toBeVisible();
-        expect(
-            screen.getByText('8 queries already available will be skipped.'),
-        ).toBeVisible();
+        expect(screen.getByText('8 records already available.')).toBeVisible();
         expect(
             screen.getByText(
-                '3 captured queries are awaiting processing and will be skipped.',
+                '3 captured events are awaiting processing and will be skipped.',
             ),
         ).toBeVisible();
         expect(
             screen.getByText(
-                /Not included: chart, dashboard and app views, AI conversations and token usage, exports, or historical People activity summaries\./,
+                /Not included: conversation text, historical People activity summaries, or records no longer stored\./,
             ),
         ).toBeVisible();
         expect(sharedLightdashApi).not.toHaveBeenCalledWith(
@@ -117,17 +115,36 @@ describe('AnalyticsHistoryBackfill', () => {
             }),
         ).toBeEnabled();
         expect(
-            screen.getByText('2 missing queries · 2017-01-01 to 2026-10-26'),
+            screen.getByText('2 records to import · 2017-01-01 to 2026-10-26'),
         ).toBeVisible();
+        expect(screen.getByText('23 records already available.')).toBeVisible();
         expect(
-            screen.getByText('23 queries already available will be skipped.'),
-        ).toBeVisible();
-        expect(
-            screen.getByText('Includes: retained query history.'),
+            screen.getByText(/Includes: retained queries, AI token usage/),
         ).toBeVisible();
         expect(
             screen.queryByText(/completed UTC days/),
         ).not.toBeInTheDocument();
+    });
+
+    it('offers the single action when queries are covered but other retained history is missing', async () => {
+        mockedLightdashApi.mockResolvedValue({
+            ...covered,
+            missingRecords: 5,
+            existingRecords: 9,
+            pendingRecords: 2,
+            from: '2024-01-01',
+            to: '2026-10-26',
+        });
+        renderBackfill();
+        expect(
+            await screen.findByRole('button', {
+                name: 'Backfill available history',
+            }),
+        ).toBeEnabled();
+        expect(
+            screen.getByText('5 records to import · 2024-01-01 to 2026-10-26'),
+        ).toBeVisible();
+        expect(screen.getByText('9 records already available.')).toBeVisible();
     });
 
     it('separates singular counts from their labels', async () => {
@@ -140,15 +157,13 @@ describe('AnalyticsHistoryBackfill', () => {
         renderBackfill();
         expect(
             await screen.findByText(
-                '1 missing query · 2026-09-01 to 2026-09-30',
+                '1 record to import · 2026-09-01 to 2026-09-30',
             ),
         ).toBeVisible();
-        expect(
-            screen.getByText('1 query already available will be skipped.'),
-        ).toBeVisible();
+        expect(screen.getByText('1 record already available.')).toBeVisible();
         expect(
             screen.getByText(
-                '1 captured query is awaiting processing and will be skipped.',
+                '1 captured event is awaiting processing and will be skipped.',
             ),
         ).toBeVisible();
     });
@@ -225,7 +240,7 @@ describe('AnalyticsHistoryBackfill', () => {
         );
         expect(
             await screen.findByText(
-                '4 missing queries · 2026-09-01 to 2026-09-30',
+                '4 records to import · 2026-09-01 to 2026-09-30',
             ),
         ).toBeVisible();
         await userEvent.click(

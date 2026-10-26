@@ -1,10 +1,6 @@
 import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { ParameterError } from '@lightdash/common';
 import { type DuckdbParquetSource } from '@lightdash/warehouses';
-import {
-    QUERY_HISTORY_BACKFILL_EVENT,
-    queryHistoryBackfillKey,
-} from '../../../analytics/eventStream/queryHistoryBackfill';
 import { compactedStreamSchemas } from '../../../analytics/eventStream/registry';
 import {
     usageDimensionKey,
@@ -12,6 +8,10 @@ import {
     usageDimensionSchemas,
     usageDimensionTable,
 } from '../../../analytics/eventStream/usageDimensions';
+import {
+    usageHistoryKey,
+    usageHistorySources,
+} from '../../../analytics/eventStream/usageHistorySources';
 import {
     analyticsStreams,
     userActivityColumns,
@@ -86,7 +86,7 @@ export const createS3AnalyticsSourceResolver = ({
         const fileBuffers = new Map<string, Buffer>();
         let bufferedBytes = 0;
         let hasEvents = false;
-        let hasQueryHistory = false;
+        const historySources = new Set<string>();
         try {
             let continuationToken: string | undefined;
             let pages = 0;
@@ -121,9 +121,12 @@ export const createS3AnalyticsSourceResolver = ({
                         /^stream=(query_events|ai_usage|data_app_events|export_events|agent_steps|mcp_tool_calls|content_views|agent_request_events)\/dt=(\d{4}-\d{2}-\d{2})\/[a-zA-Z0-9_-]+\.parquet$/.exec(
                             key.slice(prefix.length),
                         );
-                    const queryHistory =
-                        key === queryHistoryBackfillKey(organizationUuid);
-                    if (queryHistory) hasQueryHistory = true;
+                    const history = usageHistorySources.find(
+                        (source) =>
+                            key ===
+                            usageHistoryKey(organizationUuid, source.name),
+                    );
+                    if (history) historySources.add(history.name);
                     const userActivity =
                         /^model=user_activity\/stream=(query_events|ai_usage|data_app_events|export_events|agent_steps|mcp_tool_calls|content_views)\/dt=(\d{4}-\d{2}-\d{2})\/activity\.parquet$/.test(
                             key.slice(prefix.length),
@@ -136,13 +139,13 @@ export const createS3AnalyticsSourceResolver = ({
                         ? usageDimensionTable(dimension)
                         : (match?.[1] ?? null);
                     if (userActivity) tableName = 'user_activity';
-                    if (queryHistory) tableName = 'query_events';
+                    if (history) tableName = history.name;
                     // Expose all retained partitions. Date filters belong to
                     // the Explore query, not a fixed source-level window.
                     if (tableName) {
                         if (
                             match ||
-                            queryHistory ||
+                            history ||
                             userActivity ||
                             dimension === 'content' ||
                             dimension === 'people'
@@ -233,13 +236,21 @@ export const createS3AnalyticsSourceResolver = ({
             })),
             ...analyticsStreams.map((name) => ({
                 name,
-                columns: compactedStreamSchemas[name],
+                columns: historySources.has(name)
+                    ? (usageHistorySources.find(
+                          (source) => source.name === name,
+                      )?.columns ?? compactedStreamSchemas[name])
+                    : compactedStreamSchemas[name],
             })),
             {
                 name: 'agent_request_events',
                 columns: compactedStreamSchemas.agent_request_events,
             },
             { name: 'user_activity', columns: userActivityColumns },
+            {
+                name: 'historical_activity',
+                columns: usageHistorySources[2].columns,
+            },
         ];
         return {
             scope,
@@ -251,14 +262,12 @@ export const createS3AnalyticsSourceResolver = ({
                 urls: urls.sort(),
                 columns: schemas.find((schema) => schema.name === name)
                     ?.columns,
-                ...(name === 'query_events' && hasQueryHistory
+                ...(historySources.has(name)
                     ? {
                           hivePartitioning: false,
-                          fallbackRows: {
-                              keyColumns: ['org_id', 'project_id', 'query_id'],
-                              markerColumn: 'event_name',
-                              markerValue: QUERY_HISTORY_BACKFILL_EVENT,
-                          },
+                          fallbackRows: usageHistorySources.find(
+                              (source) => source.name === name,
+                          )?.fallbackRows,
                       }
                     : {}),
             })),

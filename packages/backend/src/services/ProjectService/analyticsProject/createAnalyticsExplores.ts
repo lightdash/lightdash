@@ -20,6 +20,7 @@ import {
     usageDimensionTable,
     type UsageDimensionName,
 } from '../../../analytics/eventStream/usageDimensions';
+import { historicalActivityColumns } from '../../../analytics/eventStream/usageHistorySources';
 import {
     analyticsStreams,
     userActivityColumns,
@@ -94,6 +95,7 @@ export const analyticsExploreNames = [
         (name) => name !== 'mcp_tool_calls' && name !== 'content_views',
     ),
     'user_activity',
+    'historical_activity',
     'tool_activity',
     'content_reach',
     'content_health',
@@ -118,6 +120,25 @@ export const createAnalyticsExplores = (): Explore[] => {
             hidden: false,
         };
         const model = {
+            historical_activity: {
+                columns: historicalActivityColumns,
+                metrics: [
+                    {
+                        name: 'record_count',
+                        type: MetricType.COUNT,
+                        column: 'record_id',
+                        description:
+                            'Retained database records. Filter by activity type; these are not additional captured views or requests.',
+                    },
+                    {
+                        name: 'distinct_people',
+                        type: MetricType.COUNT_DISTINCT,
+                        column: 'user_id',
+                        description:
+                            'Distinct identified people in the selected historical records; null actors are excluded.',
+                    },
+                ],
+            },
             data_app_outcomes: {
                 columns: dataAppOutcomesColumns,
                 metrics: dataAppOutcomesMetrics,
@@ -168,6 +189,7 @@ export const createAnalyticsExplores = (): Explore[] => {
             },
         };
         const modelDefinition =
+            name === 'historical_activity' ||
             name === 'semantic_usage' ||
             name === 'user_activity' ||
             name === 'tool_activity' ||
@@ -325,6 +347,16 @@ export const createAnalyticsExplores = (): Explore[] => {
         if (name === 'query_events') {
             table.dimensions.semantic_field_references.hidden = true;
         }
+        if (name === 'historical_activity') {
+            table.dimensions.org_id.hidden = true;
+            table.dimensions.schema_version.hidden = true;
+            table.dimensions.current_status.description =
+                'Status stored at the last import, not status at the historical record timestamp.';
+            table.dimensions.event_ts.description =
+                'Timestamp retained by the source record. No missing lifecycle timestamps are reconstructed.';
+            table.dimensions.activity_type.description =
+                'Meaning of the database record. Chart view records can include query executions; these counts must not be added to captured view totals.';
+        }
         if (name === 'semantic_usage') {
             table.dimensions.org_id.hidden = true;
             table.dimensions.field_identity.hidden = true;
@@ -417,10 +449,12 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'agent_steps' ||
             name === 'agent_requests' ||
             name === 'agent_request_events' ||
-            name === 'tool_activity'
+            name === 'tool_activity' ||
+            name === 'historical_activity'
         )
             dimensions.push('agents');
-        if (name === 'ai_usage') dimensions.push('projects');
+        if (name === 'ai_usage' || name === 'historical_activity')
+            dimensions.push('projects');
         const dimensionTables = Object.fromEntries(
             dimensions.map((dimension) => {
                 const tableName = usageDimensionTable(dimension);
@@ -464,7 +498,8 @@ export const createAnalyticsExplores = (): Explore[] => {
             }),
         );
         const label = friendlyName(name);
-        const includeContentMetadata = name === 'content_reach';
+        const includeContentMetadata =
+            name === 'content_reach' || name === 'historical_activity';
         const contentTableName = usageDimensionTable('content');
         const contentFields = buildDimensionsFromColumns({
             qualifyColumnReferences: true,
@@ -476,6 +511,7 @@ export const createAnalyticsExplores = (): Explore[] => {
                 'content_id',
                 'content_type',
                 'content_url',
+                ...(name === 'historical_activity' ? ['content_name'] : []),
             ].map((reference) => ({ reference, type: DimensionType.STRING })),
             warehouseSqlBuilder: sqlBuilder,
         });
@@ -485,7 +521,8 @@ export const createAnalyticsExplores = (): Explore[] => {
             name === 'data_app_events' ||
             name === 'semantic_usage' ||
             name === 'data_app_reach' ||
-            name === 'data_app_outcomes';
+            name === 'data_app_outcomes' ||
+            name === 'historical_activity';
         const appFields = buildDimensionsFromColumns({
             qualifyColumnReferences: true,
             tableName: appTableName,
@@ -502,6 +539,8 @@ export const createAnalyticsExplores = (): Explore[] => {
         appFields.org_id.hidden = true;
         appFields.name.label = 'App name';
         appFields.name.sql = `COALESCE(\${TABLE}.name, \${${name}.app_id}, 'Unknown app')`;
+        if (name === 'historical_activity')
+            appFields.name.sql = `CASE WHEN \${${name}.app_id} IS NULL THEN NULL ELSE ${appFields.name.sql} END`;
         const explore: UncompiledExplore = {
             name,
             label,
@@ -514,8 +553,11 @@ export const createAnalyticsExplores = (): Explore[] => {
                               table: contentTableName,
                               type: 'left' as const,
                               relationship: JoinRelationship.MANY_TO_ONE,
-                              fields: ['content_url'],
-                              sqlOn: "${content_reach.org_id} = ${lightdash_content.org_id} AND ${content_reach.project_id} = ${lightdash_content.project_id} AND ${content_reach.content_id} = ${lightdash_content.content_id} AND CASE WHEN ${content_reach.content_type} = 'chart' THEN 'saved_chart' ELSE ${content_reach.content_type} END = ${lightdash_content.content_type}",
+                              fields:
+                                  name === 'historical_activity'
+                                      ? ['content_name', 'content_url']
+                                      : ['content_url'],
+                              sqlOn: `\${${name}.org_id} = \${lightdash_content.org_id} AND \${${name}.project_id} = \${lightdash_content.project_id} AND \${${name}.content_id} = \${lightdash_content.content_id} AND CASE WHEN \${${name}.content_type} = 'chart' THEN 'saved_chart' ELSE \${${name}.content_type} END = \${lightdash_content.content_type}`,
                           },
                       ]
                     : []),

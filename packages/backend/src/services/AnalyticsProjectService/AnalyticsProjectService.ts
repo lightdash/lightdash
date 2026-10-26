@@ -13,7 +13,7 @@ import {
 } from '@lightdash/common';
 import memoize from 'lodash/memoize';
 import pLimit from 'p-limit';
-import { UsageQueryHistoryBackfill } from '../../analytics/eventStream/UsageQueryHistoryBackfill';
+import { UsageHistoryBackfill } from '../../analytics/eventStream/UsageHistoryBackfill';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
@@ -22,10 +22,9 @@ import type { LightdashConfig } from '../../config/parseConfig';
 import { type ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { type SavedChartModel } from '../../models/SavedChartModel';
 import { type SpaceModel } from '../../models/SpaceModel';
-import { UsageQueryHistoryModel } from '../../models/UsageQueryHistoryModel';
+import type { UsageHistoryModel } from '../../models/UsageHistoryModel';
 import { UserModel } from '../../models/UserModel';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
@@ -38,7 +37,10 @@ import { ProjectService } from '../ProjectService/ProjectService';
 
 type Dependencies = {
     lightdashConfig: Pick<LightdashConfig, 'usageEvents'>;
-    queryHistoryModel: Pick<QueryHistoryModel, 'database'>;
+    usageHistoryModel: Pick<
+        UsageHistoryModel,
+        'getQueryJsonLines' | 'getAiUsageJsonLines' | 'getActivityJsonLines'
+    >;
     schedulerClient: Pick<
         SchedulerClient,
         'getUsageHistoryBackfillJob' | 'scheduleUsageHistoryBackfill'
@@ -144,11 +146,9 @@ export class AnalyticsProjectService extends BaseService {
         let check = this.historyChecks.get(org);
         if (!check) {
             check = this.historyCheckQueue(() =>
-                new UsageQueryHistoryBackfill(
+                new UsageHistoryBackfill(
                     this.dependencies.lightdashConfig.usageEvents.s3!,
-                    new UsageQueryHistoryModel(
-                        this.dependencies.queryHistoryModel.database,
-                    ),
+                    this.dependencies.usageHistoryModel,
                 ).inspect(org),
             ).finally(() => this.historyChecks.delete(org));
             this.historyChecks.set(org, check);
@@ -156,7 +156,8 @@ export class AnalyticsProjectService extends BaseService {
         const status = await check;
         return {
             ...status,
-            ...(job.failed && status.missingQueries > 0
+            ...(job.failed &&
+            (status.missingRecords ?? status.missingQueries) > 0
                 ? {
                       error: 'The previous backfill failed. You can retry safely.',
                   }
@@ -166,6 +167,26 @@ export class AnalyticsProjectService extends BaseService {
 
     async backfill(user: SessionUser): Promise<void> {
         const org = await this.assertBackfill(user);
+        // Add newly available history models without replacing customer content.
+        await this.dependencies.projectModel.runInAnalyticsProvisioningLock(
+            org,
+            async () => {
+                const projects =
+                    await this.dependencies.projectModel.getAllByOrganizationUuid(
+                        org,
+                    );
+                const project = projects.find(
+                    (candidate) => candidate.provisioningSource === 'analytics',
+                );
+                if (!project)
+                    throw new NotFoundError('Analytics project not found');
+                await this.dependencies.projectModel.saveExploresToCache(
+                    project.projectUuid,
+                    createAnalyticsExplores(),
+                    true,
+                );
+            },
+        );
         // Eligibility is rechecked in the worker. A direct rerun is always safe.
         await this.dependencies.schedulerClient.scheduleUsageHistoryBackfill({
             organizationUuid: org,
@@ -259,7 +280,7 @@ export class AnalyticsProjectService extends BaseService {
             } catch {
                 // Creation succeeded. Settings still offers a data-derived retry.
                 this.logger.error(
-                    'Failed to enqueue initial query history backfill',
+                    'Failed to enqueue initial analytics history backfill',
                     {
                         organizationUuid: user.organizationUuid,
                         projectUuid: result.projectUuid,

@@ -3,12 +3,18 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import { gzipSync } from 'zlib';
+import { UsageAdditionalHistoryModel } from '../../models/UsageAdditionalHistoryModel';
 import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
+import { UsageHistoryModel } from '../../models/UsageHistoryModel';
+import { UsageLegacyHistoryModel } from '../../models/UsageLegacyHistoryModel';
+import { UsageQueryHistoryModel } from '../../models/UsageQueryHistoryModel';
 import { queryEventsCompactedColumns } from './queryEventsStream';
 import {
     QUERY_HISTORY_BACKFILL_EVENT,
     queryHistoryBackfillKey,
 } from './queryHistoryBackfill';
+import { UsageHistoryBackfill } from './UsageHistoryBackfill';
+import { usageHistoryKey, usageHistorySources } from './usageHistorySources';
 import { UsageQueryHistoryBackfill } from './UsageQueryHistoryBackfill';
 
 // The engine and generated Parquet are real. Only transport is redirected to a
@@ -95,7 +101,7 @@ vi.mock('./UsageDimensionsRefresher', () => ({
     },
 }));
 
-describe('query history backfill reconciliation', () => {
+describe('usage history backfill reconciliation', () => {
     const org = '00000000-0000-4000-8000-000000000001';
     const pendingDate = new Date(Date.now() - 86400000)
         .toISOString()
@@ -142,7 +148,11 @@ describe('query history backfill reconciliation', () => {
             instance.closeSync();
         }
     };
-    const parquet = async (key: string, values: Record<string, unknown>[]) => {
+    const parquet = async (
+        key: string,
+        values: Record<string, unknown>[],
+        columns = queryEventsCompactedColumns,
+    ) => {
         const filename = path.join(transport.directory, key);
         await mkdir(path.dirname(filename), { recursive: true });
         const input = path.join(transport.directory, 'fixture.jsonl');
@@ -150,7 +160,7 @@ describe('query history backfill reconciliation', () => {
             input,
             values.map((value) => JSON.stringify(value)).join('\n'),
         );
-        const defs = queryEventsCompactedColumns
+        const defs = columns
             .map(({ name, type }) => `${name}:'${type}'`)
             .join(',');
         await sql(
@@ -332,7 +342,7 @@ describe('query history backfill reconciliation', () => {
         rows.push(row('new'));
         transport.failUpload = true;
         await expect(backfill().run(org, dimensions)).rejects.toThrow(
-            'Unable to check or import retained query history',
+            'Unable to check or import retained analytics history',
         );
         expect(await readFile(filename)).toEqual(before);
         transport.failUpload = false;
@@ -389,11 +399,234 @@ describe('query history backfill reconciliation', () => {
         expect(transport.keys.has(queryHistoryBackfillKey(org))).toBe(false);
     });
 
+    it('rejects malformed organization identifiers before reading any history', async () => {
+        await expect(backfill().inspect('-'.repeat(36))).rejects.toThrow(
+            'Invalid organization',
+        );
+        expect(transport.uploads).toBe(0);
+    });
+
     it('fails closed on storage errors and does not publish or expose provider details', async () => {
         transport.failListing = true;
         await expect(backfill().inspect(org)).rejects.toThrow(
-            'Unable to check or import retained query history',
+            'Unable to check or import retained analytics history',
         );
         expect(transport.uploads).toBe(0);
+    });
+    it('resumes a combined import after a later source fails without republishing completed sources', async () => {
+        vi.spyOn(
+            UsageQueryHistoryModel.prototype,
+            'getJsonLines',
+        ).mockImplementation(async function* queryRows() {
+            yield `${JSON.stringify(row('combined-query'))}\n`;
+        });
+        vi.spyOn(
+            UsageAdditionalHistoryModel.prototype,
+            'getAiUsageJsonLines',
+        ).mockImplementation(async function* aiRows() {
+            yield `${JSON.stringify({ org_id: org, event_id: 'combined-ai', event_ts: '2024-01-01T12:00:00Z', total_tokens: 50, history_origin: 'database' })}\n`;
+        });
+        let fail = true;
+        vi.spyOn(
+            UsageLegacyHistoryModel.prototype,
+            'getJsonLines',
+        ).mockImplementation(async function* legacyRows() {
+            if (fail) throw new Error('database unavailable');
+            yield `${JSON.stringify({ org_id: org, history_source: 'analytics_chart_views', record_id: 'combined-view', event_ts: '2024-01-01T12:00:00Z' })}\n`;
+        });
+        vi.spyOn(
+            UsageAdditionalHistoryModel.prototype,
+            'getActivityJsonLines',
+        ).mockImplementation(async function* noAdditionalRows() {
+            /* This fixture has no additional facts. */
+        });
+        try {
+            const importer = new UsageHistoryBackfill(
+                storage,
+                new UsageHistoryModel({} as never),
+            );
+            await expect(importer.run(org, dimensions)).rejects.toThrow(
+                'Unable to check or import retained analytics history',
+            );
+            expect(transport.uploads).toBe(2);
+            const queryBytes = await readFile(
+                path.join(
+                    transport.directory,
+                    usageHistoryKey(org, 'query_events'),
+                ),
+            );
+            const aiBytes = await readFile(
+                path.join(
+                    transport.directory,
+                    usageHistoryKey(org, 'ai_usage'),
+                ),
+            );
+            fail = false;
+            await expect(importer.inspect(org)).resolves.toMatchObject({
+                missingRecords: 1,
+                existingRecords: 2,
+            });
+            await importer.run(org, dimensions);
+            expect(transport.uploads).toBe(3);
+            expect(
+                await readFile(
+                    path.join(
+                        transport.directory,
+                        usageHistoryKey(org, 'query_events'),
+                    ),
+                ),
+            ).toEqual(queryBytes);
+            expect(
+                await readFile(
+                    path.join(
+                        transport.directory,
+                        usageHistoryKey(org, 'ai_usage'),
+                    ),
+                ),
+            ).toEqual(aiBytes);
+            await expect(importer.inspect(org)).resolves.toMatchObject({
+                missingRecords: 0,
+                existingRecords: 3,
+            });
+        } finally {
+            vi.restoreAllMocks();
+        }
+    });
+
+    it('reconciles AI ledger events by their shared event ID across captured, pending and imported data', async () => {
+        const source = usageHistorySources[1];
+        const ai = (id: string) => ({
+            org_id: org,
+            event_id: id,
+            event_name: 'ai.usage',
+            event_ts: '2024-01-01T12:00:00Z',
+            project_id: null,
+            input_tokens: 40,
+            output_tokens: 10,
+            total_tokens: 50,
+            history_origin: 'database',
+        });
+        rows = [ai('captured'), ai('missing'), ai('pending')];
+        await parquet(
+            `events/compacted/org_id=${org}/stream=ai_usage/dt=2026-10-01/captured.parquet`,
+            [{ ...ai('captured'), total_tokens: 99, history_origin: null }],
+            source.columns,
+        );
+        const raw = `events/raw/org_id=${org}/stream=ai_usage/dt=${pendingDate}/pending.jsonl.gz`;
+        await mkdir(path.dirname(path.join(transport.directory, raw)), {
+            recursive: true,
+        });
+        await writeFile(
+            path.join(transport.directory, raw),
+            gzipSync(JSON.stringify(ai('pending'))),
+        );
+        transport.keys.add(raw);
+        const importer = () =>
+            new UsageQueryHistoryBackfill(
+                storage,
+                {
+                    async *getJsonLines() {
+                        for (const value of rows)
+                            yield `${JSON.stringify(value)}\n`;
+                    },
+                },
+                source,
+            );
+        await expect(importer().inspect(org)).resolves.toMatchObject({
+            missingQueries: 1,
+            existingQueries: 1,
+            pendingQueries: 1,
+        });
+        await importer().run(org, dimensions);
+        const filename = path.join(
+            transport.directory,
+            usageHistoryKey(org, 'ai_usage'),
+        );
+        expect(
+            await sql(
+                `SELECT event_id, total_tokens, history_origin FROM read_parquet('${filename}', hive_partitioning=false)`,
+            ),
+        ).toEqual([
+            {
+                event_id: 'missing',
+                total_tokens: 50n,
+                history_origin: 'database',
+            },
+        ]);
+        const bytes = await readFile(filename);
+        await importer().run(org, dimensions);
+        expect(await readFile(filename)).toEqual(bytes);
+        expect(transport.uploads).toBe(1);
+    });
+
+    it('keeps legacy facts separate, preserves pruned history and updates surviving snapshots without duplicate rows', async () => {
+        const source = usageHistorySources[2];
+        const fact = (id: string) => ({
+            org_id: org,
+            history_source: 'analytics_chart_views',
+            record_id: id,
+            activity_type: 'chart_view_or_execution',
+            event_ts: '2024-01-01T12:00:00Z',
+            user_id: null,
+            content_id: 'same-chart',
+            current_status: null,
+        });
+        rows = [fact('view-1'), fact('view-2')];
+        const importer = () =>
+            new UsageQueryHistoryBackfill(
+                storage,
+                {
+                    async *getJsonLines() {
+                        for (const value of rows)
+                            yield `${JSON.stringify(value)}\n`;
+                    },
+                },
+                source,
+            );
+        await importer().run(org, dimensions);
+        const filename = path.join(
+            transport.directory,
+            usageHistoryKey(org, 'historical_activity'),
+        );
+        const bytes = await readFile(filename);
+        await importer().run(org, dimensions);
+        expect(await readFile(filename)).toEqual(bytes);
+        expect(transport.uploads).toBe(1);
+        rows = [
+            fact('view-1'),
+            { ...fact('view-2'), current_status: 'updated' },
+        ];
+        await expect(importer().inspect(org)).resolves.toMatchObject({
+            missingQueries: 1,
+            existingQueries: 1,
+        });
+        await importer().run(org, dimensions);
+        await expect(importer().inspect(org)).resolves.toMatchObject({
+            missingQueries: 0,
+            existingQueries: 2,
+        });
+        rows = [
+            { ...fact('view-2'), current_status: 'updated' },
+            fact('view-3'),
+        ];
+        await expect(importer().inspect(org)).resolves.toMatchObject({
+            missingQueries: 1,
+            existingQueries: 1,
+        });
+        await importer().run(org, dimensions);
+        expect(
+            await sql(
+                `SELECT record_id, current_status FROM read_parquet('${filename}', hive_partitioning=false) ORDER BY record_id`,
+            ),
+        ).toEqual([
+            { record_id: 'view-1', current_status: null },
+            { record_id: 'view-2', current_status: 'updated' },
+            { record_id: 'view-3', current_status: null },
+        ]);
+        await expect(importer().inspect(org)).resolves.toMatchObject({
+            missingQueries: 0,
+            existingQueries: 2,
+        });
+        expect(transport.keys.has(queryHistoryBackfillKey(org))).toBe(false);
     });
 });

@@ -4,6 +4,24 @@ import { MetricQueryBuilder } from '../../../utils/QueryBuilder/MetricQueryBuild
 import { createAnalyticsExplores } from './createAnalyticsExplores';
 
 describe('createAnalyticsExplores', () => {
+    it('exposes database history without combining its counts with native views', () => {
+        const history = createAnalyticsExplores().find(
+            ({ name }) => name === 'historical_activity',
+        )!;
+        expect(history).toBeDefined();
+        expect(
+            history.tables.historical_activity.metrics.record_count,
+        ).toMatchObject({ type: MetricType.COUNT });
+        expect(
+            history.tables.historical_activity.dimensions.activity_type
+                .description,
+        ).toContain('must not be added');
+        expect(
+            history.tables.historical_activity.dimensions.current_status
+                .description,
+        ).toContain('last import');
+    });
+
     it('offers native content links through the same Explore URL aliases', () => {
         const explores = createAnalyticsExplores();
         for (const name of [
@@ -78,6 +96,24 @@ describe('createAnalyticsExplores', () => {
             'total_views',
         ],
         ['user_activity', 'lightdash_users_name', 'user_name', 'total_events'],
+        [
+            'historical_activity',
+            'lightdash_users_name',
+            'user_name',
+            'record_count',
+        ],
+        [
+            'historical_activity',
+            'lightdash_content_content_name',
+            'content_name',
+            'record_count',
+        ],
+        [
+            'historical_activity',
+            'lightdash_apps_name',
+            'app_name',
+            'record_count',
+        ],
     ])(
         'keeps the same SQL work for %s %s selections, filters and sorts',
         (name, original, alias, metric) => {
@@ -216,6 +252,7 @@ describe('createAnalyticsExplores', () => {
             'export_events',
             'agent_steps',
             'user_activity',
+            'historical_activity',
             'tool_activity',
             'content_reach',
             'content_health',

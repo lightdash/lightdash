@@ -3,7 +3,7 @@
 Organization administrators can use **Settings → Lightdash analytics → Backfill
 available history** to recover the analytics facts still retained in this
 installation's database. There is one action and one queued job covering all
-sources below. The check shows the available date range and counts by source.
+sources below. The check shows the available date range and total record counts.
 The action disappears when the retained data is covered, and reappears if a
 later check finds missing records or changed snapshots. There is no permanent
 “used” flag.

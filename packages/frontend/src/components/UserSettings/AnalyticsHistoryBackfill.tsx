@@ -9,60 +9,62 @@ import { SettingsCard } from '../common/Settings/SettingsCard';
 const AnalyticsHistoryBackfill = () => {
     const status = useAnalyticsHistoryBackfill(true);
     const backfill = useBackfillAnalyticsHistory();
+    const missing =
+        status.data?.missingRecords ?? status.data?.missingQueries ?? 0;
+    const existing =
+        status.data?.existingRecords ?? status.data?.existingQueries ?? 0;
+    const pending =
+        status.data?.pendingRecords ?? status.data?.pendingQueries ?? 0;
     if (status.isLoading)
         return (
             <Text fz="sm" c="dimmed">
-                Checking available query history…
+                Checking available history…
             </Text>
         );
     // Derive completion from data, including after a reload or a failed job.
-    if (
-        status.isSuccess &&
-        !status.data.running &&
-        status.data.missingQueries === 0
-    )
-        return null;
+    if (status.isSuccess && !status.data.running && missing === 0) return null;
     return (
         <SettingsCard>
             <Stack gap="md">
-                <Title order={5}>Historical query activity</Title>
+                <Title order={5}>Historical activity</Title>
                 <Stack gap="xs">
                     <Text fz="sm" c="dimmed">
-                        Includes: retained query history.
+                        Includes: retained queries, AI token usage, and
+                        historical views, apps, conversations, tools and export
+                        records.
                     </Text>
                     <Text fz="sm" c="dimmed">
-                        Not included: chart, dashboard and app views, AI
-                        conversations and token usage, exports, or historical
-                        People activity summaries.
+                        Not included: conversation text, historical People
+                        activity summaries, or records no longer stored.
                     </Text>
                 </Stack>
-                {status.data?.missingQueries ? (
+                <Text fz="xs" c="dimmed">
+                    Queries and AI usage update existing Analytics datasets.
+                    Other records appear in Historical activity.
+                </Text>
+                {missing ? (
                     <Text fz="sm">
-                        {`${status.data.missingQueries.toLocaleString()} missing ${status.data.missingQueries === 1 ? 'query' : 'queries'} · ${status.data.from} to ${status.data.to}`}
+                        {`${missing.toLocaleString()} ${missing === 1 ? 'record' : 'records'} to import · ${status.data?.from} to ${status.data?.to}`}
                     </Text>
                 ) : null}
-                {status.data?.existingQueries ? (
+                {existing ? (
                     <Text fz="xs" c="dimmed">
-                        {status.data.existingQueries.toLocaleString()}{' '}
-                        {status.data.existingQueries === 1
-                            ? 'query'
-                            : 'queries'}{' '}
-                        already available will be skipped.
+                        {existing.toLocaleString()}{' '}
+                        {existing === 1 ? 'record' : 'records'} already
+                        available.
                     </Text>
                 ) : null}
-                {status.data?.pendingQueries ? (
+                {pending ? (
                     <Text fz="xs" c="dimmed">
-                        {status.data.pendingQueries.toLocaleString()} captured{' '}
-                        {status.data.pendingQueries === 1
-                            ? 'query is'
-                            : 'queries are'}{' '}
-                        awaiting processing and will be skipped.
+                        {pending.toLocaleString()} captured{' '}
+                        {pending === 1 ? 'event is' : 'events are'} awaiting
+                        processing and will be skipped.
                     </Text>
                 ) : null}
                 {(status.isError || backfill.isError || status.data?.error) && (
                     <Callout
                         variant="danger"
-                        title="Unable to backfill query history"
+                        title="Unable to backfill history"
                     >
                         {status.error?.error.message ??
                             backfill.error?.error.message ??

@@ -983,7 +983,7 @@ export class ServiceRepository
             () =>
                 new AnalyticsProjectService({
                     lightdashConfig: this.context.lightdashConfig,
-                    queryHistoryModel: this.models.getQueryHistoryModel(),
+                    usageHistoryModel: this.models.getUsageHistoryModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     coderService: this.getCoderService(),
                     contentVerificationModel:
