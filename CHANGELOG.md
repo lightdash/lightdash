@@ -1,3 +1,15 @@
+# [3.56.0](https://github.com/lightdash/lightdash/compare/3.55.2...3.56.0) (2026-10-26)
+
+
+### Bug Fixes
+
+* uploaded AI agent avatars and announcement images survive exports bucket retention ([#31245](https://github.com/lightdash/lightdash/issues/31245)) ([cf0d50b](https://github.com/lightdash/lightdash/commit/cf0d50b093bfcd7e094181bf7dcb7ff6328f31bb))
+
+
+### Features
+
+* **ai-composer:** hide chart panel under query artifacts ([#31570](https://github.com/lightdash/lightdash/issues/31570)) ([6f34479](https://github.com/lightdash/lightdash/commit/6f344799fdfbe288b439905fc8b5a696c1f59f65))
+
 ## [3.55.2](https://github.com/lightdash/lightdash/compare/3.55.1...3.55.2) (2026-10-26)
 
 
