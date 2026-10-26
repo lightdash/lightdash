@@ -2,6 +2,9 @@
 import { DuckDBInstance, type DuckDBConnection } from '@duckdb/node-api';
 import { WarehouseTypes } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import { mkdtemp, rm } from 'fs/promises';
+import { tmpdir } from 'os';
+import path from 'path';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
 import { contentInventoryColumns } from '../eventStream/contentInventory';
@@ -224,6 +227,121 @@ describe('Content health', () => {
             rows.find((r) => r.content_health_content_id === 'used')
                 ?.content_health_observed_viewers,
         ).toBe('1');
+    });
+
+    it('handles large retained histories from projects absent from inventory within bounded memory', async () => {
+        const directory = await mkdtemp(path.join(tmpdir(), 'content-health-'));
+        const file = path.join(directory, 'queries.parquet');
+        try {
+            // Bracket the historical project so a Parquet min/max filter alone
+            // cannot remove it before the query deduplication.
+            for (const projectId of ['aaa', 'zzz']) {
+                await insert('lightdash_content', {
+                    org_id: 'org',
+                    project_id: projectId,
+                    content_id: projectId,
+                    content_type: 'dashboard',
+                });
+            }
+            await db.run(`INSERT INTO query_events
+                (org_id, project_id, query_id, dashboard_id, event_ts)
+                SELECT 'org', 'removed-project', md5(i::VARCHAR), 'used',
+                    TIMESTAMP '2026-09-20'
+                FROM range(600000) rows(i)`);
+            await insert('query_events', {
+                org_id: 'org',
+                project_id: 'project',
+                query_id: 'current',
+                dashboard_id: 'used',
+                event_ts: '2026-09-21',
+            });
+            await db.run(`COPY query_events TO '${file}' (FORMAT PARQUET)`);
+            await db.run('DROP TABLE query_events');
+            await db.run(
+                `CREATE VIEW query_events AS SELECT * FROM read_parquet('${file}')`,
+            );
+            await db.run("SET memory_limit = '64MB'");
+            await db.run('SET threads = 4');
+            await db.run("SET temp_directory = ''");
+            const rows = (
+                await db.runAndReadAll(
+                    compile(
+                        ['content_id', 'activity_status'],
+                        ['total_observed_queries'],
+                    ),
+                )
+            ).getRowObjectsJson();
+            expect(
+                rows.find((row) => row.content_health_content_id === 'used'),
+            ).toMatchObject({
+                content_health_activity_status: 'Activity observed',
+                content_health_total_observed_queries: '1',
+            });
+        } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
+    });
+
+    it('keeps latest query attribution and separate null identities within inventory projects', async () => {
+        const query = {
+            org_id: 'org',
+            project_id: 'project',
+            dashboard_id: 'used',
+            event_ts: '2026-09-20',
+            warehouse_execution_time_ms: 10,
+        };
+        for (const queryId of ['removed-attribution', 'changed-attribution']) {
+            await insert('query_events', { ...query, query_id: queryId });
+            await insert('query_events', {
+                ...query,
+                query_id: queryId,
+                event_ts: '2026-09-21',
+                dashboard_id:
+                    queryId === 'removed-attribution'
+                        ? null
+                        : 'unknown-content',
+            });
+        }
+        await insert('query_events', { ...query, query_id: null });
+        await insert('query_events', {
+            ...query,
+            query_id: null,
+            warehouse_execution_time_ms: 20,
+        });
+        await insert('query_events', { ...query, query_id: 'retained' });
+        // Same query identity in another scope must neither replace the current
+        // event nor become attributed to its inventory item.
+        await insert('query_events', {
+            ...query,
+            query_id: 'retained',
+            org_id: 'other',
+            event_ts: '2026-09-22',
+            warehouse_execution_time_ms: 1000,
+        });
+        await insert('query_events', {
+            ...query,
+            query_id: 'retained',
+            project_id: 'other',
+            event_ts: '2026-09-22',
+            warehouse_execution_time_ms: 1000,
+        });
+        const rows = (
+            await db.runAndReadAll(
+                compile(
+                    ['content_id'],
+                    [
+                        'total_observed_queries',
+                        'total_warehouse_execution_time_ms',
+                    ],
+                ),
+            )
+        ).getRowObjectsJson();
+        expect(
+            rows.find((row) => row.content_health_content_id === 'used'),
+        ).toMatchObject({
+            content_health_total_observed_queries: '3',
+            content_health_total_warehouse_execution_time_ms: '40',
+        });
     });
 
     it.each([
