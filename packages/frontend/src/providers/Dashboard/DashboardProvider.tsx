@@ -351,6 +351,17 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }
     }, [store, dashboard?.config?.parameterOrder, dashboard?.config]);
 
+    const isDashboardLoaded = dashboard !== undefined;
+    const savedControlSections = dashboard?.config?.controlSections;
+    useEffect(() => {
+        if (!isDashboardLoaded) return;
+        store.dispatch(
+            dashboardEditActions.syncControlSections(
+                savedControlSections ?? [],
+            ),
+        );
+    }, [store, isDashboardLoaded, savedControlSections]);
+
     // Seed the staged custom-metrics registry from config; keep user edits
     // until save/cancel resets the changed flag.
     const haveCustomMetricsChanged = useStoreValue(

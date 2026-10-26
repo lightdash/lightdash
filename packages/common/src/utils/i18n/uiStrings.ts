@@ -420,6 +420,12 @@ export const DEFAULT_UI_STRINGS = {
         '{applied} of {total} tile on this tab is filtered by {subject}',
     'filters.rail.tabCountTooltip.plural':
         '{applied} of {total} tiles on this tab are filtered by {subject}',
+    'filters.rail.sectionCount.singular': '{count} filter',
+    'filters.rail.sectionCount.plural': '{count} filters',
+    'filters.rail.untitledSection': 'Untitled section',
+    'filters.rail.collapseSection': 'Collapse section {section}',
+    'filters.rail.expandSection': 'Expand section {section}',
+    'filters.rail.savedFilterReadOnly': 'Set this filter from the bar',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':
         'This tile has no field this filter can use',

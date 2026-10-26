@@ -1,9 +1,22 @@
 import {
+    closestCenter,
+    DndContext,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
     getDashboardFilterField,
     interpolateUiString,
     type DashboardFilterableField,
     type DashboardFilterRule,
-    type DashboardFilters,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -18,32 +31,60 @@ import {
     IconChevronDown,
     IconTrash,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    dashboardEditActions,
     selectActiveTabUuid,
+    selectControlSections,
     selectDashboardFilters,
     selectDashboardTabs,
     selectDashboardTiles,
+    useDashboardDispatch,
     useDashboardSelector,
     useDashboardTemporaryFilters,
 } from '../dashboard/store';
 import { useIsLockedDashboardFilterRule } from '../dashboardFilters/useIsLockedDashboardFilterRule';
 import classes from './ControlSidebar.module.css';
 import { EditorShell } from './EditorShell';
+import { formatSectionCount } from './fieldLabels';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import { FilterRow, FilterTypeIcon } from './FilterRow';
 import { FilterSettings } from './FilterSettings';
 import { getFilterFields } from './peers';
 import { getTilesSummary } from './railSummaries';
+import { SectionDropZone, SectionHeader } from './SectionHeader';
+
+const NEW_SECTION_BUTTON = '[data-controls-new-section]';
+const sectionMenuSelector = (sectionId: string) =>
+    `[data-controls-section="${sectionId}"] [data-controls-section-menu]`;
+import {
+    groupRulesBySection,
+    moveRuleToSection,
+    removeSectionFromRules,
+    getDragAnnouncements,
+    sectionOfZoneId,
+    sectionZoneId,
+    UNSECTIONED_ZONE_ID,
+    type SectionRule,
+} from './sections';
 import {
     isDefaultValueIncomplete,
     isPlaceholderRule,
     withFilterRuleLabel,
 } from './sidebarState';
+import { SortableRow } from './SortableRow';
 import { useAppliedTileCount } from './useAppliedTileCount';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFilterRuleField } from './useFilterRuleField';
@@ -236,12 +277,10 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     );
 };
 
-type FilterGroup = 'dimensions' | 'metrics';
-
 /** For the dashboard grid's row, which holds the rail next to the grid. */
 export const CONTROLS_RAIL_LAYOUT = classes.layout;
 
-const GROUPS: FilterGroup[] = ['dimensions', 'metrics'];
+type NameEdit = { id: string; isNew: boolean };
 
 export const ControlSidebar: FC = () => {
     const filterId = useControlsSidebarSelector(
@@ -250,6 +289,7 @@ export const ControlSidebar: FC = () => {
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
+    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
     const open = useControlsSidebarSelector((c) => c.open);
     const setHoveredFilterId = useControlsSidebarSelector(
         (c) => c.setHoveredFilterId,
@@ -261,8 +301,16 @@ export const ControlSidebar: FC = () => {
     const discard = useControlsSidebarSelector((c) => c.discard);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const getUiString = useUiStrings();
+    const dispatch = useDashboardDispatch();
+    const setDashboardFilters = useDashboardContext(
+        (c) => c.setDashboardFilters,
+    );
+    const setHaveFiltersChanged = useDashboardContext(
+        (c) => c.setHaveFiltersChanged,
+    );
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const temporaryFilters = useDashboardTemporaryFilters();
+    const controlSections = useDashboardSelector(selectControlSections);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const hasTabs = useDashboardSelector(
         (state) => selectDashboardTabs(state).length > 0,
@@ -285,7 +333,6 @@ export const ControlSidebar: FC = () => {
         (c) => c.allFilterableMetricsMap,
     );
     const isLockedRule = useIsLockedDashboardFilterRule();
-    if (!isRailOpen) return null;
 
     // The shipped unresolved pills' tooltips: a hidden field, or a gone one
     const getUnresolvedTooltip = (rule: DashboardFilterRule) =>
@@ -294,57 +341,273 @@ export const ControlSidebar: FC = () => {
             : interpolateUiString(getUiString('filters.rail.unknownField'), {
                   field: rule.target.fieldId,
               });
-
-    // Null while every filter is a row
-    const editor =
-        filterId === null || editingRule === null ? null : (
-            <FilterEditor key={filterId} rule={editingRule} />
-        );
-    // A viewer's rail lists only their own filters: saved ones stay on the bar
-    const rowsOf = (filters: DashboardFilters, isOwn: boolean) =>
-        GROUPS.flatMap((group) =>
-            filters[group].map((rule) => {
-                if (rule.id === filterId) return editor;
-                const field =
+    // Local to this mount: nothing saved
+    const [collapsedIds, setCollapsedIds] = useState<string[]>([]);
+    // A new section lives only here until its name is committed
+    const [nameEdit, setNameEdit] = useState<NameEdit | null>(null);
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        }),
+    );
+    // The menu and the name input unmount with focus on them: it goes to the
+    // section's menu button, or the footer once the section is gone
+    const focusAfter = useRef<string | null>(null);
+    useLayoutEffect(() => {
+        if (focusAfter.current === null) return;
+        document.querySelector<HTMLElement>(focusAfter.current)?.focus();
+        focusAfter.current = null;
+    });
+    if (!isRailOpen) return null;
+    const sections = nameEdit?.isNew
+        ? [...controlSections, { id: nameEdit.id, name: '' }]
+        : controlSections;
+    // A viewer's rail lists their own filters first, then the saved
+    // sections read-only; a saved filter with no section stays on the bar
+    const listedFilters = isViewer ? temporaryFilters : dashboardFilters;
+    const grouped = isViewer
+        ? [
+              ...groupRulesBySection(temporaryFilters, []),
+              ...groupRulesBySection(dashboardFilters, sections).filter(
+                  ({ section, rules }) => section !== null && rules.length > 0,
+              ),
+          ]
+        : groupRulesBySection(dashboardFilters, sections);
+    const sectionIds = new Set(controlSections.map((section) => section.id));
+    const sectionNames = new Map(
+        sections.map((section) => [
+            section.id,
+            section.name || getUiString('filters.rail.untitledSection'),
+        ]),
+    );
+    const ruleNames = new Map(
+        grouped.flatMap(({ rules }) =>
+            rules.map(({ rule, group }): [string, string] => [
+                rule.id,
+                rule.label ||
                     getDashboardFilterField<DashboardFilterableField>(
                         group === 'metrics'
                             ? allFilterableMetricsMap
                             : allFilterableFieldsMap,
                         rule,
                         filterableFieldsByTileUuid,
-                    ) ?? null;
-                const isUnresolved =
-                    field === null &&
-                    !rule.target.isSqlColumn &&
-                    !isPlaceholderRule(rule) &&
-                    !areFieldsLoading;
-                return (
-                    <FilterRow
-                        key={rule.id}
-                        rule={rule}
-                        field={field}
-                        activeTabUuid={activeTabUuid}
-                        hasTabs={hasTabs}
-                        isOwn={isOwn}
-                        isReadOnly={isUnresolved}
-                        readOnlyTooltip={
-                            isUnresolved ? getUnresolvedTooltip(rule) : null
-                        }
-                        isDisabled={
-                            !areFieldsLoaded && !rule.target.isSqlColumn
-                        }
-                        onOpen={open}
-                        onHover={setHoveredFilterId}
-                        onUnhover={clearHoveredFilterId}
-                    />
-                );
-            }),
+                    )?.label ||
+                    rule.target.fieldId,
+            ]),
+        ),
+    );
+    const nameOf = (id: string) => {
+        if (id === UNSECTIONED_ZONE_ID) return 'the space outside any section';
+        const zoneSectionId = sectionOfZoneId(id);
+        if (zoneSectionId !== null)
+            return `the empty section ${sectionNames.get(zoneSectionId) ?? ''}`;
+        const sectionName = sectionNames.get(id);
+        if (sectionName !== undefined) return `section ${sectionName}`;
+        return ruleNames.get(id) ?? 'a filter';
+    };
+    const sectionOfRule = (ruleId: string) =>
+        grouped.find(({ rules }) =>
+            rules.some(({ rule }) => rule.id === ruleId),
+        )?.section?.id ?? null;
+
+    const handleDragEnd = ({ active, over }: DragEndEvent) => {
+        if (!over || active.id === over.id) return;
+        const activeId = String(active.id);
+        const overId = String(over.id);
+        const zoneSectionId = sectionOfZoneId(overId);
+        // Over a header, its empty zone or one of its rows: that section
+        const overSectionId = sectionIds.has(overId)
+            ? overId
+            : (zoneSectionId ?? sectionOfRule(overId));
+        if (sectionIds.has(activeId)) {
+            if (overSectionId === null || overSectionId === activeId) return;
+            dispatch(
+                dashboardEditActions.moveControlSection({
+                    id: activeId,
+                    overId: overSectionId,
+                }),
+            );
+            return;
+        }
+        const target =
+            overId === UNSECTIONED_ZONE_ID
+                ? { sectionId: null }
+                : sectionIds.has(overId) || zoneSectionId !== null
+                  ? { sectionId: overSectionId }
+                  : { ruleId: overId };
+        const moved = moveRuleToSection(dashboardFilters, activeId, target);
+        if (moved === dashboardFilters) return;
+        setDashboardFilters(moved);
+        setHaveFiltersChanged(true);
+    };
+
+    const removeSection = (sectionId: string, hasMembers: boolean) => {
+        focusAfter.current = NEW_SECTION_BUTTON;
+        dispatch(dashboardEditActions.removeControlSection(sectionId));
+        if (!hasMembers) return;
+        setDashboardFilters((filters) =>
+            removeSectionFromRules(filters, sectionId),
         );
-    const listedFilters = isViewer ? temporaryFilters : dashboardFilters;
-    const rows = rowsOf(listedFilters, isViewer);
-    // A placeholder is not in the dashboard filters yet: it comes last. One
-    // keyed list, so the editor keeps its state when its rule joins them
-    const isListed = editor === null || rows.includes(editor);
+        setHaveFiltersChanged(true);
+    };
+
+    const commitName = (name: string) => {
+        if (nameEdit === null) return;
+        focusAfter.current = sectionMenuSelector(nameEdit.id);
+        dispatch(
+            nameEdit.isNew
+                ? dashboardEditActions.addControlSection({
+                      id: nameEdit.id,
+                      name,
+                  })
+                : dashboardEditActions.renameControlSection({
+                      id: nameEdit.id,
+                      name,
+                  }),
+        );
+        setNameEdit(null);
+    };
+    const cancelName = () => {
+        if (nameEdit === null) return;
+        focusAfter.current = nameEdit.isNew
+            ? NEW_SECTION_BUTTON
+            : sectionMenuSelector(nameEdit.id);
+        setNameEdit(null);
+    };
+
+    // Null while every filter is a row
+    const editor =
+        filterId === null || editingRule === null ? null : (
+            <FilterEditor key={filterId} rule={editingRule} />
+        );
+    // A viewer's saved row (in a section) opens nothing and has no grip
+    const renderRow = ({ rule, group }: SectionRule, isSaved: boolean) => {
+        if (rule.id === filterId) return editor;
+        const field =
+            getDashboardFilterField<DashboardFilterableField>(
+                group === 'metrics'
+                    ? allFilterableMetricsMap
+                    : allFilterableFieldsMap,
+                rule,
+                filterableFieldsByTileUuid,
+            ) ?? null;
+        const isUnresolved =
+            field === null &&
+            !rule.target.isSqlColumn &&
+            !isPlaceholderRule(rule) &&
+            !areFieldsLoading;
+        const row = (
+            <FilterRow
+                key={rule.id}
+                rule={rule}
+                field={field}
+                activeTabUuid={activeTabUuid}
+                hasTabs={hasTabs}
+                isOwn={isViewer && !isSaved}
+                isReadOnly={isUnresolved || isSaved}
+                readOnlyTooltip={
+                    isUnresolved
+                        ? getUnresolvedTooltip(rule)
+                        : isSaved
+                          ? getUiString('filters.rail.savedFilterReadOnly')
+                          : null
+                }
+                isDisabled={!areFieldsLoaded && !rule.target.isSqlColumn}
+                onOpen={open}
+                onHover={setHoveredFilterId}
+                onUnhover={clearHoveredFilterId}
+            />
+        );
+        if (isSaved) return row;
+        return (
+            <SortableRow
+                key={rule.id}
+                id={rule.id}
+                isDisabled={isSidebarOpen || isViewer}
+            >
+                {row}
+            </SortableRow>
+        );
+    };
+    // A placeholder is not in the dashboard filters yet: it comes last among
+    // the unsectioned rows. One keyed list, so the editor keeps its state
+    // when its rule joins them
+    const isListed =
+        editor === null ||
+        grouped.some(({ rules }) =>
+            rules.some(({ rule }) => rule.id === filterId),
+        );
+    // A filter in a section: a zone under the unsectioned rows to take it out
+    const hasUnsectionedZone =
+        !isViewer &&
+        grouped.some(
+            ({ section, rules }) => section !== null && rules.length > 0,
+        );
+    const sortableIds = grouped.flatMap(({ section, rules }) => [
+        ...(section === null ? [] : [section.id]),
+        ...rules.map(({ rule }) => rule.id),
+        ...(section === null && hasUnsectionedZone
+            ? [UNSECTIONED_ZONE_ID]
+            : []),
+        ...(section !== null && rules.length === 0
+            ? [sectionZoneId(section.id)]
+            : []),
+    ]);
+    const body = grouped.flatMap(({ section, rules }) => {
+        if (section === null) {
+            const rows = rules.map((rule) => renderRow(rule, false));
+            const zone = hasUnsectionedZone
+                ? [
+                      <SectionDropZone
+                          key={UNSECTIONED_ZONE_ID}
+                          id={UNSECTIONED_ZONE_ID}
+                          label="Drag a filter here to take it out of its section"
+                          isDisabled={isSidebarOpen}
+                      />,
+                  ]
+                : [];
+            return isListed ? [...rows, ...zone] : [...rows, editor, ...zone];
+        }
+        const isCollapsed = collapsedIds.includes(section.id);
+        // A collapsed section still shows the filter being edited
+        const shown = isCollapsed
+            ? rules.filter(({ rule }) => rule.id === filterId)
+            : rules;
+        return [
+            <SectionHeader
+                key={`section:${section.id}`}
+                section={section}
+                countLabel={formatSectionCount(getUiString, rules.length)}
+                isCollapsed={isCollapsed}
+                isEditingName={nameEdit?.id === section.id}
+                isDragDisabled={isSidebarOpen || nameEdit !== null}
+                isReadOnly={isViewer}
+                onToggle={() =>
+                    setCollapsedIds((ids) =>
+                        ids.includes(section.id)
+                            ? ids.filter((id) => id !== section.id)
+                            : [...ids, section.id],
+                    )
+                }
+                onRename={() => setNameEdit({ id: section.id, isNew: false })}
+                onCommitName={commitName}
+                onCancelName={cancelName}
+                onRemove={() => removeSection(section.id, rules.length > 0)}
+            />,
+            ...shown.map((rule) => renderRow(rule, isViewer)),
+            ...(rules.length === 0 && !isCollapsed
+                ? [
+                      <SectionDropZone
+                          key={sectionZoneId(section.id)}
+                          id={sectionZoneId(section.id)}
+                          label="Drag filters here"
+                          isDisabled={isSidebarOpen}
+                      />,
+                  ]
+                : []),
+        ];
+    });
     // Closing keeps the edits, so the footer says what closing would drop
     const footerStatus =
         editingRule === null || editor === null
@@ -362,9 +625,31 @@ export const ControlSidebar: FC = () => {
             }
             onClose={close}
             onCancel={editor !== null && isPlaceholder ? discard : null}
+            onNewSection={
+                isViewer
+                    ? null
+                    : () => {
+                          if (nameEdit?.isNew) return;
+                          setNameEdit({ id: uuidv4(), isNew: true });
+                      }
+            }
             footerStatus={footerStatus}
         >
-            {isListed ? rows : [...rows, editor]}
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                accessibility={{
+                    announcements: getDragAnnouncements(nameOf),
+                }}
+                onDragEnd={handleDragEnd}
+            >
+                <SortableContext
+                    items={sortableIds}
+                    strategy={verticalListSortingStrategy}
+                >
+                    {body}
+                </SortableContext>
+            </DndContext>
         </EditorShell>
     );
 };
