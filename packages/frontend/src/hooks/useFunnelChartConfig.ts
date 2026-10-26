@@ -9,10 +9,6 @@ import {
 } from '@lightdash/common';
 import {
     buildValidFunnelConfig,
-    DEFAULT_FUNNEL_DATA_INPUT,
-    DEFAULT_FUNNEL_LABELS,
-    DEFAULT_FUNNEL_LEGEND_POSITION,
-    DEFAULT_FUNNEL_SHOW_LEGEND,
     getFunnelChartData,
     getFunnelColorDefaults,
     getFunnelSelectedField,
@@ -20,7 +16,16 @@ import {
     type FunnelSeriesDataPoint,
 } from '@lightdash/visualization/editor';
 import { useDebouncedValue } from '@mantine/hooks';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
+import {
+    buildFunnelEditorState,
+    funnelEditorActions,
+    selectFunnelEditor,
+    useEditorFieldSetter,
+    useEditorState,
+    useVisualizationDispatch,
+    type FunnelEditorState,
+} from '../features/visualization/store';
 import { type InfiniteQueryResults } from './useQueryResults';
 
 type FunnelChartConfig = {
@@ -65,8 +70,8 @@ export type FunnelChartConfigFn = (
 /**
  * The explorer's editable funnel config. Every derivation (the selected
  * field, the steps and max value, the default colors, the valid config)
- * runs through `@lightdash/visualization`; this hook only holds the editor
- * state and its mutators.
+ * runs through `@lightdash/visualization`; the editor state lives in the
+ * visualization store and this hook exposes its mutators.
  */
 const useFunnelChartConfig: FunnelChartConfigFn = (
     resultsData,
@@ -76,33 +81,24 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
     colorPalette,
     tableCalculationsMetadata,
 ) => {
-    const [fieldId, setFieldId] = useState(funnelChartConfig?.fieldId ?? null);
-
-    const [dataInput, setDataInput] = useState(
-        funnelChartConfig?.dataInput ?? DEFAULT_FUNNEL_DATA_INPUT,
+    const {
+        fieldId,
+        dataInput,
+        labels,
+        labelOverrides,
+        colorOverrides,
+        showLegend,
+        legendPosition,
+    } = useEditorState(selectFunnelEditor, funnelEditorActions, () =>
+        buildFunnelEditorState(funnelChartConfig),
     );
-
-    const [labels, setLabels] = useState<FunnelChart['labels']>(
-        funnelChartConfig?.labels ?? DEFAULT_FUNNEL_LABELS,
-    );
-
-    const [labelOverrides, setLabelOverrides] = useState(
-        funnelChartConfig?.labelOverrides ?? {},
+    const dispatch = useVisualizationDispatch();
+    const set = useEditorFieldSetter<FunnelEditorState>(
+        selectFunnelEditor,
+        funnelEditorActions.set,
     );
 
     const [debouncedLabelOverrides] = useDebouncedValue(labelOverrides, 500);
-
-    const [colorOverrides, setColorOverrides] = useState(
-        funnelChartConfig?.colorOverrides ?? {},
-    );
-
-    const [showLegend, setShowLegend] = useState(
-        funnelChartConfig?.showLegend ?? DEFAULT_FUNNEL_SHOW_LEGEND,
-    );
-
-    const [legendPosition, setLegendPosition] = useState(
-        funnelChartConfig?.legendPosition ?? DEFAULT_FUNNEL_LEGEND_POSITION,
-    );
 
     const allNumericFieldIds = useMemo(
         () => (numericFields ? Object.keys(numericFields) : []),
@@ -124,8 +120,8 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
             allNumericFieldIds,
             tableCalculationsMetadata,
         });
-        if (nextFieldId !== fieldId) setFieldId(nextFieldId);
-    }, [allNumericFieldIds, fieldId, isLoading, tableCalculationsMetadata]);
+        if (nextFieldId !== fieldId) set('fieldId', nextFieldId);
+    }, [allNumericFieldIds, fieldId, isLoading, tableCalculationsMetadata, set]);
 
     // Max value is the largest step value, used to calculate the percentage
     // each step represents
@@ -154,32 +150,43 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         [data, colorPalette],
     );
 
-    const onLabelsChange = useCallback((labelsProps: FunnelChart['labels']) => {
-        setLabels((prevLabels) => ({ ...prevLabels, ...labelsProps }));
-    }, []);
+    const setFieldId = useCallback(
+        (value: string | null) => set('fieldId', value),
+        [set],
+    );
 
-    const onLabelOverridesChange = useCallback((key: string, value: string) => {
-        setLabelOverrides(({ [key]: _, ...rest }) => {
-            return value.trim() === '' ? rest : { ...rest, [key]: value };
-        });
-    }, []);
+    const setDataInput = useCallback(
+        (value: FunnelChartDataInput) => set('dataInput', value),
+        [set],
+    );
 
-    const onColorOverridesChange = useCallback((key: string, value: string) => {
-        setColorOverrides(({ [key]: _, ...rest }) => {
-            return value.trim() === '' ? rest : { ...rest, [key]: value };
-        });
-    }, []);
+    const onLabelsChange = useCallback(
+        (labelsProps: FunnelChart['labels']) =>
+            dispatch(funnelEditorActions.labelsMerge(labelsProps)),
+        [dispatch],
+    );
+
+    const onLabelOverridesChange = useCallback(
+        (key: string, value: string) =>
+            dispatch(funnelEditorActions.labelOverrideChange({ key, value })),
+        [dispatch],
+    );
+
+    const onColorOverridesChange = useCallback(
+        (key: string, value: string) =>
+            dispatch(funnelEditorActions.colorOverrideChange({ key, value })),
+        [dispatch],
+    );
 
     const handleLegendPositionChange = useCallback(
-        (position: FunnelChartLegendPosition) => {
-            setLegendPosition(position);
-        },
-        [],
+        (position: FunnelChartLegendPosition) =>
+            set('legendPosition', position),
+        [set],
     );
 
     const toggleShowLegend = useCallback(
-        () => setShowLegend((prev) => !prev),
-        [],
+        () => dispatch(funnelEditorActions.toggleShowLegend()),
+        [dispatch],
     );
 
     const validConfig: FunnelChart = useMemo(
