@@ -2854,7 +2854,17 @@ describe('AsyncQueryService', () => {
                                 status: { type: DimensionType.STRING },
                                 revenue: { type: DimensionType.NUMBER },
                             },
-                            rows: [],
+                            rows: [
+                                { column_name: 'month', column_type: 'DATE' },
+                                {
+                                    column_name: 'status',
+                                    column_type: 'VARCHAR',
+                                },
+                                {
+                                    column_name: 'revenue',
+                                    column_type: 'DOUBLE',
+                                },
+                            ],
                         });
                     },
                 );
@@ -2901,11 +2911,12 @@ describe('AsyncQueryService', () => {
                 });
 
             test('is accepted, recorded on the row and composed over the discovered columns', async () => {
-                const { service, runAsyncWarehouseSpy } =
+                const { service, streamQuery, runAsyncWarehouseSpy } =
                     buildService(lightdashConfigMock);
 
                 const result = await submit(service, pivotConfiguration);
 
+                expect(streamQuery.mock.calls[0][0]).toMatch(/^DESCRIBE /);
                 expect(result.queryUuid).toBe('pivoted-uuid');
                 expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
                     sessionAccount,
@@ -15834,7 +15845,19 @@ describe('runDuckdbQuery', () => {
                     rows: Record<string, unknown>[];
                 }) => void,
             ) => {
-                callback({ fields, rows: [] });
+                callback({
+                    fields,
+                    rows: Object.entries(fields).map(([name, field]) => ({
+                        column_name: name,
+                        column_type: {
+                            [DimensionType.NUMBER]: 'DOUBLE',
+                            [DimensionType.BOOLEAN]: 'BOOLEAN',
+                            [DimensionType.DATE]: 'DATE',
+                            [DimensionType.TIMESTAMP]: 'TIMESTAMP',
+                            [DimensionType.STRING]: 'VARCHAR',
+                        }[field.type],
+                    })),
+                });
             },
         );
         return {
@@ -15877,39 +15900,6 @@ describe('runDuckdbQuery', () => {
         context: QueryExecutionContext.EXPLORE,
         ...overrides,
     });
-
-    it.each([false, true])(
-        'selects the column probe from the org flag: %s',
-        async (enabled) => {
-            const { warehouseClient, streamQuery } = probingClient({
-                one: { type: DimensionType.NUMBER },
-            });
-            const { service, run } = buildService();
-            const get = vi.fn(
-                async ({ featureFlagId }: { featureFlagId: string }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        enabled &&
-                        featureFlagId ===
-                            FeatureFlags.ComposerOptimizationDuckdbColumnProbe,
-                }),
-            );
-            Object.assign(service, { featureFlagModel: { get } });
-            await run(
-                baseArgs({ engine: { kind: 'client', warehouseClient } }),
-            );
-            expect(get).toHaveBeenCalledWith({
-                user: { organizationUuid: projectSummary.organizationUuid },
-                featureFlagId:
-                    FeatureFlags.ComposerOptimizationDuckdbColumnProbe,
-            });
-            expect(streamQuery.mock.calls[0][0]).toBe(
-                enabled
-                    ? 'DESCRIBE SELECT 1 AS one'
-                    : 'SELECT 1 AS one LIMIT 1',
-            );
-        },
-    );
 
     it('times each stage of a run over query references', async () => {
         const { warehouseClient } = probingClient({
@@ -15961,7 +15951,7 @@ describe('runDuckdbQuery', () => {
 
     // A results file name may contain '--'; the limit's comment stripper
     // must never see the reference CTEs that name it
-    it('discover mode limits the user statement before wrapping it in the reference CTEs', async () => {
+    it('discover mode describes the user statement with intact reference CTEs', async () => {
         const { streamQuery, warehouseClient } = probingClient({
             one: { type: DimensionType.NUMBER },
         });
@@ -15978,15 +15968,15 @@ describe('runDuckdbQuery', () => {
 
         expect(streamQuery.mock.calls[0][0]).toBe(
             [
-                `WITH ${referenceCte}`,
+                `DESCRIBE WITH ${referenceCte}`,
                 'SELECT * FROM (',
-                'SELECT one FROM r LIMIT 1',
+                'SELECT one FROM r',
                 ') AS lightdash_user_query',
             ].join('\n'),
         );
     });
 
-    it('discover mode probes the SQL with one row and executes with the columns it found', async () => {
+    it('discover mode describes the SQL and executes with the columns it found', async () => {
         const { streamQuery, warehouseClient } = probingClient({
             one: { type: DimensionType.NUMBER },
         });
@@ -15995,7 +15985,7 @@ describe('runDuckdbQuery', () => {
         await run(baseArgs({ engine: { kind: 'client', warehouseClient } }));
 
         expect(streamQuery).toHaveBeenCalledTimes(1);
-        expect(streamQuery.mock.calls[0][0]).toMatch(/LIMIT 1$/);
+        expect(streamQuery.mock.calls[0][0]).toBe('DESCRIBE SELECT 1 AS one');
         expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
         expect(streamQuery.mock.invocationCallOrder[0]).toBeLessThan(
             runWarehouseQuery.mock.invocationCallOrder[0],
@@ -28085,7 +28075,6 @@ describe('fresh execution producer to result reader', () => {
             Object.assign(auth.grant, { revokedAt: new Date() });
             await expect(
                 f.service['preflightDiscoveredPivot']({
-                    organizationUuid: projectSummary.organizationUuid,
                     account: auth.req.account!,
                     projectUuid,
                     sql: 'SELECT * FROM source',
