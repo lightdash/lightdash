@@ -4,9 +4,15 @@ import {
     interpolateUiString,
     type DashboardControlSection,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Text, TextInput } from '@mantine/core';
 import {
-    IconCheck,
+    ActionIcon,
+    Box,
+    Checkbox,
+    Menu,
+    Text,
+    TextInput,
+} from '@mantine/core';
+import {
     IconChevronRight,
     IconDots,
     IconFilterPlus,
@@ -250,18 +256,21 @@ export const SectionHeader: FC<Props> = ({
                             >
                                 Rename
                             </Menu.Item>
-                            {/* The check in the left slot says it is on */}
+                            {/* A checkbox item, as the date zoom menu: the
+                                item and the box both toggle, the menu stays
+                                so the change shows */}
                             <Menu.Item
                                 fz="xs"
+                                closeMenuOnClick={false}
                                 leftSection={
-                                    section.collapsed ? (
-                                        <MantineIcon
-                                            icon={IconCheck}
-                                            size={14}
-                                        />
-                                    ) : (
-                                        <Box w={14} h={14} />
-                                    )
+                                    <Checkbox
+                                        size="xs"
+                                        checked={section.collapsed === true}
+                                        onChange={onToggleCollapsedByDefault}
+                                        onClick={(event) =>
+                                            event.stopPropagation()
+                                        }
+                                    />
                                 }
                                 onClick={onToggleCollapsedByDefault}
                             >

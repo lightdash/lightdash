@@ -429,6 +429,8 @@ export const DEFAULT_UI_STRINGS = {
     'filters.rail.expandSection': 'Expand section {section}',
     'filters.rail.savedFilterReadOnly': 'Set this filter from the bar',
     'filters.rail.add': 'Add',
+    'filters.rail.addFilterOrSection': 'Add filter or section',
+    'filters.rail.more': 'More',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':
         'This tile has no field this filter can use',

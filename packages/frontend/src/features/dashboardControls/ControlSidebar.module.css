@@ -224,6 +224,23 @@
     display: contents;
 }
 
+/* The list's last row: quiet, at a loose row's height and left padding */
+.addRow {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    width: 100%;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm)
+        var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    color: var(--mantine-color-dimmed);
+    transition: background-color var(--controls-duration-hover)
+        var(--controls-ease);
+}
+
+.addRow:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
 .rows > .sectionHeader:first-child {
     border-top: 0;
 }
@@ -434,6 +451,7 @@
     .disclosure,
     .chevron,
     .grip,
+    .addRow,
     .rowRemove,
     .sectionMenu,
     .header,

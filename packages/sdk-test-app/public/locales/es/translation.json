@@ -481,6 +481,8 @@
         "filters.rail.expandSection": "Expandir sección {section}",
         "filters.rail.savedFilterReadOnly": "Ajusta este filtro desde la barra",
         "filters.rail.add": "Añadir",
+        "filters.rail.addFilterOrSection": "Añadir filtro o sección",
+        "filters.rail.more": "Más",
         "filters.tileCard.locked": "Los mosaicos están bloqueados mientras se edita un filtro",
         "filters.tileCard.unreachable": "Este mosaico no tiene ningún campo que este filtro pueda usar",
         "filters.tileCard.filtered": "Este mosaico está filtrado",
