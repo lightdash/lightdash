@@ -47,7 +47,6 @@ import { randomUUID } from 'crypto';
 import { type Readable } from 'stream';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { toSessionUser } from '../../auth/account';
-import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type GroupsModel } from '../../models/GroupsModel';
@@ -225,7 +224,6 @@ export type ProjectHomepageServiceArguments = {
         'getProjectMemberAccess' | 'getProjectGroupAccesses' | 'getSummary'
     >;
     userModel: Pick<UserModel, 'getUserDetailsByUuid'>;
-    fileStorageClient: FileStorageClient;
     persistentDownloadFileService: PersistentDownloadFileService;
     slackClient: Pick<SlackClient, 'postMessage'>;
     slackAuthenticationModel: Pick<
@@ -254,8 +252,6 @@ export class ProjectHomepageService extends BaseService {
 
     private readonly userModel: ProjectHomepageServiceArguments['userModel'];
 
-    private readonly fileStorageClient: ProjectHomepageServiceArguments['fileStorageClient'];
-
     private readonly persistentDownloadFileService: ProjectHomepageServiceArguments['persistentDownloadFileService'];
 
     private readonly slackClient: ProjectHomepageServiceArguments['slackClient'];
@@ -276,7 +272,6 @@ export class ProjectHomepageService extends BaseService {
         this.groupsModel = args.groupsModel;
         this.projectModel = args.projectModel;
         this.userModel = args.userModel;
-        this.fileStorageClient = args.fileStorageClient;
         this.persistentDownloadFileService = args.persistentDownloadFileService;
         this.slackClient = args.slackClient;
         this.slackAuthenticationModel = args.slackAuthenticationModel;
@@ -1648,17 +1643,12 @@ export class ProjectHomepageService extends BaseService {
                 bufferedUpload,
             );
 
-        const storageId = `${announcementImageS3Prefix(
-            projectUuid,
-        )}${randomUUID()}`;
-        const s3Key = `${storageId}.png`;
-
-        await this.fileStorageClient.uploadImage(normalizedImage, storageId);
-
         const persistentUrl =
-            await this.persistentDownloadFileService.createPersistentUrl({
-                s3Key,
-                fileType: 'image',
+            await this.persistentDownloadFileService.uploadPersistentImage({
+                image: normalizedImage,
+                storageId: `${announcementImageS3Prefix(
+                    projectUuid,
+                )}${randomUUID()}`,
                 organizationUuid: user.organizationUuid,
                 projectUuid,
                 createdByUserUuid: user.userUuid,

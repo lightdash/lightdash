@@ -1,6 +1,7 @@
 import {
     NotFoundError,
     type PersistentDownloadFileAccessMode,
+    type PersistentDownloadFileStorage,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -27,6 +28,7 @@ export class PersistentDownloadFileModel {
         projectUuid: string | null;
         createdByUserUuid: string | null;
         accessMode: PersistentDownloadFileAccessMode;
+        storage: PersistentDownloadFileStorage;
         expiresAt: Date;
     }): Promise<void> {
         await this.database(PersistentDownloadFileTableName).insert({
@@ -37,6 +39,7 @@ export class PersistentDownloadFileModel {
             project_uuid: data.projectUuid,
             created_by_user_uuid: data.createdByUserUuid,
             access_mode: data.accessMode,
+            storage: data.storage,
             expires_at: data.expiresAt,
         });
     }

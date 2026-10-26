@@ -106,7 +106,8 @@ graph TD
 </codeExample>
 
 <importantToKnow>
-- **Two Buckets, Two Purposes**: S3Client uses S3_BUCKET env var (general exports), S3ResultsFileStorageClient uses RESULTS_S3_BUCKET (falls back to S3_BUCKET if not set)
+- **Three Buckets, Three Purposes**: S3Client uses S3_BUCKET env var (general exports), S3ResultsFileStorageClient uses RESULTS_S3_BUCKET (falls back to S3_BUCKET if not set), and `getUploadsFileStorageClient()` uses UPLOADS_S3_BUCKET for long-lived uploads such as agent avatars and announcement images (unset: uploads stay in S3_BUCKET and are recorded as exports, so turning it on later never orphans them)
+- **Exports bucket is purgeable**: operators (including Lightdash Cloud) may delete every object in S3_BUCKET after days. Anything that must outlive that goes through `PersistentDownloadFileService.uploadPersistentImage`, which writes to the uploads bucket and records the bucket on the `persistent_download_files` row so downloads read from the right place
 - **Cross-Bucket Transforms**: Always use transformAndExportResults() utility to convert cached results to user downloads. Never write user-facing files to the results bucket
 - **Authentication**: Both clients support IAM role credentials (preferred) or access key/secret key via env vars
 - **Pre-signed URLs**: All uploads return pre-signed URLs with expiration times configured in lightdashConfig.s3.expirationTime

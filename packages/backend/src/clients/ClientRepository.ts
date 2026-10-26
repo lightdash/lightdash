@@ -33,6 +33,7 @@ export interface ClientManifest {
     msTeamsClient: MicrosoftTeamsClient;
     preAggregateResultsFileStorageClient: S3ResultsFileStorageClient;
     resultsFileStorageClient: S3ResultsFileStorageClient;
+    uploadsFileStorageClient: FileStorageClient;
 }
 
 /**
@@ -191,6 +192,18 @@ export class ClientRepository
             () =>
                 new S3Client({
                     lightdashConfig: this.context.lightdashConfig,
+                }),
+        );
+    }
+
+    public getUploadsFileStorageClient(): FileStorageClient {
+        return this.getClient(
+            'uploadsFileStorageClient',
+            () =>
+                new S3Client({
+                    lightdashConfig: this.context.lightdashConfig,
+                    s3Config:
+                        this.context.lightdashConfig.uploads.s3 ?? undefined,
                 }),
         );
     }
