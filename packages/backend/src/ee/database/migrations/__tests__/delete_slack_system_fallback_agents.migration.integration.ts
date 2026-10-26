@@ -55,7 +55,9 @@ describe('delete Slack system fallback agents migration', () => {
         createdAgentUuids.length = 0;
     });
 
-    const createProject = async (name: string): Promise<string> => {
+    const createProject = async (
+        name: string,
+    ): Promise<{ projectUuid: string; projectId: number }> => {
         const [project] = await database('projects')
             .insert({
                 name,
@@ -68,8 +70,11 @@ describe('delete Slack system fallback agents migration', () => {
                 created_by_user_uuid: userUuid,
                 organization_warehouse_credentials_uuid: null,
             })
-            .returning('project_uuid');
-        return project.project_uuid;
+            .returning(['project_uuid', 'project_id']);
+        return {
+            projectUuid: project.project_uuid,
+            projectId: project.project_id,
+        };
     };
 
     const createAgent = async (
@@ -116,8 +121,10 @@ describe('delete Slack system fallback agents migration', () => {
         ).sort();
 
     it('deletes hidden fallback agents with their threads and keeps configured agents', async () => {
-        const projectA = await createProject('Fallback project A');
-        const projectB = await createProject('Fallback project B');
+        const { projectUuid: projectA } =
+            await createProject('Fallback project A');
+        const { projectUuid: projectB } =
+            await createProject('Fallback project B');
         const configured = await createAgent(
             projectA,
             'Configured agent',
@@ -166,9 +173,89 @@ describe('delete Slack system fallback agents migration', () => {
         );
     });
 
+    it('keeps flagged rows with an integration, group access or space access and stays idempotent', async () => {
+        const withIntegration = await createProject('Guard integration');
+        const withGroup = await createProject('Guard group');
+        const withSpace = await createProject('Guard space');
+        const unguarded = await createProject('Guard none');
+        const integrationAgent = await createAgent(
+            withIntegration.projectUuid,
+            'Flagged with integration',
+            true,
+        );
+        const groupAgent = await createAgent(
+            withGroup.projectUuid,
+            'Flagged with group access',
+            true,
+        );
+        const spaceAgent = await createAgent(
+            withSpace.projectUuid,
+            'Flagged with space access',
+            true,
+        );
+        const fallback = await createAgent(
+            unguarded.projectUuid,
+            'Lightdash Assistant',
+            true,
+        );
+        await database('ai_agent_integration').insert({
+            ai_agent_uuid: integrationAgent,
+            integration_type: 'slack',
+        });
+        const [group] = await database('groups')
+            .insert({
+                organization_id: organizationId,
+                name: 'Fallback cleanup group',
+                created_by_user_uuid: userUuid,
+                updated_by_user_uuid: userUuid,
+            })
+            .returning('group_uuid');
+        await database('ai_agent_group_access').insert({
+            ai_agent_uuid: groupAgent,
+            group_uuid: group.group_uuid,
+        });
+        const [space] = await database('spaces')
+            .insert({
+                name: 'Fallback cleanup space',
+                slug: 'fallback-cleanup-space',
+                path: 'fallback_cleanup_space',
+                project_id: withSpace.projectId,
+                parent_space_uuid: null,
+                inherit_parent_permissions: true,
+                is_default_user_space: false,
+            })
+            .returning('space_uuid');
+        await database('ai_agent_space_access').insert({
+            ai_agent_uuid: spaceAgent,
+            space_uuid: space.space_uuid,
+        });
+        const all = [integrationAgent, groupAgent, spaceAgent, fallback];
+        const guarded = [integrationAgent, groupAgent, spaceAgent].sort();
+
+        await up(database);
+
+        expect(await remainingAgents(all)).toEqual(guarded);
+        expect(console.warn).toHaveBeenCalledWith(
+            expect.stringContaining('Keeping 3 agent row(s)'),
+            expect.arrayContaining(
+                guarded.map((uuid) =>
+                    expect.objectContaining({ ai_agent_uuid: uuid }),
+                ),
+            ),
+        );
+
+        await up(database);
+
+        expect(await remainingAgents(all)).toEqual(guarded);
+        expect(console.log).toHaveBeenLastCalledWith(
+            expect.stringContaining('Deleting 0 built-in'),
+            [],
+        );
+    });
+
     it('changes nothing when no fallback agents exist and cannot be rolled back', async () => {
-        const project = await createProject('Fallback project C');
-        const configured = await createAgent(project, 'Only agent', false);
+        const { projectUuid } = await createProject('Fallback project C');
+        const configured = await createAgent(projectUuid, 'Only agent', false);
 
         await up(database);
 
