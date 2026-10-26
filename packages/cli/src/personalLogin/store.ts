@@ -9,8 +9,8 @@ import {
     privateDirectory,
     readPrivateFile,
 } from '../agentConnections/configLock';
-import { canonicalInstanceUrl } from '../agentConnections/schema';
 import { configFilePath } from '../config';
+import { personalInstanceKey } from './instanceKey';
 import {
     invalidLogin,
     validatePersonalLogin,
@@ -58,7 +58,7 @@ export class PersonalLoginStore {
                 throw invalidLogin();
             return new Map(
                 Object.entries(root.instances).map(([url, login]) => {
-                    if (canonicalInstanceUrl(url) !== url) throw invalidLogin();
+                    if (personalInstanceKey(url) !== url) throw invalidLogin();
                     return [url, validatePersonalLogin(login)];
                 }),
             );
@@ -69,14 +69,14 @@ export class PersonalLoginStore {
 
     async read(instanceUrl: string): Promise<PersonalLogin | null> {
         return (
-            (await this.readRoot()).get(canonicalInstanceUrl(instanceUrl)) ??
+            (await this.readRoot()).get(personalInstanceKey(instanceUrl)) ??
             null
         );
     }
 
     private journalPath(instanceUrl: string): string {
         const hash = createHash('sha256')
-            .update(canonicalInstanceUrl(instanceUrl))
+            .update(personalInstanceKey(instanceUrl))
             .digest('hex');
         return `${this.filePath}.${hash}.journal`;
     }
@@ -97,14 +97,14 @@ export class PersonalLoginStore {
                 save: async (url, login) => {
                     const root = await this.readRoot();
                     root.set(
-                        canonicalInstanceUrl(url),
+                        personalInstanceKey(url),
                         validatePersonalLogin(login),
                     );
                     await writeRoot(root);
                 },
                 remove: async (url) => {
                     const root = await this.readRoot();
-                    if (root.delete(canonicalInstanceUrl(url)))
+                    if (root.delete(personalInstanceKey(url)))
                         await writeRoot(root);
                 },
                 readJournal: async (url) => {

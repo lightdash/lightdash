@@ -80,7 +80,7 @@ const setConfig = async (config: Config) => {
     await writeConfigToFile(configFilePath, config);
 };
 
-const getRawConfig = async (): Promise<Config> => {
+export const getRawConfig = async (): Promise<Config> => {
     try {
         await ensureConfigFilePermissions(configFilePath);
         const contents = await fs.readFile(configFilePath, 'utf8');

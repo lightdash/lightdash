@@ -1,3 +1,5 @@
+import { type Knex } from 'knex';
+
 export const OAuth2AuthorizationCodesTableName = 'oauth2_authorization_codes';
 export const OAuth2AccessTokensTableName = 'oauth2_access_tokens';
 export const OAuth2RefreshTokensTableName = 'oauth2_refresh_tokens';
@@ -31,3 +33,42 @@ export type DbOAuth2RefreshToken = DbOAuth2Credential & {
     family_uuid: string | null;
     revoked_at: Date | null;
 };
+
+type OAuth2Insert<
+    Row extends DbOAuth2Credential,
+    Key extends keyof Row,
+> = Knex.DbRecord<
+    Pick<
+        Row,
+        Key | 'expires_at' | 'client_id' | 'user_id' | 'organization_uuid'
+    > &
+        Partial<
+            Omit<
+                Row,
+                | Key
+                | 'expires_at'
+                | 'client_id'
+                | 'user_id'
+                | 'organization_uuid'
+            >
+        >
+>;
+
+export type OAuth2AuthorizationCodesTable = Knex.CompositeTableType<
+    DbOAuth2AuthorizationCode,
+    OAuth2Insert<
+        DbOAuth2AuthorizationCode,
+        'authorization_code' | 'redirect_uri'
+    >,
+    Knex.DbRecord<Partial<DbOAuth2AuthorizationCode>>
+>;
+export type OAuth2AccessTokensTable = Knex.CompositeTableType<
+    DbOAuth2AccessToken,
+    OAuth2Insert<DbOAuth2AccessToken, 'access_token'>,
+    Knex.DbRecord<Partial<DbOAuth2AccessToken>>
+>;
+export type OAuth2RefreshTokensTable = Knex.CompositeTableType<
+    DbOAuth2RefreshToken,
+    OAuth2Insert<DbOAuth2RefreshToken, 'refresh_token'>,
+    Knex.DbRecord<Partial<DbOAuth2RefreshToken>>
+>;

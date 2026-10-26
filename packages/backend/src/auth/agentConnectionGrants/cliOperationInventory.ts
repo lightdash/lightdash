@@ -639,21 +639,17 @@ export const CLI_GRANT_OPERATION_INVENTORY: readonly CliGrantOperationInventoryE
             'UserController.getAuthenticatedUser',
         ]),
         refused(
-            'handlers/oauthLogin.ts:205',
+            'handlers/oauthLogin.ts:204',
             'POST',
             'tokenUrl.href',
             ['oauthRouter POST /token'],
             'This CLI call exchanges an ordinary login code. Agent consent and issuance remain for a later slice; bound refresh uses lifecycle validation.',
         ),
+        allowed('handlers/oauthLogin.ts:240', 'GET', 'userInfoUrl.href', [
+            'UserController.getAuthenticatedUser',
+        ]),
         refused(
-            'handlers/oauthLogin.ts:235',
-            'GET',
-            'userInfoUrl.href',
-            ['UserController.getAuthenticatedUser'],
-            'Personal login reads the user with its newly issued Bearer token. It cannot use an agent connection grant.',
-        ),
-        refused(
-            'handlers/logout.ts:25',
+            'handlers/logout.ts:30',
             'POST',
             '`${instance}/api/v1/oauth/revoke`',
             ['oauthRouter POST /revoke'],

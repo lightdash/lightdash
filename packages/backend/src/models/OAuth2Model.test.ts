@@ -5,13 +5,18 @@ import {
     FeatureFlags,
     TOKEN_EXCHANGE_GRANT_TYPE,
 } from '@lightdash/common';
+import OAuth2Server from '@node-oauth/oauth2-server';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
+import { grantFixture } from '../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { type LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
+import { OAuthService } from '../services/OAuthService/OAuthService';
+import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import { isMobileOAuthClient, OAuth2Model } from './OAuth2Model';
+import { type UserModel } from './UserModel';
 
 const lightdashConfig = {
     auth: {
@@ -1404,10 +1409,15 @@ describe('OAuth2Model personal CLI sessions', () => {
             expect(await model.getAccessToken('access')).toMatchObject({
                 sessionExpiresAt: deadline,
             });
-            expect(await model.getRefreshToken('refresh')).toMatchObject({
-                sessionExpiresAt: deadline,
-                refreshTokenExpiresAt: deadline ?? row.expires_at,
-            });
+            if (deadline === null)
+                await expect(model.getRefreshToken('refresh')).rejects.toThrow(
+                    'Session expired. Log in again.',
+                );
+            else
+                expect(await model.getRefreshToken('refresh')).toMatchObject({
+                    sessionExpiresAt: deadline,
+                    refreshTokenExpiresAt: deadline,
+                });
         },
     );
 
@@ -1419,8 +1429,11 @@ describe('OAuth2Model personal CLI sessions', () => {
             tracker.on.insert('oauth2_refresh_tokens').response([]);
             tracker.on.delete('oauth2_refresh_tokens').response(0);
             const now = Date.now();
-            const deadline =
-                remaining === null ? null : new Date(now + remaining);
+            vi.spyOn(Date, 'now').mockReturnValue(now);
+            const deadline = new Date(
+                now +
+                    (remaining ?? CLI_PERSONAL_SESSION_LIFETIME_SECONDS * 1000),
+            );
             const accessExpiry = new Date(now + 3600000);
             const refreshExpiry = new Date(now + 86400000);
             const issued = await model.saveToken(
@@ -1429,7 +1442,7 @@ describe('OAuth2Model personal CLI sessions', () => {
                     refreshToken: 'refresh',
                     accessTokenExpiresAt: accessExpiry,
                     refreshTokenExpiresAt: refreshExpiry,
-                    sessionExpiresAt: deadline,
+                    sessionExpiresAt: remaining === null ? null : deadline,
                     client,
                     user,
                 },
@@ -1494,5 +1507,108 @@ describe('OAuth2Model personal CLI sessions', () => {
             .on.select('oauth2_access_tokens')
             .response({ ...row, session_expires_at: new Date(Date.now() - 1) });
         expect(await model.getAccessToken('access')).toBe(false);
+    });
+    it.each([true, false])(
+        'refuses legacy refresh before rotation in strict mode %s',
+        async (strict) => {
+            const tracker = getTracker();
+            vi.spyOn(model, 'isSecurityStrictForOAuthUser').mockResolvedValue(
+                strict,
+            );
+            tracker.on.select('oauth2_refresh_tokens').response({
+                ...row,
+                agent_connection_grant_uuid: null,
+                session_expires_at: null,
+                family_uuid: strict
+                    ? '11111111-1111-4111-8111-111111111111'
+                    : null,
+            });
+            const service = new OAuthService({
+                oauthModel: model,
+                lightdashConfig,
+                userModel: {} as UserModel,
+            });
+            vi.spyOn(model, 'getClient').mockResolvedValue(client);
+            const revoke = vi.spyOn(model, 'revokeToken');
+            const save = vi.spyOn(model, 'saveToken');
+            await expect(
+                service.token(
+                    new OAuth2Server.Request({
+                        method: 'POST',
+                        headers: {
+                            'content-type': 'application/x-www-form-urlencoded',
+                            'transfer-encoding': 'chunked',
+                        },
+                        query: {},
+                        body: {
+                            grant_type: 'refresh_token',
+                            client_id: client.id,
+                            refresh_token: 'legacy-refresh',
+                        },
+                    }),
+                    new OAuth2Server.Response({}),
+                ),
+            ).rejects.toMatchObject({
+                name: 'invalid_grant',
+                message: 'Session expired. Log in again.',
+            });
+            expect(revoke).not.toHaveBeenCalled();
+            expect(save).not.toHaveBeenCalled();
+            expect(tracker.history.insert).toHaveLength(0);
+            expect(tracker.history.update).toHaveLength(0);
+            expect(tracker.history.delete).toHaveLength(0);
+        },
+    );
+
+    it('persists grant-bound CLI tokens without a personal session deadline', async () => {
+        const tracker = getTracker();
+        const grant = { ...grantFixture(), clientId: client.id };
+        tracker.reset();
+        tracker.on.select('users').response({
+            user_uuid: grant.subjectUserUuid,
+            is_active: true,
+            organization_uuid: grant.organizationUuid,
+        });
+        featureFlagModel.get.mockResolvedValue({ enabled: true } as Awaited<
+            ReturnType<FeatureFlagModel['get']>
+        >);
+        vi.spyOn(
+            AgentConnectionGrantModel.prototype,
+            'findActive',
+        ).mockResolvedValue(grant);
+        vi.spyOn(
+            AgentConnectionGrantModel.prototype,
+            'bindRefreshFamily',
+        ).mockResolvedValue(undefined);
+        tracker.on.insert('oauth2_access_tokens').response([]);
+        tracker.on.insert('oauth2_refresh_tokens').response([]);
+        tracker.on.delete('oauth2_refresh_tokens').response(0);
+        const issued = await model.saveToken(
+            {
+                accessToken: 'bound-access',
+                refreshToken: 'bound-refresh',
+                accessTokenExpiresAt: new Date(Date.now() + 3600000),
+                refreshTokenExpiresAt: new Date(Date.now() + 86400000),
+                agentConnectionGrantUuid: grant.grantUuid,
+                resource: grant.resource,
+                familyUuid: grant.refreshFamilyUuid,
+                sessionExpiresAt: null,
+                client,
+                user,
+            },
+            client,
+            user,
+        );
+        expect(issued.sessionExpiresAt).toBeNull();
+        expect(tracker.history.insert).toHaveLength(2);
+        for (const query of tracker.history.insert) {
+            const columns = query.sql
+                .match(/\(([^)]+)\) values/)![1]
+                .replaceAll('"', '')
+                .split(', ');
+            expect(
+                query.bindings[columns.indexOf('session_expires_at')],
+            ).toBeNull();
+        }
     });
 });

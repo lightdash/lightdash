@@ -8,9 +8,9 @@ import fetch from 'node-fetch';
 import { generators, Issuer } from 'openid-client';
 import { URL } from 'url';
 import { validate as isUuid } from 'uuid';
-import { canonicalInstanceUrl } from '../agentConnections/schema';
 import { refuseAgentConnection } from '../credentials';
 import GlobalState from '../globalState';
+import { personalInstanceKey } from '../personalLogin/instanceKey';
 import { PersonalLoginStore } from '../personalLogin/store';
 import {
     oauthHeaders,
@@ -29,7 +29,7 @@ export const loginWithOauth = async (
     credential: 'personal_oauth';
 }> => {
     refuseAgentConnection(true);
-    const instanceUrl = canonicalInstanceUrl(url);
+    const instanceUrl = personalInstanceKey(url);
     // Create a promise that will be resolved when we get the authorization code
     let resolveAuth: (value: { code: string; state: string }) => void;
     let rejectAuth: (reason: Error) => void;
@@ -175,7 +175,6 @@ export const loginWithOauth = async (
     try {
         // Generate the authorization URL using openid-client
         const authUrl = client.authorizationUrl({
-            resource: instanceUrl,
             scope: 'read write',
             state,
             code_challenge: codeChallenge,
@@ -208,7 +207,6 @@ export const loginWithOauth = async (
             redirect: 'error',
             signal: AbortSignal.timeout(15_000),
             body: new URLSearchParams({
-                resource: instanceUrl,
                 grant_type: 'authorization_code',
                 code,
                 client_id: 'lightdash-cli',
@@ -222,7 +220,14 @@ export const loginWithOauth = async (
                 `Token exchange failed: ${tokenResponse.status}`,
             );
         }
-        const tokenData: unknown = await tokenResponse.json();
+        let tokenData: unknown;
+        try {
+            tokenData = await tokenResponse.json();
+        } catch {
+            throw new AuthorizationError(
+                'The server returned an invalid token response. No login was saved.',
+            );
+        }
         const token = parseTokenResponse(tokenData);
         const expiry = tokenExpiry(
             token,
@@ -247,7 +252,14 @@ export const loginWithOauth = async (
             );
         }
 
-        const userData: unknown = await userResponse.json();
+        let userData: unknown;
+        try {
+            userData = await userResponse.json();
+        } catch {
+            throw new AuthorizationError(
+                'The server returned invalid user information. No login was saved.',
+            );
+        }
         if (
             typeof userData !== 'object' ||
             userData === null ||

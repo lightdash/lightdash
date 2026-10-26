@@ -1,8 +1,8 @@
 import fetch from 'node-fetch';
 import { Readable } from 'stream';
-import { canonicalInstanceUrl } from '../agentConnections/schema';
-import { getConfig, unsetApiKey } from '../config';
+import { getConfig, getRawConfig, unsetApiKey } from '../config';
 import { refuseAgentConnection } from '../credentials';
+import { personalInstanceKey } from '../personalLogin/instanceKey';
 import { PersonalLoginStore } from '../personalLogin/store';
 import { oauthHeaders } from '../personalLogin/tokenProvider';
 
@@ -11,9 +11,14 @@ export const logoutUnreachable =
 export const logout = async (): Promise<void> => {
     refuseAgentConnection(true);
     const config = await getConfig();
+    const rawConfig = await getRawConfig();
+    const savedKey = rawConfig.context?.apiKey;
+    const environmentKey = process.env.LIGHTDASH_API_KEY;
+    const environmentOverride =
+        !!environmentKey && config.context?.apiKey === environmentKey;
     if (!config.context?.serverUrl)
         throw new Error("Not logged in. Run 'lightdash login --help'");
-    const instance = canonicalInstanceUrl(config.context.serverUrl);
+    const instance = personalInstanceKey(config.context.serverUrl);
     const personal = await new PersonalLoginStore().withLock(async (locked) => {
         const login = await locked.read(instance);
         if (login === null) return false;
@@ -52,12 +57,16 @@ export const logout = async (): Promise<void> => {
         await locked.clearJournal(instance);
         return true;
     });
-    if (!personal && !config.context.apiKey)
+    if (!personal && !savedKey && !environmentOverride)
         throw new Error("Not logged in. Run 'lightdash login --help'");
     await unsetApiKey();
-    if (!personal)
+    if (savedKey)
         console.error(
             'The saved API key was removed. A personal access token is not revoked by logout.',
         );
-    console.error(`Logged out of ${instance}`);
+    if (environmentOverride) {
+        console.error(
+            'LIGHTDASH_API_KEY is set in the environment and stays active until unset.',
+        );
+    } else console.error(`Logged out of ${instance}`);
 };
