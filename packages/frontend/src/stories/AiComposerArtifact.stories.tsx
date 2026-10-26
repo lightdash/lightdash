@@ -20,6 +20,11 @@ import {
 } from '../ee/features/aiCopilot/components/ChatElements/composerPipeline/AiComposerPipelinePanel';
 import { ComposerQueriesToolCallDescription } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/descriptions/ComposerQueriesToolCallDescription';
 import { type ComposerRunNodeStatus } from '../ee/features/aiCopilot/components/ChatElements/useComposerRunNodeStatuses';
+import {
+    ordersSemanticNode,
+    STORY_PROJECT_UUID,
+} from './fixtures/semanticQueryStoryData';
+import SemanticQueryStoryProviders from './fixtures/SemanticQueryStoryProviders';
 
 /** A fan-in pipeline: three sources, one intermediate join, one final join. */
 const fanInQueries: SourceQuery[] = [
@@ -202,7 +207,7 @@ const ComposerArtifact = ({
                 )}
             >
                 <AiComposerPipelinePanel
-                    projectUuid="story"
+                    projectUuid={STORY_PROJECT_UUID}
                     queries={queries}
                     terminalNodeId={terminalNodeId}
                     displayedNodeId={terminalNodeId}
@@ -251,6 +256,13 @@ const ComposerArtifact = ({
 const meta = {
     component: ComposerArtifact,
     title: 'AI Agent/Composer artifact',
+    decorators: [
+        (Story) => (
+            <SemanticQueryStoryProviders>
+                <Story />
+            </SemanticQueryStoryProviders>
+        ),
+    ],
     args: {
         queries: fanInQueries,
         terminalNodeId: 'vs_target',
@@ -306,6 +318,39 @@ export const DuckdbOverPython: Story = {
 
 export const DuckdbOverPythonGraph: Story = {
     args: { ...DuckdbOverPython.args, defaultMode: 'graph' },
+};
+
+/** A semantic-layer node with filters, sorts, a limit and parameters. */
+export const SemanticNodeDetails: Story = {
+    args: {
+        queries: [
+            ordersSemanticNode,
+            {
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'weekly_share',
+                title: 'Weekly share of orders',
+                description: 'Each week as a share of all orders.',
+                sql: 'SELECT *, orders_unique_order_count * 100.0 / SUM(orders_unique_order_count) OVER () AS share FROM weekly_orders',
+                references: ['weekly_orders'],
+            },
+        ],
+        terminalNodeId: 'weekly_share',
+        defaultExpanded: true,
+        defaultMode: 'list',
+        result: {
+            title: 'Weekly share of orders',
+            description: 'Completed orders per week, last 90 days.',
+            columns: ['week', 'status', 'orders', 'share'],
+            rows: [
+                ['2026-10-19', 'completed', 31, '24.6'],
+                ['2026-10-12', 'shipped', 28, '22.2'],
+                ['2026-10-05', 'completed', 35, '27.8'],
+            ],
+        },
+    },
+    play: async ({ canvas, userEvent }) => {
+        await userEvent.click(canvas.getByRole('button', { name: /^Fields/ }));
+    },
 };
 
 /** A run on open in progress: each node's status on its row. */
