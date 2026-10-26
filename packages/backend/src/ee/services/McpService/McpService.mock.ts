@@ -6,7 +6,12 @@ export const makeMcpServerOptions = (
     > = {},
     pinnedProjectUuid?: string,
 ): McpServerToolOptions => ({
-    req: { pinnedProjectUuid, user: undefined, account: undefined },
+    req: {
+        pinnedAgent: null,
+        pinnedProjectUuid,
+        user: undefined,
+        account: undefined,
+    },
     featureAvailability: {
         mcpContentWritesEnabled: true,
         scheduledDeliveryEnabled: true,
