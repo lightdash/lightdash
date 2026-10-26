@@ -2892,12 +2892,7 @@ describe('getMultiProjectSetupConfig', () => {
 });
 
 describe('legacy feature-flag env vars (compat repair for trivial-batch)', () => {
-    // The change-chart-explore env-var parser was removed when that flag was
-    // migrated to DB-backed resolution. Re-translating it via the legacy
-    // enable list preserves backward compat for self-hosted deployments that
-    // set the var.
     test.each([
-        ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
         ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
         ['GROUPS_ENABLED', 'user-groups-enabled'],
         ['SHOW_EXECUTION_TIME', 'show-execution-time'],
