@@ -20,6 +20,7 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { EventName } from '../../types/Events';
+import { BarSelectionContext } from './barSelection';
 import { FilterPills } from './FilterPills';
 
 const mockDashboardContext = vi.hoisted(() => ({
@@ -290,6 +291,86 @@ describe('FilterPills', () => {
         expect(
             screen.queryByRole('button', { name: /ock filter/ }),
         ).not.toBeInTheDocument();
+    });
+
+    describe('selection on the sectioned bar', () => {
+        const pick = vi.fn();
+        const clear = vi.fn();
+        const renderSelectable = (selectedIds: string[]) =>
+            renderWithProviders(
+                <BarSelectionContext.Provider
+                    value={{ selectedIds, pick, clear }}
+                >
+                    <FilterPills activeTabUuid={undefined} sectionId={null} />
+                </BarSelectionContext.Provider>,
+            );
+
+        it('picks with Cmd or Ctrl, a range with Shift, and opens nothing', async () => {
+            const user = userEvent.setup();
+            renderSelectable([]);
+
+            await user.keyboard('{Meta>}');
+            await user.click(pill(/^Status/));
+            await user.keyboard('{/Meta}{Control>}');
+            await user.click(pill(/^Region/));
+            await user.keyboard('{/Control}{Shift>}');
+            await user.click(pill(/^Status/));
+            await user.keyboard('{/Shift}');
+
+            expect(pick.mock.calls).toEqual([
+                ['saved', false],
+                ['no-default', false],
+                ['saved', true],
+            ]);
+            expect(open).not.toHaveBeenCalled();
+        });
+
+        it('opens on a plain click and clears the selection', async () => {
+            const user = userEvent.setup();
+            renderSelectable(['no-default']);
+
+            await user.click(pill(/^Status/));
+
+            expect(clear).toHaveBeenCalledTimes(1);
+            expect(open).toHaveBeenCalledWith('saved');
+        });
+
+        it('marks a picked pill pressed, apart from the edited look', () => {
+            renderSelectable(['saved']);
+
+            const picked = screen.getByRole('button', {
+                name: /^Status/,
+                pressed: true,
+            });
+            expect(picked.className).toContain('pickedPill');
+            expect(picked.className).not.toContain('selectedPill');
+            expect(
+                screen.getByRole('button', { name: /^Region/, pressed: false }),
+            ).toBeInTheDocument();
+        });
+
+        it('says how to select in the pill tooltip', async () => {
+            const user = userEvent.setup();
+            renderSelectable([]);
+
+            await user.hover(pill(/^Status/));
+
+            expect(
+                await screen.findByText('Click to edit · Ctrl click to select'),
+            ).toBeInTheDocument();
+        });
+
+        it('picks nothing on a bar without a selection, as on the flat bar', async () => {
+            const user = userEvent.setup();
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.keyboard('{Meta>}');
+            await user.click(pill(/^Status/));
+            await user.keyboard('{/Meta}');
+
+            expect(pick).not.toHaveBeenCalled();
+            expect(open).toHaveBeenCalledWith('saved');
+        });
     });
 
     describe('lock', () => {

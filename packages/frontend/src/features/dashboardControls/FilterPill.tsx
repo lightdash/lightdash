@@ -4,6 +4,7 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { Box, Tooltip } from '@mantine/core';
+import { useOs } from '@mantine/hooks';
 import { memo, type FC } from 'react';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -14,6 +15,7 @@ import {
     getFilterLockToggle,
 } from '../dashboardFilters/ActiveFilters/filterLock';
 import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
+import { useBarSelection } from './barSelection';
 import classes from './FilterPills.module.css';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
@@ -69,6 +71,13 @@ export const FilterPill: FC<Props> = memo(
         const setHaveFiltersChanged = useDashboardContext(
             (c) => c.setHaveFiltersChanged,
         );
+        const selection = useBarSelection();
+        const os = useOs();
+        // On an editor's sectioned bar a modified click picks the pill
+        const isSelectable =
+            selection !== null && kind === 'editor' && !isSidebarOpen;
+        const isPicked =
+            isSelectable && selection.selectedIds.includes(filter.id);
         const isLocked = isFilterLockedOnTab(filter, activeTabUuid, hasTabs);
         const lockKey = getFilterLockKey({
             hasTabs,
@@ -95,10 +104,44 @@ export const FilterPill: FC<Props> = memo(
             <Tooltip
                 fz="xs"
                 maw={300}
-                disabled={!isOrphaned}
-                label={orphanedTooltip}
+                disabled={!isOrphaned && !isSelectable}
+                openDelay={isOrphaned ? 0 : 500}
+                label={
+                    isOrphaned
+                        ? orphanedTooltip
+                        : `Click to edit · ${os === 'macos' ? '⌘' : 'Ctrl'} click to select`
+                }
             >
-                <Box className={classes.pill}>
+                <Box
+                    className={classes.pill}
+                    // Capture, so a modified click never reaches the pill's open
+                    onClickCapture={
+                        isSelectable
+                            ? (event) => {
+                                  if (
+                                      !(event.target instanceof Element) ||
+                                      event.target
+                                          .closest('button')
+                                          ?.getAttribute(
+                                              'data-controls-pill',
+                                          ) !== filter.id
+                                  )
+                                      return;
+                                  if (
+                                      event.metaKey ||
+                                      event.ctrlKey ||
+                                      event.shiftKey
+                                  ) {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      selection.pick(filter.id, event.shiftKey);
+                                      return;
+                                  }
+                                  selection.clear();
+                              }
+                            : undefined
+                    }
+                >
                     <FilterPillButton
                         field={field}
                         filterRule={filter}
@@ -125,14 +168,16 @@ export const FilterPill: FC<Props> = memo(
                                   }
                         }
                         removeLabel={getUiString('filters.rail.removeFilter')}
-                        isTablesTooltipDisabled={isSelected}
+                        // One tooltip at a time: the hint takes the pill's
+                        isTablesTooltipDisabled={isSelected || isSelectable}
                         triggerClassName={triggerClassName}
-                        aria-pressed={isSelected}
+                        aria-pressed={isSelected || isPicked}
                         data-controls-pill={filter.id}
                         disabled={isDisabled}
                         className={[
                             isSelected ? classes.selectedPill : '',
                             isDraft ? classes.draftPill : '',
+                            isPicked ? classes.pickedPill : '',
                         ]
                             .filter(Boolean)
                             .join(' ')}

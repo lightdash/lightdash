@@ -18,6 +18,12 @@ const OPEN_LAYER_SELECTOR = [
     '[aria-modal="true"]',
 ].join(',');
 
+// The query devtools of a dev build always report an open panel
+export const hasOpenLayer = () =>
+    [...document.querySelectorAll(OPEN_LAYER_SELECTOR)].some(
+        (element) => !element.closest('.ReactQueryDevtools'),
+    );
+
 type Args = {
     isOpen: boolean;
     isFieldClicked: boolean;
@@ -59,11 +65,7 @@ export const useEditorDismiss = ({
             }
             // dnd-kit cancels the drag on its own listener
             if (document.querySelector(`[${DRAGGING_ATTRIBUTE}]`)) return;
-            // The query devtools of a dev build always report an open panel
-            const hasOpenLayer = [
-                ...document.querySelectorAll(OPEN_LAYER_SELECTOR),
-            ].some((element) => !element.closest('.ReactQueryDevtools'));
-            if (hasOpenLayer) return;
+            if (hasOpenLayer()) return;
             if (isFieldClicked) {
                 clearField();
                 return;

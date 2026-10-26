@@ -170,6 +170,30 @@ export const removeSectionFromRules = (
     };
 };
 
+/** Each rule, in the given order, joins the section at its end */
+export const moveRulesToSection = (
+    filters: DashboardFilters,
+    ids: string[],
+    sectionId: string | null,
+    sections: DashboardControlSection[],
+): DashboardFilters =>
+    ids.reduce(
+        (moved, id) => moveRuleToSection(moved, id, { sectionId }, sections),
+        filters,
+    );
+
+/** The ids from one to the other, both included; null when either is not listed */
+export const rangeBetween = (
+    ids: string[],
+    fromId: string | null,
+    toId: string,
+): string[] | null => {
+    const from = fromId === null ? -1 : ids.indexOf(fromId);
+    const to = ids.indexOf(toId);
+    if (from === -1 || to === -1) return null;
+    return ids.slice(Math.min(from, to), Math.max(from, to) + 1);
+};
+
 /** With no saved choice, a section with more members than this starts collapsed */
 const COLLAPSED_BY_DEFAULT_ABOVE = 6;
 
