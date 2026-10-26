@@ -111,6 +111,7 @@ import {
     toolRunQueryExpressionArgsSchemaV2Mcp,
     UnexpectedServerError,
     UserAttributeValueMap,
+    UUID,
     type AiAgentSkill,
     type ParametersValuesMap,
     type PivotConfiguration,
@@ -5767,11 +5768,18 @@ export class McpService extends BaseService {
         });
     }
 
-    public async isContentToolsEnabled(user: SessionUser): Promise<boolean> {
+    /** Content write tools follow the app's save rule, not the project role; coarse without a pinned project. */
+    public async isContentToolsEnabled(
+        user: SessionUser,
+        headerProjectUuid?: UUID,
+    ): Promise<boolean> {
         const settingEnabled = await this.isMcpContentWritesEnabled(user);
         return (
             settingEnabled &&
-            this.createAuditedAbility(user).can('create', 'ContentAsCode')
+            this.aiAgentToolsService.canAuthorContent({
+                user,
+                projectUuid: headerProjectUuid,
+            })
         );
     }
 

@@ -152,7 +152,10 @@ const setup = (
         },
     } as unknown as ConstructorParameters<typeof AiAgentToolsService>[0]);
     const context: AiAgentToolsRuntimeContext & { source: 'mcp' } = {
-        user: { userUuid: 'user' } as SessionUser,
+        user: {
+            userUuid: 'user',
+            ability: { relevantRuleFor: () => undefined },
+        } as unknown as SessionUser,
         account,
         projectUuid,
         organizationUuid: document.organizationUuid,

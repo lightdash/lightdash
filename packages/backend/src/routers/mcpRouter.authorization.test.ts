@@ -587,6 +587,10 @@ describe('project-scoped MCP route', () => {
             expect.objectContaining({ userUuid: 'user-uuid' }),
             PROJECT_UUID,
         );
+        expect(mcpService.isContentToolsEnabled).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid: 'user-uuid' }),
+            PROJECT_UUID,
+        );
         expect(mcpService.isCustomChartTypesEnabled).toHaveBeenCalledWith(
             expect.objectContaining({ userUuid: 'user-uuid' }),
             PROJECT_UUID,

@@ -1468,7 +1468,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
-    "description": "Create a dashboard, chart or SQL chart from its JSON; the developing-in-lightdash skill has the shapes. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.",
+    "description": "Create a dashboard, chart or SQL chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in find_content or list_content results; a write to any other space is refused. A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -3310,6 +3310,10 @@ Usage tips:
                                       "minimum": -9007199254740991,
                                       "type": "integer",
                                     },
+                                    "canEdit": {
+                                      "description": "Whether the user can create and edit charts and dashboards in this space.",
+                                      "type": "boolean",
+                                    },
                                     "chartCount": {
                                       "maximum": 9007199254740991,
                                       "minimum": -9007199254740991,
@@ -3382,6 +3386,7 @@ Usage tips:
                                     "childSpaceCount",
                                     "appCount",
                                     "directAccess",
+                                    "canEdit",
                                     "space",
                                   ],
                                   "type": "object",
@@ -4098,6 +4103,10 @@ Usage tips:
                                       "minimum": -9007199254740991,
                                       "type": "integer",
                                     },
+                                    "canEdit": {
+                                      "description": "Whether the user can create and edit charts and dashboards in this space.",
+                                      "type": "boolean",
+                                    },
                                     "chartCount": {
                                       "maximum": 9007199254740991,
                                       "minimum": -9007199254740991,
@@ -4170,6 +4179,7 @@ Usage tips:
                                     "childSpaceCount",
                                     "appCount",
                                     "directAccess",
+                                    "canEdit",
                                     "space",
                                   ],
                                   "type": "object",
@@ -9010,6 +9020,10 @@ Read the full text of one knowledge document or Deep Research report by its uuid
                             "minimum": -9007199254740991,
                             "type": "integer",
                           },
+                          "canEdit": {
+                            "description": "Whether the caller can create and edit charts and dashboards in this space.",
+                            "type": "boolean",
+                          },
                           "chartCount": {
                             "maximum": 9007199254740991,
                             "minimum": -9007199254740991,
@@ -9054,6 +9068,7 @@ Read the full text of one knowledge document or Deep Research report by its uuid
                           "childSpaceCount",
                           "appCount",
                           "directAccess",
+                          "canEdit",
                         ],
                         "type": "object",
                       },

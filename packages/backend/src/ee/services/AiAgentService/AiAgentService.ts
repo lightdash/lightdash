@@ -176,7 +176,6 @@ import {
     ShareUrl,
     SlackPrompt,
     sleep,
-    SpaceMemberRole,
     substituteAiAgentSkillArguments,
     ToolDashboardV2Args,
     toolDashboardV2ArgsSchemaPersisted,
@@ -3492,20 +3491,13 @@ export class AiAgentService extends BaseService {
                     },
                 }),
             );
-        const canCreateDashboards = await this.canCreateDashboardsInProject(
-            user,
-            { organizationUuid, projectUuid },
-        );
+        const canCreateDashboards =
+            await this.aiAgentToolsService.canAuthorContent({
+                user,
+                projectUuid,
+            });
         const canManageContent =
-            agent.enableContentTools &&
-            auditedAbility.can(
-                'create',
-                subject('ContentAsCode', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { agentUuid, threadUuid },
-                }),
-            );
+            agent.enableContentTools && canCreateDashboards;
         const enabledTools = getEnabledSuggestionTools({
             canRunSql,
             canCreateDashboards,
@@ -3845,69 +3837,6 @@ export class AiAgentService extends BaseService {
             droppedChipCount,
         );
         return { chips, source: responseSource };
-    }
-
-    /**
-     * Mirrors the space picker in the agent's save-dashboard modal: a generated
-     * dashboard is only actionable if the user can write one somewhere.
-     */
-    private async canCreateDashboardsInProject(
-        user: SessionUser,
-        {
-            organizationUuid,
-            projectUuid,
-        }: { organizationUuid: string; projectUuid: string },
-    ): Promise<boolean> {
-        const auditedAbility = this.createAuditedAbility(user);
-        try {
-            const spaces = await this.projectService.getSpaces(
-                user,
-                projectUuid,
-            );
-            const canWriteToExistingSpace = spaces.some((space) =>
-                auditedAbility.can(
-                    'create',
-                    subject('Dashboard', {
-                        ...space,
-                        access: space.userAccess ? [space.userAccess] : [],
-                    }),
-                ),
-            );
-            if (canWriteToExistingSpace) return true;
-
-            // Creating a space makes the creator its admin, so also allow the
-            // "save into a new space" path the modal offers.
-            return (
-                auditedAbility.can(
-                    'create',
-                    subject('Space', { organizationUuid, projectUuid }),
-                ) &&
-                auditedAbility.can(
-                    'create',
-                    subject('Dashboard', {
-                        organizationUuid,
-                        projectUuid,
-                        access: [
-                            {
-                                userUuid: user.userUuid,
-                                role: SpaceMemberRole.ADMIN,
-                                hasDirectAccess: true,
-                                projectRole: undefined,
-                                inheritedRole: undefined,
-                                inheritedFrom: undefined,
-                            },
-                        ],
-                    }),
-                )
-            );
-        } catch (error) {
-            Logger.warn(
-                `[AiAgentService] Failed to resolve dashboard write access for suggestions, assuming none: ${String(
-                    error,
-                )}`,
-            );
-            return false;
-        }
     }
 
     // Flattens the cached warehouse catalog to up to 50 `database.schema.table`
@@ -6506,13 +6435,11 @@ export class AiAgentService extends BaseService {
                 (toolName) =>
                     canRunSql || !isDeepResearchRawSqlMcpTool(toolName),
             );
-            const canUseContentTools =
-                agent.enableDataAccess &&
-                agent.enableContentTools &&
-                ability.can(
-                    'create',
-                    subject('ContentAsCode', getSubjectAttributes()),
-                );
+            const canUseContentTools = await this.canUseContentTools(
+                user,
+                agent,
+                projectUuid,
+            );
             const knowledgeDocuments =
                 await this.aiAgentDocumentModel.findAllForAgent({
                     organizationUuid: agent.organizationUuid,
@@ -15929,31 +15856,16 @@ Use your existing tools to inspect them when relevant to the user's question (re
         }
     }
 
-    private canUseContentTools(
+    /** The agent offers content editing when the setting is on and the user can save content in the project. */
+    private async canUseContentTools(
         user: SessionUser,
-        agent: AiAgent,
-        target: {
-            organizationUuid: string;
-            projectUuid: string;
-            promptUuid: string;
-            threadUuid: string;
-        },
-    ): boolean {
+        agent: Pick<AiAgent, 'enableContentTools' | 'enableDataAccess'>,
+        projectUuid: string,
+    ): Promise<boolean> {
         return (
             agent.enableContentTools &&
             agent.enableDataAccess &&
-            this.createAuditedAbility(user).can(
-                'create',
-                subject('ContentAsCode', {
-                    organizationUuid: target.organizationUuid,
-                    projectUuid: target.projectUuid,
-                    metadata: {
-                        promptUuid: target.promptUuid,
-                        threadUuid: target.threadUuid,
-                        agentUuid: agent.uuid,
-                    },
-                }),
-            )
+            this.aiAgentToolsService.canAuthorContent({ user, projectUuid })
         );
     }
 
@@ -15978,7 +15890,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         if (
             documentSlug === null ||
             pinsOtherContent ||
-            !this.canUseContentTools(user, agent, prompt)
+            !(await this.canUseContentTools(user, agent, prompt.projectUuid))
         ) {
             return null;
         }
@@ -16808,8 +16720,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 // anywhere should not have the agent build one for them, only to be
                 // refused at the save step.
                 const canCreateDashboards = hasTrustedPromptUserIdentity
-                    ? await this.canCreateDashboardsInProject(user, {
-                          organizationUuid: promptProject.organizationUuid,
+                    ? await this.aiAgentToolsService.canAuthorContent({
+                          user,
                           projectUuid: promptProject.projectUuid,
                       })
                     : false;
@@ -17086,12 +16998,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
                 const canUseContentTools =
                     hasTrustedPromptUserIdentity &&
-                    this.canUseContentTools(user, agentSettings, {
-                        organizationUuid: promptProject.organizationUuid,
-                        projectUuid: promptProject.projectUuid,
-                        promptUuid: prompt.promptUuid,
-                        threadUuid: prompt.threadUuid,
-                    });
+                    (await this.canUseContentTools(
+                        user,
+                        agentSettings,
+                        promptProject.projectUuid,
+                    ));
                 const enableGenerateDataApp =
                     canUseContentTools &&
                     (await this.aiAgentToolsService.canGenerateDataApp({

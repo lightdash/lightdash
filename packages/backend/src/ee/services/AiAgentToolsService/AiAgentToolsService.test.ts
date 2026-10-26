@@ -29,6 +29,7 @@ import {
     RequestMethod,
     SessionUser,
     SourceQuery,
+    SpaceMemberRole,
     UnitOfTime,
     WarehouseTypes,
     type DataAppSearchResult,
@@ -3017,7 +3018,7 @@ describe('AiAgentToolsService', () => {
                 projectUuid,
                 'orders-by-status',
                 expect.not.objectContaining({ connection: expect.anything() }),
-                { mode: 'create' },
+                { mode: 'create', authorization: 'space_access' },
             );
             expect(created).toMatchObject({
                 type: 'sql_chart',
@@ -3174,6 +3175,7 @@ describe('AiAgentToolsService', () => {
                 projectUuid,
                 'orders-by-status',
                 expect.objectContaining({ limit: 100 }),
+                { authorization: 'space_access' },
             );
             expect(edited).toMatchObject({
                 type: 'sql_chart',
@@ -3212,6 +3214,7 @@ describe('AiAgentToolsService', () => {
                 projectUuid,
                 'orders-by-status',
                 expect.objectContaining({ sql }),
+                { authorization: 'space_access' },
             );
         });
 
@@ -7986,5 +7989,145 @@ describe('AiAgentToolsService in a thread bound to a chart', () => {
             } as never),
         ).rejects.toThrow(ParameterError);
         expect(generateApp).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentToolsService canAuthorContent', () => {
+    // An Interactive Viewer: saves content only where a space grant allows it.
+    const spaceEditorRules = [
+        {
+            action: 'view',
+            subject: 'Project',
+            conditions: { organizationUuid, projectUuid },
+        },
+        {
+            action: 'manage',
+            subject: 'Dashboard',
+            conditions: {
+                projectUuid,
+                access: { $elemMatch: { userUuid, role: 'editor' } },
+            },
+        },
+        {
+            action: 'manage',
+            subject: 'SavedChart',
+            conditions: {
+                projectUuid,
+                access: { $elemMatch: { userUuid, role: 'editor' } },
+            },
+        },
+    ] as const;
+
+    const makeUser = (
+        rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0],
+    ): SessionUser =>
+        ({
+            ...defaultSessionUser,
+            userUuid,
+            organizationUuid,
+            ability: new Ability<PossibleAbilities>(rules),
+        }) as SessionUser;
+
+    const makeSpace = (role: SpaceMemberRole | null) => ({
+        uuid: `space-${role ?? 'none'}`,
+        organizationUuid,
+        projectUuid,
+        name: 'Space',
+        path: 'space',
+        isPrivate: true,
+        userAccess: role
+            ? { userUuid, role, hasDirectAccess: true }
+            : undefined,
+    });
+
+    const serviceWithSpaces = (spaces: ReturnType<typeof makeSpace>[]) =>
+        makeService({
+            projectModel: {
+                getAllByOrganizationUuid: vi
+                    .fn()
+                    .mockResolvedValue([{ projectUuid }]),
+            },
+            projectService: { getSpaces: vi.fn().mockResolvedValue(spaces) },
+        });
+
+    it('follows space access in a project, not the project role', async () => {
+        const editorUser = makeUser([...spaceEditorRules]);
+        expect(
+            await serviceWithSpaces([
+                makeSpace(SpaceMemberRole.VIEWER),
+                makeSpace(SpaceMemberRole.EDITOR),
+            ]).canAuthorContent({ user: editorUser, projectUuid }),
+        ).toBe(true);
+        expect(
+            await serviceWithSpaces([
+                makeSpace(SpaceMemberRole.VIEWER),
+                makeSpace(null),
+            ]).canAuthorContent({ user: editorUser, projectUuid }),
+        ).toBe(false);
+    });
+
+    it('without a project, looks across the projects the user can view', async () => {
+        const editorUser = makeUser([...spaceEditorRules]);
+        expect(
+            await serviceWithSpaces([
+                makeSpace(SpaceMemberRole.EDITOR),
+            ]).canAuthorContent({ user: editorUser, projectUuid: undefined }),
+        ).toBe(true);
+        expect(
+            await serviceWithSpaces([
+                makeSpace(SpaceMemberRole.VIEWER),
+            ]).canAuthorContent({ user: editorUser, projectUuid: undefined }),
+        ).toBe(false);
+    });
+
+    it('answers no for a role that can never save content without listing spaces', async () => {
+        const getSpaces = vi.fn();
+        const service = makeService({ projectService: { getSpaces } });
+        expect(
+            await service.canAuthorContent({
+                user: makeUser([]),
+                projectUuid,
+            }),
+        ).toBe(false);
+        expect(getSpaces).not.toHaveBeenCalled();
+    });
+
+    it('counts saving into a space the user may create', async () => {
+        const editorUser = makeUser([
+            ...spaceEditorRules,
+            {
+                action: 'manage',
+                subject: 'Dashboard',
+                conditions: {
+                    projectUuid,
+                    access: { $elemMatch: { userUuid, role: 'admin' } },
+                },
+            },
+            {
+                action: 'create',
+                subject: 'Space',
+                conditions: { organizationUuid, projectUuid },
+            },
+        ]);
+        expect(
+            await serviceWithSpaces([]).canAuthorContent({
+                user: editorUser,
+                projectUuid,
+            }),
+        ).toBe(true);
+    });
+
+    it('assumes no access when spaces cannot be listed', async () => {
+        const service = makeService({
+            projectService: {
+                getSpaces: vi.fn().mockRejectedValue(new ForbiddenError()),
+            },
+        });
+        expect(
+            await service.canAuthorContent({
+                user: makeUser([...spaceEditorRules]),
+                projectUuid,
+            }),
+        ).toBe(false);
     });
 });
