@@ -393,9 +393,10 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
             chartData: 3,
             alive: 1,
         });
+        // Series colours resolve from the editor's config, so they settle with it
         expect(takeChanged().slice(1)).toEqual([
-            ['validCartesianConfig'],
-            ['validCartesianConfig'],
+            ['validCartesianConfig', 'getSeriesColor'],
+            ['validCartesianConfig', 'getSeriesColor'],
         ]);
     });
 
@@ -434,7 +435,7 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
         // The first build pairs the new rows with the previous config
         expect(takeChanged()).toEqual([
             ['resultsData'],
-            ['validCartesianConfig'],
+            ['validCartesianConfig', 'getSeriesColor'],
         ]);
     });
 

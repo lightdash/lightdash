@@ -5,21 +5,21 @@ import {
     getTableCalculationsFromItemsMap,
     isNumericItem,
 } from '@lightdash/common';
-import { useEffect, useMemo, type FC } from 'react';
+import { useEffect, useMemo, type FC, memo } from 'react';
 import useTreemapChartConfig from '../../hooks/useTreemapChartConfig';
 import {
     type VisualizationConfigTreemapProps,
     type VisualizationConfigTreemap,
 } from './types';
+import { useVisualizationInputs } from './useVisualizationContext';
 
 const VisualizationConfigTreemap: FC<VisualizationConfigTreemapProps> = ({
-    itemsMap,
-    resultsData,
     initialChartConfig,
     onChartConfigChange,
-    tableCalculationsMetadata,
     children,
 }) => {
+    const { itemsMap, resultsData, tableCalculationsMetadata } =
+        useVisualizationInputs();
     const { dimensions, numericMetrics } = useMemo(() => {
         const metrics = getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem);
         const tableCalculations = getTableCalculationsFromItemsMap(itemsMap);
@@ -60,4 +60,5 @@ const VisualizationConfigTreemap: FC<VisualizationConfigTreemapProps> = ({
     return children({ visualizationConfig });
 };
 
-export default VisualizationConfigTreemap;
+// Memoised so a resize or an echoed config does not rebuild the aggregate
+export default memo(VisualizationConfigTreemap);

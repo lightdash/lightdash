@@ -1,5 +1,7 @@
 import {
+    type ApiErrorDetail,
     type DashboardFilters,
+    type DateZoom,
     type ItemsMap,
     type MetricQuery,
     type ParametersValuesMap,
@@ -30,4 +32,16 @@ export type VisualizationInputs = {
     tableCalculationsMetadata: TableCalculationMetadata[] | undefined;
     dashboardFilters: DashboardFilters | undefined;
     invalidateCache: boolean | undefined;
+    isLoading: boolean;
+    minimal: boolean;
+    getGroupColor: (groupPrefix: string, groupName: string) => string;
+    savedChartUuid?: string;
+    apiErrorDetail?: ApiErrorDetail | null;
+    isDashboard?: boolean;
+    isEditMode?: boolean;
+    hasExplorerStore: boolean;
+    // Resolved timezone for formatting (undefined when EnableTimezoneSupport flag is off)
+    resolvedTimezone?: string;
+    // Date-zoom granularity applied by the surface (dashboards); undefined elsewhere.
+    dateZoom?: DateZoom;
 };

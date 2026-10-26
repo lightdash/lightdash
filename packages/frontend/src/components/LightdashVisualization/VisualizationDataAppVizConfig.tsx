@@ -1,5 +1,5 @@
 import { ChartType, type DataAppVizChart } from '@lightdash/common';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useMemo, type FC, memo } from 'react';
 import useDataAppVizVisualizationConfig from '../../hooks/useDataAppVizVisualizationConfig';
 import {
     type VisualizationConfigDataAppViz,
@@ -37,4 +37,5 @@ const VisualizationDataAppVizConfig: FC<VisualizationDataAppVizConfigProps> = ({
     return children({ visualizationConfig });
 };
 
-export default VisualizationDataAppVizConfig;
+// Memoised so a resize or an echoed config does not rebuild the aggregate
+export default memo(VisualizationDataAppVizConfig);

@@ -201,7 +201,9 @@ const VisualizationConfigProvider: FC<VisualizationConfigProviderProps> = ({
         [visualizationConfig, chartConfig, getSeriesColor],
     );
     return (
-        <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>
+        <ConfigContext.Provider value={value}>
+            {children}
+        </ConfigContext.Provider>
     );
 };
 
@@ -464,7 +466,11 @@ const VisualizationProvider: FC<
 
     // Stable across resizes and echoes so memoised adapters skip them
     const renderState = useCallback(
-        ({ visualizationConfig }: { visualizationConfig: VisualizationConfig }) => (
+        ({
+            visualizationConfig,
+        }: {
+            visualizationConfig: VisualizationConfig;
+        }) => (
             <VisualizationConfigProvider
                 visualizationConfig={visualizationConfig}
                 propChartConfig={chartConfig}
@@ -495,17 +501,8 @@ const VisualizationProvider: FC<
             case ChartType.CARTESIAN:
                 return (
                     <VisualizationCartesianConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
-                        validPivotDimensions={validPivotDimensions}
-                        columnOrder={defaultColumnOrder}
                         initialChartConfig={chartConfig.config}
-                        setPivotDimensions={setPivotDimensions}
                         onChartConfigChange={handleChartConfigChange}
-                        colorPalette={colorPalette}
-                        tableCalculationsMetadata={tableCalculationsMetadata}
-                        parameters={parameters}
-                        unsavedMetricQuery={unsavedMetricQuery}
                     >
                         {renderState}
                     </VisualizationCartesianConfig>
@@ -521,13 +518,8 @@ const VisualizationProvider: FC<
             case ChartType.FUNNEL:
                 return (
                     <VisualizationConfigFunnel
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
                         initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
-                        colorPalette={colorPalette}
-                        tableCalculationsMetadata={tableCalculationsMetadata}
-                        parameters={parameters}
                     >
                         {renderState}
                     </VisualizationConfigFunnel>
@@ -535,12 +527,8 @@ const VisualizationProvider: FC<
             case ChartType.BIG_NUMBER:
                 return (
                     <VisualizationBigNumberConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
                         initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
-                        tableCalculationsMetadata={tableCalculationsMetadata}
-                        parameters={parameters}
                     >
                         {renderState}
                     </VisualizationBigNumberConfig>
@@ -548,11 +536,8 @@ const VisualizationProvider: FC<
             case ChartType.TREEMAP:
                 return (
                     <VisualizationTreemapConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
                         initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
-                        parameters={parameters}
                     >
                         {renderState}
                     </VisualizationTreemapConfig>
@@ -560,11 +545,8 @@ const VisualizationProvider: FC<
             case ChartType.GAUGE:
                 return (
                     <VisualizationGaugeConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
                         initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
-                        parameters={parameters}
                     >
                         {renderState}
                     </VisualizationGaugeConfig>
@@ -572,11 +554,8 @@ const VisualizationProvider: FC<
             case ChartType.MAP:
                 return (
                     <VisualizationMapConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
                         initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
-                        parameters={parameters}
                     >
                         {renderState}
                     </VisualizationMapConfig>
@@ -584,19 +563,9 @@ const VisualizationProvider: FC<
             case ChartType.TABLE:
                 return (
                     <VisualizationTableConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
-                        columnOrder={defaultColumnOrder}
-                        validPivotDimensions={validPivotDimensions}
-                        initialPivotRows={initialPivotRows}
-                        onPivotRowsChange={onPivotRowsChange}
                         initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
-                        savedChartUuid={savedChartUuid}
-                        dashboardFilters={dashboardFilters}
-                        invalidateCache={invalidateCache}
-                        parameters={parameters}
-                        dateZoom={dateZoom}
+                        onPivotRowsChange={onPivotRowsChange}
                     >
                         {renderState}
                     </VisualizationTableConfig>
@@ -604,8 +573,6 @@ const VisualizationProvider: FC<
             case ChartType.CUSTOM:
                 return (
                     <VisualizationCustomConfig
-                        resultsData={resultsData}
-                        itemsMap={itemsMap}
                         initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
                     >
@@ -615,13 +582,8 @@ const VisualizationProvider: FC<
             case ChartType.SANKEY:
                 return (
                     <VisualizationConfigSankey
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
                         initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
-                        colorPalette={colorPalette}
-                        tableCalculationsMetadata={tableCalculationsMetadata}
-                        parameters={parameters}
                     >
                         {renderState}
                     </VisualizationConfigSankey>
@@ -629,8 +591,6 @@ const VisualizationProvider: FC<
             case ChartType.DATA_APP_VIZ:
                 return (
                     <VisualizationDataAppVizConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
                         initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
                     >

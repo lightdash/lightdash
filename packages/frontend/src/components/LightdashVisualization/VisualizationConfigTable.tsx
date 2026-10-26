@@ -1,24 +1,27 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, useMemo, type FC } from 'react';
+import { useEffect, useMemo, type FC, memo } from 'react';
 import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
 import {
     type VisualizationTableConfigProps,
     type VisualizationConfigTable,
 } from './types';
+import { useVisualizationInputs } from './useVisualizationContext';
 
 const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
-    itemsMap,
-    resultsData,
-    columnOrder,
-    validPivotDimensions,
-    initialPivotRows,
-    onPivotRowsChange,
     initialChartConfig,
     onChartConfigChange,
+    onPivotRowsChange,
     children,
-    invalidateCache,
-    parameters,
 }) => {
+    const {
+        itemsMap,
+        resultsData,
+        columnOrder,
+        pivotDimensions: validPivotDimensions,
+        initialPivotRows,
+        invalidateCache,
+        parameters,
+    } = useVisualizationInputs();
     const tableConfig = useTableConfig(
         initialChartConfig,
         resultsData,
@@ -51,4 +54,5 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     return children({ visualizationConfig });
 };
 
-export default VisualizationTableConfig;
+// Memoised so a resize or an echoed config does not rebuild the aggregate
+export default memo(VisualizationTableConfig);

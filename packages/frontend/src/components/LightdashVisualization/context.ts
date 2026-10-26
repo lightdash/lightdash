@@ -1,22 +1,16 @@
 import type {
-    ApiErrorDetail,
     ChartConfig,
     ChartType,
-    DateZoom,
     EChartsSeries,
-    ItemsMap,
-    MetricQuery,
-    ParametersValuesMap,
     StackType,
 } from '@lightdash/common';
 import type { Map as LeafletMap } from 'leaflet';
 import { createContext, type RefObject } from 'react';
+import { type VisualizationInputs } from '../../features/visualization/store/inputs';
 import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { type SeriesLike } from '../../hooks/useChartColorConfig/types';
-import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
-import { type VisualizationInputs } from '../../features/visualization/store/inputs';
 import { type VisualizationConfig } from './types';
 
 export type EmbeddedDashboardInteractivity = {
@@ -56,20 +50,8 @@ export type VisualizationLayout = {
 
 // Inputs: results, fields, colours and flags. Stable while a chart is edited.
 export type VisualizationState = VisualizationInputs & {
-    minimal: boolean;
-    isLoading: boolean;
-    getGroupColor: (groupPrefix: string, groupName: string) => string;
-    savedChartUuid?: string;
     savedChartReference?: SavedChartReference;
-    apiErrorDetail?: ApiErrorDetail | null;
-    isDashboard?: boolean;
-    isEditMode?: boolean;
     embeddedDashboardInteractivity?: EmbeddedDashboardInteractivity;
-    hasExplorerStore: boolean;
-    // Resolved timezone for formatting (undefined when EnableTimezoneSupport flag is off)
-    resolvedTimezone?: string;
-    // Date-zoom granularity applied by the surface (dashboards); undefined elsewhere.
-    dateZoom?: DateZoom;
 };
 
 // The editor's current config and what derives from it; changes on every edit.

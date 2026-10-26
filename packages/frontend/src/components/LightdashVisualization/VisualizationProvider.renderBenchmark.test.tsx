@@ -34,12 +34,12 @@ import {
     selectPieMetricId,
     useVisualizationSelector,
 } from '../../features/visualization/store';
-import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import type useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
 import useEchartsPieConfig from '../../hooks/echarts/useEchartsPieConfig';
-import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
+import type useTableConfig from '../../hooks/tableVisualization/useTableConfig';
 import ChartColorMappingContextProvider from '../../hooks/useChartColorConfig/ChartColorMappingContextProvider';
-import usePieChartConfig from '../../hooks/usePieChartConfig';
+import type usePieChartConfig from '../../hooks/usePieChartConfig';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { defaultState } from '../../providers/Explorer/defaultState';
 import { renderWithProviders } from '../../testing/testUtils';
@@ -122,7 +122,9 @@ const resultsData: VisualizationProviderProps['resultsData'] = {
     queryStatus: QueryHistoryStatus.READY,
     rows: months.flatMap((month, i) =>
         statuses.map((status, j) => ({
-            orders_order_date_month: { value: { raw: month, formatted: month } },
+            orders_order_date_month: {
+                value: { raw: month, formatted: month },
+            },
             orders_status: { value: { raw: status, formatted: status } },
             orders_total: {
                 value: { raw: i * 10 + j, formatted: `${i * 10 + j}` },
@@ -490,7 +492,9 @@ describe('VisualizationProvider render benchmark', () => {
 
         const before = snapshotCounts();
         for (let i = 1; i <= 10; i += 1) {
-            act(() => cartesian?.setXAxisName('Order month'.slice(0, i)));
+            act(() => {
+                cartesian?.setXAxisName('Order month'.slice(0, i));
+            });
         }
         await settle();
         const keystrokes = diffCounts(before);
@@ -505,12 +509,12 @@ describe('VisualizationProvider render benchmark', () => {
         report('cartesian legend toggle', legend, {});
 
         const beforeSeries = snapshotCounts();
-        act(() =>
+        act(() => {
             cartesian?.updateSingleSeries({
                 ...cartesian.dirtyEchartsConfig!.series![0],
                 name: 'Renamed',
-            }),
-        );
+            });
+        });
         await settle();
         const series = diffCounts(beforeSeries);
         report('cartesian series rename', series, {});
@@ -648,11 +652,11 @@ describe('VisualizationProvider render benchmark', () => {
 
         const beforeColumns = snapshotCounts();
         for (let i = 1; i <= 5; i += 1) {
-            act(() =>
+            act(() => {
                 table?.updateColumnProperty('orders_total', {
                     name: 'Total'.slice(0, i),
-                }),
-            );
+                });
+            });
         }
         await settle();
         const columns = diffCounts(beforeColumns);

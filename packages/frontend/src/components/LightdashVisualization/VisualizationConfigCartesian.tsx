@@ -1,5 +1,5 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, useMemo, type FC } from 'react';
+import { useEffect, useMemo, type FC, memo } from 'react';
 import {
     selectCartesianIntent,
     useVisualizationSelector,
@@ -9,19 +9,22 @@ import {
     type VisualizationCartesianConfigProps,
     type VisualizationConfigCartesian,
 } from './types';
+import { useVisualizationInputs } from './useVisualizationContext';
 
 const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
-    itemsMap,
-    resultsData,
-    validPivotDimensions,
-    columnOrder,
     initialChartConfig,
     onChartConfigChange,
-    colorPalette,
     children,
-    tableCalculationsMetadata,
-    unsavedMetricQuery,
 }) => {
+    const {
+        itemsMap,
+        resultsData,
+        pivotDimensions: validPivotDimensions,
+        columnOrder,
+        colorPalette,
+        tableCalculationsMetadata,
+        unsavedMetricQuery,
+    } = useVisualizationInputs();
     const { stacking, cartesianType } = useVisualizationSelector(
         selectCartesianIntent,
     );
@@ -58,4 +61,5 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     return children({ visualizationConfig });
 };
 
-export default VisualizationCartesianConfig;
+// Memoised so a resize or an echoed config does not rebuild the aggregate
+export default memo(VisualizationCartesianConfig);

@@ -1,17 +1,18 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, useMemo, type FC } from 'react';
+import { useEffect, useMemo, type FC, memo } from 'react';
 import useCustomVisualizationConfig from '../../hooks/useCustomVisualizationConfig';
 import {
     type VisualizationCustomConfigProps,
     type VisualizationCustomConfigType,
 } from './types';
+import { useVisualizationInputs } from './useVisualizationContext';
 
 const VisualizationCustomConfig: FC<VisualizationCustomConfigProps> = ({
     initialChartConfig,
-    resultsData,
     onChartConfigChange,
     children,
 }) => {
+    const { resultsData } = useVisualizationInputs();
     const customVisConfig = useCustomVisualizationConfig(
         initialChartConfig,
         resultsData,
@@ -38,4 +39,5 @@ const VisualizationCustomConfig: FC<VisualizationCustomConfigProps> = ({
     return children({ visualizationConfig });
 };
 
-export default VisualizationCustomConfig;
+// Memoised so a resize or an echoed config does not rebuild the aggregate
+export default memo(VisualizationCustomConfig);

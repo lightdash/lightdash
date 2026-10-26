@@ -1,21 +1,20 @@
 import { ChartType } from '@lightdash/common';
 import { getSankeyFields } from '@lightdash/visualization/editor';
-import { useEffect, useMemo, type FC } from 'react';
+import { useEffect, useMemo, type FC, memo } from 'react';
 import useSankeyChartConfig from '../../hooks/useSankeyChartConfig';
 import {
     type VisualizationConfigSankeyProps,
     type VisualizationConfigSankeyType,
 } from './types';
+import { useVisualizationInputs } from './useVisualizationContext';
 
 const VisualizationConfigSankey: FC<VisualizationConfigSankeyProps> = ({
-    resultsData,
     initialChartConfig,
     onChartConfigChange,
-    itemsMap,
-    colorPalette,
     children,
-    tableCalculationsMetadata,
 }) => {
+    const { resultsData, itemsMap, colorPalette, tableCalculationsMetadata } =
+        useVisualizationInputs();
     const { dimensions, numericFields } = useMemo(
         () => getSankeyFields(itemsMap),
         [itemsMap],
@@ -53,4 +52,5 @@ const VisualizationConfigSankey: FC<VisualizationConfigSankeyProps> = ({
     return children({ visualizationConfig });
 };
 
-export default VisualizationConfigSankey;
+// Memoised so a resize or an echoed config does not rebuild the aggregate
+export default memo(VisualizationConfigSankey);

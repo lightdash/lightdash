@@ -5,19 +5,20 @@ import {
     isNumericItem,
     type TableCalculation,
 } from '@lightdash/common';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, memo } from 'react';
 import useGaugeChartConfig from '../../hooks/useGaugeChartConfig';
 import {
     type VisualizationConfigGauge,
     type VisualizationConfigGaugeProps,
 } from './types';
+import { useVisualizationInputs } from './useVisualizationContext';
 
 const VisualizationGaugeConfig: React.FC<VisualizationConfigGaugeProps> = ({
-    itemsMap,
     initialChartConfig,
     onChartConfigChange,
     children,
 }) => {
+    const { itemsMap } = useVisualizationInputs();
     const numericMetrics = useMemo(() => {
         const metrics = getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem);
         const tableCalculations = getTableCalculationsFromItemsMap(itemsMap);
@@ -60,4 +61,5 @@ const VisualizationGaugeConfig: React.FC<VisualizationConfigGaugeProps> = ({
     return children({ visualizationConfig });
 };
 
-export default VisualizationGaugeConfig;
+// Memoised so a resize or an echoed config does not rebuild the aggregate
+export default memo(VisualizationGaugeConfig);
