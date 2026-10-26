@@ -364,15 +364,16 @@ export const buildUsageDashboards = (
             });
             let y = 0;
             for (const section of tab.sections) {
+                const noteHeight = section.noteHeight ?? 2;
                 dashboard.tiles.push(
                     note(
                         tab.key,
                         y,
-                        2,
+                        noteHeight,
                         `### ${section.title}\n\n${section.description}`,
                     ),
                 );
-                y += 2;
+                y += noteHeight;
                 const sectionCharts = section.charts.map((key) => {
                     const definition = [
                         ...usageChartSpecs,

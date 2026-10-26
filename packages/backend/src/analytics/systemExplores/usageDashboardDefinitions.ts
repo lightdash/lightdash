@@ -76,8 +76,9 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
                 sections: [
                     {
                         title: 'How is query usage changing?',
+                        noteHeight: 3,
                         description:
-                            'Compare querying users and query runs across the last 12 completed calendar months (UTC), newest first. Changes are against the previous calendar month. A dash means no adjacent month is available, or a zero baseline for percentage change. Months without captured queries are omitted; capture and retention can leave history incomplete. The current month is excluded so a partial month is not compared with a full month.',
+                            'Last 12 completed calendar months (UTC), excluding the current month. Changes compare adjacent months. ∅ means unavailable history or a zero percentage baseline. Missing months are omitted; capture and retention can leave history incomplete.',
                         charts: [
                             'querying-users-month-over-month',
                             'queries-run-month-over-month',

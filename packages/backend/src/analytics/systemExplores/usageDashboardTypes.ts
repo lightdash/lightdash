@@ -46,6 +46,7 @@ export type UsageDashboardSpec = {
         sections: {
             title: string;
             description: string;
+            noteHeight?: number;
             charts: string[];
         }[];
     }[];
