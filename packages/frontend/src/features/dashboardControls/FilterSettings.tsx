@@ -105,7 +105,7 @@ const Disclosure: FC<DisclosureProps> = ({
             aria-expanded={isOpen}
             onClick={() => onToggle(section)}
         >
-            <Text fz="sm" fw={500}>
+            <Text fz="xs" fw={500} c="dimmed">
                 {label}
             </Text>
             <Text
@@ -118,7 +118,7 @@ const Disclosure: FC<DisclosureProps> = ({
             </Text>
             <MantineIcon
                 icon={IconChevronRight}
-                size={14}
+                size={12}
                 color="dimmed"
                 className={classes.chevron}
             />

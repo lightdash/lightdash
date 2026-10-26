@@ -649,8 +649,8 @@ describe('ControlSidebar', () => {
         );
     });
 
-    it('folds with a missing default value and says it stays off', () => {
-        const { collapse } = setSidebar({
+    it('closes with a missing default value and says it stays off', () => {
+        const { close } = setSidebar({
             editingRule: makeRule({ label: 'Order status', values: [] }),
         });
         renderWithProviders(<ControlSidebar />);
@@ -659,7 +659,7 @@ describe('ControlSidebar', () => {
             screen.getByText('No default value set, so the default stays off'),
         ).toBeInTheDocument();
         fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-        expect(collapse).toHaveBeenCalledTimes(1);
+        expect(close).toHaveBeenCalledTimes(1);
     });
 
     it('says nothing in the footer for a filter that can be kept', () => {
@@ -703,8 +703,8 @@ describe('ControlSidebar', () => {
         expect(close).not.toHaveBeenCalled();
     });
 
-    it('folds the expanded filter on Done, closes on the X, adds from the header menu, and discards a new filter from its icon', async () => {
-        const { close, collapse, discard, openNew } = setSidebar({
+    it('closes on Done and the X, adds from the header menu, and discards a new filter from its icon', async () => {
+        const { close, discard, openNew } = setSidebar({
             editingRule: makeRule({ label: 'Order status' }),
         });
         renderWithProviders(
@@ -719,11 +719,10 @@ describe('ControlSidebar', () => {
                 ?.textContent,
         ).toMatch(/^1 filter$/);
         fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-        expect(collapse).toHaveBeenCalledTimes(1);
-        expect(close).not.toHaveBeenCalled();
+        expect(close).toHaveBeenCalledTimes(1);
 
         fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-        expect(close).toHaveBeenCalledTimes(1);
+        expect(close).toHaveBeenCalledTimes(2);
 
         await userEvent.click(screen.getByRole('button', { name: 'Add' }));
         await userEvent.click(
@@ -739,34 +738,19 @@ describe('ControlSidebar', () => {
         expect(discard).toHaveBeenCalledTimes(1);
     });
 
-    it('closes on a second Done once the filter has folded to its row', () => {
-        const { close, collapse } = setSidebar({
+    it('closes the rail on Done with the expanded filter kept', () => {
+        const { close, collapse, discard } = setSidebar({
             isNew: false,
             editingRule: makeRule({ label: 'Order status' }),
         });
-        const { rerender } = renderWithProviders(
+        renderWithProviders(
             <ControlSidebar />,
             filters([makeRule({ label: 'Order status' })]),
         );
         fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-        expect(collapse).toHaveBeenCalledTimes(1);
-        expect(close).not.toHaveBeenCalled();
-
-        setSidebar({
-            editing: null,
-            editingRule: null,
-            isSidebarOpen: false,
-            close,
-            collapse,
-        });
-        rerender(<ControlSidebar />);
-        expect(
-            screen.getByRole('button', { name: /Order status/ }),
-        ).toBeVisible();
-        expect(screen.getByRole('heading', { name: 'Filters' })).toBeVisible();
-        fireEvent.click(screen.getByRole('button', { name: 'Done' }));
         expect(close).toHaveBeenCalledTimes(1);
-        expect(collapse).toHaveBeenCalledTimes(1);
+        expect(collapse).not.toHaveBeenCalled();
+        expect(discard).not.toHaveBeenCalled();
     });
 
     it('lists "Add filter" and "New section" in the header menu for an editor', async () => {
@@ -936,8 +920,8 @@ describe('ControlSidebar', () => {
             );
         });
 
-        it('sends the typed label before Done folds the filter', async () => {
-            const { updateFilter, collapse, editingRule } = setSidebar({});
+        it('sends the typed label before Done closes', async () => {
+            const { updateFilter, close, editingRule } = setSidebar({});
             renderWithProviders(<ControlSidebar />);
 
             await userEvent.type(labelInput(), 'Order status');
@@ -947,10 +931,10 @@ describe('ControlSidebar', () => {
                 ...editingRule,
                 label: 'Order status',
             });
-            expect(collapse).toHaveBeenCalledTimes(1);
+            expect(close).toHaveBeenCalledTimes(1);
             expect(
                 vi.mocked(updateFilter).mock.invocationCallOrder.at(-1),
-            ).toBeLessThan(vi.mocked(collapse).mock.invocationCallOrder[0]);
+            ).toBeLessThan(vi.mocked(close).mock.invocationCallOrder[0]);
         });
 
         it('sends the typed label on Enter, once, and stays open', () => {
@@ -1063,7 +1047,7 @@ describe('ControlSidebar', () => {
                     node.getAttribute('data-controls-row') ??
                     `# ${node.textContent}`,
             );
-            expect(listed).toEqual(['own', '# Dates1 filter', 'created']);
+            expect(listed).toEqual(['own', '# Dates· 1 filter', 'created']);
             expect(screen.queryByText('Empty')).not.toBeInTheDocument();
             // The badge counts their own filters only
             expect(screen.getByText('1')).toBeInTheDocument();
@@ -1280,9 +1264,9 @@ describe('ControlSidebar', () => {
             expect(rowNames()).toEqual([
                 'Order status',
                 'Lost',
-                '# Dates1 filter',
+                '# Dates· 1 filter',
                 'Created',
-                '# Regions1 filter',
+                '# Regions· 1 filter',
                 'Region',
             ]);
         });
@@ -1353,7 +1337,7 @@ describe('ControlSidebar', () => {
                 ]),
             );
 
-            expect(screen.getByText('0 filters')).toBeInTheDocument();
+            expect(screen.getByText('· 0 filters')).toBeInTheDocument();
             fireEvent.click(
                 screen.getByRole('button', { name: 'Collapse section Dates' }),
             );
@@ -1413,6 +1397,27 @@ describe('ControlSidebar', () => {
             ).not.toBeInTheDocument();
             expect(selectControlSections(store.getState())).toHaveLength(3);
             expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
+        });
+
+        it('keeps a fieldless new filter open while a new section is named', async () => {
+            const { collapse, discard, close } = setSidebar({
+                isPlaceholder: true,
+                editingRule: makeRule({
+                    target: { fieldId: '', tableName: '' },
+                }),
+            });
+            renderWithProviders(<ControlSidebar />);
+
+            await newSection();
+            expect(collapse).not.toHaveBeenCalled();
+            expect(discard).not.toHaveBeenCalled();
+            expect(close).not.toHaveBeenCalled();
+            expect(
+                screen.getByRole('heading', { name: 'Filters' }),
+            ).toBeVisible();
+            expect(screen.getByText('New filter')).toBeInTheDocument();
+            expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
+            expect(screen.getByLabelText('Section name')).toBeInTheDocument();
         });
 
         it('folds the expanded filter before opening a new section', async () => {

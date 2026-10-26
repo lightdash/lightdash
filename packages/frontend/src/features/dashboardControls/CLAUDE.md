@@ -298,8 +298,8 @@ In `FilterConfiguration/`:
 - `ADD_FILTER_CLICKED` (`mode: 'edit'`, `'viewer'` or, in an embed,
   `'embed'`: the shipped payloads, read from `latest` so no callback changes
   with the mode) is tracked when
-  a new filter is kept: `close()` on a new control that has a field (the
-  X, a second Done, its pill, or opening another control), and for a viewer a value. Opening a placeholder,
+  a new filter is kept: `close()` on a new control that has a field (Done,
+  the X, its pill, or opening another control), and for a viewer a value. Opening a placeholder,
   picking a field, `discard()` and `removeFilter()` track nothing.
 - `addFirstFieldOnTile(field, tileUuid)` is the tile cards': the same
   control, label carried over, on that tile only. Every other tile the filter
@@ -352,10 +352,8 @@ In `FilterConfiguration/`:
   kept, a filter with no field dropped, an empty default switched off, a new
   filter tracked) but leaves the rail open with every filter a row. So do
   `removeFilter()` and `discard()`: the rail stays on the rows that are left,
-  and only `close()` (the X, Escape, the header's Save, and Done with
-  nothing expanded) closes it. Done is two-stage: with a filter expanded it
-  calls `collapse()`, so the filter folds to its row and the rail stays; the
-  next Done closes. The one exception: when none are left (the last
+  and only `close()` (Done, the X, Escape, the header's Save) closes it,
+  expanded filter or not. The one exception: when none are left (the last
   filter removed, or a new one dropped with no other filter), these close
   the rail as `close()` would, focus going to the bar's "Add" (`endEdit`).
   The rows are the dashboard's filters in edit mode and, for a viewer,
@@ -425,8 +423,8 @@ In `FilterConfiguration/`:
   the placeholder land in the same render, so the new rule is never missing.
 - `close()`, `collapse()`, `discard()`, `removeFilter()` and opening another
   control clear the waiting fields. `close()` sends focus back to the bar
-  once the rail has left the page (so do the X, Escape, the header's Save and
-  a Done with nothing expanded, which all go through it): to the control's pill when it is still
+  once the rail has left the page (so do Done, the X, Escape and the header's
+  Save, which all go through it): to the control's pill when it is still
   there and not disabled (a fields refetch disables it), else to "Add".
   `collapse()`, `discard()` and `removeFilter()` keep the rail (unless it
   would have no rows), so focus goes
@@ -477,9 +475,8 @@ In `FilterConfiguration/`:
   `data-controls-new-section`, bottom-end) lists "Add filter"
   (`filters.addFilter`, `openNew`; gone when `!canAddFilters` and for a
   viewer hidden by the editor's eye) and "New section" (editors only); with
-  neither the button is not rendered. The footer has "Done" at the right:
-  `collapse` while a filter is expanded, `close` otherwise; while the edited
-  filter has no field it has only a status, "Select a field to keep this
+  neither the button is not rendered. The footer has "Done" (`close`) at the
+  right; while the edited filter has no field it has only a status, "Select a field to keep this
   filter", and "Cancel" (`discard`). A footer status says what closing would drop. The body ends
   1px under the footer's top border (`.body`'s `margin-bottom: -1px`), so
   the last row's border and the footer's read as one line whether the list
@@ -1067,10 +1064,20 @@ the language map, as tab names are.
   counts as unsectioned; dimensions then metrics within a section),
   `moveRuleToSection`, `removeSectionFromRules`.
 - Rail: unsectioned rows first with no header, then each section as a
-  `SectionHeader` band on `ldGray-1` (grip, chevron, name, "N filters", a
-  menu with "Rename" and "Remove section") over its rows, which are indented
-  one `md` further than the unsectioned ones (`.sectionRow`, also on a
-  viewer's read-only rows). There are no drop zones: nothing mounts during
+  `SectionHeader` label row on the card surface, no fill (grip, chevron,
+  the name in normal case, "· N filters" in `xs` dimmed right after it, the
+  menu with "Rename" and "Remove section" at the far right on hover) with a
+  hairline above it, none above the first thing in the list
+  (`.body > .sectionHeader:first-child`); its rows are indented one `md`
+  further than the unsectioned ones (`.sectionRow`, also on a viewer's
+  read-only rows, and `.sectionEdited` on the expanded editor's head and
+  body). Hairlines run between rows only, on the wrappers
+  (`.sortableRow + .sortableRow`, `.sectionRow + .sectionRow`), never under
+  a section's last row; the editor (`.edited`) keeps its `ldGray-1` fill
+  with a hairline above and below. The "Tiles" and "Rules" disclosures are
+  compact (32px, `xs` dimmed, name `fw` 500, 12px chevron), inset to the
+  editor's padding with one hairline above the pair. No uppercase or
+  letter-spaced labels anywhere. There are no drop zones: nothing mounts during
   a drag. Collapsing is local state keyed by section id and still shows the
   filter being edited. A placeholder
   comes last among the unsectioned rows. The header's strings go through
@@ -1084,7 +1091,8 @@ the language map, as tab names are.
   no `SortableRow`, dimmed, tooltip `filters.rail.savedFilterReadOnly`):
   they are set from the bar. No "New section" in the "Add" menu. The same `collapsedIds` state collapses them.
 - "New section" in the header's "Add" menu folds the expanded filter
-  (`collapse()`, as `openNew` does) and opens a section header with its name
+  (`collapse()`, as `openNew` does; a new filter with no field yet stays
+  open, since folding it would drop it and the rail) and opens a section header with its name
   input, held only in the rail's `nameEdit` state until a name is committed
   (Enter or blur with a name); Escape or an empty name drops it. That header
   (`isNew`) has no menu and a disabled chevron, since a click on either would

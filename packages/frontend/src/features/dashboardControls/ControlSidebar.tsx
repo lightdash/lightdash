@@ -513,7 +513,14 @@ export const ControlSidebar: FC = () => {
         isInSection: boolean,
     ) => {
         const { rule } = sectionRule;
-        if (rule.id === filterId) return editor;
+        if (rule.id === filterId)
+            return isInSection ? (
+                <Box key={rule.id} className={classes.sectionEdited}>
+                    {editor}
+                </Box>
+            ) : (
+                editor
+            );
         const field = fieldOf(sectionRule);
         const isUnresolved =
             field === null &&
@@ -664,8 +671,6 @@ export const ControlSidebar: FC = () => {
                     listedFilters.metrics.length
                 }
                 onClose={close}
-                // Done folds the expanded filter first; a second Done closes
-                onDone={editor !== null ? collapse : close}
                 onCancel={editor !== null && isPlaceholder ? discard : null}
                 onAddFilter={
                     canAddFilters && !(isViewer && isAddFilterDisabled)
@@ -677,8 +682,9 @@ export const ControlSidebar: FC = () => {
                         ? null
                         : () => {
                               if (nameEdit?.isNew) return;
-                              // As `openNew`: the expanded filter folds first
-                              collapse();
+                              // As `openNew`: the expanded filter folds first,
+                              // but a new one with no field yet stays as it is
+                              if (!isPlaceholder) collapse();
                               setNameEdit({ id: uuidv4(), isNew: true });
                           }
                 }

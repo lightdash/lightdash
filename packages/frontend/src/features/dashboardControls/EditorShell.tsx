@@ -31,8 +31,6 @@ type Props = {
     /** The dashboard's filters, listed in the rail. */
     filterCount: number;
     onClose: () => void;
-    /** The footer's Done: folds the expanded filter, else closes the rail. */
-    onDone: () => void;
     /** Set while the filter cannot be kept: the footer offers only this. */
     onCancel: (() => void) | null;
     /** Null while no filter can be added. */
@@ -47,7 +45,6 @@ type Props = {
 export const EditorShell: FC<Props> = ({
     filterCount,
     onClose,
-    onDone,
     onCancel,
     onAddFilter,
     onNewSection,
@@ -202,7 +199,7 @@ export const EditorShell: FC<Props> = ({
                             size="xs"
                             ml="auto"
                             className={classes.done}
-                            onClick={onDone}
+                            onClick={onClose}
                         >
                             {getUiString('filters.rail.done')}
                         </Button>

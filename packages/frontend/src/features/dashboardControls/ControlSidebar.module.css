@@ -73,12 +73,12 @@
     margin-bottom: -1px;
 }
 
-/* Doubled so the border outranks the group button's reset */
+/* Doubled so the padding outranks the group button's reset. Hairlines run
+   between rows only, on their wrappers */
 .row.row {
     width: 100%;
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm)
         var(--mantine-spacing-sm) var(--mantine-spacing-md);
-    border-bottom: 1px solid var(--mantine-color-default-border);
     transition: background-color var(--controls-duration-hover)
         var(--controls-ease);
 }
@@ -114,6 +114,7 @@
 
 .edited {
     background-color: var(--mantine-color-ldGray-1);
+    border-top: 1px solid var(--mantine-color-default-border);
     border-bottom: 1px solid var(--mantine-color-default-border);
 
     /* Dimmed text on this fill is under 4.5:1 in light: one step darker */
@@ -168,9 +169,9 @@
     background-color: var(--mantine-color-body);
 }
 
+/* Inset to the editor's padding; one hairline above the pair */
 .disclosures {
-    margin: var(--mantine-spacing-xs) calc(-1 * var(--mantine-spacing-md))
-        calc(-1 * var(--mantine-spacing-md));
+    margin-top: var(--mantine-spacing-xs);
     border-top: 1px solid var(--mantine-color-default-border);
 }
 
@@ -179,24 +180,17 @@
     align-items: center;
     gap: var(--mantine-spacing-xs);
     width: 100%;
-    min-height: 40px;
-    /* The chevron is centred on the row actions' column */
-    padding-block: var(--mantine-spacing-xs);
-    padding-inline: var(--mantine-spacing-md)
-        calc(
-            var(--mantine-spacing-md) + (var(--controls-action-size) - 14px) / 2
-        );
+    min-height: 32px;
+    /* Inset to the editor's padding; the 12px chevron is centred on the row
+       actions' column */
+    padding-block: 4px;
+    padding-inline: 0 calc((var(--controls-action-size) - 12px) / 2);
     transition: background-color var(--controls-duration-hover)
         var(--controls-ease);
 }
 
 .disclosure:hover {
     background-color: var(--mantine-color-default-hover);
-}
-
-.disclosure + .disclosure,
-.panel + .disclosure {
-    border-top: 1px solid var(--mantine-color-default-border);
 }
 
 .disclosureSummary {
@@ -215,15 +209,19 @@
 }
 
 .panel {
-    padding: 2px var(--mantine-spacing-md) var(--mantine-spacing-md);
+    padding: 2px 0 var(--mantine-spacing-xs);
 }
 
-/* Sections: a filled band over its rows, dragged as one */
+/* Sections: a label row on the card surface, a hairline above each but the
+   first, dragged as one with its rows */
 .sectionHeader {
-    background-color: var(--mantine-color-ldGray-1);
-    border-bottom: 1px solid var(--mantine-color-default-border);
+    border-top: 1px solid var(--mantine-color-default-border);
     transition: background-color var(--controls-duration-hover)
         var(--controls-ease);
+}
+
+.body > .sectionHeader:first-child {
+    border-top: 0;
 }
 
 /* A dragged row would join this section, or leave its section on the
@@ -240,7 +238,7 @@
     align-items: center;
     gap: var(--mantine-spacing-xs);
     min-height: 36px;
-    padding: 4px var(--mantine-spacing-xs) 4px var(--mantine-spacing-md);
+    padding: 6px var(--mantine-spacing-xs) 2px var(--mantine-spacing-md);
 }
 
 .sectionHeadRow [aria-expanded='true'] .chevron {
@@ -248,6 +246,7 @@
 }
 
 .sectionMenu {
+    margin-left: auto;
     opacity: 0;
     transition: opacity var(--controls-duration-hover) var(--controls-ease);
 }
@@ -262,8 +261,15 @@
     position: relative;
 }
 
+.sortableRow + .sortableRow,
+.sectionRow + .sectionRow {
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
 /* A section's rows sit one step in; the grip keeps the first step */
-.sectionRow .row.row {
+.sectionRow .row.row,
+.sectionEdited .editedHead,
+.sectionEdited .editedBody {
     padding-left: calc(2 * var(--mantine-spacing-md));
 }
 

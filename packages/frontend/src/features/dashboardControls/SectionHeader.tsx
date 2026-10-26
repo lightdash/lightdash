@@ -167,12 +167,12 @@ export const SectionHeader: FC<Props> = ({
                         onCancel={onCancelName}
                     />
                 ) : (
-                    <Text fz="sm" fw={600} truncate flex={1}>
+                    <Text fz="sm" fw={600} truncate miw={0}>
                         {name}
                     </Text>
                 )}
                 <Text fz="xs" c="dimmed" flex="0 0 auto">
-                    {countLabel}
+                    {`· ${countLabel}`}
                 </Text>
                 {/* Focus must stay on the name input Rename opens */}
                 {!isReadOnly && !isNew && (
