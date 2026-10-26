@@ -168,11 +168,9 @@ describe('delete Slack system fallback agents migration', () => {
         ).toBeUndefined();
         expect(console.warn).toHaveBeenCalledWith(
             expect.stringContaining('Keeping 1 agent row(s)'),
-            [expect.objectContaining({ ai_agent_uuid: flaggedWithAccess })],
         );
         expect(console.log).toHaveBeenCalledWith(
             expect.stringContaining('Deleting 1 built-in'),
-            [expect.objectContaining({ ai_agent_uuid: fallback })],
         );
     });
 
@@ -240,11 +238,6 @@ describe('delete Slack system fallback agents migration', () => {
         expect(await remainingAgents(all)).toEqual(guarded);
         expect(console.warn).toHaveBeenCalledWith(
             expect.stringContaining('Keeping 3 agent row(s)'),
-            expect.arrayContaining(
-                guarded.map((uuid) =>
-                    expect.objectContaining({ ai_agent_uuid: uuid }),
-                ),
-            ),
         );
 
         await up(database);
@@ -252,7 +245,6 @@ describe('delete Slack system fallback agents migration', () => {
         expect(await remainingAgents(all)).toEqual(guarded);
         expect(console.log).toHaveBeenLastCalledWith(
             expect.stringContaining('Deleting 0 built-in'),
-            [],
         );
     });
 
@@ -318,7 +310,6 @@ describe('delete Slack system fallback agents migration', () => {
         expect(await remainingAgents([configured])).toEqual([configured]);
         expect(console.log).toHaveBeenCalledWith(
             expect.stringContaining('Deleting 0 built-in'),
-            [],
         );
         await expect(down()).rejects.toThrow(/^irreversible:/);
     });
