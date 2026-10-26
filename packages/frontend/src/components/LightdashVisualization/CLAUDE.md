@@ -40,19 +40,29 @@ web app, the SDK, embedding and Desktop draw the same chart. Read
 
 ### 5. Frontend Hooks (thin wrappers over the package)
 
-- `packages/frontend/src/hooks/useXxxChartConfig.ts`: editor state (field
-  selections, display options) and change handlers; calls the package's
-  helpers and returns `validConfig`
-- `packages/frontend/src/hooks/echarts/useEchartsXxxConfig.ts`: reads
-  `useVisualizationState()` and `useVisualizationTheme()` and calls the
-  package's builder
+Editor state lives in the per-chart Redux store
+(`packages/frontend/src/features/visualization/store/`, read its CLAUDE.md):
 
-Consumers read the narrowest context hook they need
-(`useVisualizationContext.ts`): `useVisualizationServices()` for refs and
-actions, `useVisualizationState()` for data, config and colours,
-`useVisualizationLayout()` only for the container size (it re-renders on
-every resize). `useVisualizationContext()` returns all three and is kept for
-the regression replay and tests.
+- `store/xxxEditorSlice.ts`: the editor's state type, `buildXxxEditorState`
+  (the seed from a saved config) and reducers for edits with a meaning
+  (toggles, list add/remove, override merges)
+- `store/xxxSelectors.ts`: `createSelector` derivations over
+  `(state, inputs)`, including field repairs and `validConfig`
+- `packages/frontend/src/hooks/useXxxChartConfig.ts`: the aggregate the chart
+  body reads (selected values plus stable actions) and
+  `useXxxEditorActions()` for the config panels
+- `packages/frontend/src/hooks/echarts/useEchartsXxxConfig.ts`: reads
+  `useVisualizationConfig()`, `useVisualizationInputs()` and
+  `useVisualizationTheme()` and calls the package's builder
+
+Consumers read the narrowest hook they need (`useVisualizationContext.ts`):
+`useVisualizationServices()` for refs and actions, `useVisualizationInputs()`
+for results, fields and colours (stable while editing), a store selector
+for one editor field, `useVisualizationConfig()` for the whole aggregate
+(re-renders on every edit), `useEditedChartConfig()` and `useSeriesColor()`
+for the current chart config and its colours, `useVisualizationLayout()`
+only for the container size. `useVisualizationContext()` returns everything
+and is kept for the regression replay and tests.
 
 ### 6. Frontend Visualization Component (`packages/frontend/src/components/SimpleXxx/index.tsx`)
 
@@ -67,10 +77,13 @@ the regression replay and tests.
 - Uses `FieldSelect` for dimension/metric pickers
 - Uses `SegmentedControl` for display options
 
-### 8. Frontend Config Provider (`VisualizationConfigXxx.tsx` in this directory)
+### 8. Frontend Config Adapter (`VisualizationConfigXxx.tsx` in this directory)
 
-- Extracts dimensions and numeric fields from `itemsMap`
-- Calls the config hook and propagates changes via `onChartConfigChange`
+- Memoised; reads inputs from `useVisualizationInputs()`, not props
+- Calls the config hook, emits `validConfig` via `onChartConfigChange` when
+  it changes, and builds the `visualizationConfig` aggregate
+- Register the type's seed in `store/buildInitialState.ts` and its slice and
+  selectors in `store/index.ts` and `store/selectors.ts`
 
 ### 9. Wiring (switch statements that need new cases)
 
