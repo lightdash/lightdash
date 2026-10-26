@@ -34,10 +34,13 @@ import { useRailTop } from './useRailTop';
 
 export type SelectMode = {
     count: number;
-    sections: DashboardControlSection[];
+    /** Each section with how many filters it holds. */
+    sections: (DashboardControlSection & { count: number })[];
     onExit: () => void;
     /** Null takes the selected filters out of their sections. */
     onMove: (sectionId: string | null) => void;
+    /** Names a new section, then moves the selection into it. */
+    onMoveToNewSection: () => void;
     onRemove: () => void;
 };
 
@@ -127,13 +130,15 @@ export const EditorShell: FC<Props> = ({
             }
             data-controls-editor
             data-controls-dragging={isDragging || undefined}
-            // Escape leaves select mode, not the rail; a menu keeps its own
+            // Escape leaves select mode, not the rail; a menu and an armed
+            // remove keep their own
             data-own-escape={selectMode !== null || undefined}
             onKeyDown={(event) => {
                 if (selectMode === null || event.key !== 'Escape') return;
                 if (
                     event.target instanceof Element &&
-                    event.target.closest('[role="menu"]')
+                    event.target.closest('[role="menu"], [data-own-escape]') !==
+                        event.currentTarget
                 )
                     return;
                 event.preventDefault();
@@ -280,10 +285,17 @@ export const EditorShell: FC<Props> = ({
                 <Group justify="space-between" gap="xs" wrap="nowrap">
                     {selectMode ? (
                         <>
-                            <Text fz="sm" flex={1} truncate>
-                                {selectedLabel(selectMode.count)}
-                            </Text>
-                            <Menu position="top-end">
+                            <Button
+                                variant="subtle"
+                                color="gray"
+                                size="xs"
+                                mr="auto"
+                                onClick={selectMode.onExit}
+                            >
+                                {getUiString('filters.actions.cancel')}
+                            </Button>
+                            {/* Focus must stay on the name input New section opens */}
+                            <Menu position="top-end" returnFocus={false}>
                                 <Menu.Target>
                                     <Button
                                         variant="subtle"
@@ -296,6 +308,19 @@ export const EditorShell: FC<Props> = ({
                                     </Button>
                                 </Menu.Target>
                                 <Menu.Dropdown>
+                                    <Menu.Item
+                                        fz="xs"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconFolderPlus}
+                                                size={14}
+                                            />
+                                        }
+                                        onClick={selectMode.onMoveToNewSection}
+                                    >
+                                        New section
+                                    </Menu.Item>
+                                    <Menu.Divider />
                                     {selectMode.sections.map((section) => (
                                         <Menu.Item
                                             key={section.id}
@@ -308,6 +333,9 @@ export const EditorShell: FC<Props> = ({
                                                 getUiString(
                                                     'filters.rail.untitledSection',
                                                 )}
+                                            <Text span inherit c="dimmed">
+                                                {` · ${section.count}`}
+                                            </Text>
                                         </Menu.Item>
                                     ))}
                                     {selectMode.sections.length > 0 && (

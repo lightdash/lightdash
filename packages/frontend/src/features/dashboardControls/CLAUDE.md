@@ -1187,28 +1187,36 @@ the language map, as tab names are.
   editor is keyed by filter id. Drag is off only while a section is being
   named.
 - Select mode, editors only, local to `OpenControlSidebar` (`selectedIds`,
-  null outside the mode): entered from "Select filters" in the header's
+  null outside the mode): entered only from "Select filters" in the header's
   "Add" menu (`IconListCheck`, under a divider; disabled with the tooltip
-  "Finish the new filter first" while a new filter has no field) or from
-  the checkbox a hovered or focused row shows in the grip's slot
-  (`.rowCheck`, `data-selectable`; the pointer still drags from the slot,
-  the grip stays for the keyboard on `:focus-visible`). Entering folds the
-  expanded filter (`collapse()`). In it (`data-selecting`) every editor row
-  has an `xs` `Checkbox` named by the filter, no grip, no remove, drag off;
-  a click on the row toggles it, a shift-click selects from the row toggled
-  last in display order (`shownRowIds`, collapsed sections left out),
-  Shift with an arrow extends to the next row and focuses it. The header
-  badge and the footer read "n selected"; the X ("Stop selecting") and
-  Escape (`data-own-escape` on the rail root, handled on it; a menu keeps
-  its own) leave the mode, not the rail. The footer is "Move to" (a menu of
-  every section, then "No section" under a divider: `moveRuleToSection`
-  for each selected id in display order, one `setDashboardFilters` write
-  and `setHaveFiltersChanged(true)`) and "Remove" (`ConfirmDeleteButton`,
-  "Click again to remove n filters", one write over `removeFilterRule`),
-  both disabled at 0; each leaves the mode. "Add filter" (header and
-  section menus) and "New section" leave it first. Section chevrons and
-  menus work as before; the selection keeps a collapsed section's ids.
-  Closing the rail unmounts the state.
+  "Finish the new filter first" while a new filter has no field). At rest a
+  row shows its grip on hover as before. Entering folds the expanded filter
+  (`collapse()`). In it (`data-selecting`) every editor row has an `xs`
+  `Checkbox` in the grip's slot (`.rowCheck`) named by the filter, no grip,
+  no remove, drag off; a click on the row toggles it, a shift-click selects
+  from the row toggled last in display order (`shownRowIds`, collapsed
+  sections left out), Shift with an arrow extends to the next row and
+  focuses it. The body sits in one `Box` in both modes (its keydown handler
+  attached only while selecting), so rows keep identity and focus across
+  the switch. The header badge reads "n selected"; a collapsed section
+  whose hidden rows are selected adds a dimmed "n selected" after its count
+  (`selectedLabel`); the selection keeps a collapsed section's ids. Exits:
+  the footer's "Cancel", Escape (`data-own-escape` on the rail root,
+  handled on it; a menu and an armed remove keep their own), the X ("Stop
+  selecting"), and finishing an action; none closes the rail. The footer is
+  "Cancel" at the left and, at the right, "Move to" (a menu: "New section"
+  first, then each section with a dimmed "· n" member count, then "No
+  section" under a divider; `moveRules`: `moveRuleToSection` for each
+  selected id in display order, one `setDashboardFilters` write and
+  `setHaveFiltersChanged(true)`, focus to the first moved row) and "Remove"
+  (`ConfirmDeleteButton`, "Click again to remove n filters", one write over
+  `removeFilterRule`, focus to the header's "Add"), both disabled at 0.
+  "New section" there opens the name input with the selection as the
+  `nameEdit`'s `moveIds`: a committed name adds the section and moves them
+  in, leaving the mode; a cancelled name moves nothing and stays in the
+  mode. "Add filter" (header and section menus) and "New section" in the
+  "Add" menu leave the mode first. Section chevrons and menus work as
+  before. Closing the rail unmounts the state.
 - Bar, in both modes: with `selectControlSections` non-empty and the rail
   closed, `ControlsBar` renders `SectionedFilters` in place of `AddControl`
   + `FilterPills` (in edit mode `FilterRequirementsButton` follows it, as

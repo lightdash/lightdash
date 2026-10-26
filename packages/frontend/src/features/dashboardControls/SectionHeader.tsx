@@ -86,6 +86,8 @@ const SectionNameInput: FC<NameInputProps> = ({ name, onCommit, onCancel }) => {
 type Props = {
     section: DashboardControlSection;
     countLabel: string;
+    /** Select mode: how many of a collapsed section's hidden rows are selected. */
+    selectedLabel: string | null;
     isCollapsed: boolean;
     isEditingName: boolean;
     /** Not saved yet: a blur cancels it, so nothing else here takes a click. */
@@ -108,6 +110,7 @@ type Props = {
 export const SectionHeader: FC<Props> = ({
     section,
     countLabel,
+    selectedLabel,
     isCollapsed,
     isEditingName,
     isNew,
@@ -193,6 +196,16 @@ export const SectionHeader: FC<Props> = ({
                 >
                     {countLabel}
                 </Text>
+                {selectedLabel !== null && (
+                    <Text
+                        fz="xs"
+                        c="dimmed"
+                        flex="0 0 auto"
+                        className={classes.sectionCount}
+                    >
+                        {selectedLabel}
+                    </Text>
+                )}
                 {/* Focus must stay on the name input Rename opens */}
                 {!isReadOnly && !isNew && (
                     <Menu

@@ -301,7 +301,8 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
 /** For the dashboard grid's row, which holds the rail next to the grid. */
 export const CONTROLS_RAIL_LAYOUT = classes.layout;
 
-type NameEdit = { id: string; isNew: boolean };
+// `moveIds`: the selection a new section is named for, moved in on commit
+type NameEdit = { id: string; isNew: boolean; moveIds: string[] };
 
 // Mounted only while the rail is open, so `nameEdit`, the fold state and the
 // drag reset with it
@@ -549,6 +550,24 @@ const OpenControlSidebar: FC = () => {
                   }),
         );
         setNameEdit(null);
+        if (nameEdit.moveIds.length > 0)
+            moveRules(nameEdit.moveIds, nameEdit.id);
+    };
+    // Each rule, in display order, joins the section at its end; the first
+    // moved row takes focus once the footer's menu is gone with the mode
+    const moveRules = (ids: string[], sectionId: string | null) => {
+        const moved = ids.reduce(
+            (filters, id) => moveRuleToSection(filters, id, { sectionId }),
+            dashboardFilters,
+        );
+        if (moved !== dashboardFilters) {
+            setDashboardFilters(moved);
+            setHaveFiltersChanged(true);
+        }
+        focusAfter.current = ids[0]
+            ? railRowSelector(ids[0])
+            : RAIL_ADD_SELECTOR;
+        setSelectedIds(null);
     };
     const cancelName = () => {
         if (nameEdit === null) return;
@@ -575,17 +594,11 @@ const OpenControlSidebar: FC = () => {
             ...(current ?? []),
             ...ids.filter((id) => !current?.includes(id)),
         ]);
-    // A click enters the mode with that row; in it, a click toggles and a
-    // shift-click selects from the row toggled last
+    // A click toggles the row; a shift-click selects from the row toggled last
     const toggleRow = (ruleId: string, isRange: boolean) => {
         const rowIds = shownRowIds();
         const from = lastToggledId.current;
         lastToggledId.current = ruleId;
-        if (!isSelecting) {
-            if (editor !== null) collapse();
-            setSelectedIds([ruleId]);
-            return;
-        }
         if (isRange && from !== null && rowIds.includes(from)) {
             const [start, end] = [
                 rowIds.indexOf(from),
@@ -631,25 +644,15 @@ const OpenControlSidebar: FC = () => {
                   .flatMap(({ rules }) => rules.map(({ rule }) => rule.id))
                   .filter((id) => selectedIds.includes(id));
     const selectionOf = (ruleId: string): RowSelection | null =>
-        isViewer || (editor !== null && isPlaceholder)
-            ? null
-            : {
+        isSelecting
+            ? {
                   label: ruleNames.get(ruleId) ?? 'Filter',
                   isChecked: selected.includes(ruleId),
-                  isSelecting,
                   onToggle: (isRange) => toggleRow(ruleId, isRange),
-              };
-    const moveSelected = (sectionId: string | null) => {
-        const moved = selected.reduce(
-            (filters, id) => moveRuleToSection(filters, id, { sectionId }),
-            dashboardFilters,
-        );
-        if (moved !== dashboardFilters) {
-            setDashboardFilters(moved);
-            setHaveFiltersChanged(true);
-        }
-        leaveSelectMode();
-    };
+              }
+            : null;
+    const selectedCountIn = (rules: SectionRule[]) =>
+        rules.filter(({ rule }) => selected.includes(rule.id)).length;
     const removeSelected = () => {
         focusAfter.current = RAIL_ADD_SELECTOR;
         setDashboardFilters((filters) =>
@@ -886,6 +889,11 @@ const OpenControlSidebar: FC = () => {
                 key={`section:${section.id}`}
                 section={section}
                 countLabel={formatSectionCount(getUiString, rules.length)}
+                selectedLabel={
+                    isSelecting && isCollapsed && selectedCountIn(rules) > 0
+                        ? `${selectedCountIn(rules)} selected`
+                        : null
+                }
                 isCollapsed={isCollapsed}
                 isEditingName={nameEdit?.id === section.id}
                 isNew={nameEdit?.id === section.id && nameEdit.isNew}
@@ -901,7 +909,9 @@ const OpenControlSidebar: FC = () => {
                             : [...ids, section.id],
                     );
                 }}
-                onRename={() => setNameEdit({ id: section.id, isNew: false })}
+                onRename={() =>
+                    setNameEdit({ id: section.id, isNew: false, moveIds: [] })
+                }
                 onAddFilter={() => {
                     leaveSelectMode();
                     openNew(section.id);
@@ -988,7 +998,11 @@ const OpenControlSidebar: FC = () => {
                               // As `openNew`: the expanded filter folds first,
                               // but a new one with no field yet stays as it is
                               if (!isPlaceholder) collapse();
-                              setNameEdit({ id: uuidv4(), isNew: true });
+                              setNameEdit({
+                                  id: uuidv4(),
+                                  isNew: true,
+                                  moveIds: [],
+                              });
                           }
                 }
                 selectFilters={
@@ -1009,9 +1023,26 @@ const OpenControlSidebar: FC = () => {
                     isSelecting
                         ? {
                               count: selected.length,
-                              sections: controlSections,
+                              sections: grouped.flatMap(({ section, rules }) =>
+                                  section === null ||
+                                  !sectionIds.has(section.id)
+                                      ? []
+                                      : [
+                                            {
+                                                ...section,
+                                                count: rules.length,
+                                            },
+                                        ],
+                              ),
                               onExit: leaveSelectMode,
-                              onMove: moveSelected,
+                              onMove: (sectionId) =>
+                                  moveRules(selected, sectionId),
+                              onMoveToNewSection: () =>
+                                  setNameEdit({
+                                      id: uuidv4(),
+                                      isNew: true,
+                                      moveIds: selected,
+                                  }),
                               onRemove: removeSelected,
                           }
                         : null
