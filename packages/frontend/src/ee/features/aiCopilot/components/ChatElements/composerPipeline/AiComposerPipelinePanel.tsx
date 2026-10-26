@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     formatSql,
     friendlyName,
+    getItemMap,
     metricQueryOfSemanticNode,
     QuerySourceType,
     WarehouseTypes,
@@ -16,6 +17,7 @@ import {
     Loader,
     Paper,
     SegmentedControl,
+    Stack,
     Text,
     Tooltip,
     UnstyledButton,
@@ -53,9 +55,10 @@ import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEd
 import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
-import { LD_FIELD_COLORS } from '../../../../../../theme/fieldColors';
+import { useExploreByProjectUuid } from '../../../../../../hooks/useExplore';
 import { useCanViewAiAgentSql } from '../../../hooks/useCanViewAiAgentSql';
 import { NodeStatusIndicator } from '../ComposerNodeStatusIndicator';
+import { SemanticQueryDetails } from '../SemanticQueryDetails';
 import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import styles from './AiComposerPipelinePanel.module.css';
 import {
@@ -117,37 +120,55 @@ const queryToggleLabel = (query: SourceQuery, open: boolean) => {
     return open ? `Hide ${noun}` : `View ${noun}`;
 };
 
-const SemanticFields: FC<{ query: SemanticLayerSourceQuery }> = ({ query }) => {
-    const fieldLabel = (fieldId: string) =>
-        friendlyName(fieldId.replace(`${query.exploreName}_`, ''));
+const SemanticNodeSummary: FC<{
+    query: SemanticLayerSourceQuery;
+    projectUuid: string;
+}> = ({ query, projectUuid }) => {
+    // Labels fall back to field ids, so a failed explore load stays silent.
+    const { data: explore } = useExploreByProjectUuid(
+        query.exploreName,
+        projectUuid,
+        { onError: () => {} },
+    );
+    const fieldsMap = useMemo(
+        () =>
+            explore
+                ? getItemMap(
+                      explore,
+                      query.additionalMetrics,
+                      query.tableCalculations,
+                      query.customDimensions,
+                  )
+                : {},
+        [
+            explore,
+            query.additionalMetrics,
+            query.tableCalculations,
+            query.customDimensions,
+        ],
+    );
+    const metricQuery = useMemo(
+        () => metricQueryOfSemanticNode(query),
+        [query],
+    );
     return (
-        <Group gap={4} className={styles.fields}>
+        <Stack
+            gap={2}
+            className={styles.semanticSummary}
+            onClick={(event) => event.stopPropagation()}
+        >
             <Text component="span" className={styles.exploreName}>
-                {friendlyName(query.exploreName)}
+                {explore?.label ?? friendlyName(query.exploreName)}
             </Text>
-            {query.dimensions.map((fieldId) => (
-                <Box
-                    key={fieldId}
-                    component="span"
-                    className={styles.fieldChip}
-                    bg={LD_FIELD_COLORS.dimension.bg}
-                    c={LD_FIELD_COLORS.dimension.color}
-                >
-                    {fieldLabel(fieldId)}
-                </Box>
-            ))}
-            {query.metrics.map((fieldId) => (
-                <Box
-                    key={fieldId}
-                    component="span"
-                    className={styles.fieldChip}
-                    bg={LD_FIELD_COLORS.metric.bg}
-                    c={LD_FIELD_COLORS.metric.color}
-                >
-                    {fieldLabel(fieldId)}
-                </Box>
-            ))}
-        </Group>
+            <SemanticQueryDetails
+                metricQuery={metricQuery}
+                fieldsMap={fieldsMap}
+                parameters={query.parameters ?? {}}
+                showFields
+                showFilters
+                showSortAndLimit
+            />
+        </Stack>
     );
 };
 
@@ -206,7 +227,7 @@ const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
     return (
         <>
             {query.sourceType === QuerySourceType.SEMANTIC_LAYER && (
-                <SemanticFields query={query} />
+                <SemanticNodeSummary query={query} projectUuid={projectUuid} />
             )}
             {/* Reading or copying the query must not display the node. */}
             {canViewSql && (

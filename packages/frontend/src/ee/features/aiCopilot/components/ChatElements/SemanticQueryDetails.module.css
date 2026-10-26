@@ -1,0 +1,13 @@
+.toggle {
+    flex-shrink: 0;
+    border: none;
+}
+
+.badge {
+    max-width: 100%;
+    text-transform: unset;
+}
+
+.badgeContent {
+    min-width: 0;
+}

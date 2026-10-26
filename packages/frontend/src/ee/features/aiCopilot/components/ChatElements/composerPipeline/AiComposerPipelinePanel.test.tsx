@@ -1,4 +1,5 @@
 import {
+    FilterOperator,
     QuerySourceType,
     VizIndexType,
     type SourceQuery,
@@ -14,6 +15,9 @@ vi.mock('../../../../../../hooks/useCompiledSql', () => ({
     useCompiledSqlFromMetricQuery: vi.fn(() => ({ data: undefined })),
 }));
 const compiledSql = vi.mocked(useCompiledSqlFromMetricQuery);
+vi.mock('../../../../../../hooks/useExplore', () => ({
+    useExploreByProjectUuid: vi.fn(() => ({ data: undefined })),
+}));
 
 const queries: SourceQuery[] = [
     {
@@ -215,6 +219,53 @@ describe('AiComposerPipelinePanel query details', () => {
             { key: 'Enter' },
         );
         expect(onDisplayNode).toHaveBeenCalledWith('amounts');
+    });
+
+    it("summarises a semantic node's filters, sort and parameters without displaying the node", () => {
+        const onDisplayNode = vi.fn();
+        renderPanel({
+            defaultExpanded: true,
+            onDisplayNode,
+            queries: [
+                {
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    nodeId: 'orders',
+                    title: 'Orders by status',
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_count'],
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: 'status',
+                                    target: { fieldId: 'orders_status' },
+                                    operator: FilterOperator.EQUALS,
+                                    values: ['completed'],
+                                },
+                            ],
+                        },
+                    },
+                    sorts: [{ fieldId: 'orders_count', descending: true }],
+                    parameters: { region: 'EMEA' },
+                },
+                queries[1],
+                queries[2],
+            ],
+        });
+        const row = document.getElementById('composer-pipeline-node-orders')!;
+        const toggle = within(row).getByRole('button', {
+            name: 'Fields 2 · Filters 1 · Sort 1 · Parameters 1',
+        });
+        fireEvent.click(toggle);
+
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(within(row).getByText('completed')).toBeInTheDocument();
+        expect(
+            within(row).getByTestId('semantic-query-limit'),
+        ).toHaveTextContent(/500 rows/);
+        expect(onDisplayNode).not.toHaveBeenCalled();
     });
 
     it('compiles a semantic node query only once View query is opened', () => {

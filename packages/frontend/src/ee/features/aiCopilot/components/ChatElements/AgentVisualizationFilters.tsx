@@ -2,12 +2,15 @@ import {
     friendlyName,
     getFilterGroupItemsPropertyName,
     getFilterRulesFromGroup,
+    getFilterTypeFromItem,
     getItemLabel,
     getItemLabelWithoutTableName,
     isAndFilterGroup,
     isField,
+    isFilterableField,
     isOrFilterGroup,
     type AiFilterRule,
+    FilterType,
     type FilterGroup,
     type Filters,
     type ItemsMap,
@@ -30,11 +33,13 @@ const FilterRuleDisplay: FC<{
             : getItemLabelWithoutTableName(field)
         : friendlyName(rule.target.fieldId);
 
-    const ruleLabels = getConditionalRuleLabel(
-        rule,
-        rule.target.fieldFilterType,
-        displayName,
-    );
+    // Stored query filters carry no filter type; derive it from the field.
+    const filterType =
+        rule.target.fieldFilterType ??
+        (field && isFilterableField(field)
+            ? getFilterTypeFromItem(field)
+            : FilterType.STRING);
+    const ruleLabels = getConditionalRuleLabel(rule, filterType, displayName);
 
     return (
         <Button
