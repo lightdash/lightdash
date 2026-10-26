@@ -286,7 +286,8 @@ export const withAnalyticsChartPresentation = (
                     ...(chart.slug.endsWith('-apps-loads-and-observed-viewers')
                         ? {
                               xAxis: (config.eChartsConfig?.xAxis ?? [{}]).map(
-                                  (axis) => ({ ...axis, name: '' }),
+                                  // Empty strings fall back to the field label.
+                                  (axis) => ({ ...axis, name: ' ' }),
                               ),
                           }
                         : {}),

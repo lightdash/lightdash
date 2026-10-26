@@ -14,6 +14,7 @@ type TokenSpec = {
         encoding: {
             text?: { value?: string };
             tooltip?: unknown[];
+            color?: { legend?: Record<string, unknown> };
         };
     }[];
 };
@@ -142,6 +143,19 @@ describe('analytics chart presentation', () => {
             field: 'utc_day_label',
             type: 'nominal',
             title: 'UTC day',
+        });
+    });
+
+    it('keeps the empty daily legend from collapsing the message out of view', () => {
+        const spec = getTokenSpec('feature-daily');
+        expect(spec.layer[0].encoding.color?.legend).toMatchObject({
+            // The placeholder affects layout only; it must not appear as data
+            // in the visual or accessible legend.
+            values: {
+                expr: "length(domain('color')) ? domain('color') : ['']",
+            },
+            symbolOpacity: { expr: "length(domain('color')) ? 1 : 0" },
+            aria: false,
         });
     });
 

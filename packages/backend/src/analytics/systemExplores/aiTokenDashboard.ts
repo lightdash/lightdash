@@ -426,6 +426,17 @@ const visualSpec = (
                         color: {
                             ...color,
                             legend: {
+                                // An empty symbol legend collapses Vega's fit
+                                // height to zero. Keep a transparent layout
+                                // entry. Bars already expose each group and its
+                                // value to assistive technology.
+                                aria: false,
+                                values: {
+                                    expr: "length(domain('color')) ? domain('color') : ['']",
+                                },
+                                symbolOpacity: {
+                                    expr: "length(domain('color')) ? 1 : 0",
+                                },
                                 labelLimit: {
                                     expr: 'min(140, max(60, (width - 64) / 2))',
                                 },
