@@ -20280,7 +20280,7 @@ Use them whenever the question needs math the metric query alone can't express; 
   {
     "description": "Execute a read-only SQL query against the project's data warehouse.
 
-The row limit defaults to 500, max 1000.
+The row limit defaults to 500, max 5000.
 
 Each result renders as its own artifact with a "Continue exploring in SQL Runner" action scoped to that query, so link to SQL Runner only through it: a link in your text cannot be scoped and points at the wrong query when a turn runs more than one.",
     "inputSchema": {
@@ -20291,7 +20291,7 @@ Each result renders as its own artifact with a "Continue exploring in SQL Runner
           "default": 500,
           "description": "Maximum number of rows to return.",
           "exclusiveMinimum": 0,
-          "maximum": 1000,
+          "maximum": 5000,
           "type": "integer",
         },
         "sql": {
