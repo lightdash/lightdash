@@ -1243,14 +1243,16 @@ the language map, as tab names are.
   targets are every saved pill, each capsule (`useDroppable` with the
   section id on the outline, folded or not; it does not unfold) and the
   first button (`UnsectionTarget`, a `useDroppable` with
-  `UNSECTIONED_TARGET_ID` around `AddControl`). A capsule and the first
-  button carry `data-over` (the rail's hover fill and inset `blue-5` ring)
-  only under a pill from elsewhere, and the capsule then makes room: a
-  `.slot` the dragged pill's size (`active.rect.current.initial`, else
-  120x28, dashed outline) at its end, after the summary when folded, gone
-  when the pointer leaves. A pill leaving a capsule grows nothing: the line
-  beside the unsectioned pill under the pointer, or the first button's ring,
-  is the feedback. The drop goes through
+  `UNSECTIONED_TARGET_ID` around `AddControl`). Nothing changes size during
+  a drag. A capsule under a pill from elsewhere carries `data-over`, which
+  draws the same 2px `blue-4` line as `.dropLine` after its last pill, or
+  after its label when folded or empty, as a `::after` in the capsule's own
+  padding (`right: 1px`, `4px` when `data-folded`): no ring, no fill, no
+  slot. The first button under a sectioned pill carries `data-over` with
+  the rail's hover fill and inset `blue-5` ring, since nothing there can
+  carry a line. A pill leaving a capsule grows nothing: the line beside the
+  unsectioned pill under the pointer, or the first button's ring, is the
+  feedback. The drop goes through
   `moveRuleToSection`: on a pill, that pill's section and place; on a
   capsule, that section after its last member of the same kind; on the first
   button, no section. A drop on its own capsule, on the first button while

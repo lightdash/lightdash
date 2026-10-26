@@ -93,12 +93,12 @@ const SectionCapsule: FC<CapsuleProps> = ({
     const getUiString = useUiStrings();
     const summaryId = useId();
     const changedCount = visibleRules.filter(isChanged).length;
-    // A drop anywhere on the outline joins the section; its own pills light nothing
+    // A drop anywhere on the outline joins the section: a line after its
+    // last pill (`data-over`, a pseudo-element, so nothing changes size);
+    // its own pills light nothing
     const { setNodeRef, isOver, active } = useDroppable({ id: section.id });
     const isForeignOver =
         isOver && !rules.some(({ rule }) => rule.id === active?.id);
-    // The capsule makes room: a slot the dragged pill's size at its end
-    const slotRect = active?.rect.current.initial;
     // Nothing to show on this tab (an editor's bar only): the member count
     const hasVisible = visibleRules.length > 0;
     return (
@@ -146,15 +146,6 @@ const SectionCapsule: FC<CapsuleProps> = ({
                           )
                         : formatSectionCount(getUiString, visibleRules.length)}
                 </Text>
-            )}
-            {isForeignOver && (
-                <Box
-                    className={classes.slot}
-                    style={{
-                        width: slotRect?.width ?? 120,
-                        height: slotRect?.height ?? 28,
-                    }}
-                />
             )}
         </Box>
     );

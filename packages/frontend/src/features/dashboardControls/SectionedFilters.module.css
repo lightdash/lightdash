@@ -13,6 +13,7 @@
    holding its toggle and, open, its pills with 4px of air around them (the
    1px outline plus 3px); wrapped lines keep the bar's 8px row gap */
 .capsule {
+    position: relative;
     display: inline-flex;
     align-items: center;
     flex-wrap: wrap;
@@ -29,8 +30,25 @@
     padding-right: 10px;
 }
 
-/* A pill from elsewhere is over the capsule or the first button: the rail's ring */
-.capsule[data-over],
+/* A pill from elsewhere is over the capsule: the drop line after its last
+   pill (or its label), in the capsule's own padding, so nothing moves */
+.capsule[data-over]::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    right: 1px;
+    width: 2px;
+    border-radius: 1px;
+    background-color: var(--mantine-color-blue-4);
+    pointer-events: none;
+}
+
+.capsule[data-collapsed][data-over]::after {
+    right: 4px;
+}
+
+/* Over the first button: the rail's ring, since nothing there can carry a line */
 .unsectionTarget[data-over] {
     background-color: var(--mantine-color-default-hover);
     box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);
@@ -38,13 +56,6 @@
 
 .unsectionTarget {
     display: inline-flex;
-    border-radius: var(--mantine-radius-xl);
-}
-
-/* Where a pill from elsewhere would land: the capsule's last place */
-.slot {
-    flex: none;
-    border: 1px dashed var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-xl);
 }
 

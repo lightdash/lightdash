@@ -247,6 +247,8 @@ describe('SectionedFilters', () => {
     });
 
     it('renders Add, then a capsule per section in order, then the unsectioned pass', () => {
+        // A viewer's bar: only the sections with a member on this tab
+        mockSidebar.current = { isViewer: true };
         renderSectioned([rule('two', 'b'), rule('one', 'a')], 'tab-1');
 
         const order = screen
@@ -289,6 +291,8 @@ describe('SectionedFilters', () => {
     });
 
     it('renders a capsule only for the sections that have a visible member', () => {
+        // A viewer's bar: only the sections with a member on this tab
+        mockSidebar.current = { isViewer: true };
         renderSectioned(
             [rule('one', 'a', onTabOne), rule('two', 'b')],
             'tab-2',
@@ -316,6 +320,8 @@ describe('SectionedFilters', () => {
     });
 
     it('closes a pill popover when its section folds or leaves the tab', async () => {
+        // A viewer's bar: only the sections with a member on this tab
+        mockSidebar.current = { isViewer: true };
         // The mock opens the popover of a pill named after its section
         const { switchTab } = renderSectioned(
             [rule('a', 'a', onTabOne), rule('b', 'b')],
@@ -378,6 +384,8 @@ describe('SectionedFilters', () => {
     });
 
     it('leaves out a section whose members are all hidden on the active tab', () => {
+        // A viewer's bar: only the sections with a member on this tab
+        mockSidebar.current = { isViewer: true };
         renderSectioned(
             [rule('one', 'a', onTabOne), rule('two', 'b')],
             'tab-2',
@@ -550,8 +558,6 @@ describe('SectionedFilters', () => {
             // thing down in document order is capsule b, never its own
             expect(capsuleA).not.toHaveAttribute('data-over');
             expect(capsuleB).toHaveAttribute('data-over');
-            expect(capsuleB.querySelector('[class*="slot"]')).not.toBeNull();
-            expect(capsuleA.querySelector('[class*="slot"]')).toBeNull();
             fireEvent.keyDown(pill, { code: 'Space', key: ' ' });
             rect.mockRestore();
             await tick();
@@ -566,22 +572,33 @@ describe('SectionedFilters', () => {
             expect(pill).not.toHaveAttribute('data-dragging');
         });
 
-        it('makes room in a capsule only for a pill from elsewhere, folded too', () => {
-            const slotIn = (name: string) =>
-                (
-                    screen.getByRole('button', { name })
-                        .parentElement as HTMLElement
-                ).querySelector('[class*="slot"]');
+        it('marks a capsule only under a pill from elsewhere, folded too, adding nothing to it', () => {
+            const capsule = (name: RegExp) =>
+                screen.getByRole('button', { name })
+                    .parentElement as HTMLElement;
             mockDroppable.current = { activeId: 'one', overId: 'a' };
             const { unmount } = renderSectioned(
                 [rule('one', 'a'), rule('two', 'b')],
                 'tab-1',
             );
-            expect(slotIn('Dates')).toBeNull();
-            expect(
-                slotIn('Dates')?.parentElement ?? slotIn('Dates'),
-            ).toBeNull();
+            expect(capsule(/^Dates/)).not.toHaveAttribute('data-over');
             unmount();
+
+            mockDroppable.current = null;
+            const idle = renderSectioned(
+                [
+                    ...Array.from({ length: 7 }, (_, i) => rule(`a-${i}`, 'a')),
+                    rule('two', 'b'),
+                ],
+                'tab-1',
+            );
+            const folded = capsule(/^Dates/);
+            expect(folded.firstElementChild).toHaveAttribute(
+                'aria-expanded',
+                'false',
+            );
+            const childrenBefore = folded.children.length;
+            idle.unmount();
 
             mockDroppable.current = { activeId: 'two', overId: 'a' };
             renderSectioned(
@@ -591,12 +608,9 @@ describe('SectionedFilters', () => {
                 ],
                 'tab-1',
             );
-            const folded = screen.getByRole('button', { name: /^Dates/ });
-            expect(folded).toHaveAttribute('aria-expanded', 'false');
-            const slot = slotIn(folded.textContent ?? 'Dates');
-            expect(slot).not.toBeNull();
-            expect(folded.parentElement).toHaveAttribute('data-over');
-            expect(slot).toHaveStyle({ width: '120px', height: '28px' });
+            // The line is a pseudo-element: the attribute is all jsdom sees
+            expect(capsule(/^Dates/)).toHaveAttribute('data-over');
+            expect(capsule(/^Dates/).children).toHaveLength(childrenBefore);
         });
 
         it('renders every section, an empty one with its count, and takes a drop on it', () => {
