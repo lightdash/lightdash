@@ -1547,6 +1547,7 @@ export class DataAppAnalysisService extends BaseService {
         anomaly: DataAppAnomaly,
         sourceLabel: string | null,
         pageContent: string,
+        maxWarehouseQueries: number,
     ): string {
         const dims = Object.entries(anomaly.dimensionValues)
             .map(([fieldId, value]) => `${fieldId} = ${value}`)
@@ -1562,6 +1563,8 @@ export class DataAppAnalysisService extends BaseService {
             '',
             'Rules:',
             '- Start from the data on the page below. Run additional queries only when they can test a driver: break the metric down by another dimension, compare the prior period, or check a related metric. Do not query for its own sake.',
+            `- You may run up to ${maxWarehouseQueries} queries; spending several to pin down one driver is fine.`,
+            '- On daily or weekly data, when the change could be a recurring cycle — a weekend dip, quiet Mondays, a month-end peak — query the same point in prior cycles (the same weekday across at least the four prior weeks) and state that like-for-like baseline. When the baseline supports the pattern, present it as the likely driver; hedge only when the history is mixed or too short.',
             '- Every figure you state must come from the page data or a query you ran, and must say which.',
             '- Describe possible drivers and associations. Never claim a cause is proven.',
             '- If nothing in the available data explains the finding, say so plainly.',
@@ -1696,6 +1699,12 @@ export class DataAppAnalysisService extends BaseService {
                 source ? [source] : [],
             );
 
+            const limits =
+                await this.aiOrganizationSettingsService.getDataAppAnalysisLimits(
+                    payload.organizationUuid,
+                );
+            const maxQueries = limits.investigateMaxWarehouseQueries;
+
             const thread = await this.aiAgentService.createAgentThread(
                 user,
                 payload.agentUuid,
@@ -1704,6 +1713,7 @@ export class DataAppAnalysisService extends BaseService {
                         anomaly,
                         source?.label ?? null,
                         content,
+                        maxQueries,
                     ),
                     context: [
                         target.kind === 'app'
@@ -1732,11 +1742,6 @@ export class DataAppAnalysisService extends BaseService {
             }
             meta.threadUuid = thread.uuid;
 
-            const limits =
-                await this.aiOrganizationSettingsService.getDataAppAnalysisLimits(
-                    payload.organizationUuid,
-                );
-            const maxQueries = limits.investigateMaxWarehouseQueries;
             let queriesRun = 0;
             let partial = false;
             const explanation =
