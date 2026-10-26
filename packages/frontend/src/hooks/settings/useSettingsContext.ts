@@ -88,6 +88,9 @@ export const useSettingsContext = (): SettingsContext => {
     const { data: dashboardAnalysisFlag } = dashboardAnalysisFlagQuery;
     const isChartStudioAvailable = useChartStudioAvailable();
 
+    const { data: apiQuerySourcesFlag } = useServerFeatureFlag(
+        FeatureFlags.ApiQuerySources,
+    );
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
     );
@@ -249,6 +252,7 @@ export const useSettingsContext = (): SettingsContext => {
             dataAppAnalysisFlagQuery.isInitialLoading ||
             dashboardAnalysisFlagQuery.isInitialLoading,
         isChartStudioAvailable,
+        isApiQuerySourcesEnabled: apiQuerySourcesFlag?.enabled ?? false,
         externalSourcesFlag,
         isResultsCacheEnabled,
         embeddingEnabled,

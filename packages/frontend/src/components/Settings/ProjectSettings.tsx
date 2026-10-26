@@ -67,6 +67,7 @@ import { SettingsValidator } from '../SettingsValidator';
 import CorsSettingsPanel from '../UserSettings/CorsSettingsPanel';
 import VerifiedContentPanel from '../VerifiedContent/VerifiedContentPanel';
 import DataAppConnectionsPanel from './DataAppConnectionsPanel';
+import LiveDataSourcesPanel from './LiveDataSourcesPanel';
 import SemanticLayerConnectionPanel from './SemanticLayerConnectionPanel';
 
 type ProjectSettingsPageProps = PropsWithChildren<{
@@ -122,6 +123,10 @@ const ProjectSettings: FC<{
 
     const { data: dataAppsFlag, isLoading: isDataAppsFlagLoading } =
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const {
+        data: apiQuerySourcesFlag,
+        isLoading: isApiQuerySourcesFlagLoading,
+    } = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
     const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
         useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
     const { data: agentIdentityFlag, isLoading: isAgentIdentityFlagLoading } =
@@ -139,8 +144,7 @@ const ProjectSettings: FC<{
             false);
     const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
-    const canManageExternalConnections =
-        isDataAppsEnabled &&
+    const canManageProjectConnections =
         !!project &&
         (user.data?.ability.can(
             'manage',
@@ -150,6 +154,10 @@ const ProjectSettings: FC<{
             }),
         ) ??
             false);
+    const canManageExternalConnections =
+        isDataAppsEnabled && canManageProjectConnections;
+    const canManageLiveDataSources =
+        apiQuerySourcesFlag?.enabled === true && canManageProjectConnections;
 
     const canManageExternalSources =
         externalSourcesEnabled &&
@@ -614,6 +622,16 @@ const ProjectSettings: FC<{
                       },
                   ]
                 : []),
+            ...(canManageLiveDataSources
+                ? [
+                      {
+                          path: `/liveDataSources`,
+                          element: (
+                              <LiveDataSourcesPanel projectUuid={projectUuid} />
+                          ),
+                      },
+                  ]
+                : []),
         ];
         if (project?.provisioningSource === 'analytics') {
             return [
@@ -650,6 +668,7 @@ const ProjectSettings: FC<{
         isResultsCacheEnabled,
         user.data?.ability,
         canManageExternalConnections,
+        canManageLiveDataSources,
         canManageAgentIdentity,
         project,
         canManageExternalSources,
@@ -671,6 +690,12 @@ const ProjectSettings: FC<{
         isDataAppsFlagLoading &&
         !!matchPath(
             '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
+            location.pathname,
+        );
+    const isAwaitingLiveDataSourcesRoute =
+        isApiQuerySourcesFlagLoading &&
+        !!matchPath(
+            '/generalSettings/projectManagement/:projectUuid/liveDataSources',
             location.pathname,
         );
     const isAwaitingAgentIdentityRoute =
@@ -697,6 +722,7 @@ const ProjectSettings: FC<{
         !project ||
         !projectUuid ||
         isAwaitingDataAppConnectionsRoute ||
+        isAwaitingLiveDataSourcesRoute ||
         isAwaitingCachingRoute ||
         isAwaitingAgentIdentityRoute ||
         isAwaitingReviewRequestsRoute
