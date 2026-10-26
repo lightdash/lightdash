@@ -68,11 +68,6 @@ export enum FeatureFlags {
     CustomGroupBins = 'custom-group-bins',
 
     /**
-     * Enable changing the explore a chart points to from the chart UI
-     */
-    ChangeChartExplore = 'change-chart-explore',
-
-    /**
      * Keep visited dashboard tabs mounted in the DOM (hidden) for instant
      * re-switching. Enabled by default; disabled per-org for orgs where
      * large dashboards spiked browser memory to 3 GB+ from accumulated

@@ -131,6 +131,10 @@
             "reason": "AI agent thread responses (thread create, get and list, thread share clone, and the SDK binding type) can now return binding as { type: 'chart', chartUuid } as well as { type: 'dashboard', dashboardUuid }. Only threads created with the new chart binding return it; existing threads and dashboard-bound threads are unchanged. API clients and SDK hosts that read binding.dashboardUuid must check binding.type first. During a rolling update an old UI pod cannot render the header of a chart-bound thread until refresh.",
             "requiredStop": false
         },
+        "change-chart-explore-rollout-flag-retired": {
+            "reason": "The exported FeatureFlags enum no longer includes ChangeChartExplore. TypeScript consumers must remove references to this rollout flag when upgrading. Chart authors can change a chart's explore on the chart page without the flag. Existing permissions still apply.",
+            "requiredStop": false
+        },
         "edit-yaml-in-ui-git-integration-endpoints-removed": {
             "reason": "GET /api/v1/projects/{projectUuid}/git-integration/explores/{exploreName}/file-path is removed together with the edit-yaml-in-ui feature flag and the FeatureFlags.EditYamlInUi enum member; the already-deprecated explore files and file-change PR endpoints are removed in the same change. The endpoint refused callers unless that flag was on, and the flag was off by default on Cloud and on self-hosted. Callers now get a 404 and should use the /api/v1/projects/{projectUuid}/git branch and file endpoints instead.",
             "requiredStop": false,
