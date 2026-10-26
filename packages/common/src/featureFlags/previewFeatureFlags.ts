@@ -17,8 +17,6 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     // Changes the signup flow and needs SMTP for the email OTP. The register
     // page evaluates it anonymously, so an override can't switch it back off.
     FeatureFlags.NewOnboarding,
-    // Acts outside the environment: opens pull requests on real repos.
-    FeatureFlags.AiPreviewDeploySetup,
     // Off pending a security review.
     FeatureFlags.SsoOrganizationSettings,
     // Security hardening: previews must not accept long-lived GitHub PATs.

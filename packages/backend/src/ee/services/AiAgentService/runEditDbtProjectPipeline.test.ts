@@ -87,7 +87,6 @@ const buildService = (overrides: {
     run?: ReturnType<typeof vi.fn>;
     getRunStatus?: ReturnType<typeof vi.fn>;
     reviewRemediation?: unknown;
-    previewDeploySetupEnabled?: boolean;
     ciStatus?: { hasPreviewDeployWorkflow: boolean } | null;
     previewUrl?: string | null;
 }) => {
@@ -178,11 +177,6 @@ const buildService = (overrides: {
         createRemediationEvent,
     };
     const slackClient = { addReaction, postMessage };
-    const featureFlagService = {
-        get: vi.fn().mockResolvedValue({
-            enabled: overrides.previewDeploySetupEnabled ?? false,
-        }),
-    };
     const previewDeploySetupService = {
         getOrScanProjectCiStatus: vi
             .fn()
@@ -200,7 +194,6 @@ const buildService = (overrides: {
         aiWritebackService,
         aiAgentReviewClassifierModel,
         slackClient,
-        featureFlagService,
         previewDeploySetupService,
         writebackPreviewService,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -210,7 +203,6 @@ const buildService = (overrides: {
         service,
         userModel,
         aiWritebackService,
-        featureFlagService,
         loadRequest,
         assertOperationWithRequest,
         updateToolResult,
@@ -240,7 +232,9 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
             expect(
                 h.userModel.findSessionUserAndOrgByUuid,
             ).toHaveBeenCalledTimes(1);
-            expect(h.featureFlagService.get).toHaveBeenCalledTimes(1);
+            expect(
+                h.previewDeploySetupService.getOrScanProjectCiStatus,
+            ).toHaveBeenCalledTimes(1);
             expect(h.loadRequest).not.toHaveBeenCalled();
             expect(h.assertOperationWithRequest).not.toHaveBeenCalled();
             expect(h.aiWritebackService.run).toHaveBeenCalledTimes(1);
@@ -414,6 +408,32 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         );
     });
 
+    it.each([false, true])(
+        'offers preview deployment setup only when the workflow is missing (configured=%s)',
+        async (hasPreviewDeployWorkflow) => {
+            const { service, updateToolResult } = buildService({
+                ciStatus: { hasPreviewDeployWorkflow },
+            });
+
+            await service.runEditDbtProjectPipeline(PAYLOAD);
+
+            const setupOffer = expect.stringContaining(
+                'Offer to set it up by opening a pull request',
+            );
+            expect(updateToolResult).toHaveBeenCalledWith(
+                'prompt-1',
+                'tool-call-1',
+                expect.objectContaining({
+                    result: hasPreviewDeployWorkflow
+                        ? expect.not.stringContaining(
+                              'Offer to set it up by opening a pull request',
+                          )
+                        : setupOffer,
+                }),
+            );
+        },
+    );
+
     it('does not offer or create preview deployment for a Bitbucket pull request', async () => {
         const {
             service,
@@ -421,7 +441,6 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
             createPreviewForPullRequest,
             previewDeploySetupService,
         } = buildService({
-            previewDeploySetupEnabled: true,
             ciStatus: { hasPreviewDeployWorkflow: false },
             run: vi.fn().mockResolvedValue({
                 ...WRITEBACK_RESULT,

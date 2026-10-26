@@ -144,6 +144,10 @@
                     "mcp": []
                 }
             }
+        },
+        "ai-preview-deploy-setup-flag-removed": {
+            "reason": "The AiPreviewDeploySetup member is removed from the exported FeatureFlags enum. TypeScript consumers that reference this rollout flag must remove it when they upgrade. Preview-deploy setup keeps the enabled behaviour and still requires writeback, a supported repository connection and the existing permissions.",
+            "requiredStop": false
         }
     }
 }

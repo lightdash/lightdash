@@ -13359,12 +13359,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 result.prUrl?.startsWith('https://bitbucket.org/') === true;
             let previewDeployConfigured: boolean | null = null;
             try {
-                const { enabled: previewDeploySetupEnabled } =
-                    await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.AiPreviewDeploySetup,
-                    });
-                if (previewDeploySetupEnabled && !isBitbucketPullRequest) {
+                if (!isBitbucketPullRequest) {
                     const ciStatus =
                         await this.previewDeploySetupService.getOrScanProjectCiStatus(
                             user,
@@ -17030,18 +17025,8 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       )
                     : [];
 
-                // Preview-deploy setup rides the writeback infra, so it requires both
-                // the writeback flag (and trusted identity, applied above) and its own
-                // ai-preview-deploy-setup flag.
-                const { enabled: aiPreviewDeploySetupFlag } =
-                    await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.AiPreviewDeploySetup,
-                    });
                 const aiPreviewDeploySetupEnabled =
-                    aiWritebackEnabled &&
-                    writebackConnectionSupport.editRepo &&
-                    aiPreviewDeploySetupFlag;
+                    aiWritebackEnabled && writebackConnectionSupport.editRepo;
 
                 // exploreRepo/discoverRepos read repo source and the view:SourceCode
                 // check evaluates against the resolved user. On Slack without
