@@ -202,7 +202,7 @@ describe('LightdashAnalyticsPanel', () => {
         );
     });
 
-    it('shows available content in the tooltip and hides sync after updating', async () => {
+    it('clears the update indicator after syncing and keeps manual sync available', async () => {
         let hasContentUpdates = true;
         mockedLightdashApi.mockImplementation(async ({ url, method }) => {
             if (url.includes('/dashboards?')) return [];
@@ -230,17 +230,21 @@ describe('LightdashAnalyticsPanel', () => {
         await userEvent.click(sync);
         await waitFor(() =>
             expect(
-                screen.queryByRole('button', { name: /Sync content/ }),
+                screen.queryByRole('img', {
+                    name: 'New analytics content available',
+                }),
             ).not.toBeInTheDocument(),
         );
+        expect(
+            screen.getByRole('button', { name: /Sync content/ }),
+        ).toBeVisible();
     });
 
-    it('hides sync when counts match without syncing automatically', async () => {
+    it('allows manual sync when counts match without syncing automatically', async () => {
         renderPanel();
         await screen.findByRole('link', { name: 'Explore' });
-        expect(
-            screen.queryByRole('button', { name: /Sync content/ }),
-        ).not.toBeInTheDocument();
+        const sync = screen.getByRole('button', { name: /Sync content/ });
+        expect(sync).toBeVisible();
         expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'POST' }),
         );
@@ -249,6 +253,14 @@ describe('LightdashAnalyticsPanel', () => {
                 name: 'New analytics content available',
             }),
         ).not.toBeInTheDocument();
+        await userEvent.click(sync);
+        await waitFor(() =>
+            expect(sharedLightdashApi).toHaveBeenCalledWith({
+                url: '/org/analytics-project/sample-content',
+                method: 'POST',
+                body: undefined,
+            }),
+        );
     });
 
     it('keeps sync available when update status is unknown', async () => {
