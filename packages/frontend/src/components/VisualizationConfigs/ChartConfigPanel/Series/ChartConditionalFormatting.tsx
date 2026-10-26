@@ -28,6 +28,7 @@ import { AccordionControl } from '../../common/AccordionControl';
 import { AddButton } from '../../common/AddButton';
 import { Config } from '../../common/Config';
 import { useControlledAccordion } from '../../common/hooks/useControlledAccordion';
+import { DebouncedColorSelector } from '../common/DebouncedColorSelector';
 import { ChartConditionalFormattingRule } from './ChartConditionalFormattingRule';
 import {
     getSupportedChartConditionalFormattingConfigs,
@@ -187,7 +188,7 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
                     />
                     <Group gap="xs">
                         <Config.Label>Color</Config.Label>
-                        <ColorSelector
+                        <DebouncedColorSelector
                             color={config.color}
                             swatches={colorPalette}
                             onColorChange={(color) =>

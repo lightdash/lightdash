@@ -22,10 +22,15 @@ import { useDebouncedCallback } from '@mantine/hooks';
 import { lazy, Suspense, useMemo, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import useEmbed from '../../../../ee/providers/Embed/useEmbed';
+import {
+    selectCartesianEchartsConfig,
+    selectCartesianSeries,
+    useVisualizationSelector,
+    type VisualizationStoreState,
+} from '../../../../features/visualization/store';
+import { useCartesianEditorActions } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import UnitInput from '../../../common/UnitInput';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { UnitInputsGrid } from '../common/UnitInputsGrid';
 import classes from './Legend.module.css';
@@ -63,7 +68,10 @@ const LegendAreaWidthInput: FC<LegendAreaWidthInputProps> = ({
     onCommit,
 }) => {
     const [value, setValue] = useState(initialValue);
-    const debouncedOnCommit = useDebouncedCallback(onCommit, 300);
+    const debouncedOnCommit = useDebouncedCallback(onCommit, {
+        delay: 300,
+        flushOnUnmount: true,
+    });
 
     return (
         <UnitInput
@@ -140,24 +148,27 @@ type Props = {
     items: (Field | TableCalculation | CompiledDimension | CustomDimension)[];
 };
 
+const selectLegend = (state: VisualizationStoreState) =>
+    selectCartesianEchartsConfig(state)?.legend;
+const selectGrid = (state: VisualizationStoreState) =>
+    selectCartesianEchartsConfig(state)?.grid;
+
 export const Legend: FC<Props> = ({ items }) => {
     const projectUuid = useProjectUuid();
     // The SDK bundle ships no Monaco workers, so the HTML tooltip editor is not offered in embeds.
     const { embedToken } = useEmbed();
 
-    const { visualizationConfig } = useVisualizationState();
+    const series = useVisualizationSelector(selectCartesianSeries);
+    const legend = useVisualizationSelector(selectLegend);
+    const grid = useVisualizationSelector(selectGrid);
+    const { setLegend, mergeGrid } = useCartesianEditorActions();
 
     // Extract fields used in autocomplete for tooltip
     // for non pivot charts, we can use all items in results
     // for pivot charts, we need to extract the fields used in the chart config, including pivot values
     const autocompleteFieldsTooltip = useMemo(() => {
-        if (!isCartesianVisualizationConfig(visualizationConfig)) return [];
-
-        const { dirtyEchartsConfig: echartsConfig } =
-            visualizationConfig.chartConfig;
-
         const allEncodes: Series['encode'][] =
-            echartsConfig?.series?.map((serie) => serie.encode) ?? [];
+            series?.map((serie) => serie.encode) ?? [];
 
         const hasPivot = allEncodes.some((serie) =>
             isPivotReferenceWithValues(serie.yRef),
@@ -187,13 +198,9 @@ export const Legend: FC<Props> = ({ items }) => {
         }, new Set<string>());
 
         return [...fieldSet];
-    }, [visualizationConfig, items]);
-    if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
+    }, [series, items]);
 
-    const { dirtyEchartsConfig, setLegend, setGrid } =
-        visualizationConfig.chartConfig;
-
-    const legendConfig = dirtyEchartsConfig?.legend ?? {};
+    const legendConfig = legend ?? {};
 
     const handleChange = (
         prop: string,
@@ -204,7 +211,7 @@ export const Legend: FC<Props> = ({ items }) => {
         return newState;
     };
 
-    const showDefault = (dirtyEchartsConfig?.series || []).length > 1;
+    const showDefault = (series || []).length > 1;
     return (
         <Stack>
             <Config>
@@ -259,10 +266,7 @@ export const Legend: FC<Props> = ({ items }) => {
                                         </Config.Label>
                                         <SegmentedControl
                                             size="xs"
-                                            value={
-                                                dirtyEchartsConfig?.legend
-                                                    ?.type ?? 'scroll'
-                                            }
+                                            value={legend?.type ?? 'scroll'}
                                             data={[
                                                 {
                                                     label: 'Scroll',
@@ -319,10 +323,8 @@ export const Legend: FC<Props> = ({ items }) => {
                                         initialValue={
                                             (legendConfig.placement ===
                                             'outsideRight'
-                                                ? dirtyEchartsConfig?.grid
-                                                      ?.right
-                                                : dirtyEchartsConfig?.grid
-                                                      ?.left) || '25%'
+                                                ? grid?.right
+                                                : grid?.left) || '25%'
                                         }
                                         onCommit={(value) => {
                                             const gridSide =
@@ -330,11 +332,7 @@ export const Legend: FC<Props> = ({ items }) => {
                                                 'outsideRight'
                                                     ? 'right'
                                                     : 'left';
-                                            setGrid({
-                                                ...(dirtyEchartsConfig?.grid ??
-                                                    {}),
-                                                [gridSide]: value,
-                                            });
+                                            mergeGrid({ [gridSide]: value });
                                         }}
                                     />
                                 </Group>

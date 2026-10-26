@@ -27,6 +27,7 @@ import {
     TextInput,
     type TextInputProps,
 } from '@mantine/core';
+import { useDebouncedCallback } from '@mantine/hooks';
 import {
     IconLayoutAlignLeft,
     IconLayoutAlignRight,
@@ -34,6 +35,10 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    selectCartesianLayout,
+    useVisualizationSelector,
+} from '../../../../features/visualization/store';
 import FieldSelect from '../../../common/FieldSelect';
 import FilterDatePicker from '../../../common/Filters/FilterInputs/FilterDatePicker';
 import FilterMonthAndYearPicker from '../../../common/Filters/FilterInputs/FilterMonthAndYearPicker';
@@ -42,8 +47,7 @@ import FilterYearPicker from '../../../common/Filters/FilterInputs/FilterYearPic
 import { getFirstDayOfWeek } from '../../../common/Filters/utils/filterDateUtils';
 import MantineIcon from '../../../common/MantineIcon';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../../ColorSelector';
 import { AccordionControl } from '../../common/AccordionControl';
 import { Config } from '../../common/Config';
@@ -214,16 +218,10 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
     updateReferenceLine,
     removeReferenceLine,
 }) => {
-    const { visualizationConfig, colorPalette } = useVisualizationState();
-
-    const isCartesianChart =
-        isCartesianVisualizationConfig(visualizationConfig);
+    const { colorPalette } = useVisualizationInputs();
+    const dirtyLayout = useVisualizationSelector(selectCartesianLayout);
 
     const fieldsInAxes = useMemo(() => {
-        if (!isCartesianChart) return [];
-
-        const { dirtyLayout } = visualizationConfig.chartConfig;
-
         const fieldNames = [
             dirtyLayout?.xField,
             ...(dirtyLayout?.yField || []),
@@ -239,7 +237,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                 (isNumericItem(item) || isDateItem(item))
             );
         });
-    }, [isCartesianChart, items, visualizationConfig]);
+    }, [items, dirtyLayout]);
 
     const markLineKey = useMemo(() => {
         return referenceLine.data.xAxis !== undefined ? 'xAxis' : 'yAxis';
@@ -326,16 +324,29 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
         [isOpen, removeItem, addNewItem, accordionValue],
     );
 
+    // Typed values and picked colours reach the store debounced
+    const commitDebounced = useDebouncedCallback(updateReferenceLine, {
+        delay: 300,
+        flushOnUnmount: true,
+    });
+    const commit = useCallback(
+        (config: UpdateReferenceLineProps) => {
+            commitDebounced.cancel();
+            updateReferenceLine(config);
+        },
+        [commitDebounced, updateReferenceLine],
+    );
+
     const onColorChange = useCallback(
         (color: string) => {
             setLineColor(color);
             if (selectedField !== undefined)
-                updateReferenceLine({
+                commitDebounced({
                     ...currentLineConfig,
                     lineColor: color,
                 });
         },
-        [selectedField, updateReferenceLine, currentLineConfig],
+        [selectedField, commitDebounced, currentLineConfig],
     );
 
     return (
@@ -366,7 +377,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                         onChange={(newField) => {
                             setSelectedField(newField);
                             if (newField !== undefined)
-                                updateReferenceLine({
+                                commit({
                                     ...currentLineConfig,
                                     field: newField,
                                 });
@@ -385,7 +396,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                             onChange={(newValue: string) => {
                                 setValue(newValue);
                                 if (selectedField !== undefined)
-                                    updateReferenceLine({
+                                    commitDebounced({
                                         ...currentLineConfig,
                                         value: newValue,
                                     });
@@ -406,7 +417,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                             onBlur={(newValue) => {
                                 setLabel(newValue.target.value);
                                 if (selectedField)
-                                    updateReferenceLine({
+                                    commit({
                                         ...currentLineConfig,
                                         label: newValue.target.value,
                                     });
@@ -425,7 +436,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                             onChange={(newState) => {
                                 setUseAverage(newState.target.checked);
                                 if (selectedField !== undefined) {
-                                    updateReferenceLine({
+                                    commit({
                                         ...currentLineConfig,
                                         dynamicValue: newState.target.checked
                                             ? 'average'
@@ -450,7 +461,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                                         | 'end';
                                     setLabelPosition(newPosition);
 
-                                    updateReferenceLine({
+                                    commit({
                                         ...currentLineConfig,
                                         labelPosition: newPosition,
                                     });

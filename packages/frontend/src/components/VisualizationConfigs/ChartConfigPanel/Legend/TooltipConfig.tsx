@@ -18,10 +18,14 @@ import { AiTooltipInput } from '../../../../ee/features/ambientAi/components/too
 import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import useIsEmbedded from '../../../../ee/providers/Embed/useIsEmbedded';
 import { getLightdashMonacoTheme } from '../../../../features/sqlRunner/utils/monaco';
+import {
+    selectCartesianEditor,
+    useVisualizationSelector,
+    type VisualizationStoreState,
+} from '../../../../features/visualization/store';
+import { useCartesianEditorActions } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import MantineIcon from '../../../common/MantineIcon';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import {
     Editor,
     type BeforeMount,
@@ -111,34 +115,27 @@ const calculateEditorHeight = (lineCount: number): number => {
     const lines = Math.min(lineCount || 1, MAX_LINES);
     return lines * MONACO_LINE_HEIGHT + MONACO_PADDING;
 };
+const selectTooltip = (state: VisualizationStoreState) =>
+    selectCartesianEditor(state).tooltip;
+
 export const TooltipConfig: FC<Props> = ({ fields }) => {
-    const { visualizationConfig } = useVisualizationState();
+    const tooltip = useVisualizationSelector(selectTooltip);
+    const { setTooltip } = useCartesianEditorActions();
     const { colorScheme } = useMantineColorScheme();
     const projectUuid = useProjectUuid();
     const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
     const isEmbedded = useIsEmbedded();
-    const isCartesianChart =
-        isCartesianVisualizationConfig(visualizationConfig);
-
-    const [tooltipValue, setTooltipValue] = useState<string>(
-        (isCartesianChart && visualizationConfig.chartConfig.tooltip) || '',
-    );
+    const [tooltipValue, setTooltipValue] = useState<string>(tooltip || '');
     const [debouncedTooltipValue] = useDebouncedValue(tooltipValue, 1000);
     const [editorHeight, setEditorHeight] = useState<number>(
         calculateEditorHeight(1),
     );
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     const disposableRef = useRef<IDisposable | null>(null);
-    const prevShowRef = useRef<boolean>(
-        isCartesianChart ? !!visualizationConfig.chartConfig.tooltip : false,
-    );
-    const tooltipValueRef = useRef<string>(
-        (isCartesianChart && visualizationConfig.chartConfig.tooltip) || '',
-    );
+    const prevShowRef = useRef<boolean>(!!tooltip);
+    const tooltipValueRef = useRef<string>(tooltip || '');
 
-    const [show, setShow] = useState<boolean>(
-        isCartesianChart ? !!visualizationConfig.chartConfig.tooltip : false,
-    );
+    const [show, setShow] = useState<boolean>(!!tooltip);
 
     // Keep ref in sync with tooltipValue for immediate toggle restore
     useEffect(() => {
@@ -147,10 +144,6 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
 
     // Handle tooltip updates: toggle changes are immediate, typing uses debounced value
     useEffect(() => {
-        if (!isCartesianChart) return;
-
-        const { setTooltip } = visualizationConfig.chartConfig;
-
         // If show state changed, handle toggle immediately
         if (prevShowRef.current !== show) {
             if (show) {
@@ -165,12 +158,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
             // When show is true and debounced value changes (user typing), update with debounced value
             setTooltip(debouncedTooltipValue);
         }
-    }, [
-        isCartesianChart,
-        show,
-        debouncedTooltipValue,
-        visualizationConfig.chartConfig,
-    ]);
+    }, [show, debouncedTooltipValue, setTooltip]);
 
     const handleEditorOnChange = (value: string | undefined) => {
         setTooltipValue(value ?? '');

@@ -8,16 +8,19 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Box, Group } from '@mantine/core';
-import { useDebouncedState } from '@mantine/hooks';
+import { useDebouncedCallback, useDebouncedState } from '@mantine/hooks';
 import { IconPalette } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import MantineIcon from '../../../common/MantineIcon';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
-import ColorSelector from '../../ColorSelector';
+import {
+    useSeriesColor,
+    useVisualizationInputs,
+} from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { EditableText } from '../../common/EditableText';
 import { GrabIcon } from '../../common/GrabIcon';
+import { DebouncedColorSelector } from '../common/DebouncedColorSelector';
 import {
     SeriesDepthControl,
     type SeriesDrawOrderControl,
@@ -51,10 +54,15 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     drawOrder,
     showColorPickerIcon,
 }) => {
-    const { colorPalette, getSeriesColor } = useVisualizationState();
+    const { colorPalette } = useVisualizationInputs();
+    const getSeriesColor = useSeriesColor();
     const [value, setValue] = useDebouncedState(
         getSingleSeries(series)?.name || getItemLabelWithoutTableName(item),
         500,
+    );
+    const commitName = useDebouncedCallback(
+        (name: string) => updateSingleSeries({ ...series, name }),
+        { delay: 300, flushOnUnmount: true },
     );
 
     return (
@@ -74,7 +82,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                     {showColorPickerIcon ? (
                         <MantineIcon size="sm" icon={IconPalette} />
                     ) : (
-                        <ColorSelector
+                        <DebouncedColorSelector
                             color={getSeriesColor(series)}
                             swatches={colorPalette}
                             withAlpha
@@ -105,10 +113,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                                 placeholder={getItemLabelWithoutTableName(item)}
                                 onChange={(event) => {
                                     setValue(event.currentTarget.value);
-                                    updateSingleSeries({
-                                        ...series,
-                                        name: event.currentTarget.value,
-                                    });
+                                    commitName(event.currentTarget.value);
                                 }}
                             />
                         </Box>

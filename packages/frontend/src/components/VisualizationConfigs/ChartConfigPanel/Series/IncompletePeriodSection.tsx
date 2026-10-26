@@ -1,8 +1,17 @@
 import { hasIncompletePeriod } from '@lightdash/visualization/editor';
 import { Checkbox, Group } from '@mantine/core';
 import { useId, useMemo, type FC } from 'react';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
+import {
+    selectCartesianLayout,
+    selectCartesianSeries,
+    useVisualizationSelector,
+    type VisualizationStoreState,
+} from '../../../../features/visualization/store';
+import { useCartesianEditorActions } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import {
+    useSeriesColor,
+    useVisualizationInputs,
+} from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 
 const HatchPreview: FC<{ color: string }> = ({ color }) => {
@@ -29,13 +38,16 @@ const HatchPreview: FC<{ color: string }> = ({ color }) => {
     );
 };
 
+const selectFirstSeries = (state: VisualizationStoreState) =>
+    selectCartesianSeries(state)?.[0];
+
 export const IncompletePeriodSection: FC = () => {
-    const { visualizationConfig, itemsMap, resultsData, getSeriesColor } =
-        useVisualizationState();
-    const chartConfig = isCartesianVisualizationConfig(visualizationConfig)
-        ? visualizationConfig.chartConfig
-        : undefined;
-    const xFieldId = chartConfig?.dirtyLayout?.xField;
+    const { itemsMap, resultsData } = useVisualizationInputs();
+    const getSeriesColor = useSeriesColor();
+    const dirtyLayout = useVisualizationSelector(selectCartesianLayout);
+    const firstSeries = useVisualizationSelector(selectFirstSeries);
+    const { setShowIncompletePeriod } = useCartesianEditorActions();
+    const xFieldId = dirtyLayout?.xField;
 
     // Only shown when the results hold a period that hasn't finished yet
     const hasIncomplete = useMemo(
@@ -52,9 +64,8 @@ export const IncompletePeriodSection: FC = () => {
         [xFieldId, itemsMap, resultsData],
     );
 
-    if (!chartConfig || !hasIncomplete) return null;
+    if (!hasIncomplete) return null;
 
-    const [firstSeries] = chartConfig.dirtyEchartsConfig?.series ?? [];
     const color = firstSeries ? getSeriesColor(firstSeries) : undefined;
 
     return (
@@ -69,11 +80,9 @@ export const IncompletePeriodSection: FC = () => {
                             {color && <HatchPreview color={color} />}
                         </Group>
                     }
-                    checked={!!chartConfig.dirtyLayout?.showIncompletePeriod}
+                    checked={!!dirtyLayout?.showIncompletePeriod}
                     onChange={(e) =>
-                        chartConfig.setShowIncompletePeriod(
-                            e.currentTarget.checked,
-                        )
+                        setShowIncompletePeriod(e.currentTarget.checked)
                     }
                 />
             </Config.Section>

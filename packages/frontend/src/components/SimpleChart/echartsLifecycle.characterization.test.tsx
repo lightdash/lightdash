@@ -388,14 +388,13 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
         expect(snapshot()).toMatchObject({
             init: 1,
             dispose: 0,
-            setOption: 3,
+            setOption: 2,
             listeners: 6,
-            chartData: 3,
+            chartData: 2,
             alive: 1,
         });
         // Series colours resolve from the editor's config, so they settle with it
         expect(takeChanged().slice(1)).toEqual([
-            ['validCartesianConfig', 'getSeriesColor'],
             ['validCartesianConfig', 'getSeriesColor'],
         ]);
     });
@@ -417,7 +416,7 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
         });
     });
 
-    it('keeps the instance on a results change, though the config lag still builds twice', () => {
+    it('keeps the instance on a results change and builds once when the config is unchanged', () => {
         const view = renderWithProviders(
             wrap(<Chart results={makeResults(1)} />, false),
         );
@@ -425,18 +424,15 @@ describe('ECharts lifecycle characterization (cartesian)', () => {
         const mounted = snapshot();
         view.rerender(wrap(<Chart results={makeResults(2)} />, false));
         expect(delta(mounted, snapshot())).toMatchObject({
-            chartData: 2,
+            chartData: 1,
             init: 0,
             dispose: 0,
-            setOption: 2,
+            setOption: 1,
             alive: 0,
             listeners: 0,
         });
-        // The first build pairs the new rows with the previous config
-        expect(takeChanged()).toEqual([
-            ['resultsData'],
-            ['validCartesianConfig', 'getSeriesColor'],
-        ]);
+        // Repairs that change nothing keep the config's identity
+        expect(takeChanged()).toEqual([['resultsData']]);
     });
 
     it('keeps the instance on a legend toggle', async () => {

@@ -1,7 +1,6 @@
 import { type DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
 import {
     CartesianSeriesType,
-    ChartType,
     getReadableTextColor,
     type CartesianChartLayout,
     type Series,
@@ -16,7 +15,11 @@ import {
     Select,
     Stack,
 } from '@mantine/core';
-import { useDebouncedState, useHover } from '@mantine/hooks';
+import {
+    useDebouncedCallback,
+    useDebouncedState,
+    useHover,
+} from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronUp,
@@ -26,12 +29,16 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { useCartesianEditorActions } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { calculateSeriesLikeIdentifier } from '../../../../hooks/useChartColorConfig/utils';
 import MantineIcon from '../../../common/MantineIcon';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
-import ColorSelector from '../../ColorSelector';
+import {
+    useSeriesColor,
+    useVisualizationInputs,
+} from '../../../LightdashVisualization/useVisualizationContext';
 import { EditableText } from '../../common/EditableText';
 import { GrabIcon } from '../../common/GrabIcon';
+import { DebouncedColorSelector } from '../common/DebouncedColorSelector';
 import { ChartTypeSelect } from './ChartTypeSelect';
 
 type Props = {
@@ -64,8 +71,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
     dragHandleProps,
     isDragDisabled,
 }) => {
-    const { visualizationConfig, colorPalette, getSeriesColor } =
-        useVisualizationState();
+    const { colorPalette } = useVisualizationInputs();
+    const getSeriesColor = useSeriesColor();
+    const { mergeMetadata } = useCartesianEditorActions();
     const { hovered, ref } = useHover();
 
     const type =
@@ -82,6 +90,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
         getSingleSeries(series)?.name || seriesLabel,
         200,
     );
+    const commitName = useDebouncedCallback(
+        (name: string) => updateSingleSeries({ ...series, name }),
+        { delay: 300, flushOnUnmount: true },
+    );
 
     return (
         <Box>
@@ -96,7 +108,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
                     )}
                     {isGrouped && (
-                        <ColorSelector
+                        <DebouncedColorSelector
                             color={seriesColor}
                             swatches={colorPalette}
                             withAlpha
@@ -109,20 +121,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     calculateSeriesLikeIdentifier(series).join(
                                         '.',
                                     );
-
-                                if (
-                                    visualizationConfig.chartType ===
-                                    ChartType.CARTESIAN
-                                ) {
-                                    const { updateMetadata } =
-                                        visualizationConfig.chartConfig;
-
-                                    updateMetadata({
-                                        ...visualizationConfig.chartConfig
-                                            .dirtyMetadata,
-                                        [serieId]: { color },
-                                    });
-                                }
+                                mergeMetadata({ [serieId]: { color } });
                             }}
                         />
                     )}
@@ -134,10 +133,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 placeholder={seriesLabel}
                                 onChange={(event) => {
                                     setSeriesValue(event.currentTarget.value);
-                                    updateSingleSeries({
-                                        ...series,
-                                        name: event.currentTarget.value,
-                                    });
+                                    commitName(event.currentTarget.value);
                                 }}
                             />
                         </Box>
@@ -341,7 +337,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
                         {series.label?.show && (
                             <Box mt={!isGrouped ? 'lg' : undefined}>
-                                <ColorSelector
+                                <DebouncedColorSelector
                                     color={series.label.color}
                                     defaultColor={automaticLabelColor}
                                     swatches={colorPalette}

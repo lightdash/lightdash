@@ -1,26 +1,38 @@
 import {
     getSeriesId,
+    isCompleteLayout,
     type CartesianChart,
     type ConditionalFormattingConfig,
+    type ItemsMap,
+    type MarkLineData,
     type RowLimit,
     type Series,
+    type SeriesMetadata,
     type StackType,
+    type TableCalculationMetadata,
     type TooltipSortBy,
     type XAxis,
 } from '@lightdash/common';
 import {
     applyCartesianStacking,
     applyCartesianType,
+    buildCartesianSeries,
     EMPTY_CARTESIAN_CHART_CONFIG,
+    type getAvailableCartesianFields,
     getReferenceLinesFromSeries,
     isCartesianStacked,
+    isColorByCategoryEligible,
+    isConditionalFormattingEligible,
     isStackTypeStacked,
+    repairCartesianLayout,
     toStackType,
     type CartesianTypeOptions,
     type ReferenceLineField,
 } from '@lightdash/visualization/editor';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import isEqual from 'lodash/isEqual';
 import { editorCaseReducers } from './editorSlice';
+import { type VisualizationInputs } from './inputs';
 
 type Layout = Partial<CartesianChart['layout']>;
 type EchartsConfig = Partial<CartesianChart['eChartsConfig']>;
@@ -72,6 +84,114 @@ export const buildCartesianEditorState = (
 type AxisPatch =
     | { axis: 'xAxis'; index: number; patch: Partial<XAxis> }
     | { axis: 'yAxis'; index: number; patch: Partial<YAxis> };
+
+/** What the results-driven repairs read from the inputs */
+export type CartesianReconcileInputs = Omit<
+    ReturnType<typeof getAvailableCartesianFields>,
+    'sortedDimensions'
+> & {
+    pendingFieldIds: Set<string> | undefined;
+    tableCalculationsMetadata: TableCalculationMetadata[] | undefined;
+    pivotKeys: string[] | undefined;
+    resultsData: VisualizationInputs['resultsData'];
+    itemsMap: ItemsMap | undefined;
+};
+
+export type CartesianInputsPatch = Partial<
+    Pick<
+        CartesianEditorState,
+        'dirtyLayout' | 'dirtyEchartsConfig' | 'conditionalFormattings'
+    >
+>;
+
+/**
+ * The editor state the results imply, as a patch of what changed: layout
+ * fallbacks (only when the inputs changed), the expected series, and the
+ * colour-by-category and conditional formatting resets. Null when nothing changes.
+ */
+export const reconcileCartesianEditor = ({
+    editor,
+    inputs,
+    cartesianType,
+    repairLayout,
+}: {
+    editor: CartesianEditorState;
+    inputs: CartesianReconcileInputs;
+    cartesianType: CartesianTypeOptions | undefined;
+    repairLayout: boolean;
+}): CartesianInputsPatch | null => {
+    const patch: CartesianInputsPatch = {};
+    let layout = editor.dirtyLayout;
+    if (repairLayout && inputs.availableFields.length > 0) {
+        const repaired = repairCartesianLayout({
+            layout,
+            availableFields: inputs.availableFields,
+            availableDimensions: inputs.availableDimensions,
+            availableMetrics: inputs.availableMetrics,
+            tableCalculationsMetadata: inputs.tableCalculationsMetadata,
+            pendingFieldIds: inputs.pendingFieldIds,
+        });
+        if (!isEqual(repaired, layout)) layout = repaired;
+    }
+
+    let series = editor.dirtyEchartsConfig?.series;
+    if (isCompleteLayout(layout) && inputs.resultsData?.hasFetchedAllRows) {
+        const expected = buildCartesianSeries({
+            layout,
+            existingSeries: series,
+            cartesianType,
+            isStacked: editor.isStacked,
+            pivotKeys: inputs.pivotKeys,
+            resultsData: inputs.resultsData,
+            itemsMap: inputs.itemsMap,
+            columnLimit: editor.columnLimit,
+            referenceLines: editor.referenceLines,
+        });
+        if (!isEqual(expected, series) || !editor.dirtyEchartsConfig) {
+            series = expected;
+            patch.dirtyEchartsConfig = { ...editor.dirtyEchartsConfig, series };
+        }
+    }
+
+    if (
+        (layout?.colorByCategory || layout?.categoryColorOverrides) &&
+        !isColorByCategoryEligible({
+            series,
+            pivotKeys: inputs.pivotKeys,
+            layout,
+        })
+    ) {
+        layout = {
+            ...layout,
+            colorByCategory: undefined,
+            categoryColorOverrides: undefined,
+        };
+    }
+    if (layout !== editor.dirtyLayout) patch.dirtyLayout = layout;
+
+    if (
+        editor.conditionalFormattings.length > 0 &&
+        !isConditionalFormattingEligible(series, inputs.pivotKeys)
+    ) {
+        patch.conditionalFormattings = [];
+    }
+
+    return Object.keys(patch).length > 0 ? patch : null;
+};
+
+const matchesReferenceLine = (data: MarkLineData, lineId: string) =>
+    data.uuid === lineId || data.value === lineId || data.name === lineId;
+
+export type ReferenceLineUpdate = {
+    lineId: string;
+    fieldId: string;
+    isNumericField: boolean;
+    value: string | undefined;
+    label: string | undefined;
+    lineColor: string;
+    dynamicValue: 'average' | undefined;
+    labelPosition: 'start' | 'middle' | 'end' | undefined;
+};
 
 const cartesianEditorSlice = createSlice({
     name: 'cartesianEditor',
@@ -232,6 +352,100 @@ const cartesianEditorSlice = createSlice({
         seriesSet: (state, action: PayloadAction<Series[]>) => {
             if (!state?.dirtyEchartsConfig) return;
             state.dirtyEchartsConfig.series = action.payload;
+        },
+        inputsChanged: (state, action: PayloadAction<CartesianInputsPatch>) => {
+            if (!state) return;
+            Object.assign(state, action.payload);
+        },
+        gridMerge: (
+            state,
+            action: PayloadAction<NonNullable<EchartsConfig['grid']>>,
+        ) => {
+            if (!state) return;
+            state.dirtyEchartsConfig = {
+                ...state.dirtyEchartsConfig,
+                grid: { ...state.dirtyEchartsConfig?.grid, ...action.payload },
+            };
+        },
+        metadataMerge: (
+            state,
+            action: PayloadAction<Record<string, SeriesMetadata>>,
+        ) => {
+            if (!state) return;
+            state.dirtyMetadata = { ...state.dirtyMetadata, ...action.payload };
+        },
+        referenceLineAdd: (state, action: PayloadAction<string>) => {
+            if (!state) return;
+            state.referenceLines.push({ data: { uuid: action.payload } });
+        },
+        referenceLineRemove: (state, action: PayloadAction<string>) => {
+            if (!state) return;
+            const lineId = action.payload;
+            const series = state.dirtyEchartsConfig?.series;
+            if (!state.dirtyEchartsConfig || !series) return;
+            state.dirtyEchartsConfig.series = series.map((serie) => ({
+                ...serie,
+                markLine: {
+                    ...serie.markLine,
+                    data:
+                        serie.markLine?.data.filter(
+                            (data) => !matchesReferenceLine(data, lineId),
+                        ) || [],
+                },
+            }));
+            state.referenceLines = state.referenceLines.filter(
+                (line) => !matchesReferenceLine(line.data, lineId),
+            );
+        },
+        referenceLineUpdate: (
+            state,
+            action: PayloadAction<ReferenceLineUpdate>,
+        ) => {
+            if (!state) return;
+            const {
+                lineId,
+                fieldId,
+                isNumericField,
+                value,
+                label,
+                lineColor,
+                dynamicValue,
+                labelPosition,
+            } = action.payload;
+            const isXField = state.dirtyLayout?.xField === fieldId;
+            const hasSeries = state.dirtyEchartsConfig?.series?.some(
+                (serie) =>
+                    (isXField ? serie.encode.xRef : serie.encode.yRef).field ===
+                    fieldId,
+            );
+            if (!hasSeries) return;
+            const useAverage = dynamicValue === 'average' && isNumericField;
+            const data: MarkLineData = {
+                name: label,
+                type: useAverage ? 'average' : undefined,
+                uuid: lineId,
+                lineStyle: { color: lineColor },
+                label: {
+                    position: labelPosition || 'end',
+                    formatter: label
+                        ? `${label}${useAverage ? ': {c}' : ''}`
+                        : undefined,
+                },
+                xAxis: isXField ? value || '' : undefined,
+                yAxis: isXField || useAverage ? undefined : value || '',
+            };
+            state.referenceLines = state.referenceLines.map((line) =>
+                matchesReferenceLine(line.data, lineId)
+                    ? {
+                          fieldId,
+                          fieldRef:
+                              useAverage && line.fieldRef?.field === fieldId
+                                  ? line.fieldRef
+                                  : undefined,
+                          data,
+                      }
+                    : line,
+            );
         },
         stackingApply: (
             state,

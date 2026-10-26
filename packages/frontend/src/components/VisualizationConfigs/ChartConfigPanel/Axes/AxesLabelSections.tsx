@@ -28,11 +28,18 @@ import {
     type Icon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import {
+    selectCartesianDirtyChartType,
+    selectCartesianEchartsConfig,
+    selectCartesianLayout,
+    selectCartesianSeries,
+    useVisualizationSelector,
+    type VisualizationStoreState,
+} from '../../../../features/visualization/store';
+import { useCartesianEditorActions } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { getAxisTypeFromField } from '../../../../hooks/echarts/useEchartsCartesianConfig';
 import MantineIcon from '../../../common/MantineIcon';
 import { NumberInput } from '../../../common/NumberInput';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { LabelEditor } from '../../common/LabelEditor';
 import { AxisMinInterval } from './AxisMinInterval';
@@ -58,16 +65,24 @@ type Props = {
     itemsMap: ItemsMap | undefined;
 };
 
-export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
-    const { visualizationConfig } = useVisualizationState();
+const selectXAxes = (state: VisualizationStoreState) =>
+    selectCartesianEchartsConfig(state)?.xAxis;
+const selectYAxes = (state: VisualizationStoreState) =>
+    selectCartesianEchartsConfig(state)?.yAxis;
 
-    if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
+export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
+    const dirtyLayout = useVisualizationSelector(selectCartesianLayout);
+    const series = useVisualizationSelector(selectCartesianSeries);
+    const xAxes = useVisualizationSelector(selectXAxes);
+    const yAxes = useVisualizationSelector(selectYAxes);
+    const dirtyChartType = useVisualizationSelector(
+        selectCartesianDirtyChartType,
+    );
+    const dirtyEchartsConfig = { series, xAxis: xAxes, yAxis: yAxes };
 
     const granularityFields = Object.keys(getGranularityMapFromItems(itemsMap));
 
     const {
-        dirtyLayout,
-        dirtyEchartsConfig,
         setXAxisName,
         setYAxisName,
         setYMinValue,
@@ -84,8 +99,7 @@ export const AxesLabelSections: FC<Props> = ({ itemsMap }) => {
         setXAxisTreatAsCategory,
         setDataZoomAnchor,
         setDataZoomItemCount,
-        dirtyChartType,
-    } = visualizationConfig.chartConfig;
+    } = useCartesianEditorActions();
 
     const xAxisField =
         itemsMap && dirtyLayout?.xField

@@ -6,16 +6,19 @@ import {
     type CompiledDimension,
     type CustomDimension,
     type Field,
-    type Series,
     type TableCalculation,
 } from '@lightdash/common';
 import { Accordion } from '@mantine/core';
 import { useCallback, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import {
+    selectCartesianEditor,
+    useVisualizationSelector,
+    type VisualizationStoreState,
+} from '../../../../features/visualization/store';
+import { useCartesianEditorActions } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { useExploreWarehouseConnection } from '../../../../hooks/useExploreWarehouseConnection';
-import { type ReferenceLineField } from '../../../common/ReferenceLine';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../../../LightdashVisualization/useVisualizationContext';
 import accordionClasses from '../../common/Accordion.module.css';
 import { AddButton } from '../../common/AddButton';
 import { Config } from '../../common/Config';
@@ -27,19 +30,23 @@ type Props = {
     projectUuid: string;
 };
 
+const selectReferenceLines = (state: VisualizationStoreState) =>
+    selectCartesianEditor(state).referenceLines;
+
 export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
     const { openItems, handleAccordionChange, addNewItem, removeItem } =
         useControlledAccordion();
 
-    const { visualizationConfig, resultsData } = useVisualizationState();
-    const isCartesianChart =
-        isCartesianVisualizationConfig(visualizationConfig);
+    const { resultsData } = useVisualizationInputs();
+    const referenceLines = useVisualizationSelector(selectReferenceLines);
+    const { addReferenceLine, removeReferenceLine, updateReferenceLine } =
+        useCartesianEditorActions();
 
     const { startOfWeek } = useExploreWarehouseConnection(
         resultsData?.metricQuery?.exploreName ?? null,
         projectUuid,
     );
-    const updateReferenceLine: ReferenceLineProps['updateReferenceLine'] =
+    const onUpdateReferenceLine: ReferenceLineProps['updateReferenceLine'] =
         useCallback(
             ({
                 value,
@@ -50,163 +57,36 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                 labelPosition,
                 lineId,
             }) => {
-                if (!isCartesianChart) return;
-
-                const {
-                    dirtyEchartsConfig,
-                    dirtyLayout,
-                    referenceLines,
-                    setReferenceLines,
-                } = visualizationConfig.chartConfig;
-
-                if (field) {
-                    const fieldId = isField(field)
-                        ? getItemId(field)
-                        : field.name;
-
-                    const isNumericField =
-                        field &&
-                        (isNumericItem(field) ||
-                            // Treat untyped table calculations as numeric
-                            (isTableCalculation(field) && !field.type));
-                    const useAverage =
-                        dynamicValue === 'average' && isNumericField;
-
-                    if (dirtyEchartsConfig?.series) {
-                        const selectedSeries = dirtyEchartsConfig?.series.find(
-                            (serie: Series) =>
-                                (dirtyLayout?.xField === fieldId
-                                    ? serie.encode.xRef
-                                    : serie.encode.yRef
-                                ).field === fieldId,
-                        );
-
-                        if (selectedSeries === undefined) return;
-
-                        const dataWithAxis = {
-                            name: label,
-                            type: useAverage ? 'average' : undefined,
-                            uuid: lineId,
-                            lineStyle: { color: lineColor },
-                            label: {
-                                position: labelPosition || 'end',
-                                formatter: label
-                                    ? `${label}${useAverage ? ': {c}' : ''}`
-                                    : undefined,
-                            },
-                            xAxis:
-                                dirtyLayout?.xField === fieldId
-                                    ? value || ''
-                                    : undefined,
-                            yAxis:
-                                dirtyLayout?.xField === fieldId
-                                    ? undefined
-                                    : useAverage
-                                      ? undefined
-                                      : value || '',
-                        };
-
-                        const updatedReferenceLines: ReferenceLineField[] =
-                            referenceLines.map((line) => {
-                                // Check uuid, .value and .name for backwards compatibility
-                                if (
-                                    line.data.uuid === lineId ||
-                                    line.data.value === lineId ||
-                                    line.data.name === lineId
-                                ) {
-                                    const fieldRef =
-                                        useAverage &&
-                                        line.fieldRef?.field === fieldId
-                                            ? line.fieldRef
-                                            : undefined;
-                                    return {
-                                        fieldId,
-                                        fieldRef,
-                                        data: dataWithAxis,
-                                    };
-                                }
-                                return line;
-                            });
-
-                        setReferenceLines(updatedReferenceLines);
-                    }
-                }
+                if (!field) return;
+                updateReferenceLine({
+                    lineId,
+                    fieldId: isField(field) ? getItemId(field) : field.name,
+                    // Treat untyped table calculations as numeric
+                    isNumericField:
+                        isNumericItem(field) ||
+                        (isTableCalculation(field) && !field.type),
+                    value,
+                    label,
+                    lineColor,
+                    dynamicValue,
+                    labelPosition,
+                });
             },
-            [isCartesianChart, visualizationConfig],
+            [updateReferenceLine],
         );
 
-    const addReferenceLine = useCallback(() => {
-        if (!isCartesianChart) return;
-
-        const { setReferenceLines } = visualizationConfig.chartConfig;
-
-        const newReferenceLine: ReferenceLineField = {
-            data: {
-                uuid: uuidv4(),
-            },
-        };
-        setReferenceLines((prev) => {
-            const newReferenceLines = [...prev, newReferenceLine];
-            addNewItem(`${newReferenceLines.length}`);
-
-            return newReferenceLines;
-        });
-    }, [addNewItem, isCartesianChart, visualizationConfig.chartConfig]);
-
-    const removeReferenceLine = useCallback(
-        (markLineId: string) => {
-            if (!isCartesianChart) return;
-
-            const {
-                dirtyEchartsConfig,
-                referenceLines,
-                setReferenceLines,
-                updateSeries,
-            } = visualizationConfig.chartConfig;
-
-            if (!dirtyEchartsConfig?.series) return;
-            const series = dirtyEchartsConfig?.series.map((serie) => {
-                return {
-                    ...serie,
-                    markLine: {
-                        ...serie.markLine,
-                        data:
-                            serie.markLine?.data.filter(
-                                (data) =>
-                                    data.uuid !== markLineId &&
-                                    data.value !== markLineId &&
-                                    data.name !== markLineId,
-                            ) || [],
-                    },
-                };
-            });
-
-            updateSeries(series);
-
-            setReferenceLines(
-                referenceLines.filter(
-                    (line) =>
-                        line.data.uuid !== markLineId &&
-                        line.data.value !== markLineId &&
-                        line.data.name !== markLineId,
-                ),
-            );
-        },
-        [isCartesianChart, visualizationConfig],
-    );
-
-    if (!isCartesianChart) return null;
-
-    const { referenceLines } = visualizationConfig.chartConfig;
+    const onAddReferenceLine = useCallback(() => {
+        addReferenceLine(uuidv4());
+        addNewItem(`${referenceLines.length + 1}`);
+    }, [addNewItem, addReferenceLine, referenceLines.length]);
 
     return (
         <Config>
             <Config.Section>
                 <Config.Group>
                     <Config.Heading>Reference lines</Config.Heading>
-                    <AddButton onClick={addReferenceLine} />
+                    <AddButton onClick={onAddReferenceLine} />
                 </Config.Group>
-
                 {referenceLines && (
                     <Accordion
                         multiple
@@ -227,7 +107,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                                 items={items}
                                 startOfWeek={startOfWeek ?? undefined}
                                 referenceLine={line}
-                                updateReferenceLine={updateReferenceLine}
+                                updateReferenceLine={onUpdateReferenceLine}
                                 removeReferenceLine={removeReferenceLine}
                                 data-testid={line.data.uuid}
                             />

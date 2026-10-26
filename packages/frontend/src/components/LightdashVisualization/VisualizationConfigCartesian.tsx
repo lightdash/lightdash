@@ -1,54 +1,27 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, useMemo, type FC, memo } from 'react';
-import {
-    selectCartesianIntent,
-    useVisualizationSelector,
-} from '../../features/visualization/store';
-import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { memo, useEffect, useMemo, type FC } from 'react';
+import useCartesianChartConfig, {
+    useCartesianEditorSync,
+} from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import {
     type VisualizationCartesianConfigProps,
     type VisualizationConfigCartesian,
 } from './types';
-import { useVisualizationInputs } from './useVisualizationContext';
 
 const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
-    initialChartConfig,
     onChartConfigChange,
     children,
 }) => {
-    const {
-        itemsMap,
-        resultsData,
-        pivotDimensions: validPivotDimensions,
-        columnOrder,
-        colorPalette,
-        tableCalculationsMetadata,
-        unsavedMetricQuery,
-    } = useVisualizationInputs();
-    const { stacking, cartesianType } = useVisualizationSelector(
-        selectCartesianIntent,
-    );
-    const cartesianConfig = useCartesianChartConfig({
-        initialChartConfig,
-        pivotKeys: validPivotDimensions,
-        resultsData,
-        columnOrder,
-        itemsMap,
-        stacking,
-        cartesianType,
-        colorPalette,
-        tableCalculationsMetadata,
-        unsavedMetricQuery,
-    });
+    useCartesianEditorSync();
+    const cartesianConfig = useCartesianChartConfig();
 
     useEffect(() => {
-        if (!onChartConfigChange || !cartesianConfig.validConfig) return;
-
+        if (!onChartConfigChange) return;
         onChartConfigChange({
             type: ChartType.CARTESIAN,
             config: cartesianConfig.validConfig,
         });
-    }, [cartesianConfig, onChartConfigChange]);
+    }, [cartesianConfig.validConfig, onChartConfigChange]);
 
     const visualizationConfig: VisualizationConfigCartesian = useMemo(
         () => ({
