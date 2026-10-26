@@ -9,6 +9,7 @@ import {
 import { createSelector } from '@reduxjs/toolkit';
 import { type VisualizationStoreState } from '.';
 import { type VisualizationInputs } from './inputs';
+import { keepPendingField, selectPendingFieldIds } from './pendingFields';
 import { selectSankeyEditor } from './selectors';
 
 type State = VisualizationStoreState;
@@ -35,13 +36,20 @@ const selectNumericFieldIds = createSelector(
 
 /** Stored source, or the first dimension when it is unset or gone */
 export const selectSankeySourceFieldId = createSelector(
-    [storedSourceFieldId, selectDimensionIds, inputsIsLoading],
-    (sourceFieldId, dimensionIds, isLoading) =>
-        resolveSankeySourceFieldId({
-            sourceFieldId,
-            dimensionIds,
-            isLoading,
-        }),
+    [
+        storedSourceFieldId,
+        selectDimensionIds,
+        inputsIsLoading,
+        selectPendingFieldIds,
+    ],
+    (sourceFieldId, dimensionIds, isLoading, pendingFieldIds) =>
+        keepPendingField(sourceFieldId, pendingFieldIds, () =>
+            resolveSankeySourceFieldId({
+                sourceFieldId,
+                dimensionIds,
+                isLoading,
+            }),
+        ),
 );
 
 // Resolved against the stored source, as the effects and headless render did
@@ -51,14 +59,17 @@ export const selectSankeyTargetFieldId = createSelector(
         storedSourceFieldId,
         selectDimensionIds,
         inputsIsLoading,
+        selectPendingFieldIds,
     ],
-    (targetFieldId, sourceFieldId, dimensionIds, isLoading) =>
-        resolveSankeyTargetFieldId({
-            targetFieldId,
-            sourceFieldId,
-            dimensionIds,
-            isLoading,
-        }),
+    (targetFieldId, sourceFieldId, dimensionIds, isLoading, pendingFieldIds) =>
+        keepPendingField(targetFieldId, pendingFieldIds, () =>
+            resolveSankeyTargetFieldId({
+                targetFieldId,
+                sourceFieldId,
+                dimensionIds,
+                isLoading,
+            }),
+        ),
 );
 
 /** Stored metric, or the first numeric field when it is unset or gone */
@@ -67,13 +78,16 @@ export const selectSankeyMetricFieldId = createSelector(
         (state: State) => selectSankeyEditor(state).metricFieldId,
         selectNumericFieldIds,
         inputsIsLoading,
+        selectPendingFieldIds,
     ],
-    (metricFieldId, numericFieldIds, isLoading) =>
-        resolveSankeyMetricFieldId({
-            metricFieldId,
-            numericFieldIds,
-            isLoading,
-        }),
+    (metricFieldId, numericFieldIds, isLoading, pendingFieldIds) =>
+        keepPendingField(metricFieldId, pendingFieldIds, () =>
+            resolveSankeyMetricFieldId({
+                metricFieldId,
+                numericFieldIds,
+                isLoading,
+            }),
+        ),
 );
 
 export const selectSankeyData = createSelector(

@@ -49,7 +49,7 @@ describe('useGaugeChartConfig', () => {
 
         act(() => result.current.addSection());
         act(() =>
-            result.current.updateSection(result.current.sections[1], {
+            result.current.updateSection(1, {
                 color: '#ff0000',
             }),
         );
@@ -68,9 +68,8 @@ describe('useGaugeChartConfig', () => {
     it('ignores an update for a section that is gone', () => {
         const { result } = render({ selectedField: 'orders_revenue' });
         act(() => result.current.addSection());
-        const removed = result.current.sections[0];
         act(() => result.current.removeSection(0));
-        act(() => result.current.updateSection(removed, { min: 42 }));
+        act(() => result.current.updateSection(0, { min: 42 }));
         expect(result.current.validConfig.sections).toEqual([]);
     });
 

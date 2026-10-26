@@ -17,20 +17,20 @@ import {
     selectNumericMetricsAndTableCalculations,
 } from '../../../features/visualization/store';
 import FieldSelect from '../../common/FieldSelect';
+import { NumberInput } from '../../common/NumberInput';
 import {
     useVisualizationInputs,
     useVisualizationInputSelector,
 } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
-import { DebouncedNumberInput } from './DebouncedNumberInput';
 import { GaugeValueMode } from './types';
 
 export type Props = {
     onClick: () => void;
     index: number;
     section: GaugeSection;
-    onUpdate: (section: GaugeSection, changes: Partial<GaugeSection>) => void;
+    onUpdate: (index: number, changes: Partial<GaugeSection>) => void;
     onRemove: (index: number) => void;
 };
 
@@ -78,7 +78,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                             color={section.color}
                             swatches={colorPalette}
                             onColorChange={(color) =>
-                                onUpdate(section, { color })
+                                onUpdate(index, { color })
                             }
                         />
                     }
@@ -87,13 +87,13 @@ const GaugeSectionComponent: FC<Props> = memo(
                     <Stack gap="md">
                         <Group gap="xs" align="flex-end">
                             {minValueMode === GaugeValueMode.FIXED ? (
-                                <DebouncedNumberInput
+                                <NumberInput
                                     size="xs"
                                     label="Min value"
                                     description="Set the minimum value for the section"
                                     value={section.min}
-                                    onCommit={(value) =>
-                                        onUpdate(section, { min: value ?? 0 })
+                                    onNumberChange={(value) =>
+                                        onUpdate(index, { min: value ?? 0 })
                                     }
                                     flex={1}
                                     decimalScale={2}
@@ -105,7 +105,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                                     item={minField}
                                     items={numericMetricsList}
                                     onChange={(newValue) => {
-                                        onUpdate(section, {
+                                        onUpdate(index, {
                                             minFieldId: newValue
                                                 ? getItemId(newValue)
                                                 : undefined,
@@ -119,12 +119,12 @@ const GaugeSectionComponent: FC<Props> = memo(
                                 value={minValueMode}
                                 onChange={(value) => {
                                     if (value === GaugeValueMode.FIXED) {
-                                        onUpdate(section, {
+                                        onUpdate(index, {
                                             minFieldId: undefined,
                                         });
                                     } else {
                                         if (numericMetricsList.length > 0) {
-                                            onUpdate(section, {
+                                            onUpdate(index, {
                                                 minFieldId: getItemId(
                                                     numericMetricsList[0],
                                                 ),
@@ -155,13 +155,13 @@ const GaugeSectionComponent: FC<Props> = memo(
 
                         <Group gap="xs" align="flex-end">
                             {maxValueMode === GaugeValueMode.FIXED ? (
-                                <DebouncedNumberInput
+                                <NumberInput
                                     size="xs"
                                     label="Max value"
                                     description="Set the maximum value for the section"
                                     value={section.max}
-                                    onCommit={(value) =>
-                                        onUpdate(section, { max: value ?? 0 })
+                                    onNumberChange={(value) =>
+                                        onUpdate(index, { max: value ?? 0 })
                                     }
                                     decimalScale={2}
                                     flex={1}
@@ -173,7 +173,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                                     item={maxField}
                                     items={numericMetricsList}
                                     onChange={(newValue) => {
-                                        onUpdate(section, {
+                                        onUpdate(index, {
                                             maxFieldId: newValue
                                                 ? getItemId(newValue)
                                                 : undefined,
@@ -187,12 +187,12 @@ const GaugeSectionComponent: FC<Props> = memo(
                                 value={maxValueMode}
                                 onChange={(value) => {
                                     if (value === GaugeValueMode.FIXED) {
-                                        onUpdate(section, {
+                                        onUpdate(index, {
                                             maxFieldId: undefined,
                                         });
                                     } else {
                                         if (numericMetricsList.length > 0) {
-                                            onUpdate(section, {
+                                            onUpdate(index, {
                                                 maxFieldId: getItemId(
                                                     numericMetricsList[0],
                                                 ),

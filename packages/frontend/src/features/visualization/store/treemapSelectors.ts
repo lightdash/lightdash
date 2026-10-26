@@ -15,6 +15,7 @@ import { createSelector } from '@reduxjs/toolkit';
 import isEqual from 'lodash/isEqual';
 import { type VisualizationStoreState } from '.';
 import { type VisualizationInputs } from './inputs';
+import { keepPendingField, selectPendingFieldIds } from './pendingFields';
 import { selectTreemapEditor } from './selectors';
 
 type State = VisualizationStoreState;
@@ -65,17 +66,20 @@ export const selectTreemapSizeMetricId = createSelector(
         (state: State) => selectTreemapEditor(state).sizeMetricId,
         selectNumericMetricIds,
         inputsIsLoading,
+        selectPendingFieldIds,
     ],
-    (sizeMetricId, allNumericMetricIds, isLoading) => {
-        // Renames are applied to the stored id by the slice
-        const repaired = repairTreemapSizeMetricId({
+    (sizeMetricId, allNumericMetricIds, isLoading, pendingFieldIds) =>
+        keepPendingField(
             sizeMetricId,
-            allNumericMetricIds,
-            isLoading,
-            tableCalculationsMetadata: undefined,
-        });
-        return repaired === undefined ? sizeMetricId : repaired;
-    },
+            pendingFieldIds,
+            () =>
+                repairTreemapSizeMetricId({
+                    sizeMetricId,
+                    allNumericMetricIds,
+                    isLoading,
+                    tableCalculationsMetadata: undefined,
+                }) ?? sizeMetricId,
+        ),
 );
 
 export const selectTreemapSelectedSizeMetric = createSelector(

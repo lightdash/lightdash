@@ -23,10 +23,7 @@ export type GaugeEditorActions = {
     setCustomPercentageLabel: (value: string | undefined) => void;
     addSection: () => void;
     removeSection: (index: number) => void;
-    updateSection: (
-        section: GaugeSection,
-        changes: Partial<GaugeSection>,
-    ) => void;
+    updateSection: (index: number, changes: Partial<GaugeSection>) => void;
 };
 
 /** Stable gauge editor actions */
@@ -47,8 +44,8 @@ export const useGaugeEditorActions = (): GaugeEditorActions => {
             addSection: () => dispatch(gaugeEditorActions.addSection()),
             removeSection: (index) =>
                 dispatch(gaugeEditorActions.removeSection(index)),
-            updateSection: (target, changes) =>
-                dispatch(gaugeEditorActions.updateSection({ target, changes })),
+            updateSection: (index, changes) =>
+                dispatch(gaugeEditorActions.updateSection({ index, changes })),
         }),
         [dispatch, set],
     );

@@ -18,6 +18,7 @@ import { createSelector } from '@reduxjs/toolkit';
 import isEqual from 'lodash/isEqual';
 import { type VisualizationStoreState } from '.';
 import { type VisualizationInputs } from './inputs';
+import { selectPendingFieldIds } from './pendingFields';
 import { selectPieEditor } from './selectors';
 
 type State = VisualizationStoreState;
@@ -59,10 +60,6 @@ const selectPendingDimensionIds = createSelector(
     [(_: State, inputs: VisualizationInputs) => inputs.unsavedMetricQuery],
     (unsavedMetricQuery) => new Set(unsavedMetricQuery?.dimensions),
 );
-const selectPendingMetricIds = createSelector(
-    [(_: State, inputs: VisualizationInputs) => inputs.unsavedMetricQuery],
-    (unsavedMetricQuery) => new Set(unsavedMetricQuery?.metrics),
-);
 
 /** Stored group fields minus the ones the results no longer have */
 export const selectPieGroupFieldIds = createSelector(
@@ -90,7 +87,7 @@ export const selectPieMetricId = createSelector(
     [
         (state: State) => selectPieEditor(state).metricId,
         selectNumericMetricIds,
-        selectPendingMetricIds,
+        selectPendingFieldIds,
         inputsIsLoading,
     ],
     (metricId, allNumericMetricIds, pendingMetricIds, isLoading) =>

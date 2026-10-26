@@ -1,5 +1,5 @@
 import { type GaugeChart, type GaugeSection } from '@lightdash/common';
-import { createSlice, original, type PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { editorCaseReducers } from './editorSlice';
 
 export type GaugeEditorState = {
@@ -50,15 +50,12 @@ const gaugeEditorSlice = createSlice({
         updateSection: (
             state,
             action: PayloadAction<{
-                target: GaugeSection;
+                index: number;
                 changes: Partial<GaugeSection>;
             }>,
         ) => {
-            if (!state) return;
-            const { target, changes } = action.payload;
-            const index = original(state.sections)?.indexOf(target) ?? -1;
-            if (index === -1) return;
-            Object.assign(state.sections[index], changes);
+            const section = state?.sections[action.payload.index];
+            if (section) Object.assign(section, action.payload.changes);
         },
     },
 });

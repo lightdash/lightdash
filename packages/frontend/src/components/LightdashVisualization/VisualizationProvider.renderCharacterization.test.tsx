@@ -394,6 +394,16 @@ describe('VisualizationProvider render characterization', () => {
                 expect(customSpec(latestParentConfig)).toEqual(spec);
             });
 
+            it('mounts a chart whose saved spec is null', () => {
+                // Content as code can save a blank spec, which arrives as null
+                const nullSpec: ChartConfig = JSON.parse(
+                    '{"type":"custom","config":{"spec":null}}',
+                );
+                expect(() =>
+                    render(<FeedbackParent initial={nullSpec} />),
+                ).not.toThrow();
+            });
+
             it('keeps an edit over a spec loaded afterwards', () => {
                 render(<FeedbackParent initial={emptyCustom} />);
                 act(() => editCustomSpec?.('{"mark":"line"}'));

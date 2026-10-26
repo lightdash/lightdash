@@ -10,6 +10,7 @@ import { createSelector } from '@reduxjs/toolkit';
 import { type VisualizationStoreState } from '.';
 import { selectNumericMetricsAndTableCalculations } from './gaugeSelectors';
 import { type VisualizationInputs } from './inputs';
+import { keepPendingField, selectPendingFieldIds } from './pendingFields';
 import { selectFunnelEditor } from './selectors';
 
 type State = VisualizationStoreState;
@@ -36,10 +37,13 @@ export const selectFunnelFieldId = createSelector(
         (state: State) => selectFunnelEditor(state).fieldId,
         selectNumericFieldIds,
         inputsResults,
+        selectPendingFieldIds,
     ],
-    (fieldId, allNumericFieldIds, resultsData) =>
+    (fieldId, allNumericFieldIds, resultsData, pendingFieldIds) =>
         resultsData
-            ? resolveFunnelFieldId({ fieldId, allNumericFieldIds })
+            ? keepPendingField(fieldId, pendingFieldIds, () =>
+                  resolveFunnelFieldId({ fieldId, allNumericFieldIds }),
+              )
             : fieldId,
 );
 

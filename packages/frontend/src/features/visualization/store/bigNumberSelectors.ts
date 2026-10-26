@@ -7,6 +7,7 @@ import {
 import { createSelector } from '@reduxjs/toolkit';
 import { type VisualizationStoreState } from '.';
 import { type VisualizationInputs } from './inputs';
+import { keepPendingField, selectPendingFieldIds } from './pendingFields';
 import { selectBigNumberEditor } from './selectors';
 
 type State = VisualizationStoreState;
@@ -24,19 +25,20 @@ export const selectBigNumberSelectedField = createSelector(
         (state: State) => selectBigNumberEditor(state).selectedField,
         inputsItemsMap,
         selectAvailableFieldIds,
-        (_: State, inputs: VisualizationInputs) =>
-            inputs.tableCalculationsMetadata,
+        selectPendingFieldIds,
     ],
-    (selectedField, itemsMap, availableFieldsIds, tableCalculationsMetadata) =>
-        // A just-renamed table calculation is missing from the results until the query re-runs
-        tableCalculationsMetadata?.some((tc) => tc.name === selectedField)
-            ? selectedField
-            : (resolveBigNumberSelectedField({
-                  selectedField,
-                  configSelectedField: selectedField,
-                  itemsMap,
-                  availableFieldsIds,
-              }) ?? selectedField),
+    (selectedField, itemsMap, availableFieldsIds, pendingFieldIds) =>
+        keepPendingField(
+            selectedField,
+            pendingFieldIds,
+            () =>
+                resolveBigNumberSelectedField({
+                    selectedField,
+                    configSelectedField: selectedField,
+                    itemsMap,
+                    availableFieldsIds,
+                }) ?? selectedField,
+        ),
 );
 
 export const selectBigNumberComparisonFieldItem = createSelector(

@@ -98,5 +98,5 @@ export const isFirstCustomSpec = (
     chartConfig: ChartConfig,
 ) =>
     chartConfig.type === ChartType.CUSTOM &&
-    chartConfig.config?.spec !== undefined &&
-    state.customEditor?.visSpec === undefined;
+    state.customEditor?.visSpec === undefined &&
+    buildCustomEditorState(chartConfig.config).visSpec !== undefined;
