@@ -622,8 +622,9 @@ describe('UsageEventsCompactor.run', () => {
         },
     );
 
-    it('reports returned dimension failures and still stops before user summaries', async () => {
+    it('refreshes user activity for every tenant before reporting dimension failures', async () => {
         mockListedKeys([]);
+        listedOrgs = ['org-1', 'org-2'];
         vi.spyOn(UsageDimensionsRefresher.prototype, 'run').mockResolvedValue({
             refreshed: 4,
             failed: 1,
@@ -632,7 +633,17 @@ describe('UsageEventsCompactor.run', () => {
         await expect(createCompactor(metrics).run(NOW)).rejects.toThrow(
             'previous snapshots retained',
         );
-        expect(users).not.toHaveBeenCalled();
+        expect(users).toHaveBeenCalledWith(NOW, ['org-1', 'org-2']);
+        expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
+            'users',
+            expect.objectContaining({ outcome: 'success' }),
+            expect.any(Number),
+        );
+        expect(metrics.usageProcessing.finish).toHaveBeenLastCalledWith(
+            'pipeline',
+            { outcome: 'failed' },
+            expect.any(Number),
+        );
         expect(metrics.usageProcessing.finish).toHaveBeenCalledWith(
             'dimensions',
             { outcome: 'failed', failed: 1, remaining: 1 },

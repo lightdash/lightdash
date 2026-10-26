@@ -2,6 +2,8 @@ import type { Knex } from 'knex';
 
 // Page each source on its native indexed UUID before computing any metadata.
 // A combined, computed inventory key requires sorting/enriching the entire inventory.
+// Resolve tenant projects once before pagination. Joining projects after an ordered
+// UUID scan can walk the entire fleet when a tenant has fewer rows than the page.
 const sources = {
     saved_chart: {
         idColumn: 'c.saved_query_uuid',
@@ -12,9 +14,9 @@ const sources = {
             c.created_at, c.deleted_at, d.deleted_at AS parent_deleted_at,
             NULL::uuid AS owner_id, false AS supports_owner,
             c.saved_query_id AS chart_number
-        FROM saved_queries c JOIN projects p ON p.project_uuid = c.project_uuid
+        FROM saved_queries c
         LEFT JOIN dashboards d ON d.dashboard_uuid = c.dashboard_uuid
-        WHERE p.organization_id = ?`,
+        WHERE c.project_uuid = ANY(ARRAY(SELECT project_uuid FROM projects WHERE organization_id = ?))`,
     },
     sql_chart: {
         idColumn: 'c.saved_sql_uuid',
@@ -22,10 +24,10 @@ const sources = {
         sql: `SELECT 'sql_chart', c.saved_sql_uuid, c.name, c.project_uuid,
             COALESCE(s.space_id, d.space_id), c.created_at, c.deleted_at,
             d.deleted_at, NULL::uuid, false, NULL::integer
-        FROM saved_sql c JOIN projects p ON p.project_uuid = c.project_uuid
+        FROM saved_sql c
         LEFT JOIN spaces s ON s.space_uuid = c.space_uuid
         LEFT JOIN dashboards d ON d.dashboard_uuid = c.dashboard_uuid
-        WHERE p.organization_id = ?`,
+        WHERE c.project_uuid = ANY(ARRAY(SELECT project_uuid FROM projects WHERE organization_id = ?))`,
     },
     dashboard: {
         idColumn: 'd.dashboard_uuid',
@@ -43,9 +45,9 @@ const sources = {
         sql: `SELECT 'data_app', a.app_id, a.name, a.project_uuid,
             s.space_id, a.created_at, a.deleted_at, NULL::timestamptz,
             NULL::uuid, false, NULL::integer
-        FROM apps a JOIN projects p ON p.project_uuid = a.project_uuid
+        FROM apps a
         LEFT JOIN spaces s ON s.space_uuid = a.space_uuid
-        WHERE p.organization_id = ?`,
+        WHERE a.project_uuid = ANY(ARRAY(SELECT project_uuid FROM projects WHERE organization_id = ?))`,
     },
 } as const;
 
