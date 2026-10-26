@@ -94,10 +94,7 @@ export class UsageQueryHistoryBackfill extends S3BaseClient {
             const input = path.join(directory, 'history.jsonl');
             await pipeline(
                 Readable.from(
-                    this.history.getJsonLines(
-                        org,
-                        now.toISOString().slice(0, 10),
-                    ),
+                    this.history.getJsonLines(org, now.toISOString()),
                     { objectMode: false },
                 ),
                 createWriteStream(input, { mode: 0o600 }),

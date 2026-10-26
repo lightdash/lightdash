@@ -66,6 +66,7 @@ const useInvalidateAnalyticsProject = () => {
     return () =>
         Promise.all([
             queryClient.invalidateQueries(['analytics-project']),
+            queryClient.invalidateQueries(['analytics-history-backfill']),
             queryClient.invalidateQueries(['projects']),
             queryClient.invalidateQueries(['user']),
         ]);

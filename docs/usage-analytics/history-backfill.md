@@ -6,6 +6,18 @@ The availability check shows the missing date range/count and already captured
 queries. The action disappears when there are no missing eligible records. It
 reappears if another check finds more history; there is no permanent “used” flag.
 
+Newly created Analytics projects queue this import automatically, after the
+existing initial raw-event processing job in the same serial queue. Creation
+does not wait for the jobs to finish. Existing projects keep the manual action;
+reopening or refreshing a project does not automatically schedule another import.
+An enqueue or execution failure leaves the manual action available for recovery.
+
+Existing Analytics customers are eligible too, even after months of captured
+events. The check considers all retained eligible query history, with no lower
+date limit or cutoff based on Analytics enablement. It fills gaps within already
+populated dates as well as older dates. A configured 32-day retention is not an
+import limit: older records are included if they still exist in the database.
+
 ## Requirements and coverage
 
 Cloud and licensed self-hosted deployments use the same Settings action. They
@@ -19,8 +31,9 @@ Only retained application `query_history` rows can be recovered. Retention is
 configurable; the default is 32 days. Removing rows before importing them removes
 that recovery source. Imported history survives subsequent database retention.
 Queries whose projects have been deleted cannot be attributed and are excluded.
-Preview queries, today's UTC queries, in-progress/expired/cancelled queries and
-errors without warehouse execution evidence are excluded.
+Completed queries from today are included up to the start of the coverage check
+or import. Preview queries, in-progress/expired/cancelled queries and errors
+without warehouse execution evidence are excluded.
 
 Imported timestamps are **query submission times**, not reconstructed completion
 times. Actor/project/content IDs, status, warehouse execution duration and row
@@ -41,6 +54,11 @@ thread and a 256 MB DuckDB memory limit. Database reads are paged; temporary fil
 are removed after execution. Availability checks share one engine per API process
 and concurrent requests for the same org share a check. Storage listings are
 bounded and fail closed rather than returning partial coverage.
+
+Backfill converts its database rows directly to queryable Parquet and refreshes
+current dimensions. Imported rows are usable as soon as the job finishes; they
+need no further compaction or overnight wait. Recent raw events skipped by the
+import remain subject to normal processing, including the closed-day boundary.
 
 Coverage uses `(org_id, project_id, query_id)` across all retained compacted query
 files and the canonical history file, rather than guessing from the first event

@@ -11,7 +11,7 @@ import { UsageQueryHistoryModel } from './UsageQueryHistoryModel';
 
 describe('retained query history for Analytics backfill', () => {
     const organizationUuid = '00000000-0000-0000-0000-000000000001';
-    const before = '2026-10-26';
+    const before = '2026-10-26T12:34:56.789Z';
     let database: Knex;
     let tracker: ReturnType<typeof getTracker>;
     let model: UsageQueryHistoryModel;
@@ -97,7 +97,7 @@ describe('retained query history for Analytics backfill', () => {
         expect(sql).not.toContain(untrustedOrg);
     });
 
-    it('excludes preview projects and the current open UTC date', async () => {
+    it('excludes previews and uses the full snapshot boundary without a lower history cutoff', async () => {
         tracker.on.select('query_history').response([]);
         await collect();
         const { sql: rawSql, bindings } = tracker.history.select[0];
@@ -106,6 +106,8 @@ describe('retained query history for Analytics backfill', () => {
         expect(bindings).toContain(ProjectType.PREVIEW);
         expect(sql).toContain('"q"."created_at" < ?');
         expect(bindings).toContain(before);
+        expect(sql).not.toMatch(/"q"\."created_at"\s*>=?/);
+        expect(bindings).not.toContain(before.slice(0, 10));
         // Submission timestamps are stored without a timezone. Format them
         // explicitly as UTC rather than letting the database session offset
         // change the day used for historical activity.

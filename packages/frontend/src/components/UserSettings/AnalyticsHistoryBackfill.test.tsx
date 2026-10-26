@@ -101,6 +101,35 @@ describe('AnalyticsHistoryBackfill', () => {
         );
     });
 
+    it('allows existing Analytics customers to import missing retained history regardless of age', async () => {
+        mockedLightdashApi.mockResolvedValue({
+            ...available,
+            missingQueries: 2,
+            existingQueries: 23,
+            pendingQueries: 0,
+            from: '2017-01-01',
+            to: '2026-10-26',
+        });
+        renderBackfill();
+        expect(
+            await screen.findByRole('button', {
+                name: 'Backfill available history',
+            }),
+        ).toBeEnabled();
+        expect(
+            screen.getByText('2 missing queries · 2017-01-01 to 2026-10-26'),
+        ).toBeVisible();
+        expect(
+            screen.getByText('23 queries already available will be skipped.'),
+        ).toBeVisible();
+        expect(
+            screen.getByText(/Import all retained completed query history\./),
+        ).toBeVisible();
+        expect(
+            screen.queryByText(/completed UTC days/),
+        ).not.toBeInTheDocument();
+    });
+
     it('separates singular counts from their labels', async () => {
         mockedLightdashApi.mockResolvedValue({
             ...available,

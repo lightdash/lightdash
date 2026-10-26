@@ -240,6 +240,33 @@ export class AnalyticsProjectService extends BaseService {
         const result =
             await this.dependencies.projectService.ensureAnalyticsProject(user);
         await this.installSampleContent(user);
+        if (
+            result.created &&
+            isUserWithOrg(user) &&
+            this.dependencies.lightdashConfig.usageEvents.enabled &&
+            this.dependencies.lightdashConfig.usageEvents.s3
+        ) {
+            try {
+                // Provisioning has already queued initial raw-event processing.
+                // This uses the same serial queue and fills retained DB gaps next.
+                await this.dependencies.schedulerClient.scheduleUsageHistoryBackfill(
+                    {
+                        organizationUuid: user.organizationUuid,
+                        projectUuid: result.projectUuid,
+                        userUuid: user.userUuid,
+                    },
+                );
+            } catch {
+                // Creation succeeded. Settings still offers a data-derived retry.
+                this.logger.error(
+                    'Failed to enqueue initial query history backfill',
+                    {
+                        organizationUuid: user.organizationUuid,
+                        projectUuid: result.projectUuid,
+                    },
+                );
+            }
+        }
         return result;
     }
 

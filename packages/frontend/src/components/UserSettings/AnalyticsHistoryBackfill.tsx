@@ -27,11 +27,11 @@ const AnalyticsHistoryBackfill = () => {
             <Stack gap="md">
                 <Title order={5}>Historical query activity</Title>
                 <Text fz="sm" c="dimmed">
-                    Import retained query history for completed UTC days.
-                    Historical dates use query submission time; content names
-                    reflect the current snapshot. Existing captured queries are
-                    kept. This fills Query Events; historical People activity
-                    summaries are not rebuilt.
+                    Import all retained completed query history. Historical
+                    dates use query submission time; content names reflect the
+                    current snapshot. Existing captured queries are kept. This
+                    fills Query Events; historical People activity summaries are
+                    not rebuilt.
                 </Text>
                 {status.data?.missingQueries ? (
                     <Text fz="sm">

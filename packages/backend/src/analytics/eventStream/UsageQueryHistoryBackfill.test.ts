@@ -186,9 +186,10 @@ describe('query history backfill reconciliation', () => {
         );
         transport.keys.add(raw);
     });
-    afterEach(async () =>
-        rm(transport.directory, { recursive: true, force: true }),
-    );
+    afterEach(async () => {
+        vi.useRealTimers();
+        await rm(transport.directory, { recursive: true, force: true });
+    });
 
     it('skips captured and pending identities, and repeated execution never appends duplicates', async () => {
         await expect(backfill().inspect(org)).resolves.toMatchObject({
@@ -206,6 +207,96 @@ describe('query history backfill reconciliation', () => {
         await backfill().run(org, dimensions);
         expect(await historyRows()).toEqual([{ query_id: 'missing' }]);
         expect(transport.uploads).toBe(1);
+    });
+
+    it('fills older retained history and gaps within captured days for an existing Analytics customer', async () => {
+        const captured = [
+            {
+                ...row('month-start', 'query.completed'),
+                event_ts: '2026-09-01T09:00:00Z',
+            },
+            {
+                ...row('same-day-captured', 'query.completed'),
+                event_ts: '2026-09-15T09:00:00Z',
+            },
+            {
+                ...row('month-end', 'query.completed'),
+                event_ts: '2026-09-30T09:00:00Z',
+            },
+        ];
+        for (const value of captured) {
+            // eslint-disable-next-line no-await-in-loop
+            await parquet(
+                `events/compacted/org_id=${org}/stream=query_events/dt=${value.event_ts.slice(0, 10)}/captured.parquet`,
+                [value],
+            );
+        }
+        rows = [
+            ...captured.map((value) => ({
+                ...value,
+                event_name: QUERY_HISTORY_BACKFILL_EVENT,
+            })),
+            { ...row('older-gap'), event_ts: '2026-08-15T10:00:00Z' },
+            { ...row('same-day-gap'), event_ts: '2026-09-15T10:00:00Z' },
+        ];
+        await expect(backfill().inspect(org)).resolves.toMatchObject({
+            missingQueries: 2,
+            existingQueries: 3,
+            pendingQueries: 0,
+            from: '2026-08-15',
+            to: '2026-09-15',
+        });
+        await backfill().run(org, dimensions);
+        const expected = [
+            { query_id: 'older-gap' },
+            { query_id: 'same-day-gap' },
+        ];
+        expect(await historyRows()).toEqual(expected);
+        await expect(backfill().inspect(org)).resolves.toMatchObject({
+            missingQueries: 0,
+            existingQueries: 5,
+            pendingQueries: 0,
+            from: null,
+            to: null,
+        });
+        await backfill().run(org, dimensions);
+        expect(await historyRows()).toEqual(expected);
+        expect(transport.uploads).toBe(1);
+    });
+
+    it('passes a full run-start timestamp and includes completed queries from today', async () => {
+        const now = new Date('2026-10-26T12:34:56.789Z');
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(now);
+        const today = {
+            ...row('today-completed'),
+            event_ts: '2026-10-26T08:00:00Z',
+        };
+        const getJsonLines = vi.fn(async function* retainedHistory(
+            _org: string,
+            before: string,
+        ) {
+            if (new Date(today.event_ts) < new Date(before)) {
+                yield `${JSON.stringify(today)}\n`;
+            }
+        });
+        const importer = new UsageQueryHistoryBackfill(storage, {
+            getJsonLines,
+        });
+        await expect(importer.inspect(org)).resolves.toMatchObject({
+            missingQueries: 1,
+            from: '2026-10-26',
+            to: '2026-10-26',
+        });
+        expect(getJsonLines).toHaveBeenCalledExactlyOnceWith(
+            org,
+            now.toISOString(),
+        );
+        await new UsageQueryHistoryBackfill(storage, { getJsonLines }).run(
+            org,
+            dimensions,
+        );
+        expect(await historyRows()).toEqual([{ query_id: 'today-completed' }]);
     });
 
     it('preserves history after DB retention and tolerates an older additive schema on incremental rerun', async () => {

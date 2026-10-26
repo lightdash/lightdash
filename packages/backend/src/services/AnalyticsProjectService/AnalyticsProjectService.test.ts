@@ -160,6 +160,117 @@ describe('AnalyticsProjectService', () => {
             from: '2026-10-01',
             to: '2026-10-02',
         };
+        const created = {
+            projectUuid: analyticsProject.projectUuid,
+            url: `/projects/${analyticsProject.projectUuid}/tables`,
+            created: true,
+        };
+
+        it('queues retained history for a newly provisioned project after authorized content installation', async () => {
+            ensureAnalyticsProject.mockResolvedValue(created);
+            await expect(configuredService().ensure(user)).resolves.toEqual(
+                created,
+            );
+            expect(ensureAnalyticsProject).toHaveBeenCalledExactlyOnceWith(
+                user,
+            );
+            expect(
+                assertAnalyticsProjectAdministration,
+            ).toHaveBeenCalledExactlyOnceWith(user);
+            expect(lock).toHaveBeenCalledWith(user.organizationUuid);
+            expect(
+                scheduleUsageHistoryBackfill,
+            ).toHaveBeenCalledExactlyOnceWith({
+                organizationUuid: user.organizationUuid,
+                projectUuid: created.projectUuid,
+                userUuid: user.userUuid,
+            });
+            const scheduledAt =
+                scheduleUsageHistoryBackfill.mock.invocationCallOrder[0];
+            expect(
+                ensureAnalyticsProject.mock.invocationCallOrder[0],
+            ).toBeLessThan(scheduledAt);
+            expect(
+                assertAnalyticsProjectAdministration.mock
+                    .invocationCallOrder[0],
+            ).toBeLessThan(scheduledAt);
+            expect(upsertDashboard).toHaveBeenCalledTimes(
+                analyticsContentAsCode.length,
+            );
+            expect(
+                upsertDashboard.mock.invocationCallOrder.at(-1),
+            ).toBeLessThan(scheduledAt);
+        });
+
+        it('does not automatically backfill an existing project during content synchronization', async () => {
+            const existing = { ...created, created: false };
+            ensureAnalyticsProject.mockResolvedValue(existing);
+            await expect(configuredService().ensure(user)).resolves.toEqual(
+                existing,
+            );
+            expect(upsertDashboard).toHaveBeenCalled();
+            expect(scheduleUsageHistoryBackfill).not.toHaveBeenCalled();
+        });
+
+        it('preserves successful project creation when automatic history scheduling fails', async () => {
+            ensureAnalyticsProject.mockResolvedValue(created);
+            scheduleUsageHistoryBackfill.mockRejectedValue(
+                new Error('queue unavailable'),
+            );
+            await expect(configuredService().ensure(user)).resolves.toEqual(
+                created,
+            );
+            expect(scheduleUsageHistoryBackfill).toHaveBeenCalledOnce();
+            expect(upsertDashboard).toHaveBeenCalledTimes(
+                analyticsContentAsCode.length,
+            );
+            expect(deleteProject).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            { enabled: false, s3: storage },
+            { enabled: true, s3: null },
+        ])(
+            'does not schedule automatically when usage storage is unavailable: %j',
+            async (configuration) => {
+                ensureAnalyticsProject.mockResolvedValue(created);
+                const configured = new AnalyticsProjectService({
+                    ...service['dependencies'],
+                    lightdashConfig: {
+                        usageEvents: {
+                            ...service['dependencies'].lightdashConfig
+                                .usageEvents,
+                            ...configuration,
+                        },
+                    },
+                });
+                await expect(configured.ensure(user)).resolves.toEqual(created);
+                expect(scheduleUsageHistoryBackfill).not.toHaveBeenCalled();
+            },
+        );
+
+        it('never schedules history if the guarded provisioner rejects creation', async () => {
+            ensureAnalyticsProject.mockRejectedValue(
+                new ForbiddenError('creation denied'),
+            );
+            await expect(configuredService().ensure(user)).rejects.toThrow(
+                'creation denied',
+            );
+            expect(upsertDashboard).not.toHaveBeenCalled();
+            expect(scheduleUsageHistoryBackfill).not.toHaveBeenCalled();
+        });
+
+        it('never schedules history when content administration authorization fails', async () => {
+            ensureAnalyticsProject.mockResolvedValue(created);
+            assertAnalyticsProjectAdministration.mockRejectedValue(
+                new ForbiddenError('administration denied'),
+            );
+            await expect(configuredService().ensure(user)).rejects.toThrow(
+                'administration denied',
+            );
+            expect(upsertDashboard).not.toHaveBeenCalled();
+            expect(scheduleUsageHistoryBackfill).not.toHaveBeenCalled();
+        });
 
         it('uses current org administration authorization for reads and writes', async () => {
             assertAnalyticsProjectAdministration.mockRejectedValue(
