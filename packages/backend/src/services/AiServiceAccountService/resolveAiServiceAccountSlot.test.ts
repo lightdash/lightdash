@@ -6,24 +6,33 @@ import {
     ProjectType,
     WarehouseTypes,
     type AiServiceAccountSlot,
+    type CreateWarehouseCredentials,
     type ProjectSummary,
     type WarehouseConnection,
 } from '@lightdash/common';
 import { type AiServiceAccountSecrets } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import {
+    athenaConnection,
     athenaSecrets,
+    clickhouseConnection,
     clickhouseSecrets,
+    postgresConnection,
+    postgresSecrets,
+    redshiftConnection,
     redshiftSecrets,
     snowflakeSecrets,
+    trinoConnection,
     trinoSecrets,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import {
+    AiServiceAccountDestinationMismatchError,
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,
     type AiServiceAccountSlotDependencies,
 } from './resolveAiServiceAccountSlot';
 
 describe.each([
+    WarehouseTypes.POSTGRES,
     WarehouseTypes.CLICKHOUSE,
     WarehouseTypes.REDSHIFT,
     WarehouseTypes.TRINO,
@@ -31,7 +40,7 @@ describe.each([
     WarehouseTypes.SNOWFLAKE,
     WarehouseTypes.DATABRICKS,
     WarehouseTypes.ATHENA,
-])('%s slot inheritance', (warehouseType) => {
+] as const)('%s slot inheritance', (warehouseType) => {
     const record = (projectUuid: string, identityUuid = 'generation-1') => ({
         slot: {
             uuid: `${projectUuid}-slot`,
@@ -40,6 +49,8 @@ describe.each([
         } as AiServiceAccountSlot,
         secrets: ((): AiServiceAccountSecrets => {
             switch (warehouseType) {
+                case WarehouseTypes.POSTGRES:
+                    return postgresSecrets;
                 case WarehouseTypes.TRINO:
                     return trinoSecrets;
                 case WarehouseTypes.CLICKHOUSE:
@@ -59,8 +70,6 @@ describe.each([
                 case WarehouseTypes.ATHENA:
                     return athenaSecrets;
                 case WarehouseTypes.BIGQUERY:
-                case WarehouseTypes.DUCKDB:
-                case WarehouseTypes.POSTGRES:
                     return {
                         type: WarehouseTypes.BIGQUERY,
                         authenticationType:
@@ -77,6 +86,77 @@ describe.each([
             }
         })(),
     });
+    const warehouseCredentials = (): CreateWarehouseCredentials => {
+        switch (warehouseType) {
+            case WarehouseTypes.POSTGRES:
+                return { ...postgresConnection };
+            case WarehouseTypes.REDSHIFT:
+                return { ...redshiftConnection };
+            case WarehouseTypes.TRINO:
+                return { ...trinoConnection };
+            case WarehouseTypes.CLICKHOUSE:
+                return { ...clickhouseConnection };
+            case WarehouseTypes.ATHENA:
+                return { ...athenaConnection };
+            case WarehouseTypes.SNOWFLAKE:
+                return {
+                    ...snowflakeSecrets,
+                    account: 'account.eu-west-1',
+                    database: 'analytics',
+                    schema: 'reporting',
+                    accessUrl:
+                        'https://account.eu-west-1.snowflakecomputing.com',
+                };
+            case WarehouseTypes.DATABRICKS:
+                return {
+                    type: WarehouseTypes.DATABRICKS,
+                    serverHostName: 'adb-123.4.azuredatabricks.net',
+                    httpPath: '/sql/warehouse',
+                    database: 'analytics',
+                };
+            case WarehouseTypes.BIGQUERY:
+                return {
+                    type: WarehouseTypes.BIGQUERY,
+                    project: 'warehouse-project',
+                    dataset: 'analytics',
+                    keyfileContents: { client_email: 'project@example.com' },
+                    timeoutSeconds: 30,
+                    priority: 'interactive',
+                    retries: 3,
+                    location: 'EU',
+                    maximumBytesBilled: 0,
+                    accessUrl: 'https://bigquery.googleapis.com',
+                };
+            default:
+                return assertUnreachable(warehouseType, 'Unknown warehouse');
+        }
+    };
+    const differentDestination = (
+        credentials: CreateWarehouseCredentials,
+    ): CreateWarehouseCredentials => {
+        switch (credentials.type) {
+            case WarehouseTypes.POSTGRES:
+            case WarehouseTypes.REDSHIFT:
+            case WarehouseTypes.TRINO:
+            case WarehouseTypes.CLICKHOUSE:
+                return { ...credentials, host: 'evil.example.com' };
+            case WarehouseTypes.SNOWFLAKE:
+                return { ...credentials, account: 'other-account' };
+            case WarehouseTypes.DATABRICKS:
+                return { ...credentials, serverHostName: 'evil.example.com' };
+            case WarehouseTypes.ATHENA:
+                return { ...credentials, region: 'us-east-2' };
+            case WarehouseTypes.BIGQUERY:
+                return {
+                    ...credentials,
+                    accessUrl: 'https://evil.example.com',
+                };
+            case WarehouseTypes.DUCKDB:
+                throw new Error('Unsupported warehouse');
+            default:
+                return assertUnreachable(credentials, 'Unknown warehouse');
+        }
+    };
     const setup = () => {
         const projects = new Map<string, ProjectSummary>([
             [
@@ -110,8 +190,17 @@ describe.each([
             ...childConnection,
             warehouseConnectionUuid: 'parent-extra',
         };
+        const credentials = new Map([
+            ['preview:null', warehouseCredentials()],
+            ['parent:null', warehouseCredentials()],
+            ['preview:extra', warehouseCredentials()],
+            ['parent:parent-extra', warehouseCredentials()],
+        ]);
         const deps = {
             projectModel: {
+                getWarehouseCredentialsForBinding: vi.fn(
+                    async (uuid: string) => credentials.get(`${uuid}:null`)!,
+                ),
                 getSummary: vi.fn(async (uuid: string) => {
                     const project = projects.get(uuid);
                     if (!project) throw new NotFoundError('missing');
@@ -129,6 +218,12 @@ describe.each([
                 ),
             },
             warehouseConnectionModel: {
+                getCredentials: vi.fn(
+                    async (
+                        { projectUuid }: { projectUuid: string },
+                        uuid: string,
+                    ) => credentials.get(`${projectUuid}:${uuid}`)!,
+                ),
                 getProject: vi.fn(async (projectUuid: string) => ({
                     projectUuid,
                 })),
@@ -149,6 +244,7 @@ describe.each([
             deps,
             childConnection,
             parentConnection,
+            credentials,
         };
     };
 
@@ -257,8 +353,105 @@ describe.each([
                 sourceProjectUuid: 'preview',
                 inherited: false,
             });
+            expect(
+                f.deps.projectModel.getWarehouseCredentialsForBinding,
+            ).not.toHaveBeenCalled();
+            expect(
+                f.deps.warehouseConnectionModel.getCredentials,
+            ).not.toHaveBeenCalled();
+            expect(
+                f.deps.warehouseConnectionModel.getProject,
+            ).not.toHaveBeenCalled();
         },
     );
+    describe.each([
+        'resolve',
+        'resolveMetadata',
+        'resolveParent',
+        'resolveParentMetadata',
+    ] as const)('%s destination binding', (method) => {
+        it.each([null, 'extra'])(
+            'rejects a changed destination for connection %s before reading any slot',
+            async (connection) => {
+                const f = setup();
+                f.credentials.set(
+                    `preview:${connection}`,
+                    differentDestination(warehouseCredentials()),
+                );
+                let error: unknown = null;
+                try {
+                    await f.resolver[method]({
+                        projectUuid: 'preview',
+                        connection,
+                    });
+                } catch (caught) {
+                    error = caught;
+                }
+                expect(error).toBeInstanceOf(
+                    AiServiceAccountDestinationMismatchError,
+                );
+                expect(error).toMatchObject({
+                    inheritedFromProjectUuid: 'parent',
+                });
+                expect(
+                    f.deps.aiServiceAccountCredentialsModel.getSecrets,
+                ).not.toHaveBeenCalled();
+                expect(
+                    f.deps.aiServiceAccountCredentialsModel.getSlot,
+                ).not.toHaveBeenCalled();
+            },
+        );
+        it.each(['preview', 'parent'])(
+            'fails closed when %s credentials cannot be loaded',
+            async (projectUuid) => {
+                const f = setup();
+                f.deps.projectModel.getWarehouseCredentialsForBinding.mockImplementation(
+                    async (uuid) => {
+                        if (uuid === projectUuid)
+                            throw new Error('invalid encrypted credentials');
+                        return warehouseCredentials();
+                    },
+                );
+                await expect(
+                    f.resolver[method]({
+                        projectUuid: 'preview',
+                        connection: null,
+                    }),
+                ).rejects.toMatchObject({
+                    constructor: AiServiceAccountSlotResolutionError,
+                    inheritedFromProjectUuid: 'parent',
+                });
+                expect(
+                    f.deps.aiServiceAccountCredentialsModel.getSecrets,
+                ).not.toHaveBeenCalled();
+                expect(
+                    f.deps.aiServiceAccountCredentialsModel.getSlot,
+                ).not.toHaveBeenCalled();
+            },
+        );
+        it('returns null when parent connection credentials are missing', async () => {
+            const f = setup();
+            f.deps.projectModel.getWarehouseCredentialsForBinding.mockImplementation(
+                async (uuid) => {
+                    if (uuid === 'parent')
+                        throw new NotFoundError('missing connection');
+                    return warehouseCredentials();
+                },
+            );
+            await expect(
+                f.resolver[method]({
+                    projectUuid: 'preview',
+                    connection: null,
+                }),
+            ).resolves.toBeNull();
+            expect(
+                f.deps.aiServiceAccountCredentialsModel.getSecrets,
+            ).not.toHaveBeenCalled();
+            expect(
+                f.deps.aiServiceAccountCredentialsModel.getSlot,
+            ).not.toHaveBeenCalled();
+        });
+    });
     it('maps the original slot to the parent original', async () => {
         const f = setup();
         expect(await f.resolve()).toEqual({
@@ -290,6 +483,15 @@ describe.each([
             sourceConnection: 'parent-extra',
             inherited: true,
         });
+        expect(
+            f.deps.warehouseConnectionModel.getCredentials.mock.calls,
+        ).toEqual([
+            [{ projectUuid: 'preview' }, 'extra'],
+            [{ projectUuid: 'parent' }, 'parent-extra'],
+        ]);
+        expect(
+            f.deps.projectModel.getWarehouseCredentialsForBinding,
+        ).not.toHaveBeenCalled();
     });
     it.each(['name', 'type', 'original'] as const)(
         'does not inherit from an extra with a mismatching %s',
@@ -299,7 +501,10 @@ describe.each([
             f.slots.set('preview:extra', record('preview'));
             if (mismatch === 'name') f.parentConnection.name = 'Other';
             if (mismatch === 'type')
-                f.parentConnection.warehouseType = WarehouseTypes.POSTGRES;
+                f.parentConnection.warehouseType =
+                    warehouseType === WarehouseTypes.POSTGRES
+                        ? WarehouseTypes.BIGQUERY
+                        : WarehouseTypes.POSTGRES;
             if (mismatch === 'original') f.parentConnection.isOriginal = true;
             expect(await f.resolve('extra')).toBeNull();
         },

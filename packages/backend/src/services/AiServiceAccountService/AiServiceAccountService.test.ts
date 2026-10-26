@@ -797,6 +797,95 @@ const previewFixture = () => {
     );
     return f;
 };
+describe('preview shared agent account destination and authorization', () => {
+    afterEach(() => vi.restoreAllMocks());
+    const prepare = () => {
+        const f = previewFixture();
+        f.load.mockImplementation(async (uuid: string) => ({
+            ...postgresConnection,
+            host: uuid === 'parent' ? 'warehouse.internal' : 'evil.example.com',
+        }));
+        const audit = vi
+            .spyOn(auditLogger, 'logAuditEvent')
+            .mockImplementation(() => {});
+        const logger = { warn: vi.fn(), debug: vi.fn(), info: vi.fn() };
+        Object.assign(f.service, { logger });
+        return { ...f, audit, logger };
+    };
+    it('fails a mismatched preview test before reading the parent slot or making a request', async () => {
+        const f = prepare();
+        await expect(
+            f.service.test(f.account, 'project', null, null),
+        ).resolves.toMatchObject({ ok: false });
+        expect(f.model.getSecrets).not.toHaveBeenCalled();
+        expect(f.model.getSlot).not.toHaveBeenCalled();
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        expect(f.runQuery).not.toHaveBeenCalled();
+        expect(exchangeDatabricksOAuthCredentials).not.toHaveBeenCalled();
+        expect(f.analytics.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'agent_identity.service_account_tested',
+                properties: expect.objectContaining({
+                    inheritedFromProjectUuid: 'parent',
+                    result: 'failure',
+                }),
+            }),
+        );
+        expect(f.audit).toHaveBeenCalledWith(
+            expect.objectContaining({
+                action: 'test',
+                resource: expect.objectContaining({
+                    metadata: expect.objectContaining({
+                        inheritedFromProjectUuid: 'parent',
+                        result: 'failure',
+                    }),
+                }),
+            }),
+        );
+    });
+    it('requires manage permission on the parent before testing an inherited account', async () => {
+        const f = prepare();
+        f.load.mockResolvedValue(connection);
+        f.account.user.ability = new Ability<PossibleAbilities>([
+            {
+                action: 'manage',
+                subject: 'Project',
+                conditions: { projectUuid: 'project' },
+            },
+        ]);
+        await expect(
+            f.service.test(f.account, 'project', null, null),
+        ).rejects.toMatchObject({
+            constructor: ForbiddenError,
+            message:
+                'You need to manage the parent project to test its shared agent account.',
+        });
+        expect(f.load).not.toHaveBeenCalled();
+        expect(f.model.getSecrets).not.toHaveBeenCalled();
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
+        expect(f.runQuery).not.toHaveBeenCalled();
+        expect(exchangeDatabricksOAuthCredentials).not.toHaveBeenCalled();
+        expect(f.analytics.track).not.toHaveBeenCalled();
+        expect(
+            f.audit.mock.calls.filter(([entry]) => entry.action === 'test'),
+        ).toEqual([]);
+    });
+    it('hides parent metadata when the preview destination differs', async () => {
+        const f = prepare();
+        await expect(
+            f.service.getStatus(f.account, 'project', null),
+        ).resolves.toMatchObject({ parent: null });
+        expect(f.model.getSecrets).not.toHaveBeenCalled();
+        expect(f.model.getSlot).not.toHaveBeenCalled();
+        expect(f.logger.warn).toHaveBeenCalledWith(
+            'Preview shared agent account destination mismatch',
+            {
+                projectUuid: 'project',
+                parentProjectUuid: 'parent',
+            },
+        );
+    });
+});
 it.each([true, false])(
     'returns parent principal with parent view=%s without exposing secrets',
     async (canView) => {
@@ -1027,7 +1116,7 @@ const databricksSecrets = {
 } as const;
 const databricksConnection = {
     ...databricksSecrets,
-    serverHostName: 'workspace.example.com',
+    serverHostName: 'adb-123.4.azuredatabricks.net',
     httpPath: '/sql/preview',
     catalog: 'catalog',
     database: 'schema',
@@ -1163,7 +1252,7 @@ describe('Databricks identity verification', () => {
             expect(
                 exchangeDatabricksOAuthCredentials,
             ).toHaveBeenCalledExactlyOnceWith(
-                'workspace.example.com',
+                'adb-123.4.azuredatabricks.net',
                 'slot-client',
                 'slot-secret',
             );

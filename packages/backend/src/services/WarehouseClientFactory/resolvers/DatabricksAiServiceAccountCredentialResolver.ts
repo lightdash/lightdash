@@ -7,6 +7,7 @@ import {
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import { exchangeDatabricksOAuthCredentials } from '@lightdash/warehouses';
+import { getDatabricksOidcEndpointsFromHost } from '../../../controllers/authentication/strategies/databricksStrategy';
 import {
     parseAiServiceAccountSecrets,
     type AiServiceAccountSecrets,
@@ -101,8 +102,11 @@ export class DatabricksAiServiceAccountCredentialResolver implements CredentialR
             input.connection,
             input.stored,
         );
-        const { accessToken } = await exchangeDatabricksOAuthCredentials(
+        const { host } = getDatabricksOidcEndpointsFromHost(
             credentials.serverHostName,
+        );
+        const { accessToken } = await exchangeDatabricksOAuthCredentials(
+            host,
             credentials.oauthClientId!,
             credentials.oauthClientSecret!,
         );

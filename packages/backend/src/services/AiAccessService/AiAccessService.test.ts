@@ -5258,7 +5258,7 @@ describe('Databricks AI service account runtime', () => {
     } as const;
     const databricksConnection: CreateWarehouseCredentials = {
         type: WarehouseTypes.DATABRICKS,
-        serverHostName: 'workspace.example.com',
+        serverHostName: 'adb-123.4.azuredatabricks.net',
         httpPath: '/sql/preview',
         database: 'schema',
         personalAccessToken: 'project-pat',
@@ -5314,7 +5314,7 @@ describe('Databricks AI service account runtime', () => {
             expect(
                 exchangeDatabricksOAuthCredentials,
             ).toHaveBeenCalledExactlyOnceWith(
-                'workspace.example.com',
+                'adb-123.4.azuredatabricks.net',
                 'slot-id',
                 'slot-secret',
             );

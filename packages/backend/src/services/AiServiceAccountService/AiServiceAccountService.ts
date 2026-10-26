@@ -51,6 +51,7 @@ import {
 } from '../WarehouseClientFactory/ConnectionContext';
 import { mergeAiServiceAccountCredentials } from './applyAiServiceAccountCredentials';
 import {
+    AiServiceAccountDestinationMismatchError,
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,
 } from './resolveAiServiceAccountSlot';
@@ -68,6 +69,7 @@ type ManagedProject = {
     organizationUuid: string;
     projectName: string;
     isPreview: boolean;
+    upstreamProjectUuid: string | null;
 };
 
 type ServiceAccountConnection = {
@@ -122,7 +124,12 @@ export class AiServiceAccountService extends BaseService {
         if (!enabled)
             throw new FeatureNotEnabledError(FeatureFlags.AgentIdentity);
         const isPreview = type === ProjectType.PREVIEW && !!upstreamProjectUuid;
-        return { organizationUuid, projectName, isPreview };
+        return {
+            organizationUuid,
+            projectName,
+            isPreview,
+            upstreamProjectUuid: isPreview ? upstreamProjectUuid! : null,
+        };
     }
 
     private async loadConnection(
@@ -283,6 +290,16 @@ export class AiServiceAccountService extends BaseService {
         const inherited = await resolver
             .resolveParent(input)
             .catch(async (error) => {
+                if (error instanceof AiServiceAccountDestinationMismatchError) {
+                    this.logger.warn(
+                        'Preview shared agent account destination mismatch',
+                        {
+                            projectUuid,
+                            parentProjectUuid: error.inheritedFromProjectUuid,
+                        },
+                    );
+                    return null;
+                }
                 if (!(error instanceof AiServiceAccountSlotResolutionError))
                     throw error;
                 const metadata = await resolver.resolveParentMetadata(input);
@@ -512,6 +529,20 @@ export class AiServiceAccountService extends BaseService {
         const project = await this.loadManagedProject(account, projectUuid);
         if (input !== null && project.isPreview)
             throw new ParameterError(previewAccountMessage);
+        if (
+            project.upstreamProjectUuid !== null &&
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.upstreamProjectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You need to manage the parent project to test its shared agent account.',
+            );
+        }
         const loaded = await this.loadConnection(
             projectUuid,
             connectionUuid,
