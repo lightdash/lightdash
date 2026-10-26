@@ -84,8 +84,13 @@ export const SortableRow: FC<Props> = ({
                         tabIndex={-1}
                         aria-label={selection.label}
                         checked={selection.isChecked}
-                        readOnly
-                        onClick={(event) => selection.onToggle(event.shiftKey)}
+                        // A click's change event carries the mouse event
+                        onChange={(event) =>
+                            selection.onToggle(
+                                event.nativeEvent instanceof MouseEvent &&
+                                    event.nativeEvent.shiftKey,
+                            )
+                        }
                     />
                 </Box>
             )}

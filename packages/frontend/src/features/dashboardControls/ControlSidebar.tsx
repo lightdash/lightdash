@@ -601,7 +601,7 @@ const OpenControlSidebar: FC = () => {
                 : ids[0]
                   ? railRowSelector(ids[0])
                   : RAIL_ADD_SELECTOR;
-        setSelectedIds(null);
+        leaveSelectMode();
     };
     const cancelName = () => {
         if (nameEdit === null) return;
@@ -619,7 +619,11 @@ const OpenControlSidebar: FC = () => {
     // Drag is off while a section is being named and in select mode
     const isSelecting = selectedIds !== null;
     const isDragDisabled = nameEdit !== null || isSelecting;
-    const leaveSelectMode = () => setSelectedIds(null);
+    // The shift anchor goes with the session, both ways
+    const leaveSelectMode = () => {
+        lastToggledId.current = null;
+        setSelectedIds(null);
+    };
     // Rows on screen, in display order; a collapsed section's are left out
     const shownRowIds = () =>
         listed.flatMap(({ shown }) => shown.map(({ rule }) => rule.id));
@@ -1052,6 +1056,7 @@ const OpenControlSidebar: FC = () => {
                         : {
                               onSelect: () => {
                                   if (editor !== null) collapse();
+                                  lastToggledId.current = null;
                                   setSelectedIds([]);
                               },
                               disabledReason:

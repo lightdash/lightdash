@@ -2485,6 +2485,24 @@ describe('ControlSidebar', () => {
                 expect(collapse).toHaveBeenCalledTimes(1);
             });
 
+            it('forgets the shift anchor between select sessions', async () => {
+                closedRail();
+                renderWithProviders(<ControlSidebar />, sectioned());
+                await selectThree();
+                fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+                expect(badge('3 selected')).not.toBeInTheDocument();
+
+                await selectFromMenu();
+                fireEvent.click(row('Created'), { shiftKey: true });
+                expect(badge('1 selected')).toBeInTheDocument();
+                expect(
+                    screen
+                        .getAllByRole('checkbox')
+                        .filter((box) => (box as HTMLInputElement).checked)
+                        .map((box) => box.getAttribute('aria-label')),
+                ).toEqual(['Created']);
+            });
+
             it('selects a range with shift-click and extends it with shift and an arrow', async () => {
                 closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
