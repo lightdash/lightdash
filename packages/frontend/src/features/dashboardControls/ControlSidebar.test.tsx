@@ -2317,6 +2317,10 @@ describe('ControlSidebar', () => {
                 await selectFromMenu();
                 expect(badge('0 selected')).toBeInTheDocument();
                 expect(screen.getAllByRole('checkbox')).toHaveLength(4);
+                // The row makes room for its checkbox through this attribute
+                expect(
+                    document.querySelectorAll('[data-selecting]'),
+                ).toHaveLength(4);
                 expect(
                     screen.queryByRole('button', { name: 'Drag to reorder' }),
                 ).not.toBeInTheDocument();

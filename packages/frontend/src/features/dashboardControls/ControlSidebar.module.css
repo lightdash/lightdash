@@ -343,13 +343,33 @@
     opacity: 1;
 }
 
-/* In select mode the checkbox takes the grip's slot; the grip is not rendered */
+/* In select mode the row makes room for its checkbox in the left padding: a
+   16px box centred on the name's first line as `.rowIcon` is (padding `sm`
+   plus 2px, the icon's 3px margin less the box's extra pixel), followed by
+   the row's `xs` gap; a sectioned row keeps its extra `md` of indent */
+.sortableRow[data-selecting] .row.row {
+    padding-left: calc(
+        var(--mantine-spacing-md) + 16px + var(--mantine-spacing-xs)
+    );
+}
+
+.sortableRow[data-selecting].sectionRow .row.row {
+    padding-left: calc(
+        2 * var(--mantine-spacing-md) + 16px + var(--mantine-spacing-xs)
+    );
+}
+
 .rowCheck {
     position: absolute;
-    top: 50%;
-    left: 0;
+    top: calc(var(--mantine-spacing-sm) + 2px);
+    left: var(--mantine-spacing-md);
     display: flex;
-    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+}
+
+.sectionRow .rowCheck {
+    left: calc(2 * var(--mantine-spacing-md));
 }
 
 /* On the expanded editor the grip sits by the head, not the card's centre */
