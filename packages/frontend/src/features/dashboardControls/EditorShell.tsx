@@ -333,6 +333,7 @@ export const EditorShell: FC<Props> = ({
                                 color="gray"
                                 size="xs"
                                 flex="0 0 auto"
+                                data-controls-cancel-name
                                 onClick={onCancel}
                             >
                                 {getUiString('filters.actions.cancel')}

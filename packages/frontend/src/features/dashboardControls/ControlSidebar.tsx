@@ -986,14 +986,17 @@ const OpenControlSidebar: FC = () => {
             </Group>
         );
     // Closing keeps the edits, so the footer says what closing would drop
-    const footerStatus =
-        editingRule === null || editor === null
-            ? null
-            : isPlaceholder
-              ? getUiString('filters.rail.selectFieldToKeep')
-              : !isViewer && isDefaultValueIncomplete(editingRule)
-                ? 'No default value set, so the default stays off'
-                : null;
+    // A new section being named takes the footer as a new filter with no
+    // field does: the hint and Cancel in place of the switch and Done
+    const footerStatus = nameEdit?.isNew
+        ? getUiString('filters.rail.nameSectionToKeep')
+        : editingRule === null || editor === null
+          ? null
+          : isPlaceholder
+            ? getUiString('filters.rail.selectFieldToKeep')
+            : !isViewer && isDefaultValueIncomplete(editingRule)
+              ? 'No default value set, so the default stays off'
+              : null;
 
     const addFilter =
         canAddFilters && !(isViewer && isAddFilterDisabled)
@@ -1045,7 +1048,13 @@ const OpenControlSidebar: FC = () => {
                     draggedId !== null && sectionIds.has(draggedId)
                 }
                 isDragging={draggedId !== null}
-                onCancel={editor !== null && isPlaceholder ? discard : null}
+                onCancel={
+                    nameEdit?.isNew
+                        ? cancelName
+                        : editor !== null && isPlaceholder
+                          ? discard
+                          : null
+                }
                 selectFilters={
                     isViewer || isSelecting
                         ? null

@@ -7,7 +7,6 @@ import {
 import {
     ActionIcon,
     Box,
-    Button,
     Checkbox,
     Menu,
     Text,
@@ -57,8 +56,8 @@ type NameInputProps = {
     onCancel: () => void;
 };
 
-// Enter or blur with a name commits; Escape, an empty name or the Cancel
-// beside it (which the blur lets through) cancels
+// Enter or blur with a name commits; Escape, an empty name or the footer's
+// Cancel (which the blur lets through) cancels
 const SectionNameInput: FC<NameInputProps> = ({ name, onCommit, onCancel }) => {
     const isDone = useRef(false);
     const finish = (value: string) => {
@@ -197,27 +196,11 @@ export const SectionHeader: FC<Props> = ({
                     />
                 </ActionIcon>
                 {isEditingName && !isReadOnly ? (
-                    <>
-                        <SectionNameInput
-                            name={section.name}
-                            onCommit={onCommitName}
-                            onCancel={onCancelName}
-                        />
-                        {/* A new section's way out, as the new filter's */}
-                        {isNew && (
-                            <Button
-                                variant="subtle"
-                                color="gray"
-                                size="xs"
-                                flex="0 0 auto"
-                                data-controls-cancel-name
-                                data-own-escape
-                                onClick={onCancelName}
-                            >
-                                {getUiString('filters.actions.cancel')}
-                            </Button>
-                        )}
-                    </>
+                    <SectionNameInput
+                        name={section.name}
+                        onCommit={onCommitName}
+                        onCancel={onCancelName}
+                    />
                 ) : (
                     <Text fz="sm" fw={600} truncate miw={0}>
                         {name}

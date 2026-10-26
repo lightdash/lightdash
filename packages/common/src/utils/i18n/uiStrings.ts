@@ -389,6 +389,7 @@ export const DEFAULT_UI_STRINGS = {
     'filters.rail.collapse': 'Collapse',
     'filters.rail.collapseFilter': 'Collapse filter',
     'filters.rail.selectFieldToKeep': 'Select a field to keep this filter',
+    'filters.rail.nameSectionToKeep': 'Name this section to keep it',
     'filters.rail.addedByYou': 'Added by you',
     'filters.rail.addedByYouNote':
         'Added by you · only in this view and its link',

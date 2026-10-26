@@ -505,7 +505,9 @@ In `FilterConfiguration/`:
   while `isAddFilterDisabled` is false; it writes `setIsAddFilterDisabled`,
   the saved `config.isAddFilterDisabled` keeps its polarity) and "Done"
   (`close`) at the right; while the edited filter has no field it has only a
-  status, "Select a field to keep this filter", and "Cancel" (`discard`). A footer status says what closing would drop. The body ends
+  status, "Select a field to keep this filter", and "Cancel" (`discard`),
+  and while a new section is named the same row reads "Name this section to
+  keep it" with "Cancel" (`cancelName`). A footer status says what closing would drop. The body ends
   1px under the footer's top border (`.body`'s `margin-bottom: -1px`), so
   the last row's border and the footer's read as one line whether the list
   scrolls or not.
@@ -1160,11 +1162,14 @@ the language map, as tab names are.
   (`collapse()`, as `openNew` does; a new filter with no field yet stays
   open, since collapsing it would drop it and the rail) and opens a section header with its name
   input, held only in the rail's `nameEdit` state until a name is committed
-  (Enter or blur with a name); Escape, an empty name or the "Cancel" beside
-  the input (the new filter editor's subtle `xs` button, a tab stop after
-  the input; the input's blur yields to it, so a typed name is not committed
-  on the way) drops it, focus back on the add row; a rename has no Cancel,
-  an empty rename keeps the old name. The open
+  (Enter or blur with a name); Escape, an empty name or the footer's
+  "Cancel" drops it, focus back on the add row. While it is named the footer
+  is the new filter's (`onCancel` = `cancelName`, status
+  `filters.rail.nameSectionToKeep`, "Name this section to keep it", in place
+  of the switch and Done); that button carries `data-controls-cancel-name`
+  and the input's blur yields to it, so a typed name is not committed on the
+  way. A rename keeps the normal footer; an empty rename keeps the old name.
+  The open
   rail is its own component (`OpenControlSidebar`), so `nameEdit`,
   `collapsedIds` and the drag reset when the rail closes. That header
   (`isNew`) has no menu and a disabled chevron, since a click on either would

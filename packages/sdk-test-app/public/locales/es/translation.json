@@ -449,6 +449,7 @@
         "filters.rail.collapse": "Contraer",
         "filters.rail.collapseFilter": "Contraer filtro",
         "filters.rail.selectFieldToKeep": "Selecciona un campo para conservar este filtro",
+        "filters.rail.nameSectionToKeep": "Pon un nombre a esta sección para conservarla",
         "filters.rail.addedByYou": "Añadido por ti",
         "filters.rail.addedByYouNote": "Añadido por ti · solo en esta vista y su enlace",
         "filters.rail.required": "Obligatorio",

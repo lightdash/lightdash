@@ -1710,9 +1710,17 @@ describe('ControlSidebar', () => {
             await newSection();
             const input = screen.getByLabelText('Section name');
             expect(input).toHaveFocus();
+            // The footer is the new filter's: a hint and Cancel, no switch or Done
+            expect(
+                screen.getByText('Name this section to keep it'),
+            ).toBeInTheDocument();
             expect(
                 screen.getByRole('button', { name: 'Cancel' }),
             ).toBeVisible();
+            expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Done' }),
+            ).not.toBeInTheDocument();
             // The add row waits for the name
             expect(
                 screen.queryByRole('button', { name: 'Add filter or section' }),
@@ -1755,7 +1763,7 @@ describe('ControlSidebar', () => {
             ).toHaveFocus();
         });
 
-        it('drops a new section from its Cancel, even with a name typed, focus back on the add row', async () => {
+        it('drops a new section from the footer Cancel, even with a name typed, focus back on the add row', async () => {
             closedRail();
             const { store } = renderWithProviders(<ControlSidebar />);
             expandAll();
@@ -1763,21 +1771,24 @@ describe('ControlSidebar', () => {
             const input = screen.getByLabelText('Section name');
             fireEvent.change(input, { target: { value: 'Time' } });
 
-            // Tab reaches the Cancel without the blur committing the name
-            await userEvent.tab();
+            // The click moves focus to the Cancel first: that blur commits nothing
             const cancel = screen.getByRole('button', { name: 'Cancel' });
-            expect(cancel).toHaveFocus();
-            expect(selectControlSections(store.getState())).toHaveLength(2);
             await userEvent.click(cancel);
             expect(selectControlSections(store.getState())).toHaveLength(2);
             expect(
                 screen.queryByLabelText('Section name'),
             ).not.toBeInTheDocument();
             expect(
+                screen.queryByText('Name this section to keep it'),
+            ).not.toBeInTheDocument();
+            // The normal footer is back
+            expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
+            expect(screen.getByRole('switch')).toBeInTheDocument();
+            expect(
                 screen.getByRole('button', { name: 'Add filter or section' }),
             ).toHaveFocus();
 
-            // A rename keeps its own ways out: no Cancel there
+            // A rename keeps the normal footer
             await userEvent.click(
                 screen.getByRole('button', { name: 'Section Dates actions' }),
             );
@@ -1788,6 +1799,7 @@ describe('ControlSidebar', () => {
             expect(
                 screen.queryByRole('button', { name: 'Cancel' }),
             ).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
         });
 
         it('offers no new section while a new filter has no field', () => {
