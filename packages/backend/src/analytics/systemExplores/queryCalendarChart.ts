@@ -50,18 +50,37 @@ export const queryCalendarSpec: Record<string, unknown> = {
             as: 'columns',
         },
         { calculate: 'ceil(datum.weeks / datum.columns)', as: 'bands' },
-        { calculate: 'floor(datum.week / datum.columns)', as: 'band' },
-        { calculate: 'datum.week % datum.columns', as: 'column' },
-        { calculate: 'datum.column / datum.columns', as: 'cell_x' },
-        { calculate: '(datum.column + 0.88) / datum.columns', as: 'cell_x2' },
+        // Short histories keep compact cells rather than a tall strip on the
+        // left. Long and folded calendars retain their existing coordinates.
         {
             calculate:
-                '(datum.band * 9 + 1 + datum.weekday) / (datum.bands * 9)',
+                'datum.weeks < datum.columns ? (1 - datum.weeks / datum.columns) / 2 : 0',
+            as: 'column_offset',
+        },
+        {
+            calculate:
+                'datum.weeks < datum.columns ? min(1, datum.bands * 9 * 28 / max(1, height - 76)) : 1',
+            as: 'row_scale',
+        },
+        { calculate: 'floor(datum.week / datum.columns)', as: 'band' },
+        { calculate: 'datum.week % datum.columns', as: 'column' },
+        {
+            calculate: 'datum.column / datum.columns + datum.column_offset',
+            as: 'cell_x',
+        },
+        {
+            calculate:
+                '(datum.column + 0.88) / datum.columns + datum.column_offset',
+            as: 'cell_x2',
+        },
+        {
+            calculate:
+                '0.5 + ((datum.band * 9 + 1 + datum.weekday) / (datum.bands * 9) - 0.5) * datum.row_scale',
             as: 'cell_y',
         },
         {
             calculate:
-                '(datum.band * 9 + 1.88 + datum.weekday) / (datum.bands * 9)',
+                '0.5 + ((datum.band * 9 + 1.88 + datum.weekday) / (datum.bands * 9) - 0.5) * datum.row_scale',
             as: 'cell_y2',
         },
         { calculate: "utcFormat(datum.day, '%A, %d %B %Y')", as: 'date_label' },
@@ -161,22 +180,23 @@ queryCalendarSpec.layer = [
             },
             { calculate: 'floor(datum.grid_days / 7)', as: 'grid_week' },
             {
-                calculate: '(datum.grid_week % datum.columns) / datum.columns',
+                calculate:
+                    '(datum.grid_week % datum.columns) / datum.columns + datum.column_offset',
                 as: 'cell_x',
             },
             {
                 calculate:
-                    '(datum.grid_week % datum.columns + 0.88) / datum.columns',
+                    '(datum.grid_week % datum.columns + 0.88) / datum.columns + datum.column_offset',
                 as: 'cell_x2',
             },
             {
                 calculate:
-                    '(floor(datum.grid_week / datum.columns) * 9 + 1 + datum.grid_days % 7) / (datum.bands * 9)',
+                    '0.5 + ((floor(datum.grid_week / datum.columns) * 9 + 1 + datum.grid_days % 7) / (datum.bands * 9) - 0.5) * datum.row_scale',
                 as: 'cell_y',
             },
             {
                 calculate:
-                    '(floor(datum.grid_week / datum.columns) * 9 + 1.88 + datum.grid_days % 7) / (datum.bands * 9)',
+                    '0.5 + ((floor(datum.grid_week / datum.columns) * 9 + 1.88 + datum.grid_days % 7) / (datum.bands * 9) - 0.5) * datum.row_scale',
                 as: 'cell_y2',
             },
             {
@@ -249,7 +269,8 @@ queryCalendarSpec.layer = [
                 as: 'month_label',
             },
             {
-                calculate: '(datum.band * 9 + 0.25) / (datum.bands * 9)',
+                calculate:
+                    '0.5 + ((datum.band * 9 + 0.25) / (datum.bands * 9) - 0.5) * datum.row_scale',
                 as: 'cell_y',
             },
         ],
@@ -271,7 +292,7 @@ queryCalendarSpec.layer = [
             },
             {
                 calculate:
-                    '(floor(datum.labels / 7) * 9 + 1.44 + datum.labels % 7) / (datum.bands * 9)',
+                    '0.5 + ((floor(datum.labels / 7) * 9 + 1.44 + datum.labels % 7) / (datum.bands * 9) - 0.5) * datum.row_scale',
                 as: 'cell_y',
             },
             {
@@ -280,9 +301,15 @@ queryCalendarSpec.layer = [
                 as: 'weekday_label',
             },
         ],
-        mark: { type: 'text', align: 'right', color: ink, fontSize: 10 },
+        mark: {
+            type: 'text',
+            align: 'right',
+            dx: -7,
+            color: ink,
+            fontSize: 10,
+        },
         encoding: {
-            x: { value: -7 },
+            x: { ...calendarPosition.x, field: 'column_offset' },
             y: calendarPosition.y,
             text: { field: 'weekday_label' },
         },
