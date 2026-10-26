@@ -202,14 +202,18 @@ const useMapChartConfig = (
             setDataLayerOpacity: (opacity: number | undefined) =>
                 set('dataLayerOpacity', opacity),
             setColorOverride: (value: string, color: string) =>
-                dispatch(mapEditorActions.colorOverrideChange({ value, color })),
+                dispatch(
+                    mapEditorActions.colorOverrideChange({ value, color }),
+                ),
             setColorOverrides: (overrides: Record<string, string>) =>
                 set('colorOverrides', overrides),
             updateFieldConfig: (
                 fieldId: string,
                 config: Partial<MapFieldConfig>,
             ) =>
-                dispatch(mapEditorActions.fieldConfigUpdate({ fieldId, config })),
+                dispatch(
+                    mapEditorActions.fieldConfigUpdate({ fieldId, config }),
+                ),
         }),
         [dispatch, set],
     );

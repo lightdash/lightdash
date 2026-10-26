@@ -121,7 +121,13 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
             tableCalculationsMetadata,
         });
         if (nextFieldId !== fieldId) set('fieldId', nextFieldId);
-    }, [allNumericFieldIds, fieldId, isLoading, tableCalculationsMetadata, set]);
+    }, [
+        allNumericFieldIds,
+        fieldId,
+        isLoading,
+        tableCalculationsMetadata,
+        set,
+    ]);
 
     // Max value is the largest step value, used to calculate the percentage
     // each step represents

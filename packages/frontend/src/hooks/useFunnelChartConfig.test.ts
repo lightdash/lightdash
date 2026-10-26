@@ -11,8 +11,7 @@ import useFunnelChartConfig from './useFunnelChartConfig';
 
 const render = (initial?: FunnelChart) =>
     renderHook(
-        () =>
-            useFunnelChartConfig(undefined, initial, undefined, {}, ['#000']),
+        () => useFunnelChartConfig(undefined, initial, undefined, {}, ['#000']),
         { wrapper: withVisualizationStore() },
     );
 

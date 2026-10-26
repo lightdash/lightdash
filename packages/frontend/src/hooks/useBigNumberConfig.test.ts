@@ -7,7 +7,10 @@ import useBigNumberConfig from './useBigNumberConfig';
 const render = (initial?: BigNumber) =>
     renderHook(
         ({ config }) => useBigNumberConfig(config, undefined, undefined),
-        { wrapper: withVisualizationStore(), initialProps: { config: initial } },
+        {
+            wrapper: withVisualizationStore(),
+            initialProps: { config: initial },
+        },
     );
 
 describe('useBigNumberConfig', () => {

@@ -22,7 +22,14 @@ vi.mock('../useAsyncCalculateTotal', () => {
 const render = (initial?: Parameters<typeof useTableConfig>[0]) =>
     renderHook(
         () =>
-            useTableConfig(initial, undefined, undefined, [], undefined, undefined),
+            useTableConfig(
+                initial,
+                undefined,
+                undefined,
+                [],
+                undefined,
+                undefined,
+            ),
         { wrapper: withVisualizationStore() },
     );
 
