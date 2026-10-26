@@ -1,8 +1,8 @@
 import {
-    Anchor,
+    Badge,
     Button,
-    Divider,
     Group,
+    SimpleGrid,
     Stack,
     Text,
     Title,
@@ -25,6 +25,7 @@ import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { SettingsPage } from '../common/Settings/SettingsPage';
+import AnalyticsDashboardCard from './AnalyticsDashboardCard';
 
 const LightdashAnalyticsPanel = ({
     activeProjectUuid,
@@ -179,7 +180,12 @@ const LightdashAnalyticsPanel = ({
             {status.isSuccess && analyticsProject && (
                 <SettingsCard>
                     <Stack gap="md">
-                        <Title order={5}>Dashboards</Title>
+                        <Group gap="xs">
+                            <Title order={5}>Dashboards</Title>
+                            {dashboards.isSuccess && (
+                                <Badge>{dashboards.data.length}</Badge>
+                            )}
+                        </Group>
                         {dashboards.isLoading ? (
                             <EmptyStateLoader title="Loading dashboards" />
                         ) : dashboards.isError ? (
@@ -190,28 +196,18 @@ const LightdashAnalyticsPanel = ({
                                 {dashboards.error.error.message}
                             </Callout>
                         ) : dashboards.data?.length ? (
-                            dashboards.data.map((dashboard, index) => (
-                                <Stack key={dashboard.uuid} gap="xs">
-                                    {index > 0 && <Divider />}
-                                    <Anchor
-                                        component={Link}
-                                        to={`/projects/${analyticsProject.slug ?? analyticsProject.projectUuid}/dashboards/${dashboard.slug}/view`}
-                                    >
-                                        {dashboard.name}
-                                    </Anchor>
-                                    {dashboard.description && (
-                                        <Text fz="sm" c="dimmed">
-                                            {dashboard.description}
-                                        </Text>
-                                    )}
-                                    <Text fz="xs" c="dimmed">
-                                        Updated{' '}
-                                        {new Date(
-                                            dashboard.updatedAt,
-                                        ).toLocaleString()}
-                                    </Text>
-                                </Stack>
-                            ))
+                            <SimpleGrid cols={{ base: 1, sm: 2, xl: 3 }}>
+                                {dashboards.data.map((dashboard) => (
+                                    <AnalyticsDashboardCard
+                                        key={dashboard.uuid}
+                                        dashboard={dashboard}
+                                        projectUrlIdentifier={
+                                            analyticsProject.slug ??
+                                            analyticsProject.projectUuid
+                                        }
+                                    />
+                                ))}
+                            </SimpleGrid>
                         ) : (
                             <Text fz="sm" c="dimmed">
                                 No dashboards yet. Save a dashboard in your

@@ -112,7 +112,7 @@ type ResourceVerifiedInlineBadgeProps = {
  * Inline verified badge rendered next to the resource title (Instagram-style).
  * Renders nothing when the resource is not verified.
  */
-const ResourceVerifiedInlineBadge = ({
+export const ResourceVerifiedInlineBadge = ({
     verification,
 }: ResourceVerifiedInlineBadgeProps) => {
     if (!verification) {

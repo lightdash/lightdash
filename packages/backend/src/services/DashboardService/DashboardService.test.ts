@@ -175,6 +175,9 @@ const contentAsCodeProjectSettingsModel = { get: vi.fn() };
 const contentAsCodeSnapshotModel = { get: vi.fn() };
 
 const contentVerificationModel = {
+    getByContentUuids: vi.fn(
+        async (): Promise<Map<string, ContentVerificationInfo>> => new Map(),
+    ),
     getByContent: vi.fn(
         async (): Promise<ContentVerificationInfo | null> => null,
     ),
@@ -1117,6 +1120,52 @@ describe('DashboardService', () => {
             undefined,
         );
     });
+    test('loads verification in one batch for accessible dashboards only', async () => {
+        const visible = [
+            { ...dashboardsDetails[0], uuid: 'verified-dashboard' },
+            { ...dashboardsDetails[0], uuid: 'unverified-dashboard' },
+        ];
+        dashboardModel.getAllByProject.mockResolvedValueOnce([
+            ...visible,
+            {
+                ...dashboardsDetails[0],
+                uuid: 'hidden-dashboard',
+                spaceUuid: 'unresolvable-space',
+            },
+        ]);
+        spacePermissionService.resolveAccessBatch.mockResolvedValueOnce([
+            {
+                target: { spaceUuid: visible[0].spaceUuid },
+                context: {
+                    ...lookupSpaceContext(visible[0].spaceUuid),
+                    directOnly: false,
+                },
+            },
+        ]);
+        const verification: ContentVerificationInfo = {
+            verifiedBy: {
+                userUuid: user.userUuid,
+                firstName: user.firstName,
+                lastName: user.lastName,
+            },
+            verifiedAt: new Date('2026-10-26T00:00:00Z'),
+        };
+        contentVerificationModel.getByContentUuids.mockResolvedValueOnce(
+            new Map([['verified-dashboard', verification]]),
+        );
+
+        expect(await service.getAllByProject(user, projectUuid)).toEqual([
+            { ...visible[0], verification },
+            { ...visible[1], verification: null },
+        ]);
+        expect(
+            contentVerificationModel.getByContentUuids,
+        ).toHaveBeenCalledTimes(1);
+        expect(contentVerificationModel.getByContentUuids).toHaveBeenCalledWith(
+            ContentType.DASHBOARD,
+            ['verified-dashboard', 'unverified-dashboard'],
+        );
+    });
     test('should create dashboard', async () => {
         const result = await service.create(user, projectUuid, createDashboard);
 
@@ -1851,6 +1900,9 @@ describe('DashboardService', () => {
         );
 
         expect(result).toEqual([]);
+        expect(
+            contentVerificationModel.getByContentUuids,
+        ).not.toHaveBeenCalled();
     });
     test('should preserve dashboard verification when verifier updates details', async () => {
         contentVerificationModel.getByContent.mockResolvedValue({
