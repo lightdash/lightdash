@@ -272,6 +272,7 @@ import {
     getLegacyPrimaryExploreNames,
     type ExploreNaming,
 } from './exploreNameAllocation';
+import { validateExplorePublication } from './explorePublication';
 import { normalizeStoredDbtConnection } from './normalizeStoredDbtConnection';
 import { omitProjectUuid, replaceProjectUuid } from './previewContent';
 import Transaction = Knex.Transaction;
@@ -4448,7 +4449,12 @@ export class ProjectModel {
                         const lockedStagedRows = await trx(
                             CachedExploreStagingTableName,
                         )
-                            .select<{ name: string }[]>('name')
+                            .select<
+                                {
+                                    name: string;
+                                    explore: Explore | ExploreError;
+                                }[]
+                            >('name', 'explore')
                             .where({
                                 save_uuid: saveUuid,
                                 project_uuid: projectUuid,
@@ -4464,6 +4470,31 @@ export class ProjectModel {
                                 'Cached explore staging name set mismatch',
                             );
                         }
+                        await lockedStagedRows.reduce(async (previous, row) => {
+                            await previous;
+                            const validated = validateExplorePublication(
+                                row.explore,
+                                row.name,
+                            );
+                            if (validated !== row.explore) {
+                                await trx(CachedExploreStagingTableName)
+                                    .where({
+                                        save_uuid: saveUuid,
+                                        project_uuid: projectUuid,
+                                        name: row.name,
+                                    })
+                                    .update({
+                                        explore: JSON.stringify(validated),
+                                        table_names: [],
+                                    });
+                                const index =
+                                    named?.explores.findIndex(
+                                        (explore) => explore.name === row.name,
+                                    ) ?? -1;
+                                if (named && index >= 0)
+                                    named.explores[index] = validated;
+                            }
+                        }, Promise.resolve());
                         // Explores that survive a compile keep their uuid so rows
                         // that reference them (pre-aggregate registry and
                         // materializations, changes) are not cascade-deleted.
