@@ -13,7 +13,7 @@
     border-radius: var(--mantine-radius-xl);
 }
 
-.capsule[data-folded] {
+.capsule[data-collapsed] {
     padding-right: 10px;
 }
 
@@ -27,7 +27,7 @@
     cursor: pointer;
 }
 
-/* Unfolded, the pills arrive one after the other, up to eight */
+/* Expanded, the pills arrive one after the other, up to eight */
 .pillsEnter {
     --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
     --controls-duration-arrive: 0.28s;

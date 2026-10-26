@@ -63,6 +63,7 @@ import {
     RailContractClasses,
     type RailContractClassNames,
 } from './railContractClasses';
+import { RAIL_ADD_SELECTOR } from './railSelectors';
 import {
     canKeepFilterRule,
     findFilterRule,
@@ -92,8 +93,6 @@ const ADD_SELECTOR =
     '[data-filter-actions] > button[data-dashboard-filter-control]';
 // `FilterPill` sets it
 const PILL_ATTRIBUTE = 'data-controls-pill';
-// The rail header's "Add" menu button
-const RAIL_ADD_SELECTOR = '[data-controls-new-section]';
 
 // `FilterRow` sets it, on the rail's closed rows
 const ROW_ATTRIBUTE = 'data-controls-row';

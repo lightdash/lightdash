@@ -70,10 +70,13 @@ import { FieldsAndTiles } from './FieldsAndTiles';
 import { FilterRow, FilterTypeIcon } from './FilterRow';
 import { FilterSettings } from './FilterSettings';
 import { getFilterFields } from './peers';
-import { getTilesSummary } from './railSummaries';
-import { SectionHeader } from './SectionHeader';
+import {
+    RAIL_ADD_SELECTOR,
+    RAIL_LABEL_SELECTOR,
+    railRowSelector,
+    sectionMenuSelector,
+} from './railSelectors';
 
-const NEW_SECTION_BUTTON = '[data-controls-new-section]';
 // The target is what is under the pointer; the keyboard sensor has none,
 // so it falls back to the nearest centre
 const underPointer: CollisionDetection = (args) => {
@@ -82,8 +85,8 @@ const underPointer: CollisionDetection = (args) => {
 };
 // Nothing moves until the drop: the overlay and `data-over` are the feedback
 const noDisplacement: SortingStrategy = () => null;
-const sectionMenuSelector = (sectionId: string) =>
-    `[data-controls-section="${sectionId}"] [data-controls-section-menu]`;
+import { getTilesSummary } from './railSummaries';
+import { SectionHeader } from './SectionHeader';
 import {
     groupRulesBySection,
     moveRuleToSection,
@@ -325,7 +328,7 @@ const OpenControlSidebar: FC = () => {
     );
     const canAddFilters = useControlsSidebarSelector((c) => c.canAddFilters);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
-    // Hidden from viewers by the editor's eye
+    // The footer's viewers switch, off: viewers get no "Add filter"
     const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
     const getUiString = useUiStrings();
     const dispatch = useDashboardDispatch();
@@ -384,7 +387,7 @@ const OpenControlSidebar: FC = () => {
         }),
     );
     // The menu and the name input unmount with focus on them: it goes to the
-    // section's menu button, or the footer once the section is gone
+    // section's menu button, or the header's "Add" once the section is gone
     const focusAfter = useRef<string | null>(null);
     useLayoutEffect(() => {
         if (focusAfter.current === null) return;
@@ -412,19 +415,21 @@ const OpenControlSidebar: FC = () => {
             section.name || getUiString('filters.rail.untitledSection'),
         ]),
     );
+    const fieldOf = ({ rule, group }: SectionRule) =>
+        getDashboardFilterField<DashboardFilterableField>(
+            group === 'metrics'
+                ? allFilterableMetricsMap
+                : allFilterableFieldsMap,
+            rule,
+            filterableFieldsByTileUuid,
+        ) ?? null;
     const ruleNames = new Map(
         grouped.flatMap(({ rules }) =>
-            rules.map(({ rule, group }): [string, string] => [
-                rule.id,
-                rule.label ||
-                    getDashboardFilterField<DashboardFilterableField>(
-                        group === 'metrics'
-                            ? allFilterableMetricsMap
-                            : allFilterableFieldsMap,
-                        rule,
-                        filterableFieldsByTileUuid,
-                    )?.label ||
-                    rule.target.fieldId,
+            rules.map((sectionRule): [string, string] => [
+                sectionRule.rule.id,
+                sectionRule.rule.label ||
+                    fieldOf(sectionRule)?.label ||
+                    sectionRule.rule.target.fieldId,
             ]),
         ),
     );
@@ -439,14 +444,6 @@ const OpenControlSidebar: FC = () => {
         grouped.find(({ rules }) =>
             rules.some(({ rule }) => rule.id === ruleId),
         )?.section?.id ?? null;
-    const fieldOf = ({ rule, group }: SectionRule) =>
-        getDashboardFilterField<DashboardFilterableField>(
-            group === 'metrics'
-                ? allFilterableMetricsMap
-                : allFilterableFieldsMap,
-            rule,
-            filterableFieldsByTileUuid,
-        ) ?? null;
 
     const handleDragStart = ({ active }: DragStartEvent) =>
         setDraggedId(String(active.id));
@@ -497,8 +494,8 @@ const OpenControlSidebar: FC = () => {
         // The menu button is going away: focus goes to the expanded filter's
         // label when the section held it, else to the header's "Add"
         focusAfter.current = holdsEditor
-            ? '[data-controls-label]'
-            : NEW_SECTION_BUTTON;
+            ? RAIL_LABEL_SELECTOR
+            : RAIL_ADD_SELECTOR;
         dispatch(dashboardEditActions.removeControlSection(sectionId));
         if (!hasMembers) return;
         setDashboardFilters((filters) =>
@@ -526,7 +523,7 @@ const OpenControlSidebar: FC = () => {
     const cancelName = () => {
         if (nameEdit === null) return;
         focusAfter.current = nameEdit.isNew
-            ? NEW_SECTION_BUTTON
+            ? RAIL_ADD_SELECTOR
             : sectionMenuSelector(nameEdit.id);
         setNameEdit(null);
     };
@@ -549,10 +546,10 @@ const OpenControlSidebar: FC = () => {
         const nextId = rowIds[index + 1] ?? rowIds[index - 1];
         focusAfter.current =
             nextId === undefined
-                ? NEW_SECTION_BUTTON
+                ? RAIL_ADD_SELECTOR
                 : nextId === filterId
-                  ? '[data-controls-label]'
-                  : `[data-controls-row="${nextId}"]`;
+                  ? RAIL_LABEL_SELECTOR
+                  : railRowSelector(nextId);
         removeFilterById(ruleId);
     };
     // A viewer's saved row (in a section) opens nothing and has no grip

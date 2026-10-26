@@ -35,8 +35,8 @@ type CapsuleProps = {
     popover: PillPopoverState;
 };
 
-/** A section with more members than this (on any tab) starts folded */
-const FOLDED_BY_DEFAULT_ABOVE = 6;
+/** A section with more members than this (on any tab) starts collapsed */
+const COLLAPSED_BY_DEFAULT_ABOVE = 6;
 
 const SectionGroup: FC<CapsuleProps> = ({
     section,
@@ -50,7 +50,7 @@ const SectionGroup: FC<CapsuleProps> = ({
     const summaryId = useId();
     const setCount = visibleRules.filter(hasFilterValueSet).length;
     return (
-        <Box className={classes.capsule} data-folded={!isOpen || undefined}>
+        <Box className={classes.capsule} data-collapsed={!isOpen || undefined}>
             <UnstyledButton
                 className={`${classes.toggle} mantine-focus-auto`}
                 aria-expanded={isOpen}
@@ -66,7 +66,7 @@ const SectionGroup: FC<CapsuleProps> = ({
                     {section.name}
                 </Text>
             </UnstyledButton>
-            {/* Mounted on unfold, so its pills arrive; `contents` keeps them
+            {/* Mounted on expand, so its pills arrive; `contents` keeps them
                 in the capsule's own flow */}
             {isOpen ? (
                 <Box display="contents" className={classes.pillsEnter}>
@@ -95,8 +95,8 @@ type Props = {
 // The filter area of a dashboard with sections: the unsectioned
 // pass first (Add, the unsectioned saved pills, the viewer's own), then one
 // outlined capsule per section with a member on this tab: its toggle, then
-// its pills inline. A fold is local state keyed by section id, as the ids
-// whose fold differs from their default; one saved popover is open across
+// its pills inline. Collapsing is local state keyed by section id, as the
+// ids whose state differs from their default; one saved popover is open across
 // every pass
 export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
@@ -138,8 +138,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
               },
           );
     const isOpen = (section: DashboardControlSection, total: number) =>
-        !(total > FOLDED_BY_DEFAULT_ABOVE) !== flippedIds.has(section.id);
-    // A popover in a folded or hidden section is closed with it
+        !(total > COLLAPSED_BY_DEFAULT_ABOVE) !== flippedIds.has(section.id);
+    // A popover in a collapsed or hidden section is closed with it
     const sectionOfOpenPopover = groupRulesBySection(
         dashboardFilters,
         sections,

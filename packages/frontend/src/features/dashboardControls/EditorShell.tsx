@@ -25,6 +25,7 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import classes from './ControlSidebar.module.css';
 import { useRailContractClasses } from './railContractClasses';
+import { RAIL_ADD_SELECTOR } from './railSelectors';
 import { UNSECTIONED_TARGET_ID } from './sections';
 import { useRailTop } from './useRailTop';
 
@@ -78,9 +79,7 @@ export const EditorShell: FC<Props> = ({
     const refocusAdd = () =>
         setTimeout(() => {
             if (document.activeElement !== document.body) return;
-            document
-                .querySelector<HTMLElement>('[data-controls-new-section]')
-                ?.focus();
+            document.querySelector<HTMLElement>(RAIL_ADD_SELECTOR)?.focus();
         });
     return (
         <Paper

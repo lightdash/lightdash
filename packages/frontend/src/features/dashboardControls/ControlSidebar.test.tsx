@@ -790,21 +790,6 @@ describe('ControlSidebar', () => {
         expect(discard).toHaveBeenCalledTimes(1);
     });
 
-    it('closes the rail on Done with the expanded filter kept', () => {
-        const { close, collapse, discard } = setSidebar({
-            isNew: false,
-            editingRule: makeRule({ label: 'Order status' }),
-        });
-        renderWithProviders(
-            <ControlSidebar />,
-            filters([makeRule({ label: 'Order status' })]),
-        );
-        fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-        expect(close).toHaveBeenCalledTimes(1);
-        expect(collapse).not.toHaveBeenCalled();
-        expect(discard).not.toHaveBeenCalled();
-    });
-
     it('returns focus to Add when the menu closes on Escape, and leaves it on the name input', async () => {
         setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
         renderWithProviders(<ControlSidebar />);

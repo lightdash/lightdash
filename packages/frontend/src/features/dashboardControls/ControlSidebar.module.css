@@ -68,7 +68,7 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    /* The last row's border sits under the footer's, so the two read as one */
+    /* An expanded last filter's bottom hairline sits under the footer's */
     margin-bottom: -1px;
 }
 

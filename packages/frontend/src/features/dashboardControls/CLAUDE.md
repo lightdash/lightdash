@@ -141,7 +141,7 @@ In `FilterConfiguration/`:
   the shipped view bar has no requirements button, or `SectionedFilters`
   once the dashboard has sections (see "Sections"). While the rail is open (`isRailOpen`, a filter
   expanded or not) all three fold away: the rail lists the filters and its
-  footer has "Add filter". In their place `EditingStrip` says what is being
+  header has the "Add" menu. In their place `EditingStrip` says what is being
   edited, after the bar's own filter icon: "Editing filters" (semibold,
   ink), a vertical `Divider`, then the edited filter's name (semibold, the
   rail's naming, no type icon) and " · N tiles" (dimmed). N is
@@ -1116,24 +1116,25 @@ the language map, as tab names are.
   name input) over its members as read-only `FilterRow`s (`isOwn` false,
   no `SortableRow`, dimmed, tooltip `filters.rail.savedFilterReadOnly`):
   they are set from the bar. No "New section" in the "Add" menu. The same `collapsedIds` state collapses them.
-- "New section" in the header's "Add" menu folds the expanded filter
+- "New section" in the header's "Add" menu collapses the expanded filter
   (`collapse()`, as `openNew` does; a new filter with no field yet stays
-  open, since folding it would drop it and the rail) and opens a section header with its name
+  open, since collapsing it would drop it and the rail) and opens a section header with its name
   input, held only in the rail's `nameEdit` state until a name is committed
   (Enter or blur with a name); Escape or an empty name drops it. The open
-  rail is its own component (`OpenControlSidebar`), so `nameEdit`, the
-  folds and the drag reset when the rail closes. That header
+  rail is its own component (`OpenControlSidebar`), so `nameEdit`,
+  `collapsedIds` and the drag reset when the rail closes. That header
   (`isNew`) has no menu and a disabled chevron, since a click on either would
   blur the input and drop the section. Rename opens the same input; an
   empty rename keeps the old name. The input and the grips
   carry `data-own-escape`, so Escape does not close the rail. "Remove
   section" removes the section and strips `sectionId` from its members, in
-  one handler, with no confirm; it leaves focus where it is when an input
-  in the rail has it (the expanded filter's label). Focus after the input or the menu unmounts
-  (`focusAfter`, a selector read in a layout effect): the section's menu
-  button (`data-controls-section-menu`) after a commit or a cancelled
-  rename, the header's "Add" button after a remove or a dropped new
-  section. A drop that moves nothing marks nothing changed.
+  one handler, with no confirm. Focus after the input or the menu unmounts
+  (`focusAfter`, a selector read in a layout effect, selectors in
+  `railSelectors.ts` shared with the provider's `FocusReturn` fallback and
+  the shell's menu close): the section's menu button
+  (`data-controls-section-menu`) after a commit or a cancelled rename, the
+  expanded filter's label after removing the section that held it, else
+  the header's "Add" button after a remove or a dropped new section. A drop that moves nothing marks nothing changed.
 - Drag: one `DndContext` around `EditorShell`, with one `SortableContext`
   in the body over the headers and rows on screen, in display order
   (`PointerSensor` at 5px and `KeyboardSensor` with
@@ -1175,21 +1176,22 @@ the language map, as tab names are.
   capsule renders while the filters load. A capsule (`.capsule` in
   `SectionedFilters.module.css`: no fill, a `default-border` outline, `xl`
   radius, 36px tall with `0 4px` padding and `margin-block: -4px` so it is
-  centred on the bar's 28px pill line, 10px on the right when folded)
+  centred on the bar's 28px pill line, 10px on the right when collapsed)
   holds its toggle (`.toggle`, an `UnstyledButton` 28px tall: a 14px
-  dimmed chevron, down open and right folded, and the name in `sm` 600,
+  dimmed chevron, down open and right collapsed, and the name in `sm` 600,
   normal case, `aria-expanded`) and, open, `FilterPills
   sectionId={section.id}` in its own flow (a `display: contents`
   `.pillsEnter` box, whose children arrive with opacity and a 6px
-  `translateX`, 20ms apart up to eight; folding animates nothing); folded,
+  `translateX`, 20ms apart up to eight; collapsing animates nothing);
+  collapsed,
   the dimmed `filters.sectionSummary` ("{set} of {total} set",
   `hasFilterValueSet` over the visible members, `aria-describedby`) inside
   the same outline. The bar's own gap separates capsules. A section with
-  more than `FOLDED_BY_DEFAULT_ABOVE` (6) members in all, on any tab, starts
-  folded, the rest open; the fold is local state keyed by section id (the
-  ids whose fold differs from that default), nothing saved and nothing in
-  the URL. The shared popover id is dropped while its pill's section is
-  folded or off the tab. `FilterPills` threads `sectionId` (`undefined`: every
+  more than `COLLAPSED_BY_DEFAULT_ABOVE` (6) members in all, on any tab,
+  starts collapsed, the rest open; the state is local, keyed by section id
+  (`flippedIds`: the ids whose state differs from that default), nothing
+  saved and nothing in the URL. The shared popover id is dropped while its
+  pill's section is collapsed or off the tab. `FilterPills` threads `sectionId` (`undefined`: every
   saved rule, the default; `null`; a string) and a shared `popover` state to
   `ViewerSavedPills`, which filters with `isRuleInSection` and keeps the
   saved index for remove and update (the editor's pills filter the same way,
