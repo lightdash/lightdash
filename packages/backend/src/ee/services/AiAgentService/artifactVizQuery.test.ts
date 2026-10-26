@@ -127,6 +127,9 @@ const buildService = () => {
         featureFlagService,
         analytics: { track: vi.fn() },
         lightdashConfig: { ai: { copilot: { maxQueryLimit: 5000 } } },
+        aiOrganizationSettingsService: {
+            getMaxQueryLimit: vi.fn().mockResolvedValue(5000),
+        },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     return { service, aiAgentModel, asyncQueryService };
 };

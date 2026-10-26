@@ -343,20 +343,13 @@ export const AiGeneralSettingsPage = () => {
                                     </>
                                 )}
 
-                                {settings.instanceMaxQueryLimit !==
-                                    undefined && (
-                                    <>
-                                        <Divider />
-                                        <MaxQueryLimitRow
-                                            current={
-                                                settings.maxQueryLimit ?? null
-                                            }
-                                            instanceDefault={
-                                                settings.instanceMaxQueryLimit
-                                            }
-                                        />
-                                    </>
-                                )}
+                                <Divider />
+                                <MaxQueryLimitRow
+                                    current={settings.maxQueryLimit}
+                                    instanceDefault={
+                                        settings.instanceMaxQueryLimit
+                                    }
+                                />
                             </Stack>
                         </SettingsCard>
                     </Section>

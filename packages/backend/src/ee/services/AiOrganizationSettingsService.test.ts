@@ -53,6 +53,7 @@ const settingsWithKeys: AiOrganizationSettings = {
     },
     bedrockConfig: null,
     providerBaseUrls: { anthropic: null, google: null, openai: null },
+    maxQueryLimit: null,
 };
 
 describe('validateDeepResearchLimits', () => {

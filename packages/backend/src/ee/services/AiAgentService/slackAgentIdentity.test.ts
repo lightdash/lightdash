@@ -168,6 +168,9 @@ test.each(agentActionTestCases)(
                 siteUrl: 'https://lightdash.example',
                 ai: { copilot: { maxQueryLimit: 500 } },
             },
+            aiOrganizationSettingsService: {
+                getMaxQueryLimit: vi.fn().mockResolvedValue(500),
+            },
             aiAgentModel: {
                 findThreadReferencedArtifacts: vi
                     .fn()
@@ -330,6 +333,9 @@ test('Slack table reads carry the loaded agent UUID and installed app id', async
         lightdashConfig: {
             siteUrl: 'https://lightdash.example',
             ai: { copilot: { maxQueryLimit: 500 } },
+        },
+        aiOrganizationSettingsService: {
+            getMaxQueryLimit: vi.fn().mockResolvedValue(500),
         },
         aiAgentModel: {
             findThreadReferencedArtifacts: vi.fn().mockResolvedValue(new Map()),

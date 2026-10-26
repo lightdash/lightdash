@@ -524,10 +524,7 @@ type AiAgentToolsServiceDependencies = {
     // Lazy to break the construction cycle: schedulerAiAugmentationService →
     // aiAgentService → aiAgentToolsService.
     getSchedulerAiAugmentationService: () => SchedulerAiAugmentationService;
-    lightdashConfig: {
-        siteUrl: string;
-        ai: { copilot: { maxQueryLimit: number } };
-    };
+    lightdashConfig: { siteUrl: string };
     aiOrganizationSettingsService: Pick<
         AiOrganizationSettingsService,
         'getMaxQueryLimit'

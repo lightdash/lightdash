@@ -2,10 +2,11 @@ import {
     MAX_AI_MAX_QUERY_LIMIT,
     MIN_AI_MAX_QUERY_LIMIT,
 } from '@lightdash/common';
-import { Box, Flex, Text, Title } from '@mantine/core';
+import { Box, Text, Title } from '@mantine/core';
 import { useState } from 'react';
 import { NumberInput } from '../../../../../../components/common/NumberInput';
 import { useUpdateAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
+import classes from './MaxQueryLimitRow.module.css';
 
 export const MaxQueryLimitRow = ({
     current,
@@ -26,12 +27,7 @@ export const MaxQueryLimitRow = ({
     };
 
     return (
-        <Flex
-            justify="space-between"
-            direction={{ base: 'column', sm: 'row' }}
-            align="flex-start"
-            gap="md"
-        >
+        <Box className={classes.row}>
             <Box maw={620}>
                 <Title order={5} mb={4}>
                     Max rows per query
@@ -45,7 +41,7 @@ export const MaxQueryLimitRow = ({
                 </Text>
             </Box>
             <NumberInput
-                w={{ base: '100%', sm: 160 }}
+                className={classes.input}
                 size="xs"
                 aria-label="Max rows per query"
                 min={MIN_AI_MAX_QUERY_LIMIT}
@@ -63,6 +59,6 @@ export const MaxQueryLimitRow = ({
                     }
                 }}
             />
-        </Flex>
+        </Box>
     );
 };

@@ -333,6 +333,7 @@ describe('AiAgentReviewClassifierService', () => {
             requireExplicitSlackChannelLinking: false,
             defaultAiAgentModelConfig: null,
             modelVisibility: null,
+            maxQueryLimit: null,
             providerApiKeysSet: {
                 anthropic: false,
                 google: false,
@@ -529,6 +530,7 @@ describe('AiAgentReviewClassifierService', () => {
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: null,
+                maxQueryLimit: null,
                 providerApiKeysSet: {
                     anthropic: false,
                     google: false,

@@ -60,4 +60,6 @@ export const agentSettingsMcpMock =
         providerBaseUrls: { anthropic: null, google: null, openai: null },
         bedrockModelOptions: [],
         defaultAiAgentModelOptions: [],
+        maxQueryLimit: null,
+        instanceMaxQueryLimit: 5000,
     });

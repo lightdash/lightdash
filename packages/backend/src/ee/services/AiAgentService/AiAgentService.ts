@@ -4245,7 +4245,6 @@ export class AiAgentService extends BaseService {
         return prompt ? querySurfaceFromPrompt(prompt) : QuerySurface.APP;
     }
 
-    // SessionUser.organizationUuid is optional; fall back to the instance cap.
     private async getMaxQueryLimit(
         organizationUuid: string | undefined,
     ): Promise<number> {
