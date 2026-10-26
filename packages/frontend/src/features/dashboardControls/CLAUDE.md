@@ -1194,8 +1194,12 @@ the language map, as tab names are.
   then `FilterPills sectionId={null}` (the unsectioned saved pills and the
   viewer's own pills, which are never in a section); the sections are
   visible on this tab (`groupRulesBySection`, `useFilterTabPlacement` /
-  `isFilterHiddenOnTab`); a section with none renders nothing, and no
-  capsule renders while the filters load. A capsule (`.capsule` in
+  `isFilterHiddenOnTab`); for a viewer a section with none renders nothing,
+  while an editor's bar renders every section, so each is a drop target: a
+  section with no member on this tab shows, in place of its pills or fold
+  summary, the dimmed count of all its members from `formatSectionCount`
+  ("0 filters" when empty, the plain total when they are all hidden here),
+  the toggle described by it. No capsule renders while the filters load. A capsule (`.capsule` in
   `SectionedFilters.module.css`: no fill, a `default-border` outline, `xl`
   radius, 36px tall at one line with `3px 4px` padding, an `8px 6px` gap so
   wrapped lines keep the bar's row spacing, and `margin-block: -4px` so it

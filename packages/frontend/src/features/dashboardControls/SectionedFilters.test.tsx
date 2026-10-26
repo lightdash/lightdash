@@ -211,6 +211,7 @@ const renderSectioned = (
                 controlSections: [
                     { id: 'a', name: 'Dates' },
                     { id: 'b', name: 'Regions' },
+                    { id: 'c', name: 'Empty' },
                 ],
             },
         },
@@ -596,6 +597,30 @@ describe('SectionedFilters', () => {
             expect(slot).not.toBeNull();
             expect(folded.parentElement).toHaveAttribute('data-over');
             expect(slot).toHaveStyle({ width: '120px', height: '28px' });
+        });
+
+        it('renders every section, an empty one with its count, and takes a drop on it', () => {
+            renderSectioned(
+                [rule('one', 'a'), rule('two', 'b', onTabOne)],
+                'tab-2',
+            );
+            const empty = screen.getByRole('button', { name: 'Empty' });
+            const count = screen.getByText('0 filters');
+            expect(empty.parentElement).toContainElement(count);
+            expect(empty).toHaveAttribute('aria-describedby', count.id);
+            // Members all hidden on this tab: the plain total
+            expect(
+                screen.getByRole('button', { name: 'Regions' }).parentElement,
+            ).toContainElement(screen.getByText('1 filter'));
+            expect(
+                document.querySelectorAll('[class*="capsule"]'),
+            ).toHaveLength(3);
+
+            act(() => mockDragEnd.handlers[0](dragEvent('one', 'c')));
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['one', 'c'],
+                ['two', 'b'],
+            ]);
         });
 
         it('drops a pill on the first button: it leaves its section', () => {

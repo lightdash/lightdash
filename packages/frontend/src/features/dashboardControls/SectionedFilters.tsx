@@ -99,17 +99,19 @@ const SectionCapsule: FC<CapsuleProps> = ({
         isOver && !rules.some(({ rule }) => rule.id === active?.id);
     // The capsule makes room: a slot the dragged pill's size at its end
     const slotRect = active?.rect.current.initial;
+    // Nothing to show on this tab (an editor's bar only): the member count
+    const hasVisible = visibleRules.length > 0;
     return (
         <Box
             ref={setNodeRef}
             className={classes.capsule}
-            data-collapsed={!isOpen || undefined}
+            data-collapsed={!(isOpen && hasVisible) || undefined}
             data-over={isForeignOver || undefined}
         >
             <UnstyledButton
                 className={`${classes.toggle} mantine-focus-auto`}
                 aria-expanded={isOpen}
-                aria-describedby={isOpen ? undefined : summaryId}
+                aria-describedby={isOpen && hasVisible ? undefined : summaryId}
                 onClick={onToggle}
             >
                 <MantineIcon
@@ -123,7 +125,11 @@ const SectionCapsule: FC<CapsuleProps> = ({
             </UnstyledButton>
             {/* Mounted on expand, so its pills arrive; `contents` keeps them
                 in the capsule's own flow */}
-            {isOpen ? (
+            {!hasVisible ? (
+                <Text span id={summaryId} fz="sm" c="dimmed">
+                    {formatSectionCount(getUiString, rules.length)}
+                </Text>
+            ) : isOpen ? (
                 <Box display="contents" className={classes.pillsEnter}>
                     <FilterPills
                         activeTabUuid={activeTabUuid}
@@ -233,7 +239,9 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
             return next;
         });
 
-    // No groups while loading: the unsectioned pass shows the skeletons
+    // No groups while loading: the unsectioned pass shows the skeletons. A
+    // viewer sees only the sections with a member on this tab; an editor
+    // every section, so each is a drop target
     const groups = isLoading
         ? []
         : groupRulesBySection(dashboardFilters, sections).flatMap(
@@ -248,7 +256,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
                                   activeTabUuid,
                               ),
                       );
-                  return visibleRules.length === 0
+                  return visibleRules.length === 0 && isViewer
                       ? []
                       : [{ section, rules, visibleRules }];
               },
