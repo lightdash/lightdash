@@ -108,16 +108,9 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
         },
         skills: ['repository-writeback'],
     },
-    codingAgent: {
-        description: 'Edit any writable repository through pull requests',
-        when: (input) => input.enableCodingAgent,
-        tools: ['editRepo'],
-        section: null,
-        skills: ['editing-source-code'],
-    },
     pullRequests: {
         description: 'List, inspect and close the pull requests of a thread',
-        when: (input) => input.enableAiWriteback || input.enableCodingAgent,
+        when: (input) => input.enableAiWriteback,
         tools: ['listWorkstreams', 'closePullRequest', 'getPullRequestDiff'],
         section: null,
         skills: [],

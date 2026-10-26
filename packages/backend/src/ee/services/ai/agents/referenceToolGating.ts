@@ -83,7 +83,6 @@ const REPOSITORY_CHANGE_TOOLS = new Set([
     'analyzeFieldImpact',
     'editDbtProject',
     'editProjectContext',
-    'editRepo',
     'syncDbtProject',
     'exploreRepo',
     'discoverRepos',

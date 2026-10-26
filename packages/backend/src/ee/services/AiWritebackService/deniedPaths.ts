@@ -49,12 +49,6 @@ const CI_PATH_PATTERNS: RegExp[] = [
 
 const DENIED_PATH_PATTERNS = [...SECRET_PATH_PATTERNS, ...CI_PATH_PATTERNS];
 
-/**
- * Thrown when a staged commit touches a denied path; no PR is opened. Extends
- * {@link ForbiddenError} so it flows through the project's error categorisation
- * (Sentry filtering, logging) — `editRepo`'s classifier checks `DeniedPathError`
- * before `ForbiddenError`, so it still maps to the `denied_path` card code.
- */
 export class DeniedPathError extends ForbiddenError {
     /** The offending repo-relative paths. */
     readonly paths: string[];

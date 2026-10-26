@@ -248,3 +248,27 @@ describe('AI access tool refusals', () => {
         ).toMatchObject({ toolResult: { structuredContent: { refusal } } });
     });
 });
+
+describe('retired repository tool streams', () => {
+    it('renders an old pod result without an active tool definition', () => {
+        const toolOutput = {
+            result: 'Opened a pull request',
+            metadata: {
+                status: 'success',
+                prUrl: 'https://github.com/acme/repo/pull/1',
+            },
+            structuredContent: {
+                repository: 'acme/repo',
+                pullRequestAction: 'opened',
+                agentSummary: 'Updated the repository',
+            },
+        };
+        expect(
+            parseStreamRawToolResult({
+                toolName: 'editRepo',
+                toolArgs: { repoTarget: 'acme/repo' },
+                toolOutput,
+            }),
+        ).toMatchObject({ toolName: 'editRepo', toolResult: toolOutput });
+    });
+});

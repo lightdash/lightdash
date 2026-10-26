@@ -243,7 +243,6 @@ export class GitlabProvider implements GitProvider {
             title,
             user,
             setStage,
-            onRemoteCommitted: args.onRemoteCommitted,
             assertStagedChangesAllowed: args.assertStagedChangesAllowed,
             assertPublishAllowed: args.assertPublishAllowed,
         });
@@ -287,7 +286,6 @@ export class GitlabProvider implements GitProvider {
             title,
             user,
             setStage,
-            onRemoteCommitted: args.onRemoteCommitted,
             assertStagedChangesAllowed: args.assertStagedChangesAllowed,
             assertPublishAllowed: args.assertPublishAllowed,
         });
@@ -429,7 +427,6 @@ export class GitlabProvider implements GitProvider {
         title,
         user,
         setStage,
-        onRemoteCommitted,
         assertStagedChangesAllowed,
         assertPublishAllowed,
     }: {
@@ -440,7 +437,6 @@ export class GitlabProvider implements GitProvider {
         title: string;
         user: SessionUser;
         setStage: SetStage;
-        onRemoteCommitted: () => Promise<void>;
         assertStagedChangesAllowed: (() => Promise<void>) | null;
         assertPublishAllowed: (() => Promise<void>) | null;
     }): Promise<LandedCommit> {
@@ -471,7 +467,6 @@ export class GitlabProvider implements GitProvider {
             password: installation.token,
             setUpstream: true,
         });
-        await onRemoteCommitted();
 
         const { stdout } = await sandbox.commands.run(
             `git -C ${CWD} rev-parse HEAD`,

@@ -6,6 +6,7 @@ import {
     mcpEditContentArgsSchema,
     parsePartialToolComposerQueriesArgs,
     toolComposerQueriesArgsSchemaPersisted,
+    toolEditRepoOutputSchema,
     toolDashboardV2ArgsSchemaPersisted,
     toolRunQueryArgsSchemaPersisted,
     toolRunQueryExpressionArgsSchema,
@@ -14,7 +15,7 @@ import {
     type ToolDefinition,
     type ToolName,
 } from '@lightdash/common';
-import { type z } from 'zod';
+import { z } from 'zod';
 import { getAiAccessRefusal } from '../components/ChatElements/aiAccessRefusal';
 
 type ParsedToolName = ToolName;
@@ -25,6 +26,7 @@ type McpStreamToolName = `mcp_${string}`;
 // resuming old threads may echo legacy template table calcs the backend still
 // executes. Parse those tools with the wide persisted schemas so they render.
 const wideInputSchemaOverrides = {
+    editRepo: z.looseObject({}),
     generateVisualization: toolRunQueryArgsSchemaPersisted
         .or(toolRunQueryExpressionArgsSchema)
         .or(toolRunQueryExpressionArgsSchemaV2),
@@ -41,16 +43,21 @@ const wideInputSchemaOverrides = {
 type ToolArgs<TName extends ToolName> =
     TName extends keyof typeof wideInputSchemaOverrides
         ? z.infer<(typeof wideInputSchemaOverrides)[TName]>
-        : z.infer<(typeof agentToolDefinitionsByName)[TName]['inputSchema']>;
-type ToolOutputSchema<TName extends ToolName> =
-    (typeof agentToolDefinitionsByName)[TName] extends ToolDefinition<
-        string,
-        z.ZodObject<z.ZodRawShape>,
-        z.ZodType,
-        infer TOutputSchema
-    >
-        ? TOutputSchema
-        : never;
+        : TName extends keyof typeof agentToolDefinitionsByName
+          ? z.infer<(typeof agentToolDefinitionsByName)[TName]['inputSchema']>
+          : never;
+type ToolOutputSchema<TName extends ToolName> = TName extends 'editRepo'
+    ? typeof toolEditRepoOutputSchema
+    : TName extends keyof typeof agentToolDefinitionsByName
+      ? (typeof agentToolDefinitionsByName)[TName] extends ToolDefinition<
+            string,
+            z.ZodObject<z.ZodRawShape>,
+            z.ZodType,
+            infer TOutputSchema
+        >
+          ? TOutputSchema
+          : never
+      : never;
 type ToolResult<TName extends ParsedToolName> = z.infer<
     NonNullable<ToolOutputSchema<TName>>
 >;
@@ -114,7 +121,7 @@ export type StreamRawToolResult = StreamRawToolCall & {
 };
 
 const isParsedToolName = (toolName: string): toolName is ParsedToolName =>
-    toolName in agentToolDefinitionsByName;
+    toolName === 'editRepo' || toolName in agentToolDefinitionsByName;
 
 const isMcpStreamToolName = (toolName: string): toolName is McpStreamToolName =>
     isAiAgentMcpToolName(toolName);
@@ -137,7 +144,9 @@ const parseToolArgs = (toolName: ParsedToolName, toolArgs: unknown) =>
 
 const parseToolOutput = (toolName: ParsedToolName, toolOutput: unknown) => {
     const outputSchema =
-        agentToolDefinitionsByName[toolName].for('agent').outputSchema;
+        toolName === 'editRepo'
+            ? toolEditRepoOutputSchema
+            : agentToolDefinitionsByName[toolName].for('agent').outputSchema;
 
     return outputSchema?.safeParse(toolOutput) ?? null;
 };

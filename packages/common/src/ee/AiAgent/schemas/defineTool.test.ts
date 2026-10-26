@@ -378,9 +378,9 @@ describe('defineTool', () => {
         ]);
     });
 
-    it('keeps ToolNameSchema aligned with agent-available definitions', () => {
+    it('keeps historical tool names alongside active definitions', () => {
         expect(new Set(ToolNameSchema.options)).toEqual(
-            new Set(agentToolNames),
+            new Set([...agentToolNames, 'editRepo']),
         );
     });
 });

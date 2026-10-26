@@ -23,7 +23,7 @@ A turn's loadout is on its trace: span attributes `ai.agent.loadout.{base,add_on
 2. Declare it in `skills` on the add-on that owns the tools it explains; that add-on then brings `loadSkill` through the `skills` add-on. Agent runs list and load only `loadout.skills` plus the agent's custom skills.
 3. Run `pnpm -F backend test src/ee/services/ai/loadout` and commit the updated snapshots.
 
-Example: `reading-source-code`, `repository-writeback` and `editing-source-code` hold the guidance of `repoDiscovery`, `writeback` and `codingAgent`, one each, so a skill is listed only when its tools exist. Lines that depend on the connection or the loadout (the `/dbt` root hint, the code search caveat, the no-content-tools line, pull request attribution) stay inline in their sections.
+Example: `reading-source-code` and `repository-writeback` hold the guidance of `repoDiscovery` and `writeback`, one each, so a skill is listed only when its tools exist. Lines that depend on the connection or the loadout (the `/dbt` root hint, the code search caveat, the no-content-tools line, pull request attribution) stay inline in their sections.
 
 ## Flags
 

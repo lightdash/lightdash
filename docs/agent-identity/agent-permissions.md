@@ -90,7 +90,7 @@ allowed. Missing any one refuses it.
 Editing a SQL chart's title or chart settings needs Raw SQL today, to match
 REST. We may narrow this later to edits that change the SQL.
 
-A repo-edit agent tool (`editRepo`, `editDbtProject`, MCP `run_ai_writeback`)
+A repo-edit agent tool (`editDbtProject`, MCP `run_ai_writeback`)
 needs Delete only when its change deletes or renames a file. Adding and
 changing files needs Git repository changes (dbt) alone. The check reads the
 sandbox's changes after the coding agent finishes and before anything is

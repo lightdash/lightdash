@@ -5,7 +5,7 @@ import {
     WAREHOUSE_SKILL_PATH,
 } from './constants';
 import { warehouseTypeToSkillKey } from './skills';
-import { buildGeneralSystemPrompt, buildSystemPrompt } from './templates';
+import { buildSystemPrompt } from './templates';
 
 const DBT_PROJECT_DIR = 'analytics/dbt';
 const BASE_CONTEXT = {
@@ -104,14 +104,6 @@ describe('buildSystemPrompt — dbt/SQL skill guidance', () => {
             /BEFORE writing.*dbt model SQL.*you MUST read/,
         );
     });
-
-    it('is scoped to the dbt writeback agent — absent from the general prompt', () => {
-        const general = buildGeneralSystemPrompt({
-            repository: 'acme/jaffle',
-            repoContext: null,
-        });
-        expect(general).not.toContain(EFFECTIVE_DBT_SQL_SKILL);
-    });
 });
 
 describe('buildSystemPrompt — repo context sizing', () => {
@@ -158,35 +150,6 @@ describe('buildSystemPrompt — repo context sizing', () => {
     it('emits neither block when no context could be gathered', () => {
         const prompt = buildWithContext(null);
         expect(prompt).not.toContain('<repo_context>');
-        expect(prompt).not.toContain('<repo_context_summary>');
-    });
-});
-
-describe('buildGeneralSystemPrompt — repo context sizing', () => {
-    it('directs the agent to explore when the listing was summarised', () => {
-        const prompt = buildGeneralSystemPrompt({
-            repository: 'acme/jaffle',
-            repoContext: {
-                kind: 'summarised',
-                listing: 'src/ (600 files)',
-                fileCount: 600,
-                bytes: 51200,
-            },
-        });
-        expect(prompt).toContain('<repo_context_summary>');
-        expect(prompt).toContain('Glob');
-        expect(prompt).not.toContain(
-            'rather than re-discovering paths with Glob',
-        );
-    });
-
-    it('keeps the full listing verbatim when it fits', () => {
-        const prompt = buildGeneralSystemPrompt({
-            repository: 'acme/jaffle',
-            repoContext: { kind: 'full', listing: 'src/index.ts' },
-        });
-        expect(prompt).toContain('<repo_context>');
-        expect(prompt).toContain('src/index.ts');
         expect(prompt).not.toContain('<repo_context_summary>');
     });
 });
