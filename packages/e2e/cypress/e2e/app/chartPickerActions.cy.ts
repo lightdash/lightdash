@@ -13,12 +13,7 @@ describe('Chart picker actions', () => {
         cy.findByText('First name').click();
         cy.get('table').should('contain.text', 'Unique order count');
         cy.get('button').contains('Run query').click();
-        cy.findByTestId('Chart-card-expand').click();
-        cy.findByRole('button', { name: 'Configure', exact: true }).click();
-        cy.findByRole('button', {
-            name: 'Change chart type',
-            exact: true,
-        }).click();
+        cy.findByRole('button', { name: 'Add visualization' }).click();
 
         cy.contains('button', /^Pie chart$/, { timeout: 30_000 })
             .should('be.enabled')
