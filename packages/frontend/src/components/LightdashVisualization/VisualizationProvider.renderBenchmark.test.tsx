@@ -488,7 +488,9 @@ describe('VisualizationProvider render benchmark', () => {
                 async ({ name, element, pinned }) => {
                     const result = await run(chartConfig, element, edits);
                     report(`${label} / ${name}`, result);
-                    expect(result).toEqual(pinned);
+                    expect(result.edits).toEqual(pinned.edits);
+                    // A tab's mount commits depend on async timing (CI differs by one), so only the body's are pinned
+                    expect(result.mount.body).toBe(pinned.mount.body);
                 },
             );
         },
