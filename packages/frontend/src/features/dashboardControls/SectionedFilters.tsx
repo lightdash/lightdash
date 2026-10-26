@@ -104,6 +104,8 @@ const SectionCapsule: FC<CapsuleProps> = ({
     return (
         <Box
             ref={setNodeRef}
+            role="group"
+            aria-label={section.name}
             className={classes.capsule}
             data-collapsed={!(isOpen && hasVisible) || undefined}
             data-over={isForeignOver || undefined}
