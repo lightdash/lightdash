@@ -7,7 +7,7 @@ import {
     type FilterableItem,
 } from '@lightdash/common';
 import { Accordion } from '@mantine/core';
-import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import { useCallback, useMemo, useRef, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
     selectBigNumberEditor,
@@ -52,11 +52,10 @@ export const BigNumberConditionalFormatting: FC = () => {
     }, [selectedFieldId, itemsMap]);
 
     const configIdsRef = useRef<string[]>([]);
-    useEffect(() => {
-        while (configIdsRef.current.length < activeConfigs.length) {
-            configIdsRef.current.push(uuidv4());
-        }
-    }, [activeConfigs.length]);
+    // Filled during render so a new rule keeps one key from its first render; idempotent under StrictMode
+    while (configIdsRef.current.length < activeConfigs.length) {
+        configIdsRef.current.push(uuidv4());
+    }
 
     const handleAdd = useCallback(() => {
         conditionalFormattingAdd(
@@ -94,7 +93,7 @@ export const BigNumberConditionalFormatting: FC = () => {
                 >
                     {activeConfigs.map((conditionalFormatting, index) => (
                         <BigNumberConditionalFormattingItem
-                            key={configIdsRef.current[index] ?? index}
+                            key={configIdsRef.current[index]}
                             colorPalette={colorPalette}
                             index={index + 1}
                             field={selectedField}

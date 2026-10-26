@@ -26,6 +26,12 @@ import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
 import { GaugeValueMode } from './types';
 
+// Parses Mantine's string states ('01', '') as main did, skipping a half-typed '-'
+const commitNumber = (value: number | string, commit: (n: number) => void) => {
+    const parsed = Number(value);
+    if (!Number.isNaN(parsed)) commit(parsed);
+};
+
 export type Props = {
     onClick: () => void;
     index: number;
@@ -92,8 +98,10 @@ const GaugeSectionComponent: FC<Props> = memo(
                                     label="Min value"
                                     description="Set the minimum value for the section"
                                     value={section.min}
-                                    onNumberChange={(value) =>
-                                        onUpdate(index, { min: value ?? 0 })
+                                    onChange={(value) =>
+                                        commitNumber(value, (min) =>
+                                            onUpdate(index, { min }),
+                                        )
                                     }
                                     flex={1}
                                     decimalScale={2}
@@ -160,8 +168,10 @@ const GaugeSectionComponent: FC<Props> = memo(
                                     label="Max value"
                                     description="Set the maximum value for the section"
                                     value={section.max}
-                                    onNumberChange={(value) =>
-                                        onUpdate(index, { max: value ?? 0 })
+                                    onChange={(value) =>
+                                        commitNumber(value, (max) =>
+                                            onUpdate(index, { max }),
+                                        )
                                     }
                                     decimalScale={2}
                                     flex={1}

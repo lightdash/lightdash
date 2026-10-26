@@ -10,7 +10,7 @@ import {
 } from '@lightdash/common';
 import { Accordion } from '@mantine/core';
 import { produce } from 'immer';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
     selectTableEditor,
@@ -67,13 +67,10 @@ const ConditionalFormattingList = ({}) => {
     }, [conditionalFormattings, fieldsForConditionalFormatting]);
 
     const configIdsRef = useRef<string[]>([]);
-    // Ensure we have best effort stable IDs for each config (generates new IDs for new configs)
-    // This prevents focus loss when editing and ensures correct item deletion.
-    useEffect(() => {
-        while (configIdsRef.current.length < activeConfigs.length) {
-            configIdsRef.current.push(uuidv4());
-        }
-    }, [activeConfigs.length]);
+    // Filled during render so a new rule keeps one key from its first render; idempotent under StrictMode
+    while (configIdsRef.current.length < activeConfigs.length) {
+        configIdsRef.current.push(uuidv4());
+    }
 
     const handleAdd = useCallback(() => {
         onSetConditionalFormattings(
@@ -129,7 +126,7 @@ const ConditionalFormattingList = ({}) => {
                 >
                     {activeConfigs.map((conditionalFormatting, index) => (
                         <ConditionalFormattingItem
-                            key={configIdsRef.current[index] ?? index}
+                            key={configIdsRef.current[index]}
                             isOpen={openItems.includes(`${index}`)}
                             addNewItem={addNewItem}
                             removeItem={removeItem}
