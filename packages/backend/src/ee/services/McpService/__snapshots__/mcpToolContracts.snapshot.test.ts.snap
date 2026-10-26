@@ -1858,7 +1858,7 @@ Every other URL, such as "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/da
         "readOnlyHint": false,
         "title": "Edit content",
       },
-      "description": "Edit a dashboard, chart or SQL chart with an RFC6902 patch against its JSON as read_content last returned it; the edited content is validated before it is saved. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL.",
+      "description": "Edit a dashboard, chart or SQL chart with an RFC6902 patch against its JSON as read_content last returned it; the edited content is validated before it is saved. The content's space must show canEdit true in find_content or list_content results; an edit in any other space is refused. A SQL chart needs the SQL chart save permission and, in agent threads, SQL mode; a patch that changes its sql waits for user approval of the new SQL.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {

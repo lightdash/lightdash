@@ -1,11 +1,22 @@
 import { z } from 'zod';
 import type { ChartAsCode } from '../../../../types/coder';
+import { type ToolDescriptionContext } from '../defineTool';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
+import { toolNameFor } from './discoveryToolNames';
 
 export const SQL_CHART_CREATE_GUIDANCE =
     'A SQL chart (type sql_chart) saves raw warehouse SQL: it needs the SQL chart save permission and, in agent threads, SQL mode and user approval of its SQL. Create SQL charts before the dashboard that references them.';
 
-export const TOOL_CREATE_CONTENT_DESCRIPTION = `Create a dashboard, chart or SQL chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in find_content or list_content results; a write to any other space is refused. ${SQL_CHART_CREATE_GUIDANCE}`;
+export const TOOL_CREATE_CONTENT_DESCRIPTION = ({
+    runtime,
+}: ToolDescriptionContext): string =>
+    `Create a dashboard, chart or SQL chart from its JSON; the developing-in-lightdash skill has the shapes. Save into a space whose canEdit is true in ${toolNameFor(
+        'findContent',
+        runtime,
+    )} or ${toolNameFor(
+        'listContent',
+        runtime,
+    )} results; a write to any other space is refused. ${SQL_CHART_CREATE_GUIDANCE}`;
 
 type RequiredMetricQueryKeys = keyof Omit<
     ChartAsCode['metricQuery'],
