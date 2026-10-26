@@ -1207,6 +1207,9 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [collapse, openPlaceholder, writePlaceholder],
     );
 
+    // The rail on its rows, nothing expanded; a no-op while it is open
+    const openRail = useCallback(() => writeRailOpen(true), [writeRailOpen]);
+
     // The control that is open stays as it is. Any other one is closed
     // first, as "Done" would, new or not
     const open = useCallback(
@@ -1300,6 +1303,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             setActiveSection,
             open,
             openNew,
+            openRail,
             addFirstField,
             addFirstSqlColumn,
             addFirstFieldOnTile,
@@ -1353,6 +1357,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             activeSection,
             open,
             openNew,
+            openRail,
             addFirstField,
             addFirstSqlColumn,
             addFirstFieldOnTile,

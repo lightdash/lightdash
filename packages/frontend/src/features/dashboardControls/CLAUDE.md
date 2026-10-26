@@ -60,6 +60,9 @@ behaviour. All but the first are in `features/dashboardFilters/`.
 - `dashboardTabs/Tab.tsx` and the embed's tabs in `EmbedDashboard.tsx`: the
   inline `maw` reads `--dashboard-tab-max-width` first, falling back to
   today's share of the viewport. Nothing sets it outside the tab counts.
+- `AddFilterButton`: `label` (default the "Add filter" ui string) and
+  `isVisibilityToggleHidden` (default false), which leaves out the eye and
+  its attached border.
 - `DashboardFiltersBar`: `filterArea`, which replaces the shipped filters and
   the requirements button (default: both, as today), and
   `isCompactDrawerSuppressed` (default false): on a narrow screen the bar is
@@ -153,17 +156,17 @@ In `FilterConfiguration/`:
   nothing is passed, so the bar is the shipped one. Separators, parameters, date zoom,
   the hide button, the compact drawer and the `data-tour-*` anchors are the
   shipped bar's own.
-- `AddControl` (`placement`: `'bar'` or `'rail'`) is the shipped
-  `AddFilterButton`: the dashed button with its disabled and loading states.
-  On an editor's bar it has the eye that hides "Add filter" from viewers; on
-  a viewer's bar it is the shipped view-mode button, with the reset-all
-  button attached once filters changed (`resetDashboardFilters`), and
-  nothing but that reset while "Add filter" is hidden from viewers. The
-  rail's footer renders it in edit mode without the eye, and not at all for
-  a viewer while "Add filter" is hidden. It is never
-  given a popover id to open on, so a click only calls `onPopoverOpen`, which
-  is `openNew`. It tracks nothing; `ADD_FILTER_CLICKED` stays with the
-  provider. The provider returns focus to the bar's one by
+- `AddControl` is the shipped `AddFilterButton`: the dashed button with its
+  disabled and loading states, no icon. On an editor's bar it has no eye
+  (`isVisibilityToggleHidden`) and reads "Add filter" while the dashboard
+  has no filter (`openNew`), "Manage filters" once it has one (`label`;
+  `openRail`, the rail on its list with nothing expanded); the viewers
+  setting lives in the rail's footer. On a viewer's bar it is the shipped
+  view-mode button, with the reset-all button attached once filters changed
+  (`resetDashboardFilters`), and nothing but that reset while "Add filter"
+  is hidden from viewers. It is never given a popover id to open on, so a
+  click only calls `onPopoverOpen`. It tracks nothing; `ADD_FILTER_CLICKED`
+  stays with the provider. The provider returns focus to the bar's one by
   `[data-filter-actions] > button[data-dashboard-filter-control]`, from
   `FocusReturn`, once the bar has it again; the rail's is gone by then.
 - `FilterPills`: click opens the control, the X ("Remove filter") removes it. The pills are
@@ -483,9 +486,12 @@ In `FilterConfiguration/`:
   `data-controls-new-section`, bottom-end) lists "Add filter"
   (`filters.addFilter`, `openNew`; gone when `!canAddFilters` and for a
   viewer hidden by the editor's eye) and "New section" (editors only); with
-  neither the button is not rendered. The footer has "Done" (`close`) at the
-  right; while the edited filter has no field it has only a status, "Select a field to keep this
-  filter", and "Cancel" (`discard`). A footer status says what closing would drop. The body ends
+  neither the button is not rendered. The footer has, for an editor, the
+  `xs` `Switch` "Viewers can add their own filters" at the left (checked
+  while `isAddFilterDisabled` is false; it writes `setIsAddFilterDisabled`,
+  the saved `config.isAddFilterDisabled` keeps its polarity) and "Done"
+  (`close`) at the right; while the edited filter has no field it has only a
+  status, "Select a field to keep this filter", and "Cancel" (`discard`). A footer status says what closing would drop. The body ends
   1px under the footer's top border (`.body`'s `margin-bottom: -1px`), so
   the last row's border and the footer's read as one line whether the list
   scrolls or not.

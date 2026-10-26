@@ -524,6 +524,15 @@ describe('ControlsSidebarProvider', () => {
         });
     });
 
+    it('openRail opens the rail on its rows with nothing expanded', () => {
+        const { result } = setup();
+        act(() => result.current.openRail());
+        expect(result.current.isRailOpen).toBe(true);
+        expect(result.current.isSidebarOpen).toBe(false);
+        expect(result.current.editing).toBeNull();
+        expect(latest.filters).toEqual(initialFilters);
+    });
+
     it('closing a placeholder discards it', () => {
         const { result } = setup();
         act(() => result.current.openNew());
@@ -2368,7 +2377,7 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(24);
+        expect(Object.keys(initial)).toHaveLength(25);
         expect(initial).toHaveProperty('updateOtherFilters');
         expect(initial).toHaveProperty('removeLastField');
         expect(initial).toHaveProperty('addFirstSqlColumn');

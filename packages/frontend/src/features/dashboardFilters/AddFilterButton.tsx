@@ -34,6 +34,10 @@ type Props = {
      * hide it entirely. Defaults to the app's "edit mode" copy.
      */
     unsavedFiltersTooltip?: string | null;
+    /** The trigger's text (default: the "Add filter" ui string). */
+    label?: string;
+    /** Leaves out the edit-mode eye that hides "Add filter" from viewers (default false). */
+    isVisibilityToggleHidden?: boolean;
 };
 
 const AddFilterButton: FC<Props> = ({
@@ -47,6 +51,8 @@ const AddFilterButton: FC<Props> = ({
     triggerClassName,
     dropdownClassName,
     unsavedFiltersTooltip,
+    label,
+    isVisibilityToggleHidden = false,
 }) => {
     const popoverId = useId();
     const getUiString = useUiStrings();
@@ -113,7 +119,8 @@ const AddFilterButton: FC<Props> = ({
     );
 
     const showResetFiltersButton = !isEditMode && haveFiltersChanged;
-    const hasAttachedButton = showResetFiltersButton || isEditMode;
+    const hasVisibilityToggle = isEditMode && !isVisibilityToggleHidden;
+    const hasAttachedButton = showResetFiltersButton || hasVisibilityToggle;
 
     const tooltipLabel =
         unsavedFiltersTooltip === undefined ? (
@@ -212,7 +219,7 @@ const AddFilterButton: FC<Props> = ({
                                     : onPopoverOpen(popoverId)
                             }
                         >
-                            {getUiString('filters.addFilter')}
+                            {label ?? getUiString('filters.addFilter')}
                         </Button>
                     </Tooltip>
                 </Popover.Target>
@@ -244,7 +251,7 @@ const AddFilterButton: FC<Props> = ({
                 </Popover.Dropdown>
             </Popover>
 
-            {isEditMode && (
+            {hasVisibilityToggle && (
                 <>
                     <Divider orientation="vertical" />
 

@@ -335,6 +335,9 @@ const OpenControlSidebar: FC = () => {
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );
+    const setIsAddFilterDisabled = useDashboardContext(
+        (c) => c.setIsAddFilterDisabled,
+    );
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const temporaryFilters = useDashboardTemporaryFilters();
     const controlSections = useDashboardSelector(selectControlSections);
@@ -773,6 +776,16 @@ const OpenControlSidebar: FC = () => {
                           }
                 }
                 footerStatus={footerStatus}
+                // The saved flag stays "disabled"; the switch reads positively
+                viewerAdd={
+                    isViewer
+                        ? null
+                        : {
+                              isEnabled: !isAddFilterDisabled,
+                              onChange: (isEnabled) =>
+                                  setIsAddFilterDisabled(!isEnabled),
+                          }
+                }
             >
                 <SortableContext items={sortableIds} strategy={noDisplacement}>
                     {body}

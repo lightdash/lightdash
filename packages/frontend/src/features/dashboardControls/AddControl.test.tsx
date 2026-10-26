@@ -1,3 +1,4 @@
+import { FilterOperator, type DashboardFilters } from '@lightdash/common';
 import { fireEvent, screen } from '@testing-library/react';
 import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -19,7 +20,11 @@ const mockSidebar = vi.hoisted(() => ({
         isNew: false,
         isPlaceholder: false,
         openNew: vi.fn(),
+        openRail: vi.fn(),
     },
+}));
+const mockFilters = vi.hoisted(() => ({
+    current: undefined as DashboardFilters | undefined,
 }));
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -33,6 +38,7 @@ const renderWithProviders = (ui: ReactElement) =>
             store={seedDashboardEditState(
                 createDashboardTestStore({
                     haveFiltersChanged: false,
+                    dashboardFilters: mockFilters.current,
                     sqlChartTilesMetadata: mockTileStatus.current
                         .sqlChartTilesMetadata as Record<
                         string,
@@ -58,10 +64,6 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
 describe('AddControl', () => {
     const add = () => screen.getByRole('button', { name: 'Add filter' });
     const setIsAddFilterDisabled = vi.fn();
-    const visibilityToggle = () =>
-        screen.getByRole('button', {
-            name: 'Toggle filter visibility for viewers',
-        });
 
     beforeEach(() => {
         setIsAddFilterDisabled.mockClear();
@@ -72,7 +74,9 @@ describe('AddControl', () => {
             isNew: false,
             isPlaceholder: false,
             openNew: vi.fn(),
+            openRail: vi.fn(),
         };
+        mockFilters.current = undefined;
         mockTileStatus.current = { sqlChartTilesMetadata: {} };
         mockDashboardContext.current = {
             allFilterableFields: [],
@@ -101,35 +105,42 @@ describe('AddControl', () => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
 
-    it('hides "Add filter" from viewers with the eye next to it', async () => {
+    it('is "Add filter" with no eye while the dashboard has no filter, and opens a new one', () => {
         renderWithProviders(<AddControl />);
-
         expect(
-            visibilityToggle().querySelector('.tabler-icon-eye'),
-        ).not.toBeNull();
-        fireEvent.mouseEnter(visibilityToggle());
-        expect(
-            await screen.findByText('Visible to viewers. Click to hide.'),
-        ).toBeInTheDocument();
-
-        fireEvent.click(visibilityToggle());
-        expect(setIsAddFilterDisabled).toHaveBeenCalledWith(true);
+            screen.queryByRole('button', {
+                name: 'Toggle filter visibility for viewers',
+            }),
+        ).not.toBeInTheDocument();
+        expect(add().querySelector('svg')).toBeNull();
+        fireEvent.click(add());
+        expect(mockSidebar.current.openNew).toHaveBeenCalledTimes(1);
+        expect(mockSidebar.current.openRail).not.toHaveBeenCalled();
     });
 
-    it('shows "Add filter" to viewers again', async () => {
-        mockDashboardContext.current.isAddFilterDisabled = true;
+    it('reads "Manage filters" once there are filters, and opens the rail on its list', () => {
+        mockFilters.current = {
+            dimensions: [
+                {
+                    id: 'saved',
+                    label: undefined,
+                    operator: FilterOperator.EQUALS,
+                    target: { fieldId: 'orders_status', tableName: 'orders' },
+                    values: ['done'],
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
         renderWithProviders(<AddControl />);
-
+        const manage = screen.getByRole('button', { name: 'Manage filters' });
         expect(
-            visibilityToggle().querySelector('.tabler-icon-eye-off'),
-        ).not.toBeNull();
-        fireEvent.mouseEnter(visibilityToggle());
-        expect(
-            await screen.findByText('Hidden from viewers. Click to show.'),
-        ).toBeInTheDocument();
-
-        fireEvent.click(visibilityToggle());
-        expect(setIsAddFilterDisabled).toHaveBeenCalledWith(false);
+            screen.queryByRole('button', { name: 'Add filter' }),
+        ).not.toBeInTheDocument();
+        expect(manage.querySelector('svg')).toBeNull();
+        fireEvent.click(manage);
+        expect(mockSidebar.current.openRail).toHaveBeenCalledTimes(1);
+        expect(mockSidebar.current.openNew).not.toHaveBeenCalled();
     });
 
     describe('for a viewer', () => {

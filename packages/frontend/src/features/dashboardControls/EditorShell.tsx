@@ -8,6 +8,7 @@ import {
     Menu,
     Paper,
     Stack,
+    Switch,
     Text,
     Title,
     Tooltip,
@@ -42,6 +43,11 @@ type Props = {
     /** Null for a viewer, whose rail has no sections. */
     onNewSection: (() => void) | null;
     footerStatus: string | null;
+    /** Editors only: whether viewers may add their own filters, and its setter. */
+    viewerAdd: {
+        isEnabled: boolean;
+        onChange: (isEnabled: boolean) => void;
+    } | null;
     children: ReactNode;
 };
 
@@ -55,6 +61,7 @@ export const EditorShell: FC<Props> = ({
     onAddFilter,
     onNewSection,
     footerStatus,
+    viewerAdd,
     children,
 }) => {
     const ref = useRef<HTMLDivElement>(null);
@@ -216,14 +223,28 @@ export const EditorShell: FC<Props> = ({
                             </Button>
                         </>
                     ) : (
-                        <Button
-                            size="xs"
-                            ml="auto"
-                            className={classes.done}
-                            onClick={onClose}
-                        >
-                            {getUiString('filters.rail.done')}
-                        </Button>
+                        <>
+                            {viewerAdd && (
+                                <Switch
+                                    size="xs"
+                                    label="Viewers can add their own filters"
+                                    checked={viewerAdd.isEnabled}
+                                    onChange={(event) =>
+                                        viewerAdd.onChange(
+                                            event.currentTarget.checked,
+                                        )
+                                    }
+                                />
+                            )}
+                            <Button
+                                size="xs"
+                                ml="auto"
+                                className={classes.done}
+                                onClick={onClose}
+                            >
+                                {getUiString('filters.rail.done')}
+                            </Button>
+                        </>
                     )}
                 </Group>
             </Stack>

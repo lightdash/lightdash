@@ -135,6 +135,7 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         setActiveSection: vi.fn(),
         open: vi.fn(),
         openNew: vi.fn(),
+        openRail: vi.fn(),
         addFirstField: vi.fn(),
         addFirstSqlColumn: vi.fn(),
         addFirstFieldOnTile: vi.fn(),
@@ -428,6 +429,47 @@ describe('ControlSidebar', () => {
         expect(screen.getByRole('button', { name: 'Add' })).toBeVisible();
         expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
         expect(screen.queryByText(/to keep|stays off/)).not.toBeInTheDocument();
+    });
+
+    it("lets an editor switch viewers' own filters on and off from the footer", () => {
+        const setIsAddFilterDisabled = vi.fn();
+        mockDashboardContext.current.setIsAddFilterDisabled =
+            setIsAddFilterDisabled;
+        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
+        const { rerender } = renderWithProviders(<ControlSidebar />);
+        const toggle = () =>
+            screen.getByRole('switch', {
+                name: 'Viewers can add their own filters',
+            });
+        expect(toggle()).toBeChecked();
+        fireEvent.click(toggle());
+        expect(setIsAddFilterDisabled).toHaveBeenCalledWith(true);
+
+        mockDashboardContext.current.isAddFilterDisabled = true;
+        rerender(<ControlSidebar />);
+        expect(toggle()).not.toBeChecked();
+        fireEvent.click(toggle());
+        expect(setIsAddFilterDisabled).toHaveBeenLastCalledWith(false);
+    });
+
+    it('offers no viewers switch to a viewer, nor while a new filter has no field', () => {
+        setSidebar({
+            isViewer: true,
+            editing: null,
+            editingRule: null,
+            isSidebarOpen: false,
+        });
+        const { unmount } = renderWithProviders(<ControlSidebar />);
+        expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+        unmount();
+
+        setSidebar({
+            isPlaceholder: true,
+            editingRule: makeRule({ target: { fieldId: '', tableName: '' } }),
+        });
+        renderWithProviders(<ControlSidebar />);
+        expect(screen.getByRole('button', { name: 'Cancel' })).toBeVisible();
+        expect(screen.queryByRole('switch')).not.toBeInTheDocument();
     });
 
     it('collapses the open filter from its chevron and its head, never from the input or buttons', () => {
