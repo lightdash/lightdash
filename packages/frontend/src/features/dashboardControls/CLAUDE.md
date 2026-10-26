@@ -1247,7 +1247,7 @@ the language map, as tab names are.
   a drag. A capsule under a pill from elsewhere carries `data-over`, which
   draws the same 2px `blue-4` line as `.dropLine` after its last pill, or
   after its label when folded or empty, as a `::after` in the capsule's own
-  padding (`right: 1px`, `4px` when `data-folded`): no ring, no fill, no
+  padding (`right: 1px`, `4px` when `data-collapsed`): no ring, no fill, no
   slot. The first button under a sectioned pill carries `data-over` with
   the rail's hover fill and inset `blue-5` ring, since nothing there can
   carry a line. A pill leaving a capsule grows nothing: the line beside the
