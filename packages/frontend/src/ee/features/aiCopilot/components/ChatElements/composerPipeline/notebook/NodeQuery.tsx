@@ -52,6 +52,8 @@ const codeOf = (
             };
         case QuerySourceType.PYTHON:
             return { code: query.code, language: 'python' };
+        case QuerySourceType.API:
+            return { code: query.payload.query, language: 'sql' };
         default:
             return assertUnreachable(query, 'Unknown source type');
     }
