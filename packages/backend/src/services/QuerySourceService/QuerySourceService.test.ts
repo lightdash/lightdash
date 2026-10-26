@@ -1412,8 +1412,12 @@ describe('bound grant SQL source effects', () => {
                       });
             const bound = fromOauth(
                 defaultSessionUser,
-                { accessToken: 'token', client: { id: grant.clientId } },
-                null,
+                {
+                    scope: ['read', 'write'],
+                    accessToken: 'token',
+                    client: { id: grant.clientId },
+                },
+                undefined,
                 { ...grant, revision: grant.grantRevision },
             );
             const sourceQueries: Record<
@@ -1486,6 +1490,7 @@ it.each(['duckdb', 'external', 'pipeline'] as const)(
             new ForbiddenError('Raw SQL disabled'),
         );
         const unbound = fromOauth(defaultSessionUser, {
+            scope: ['read', 'write'],
             accessToken: 'token',
             client: { id: 'client' },
         });

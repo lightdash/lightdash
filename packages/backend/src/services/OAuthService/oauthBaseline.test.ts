@@ -3,7 +3,6 @@ import OAuth2Server from '@node-oauth/oauth2-server';
 import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { createHash } from 'node:crypto';
-import { type OAuthScopeMode } from '../../auth/oauthScopes/mode';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OAuth2Model } from '../../models/OAuth2Model';
@@ -45,17 +44,13 @@ const codes = new Map<
     string,
     OAuth2Server.AuthorizationCode & { sessionExpiresAt: Date | null }
 >();
-const modes = [null, 'log', 'enforce'] as const;
+const strictModes = [false, true] as const;
 
-const setScopeMode = async (mode: OAuthScopeMode | null) => {
-    flags.get.mockImplementation(async ({ featureFlagId }) => ({
-        id: featureFlagId,
-        enabled:
-            featureFlagId === FeatureFlags.AgentIdentity
-                ? mode !== null
-                : mode === 'enforce',
-    }));
-    await expect(model.getScopeMode(user)).resolves.toBe(mode);
+const setSecurityStrict = async (strict: boolean) => {
+    flags.get.mockResolvedValue({
+        id: FeatureFlags.AgentIdentity,
+        enabled: strict,
+    });
 };
 
 const authorize = (overrides: Record<string, unknown> = {}) =>
@@ -316,67 +311,82 @@ it('preserves the flag-off SQL sequence when revoking an access token', async ()
     expect(tracker.history.transactions).toHaveLength(0);
 });
 
-it.each(modes)('rejects plain PKCE in %s mode', async (mode) => {
-    await setScopeMode(mode);
-    await expect(
-        authorize({ code_challenge: verifier, code_challenge_method: 'plain' }),
-    ).rejects.toBeInstanceOf(OAuth2Server.InvalidRequestError);
-    expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
-    expect(model.saveToken).not.toHaveBeenCalled();
-});
+it.each(strictModes)(
+    'rejects plain PKCE with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
+        await expect(
+            authorize({
+                code_challenge: verifier,
+                code_challenge_method: 'plain',
+            }),
+        ).rejects.toBeInstanceOf(OAuth2Server.InvalidRequestError);
+        expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
+        expect(model.saveToken).not.toHaveBeenCalled();
+    },
+);
 
-it.each(modes)('rejects an unknown PKCE method in %s mode', async (mode) => {
-    await setScopeMode(mode);
-    await expect(
-        authorize({ code_challenge_method: 'unknown' }),
-    ).rejects.toBeInstanceOf(OAuth2Server.InvalidRequestError);
-    expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
-    expect(model.saveToken).not.toHaveBeenCalled();
-});
+it.each(strictModes)(
+    'rejects an unknown PKCE method with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
+        await expect(
+            authorize({ code_challenge_method: 'unknown' }),
+        ).rejects.toBeInstanceOf(OAuth2Server.InvalidRequestError);
+        expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
+        expect(model.saveToken).not.toHaveBeenCalled();
+    },
+);
 
-it.each(modes)('rejects a missing PKCE verifier in %s mode', async (mode) => {
-    await setScopeMode(mode);
-    const code = await authorize();
-    const request = new OAuth2Server.Request({
-        method: 'POST',
-        headers: {
-            'content-type': 'application/x-www-form-urlencoded',
-            'transfer-encoding': 'chunked',
-        },
-        query: {},
-        body: {
-            grant_type: 'authorization_code',
-            client_id: client.id,
-            client_secret: 'client-secret',
-            code: code.authorizationCode,
-            redirect_uri: redirectUri,
-        },
-    });
-    await expect(
-        service.token(request, new OAuth2Server.Response({})),
-    ).rejects.toBeInstanceOf(OAuth2Server.InvalidGrantError);
-    expect(model.saveToken).not.toHaveBeenCalled();
-});
+it.each(strictModes)(
+    'rejects a missing PKCE verifier with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
+        const code = await authorize();
+        const request = new OAuth2Server.Request({
+            method: 'POST',
+            headers: {
+                'content-type': 'application/x-www-form-urlencoded',
+                'transfer-encoding': 'chunked',
+            },
+            query: {},
+            body: {
+                grant_type: 'authorization_code',
+                client_id: client.id,
+                client_secret: 'client-secret',
+                code: code.authorizationCode,
+                redirect_uri: redirectUri,
+            },
+        });
+        await expect(
+            service.token(request, new OAuth2Server.Response({})),
+        ).rejects.toBeInstanceOf(OAuth2Server.InvalidGrantError);
+        expect(model.saveToken).not.toHaveBeenCalled();
+    },
+);
 
-it.each(modes)('rejects a wrong PKCE verifier in %s mode', async (mode) => {
-    await setScopeMode(mode);
-    const code = await authorize();
-    await expect(
-        exchange(code, { code_verifier: 'b'.repeat(43) }),
-    ).rejects.toBeInstanceOf(OAuth2Server.InvalidGrantError);
-    expect(model.saveToken).not.toHaveBeenCalled();
-});
+it.each(strictModes)(
+    'rejects a wrong PKCE verifier with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
+        const code = await authorize();
+        await expect(
+            exchange(code, { code_verifier: 'b'.repeat(43) }),
+        ).rejects.toBeInstanceOf(OAuth2Server.InvalidGrantError);
+        expect(model.saveToken).not.toHaveBeenCalled();
+    },
+);
 
-it.each(modes)(
-    'rejects a verifier for a code issued without a challenge in %s mode',
-    async (mode) => {
-        await setScopeMode(mode);
-        await setScopeMode(null);
+it.each(strictModes)(
+    'rejects a verifier for a code issued without a challenge with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
+        await setSecurityStrict(false);
         const code = await authorize({
             code_challenge: '',
             code_challenge_method: '',
         });
-        await setScopeMode(mode);
+        await setSecurityStrict(strict);
         expect(code.codeChallenge).toBeUndefined();
         await expect(exchange(code)).rejects.toBeInstanceOf(
             OAuth2Server.InvalidGrantError,
@@ -385,10 +395,10 @@ it.each(modes)(
     },
 );
 
-it.each(modes)(
-    'consumes the code after a failed verifier attempt in %s mode',
-    async (mode) => {
-        await setScopeMode(mode);
+it.each(strictModes)(
+    'consumes the code after a failed verifier attempt with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
         const code = await authorize();
         await expect(
             exchange(code, { code_verifier: 'b'.repeat(43) }),
@@ -405,10 +415,10 @@ it.each(modes)(
     },
 );
 
-it.each(modes)(
-    'rejects a reused authorization code in %s mode',
-    async (mode) => {
-        await setScopeMode(mode);
+it.each(strictModes)(
+    'rejects a reused authorization code with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
         const code = await authorize();
         await expect(exchange(code)).resolves.toMatchObject({
             accessToken: expect.any(String),
@@ -422,10 +432,10 @@ it.each(modes)(
     },
 );
 
-it.each(modes)(
-    'rejects an expired authorization code in %s mode',
-    async (mode) => {
-        await setScopeMode(mode);
+it.each(strictModes)(
+    'rejects an expired authorization code with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
         const code = await authorize();
         codes.set(code.authorizationCode, {
             ...code,
@@ -439,10 +449,10 @@ it.each(modes)(
     },
 );
 
-it.each(modes)(
-    'rejects a code exchanged by another client in %s mode',
-    async (mode) => {
-        await setScopeMode(mode);
+it.each(strictModes)(
+    'rejects a code exchanged by another client with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
         const code = await authorize();
         await expect(
             exchange(code, { client_id: otherClient.id }),
@@ -455,10 +465,10 @@ it.each(modes)(
     },
 );
 
-it.each(modes)(
-    'rejects a different redirect URI at exchange in %s mode',
-    async (mode) => {
-        await setScopeMode(mode);
+it.each(strictModes)(
+    'rejects a different redirect URI at exchange with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
         const code = await authorize();
         await expect(
             exchange(code, { redirect_uri: 'https://client.example/other' }),
@@ -467,10 +477,10 @@ it.each(modes)(
     },
 );
 
-it.each(modes)(
-    'rejects an unregistered authorization redirect URI in %s mode',
-    async (mode) => {
-        await setScopeMode(mode);
+it.each(strictModes)(
+    'rejects an unregistered authorization redirect URI with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
         await expect(
             authorize({ redirect_uri: 'https://evil.example/callback' }),
         ).rejects.toBeInstanceOf(OAuth2Server.InvalidClientError);
@@ -479,10 +489,10 @@ it.each(modes)(
     },
 );
 
-it.each(modes)(
-    'issues a token for S256 with a matching redirect URI in %s mode',
-    async (mode) => {
-        await setScopeMode(mode);
+it.each(strictModes)(
+    'issues a token for S256 with a matching redirect URI with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
         const code = await authorize();
         expect(code).toMatchObject({
             authorizationCode: expect.any(String),
@@ -507,10 +517,10 @@ it.each(modes)(
 const apiResource = lightdashConfig.siteUrl.replace(/\/$/, '');
 const mcpResource = `${apiResource}/api/v1/mcp`;
 
-it.each(['log', 'enforce'] as const)(
-    'requires PKCE in strict %s mode',
-    async (mode) => {
-        await setScopeMode(mode);
+it.each([true] as const)(
+    'requires PKCE with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
         await expect(
             authorize({ code_challenge: '', code_challenge_method: '' }),
         ).rejects.toMatchObject({ name: 'invalid_request' });
@@ -518,15 +528,15 @@ it.each(['log', 'enforce'] as const)(
     },
 );
 
-it.each(['log', 'enforce'] as const)(
-    'rejects legacy challenge-less codes in strict %s mode',
-    async (mode) => {
-        await setScopeMode(null);
+it.each([true] as const)(
+    'rejects legacy challenge-less codes with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(false);
         const code = await authorize({
             code_challenge: '',
             code_challenge_method: '',
         });
-        await setScopeMode(mode);
+        await setSecurityStrict(strict);
         await expect(
             exchange(code, { code_verifier: '' }),
         ).rejects.toMatchObject({ name: 'invalid_grant' });
@@ -542,7 +552,7 @@ it.each([
     `${apiResource}#fragment`,
     [apiResource, mcpResource],
 ])('rejects invalid authorize resource %j under strict', async (resource) => {
-    await setScopeMode('log');
+    await setSecurityStrict(true);
     await expect(authorize({ resource })).rejects.toMatchObject({
         name: 'invalid_target',
         status: 400,
@@ -551,7 +561,7 @@ it.each([
 });
 
 it('rejects a resource switch at code exchange', async () => {
-    await setScopeMode('log');
+    await setSecurityStrict(true);
     const code = await authorize({ resource: mcpResource });
     await expect(
         exchange(code, { resource: apiResource }),
@@ -565,7 +575,7 @@ it.each([
     `${mcpResource}/`,
     `${mcpResource}/projects/11111111-1111-4111-8111-111111111111/`,
 ])('binds canonical resource %s to codes and tokens', async (resource) => {
-    await setScopeMode('log');
+    await setSecurityStrict(true);
     const expected = resource?.startsWith(mcpResource)
         ? mcpResource
         : apiResource;
@@ -580,7 +590,7 @@ it.each([
 });
 
 it('keeps challenge-less authorization and ignores resource with the flag off', async () => {
-    await setScopeMode(null);
+    await setSecurityStrict(false);
     const code = await authorize({
         code_challenge: '',
         code_challenge_method: '',
@@ -595,7 +605,7 @@ it('keeps challenge-less authorization and ignores resource with the flag off', 
 });
 
 it('defaults an omitted PKCE method to S256 under strict', async () => {
-    await setScopeMode('log');
+    await setSecurityStrict(true);
     const code = await authorize({ code_challenge_method: '' });
     expect(code.codeChallengeMethod).toBe('S256');
     await expect(exchange(code)).resolves.toMatchObject({
@@ -603,10 +613,10 @@ it('defaults an omitted PKCE method to S256 under strict', async () => {
     });
 });
 it('binds a legacy challenged code to the requested resource after strict enablement', async () => {
-    await setScopeMode(null);
+    await setSecurityStrict(false);
     const code = await authorize();
     expect(code.resource).toBeNull();
-    await setScopeMode('log');
+    await setSecurityStrict(true);
     await expect(
         exchange(code, { resource: `${mcpResource}/` }),
     ).resolves.toMatchObject({ resource: mcpResource });
@@ -617,7 +627,7 @@ it.each([
 ])(
     'refuses invalid token exchange resource $resource',
     async ({ resource }) => {
-        await setScopeMode('log');
+        await setSecurityStrict(true);
         const code = await authorize();
         await expect(exchange(code, { resource })).rejects.toMatchObject({
             name: 'invalid_target',
@@ -627,16 +637,16 @@ it.each([
     },
 );
 it('rejects duplicate authorize resources even when they are identical', async () => {
-    await setScopeMode('log');
+    await setSecurityStrict(true);
     await expect(
         authorize({ resource: [apiResource, apiResource] }),
     ).rejects.toMatchObject({ name: 'invalid_target' });
     expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
 });
-it.each([null, 'log', 'enforce'] as const)(
-    'authenticates query tokens only with strict off in %s mode',
-    async (mode) => {
-        await setScopeMode(mode);
+it.each([false, true] as const)(
+    'authenticates query tokens only with strict off with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
         const token = {
             accessToken: 'query-token',
             accessTokenExpiresAt: new Date(Date.now() + 60000),
@@ -654,7 +664,7 @@ it.each([null, 'log', 'enforce'] as const)(
             }),
             new OAuth2Server.Response({}),
         );
-        if (mode === null) await expect(result).resolves.toEqual(token);
+        if (!strict) await expect(result).resolves.toEqual(token);
         else
             await expect(result).rejects.toMatchObject({
                 name: 'invalid_token',
@@ -662,7 +672,7 @@ it.each([null, 'log', 'enforce'] as const)(
     },
 );
 it('refuses a strict header token when a query token would make library authentication fail', async () => {
-    await setScopeMode('log');
+    await setSecurityStrict(true);
     vi.spyOn(model, 'getAccessToken').mockImplementation(async (accessToken) =>
         accessToken === 'header-token'
             ? { accessToken, client, user, resource: null }
@@ -682,7 +692,7 @@ it('refuses a strict header token when a query token would make library authenti
 });
 
 it('keeps concurrent API and MCP grant resource bindings separate', async () => {
-    await setScopeMode('log');
+    await setSecurityStrict(true);
     const [apiCode, mcpCode] = await Promise.all([
         authorize(),
         authorize({ resource: mcpResource }),
@@ -695,41 +705,47 @@ it('keeps concurrent API and MCP grant resource bindings separate', async () => 
     expect(mcpToken.resource).toBe(mcpResource);
 });
 
-describe.each(modes)('redirect policy in %s mode', (mode) => {
-    it.each([
-        ['https://client.example/callback', 'https://client.example/*'],
-        ['myapp://cb', 'myapp://cb'],
-        ['http://example.com/cb', 'http://example.com/cb'],
-    ])('validates %s registered as %s', async (candidate, registered) => {
-        await setScopeMode(mode);
-        vi.mocked(model.getClient).mockResolvedValue({
-            ...client,
-            redirectUris: [registered],
-        });
-        await expect(
-            service.validateRedirectUri(client.id, candidate, user),
-        ).resolves.toBe(mode === null);
-        expect(flags.get).toHaveBeenCalledWith({
-            featureFlagId: FeatureFlags.AgentIdentity,
-            user: { userUuid: 'user', organizationUuid: user.organizationUuid },
-        });
-        const result = authorize({ redirect_uri: candidate });
-        if (mode === null) {
-            await expect(result).resolves.toMatchObject({
-                redirectUri: candidate,
+describe.each(strictModes)(
+    'redirect policy with security strict %s',
+    (strict) => {
+        it.each([
+            ['https://client.example/callback', 'https://client.example/*'],
+            ['myapp://cb', 'myapp://cb'],
+            ['http://example.com/cb', 'http://example.com/cb'],
+        ])('validates %s registered as %s', async (candidate, registered) => {
+            await setSecurityStrict(strict);
+            vi.mocked(model.getClient).mockResolvedValue({
+                ...client,
+                redirectUris: [registered],
             });
-            expect(model.saveAuthorizationCode).toHaveBeenCalledOnce();
-        } else {
-            await expect(result).rejects.toBeInstanceOf(
-                OAuth2Server.InvalidClientError,
-            );
-            expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
-        }
-    });
-});
+            await expect(
+                service.validateRedirectUri(client.id, candidate, user),
+            ).resolves.toBe(!strict);
+            expect(flags.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    userUuid: 'user',
+                    organizationUuid: user.organizationUuid,
+                },
+            });
+            const result = authorize({ redirect_uri: candidate });
+            if (!strict) {
+                await expect(result).resolves.toMatchObject({
+                    redirectUri: candidate,
+                });
+                expect(model.saveAuthorizationCode).toHaveBeenCalledOnce();
+            } else {
+                await expect(result).rejects.toBeInstanceOf(
+                    OAuth2Server.InvalidClientError,
+                );
+                expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
+            }
+        });
+    },
+);
 
-it('resolves admin strict mode from the account UUID without a numeric user lookup', async () => {
-    await setScopeMode('log');
+it('resolves admin strict strict from the account UUID without a numeric user lookup', async () => {
+    await setSecurityStrict(true);
     getTracker().reset();
     await expect(
         service.isSecurityStrict({
@@ -753,7 +769,7 @@ it.each([
 ])(
     'authorizes strict native redirect %s registered as %s',
     async (candidate, registered) => {
-        await setScopeMode('log');
+        await setSecurityStrict(true);
         vi.mocked(model.getClient).mockResolvedValue({
             ...client,
             redirectUris: [registered],
@@ -768,7 +784,7 @@ it.each([
 );
 
 it('keeps concurrent strict and legacy redirect checks isolated by user', async () => {
-    await setScopeMode('log');
+    await setSecurityStrict(true);
     vi.spyOn(model, 'isSecurityStrictForOAuthUser').mockImplementation(
         async (identity) => identity.userId === user.userId,
     );

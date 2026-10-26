@@ -1073,6 +1073,7 @@ describe('AiAccessService', () => {
                     systemRoleMatrix: {} as never,
                 });
             const oauth = fromOauth(toSessionUser(admin), {
+                scope: ['read', 'write'],
                 accessToken: 'token',
                 client: { id: 'agent' },
             });

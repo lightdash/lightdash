@@ -13,7 +13,10 @@ import {
     toSessionUser,
 } from '../account/account';
 import { defaultSessionUser } from '../account/account.mock';
-import { assertOAuthCredentialOperationAllowed } from './credentials';
+import {
+    assertOAuthCredentialOperationAllowed,
+    OAUTH_CREDENTIAL_OPERATIONS,
+} from './credentials';
 
 const operations = [
     ['startOnboardingRun', 'create', 'OnboardingRunCredential'],
@@ -37,14 +40,13 @@ const user = {
     ]),
 };
 
-const oauthAccount = (mode: 'log' | 'enforce' | null, scopes: string[]) =>
+const oauthAccount = (scopes: string[], defaultPolicy: boolean) =>
     fromOauth(
         user,
         { accessToken: 'secret', client: { id: 'client' }, scope: scopes },
-        mode === null
-            ? null
+        defaultPolicy
+            ? undefined
             : {
-                  mode,
                   getRequest: () => ({
                       method: 'POST',
                       routeTemplate: '/credentials',
@@ -53,19 +55,24 @@ const oauthAccount = (mode: 'log' | 'enforce' | null, scopes: string[]) =>
     );
 
 describe('OAuth credential minting', () => {
+    it('covers every credential operation', () => {
+        expect(operations.map(([operation]) => operation)).toEqual(
+            Object.keys(OAUTH_CREDENTIAL_OPERATIONS),
+        );
+    });
     beforeEach(() => {
         vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
     });
     afterEach(() => vi.restoreAllMocks());
 
-    describe.each(['log', 'enforce'] as const)('%s mode', (mode) => {
+    describe.each([false, true])('default policy %s', (defaultPolicy) => {
         describe.each([[], ['read'], ['write'], ['mcp:read'], ['mcp:write']])(
             'scopes %j',
             (...scopes) => {
                 it.each(operations)(
                     'refuses %s',
                     (operation, action, subjectType) => {
-                        const account = oauthAccount(mode, scopes);
+                        const account = oauthAccount(scopes, defaultPolicy);
                         expect(() =>
                             assertOAuthCredentialOperationAllowed(
                                 account,
@@ -81,11 +88,13 @@ describe('OAuth credential minting', () => {
                         expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
                             'oauth_scope_refusal',
                             {
-                                mode,
+                                mode: 'enforce',
                                 clientId: 'client',
                                 scopes,
-                                method: 'POST',
-                                routeTemplate: '/credentials',
+                                method: defaultPolicy ? null : 'POST',
+                                routeTemplate: defaultPolicy
+                                    ? null
+                                    : '/credentials',
                                 toolName: null,
                                 action,
                                 subjectType,
@@ -98,7 +107,7 @@ describe('OAuth credential minting', () => {
         it.each(operations)(
             'refuses %s after conversion to a session user',
             (operation) => {
-                const account = oauthAccount(mode, ['write']);
+                const account = oauthAccount(['write'], defaultPolicy);
                 expect(() =>
                     assertOAuthCredentialOperationAllowed(
                         toSessionUser(account),
@@ -109,12 +118,21 @@ describe('OAuth credential minting', () => {
         );
     });
 
-    it.each(operations)('preserves flag-off OAuth %s', (operation) => {
+    it.each(operations)(
+        'refuses %s without an OAuth scope context',
+        (operation) => {
+            const account = oauthAccount(['write'], true);
+            account.user.ability = user.ability;
+            expect(() =>
+                assertOAuthCredentialOperationAllowed(account, operation),
+            ).toThrow(ForbiddenError);
+            expect(Logger.warn).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each(operations)('preserves session user %s', (operation) => {
         expect(() =>
-            assertOAuthCredentialOperationAllowed(
-                oauthAccount(null, ['write']),
-                operation,
-            ),
+            assertOAuthCredentialOperationAllowed(user, operation),
         ).not.toThrow();
         expect(Logger.warn).not.toHaveBeenCalled();
     });

@@ -799,7 +799,6 @@ test.each(['hidden_by_scope', 'hidden_by_project', 'visible'] as const)(
                 scope: visibility === 'hidden_by_scope' ? [] : ['read'],
             },
             {
-                mode: 'enforce',
                 getRequest: () => ({ method: null, routeTemplate: null }),
             },
         );

@@ -25,7 +25,6 @@ import { fromApiKey, fromOauth } from '../../auth/account/account';
 import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
 import { getGrantOperationContract } from '../../auth/agentConnectionGrants/operationContracts';
-import { resolveOAuthScopeMode } from '../../auth/oauthScopes/mode';
 import {
     oauthApiResource,
     oauthMcpResource,
@@ -88,31 +87,18 @@ const hasWrongOAuthAudience = (
     );
 };
 
-const getOAuthScopePolicy = async (
-    req: Request,
-    user: SessionUser,
-    enforceGrant = false,
-): Promise<OAuthScopePolicy | null> => {
-    const mode = await resolveOAuthScopeMode(
-        req.services.getFeatureFlagService(),
-        user,
-    );
-    if (mode === null && !enforceGrant) return null;
-    return {
-        mode: enforceGrant ? 'enforce' : mode!,
-        getRequest: () => {
-            const route = req.route as { path: unknown } | undefined;
-            return {
-                method: req.method,
-                routeTemplate:
-                    !req.baseUrl.endsWith('/mcp') &&
-                    typeof route?.path === 'string'
-                        ? route.path
-                        : null,
-            };
-        },
-    };
-};
+const getOAuthScopePolicy = (req: Request): OAuthScopePolicy => ({
+    getRequest: () => {
+        const route = req.route as { path: unknown } | undefined;
+        return {
+            method: req.method,
+            routeTemplate:
+                !req.baseUrl.endsWith('/mcp') && typeof route?.path === 'string'
+                    ? route.path
+                    : null,
+        };
+    },
+});
 
 const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
     const { account } = req;
@@ -381,11 +367,7 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                                 : await req.services
                                       .getAgentConnectionGrantService()
                                       .authenticate(token, user);
-                        const scopePolicy = await getOAuthScopePolicy(
-                            req,
-                            user,
-                            grant !== null,
-                        );
+                        const scopePolicy = getOAuthScopePolicy(req);
                         req.account = fromOauth(
                             user,
                             token,
@@ -539,11 +521,7 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                                 : await req.services
                                       .getAgentConnectionGrantService()
                                       .authenticate(token, user);
-                        const scopePolicy = await getOAuthScopePolicy(
-                            req,
-                            user,
-                            grant !== null,
-                        );
+                        const scopePolicy = getOAuthScopePolicy(req);
                         req.account = fromOauth(
                             user,
                             token,

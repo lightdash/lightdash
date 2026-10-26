@@ -1852,8 +1852,12 @@ describe('bound grant upload effects', () => {
                     { action: 'manage', subject: 'all' },
                 ]),
             },
-            { accessToken: 'token', client: { id: grant.clientId } },
-            null,
+            {
+                scope: ['read', 'write'],
+                accessToken: 'token',
+                client: { id: grant.clientId },
+            },
+            undefined,
             {
                 ...grant,
                 revision: 1,

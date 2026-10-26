@@ -5,16 +5,14 @@ import {
     PossibleAbilities,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
-import { OAuthScopeMode, scopesForOAuthRecord } from './mode';
+import { scopesForOAuthRecord } from './mode';
 import { OAUTH_OPERATIONS, oauthScopeAllows } from './scopeMap';
 
 export type OAuthScopePolicy = {
-    mode: OAuthScopeMode;
     getRequest: () => { method: string | null; routeTemplate: string | null };
 };
 
 export type OAuthScopeContext = {
-    mode: OAuthScopeMode;
     scopes: string[];
     record: (
         action: string,
@@ -70,12 +68,7 @@ class OAuthScopedAbility extends Ability<PossibleAbilities> {
         private readonly scoped: MemberAbility,
         private readonly context: OAuthScopeContext,
     ) {
-        super(context.mode === 'log' ? base.rules : scoped.rules, {
-            anyAction:
-                context.mode === 'log'
-                    ? 'manage'
-                    : '__oauth_wildcard_disabled__',
-        });
+        super(scoped.rules, { anyAction: '__oauth_wildcard_disabled__' });
     }
 
     relevantRuleFor(...args: Parameters<MemberAbility['relevantRuleFor']>) {
@@ -92,14 +85,13 @@ class OAuthScopedAbility extends Ability<PossibleAbilities> {
                 null,
             );
         }
-        return this.context.mode === 'log' ? baseRule : scopedRule;
+        return scopedRule;
     }
 }
 
 export const createOAuthScopedAbility = (
     base: MemberAbility,
     {
-        mode,
         scopes,
         clientId,
         getRequest,
@@ -107,7 +99,6 @@ export const createOAuthScopedAbility = (
 ): MemberAbility => {
     const recorded = new Set<string>();
     const context: OAuthScopeContext = {
-        mode,
         scopes: [...scopes],
         record: (action, subjectType, toolName) => {
             const key = JSON.stringify([action, subjectType, toolName]);
@@ -115,7 +106,7 @@ export const createOAuthScopedAbility = (
             recorded.add(key);
             const { method, routeTemplate } = getRequest();
             Logger.warn('oauth_scope_refusal', {
-                mode,
+                mode: 'enforce',
                 clientId,
                 scopes: scopesForOAuthRecord(context.scopes),
                 method,
