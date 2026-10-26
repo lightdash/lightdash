@@ -26,13 +26,16 @@ const AnalyticsHistoryBackfill = () => {
         <SettingsCard>
             <Stack gap="md">
                 <Title order={5}>Historical query activity</Title>
-                <Text fz="sm" c="dimmed">
-                    Import all retained completed query history. Historical
-                    dates use query submission time; content names reflect the
-                    current snapshot. Existing captured queries are kept. This
-                    fills Query Events; historical People activity summaries are
-                    not rebuilt.
-                </Text>
+                <Stack gap="xs">
+                    <Text fz="sm" c="dimmed">
+                        Includes: retained query history.
+                    </Text>
+                    <Text fz="sm" c="dimmed">
+                        Not included: chart, dashboard and app views, AI
+                        conversations and token usage, exports, or historical
+                        People activity summaries.
+                    </Text>
+                </Stack>
                 {status.data?.missingQueries ? (
                     <Text fz="sm">
                         {`${status.data.missingQueries.toLocaleString()} missing ${status.data.missingQueries === 1 ? 'query' : 'queries'} · ${status.data.from} to ${status.data.to}`}

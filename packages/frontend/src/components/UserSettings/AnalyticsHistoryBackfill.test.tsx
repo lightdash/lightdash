@@ -93,7 +93,7 @@ describe('AnalyticsHistoryBackfill', () => {
         ).toBeVisible();
         expect(
             screen.getByText(
-                /historical People activity summaries are not rebuilt/,
+                /Not included: chart, dashboard and app views, AI conversations and token usage, exports, or historical People activity summaries\./,
             ),
         ).toBeVisible();
         expect(sharedLightdashApi).not.toHaveBeenCalledWith(
@@ -123,7 +123,7 @@ describe('AnalyticsHistoryBackfill', () => {
             screen.getByText('23 queries already available will be skipped.'),
         ).toBeVisible();
         expect(
-            screen.getByText(/Import all retained completed query history\./),
+            screen.getByText('Includes: retained query history.'),
         ).toBeVisible();
         expect(
             screen.queryByText(/completed UTC days/),
