@@ -302,7 +302,6 @@ export const ControlSidebar: FC = () => {
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
     const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
-    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
     const open = useControlsSidebarSelector((c) => c.open);
     const setHoveredFilterId = useControlsSidebarSelector(
         (c) => c.setHoveredFilterId,
@@ -314,6 +313,9 @@ export const ControlSidebar: FC = () => {
     const collapse = useControlsSidebarSelector((c) => c.collapse);
     const discard = useControlsSidebarSelector((c) => c.discard);
     const openNew = useControlsSidebarSelector((c) => c.openNew);
+    const removeFilterById = useControlsSidebarSelector(
+        (c) => c.removeFilterById,
+    );
     const canAddFilters = useControlsSidebarSelector((c) => c.canAddFilters);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     // Hidden from viewers by the editor's eye
@@ -516,6 +518,22 @@ export const ControlSidebar: FC = () => {
         filterId === null || editingRule === null ? null : (
             <FilterEditor key={filterId} rule={editingRule} />
         );
+    // Drag is off only while a section is being named
+    const isDragDisabled = nameEdit !== null;
+    // The pill's X and the rail's row remove take the same path. Focus goes
+    // to the next row, else the one before, else the header's "Add"
+    const rowIds = grouped.flatMap(({ rules }) =>
+        rules.map(({ rule }) => rule.id),
+    );
+    const removeRow = (ruleId: string) => {
+        const index = rowIds.indexOf(ruleId);
+        const nextId = rowIds[index + 1] ?? rowIds[index - 1];
+        focusAfter.current =
+            nextId === undefined
+                ? NEW_SECTION_BUTTON
+                : `[data-controls-row="${nextId}"]`;
+        removeFilterById(ruleId);
+    };
     // A viewer's saved row (in a section) opens nothing and has no grip
     const renderRow = (
         sectionRule: SectionRule,
@@ -523,13 +541,19 @@ export const ControlSidebar: FC = () => {
         isInSection: boolean,
     ) => {
         const { rule } = sectionRule;
+        // The expanded filter drags as a row; its head has its own remove
         if (rule.id === filterId)
-            return isInSection ? (
-                <Box key={rule.id} className={classes.sectionEdited}>
+            return (
+                <SortableRow
+                    key={rule.id}
+                    id={rule.id}
+                    isDisabled={isDragDisabled || isViewer}
+                    isInSection={isInSection}
+                    isExpanded
+                    onRemove={null}
+                >
                     {editor}
-                </Box>
-            ) : (
-                editor
+                </SortableRow>
             );
         const field = fieldOf(sectionRule);
         const isUnresolved =
@@ -569,8 +593,10 @@ export const ControlSidebar: FC = () => {
             <SortableRow
                 key={rule.id}
                 id={rule.id}
-                isDisabled={isSidebarOpen || isViewer}
+                isDisabled={isDragDisabled || isViewer}
                 isInSection={isInSection}
+                isExpanded={false}
+                onRemove={isViewer ? null : () => removeRow(rule.id)}
             >
                 {row}
             </SortableRow>
@@ -615,7 +641,7 @@ export const ControlSidebar: FC = () => {
                 isCollapsed={isCollapsed}
                 isEditingName={nameEdit?.id === section.id}
                 isNew={nameEdit?.id === section.id && nameEdit.isNew}
-                isDragDisabled={isSidebarOpen || nameEdit !== null}
+                isDragDisabled={isDragDisabled}
                 isReadOnly={isViewer}
                 onToggle={() =>
                     setCollapsedIds((ids) =>

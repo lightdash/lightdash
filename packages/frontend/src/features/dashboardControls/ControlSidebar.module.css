@@ -269,9 +269,29 @@
 
 /* A section's rows sit one step in; the grip keeps the first step */
 .sectionRow .row.row,
-.sectionEdited .editedHead,
-.sectionEdited .editedBody {
+.sectionRow .editedHead,
+.sectionRow .editedBody {
     padding-left: calc(2 * var(--mantine-spacing-md));
+}
+
+/* Room for the remove at the row's right end */
+.sortableRow[data-removable] .row.row {
+    padding-right: calc(var(--mantine-spacing-sm) + 28px);
+}
+
+/* A closed row's remove, shown on hover and focus as the grip is */
+.rowRemove {
+    position: absolute;
+    top: 50%;
+    right: var(--mantine-spacing-xs);
+    transform: translateY(-50%);
+    opacity: 0;
+    transition: opacity var(--controls-duration-hover) var(--controls-ease);
+}
+
+.sortableRow:hover .rowRemove,
+.sortableRow:focus-within .rowRemove {
+    opacity: 1;
 }
 
 /* The copy under the pointer while a row or header is dragged */
@@ -312,6 +332,11 @@
 .sectionHeadRow:hover .grip,
 .grip:focus-visible {
     opacity: 1;
+}
+
+/* On the expanded editor the grip sits by the head, not the card's centre */
+.sortableRow[data-expanded] .grip {
+    top: calc(var(--mantine-spacing-xs) + 15px);
 }
 
 .footer {
@@ -366,6 +391,7 @@
     .disclosure,
     .chevron,
     .grip,
+    .rowRemove,
     .sectionMenu,
     .header,
     .sectionHeader {

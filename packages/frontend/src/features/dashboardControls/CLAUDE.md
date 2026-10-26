@@ -1070,8 +1070,13 @@ the language map, as tab names are.
   hairline above it, none above the first thing in the list
   (`.body > .sectionHeader:first-child`); its rows are indented one `md`
   further than the unsectioned ones (`.sectionRow`, also on a viewer's
-  read-only rows, and `.sectionEdited` on the expanded editor's head and
-  body). Hairlines run between rows only, on the wrappers
+  read-only rows; the expanded editor is a `SortableRow` too, so its head
+  and body take the same indent). A closed row of the editor's has a
+  remove at its right end (`ConfirmDeleteButton`, two clicks,
+  `filters.rail.removeFilter` / `confirmRemove`) shown on hover and
+  `:focus-within`, which calls the provider's `removeFilterById` as the
+  pill's X does; focus then goes to the next row, else the one before, else
+  the header's "Add" (`focusAfter`). A viewer's rows have none. Hairlines run between rows only, on the wrappers
   (`.sortableRow + .sortableRow`, `.sectionRow + .sectionRow`), never under
   a section's last row; the editor (`.edited`) keeps its `ldGray-1` fill
   with a hairline above and below. The "Tiles" and "Rules" disclosures are
@@ -1130,8 +1135,10 @@ the language map, as tab names are.
   joins that section after its last member of the same kind (so an empty
   section is joined on its header); dropped on the rail's header it leaves
   its section. A header dropped on a header, or on one of its rows, reorders
-  the sections. Drag is off while a filter is expanded or a name is being
-  edited.
+  the sections. The expanded filter drags as a row (its grip sits by the
+  head, `data-expanded`) and stays expanded after the drop, since the
+  editor is keyed by filter id. Drag is off only while a section is being
+  named.
 - Bar, in both modes: with `selectControlSections` non-empty and the rail
   closed, `ControlsBar` renders `SectionedFilters` in place of `AddControl`
   + `FilterPills` (in edit mode `FilterRequirementsButton` follows it, as

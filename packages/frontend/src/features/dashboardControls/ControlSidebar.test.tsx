@@ -6,7 +6,13 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import {
+    act,
+    fireEvent,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,7 +23,11 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
-import { selectControlSections } from '../dashboard/store';
+import {
+    dashboardFiltersActions,
+    selectControlSections,
+    selectDashboardFilters,
+} from '../dashboard/store';
 import { ControlSidebar } from './ControlSidebar';
 import { RailContractClasses } from './railContractClasses';
 import { type ControlsSidebarContextValue } from './useControlsSidebar';
@@ -1453,7 +1463,10 @@ describe('ControlSidebar', () => {
                 screen.getByRole('button', { name: /Order status/ }),
             ).toBeVisible();
             expect(screen.getByLabelText('Section name')).toBeInTheDocument();
-            expect(grips()).toHaveLength(1);
+            // Drag waits for the name
+            expect(
+                screen.queryByRole('button', { name: 'Drag to reorder' }),
+            ).not.toBeInTheDocument();
         });
 
         it('renames a section from its menu, keeping the name when emptied', async () => {
@@ -1525,12 +1538,129 @@ describe('ControlSidebar', () => {
             expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
         });
 
-        it('offers no grip while a filter is expanded', () => {
-            setSidebar({ isNew: false });
+        it('offers no grip while a section is being named', async () => {
+            closedRail();
             renderWithProviders(<ControlSidebar />, sectioned());
+            expect(grips()).toHaveLength(4);
+            await newSection();
             expect(
                 screen.queryByRole('button', { name: 'Drag to reorder' }),
             ).not.toBeInTheDocument();
+        });
+
+        it('drags an expanded filter as a row, and it stays expanded in its new section', async () => {
+            setSidebar({
+                isNew: false,
+                editingRule: makeRule({ label: 'Order status' }),
+            });
+            const dashboardFilters = filters([
+                makeRule({ label: 'Order status' }),
+                makeRule({
+                    id: 'filter-3',
+                    label: 'Created',
+                    sectionId: 'section-a',
+                }),
+            ]);
+            const { store } = renderWithProviders(
+                <ControlSidebar />,
+                dashboardFilters,
+            );
+            // The drop writes the dashboard draft, as the provider would
+            mockDashboardContext.current.setDashboardFilters = (
+                update: (f: DashboardFilters) => DashboardFilters,
+            ) =>
+                store.dispatch(
+                    dashboardFiltersActions.setDashboardFilters(
+                        typeof update === 'function'
+                            ? update(selectDashboardFilters(store.getState()))
+                            : update,
+                    ),
+                );
+            // jsdom lays nothing out: stack every element in document order
+            // so the keyboard sensor has somewhere to go. The overlay (which
+            // dnd-kit collides with) takes the dragged row's place
+            const rect = vi
+                .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+                .mockImplementation(function (this: HTMLElement) {
+                    const isOverlay =
+                        this.closest('[class*="dragPreview"]') !== null ||
+                        this.querySelector(
+                            ':scope > [class*="dragPreview"]',
+                        ) !== null;
+                    const measured = isOverlay
+                        ? (document.querySelector('[data-dragging]') ?? this)
+                        : this;
+                    const top =
+                        [...document.querySelectorAll('*')].indexOf(measured) *
+                        10;
+                    return {
+                        top,
+                        bottom: top + 10,
+                        left: 0,
+                        right: 300,
+                        width: 300,
+                        height: 10,
+                        x: 0,
+                        y: top,
+                        toJSON: () => ({}),
+                    };
+                });
+
+            const expanded = screen
+                .getByLabelText('Filter label')
+                .closest('[data-expanded]');
+            expect(expanded).not.toBeNull();
+            const grip = within(expanded as HTMLElement).getByRole('button', {
+                name: 'Drag to reorder',
+            });
+            pickUp(grip);
+            await act(() => new Promise((resolve) => setTimeout(resolve)));
+            fireEvent.keyDown(grip, { code: 'ArrowDown', key: 'ArrowDown' });
+            await act(() => new Promise((resolve) => setTimeout(resolve)));
+            fireEvent.keyDown(grip, { code: 'Space', key: ' ' });
+            rect.mockRestore();
+
+            await waitFor(() =>
+                expect(
+                    selectDashboardFilters(store.getState()).dimensions.map(
+                        (r) => r.sectionId,
+                    ),
+                ).toEqual(['section-a', 'section-a']),
+            );
+            expect(screen.getByLabelText('Filter label')).toBeInTheDocument();
+            expect(
+                screen.getByLabelText('Filter label').closest('[data-expanded]')
+                    ?.className,
+            ).toContain('sectionRow');
+        });
+
+        it('removes a closed row from its hover action, on the second click only', async () => {
+            closedRail();
+            const removeFilterById = vi.fn();
+            mockSidebar.current = { ...mockSidebar.current, removeFilterById };
+            renderWithProviders(<ControlSidebar />, sectioned());
+
+            const removes = screen.getAllByRole('button', {
+                name: 'Remove filter',
+            });
+            expect(removes).toHaveLength(4);
+            const row = document.querySelector(
+                '[data-controls-row="filter-1"]',
+            );
+            expect(row?.parentElement).toContainElement(removes[0]);
+
+            // One click arms it; leaving disarms it
+            fireEvent.click(removes[0]);
+            expect(removes[0]).toHaveAttribute('aria-pressed', 'true');
+            fireEvent.blur(removes[0]);
+            expect(removes[0]).toHaveAttribute('aria-pressed', 'false');
+            expect(removeFilterById).not.toHaveBeenCalled();
+
+            fireEvent.click(removes[0]);
+            fireEvent.click(removes[0]);
+            // The same call the pill's X makes
+            expect(removeFilterById).toHaveBeenCalledWith('filter-1');
+            expect(removeFilterById).toHaveBeenCalledTimes(1);
         });
     });
 });
