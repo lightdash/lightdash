@@ -215,6 +215,7 @@ it('keeps unbound access-token values with explicit null bindings', async () => 
     expect(await model.getAccessToken('access')).toEqual({
         accessToken: 'access',
         accessTokenExpiresAt: expect.any(Date),
+        sessionExpiresAt: null,
         scope: ['read'],
         resource: null,
         familyUuid: null,
