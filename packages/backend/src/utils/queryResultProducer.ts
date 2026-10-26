@@ -317,6 +317,7 @@ export const getSqlResultEntitlementFingerprintForms = (
                                 'resultEntitlementFingerprint',
                                 'resultSource',
                                 'resultArtifact',
+                                'resultMessageQuery',
                                 'resultResearchRunUuid',
                                 'queryUsage',
                                 'aiSignInCredentialUuid',

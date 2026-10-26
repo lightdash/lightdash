@@ -185,24 +185,11 @@ the proper fix is to use the standard resolver across entry points.
 
 ## Pre-aggregates
 
-`pre-aggregates` (`CommercialFeatureFlags.PreAggregates`) is a per-organization
-kill switch, not a rollout gate. The handler in
-`CommercialFeatureFlagModel` answers false when the instance has no licence or
-no pre-aggregate storage (`lightdashConfig.preAggregates.enabled`), and
-otherwise resolves through the database with a default of true. A Console
-override can only switch an organization off; it cannot enable pre-aggregates
-on an instance without the infra.
-
-Every entry point asks the same question through
-`isPreAggregatesEnabled(featureFlagModel, organizationUuid)`: compile-time
-registry sync and materialization enqueue, CLI deploy explore enhancement,
-query routing, the daily cron generator, the materialize task, manual refresh,
-the pre-aggregate match check, pre-aggregate explore visibility, the autopilot
-candidates tool, and `/api/v1/health` (which reports the caller's organization
-value, or the instance value to anonymous callers). The compile post-processor
-that generates virtual pre-aggregate explores has no organization context and
-checks only the instance infra; an organization switched off still compiles
-those explores but never materializes, serves, or shows them.
+Pre-aggregates are not behind a feature flag. They are on for every
+organization when the instance has a licence, `PRE_AGGREGATES_ENABLED=true` and
+pre-aggregate results storage. Preview mode, `LIGHTDASH_ENABLED_FEATURE_FLAGS`
+and Console overrides have no effect on them. See
+[Enablement](pre-aggregates/CONTEXT.md#enablement).
 
 ## Peer dbt sources
 
@@ -401,32 +388,6 @@ the stored-deadline checks and legacy refresh-error mapping apply.
 Console changes affect the next resolution without a restart. ENV changes need
 a process restart. Disabling this flag does not undo token rotations or revoke
 issued tokens. It does not change non-agent Snowflake authentication.
-
-### Warehouse OAuth refresh locking
-
-`warehouse-oauth-refresh-lock` is a default-on kill switch. When it is on, a
-Snowflake or Databricks OAuth refresh runs one at a time per credential row.
-Databricks U2M and M2M refresh-token grants use the lock. M2M client-credentials
-grants and submitted credentials without a stored owner stay unlocked. Callers
-in one process share one refresh. A PostgreSQL advisory
-transaction lock serializes refreshes of the row across processes, and the
-waiter refreshes with the rotated token that the first caller saved.
-
-Callers resolve the flag for the credential's organisation, without a user
-UUID, so personal overrides do not apply. Instance defaults, organisation
-overrides and the generic ENV precedence apply.
-
-At most a quarter of the pool, minimum one, holds a refresh lock at
-one time in each process. A caller waits up to 30 seconds for a slot and up to
-5 seconds for the advisory lock. The guarded token write can wait longer for a
-database row lock. Token requests close their sockets after 30 seconds
-of inactivity. A timeout returns a retryable refresh error.
-
-Console changes apply to the next refresh. Turning the flag off restores the
-previous refresh behavior inside the resolver: no locked reread or request
-deadline, with the legacy rotation-write policy. It does not undo rotations or
-enable a disabled preview credential-resolution path. ENV changes need a process
-restart.
 
 ### OAuth scope enforcement
 

@@ -284,18 +284,22 @@ const buildChart = (
             ? {
                   dimensions: {
                       id: `${spec.key}-filters`,
-                      and: spec.filters.map(({ field, values, operator }) => ({
-                          id: `${spec.key}-${field}`,
-                          target: { fieldId: field },
-                          operator: operator ?? FilterOperator.EQUALS,
-                          values,
-                      })),
+                      and: spec.filters.map(
+                          ({ field, values, operator, settings }) => ({
+                              id: `${spec.key}-${field}`,
+                              target: { fieldId: field },
+                              operator: operator ?? FilterOperator.EQUALS,
+                              values,
+                              ...(settings ? { settings } : {}),
+                          }),
+                      ),
                   },
               }
             : {},
         sorts: spec.sorts,
         limit: spec.limit,
         tableCalculations: spec.tableCalculations ?? [],
+        ...(spec.timezone ? { timezone: spec.timezone } : {}),
     },
     chartConfig: chartConfig(spec),
     tableConfig: {
@@ -360,15 +364,16 @@ export const buildUsageDashboards = (
             });
             let y = 0;
             for (const section of tab.sections) {
+                const noteHeight = section.noteHeight ?? 2;
                 dashboard.tiles.push(
                     note(
                         tab.key,
                         y,
-                        2,
+                        noteHeight,
                         `### ${section.title}\n\n${section.description}`,
                     ),
                 );
-                y += 2;
+                y += noteHeight;
                 const sectionCharts = section.charts.map((key) => {
                     const definition = [
                         ...usageChartSpecs,

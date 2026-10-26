@@ -171,6 +171,10 @@ const CHIP_LABEL_BY_TOOL: Partial<Record<ToolName, ToolCallChipLabelFn>> = {
         const args = toolArgs as { title?: string | null };
         return args.title ?? null;
     },
+    visualize: (toolArgs) => {
+        const args = toolArgs as { title?: string | null };
+        return args.title ?? null;
+    },
     runContentQuery: (toolArgs) => {
         const args = toolArgs as ToolRunContentQueryArgs;
         if (args.source?.type === 'metricQuery') return args.source.tableName;

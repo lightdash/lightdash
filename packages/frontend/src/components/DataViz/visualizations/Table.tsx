@@ -9,27 +9,20 @@ import {
 import {
     Flex,
     Group,
-    Menu,
     type FlexProps,
     Badge,
     useMantineTheme,
 } from '@mantine/core';
-import { IconArrowDown, IconArrowUp, IconCopy } from '@tabler/icons-react';
+import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { clsx } from 'clsx';
-import useToaster from '../../../hooks/toaster/useToaster';
-import { JsonCellMenuItem } from '../../common/JsonViewer/JsonCellViewer';
-import {
-    getJsonCellValue,
-    getJsonLikeString,
-} from '../../common/JsonViewer/utils';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
 import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
 import { Table as TableStyled, Tr } from '../../common/Table/Table.styles';
-import { type CellContextMenuProps } from '../../common/Table/types';
 import { useTableDataModel } from '../hooks/useTableDataModel';
+import { RawResultCellContextMenu } from './RawResultCellContextMenu';
 import styles from './Table.module.css';
 
 const COMPACT_ROW_HEIGHT_PX = 28;
@@ -48,33 +41,6 @@ type TableProps<T extends IResultsRunner> = {
     /** Warehouse type per column: shown under the header name and used to
      *  right-align numbers. Only read by the compact variant. */
     columnTypes?: Record<string, DimensionType>;
-};
-
-const SqlRunnerCellContextMenu = ({
-    cell,
-    onViewJsonCell,
-}: CellContextMenuProps) => {
-    const { showToastSuccess } = useToaster();
-    const value = cell.getValue();
-    const jsonValue = getJsonCellValue(value) ?? getJsonLikeString(value);
-
-    return (
-        <>
-            <Menu.Item
-                leftSection={<MantineIcon icon={IconCopy} />}
-                onClick={() => {
-                    void navigator.clipboard?.writeText(String(value ?? ''));
-                    showToastSuccess({ title: 'Copied to clipboard!' });
-                }}
-            >
-                Copy value
-            </Menu.Item>
-
-            {jsonValue && onViewJsonCell ? (
-                <JsonCellMenuItem onClick={() => onViewJsonCell(jsonValue)} />
-            ) : null}
-        </>
-    );
 };
 
 export const Table = <T extends IResultsRunner>({
@@ -275,9 +241,7 @@ export const Table = <T extends IResultsRunner>({
                                                     ).length > SMALL_TEXT_LENGTH
                                                 }
                                                 cellContextMenu={
-                                                    enableJsonViewer
-                                                        ? SqlRunnerCellContextMenu
-                                                        : undefined
+                                                    RawResultCellContextMenu
                                                 }
                                             >
                                                 {cell.getIsPlaceholder() ? null : isCompact &&

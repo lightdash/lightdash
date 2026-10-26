@@ -123,6 +123,7 @@ export const AI_THREAD_CREATED_FROM = [
     'evals',
     'scheduler',
     'data_app',
+    'dashboard_analysis',
 ] as const;
 export type AiThreadCreatedFrom = (typeof AI_THREAD_CREATED_FROM)[number];
 
@@ -137,6 +138,7 @@ export const AI_WEB_APP_THREAD_CREATED_FROM = [
     'evals',
     'scheduler',
     'data_app',
+    'dashboard_analysis',
 ] as const satisfies readonly AiThreadCreatedFrom[];
 export type AiWebAppThreadCreatedFrom =
     (typeof AI_WEB_APP_THREAD_CREATED_FROM)[number];

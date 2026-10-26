@@ -125,7 +125,7 @@ describe('ComposerQueriesToolCallDescription', () => {
         ).toHaveTextContent('Revenue');
     });
 
-    it('opens failed nodes and labels them failed', () => {
+    it('collapses failed nodes and labels them failed', () => {
         renderWithProviders(
             <ComposerQueriesToolCallDescription
                 queries={[
@@ -140,8 +140,9 @@ describe('ComposerQueriesToolCallDescription', () => {
         );
 
         expect(screen.getByLabelText('Failed')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { expanded: true })).toBeNull();
         expect(
-            screen.getByRole('button', { expanded: true }),
+            screen.getAllByRole('button', { expanded: false })[1],
         ).toHaveTextContent('Broken step');
     });
 

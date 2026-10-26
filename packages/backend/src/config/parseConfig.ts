@@ -1057,6 +1057,17 @@ export const parseStaticAssetsS3Config = ():
     };
 };
 
+// Null means no dedicated bucket: uploads then stay in S3_BUCKET and are
+// recorded as exports, so enabling this later never orphans earlier uploads.
+export const parseUploadsS3Config = (): LightdashConfig['uploads']['s3'] => {
+    const bucket = process.env.UPLOADS_S3_BUCKET;
+    const base = parseBaseS3Config();
+    if (!bucket || !base) {
+        return null;
+    }
+    return { ...base, bucket };
+};
+
 export const parseResultsS3Config = (): LightdashConfig['results']['s3'] => {
     const baseS3Config = parseBaseS3Config();
 
@@ -1786,6 +1797,7 @@ export type LightdashConfig = {
         s3?: Omit<S3Config, 'expirationTime'>;
     };
     staticAssets: { s3?: Omit<S3Config, 'expirationTime'> };
+    uploads: { s3: S3Config | null };
     natsWorker: {
         enabled: boolean;
         url: string | undefined;
@@ -1818,7 +1830,7 @@ export type LightdashConfig = {
                 retentionDays: number;
                 batchSize: number;
                 delayMs: number;
-                maxBatches?: number;
+                maxBatches: number;
                 schedule: string;
             };
         };
@@ -1876,9 +1888,6 @@ export type LightdashConfig = {
             allowedOrigins: string[];
             enablePostMessage: boolean;
         };
-    };
-    serviceAccount: {
-        enabled: boolean;
     };
     organizationWarehouseCredentials: {
         enabled: boolean;
@@ -1993,9 +2002,6 @@ export type LightdashConfig = {
     };
     analyticsEmbedSecret?: string;
 
-    editYamlInUi: {
-        enabled: boolean;
-    };
     funnelBuilder: {
         enabled: boolean;
     };
@@ -2654,6 +2660,9 @@ export type PostmarkConfig = {
 };
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
+// 300k rows a night: twice the insert rate of the busiest known instance, so
+// retention catches up without one night ever deleting an unbounded amount
+const DEFAULT_QUERY_HISTORY_CLEANUP_MAX_BATCHES = 300;
 // Must stay below the orchestrator's termination grace period (helm: 90s)
 // so the fail_job fallback runs before SIGKILL.
 const DEFAULT_SCHEDULER_SHUTDOWN_TIMEOUT = 1000 * 60; // 1 minute
@@ -3022,10 +3031,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // endpoint) and EmbedService (allowAll config). Keep the config field, but
     // translate the env var to the unified allowlist for the flag system.
     ['EMBEDDING_ENABLED', 'embedding'],
-    // SERVICE_ACCOUNT_ENABLED is also read by HealthService (exposed via the
-    // health endpoint). Keep the config field, but translate the env var to
-    // the unified allowlist for the flag system.
-    ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
     ['SCIM_ENABLED', 'scim-token-management'],
     // ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED is also read by HealthService
     // (exposed via the health endpoint). Keep the config field, but translate
@@ -3850,6 +3855,7 @@ export const parseConfig = (): LightdashConfig => {
             s3: parseResultsS3Config(),
         },
         staticAssets: { s3: parseStaticAssetsS3Config() },
+        uploads: { s3: parseUploadsS3Config() },
         natsWorker: {
             enabled: natsWorkerEnabled,
             url: natsWorkerUrl,
@@ -3932,7 +3938,7 @@ export const parseConfig = (): LightdashConfig => {
                     maxBatches:
                         getIntegerFromEnvironmentVariable(
                             'QUERY_HISTORY_CLEANUP_MAX_BATCHES',
-                        ) || 100,
+                        ) || DEFAULT_QUERY_HISTORY_CLEANUP_MAX_BATCHES,
                     schedule:
                         process.env.QUERY_HISTORY_CLEANUP_SCHEDULE ||
                         '0 2 * * *',
@@ -4077,9 +4083,6 @@ export const parseConfig = (): LightdashConfig => {
                     'true',
             },
         },
-        serviceAccount: {
-            enabled: process.env.SERVICE_ACCOUNT_ENABLED === 'true',
-        },
         organizationWarehouseCredentials: {
             enabled:
                 process.env.ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED ===
@@ -4157,9 +4160,6 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
         },
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
-        editYamlInUi: {
-            enabled: process.env.EDIT_YAML_IN_UI_ENABLED === 'true',
-        },
         funnelBuilder: {
             enabled:
                 process.env.FUNNEL_BUILDER_ENABLED === 'true' ||

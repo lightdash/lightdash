@@ -11,9 +11,14 @@ import {
     getFilterRuleWithDisabledState,
     isLockedRequiredMissingValue,
 } from '../dashboardFilters/FilterConfiguration/utils';
+import classes from './ControlSidebar.module.css';
 import { isDefaultValueIncomplete } from './sidebarState';
 
 type Props = {
+    /** A viewer's form: no default switch, and no value reads "any value". */
+    isEditMode: boolean;
+    /** A viewer's new filter: the shipped "Value" label above the form. */
+    isCreatingNew: boolean;
     filterType: FilterType;
     field: DashboardFilterableField | null;
     filterRule: DashboardFilterRule;
@@ -24,9 +29,11 @@ const getInputs = (root: HTMLElement | null): HTMLInputElement[] => [
     ...(root?.querySelectorAll('input') ?? []),
 ];
 
-// The value section of the shipped settings form, in edit mode. No Apply:
+// The value section of the shipped settings form. No Apply:
 // each edit is written at once, except the one the shipped Apply refuses
 export const FilterValueSettings: FC<Props> = ({
+    isEditMode,
+    isCreatingNew,
     filterType,
     field,
     filterRule,
@@ -42,7 +49,7 @@ export const FilterValueSettings: FC<Props> = ({
     const [wasRefused, setWasRefused] = useState(false);
     const refocusIndex = useRef(-1);
     const handleChange = (next: DashboardFilterRule) => {
-        const written = getFilterRuleWithDisabledState(next, true);
+        const written = getFilterRuleWithDisabledState(next, isEditMode);
         // A rule already in that state can still be edited out of it
         if (
             isLockedRequiredMissingValue(written) &&
@@ -71,10 +78,10 @@ export const FilterValueSettings: FC<Props> = ({
 
     return (
         <Stack gap="xs" ref={root}>
-            <Stack key={refusals} gap="xs">
+            <Stack key={refusals} gap="xs" className={classes.valueForm}>
                 <FilterValueSection
-                    isEditMode
-                    isCreatingNew={false}
+                    isEditMode={isEditMode}
+                    isCreatingNew={isCreatingNew}
                     filterType={filterType}
                     field={field ?? undefined}
                     filterRule={filterRule}
@@ -93,7 +100,7 @@ export const FilterValueSettings: FC<Props> = ({
                     {getUiString('filters.config.applyLockedRequiredTooltip')}
                 </Text>
             )}
-            {isDefaultValueIncomplete(filterRule) && (
+            {isEditMode && isDefaultValueIncomplete(filterRule) && (
                 <Text size="xs" c="dimmed">
                     Set a value, or the default stays off.
                 </Text>

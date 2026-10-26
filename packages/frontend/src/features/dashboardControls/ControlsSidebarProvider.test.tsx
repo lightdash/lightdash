@@ -26,12 +26,15 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { EventName } from '../../types/Events';
 import {
+    dashboardEditActions,
     dashboardFiltersActions,
     selectDashboardFilters,
     selectHaveFiltersChanged,
+    selectRawTemporaryFilters,
     useDashboardSelector,
     type DashboardStore,
 } from '../dashboard/store';
+import { type TemporaryFilterLocks } from '../dashboard/store/selectors';
 import { getFilterLockToggle } from '../dashboardFilters/ActiveFilters/filterLock';
 import {
     getFilterRuleWithDisabledState,
@@ -54,6 +57,10 @@ const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 const mockParams = vi.hoisted(() => ({ current: { mode: 'edit' } }));
+// The provider's own mode input, as an embed sets it; undefined: the route's
+const providerMode = vi.hoisted(() => ({
+    isEditMode: undefined as boolean | undefined,
+}));
 const mockTiles = vi.hoisted(() => ({
     saved: [{ uuid: 't1' }],
     current: [{ uuid: 't1' }],
@@ -120,14 +127,20 @@ const revenueField: DashboardFilterableField = {
 
 const latest: {
     filters: DashboardFilters;
+    temporaryFilters: DashboardFilters;
     changed: boolean;
 } = {
     filters: initialFilters,
+    temporaryFilters: NO_TEMPORARY_FILTERS,
     changed: false,
 };
 
 // What the dashboard holds when the test starts
 const saved = { filters: initialFilters };
+// The saved locks a viewer's own filters are made safe against
+const locks: { current: TemporaryFilterLocks | undefined } = {
+    current: undefined,
+};
 
 // The provider's setters, backed by the store
 const storeSetters = (store: DashboardStore) => ({
@@ -147,6 +160,34 @@ const storeSetters = (store: DashboardStore) => ({
                     : value,
             ),
         ),
+    setDashboardTemporaryFilters: (value: SetStateAction<DashboardFilters>) =>
+        store.dispatch(
+            dashboardFiltersActions.setTemporaryFilters(
+                typeof value === 'function'
+                    ? value(selectRawTemporaryFilters(store.getState()))
+                    : value,
+            ),
+        ),
+    // As the dashboard provider writes a saved rule, from the saved dashboard
+    updateDimensionDashboardFilter: (
+        filter: DashboardFilterRule,
+        index: number,
+        isTemporary: boolean,
+        isInEditMode: boolean,
+    ) =>
+        store.dispatch(
+            dashboardFiltersActions.updateFilter({
+                filter,
+                index,
+                isTemporary,
+                isInEditMode,
+                isFilterSaved: saved.filters.dimensions.some(
+                    ({ id }) => id === filter.id,
+                ),
+                originalFilter: saved.filters.dimensions[index],
+                category: 'dimensions',
+            }),
+        ),
 });
 
 const DashboardState: FC<
@@ -154,14 +195,21 @@ const DashboardState: FC<
 > = ({ setters, children }) => {
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const haveFiltersChanged = useDashboardSelector(selectHaveFiltersChanged);
+    const temporaryFilters = useDashboardSelector(selectRawTemporaryFilters);
     mockDashboardContext.current = {
         ...setters,
         filterableFieldsByTileUuid: mockFieldsByTile.current,
+        temporaryFilterLocks: locks.current,
         dashboard: { tiles: mockTiles.saved },
     };
     latest.filters = dashboardFilters;
+    latest.temporaryFilters = temporaryFilters;
     latest.changed = haveFiltersChanged;
-    return <ControlsSidebarProvider>{children}</ControlsSidebarProvider>;
+    return (
+        <ControlsSidebarProvider isEditMode={providerMode.isEditMode}>
+            {children}
+        </ControlsSidebarProvider>
+    );
 };
 
 // Real dashboard store behind the mocked dashboard context so edits re-render
@@ -209,8 +257,10 @@ describe('ControlsSidebarProvider', () => {
     beforeEach(() => {
         saved.filters = initialFilters;
         latest.filters = initialFilters;
+        latest.temporaryFilters = NO_TEMPORARY_FILTERS;
         latest.changed = false;
         mockParams.current = { mode: 'edit' };
+        providerMode.isEditMode = undefined;
         mockTiles.current = [{ uuid: 't1' }];
         mockFieldsByTile.current = {};
         mockTrack.mockClear();
@@ -242,6 +292,154 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.close());
         expect(latest.filters.dimensions[0].values).toEqual(['9']);
         expect(result.current.editing).toBeNull();
+    });
+
+    describe('the rail with nothing expanded', () => {
+        it('collapse keeps the edits and the rail, with nothing edited', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['9'])));
+            act(() => result.current.collapse());
+            expect(latest.filters.dimensions[0].values).toEqual(['9']);
+            expect(latest.changed).toBe(true);
+            expect(result.current.editing).toBeNull();
+            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isRailOpen).toBe(true);
+        });
+
+        it('collapse drops a new filter with no field, and keeps the rail', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.collapse());
+            expect(latest.filters).toEqual(initialFilters);
+            expect(latest.changed).toBe(false);
+            expect(result.current.isRailOpen).toBe(true);
+            expect(mockTrack).not.toHaveBeenCalled();
+        });
+
+        it('collapse keeps a new filter with a field, as Done does', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+            act(() => result.current.collapse());
+            expect(latest.filters.dimensions).toHaveLength(3);
+            expect(mockTrack).toHaveBeenCalledTimes(1);
+            expect(result.current.isRailOpen).toBe(true);
+        });
+
+        it('collapse turns off an empty default value', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.updateFilter({
+                    ...rule('a', []),
+                    disabled: false,
+                }),
+            );
+            act(() => result.current.collapse());
+            expect(latest.filters.dimensions[0].disabled).toBe(true);
+        });
+
+        it('a row opens again from there, and close shuts the rail', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.collapse());
+            act(() => result.current.open('b'));
+            expect(result.current.editing).toEqual({ filterId: 'b' });
+            expect(result.current.isSidebarOpen).toBe(true);
+
+            act(() => result.current.collapse());
+            act(() => result.current.close());
+            expect(result.current.isRailOpen).toBe(false);
+        });
+
+        it('removing a filter keeps the rail open on the rest', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.removeFilter());
+            expect(latest.filters.dimensions.map((r) => r.id)).toEqual(['b']);
+            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isRailOpen).toBe(true);
+        });
+
+        it('removing the last filter closes the rail, as Done does', () => {
+            saved.filters = {
+                ...initialFilters,
+                dimensions: [rule('a', ['1'])],
+            };
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.removeFilter());
+            expect(latest.filters.dimensions).toEqual([]);
+            expect(result.current.isRailOpen).toBe(false);
+        });
+
+        it.each(['discard', 'collapse'] as const)(
+            'a new filter left by %s with no other filter closes the rail',
+            (way) => {
+                saved.filters = { ...initialFilters, dimensions: [] };
+                const { result } = setup();
+                act(() => result.current.openNew());
+                if (way === 'discard')
+                    act(() => result.current.addFirstField(statusField));
+                act(() => result.current[way]());
+                expect(latest.filters.dimensions).toEqual([]);
+                expect(result.current.isRailOpen).toBe(false);
+            },
+        );
+
+        it('discarding a new filter keeps the rail open', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+            act(() => result.current.discard());
+            expect(latest.filters).toEqual(initialFilters);
+            expect(result.current.isRailOpen).toBe(true);
+        });
+
+        it('a rule removed from outside leaves the rail open on the rows', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            writeOutsideTheEditor((filters) => ({
+                ...filters,
+                dimensions: filters.dimensions.filter((r) => r.id !== 'a'),
+            }));
+            expect(result.current.isSidebarOpen).toBe(false);
+            expect(result.current.isRailOpen).toBe(true);
+        });
+
+        it('forgets the hovered row when a filter opens or the rail closes', () => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.collapse());
+            act(() => result.current.setHoveredFilterId('b'));
+            expect(result.current.hoveredFilterId).toBe('b');
+            act(() => result.current.open('b'));
+            expect(result.current.hoveredFilterId).toBeNull();
+
+            act(() => result.current.setHoveredFilterId('a'));
+            act(() => result.current.close());
+            expect(result.current.hoveredFilterId).toBeNull();
+        });
+
+        it("leaving a row keeps another row's hover", () => {
+            const { result } = setup();
+            act(() => result.current.setHoveredFilterId('b'));
+            // Focus leaves row a while the mouse is on row b
+            act(() => result.current.clearHoveredFilterId('a'));
+            expect(result.current.hoveredFilterId).toBe('b');
+            act(() => result.current.clearHoveredFilterId('b'));
+            expect(result.current.hoveredFilterId).toBeNull();
+        });
+
+        it('leaving edit mode closes the rail', () => {
+            const { result, rerender } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.collapse());
+            mockParams.current = { mode: 'view' };
+            rerender();
+            expect(result.current.isRailOpen).toBe(false);
+        });
     });
 
     it('moves to another filter keeping the edits made so far', () => {
@@ -1584,6 +1782,437 @@ describe('ControlsSidebarProvider', () => {
             expect(result.current.highlightedFieldId).toBeNull();
         });
 
+        describe('with Undo', () => {
+            const APPLY = {
+                kind: 'apply' as const,
+                fieldId: 'orders_region',
+                tileCount: 2,
+                replaced: 1,
+                acrossTabs: false,
+            };
+            // Status on t2, Region on t1; then Region on both
+            const applyRegionToAll = (result: {
+                current: ControlsSidebarContextValue;
+            }) => {
+                act(() => result.current.open('a'));
+                act(() =>
+                    result.current.updateFilter(onStatus({ t1: region })),
+                );
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_region'),
+                );
+                act(() =>
+                    result.current.applyWithUndo(
+                        onStatus({ t1: region, t2: region }),
+                        APPLY,
+                    ),
+                );
+            };
+
+            it('puts the rule back as it was, with the field it promoted away, and ends', () => {
+                const { result } = setup();
+                applyRegionToAll(result);
+                expect(result.current.editingRule?.target).toEqual(region);
+                expect(result.current.fieldUndo).toEqual(APPLY);
+
+                act(() => result.current.undoApply());
+                expect(result.current.editingRule).toEqual(
+                    onStatus({ t1: region }),
+                );
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('ends with any later edit to the rule, and then does nothing', () => {
+                const { result } = setup();
+                applyRegionToAll(result);
+                const edited = {
+                    ...(result.current.editingRule as DashboardFilterRule),
+                    label: 'Renamed',
+                };
+                act(() => result.current.updateFilter(edited));
+                expect(result.current.fieldUndo).toBeNull();
+
+                act(() => result.current.undoApply());
+                expect(result.current.editingRule).toEqual(edited);
+            });
+
+            it('ends with a write from outside the editor', () => {
+                const { result } = setup();
+                applyRegionToAll(result);
+                writeOutsideTheEditor((filters) => ({
+                    ...filters,
+                    dimensions: filters.dimensions.map((r) =>
+                        r.id === 'a' ? { ...r, label: 'Outside' } : r,
+                    ),
+                }));
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('ends when another field is clicked, not when the same one is', () => {
+                const { result } = setup();
+                applyRegionToAll(result);
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_region'),
+                );
+                expect(result.current.fieldUndo).toEqual(APPLY);
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_status'),
+                );
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('ends when the field is unclicked, either way', () => {
+                const { result } = setup();
+                applyRegionToAll(result);
+                act(() => result.current.setHighlightedFieldId(null));
+                expect(result.current.fieldUndo).toBeNull();
+
+                act(() => result.current.undoApply());
+                expect(result.current.editingRule?.target).toEqual(region);
+
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_region'),
+                );
+                act(() =>
+                    result.current.applyWithUndo(
+                        onStatus({ t1: region }),
+                        APPLY,
+                    ),
+                );
+                expect(result.current.fieldUndo).toEqual(APPLY);
+                act(() => result.current.clearHighlightedField());
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('is made only for the clicked field, as the bar is the only one to show it', () => {
+                const { result } = setup();
+                act(() => result.current.open('a'));
+                act(() =>
+                    result.current.updateFilter(onStatus({ t1: region })),
+                );
+                // A tile card's follow-up while nothing is clicked
+                act(() =>
+                    result.current.applyWithUndo(
+                        onStatus({ t1: region, t2: region }),
+                        APPLY,
+                    ),
+                );
+                expect(result.current.editingRule?.target).toEqual(region);
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('brings back a waiting field the apply put on tiles', () => {
+                const { result } = setup();
+                act(() => result.current.open('a'));
+                act(() => result.current.updateFilter(onStatus(undefined)));
+                act(() => result.current.addWaitingField('orders_region'));
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_region'),
+                );
+                act(() =>
+                    result.current.applyWithUndo(
+                        onStatus({ t1: region }),
+                        APPLY,
+                    ),
+                );
+                expect(result.current.waitingFieldIds).toEqual([]);
+
+                act(() => result.current.undoApply());
+                expect(result.current.editingRule).toEqual(onStatus(undefined));
+                expect(result.current.waitingFieldIds).toEqual([
+                    'orders_region',
+                ]);
+            });
+
+            it('is gone on another tab after a this-tab apply, and back on its tab', () => {
+                const TAB_1 = { uuid: 'tab-1', name: 'One', order: 0 };
+                const TAB_2 = { uuid: 'tab-2', name: 'Two', order: 1 };
+                const { result } = setup();
+                act(() => {
+                    currentStore.dispatch(
+                        dashboardEditActions.setActiveTab(TAB_1),
+                    );
+                });
+                applyRegionToAll(result);
+                expect(result.current.fieldUndo).toEqual(APPLY);
+
+                act(() => {
+                    currentStore.dispatch(
+                        dashboardEditActions.setActiveTab(TAB_2),
+                    );
+                });
+                expect(result.current.fieldUndo).toBeNull();
+                const written = result.current.editingRule;
+                act(() => result.current.undoApply());
+                expect(result.current.editingRule).toEqual(written);
+            });
+
+            it('stays on every tab after an apply across tabs', () => {
+                const TAB_1 = { uuid: 'tab-1', name: 'One', order: 0 };
+                const TAB_2 = { uuid: 'tab-2', name: 'Two', order: 1 };
+                const { result } = setup();
+                act(() => {
+                    currentStore.dispatch(
+                        dashboardEditActions.setActiveTab(TAB_1),
+                    );
+                });
+                act(() => result.current.open('a'));
+                act(() =>
+                    result.current.updateFilter(onStatus({ t1: region })),
+                );
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_region'),
+                );
+                const ACROSS = { ...APPLY, acrossTabs: true };
+                act(() =>
+                    result.current.applyWithUndo(
+                        onStatus({ t1: region, t2: region }),
+                        ACROSS,
+                    ),
+                );
+                act(() => {
+                    currentStore.dispatch(
+                        dashboardEditActions.setActiveTab(TAB_2),
+                    );
+                });
+                expect(result.current.fieldUndo).toEqual(ACROSS);
+            });
+
+            it('is not kept for a clear that promoted its field away, which unclicks it', () => {
+                const { result } = setup();
+                act(() => result.current.open('a'));
+                act(() =>
+                    result.current.updateFilter(onStatus({ t1: region })),
+                );
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_status'),
+                );
+                const CLEAR = {
+                    kind: 'clear' as const,
+                    fieldId: 'orders_status',
+                    tileCount: 1,
+                    replaced: 0,
+                    acrossTabs: false,
+                };
+                // Status off its last tile: Region is promoted
+                act(() =>
+                    result.current.applyWithUndo(
+                        onStatus({ t1: region, t2: false }),
+                        CLEAR,
+                    ),
+                );
+                expect(result.current.editingRule?.target).toEqual(region);
+
+                // Promotion unclicks Status: no bar is left to show Undo
+                expect(result.current.highlightedFieldId).toBeNull();
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('takes back a clear', () => {
+                const { result } = setup();
+                act(() => result.current.open('a'));
+                act(() =>
+                    result.current.updateFilter(onStatus({ t1: region })),
+                );
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_region'),
+                );
+                const CLEAR = {
+                    kind: 'clear' as const,
+                    fieldId: 'orders_region',
+                    tileCount: 1,
+                    replaced: 0,
+                    acrossTabs: false,
+                };
+                act(() =>
+                    result.current.applyWithUndo(
+                        onStatus({ t1: false }),
+                        CLEAR,
+                    ),
+                );
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_region'),
+                );
+                expect(result.current.fieldUndo).toEqual(CLEAR);
+
+                act(() => result.current.undoApply());
+                expect(result.current.editingRule).toEqual(
+                    onStatus({ t1: region }),
+                );
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('ends when a waiting field is removed, so Undo cannot bring it back', () => {
+                const { result } = setup();
+                act(() => result.current.open('a'));
+                act(() => result.current.updateFilter(onStatus(undefined)));
+                act(() => result.current.addWaitingField('orders_region'));
+                act(() =>
+                    result.current.setHighlightedFieldId('orders_status'),
+                );
+                act(() =>
+                    result.current.applyWithUndo(onStatus({ t1: false }), {
+                        kind: 'clear',
+                        fieldId: 'orders_status',
+                        tileCount: 1,
+                        replaced: 0,
+                        acrossTabs: false,
+                    }),
+                );
+                expect(result.current.fieldUndo).not.toBeNull();
+
+                act(() => result.current.removeWaitingField('orders_region'));
+                expect(result.current.fieldUndo).toBeNull();
+                act(() => result.current.undoApply());
+                expect(result.current.waitingFieldIds).toEqual([]);
+            });
+
+            describe('a clicked field a clear took off its last tile', () => {
+                const CLEAR_REGION = {
+                    kind: 'clear' as const,
+                    fieldId: 'orders_region',
+                    tileCount: 1,
+                    replaced: 0,
+                    acrossTabs: false,
+                };
+                const clearRegion = (result: {
+                    current: ControlsSidebarContextValue;
+                }) => {
+                    act(() => result.current.open('a'));
+                    act(() =>
+                        result.current.updateFilter(onStatus({ t1: region })),
+                    );
+                    act(() =>
+                        result.current.setHighlightedFieldId('orders_region'),
+                    );
+                    act(() =>
+                        result.current.applyWithUndo(
+                            onStatus({ t1: false }),
+                            CLEAR_REGION,
+                        ),
+                    );
+                };
+
+                it('is never clicked when it is not a field of the filter', () => {
+                    const { result } = setup();
+                    act(() => result.current.open('a'));
+                    act(() =>
+                        result.current.setHighlightedFieldId('orders_region'),
+                    );
+                    expect(result.current.highlightedFieldId).toBeNull();
+                });
+
+                it('stays clicked while its undo lives, and is no field once it ends', () => {
+                    const { result } = setup();
+                    clearRegion(result);
+                    expect(result.current.highlightedFieldId).toBe(
+                        'orders_region',
+                    );
+                    expect(result.current.activeFieldId).toBe('orders_region');
+
+                    act(() =>
+                        result.current.updateFilter({
+                            ...(result.current
+                                .editingRule as DashboardFilterRule),
+                            values: ['2'],
+                        }),
+                    );
+                    expect(result.current.fieldUndo).toBeNull();
+                    expect(result.current.highlightedFieldId).toBeNull();
+                    expect(result.current.activeFieldId).toBeNull();
+                });
+
+                it('is not clicked again when it comes back as a waiting field', () => {
+                    const { result } = setup();
+                    clearRegion(result);
+                    act(() =>
+                        result.current.updateFilter({
+                            ...(result.current
+                                .editingRule as DashboardFilterRule),
+                            values: ['2'],
+                        }),
+                    );
+                    act(() => result.current.addWaitingField('orders_region'));
+                    expect(result.current.waitingFieldIds).toContain(
+                        'orders_region',
+                    );
+                    expect(result.current.highlightedFieldId).toBeNull();
+                });
+
+                it('is hidden on another tab and back with its live undo', () => {
+                    const TAB_1 = { uuid: 'tab-1', name: 'One', order: 0 };
+                    const TAB_2 = { uuid: 'tab-2', name: 'Two', order: 1 };
+                    const { result } = setup();
+                    act(() => {
+                        currentStore.dispatch(
+                            dashboardEditActions.setActiveTab(TAB_1),
+                        );
+                    });
+                    clearRegion(result);
+                    act(() => {
+                        currentStore.dispatch(
+                            dashboardEditActions.setActiveTab(TAB_2),
+                        );
+                    });
+                    expect(result.current.highlightedFieldId).toBeNull();
+
+                    act(() => {
+                        currentStore.dispatch(
+                            dashboardEditActions.setActiveTab(TAB_1),
+                        );
+                    });
+                    expect(result.current.fieldUndo).toEqual(CLEAR_REGION);
+                    expect(result.current.highlightedFieldId).toBe(
+                        'orders_region',
+                    );
+                });
+            });
+
+            it('ends when the editor writes another filter', () => {
+                const { result } = setup();
+                applyRegionToAll(result);
+                act(() =>
+                    result.current.updateOtherFilters([
+                        { ...rule('b', ['2']), label: 'Other' },
+                    ]),
+                );
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('ends once another control opens, and Undo does nothing there', () => {
+                const { result } = setup();
+                applyRegionToAll(result);
+                const written = result.current.editingRule;
+                act(() => result.current.open('b'));
+                expect(result.current.fieldUndo).toBeNull();
+
+                act(() => result.current.undoApply());
+                expect(
+                    latest.filters.dimensions.find((r) => r.id === 'a'),
+                ).toEqual(written);
+            });
+
+            it('ends when the editor closes', () => {
+                const { result } = setup();
+                applyRegionToAll(result);
+                act(() => result.current.close());
+                expect(result.current.fieldUndo).toBeNull();
+            });
+
+            it('is not offered for a press that changed nothing', () => {
+                const { result } = setup();
+                applyRegionToAll(result);
+                act(() => result.current.undoApply());
+                act(() =>
+                    result.current.applyWithUndo(
+                        result.current.editingRule as DashboardFilterRule,
+                        APPLY,
+                    ),
+                );
+                expect(result.current.fieldUndo).toBeNull();
+            });
+        });
+
         it('leaves a first field that was already on no tile alone', () => {
             const { result } = setup();
             act(() => result.current.open('a'));
@@ -1629,8 +2258,8 @@ describe('ControlsSidebarProvider', () => {
     it('the hovered field wins over the highlighted one', () => {
         const { result } = setup();
         act(() => result.current.open('a'));
-        act(() => result.current.setHighlightedFieldId('x'));
-        expect(result.current.activeFieldId).toBe('x');
+        act(() => result.current.setHighlightedFieldId('orders_a'));
+        expect(result.current.activeFieldId).toBe('orders_a');
         act(() => result.current.setHoveredFieldId('y'));
         expect(result.current.activeFieldId).toBe('y');
         act(() => result.current.close());
@@ -1690,7 +2319,7 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(19);
+        expect(Object.keys(initial)).toHaveLength(24);
         expect(initial).toHaveProperty('updateOtherFilters');
         expect(initial).toHaveProperty('removeLastField');
         expect(initial).toHaveProperty('addFirstSqlColumn');
@@ -2020,5 +2649,334 @@ describe('ControlsSidebarProvider', () => {
             rerender();
             expect(result.current.dismissedLinks).toEqual([]);
         });
+    });
+});
+
+// What the value input writes once a viewer picks a value
+const withValue = (filterRule: DashboardFilterRule): DashboardFilterRule => ({
+    ...filterRule,
+    values: ['done'],
+    disabled: false,
+});
+
+describe('ControlsSidebarProvider in view mode', () => {
+    beforeEach(() => {
+        saved.filters = initialFilters;
+        latest.filters = initialFilters;
+        latest.temporaryFilters = NO_TEMPORARY_FILTERS;
+        latest.changed = false;
+        mockParams.current = { mode: 'view' };
+        providerMode.isEditMode = undefined;
+        mockTiles.current = [{ uuid: 't1' }];
+        mockFieldsByTile.current = {};
+        mockTrack.mockClear();
+    });
+
+    it("adds a viewer's filter to the temporary filters, never the saved ones", () => {
+        const { result } = setup();
+        expect(result.current.isViewer).toBe(true);
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+
+        expect(latest.filters).toEqual(initialFilters);
+        expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+        const added = latest.temporaryFilters.dimensions[0];
+        expect(added.target.fieldId).toBe('orders_status');
+        // No value yet: "any value", as the shipped popover writes it
+        expect(added.disabled).toBe(true);
+        expect(result.current.editingRule?.id).toBe(added.id);
+
+        act(() => result.current.updateFilter(withValue(added)));
+        act(() => result.current.close());
+        expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+        expect(mockTrack).toHaveBeenCalledWith({
+            name: EventName.ADD_FILTER_CLICKED,
+            properties: { mode: 'viewer' },
+        });
+    });
+
+    it.each(['close', 'collapse'] as const)(
+        "drops a viewer's new filter left with no value on %s, as the shipped Apply",
+        (way) => {
+            const { result } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+            expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+
+            act(() => result.current[way]());
+            expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
+            expect(latest.changed).toBe(false);
+            expect(result.current.editing).toBeNull();
+            expect(mockTrack).not.toHaveBeenCalled();
+        },
+    );
+
+    it("adds a viewer's filter on a SQL column to the temporary filters", () => {
+        const { result } = setup();
+        act(() => result.current.openNew());
+        act(() =>
+            result.current.addFirstSqlColumn(
+                { reference: 'total', type: DimensionType.NUMBER },
+                { s1: [{ reference: 'total', type: DimensionType.NUMBER }] },
+            ),
+        );
+
+        expect(latest.filters).toEqual(initialFilters);
+        expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+        const added = latest.temporaryFilters.dimensions[0];
+        expect(added.target).toEqual(
+            expect.objectContaining({ fieldId: 'total', isSqlColumn: true }),
+        );
+        // No value yet: "any value", as the shipped popover writes it
+        expect(added.disabled).toBe(true);
+
+        act(() => result.current.updateFilter(withValue(added)));
+        act(() => result.current.close());
+        expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+        expect(mockTrack).toHaveBeenCalledWith({
+            name: EventName.ADD_FILTER_CLICKED,
+            properties: { mode: 'viewer' },
+        });
+    });
+
+    it("discarding a viewer's new filter leaves nothing behind", () => {
+        const { result } = setup();
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+        expect(latest.changed).toBe(true);
+
+        act(() => result.current.discard());
+        expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
+        expect(latest.changed).toBe(false);
+        // Their own filters are the rail's rows: none are left
+        expect(result.current.isRailOpen).toBe(false);
+        expect(mockTrack).not.toHaveBeenCalled();
+    });
+
+    const seedOwn = (rules: DashboardFilterRule[]) =>
+        act(() => {
+            currentStore.dispatch(
+                dashboardFiltersActions.setTemporaryFilters({
+                    ...NO_TEMPORARY_FILTERS,
+                    dimensions: rules,
+                }),
+            );
+        });
+
+    it('discarding a new filter keeps the rail open on their other filters', () => {
+        const { result } = setup();
+        seedOwn([rule('own', ['x'])]);
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+        act(() => result.current.discard());
+        expect(latest.temporaryFilters.dimensions.map((r) => r.id)).toEqual([
+            'own',
+        ]);
+        expect(result.current.isRailOpen).toBe(true);
+    });
+
+    it('closes the rail when only own filters hidden by a lock on this tab are left', () => {
+        locks.current = {
+            savedFilters: {
+                ...initialFilters,
+                dimensions: [{ ...rule('a', ['1']), lockedTabUuids: ['d'] }],
+            },
+            hasTabs: false,
+        };
+        const { result } = setup();
+        // The rail never lists it: a saved filter on its field is locked
+        seedOwn([rule('a', ['x'])]);
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+        act(() => result.current.discard());
+        expect(latest.temporaryFilters.dimensions.map((r) => r.id)).toEqual([
+            'a',
+        ]);
+        expect(result.current.isRailOpen).toBe(false);
+        locks.current = undefined;
+    });
+
+    it('removing their last filter closes the rail; with another left it stays', () => {
+        const { result } = setup();
+        seedOwn([rule('one', ['x']), rule('two', ['y'])]);
+        act(() => result.current.open('one'));
+        act(() => result.current.removeFilter());
+        expect(result.current.isRailOpen).toBe(true);
+
+        act(() => result.current.open('two'));
+        act(() => result.current.removeFilter());
+        expect(latest.temporaryFilters.dimensions).toEqual([]);
+        expect(result.current.isRailOpen).toBe(false);
+    });
+
+    it("edits, puts back and removes a viewer's own filter", () => {
+        const own = rule('own', ['x']);
+        const { result } = setup();
+        act(() => {
+            currentStore.dispatch(
+                dashboardFiltersActions.setTemporaryFilters({
+                    ...NO_TEMPORARY_FILTERS,
+                    dimensions: [own],
+                }),
+            );
+        });
+        act(() => result.current.open('own'));
+        act(() => result.current.updateFilter(rule('own', ['y'])));
+        expect(latest.temporaryFilters.dimensions[0].values).toEqual(['y']);
+        expect(result.current.isDirty).toBe(true);
+
+        act(() => result.current.discard());
+        expect(latest.temporaryFilters.dimensions[0].values).toEqual(['x']);
+
+        act(() => result.current.open('own'));
+        act(() => result.current.removeFilter());
+        expect(latest.temporaryFilters.dimensions).toEqual([]);
+        expect(latest.filters).toEqual(initialFilters);
+    });
+
+    it('removes a pill of their own by id', () => {
+        const { result } = setup();
+        act(() => {
+            currentStore.dispatch(
+                dashboardFiltersActions.setTemporaryFilters({
+                    ...NO_TEMPORARY_FILTERS,
+                    dimensions: [rule('own', ['x'])],
+                }),
+            );
+        });
+        act(() => result.current.removeFilterById('own'));
+        expect(latest.temporaryFilters.dimensions).toEqual([]);
+        expect(latest.filters).toEqual(initialFilters);
+    });
+
+    it("never opens a saved filter: it keeps the bar's popover", () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        expect(result.current.isRailOpen).toBe(false);
+        expect(result.current.editing).toBeNull();
+        expect(latest.filters).toEqual(initialFilters);
+    });
+
+    it('keeps every callback across a mode switch', () => {
+        const { result, rerender } = setup();
+        const callbacksOf = () =>
+            Object.entries(result.current).filter(
+                ([, value]) => typeof value === 'function',
+            );
+        const before = callbacksOf();
+        mockParams.current = { mode: 'edit' };
+        rerender();
+        mockParams.current = { mode: 'view' };
+        rerender();
+        callbacksOf().forEach(([name, callback], index) => {
+            expect([name, callback]).toEqual(before[index]);
+        });
+        expect(before.length).toBeGreaterThan(20);
+    });
+
+    describe('a mode change closes the edit as Done does', () => {
+        it('drops a new filter with no field, on the filters it started in', () => {
+            const { result, rerender } = setup();
+            act(() => result.current.openNew());
+            mockParams.current = { mode: 'edit' };
+            rerender();
+            expect(result.current.isRailOpen).toBe(false);
+            expect(result.current.editingRule).toBeNull();
+            expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
+            expect(latest.filters).toEqual(initialFilters);
+            expect(mockTrack).not.toHaveBeenCalled();
+
+            mockParams.current = { mode: 'view' };
+            rerender();
+            expect(result.current.isRailOpen).toBe(false);
+        });
+
+        it('drops a new viewer filter with no value', () => {
+            const { result, rerender } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+            mockParams.current = { mode: 'edit' };
+            rerender();
+            expect(result.current.isRailOpen).toBe(false);
+            expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
+            expect(mockTrack).not.toHaveBeenCalled();
+        });
+
+        it('keeps and tracks a new viewer filter with a value, as temporary', () => {
+            const { result, rerender } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+            act(() =>
+                result.current.updateFilter(
+                    withValue(latest.temporaryFilters.dimensions[0]),
+                ),
+            );
+            mockParams.current = { mode: 'edit' };
+            rerender();
+            expect(result.current.isRailOpen).toBe(false);
+            expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+            expect(latest.filters).toEqual(initialFilters);
+            expect(mockTrack).toHaveBeenCalledWith({
+                name: EventName.ADD_FILTER_CLICKED,
+                properties: { mode: 'viewer' },
+            });
+
+            mockParams.current = { mode: 'view' };
+            rerender();
+            expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+            expect(result.current.isRailOpen).toBe(false);
+        });
+
+        it('keeps an editor filter in the saved filters on the way back to view mode', () => {
+            mockParams.current = { mode: 'edit' };
+            const { result, rerender } = setup();
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+            mockParams.current = { mode: 'view' };
+            rerender();
+            expect(latest.filters.dimensions).toHaveLength(3);
+            expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
+            expect(mockTrack).toHaveBeenCalledWith({
+                name: EventName.ADD_FILTER_CLICKED,
+                properties: { mode: 'edit' },
+            });
+            expect(result.current.isRailOpen).toBe(false);
+        });
+
+        it('follows the mode an embed gives it, where no route says one', () => {
+            mockParams.current = { mode: '' };
+            providerMode.isEditMode = false;
+            const { result, rerender } = setup();
+            expect(result.current.isViewer).toBe(true);
+            act(() => result.current.openNew());
+            act(() => result.current.addFirstField(statusField));
+            act(() =>
+                result.current.updateFilter(
+                    withValue(latest.temporaryFilters.dimensions[0]),
+                ),
+            );
+
+            providerMode.isEditMode = true;
+            rerender();
+            expect(result.current.isViewer).toBe(false);
+            expect(result.current.isRailOpen).toBe(false);
+            expect(result.current.editing).toBeNull();
+            expect(latest.temporaryFilters.dimensions).toHaveLength(1);
+
+            providerMode.isEditMode = false;
+            rerender();
+            expect(result.current.isRailOpen).toBe(false);
+            expect(result.current.editing).toBeNull();
+        });
+    });
+
+    it('closes the rail when the dashboard enters edit mode', () => {
+        const { result, rerender } = setup();
+        act(() => result.current.openNew());
+        expect(result.current.isRailOpen).toBe(true);
+        mockParams.current = { mode: 'edit' };
+        rerender();
+        expect(result.current.isRailOpen).toBe(false);
+        expect(result.current.isViewer).toBe(false);
     });
 });

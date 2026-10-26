@@ -1,4 +1,6 @@
 import {
+    ChartType,
+    type ChartConfig,
     type CreateSavedChartVersion,
     type ReplaceCustomFields,
     type SkippedReplaceCustomFields,
@@ -120,3 +122,34 @@ export function getColumnOrderFromVizTableConfig(
         .sort(([_, a], [__, b]) => (a.order ?? 0) - (b.order ?? 0))
         .map(([key]) => key);
 }
+
+/**
+ * Applies defaults to a chart created from scratch (UI, API, content as code,
+ * or agents). Saved, duplicated, and promoted charts keep their stored config,
+ * so older content without a setting keeps its original behavior.
+ *
+ * TODO(2026-12-22): `showIncompletePeriod` shipped on 2026-10-22. If nobody
+ * has reported problems with it, treat a missing value as on for all charts in
+ * the visualization's incomplete period check, and remove it from this function.
+ */
+export const applyNewChartDefaults = (
+    chartConfig: ChartConfig,
+): ChartConfig => {
+    if (
+        chartConfig.type !== ChartType.CARTESIAN ||
+        !chartConfig.config ||
+        chartConfig.config.layout?.showIncompletePeriod !== undefined
+    ) {
+        return chartConfig;
+    }
+    return {
+        ...chartConfig,
+        config: {
+            ...chartConfig.config,
+            layout: {
+                ...chartConfig.config.layout,
+                showIncompletePeriod: true,
+            },
+        },
+    };
+};

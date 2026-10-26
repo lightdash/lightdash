@@ -4,7 +4,6 @@ import {
     AiAccessRefusalReason,
     AiAccessRefusedError,
     AnyType,
-    CommercialFeatureFlags,
     ConflictError,
     DEFAULT_MANAGED_AGENT_POLICY,
     FeatureFlags,
@@ -38,17 +37,6 @@ import {
     createAutopilotAuthority,
 } from './autopilotAuthority';
 import { ManagedAgentService } from './ManagedAgentService';
-
-// Flag lookups other than the pre-aggregates kill switch, which every
-// heartbeat resolves while rendering the agent.
-const flagLookups = (featureFlagModel: {
-    get: { mock: { calls: unknown[][] } };
-}) =>
-    featureFlagModel.get.mock.calls.filter(
-        ([args]) =>
-            (args as { featureFlagId: string }).featureFlagId !==
-            CommercialFeatureFlags.PreAggregates,
-    );
 
 const captureAutopilotFailure = vi.fn();
 vi.mock('./autopilotFailure', async (importOriginal) => ({
@@ -1223,6 +1211,47 @@ describe('ManagedAgentService query check before saving', () => {
         );
         expect(savedChartModel.create).not.toHaveBeenCalled();
     });
+
+    it('turns the incomplete period on for a cartesian chart it creates', async () => {
+        const { service, savedChartModel, projectModel } = buildService();
+        stubGuards(service);
+        projectModel.findExploresFromCache.mockResolvedValue({
+            orders: {
+                tables: {
+                    orders: {
+                        dimensions: { status: {} },
+                        metrics: { total_revenue: {} },
+                    },
+                },
+            },
+        });
+        await (service as AnyType).handleToolCall(
+            PROJECT_UUID,
+            'session',
+            'run',
+            'create_content_from_code',
+            {
+                description: 'Users keep asking for revenue by status',
+                chart_as_code: {
+                    name: 'Revenue by status',
+                    tableName: 'orders',
+                    metricQuery,
+                    chartConfig: {
+                        type: 'cartesian',
+                        config: {
+                            layout: { xField: 'orders_status' },
+                            eChartsConfig: {},
+                        },
+                    },
+                },
+            },
+        );
+        expect(savedChartModel.create).toHaveBeenCalledTimes(1);
+        expect(
+            (savedChartModel.create.mock.calls[0] as AnyType[])[2].chartConfig
+                .config.layout,
+        ).toEqual({ xField: 'orders_status', showIncompletePeriod: true });
+    });
 });
 
 describe('ManagedAgentService broken-content pagination', () => {
@@ -1556,7 +1585,7 @@ describe('ManagedAgentService heartbeat authority', () => {
         await service.runHeartbeat(PROJECT_UUID, 'run-uuid');
 
         expect(userModel.findSessionUserAndOrgByUuid).toHaveBeenCalledTimes(2);
-        expect(flagLookups(featureFlagModel)).toHaveLength(2);
+        expect(featureFlagModel.get.mock.calls).toHaveLength(2);
         expect(agentPermissionService.loadRequest).not.toHaveBeenCalled();
         expect(
             agentPermissionService.assertOperationWithRequest,
@@ -1707,7 +1736,7 @@ describe('ManagedAgentService enabled heartbeat authority', () => {
             expect(captureAutopilotFailure).toHaveBeenCalledTimes(
                 failure === 'database' ? 1 : 0,
             );
-            expect(flagLookups(fixture.featureFlagModel)).toHaveLength(1);
+            expect(fixture.featureFlagModel.get.mock.calls).toHaveLength(1);
         },
     );
 
@@ -2051,7 +2080,7 @@ describe('ManagedAgentService authority check cadence', () => {
                 error: 'Autopilot actor is not configured for project project-uuid',
             }),
         );
-        expect(flagLookups(fixture.featureFlagModel)).toHaveLength(0);
+        expect(fixture.featureFlagModel.get.mock.calls).toHaveLength(0);
         expect(
             fixture.userModel.findSessionUserAndOrgByUuid,
         ).not.toHaveBeenCalled();
@@ -2110,7 +2139,7 @@ describe('ManagedAgentService authority review regressions', () => {
             await fixture.service.runHeartbeat(PROJECT_UUID, 'run-uuid');
             expectAuthorityBlocked(fixture, blockedPersonMessage);
             expect(fixture.doGenerate).not.toHaveBeenCalled();
-            expect(flagLookups(fixture.featureFlagModel)).toHaveLength(0);
+            expect(fixture.featureFlagModel.get.mock.calls).toHaveLength(0);
             expect(
                 fixture.userModel.findSessionUserAndOrgByUuid,
             ).toHaveBeenCalledTimes(1);

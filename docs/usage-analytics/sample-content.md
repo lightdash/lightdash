@@ -5,11 +5,37 @@ defines managed dashboards using system explores, including AI usage, Query acti
 and AI tokens and billing coverage. It is compiled with the backend: no CLI upload, migration,
 installation table, or version tracking is required.
 
+New built-in dashboards are created together in the **Default dashboards** space.
+Create and Sync content automatically apply the existing **Verified** badge after
+each dashboard's charts and layout are installed. Verification is attributed to
+the admin performing the action; it identifies the supplied content, not the health
+or completeness of that organization's captured data. Normal sync preserves an
+existing verification; restoration re-verifies after the layout is installed.
+Custom dashboards and copies are not automatically verified.
+Existing projects show **Sync content** when a built-in dashboard is unverified.
+
+Sync keeps existing dashboards in their current spaces, including any restricted
+spaces, so adopting this layout does not change inherited access. Their charts
+follow the same space. Restored dashboards retain their previous active space;
+an unavailable or ambiguous space fails the sync rather than changing access.
+Old spaces and custom content are not removed or moved.
+
 AI usage includes calls, total tokens, distinct users and output-token KPIs,
 daily calls/token trends, and top models by tokens and calls. Query activity includes
 a cache-hit share donut, average/P90 warehouse execution trends,
 and top query contexts. Token volume is not cost; warehouse execution time is not
 end-to-end latency. Missing cache flags are not treated as misses.
+
+Queries → **Monthly comparison** shows querying users and query runs for the last
+12 completed UTC calendar months, with absolute and percentage changes against
+the preceding calendar month. Monthly users are counted distinctly across the
+whole month, not summed from daily users. Query runs include recorded cache hits
+and errors; recorded users include service accounts. Missing months are omitted
+and do not become zeroes or comparisons with an older non-adjacent month.
+Percentage change is blank for a zero baseline. Capture and retention can leave
+even closed calendar months incomplete; these comparisons describe recorded usage.
+Existing projects get these charts through **Sync content**; no event backfill,
+compaction changes or automatic edits to saved customer content are required.
 
 Query activity focuses on query totals, distinct users, average/P90 warehouse
 execution time, daily query and active-user trends, cache-hit share and query

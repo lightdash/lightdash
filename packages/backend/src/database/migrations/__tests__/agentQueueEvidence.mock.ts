@@ -475,13 +475,6 @@ export const queueEvidenceFixture = async (
             }
         });
     const configureMultiCompile = async (multi = true) => {
-        await database('feature_flags')
-            .insert({
-                flag_id: FeatureFlags.MultiDbtSources,
-                default_enabled: true,
-            })
-            .onConflict('flag_id')
-            .merge({ default_enabled: true });
         const credentials = postgresWarehouse(migrated.databaseName);
         const [project] = await database('projects')
             .where('project_uuid', f.projectUuid)

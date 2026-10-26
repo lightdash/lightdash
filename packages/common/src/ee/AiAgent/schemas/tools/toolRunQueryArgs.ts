@@ -31,7 +31,7 @@ import {
     mcpAsyncQueryUuidSchema,
 } from './toolQueryResultSchemas';
 
-const parameterValueSchema = z.union([
+export const parameterValueSchema = z.union([
     z.string(),
     z.number(),
     z.array(z.string()),
@@ -622,7 +622,7 @@ export type ToolRenderChartArgsTransformed = z.infer<
     typeof toolRenderChartArgsSchemaTransformed
 >;
 
-const appliedParametersSchema = z
+export const appliedParametersSchema = z
     .object({
         applied: z
             .record(z.string(), parameterValueSchema)

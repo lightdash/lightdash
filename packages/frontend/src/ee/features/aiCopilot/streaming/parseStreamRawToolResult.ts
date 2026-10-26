@@ -10,6 +10,7 @@ import {
     toolRunQueryArgsSchemaPersisted,
     toolRunQueryExpressionArgsSchema,
     toolRunQueryExpressionArgsSchemaV2,
+    toolVisualizeArgsSchemaPersisted,
     type ToolDefinition,
     type ToolName,
 } from '@lightdash/common';
@@ -34,6 +35,7 @@ const wideInputSchemaOverrides = {
     editContent: mcpEditContentArgsSchema,
     query: toolComposerQueriesArgsSchemaPersisted,
     runComposerQueries: toolComposerQueriesArgsSchemaPersisted,
+    visualize: toolVisualizeArgsSchemaPersisted,
 } as const;
 
 type ToolArgs<TName extends ToolName> =

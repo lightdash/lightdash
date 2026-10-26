@@ -317,7 +317,6 @@ describe('Multi-connection compile on the real schema', () => {
         originalCredentials: CreateWarehouseCredentials = postgresWarehouse(
             ORIGINAL_DB,
         ),
-        includeUnboundSources = true,
         failure: {
             sources: string[];
             phase: 'prepare' | 'manifest';
@@ -374,7 +373,6 @@ describe('Multi-connection compile on the real schema', () => {
                         },
                     },
                     dbtVersion: SupportedDbtVersions.V1_8,
-                    includeUnboundSources,
                     crossSourceRefsEnabled: failure?.crossSourceRefs ?? false,
                     mixedWarehouseConnectionsEnabled: false,
                     onSourceWarning: failure?.onWarning,
@@ -854,13 +852,11 @@ describe('Multi-connection compile on the real schema', () => {
         };
 
         type CompileServiceOptions = {
-            multiDbtSources: boolean;
             dbtProjectDir: string | undefined;
             primaryModels?: FixtureModel[];
             failedSources?: string[];
         };
         const defaultCompileServiceOptions: CompileServiceOptions = {
-            multiDbtSources: true,
             dbtProjectDir: undefined,
         };
 
@@ -942,7 +938,7 @@ describe('Multi-connection compile on the real schema', () => {
                 featureFlagModel: {
                     get: async () => ({
                         id: 'flag',
-                        enabled: options.multiDbtSources,
+                        enabled: true,
                     }),
                 },
                 catalogModel: {
@@ -3579,32 +3575,6 @@ Sources in this project: Core models, marketing, finance.`;
             },
         );
 
-        test('compileProject on a multi project with additional dbt sources off compiles the primary on the original and still compiles the extra connection', async () => {
-            const fixture = await createProject();
-            const { service } = compileService(fixture.projectUuid, {
-                multiDbtSources: false,
-                dbtProjectDir: undefined,
-            });
-            const user = await compilingUser(fixture.projectUuid);
-            const jobUuid = await createJob(fixture.projectUuid, user.userUuid);
-
-            await service.compileProject(
-                user,
-                fixture.projectUuid,
-                RequestMethod.WEB_APP,
-                jobUuid,
-            );
-
-            expect(await bindings(fixture.projectUuid)).toEqual({
-                customers: null,
-                orders: null,
-                payments: fixture.extraConnectionUuid,
-            });
-            expect(fetchedWith.map(({ source }) => source)).toEqual([
-                'finance',
-            ]);
-        });
-
         test('a multi compile reads the lightdash config of the primary with the analytics handle', async () => {
             const fixture = await createProject();
             const dbtProjectDir = mkdtempSync(
@@ -3617,7 +3587,7 @@ Sources in this project: Core models, marketing, finance.`;
             try {
                 const { service, analytics } = compileService(
                     fixture.projectUuid,
-                    { multiDbtSources: true, dbtProjectDir },
+                    { dbtProjectDir },
                 );
                 const user = await compilingUser(fixture.projectUuid);
                 const jobUuid = await createJob(
@@ -4031,7 +4001,6 @@ Sources in this project: Core models, marketing, finance.`;
                         fixture,
                         primaryModels,
                         postgresWarehouse(ORIGINAL_DB),
-                        true,
                         {
                             sources: [],
                             phase: 'prepare',
@@ -4087,7 +4056,6 @@ Sources in this project: Core models, marketing, finance.`;
                             label: 'Refreshed',
                         })),
                         postgresWarehouse(ORIGINAL_DB),
-                        true,
                         {
                             sources: ['marketing'],
                             phase: 'prepare',
@@ -4189,7 +4157,6 @@ Sources in this project: Core models, marketing, finance.`;
                     fixture,
                     primaryModels,
                     postgresWarehouse(ORIGINAL_DB),
-                    true,
                     { sources: [], phase: 'prepare', crossSourceRefs: true },
                 );
                 const sourceCatalog = await database('dbt_source_ref_catalogs')
@@ -5445,7 +5412,6 @@ Sources in this project: Core models, marketing, finance.`;
                         fixture,
                         refreshedModels,
                         postgresWarehouse(ORIGINAL_DB),
-                        true,
                         {
                             sources: ['marketing'],
                             phase,
@@ -5492,7 +5458,6 @@ Sources in this project: Core models, marketing, finance.`;
                         fixture,
                         primaryModels,
                         postgresWarehouse(ORIGINAL_DB),
-                        true,
                         {
                             sources: [],
                             phase: 'prepare',
@@ -5576,7 +5541,6 @@ Sources in this project: Core models, marketing, finance.`;
                         label: 'Primary refreshed',
                     })),
                     postgresWarehouse(ORIGINAL_DB),
-                    true,
                     {
                         sources: ['marketing', 'finance'],
                         phase: 'manifest',
@@ -5609,7 +5573,6 @@ Sources in this project: Core models, marketing, finance.`;
                     fixture,
                     primaryModels,
                     postgresWarehouse(ORIGINAL_DB),
-                    true,
                     {
                         sources: ['marketing'],
                         phase: 'manifest',
@@ -5635,7 +5598,6 @@ Sources in this project: Core models, marketing, finance.`;
                         fixture,
                         primaryModels,
                         postgresWarehouse(ORIGINAL_DB),
-                        true,
                         {
                             sources: ['primary'],
                             phase: 'manifest',
@@ -5708,7 +5670,6 @@ Sources in this project: Core models, marketing, finance.`;
                     fixture,
                     primaryModels,
                     postgresWarehouse(ORIGINAL_DB),
-                    true,
                     {
                         sources: ['marketing'],
                         phase: 'manifest',
@@ -5736,7 +5697,6 @@ Sources in this project: Core models, marketing, finance.`;
                         fixture,
                         primaryModels,
                         postgresWarehouse(ORIGINAL_DB),
-                        true,
                         {
                             sources: [],
                             phase: 'prepare',
@@ -5801,7 +5761,6 @@ Sources in this project: Core models, marketing, finance.`;
                             fixture,
                             primaryModels,
                             postgresWarehouse(ORIGINAL_DB),
-                            true,
                             {
                                 sources: ['marketing'],
                                 phase: 'manifest',
@@ -5982,29 +5941,6 @@ Sources in this project: Core models, marketing, finance.`;
                 orders: null,
                 payments: null,
             });
-        });
-
-        test('with additional dbt sources off, the original compiles only the primary and extra groups still compile', async () => {
-            const fixture = await createProject();
-
-            await compile(
-                fixture,
-                primaryModels,
-                postgresWarehouse(ORIGINAL_DB),
-                false,
-            );
-
-            expect(await bindings(fixture.projectUuid)).toEqual({
-                customers: null,
-                orders: null,
-                payments: fixture.extraConnectionUuid,
-            });
-            expect(fetchedWith.map(({ source }) => source)).toEqual([
-                'finance',
-            ]);
-            await expect(
-                projectModel.getMergedManifest(fixture.projectUuid),
-            ).rejects.toThrow();
         });
 
         test('the compile log names a dead extra connection, and has no connection warnings when every group compiles', async () => {

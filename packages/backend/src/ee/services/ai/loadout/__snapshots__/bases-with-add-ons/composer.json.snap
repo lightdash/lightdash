@@ -72,7 +72,8 @@
         "searchSemanticLayer",
         "setupPreviewDeploy",
         "syncDbtProject",
-        "updateUserName"
+        "updateUserName",
+        "visualize"
     ],
     "promptSections": [
         "aiWriteback",

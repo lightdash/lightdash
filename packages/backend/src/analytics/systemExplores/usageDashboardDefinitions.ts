@@ -71,6 +71,22 @@ export const usageDashboardSpecs: UsageDashboardSpec[] = [
             'Query performance, failures, origins, caching and the metrics and dimensions people use.',
         tabs: [
             {
+                key: 'monthly-comparison',
+                name: 'Monthly comparison',
+                sections: [
+                    {
+                        title: 'How is query usage changing?',
+                        noteHeight: 3,
+                        description:
+                            'Last 12 completed calendar months (UTC), excluding the current month. Changes compare adjacent months. ∅ means unavailable history or a zero percentage baseline. Missing months are omitted; capture and retention can leave history incomplete.',
+                        charts: [
+                            'querying-users-month-over-month',
+                            'queries-run-month-over-month',
+                        ],
+                    },
+                ],
+            },
+            {
                 key: 'latency',
                 name: 'Latency & failures',
                 sections: [

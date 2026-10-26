@@ -2,7 +2,6 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     buildAbilityFromScopes,
     ConflictError,
-    FeatureFlags,
     ForbiddenError,
     getTrainingProjectScopes,
     getTrainingProjectViewerScopes,
@@ -93,12 +92,6 @@ describe('LearnSandboxService', () => {
         failStaleRunning: vi.fn(),
         clearToken: vi.fn(),
     };
-    const featureFlagModel = {
-        get: vi.fn(async () => ({
-            id: FeatureFlags.EnableLearn,
-            enabled: true,
-        })),
-    };
     type ProjectSummaryFixture = {
         projectUuid: string;
         organizationUuid: string;
@@ -133,7 +126,6 @@ describe('LearnSandboxService', () => {
         lightdashConfig,
         learnWorkspaceModel: files as never,
         projectModel,
-        featureFlagModel,
         personalAccessTokenService,
         userService,
         schedulerClient,
@@ -141,7 +133,6 @@ describe('LearnSandboxService', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        featureFlagModel.get.mockResolvedValue({ enabled: true } as never);
     });
 
     it('lists bundle files as read-only and overlay models as editable', async () => {
@@ -234,13 +225,6 @@ describe('LearnSandboxService', () => {
             'copy',
             'models/orders.yml',
             'version: 2\n',
-        );
-    });
-
-    it('returns 404 when learn is off', async () => {
-        featureFlagModel.get.mockResolvedValueOnce({ enabled: false } as never);
-        await expect(service.listFiles(user, 'copy')).rejects.toThrow(
-            NotFoundError,
         );
     });
 
@@ -664,7 +648,6 @@ describe('LearnSandboxService.sweep', () => {
             lightdashConfig,
             learnWorkspaceModel: files as never,
             projectModel,
-            featureFlagModel: { get: vi.fn() },
             personalAccessTokenService,
             userService,
             schedulerClient,
@@ -783,12 +766,6 @@ describe('LearnSandboxService.runCommand', () => {
         failStaleRunning: vi.fn(),
         clearToken: vi.fn(),
     };
-    const featureFlagModel = {
-        get: vi.fn(async () => ({
-            id: FeatureFlags.EnableLearn,
-            enabled: true,
-        })),
-    };
     const projectModel = {
         getSummary: vi.fn(async (uuid: string) => ({
             projectUuid: uuid,
@@ -855,7 +832,6 @@ describe('LearnSandboxService.runCommand', () => {
             lightdashConfig,
             learnWorkspaceModel: files as never,
             projectModel,
-            featureFlagModel,
             personalAccessTokenService: pat,
             userService,
             schedulerClient,
@@ -916,7 +892,6 @@ describe('LearnSandboxService.runCommand', () => {
             lightdashConfig,
             learnWorkspaceModel: files as never,
             projectModel,
-            featureFlagModel,
             personalAccessTokenService: pat,
             userService,
             schedulerClient,
@@ -1533,7 +1508,6 @@ describe('LearnSandboxService.runCommand', () => {
             lightdashConfig,
             learnWorkspaceModel: files as never,
             projectModel,
-            featureFlagModel,
             personalAccessTokenService: pat,
             userService,
             schedulerClient,
@@ -1600,7 +1574,6 @@ describe('LearnSandboxService.runCommand', () => {
             lightdashConfig,
             learnWorkspaceModel: files as never,
             projectModel,
-            featureFlagModel,
             personalAccessTokenService: pat,
             userService,
             schedulerClient,

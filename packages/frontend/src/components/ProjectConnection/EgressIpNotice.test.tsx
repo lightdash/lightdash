@@ -1,16 +1,10 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type FC } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import useApp from '../../providers/App/useApp';
 import { renderWithProviders } from '../../testing/testUtils';
 import { EgressIpNotice } from './EgressIpNotice';
-
-const flag = vi.hoisted(() => ({ enabled: true }));
-
-vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: flag.enabled } }),
-}));
 
 const HealthLoaded: FC = () => {
     const { health } = useApp();
@@ -36,10 +30,6 @@ const mockClipboard = (writeText: (value: string) => Promise<void>) => {
 };
 
 describe('EgressIpNotice', () => {
-    afterEach(() => {
-        flag.enabled = true;
-    });
-
     it('labels one address in the singular', async () => {
         renderNotice('35.245.81.252');
 
@@ -104,15 +94,5 @@ describe('EgressIpNotice', () => {
         );
 
         expect(window.getSelection()?.toString()).toBe('35.1.1.1');
-    });
-
-    it('renders nothing when the kill switch is on', async () => {
-        const { rerender } = renderNotice('35.1.1.1');
-        expect(await screen.findByText('35.1.1.1')).toBeInTheDocument();
-
-        flag.enabled = false;
-        rerender(<EgressIpNotice />);
-
-        expect(screen.queryByText('35.1.1.1')).toBeNull();
     });
 });

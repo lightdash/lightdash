@@ -2,6 +2,30 @@ import type { ApiSuccess } from '../../types/api/success';
 import type { UUID } from '../../types/api/uuid';
 import type { TraceTaskBase } from '../../types/scheduler';
 
+/**
+ * What an analysis runs over. Data apps and classic dashboards share the
+ * analysis pipeline (content building, hashing, reuse, budgets) but have
+ * their own rollout gates, access checks and storage keys.
+ */
+export type AnalysisTarget = 'app' | 'dashboard';
+
+/**
+ * The concrete thing one stored analysis ran over. Apps carry their version
+ * because results are cached per build; dashboards have no version — the
+ * content hash alone decides reuse.
+ */
+export type AnalysisTargetRef =
+    | { kind: 'app'; appUuid: string; appVersion: number }
+    | { kind: 'dashboard'; dashboardUuid: string };
+
+/**
+ * What a request names. The viewer check resolves it to a full
+ * `AnalysisTargetRef` (apps gain their latest ready version).
+ */
+export type AnalysisTargetLocator =
+    | { kind: 'app'; appUuid: string }
+    | { kind: 'dashboard'; dashboardUuid: string };
+
 /** Whether an app analyses on load: its own choice, or the org default. */
 export type DataAppAutoAnalysis = 'inherit' | 'on' | 'off';
 
@@ -79,6 +103,9 @@ export type DataAppDetectResult = {
     dataAsOf: string | null;
 };
 
+/** App-author guidance is untrusted input to the model; keep it short. */
+export const DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS = 2000;
+
 export type DataAppDetectRequest = {
     sources: DataAppAnalysisSource[];
     instructions?: string;
@@ -93,8 +120,7 @@ export type DataAppLookupRequest = {
 
 export type DataAppAnalysis = DataAppDetectResult & {
     analysisId: string;
-    appUuid: string;
-    appVersion: number;
+    target: AnalysisTargetRef;
     sources: DataAppAnalysisSource[];
     generatedAt: Date;
 };
@@ -122,14 +148,15 @@ export type DataAppInvestigateResult = {
 export type DataAppInvestigation = DataAppInvestigateResult & {
     investigationId: string;
     analysisId: string;
-    appUuid: string;
-    appVersion: number;
+    target: AnalysisTargetRef;
     generatedAt: Date;
 };
 
 /** Job that runs an investigation off the request path; poll by jobId. */
 export type DataAppInvestigateJobPayload = TraceTaskBase & {
-    appUuid: string;
+    target?: AnalysisTargetLocator;
+    /** Pre-target jobs enqueued before an upgrade; implies an app target. */
+    appUuid?: string;
     analysisId: string;
     anomalyId: string;
     agentUuid: string;
@@ -155,8 +182,7 @@ export type DataAppPromptResult = {
 
 export type DataAppPromptAnswer = DataAppPromptResult & {
     promptId: string;
-    appUuid: string;
-    appVersion: number;
+    target: AnalysisTargetRef;
     sources: DataAppAnalysisSource[];
     generatedAt: Date;
 };

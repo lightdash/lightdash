@@ -175,6 +175,9 @@ const contentAsCodeProjectSettingsModel = { get: vi.fn() };
 const contentAsCodeSnapshotModel = { get: vi.fn() };
 
 const contentVerificationModel = {
+    getByContentUuids: vi.fn(
+        async (): Promise<Map<string, ContentVerificationInfo>> => new Map(),
+    ),
     getByContent: vi.fn(
         async (): Promise<ContentVerificationInfo | null> => null,
     ),
@@ -1117,6 +1120,52 @@ describe('DashboardService', () => {
             undefined,
         );
     });
+    test('loads verification in one batch for accessible dashboards only', async () => {
+        const visible = [
+            { ...dashboardsDetails[0], uuid: 'verified-dashboard' },
+            { ...dashboardsDetails[0], uuid: 'unverified-dashboard' },
+        ];
+        dashboardModel.getAllByProject.mockResolvedValueOnce([
+            ...visible,
+            {
+                ...dashboardsDetails[0],
+                uuid: 'hidden-dashboard',
+                spaceUuid: 'unresolvable-space',
+            },
+        ]);
+        spacePermissionService.resolveAccessBatch.mockResolvedValueOnce([
+            {
+                target: { spaceUuid: visible[0].spaceUuid },
+                context: {
+                    ...lookupSpaceContext(visible[0].spaceUuid),
+                    directOnly: false,
+                },
+            },
+        ]);
+        const verification: ContentVerificationInfo = {
+            verifiedBy: {
+                userUuid: user.userUuid,
+                firstName: user.firstName,
+                lastName: user.lastName,
+            },
+            verifiedAt: new Date('2026-10-26T00:00:00Z'),
+        };
+        contentVerificationModel.getByContentUuids.mockResolvedValueOnce(
+            new Map([['verified-dashboard', verification]]),
+        );
+
+        expect(await service.getAllByProject(user, projectUuid)).toEqual([
+            { ...visible[0], verification },
+            { ...visible[1], verification: null },
+        ]);
+        expect(
+            contentVerificationModel.getByContentUuids,
+        ).toHaveBeenCalledTimes(1);
+        expect(contentVerificationModel.getByContentUuids).toHaveBeenCalledWith(
+            ContentType.DASHBOARD,
+            ['verified-dashboard', 'unverified-dashboard'],
+        );
+    });
     test('should create dashboard', async () => {
         const result = await service.create(user, projectUuid, createDashboard);
 
@@ -1312,6 +1361,70 @@ describe('DashboardService', () => {
                 event: 'dashboard_version.created',
             }),
         );
+    });
+    describe('version config and parameters', () => {
+        const savedConfig: Dashboard['config'] = {
+            isDateZoomDisabled: false,
+            pinnedParameters: ['region'],
+            dateZoomConfig: {
+                controls: [
+                    { uuid: 'control-1', name: 'Zoom', granularity: 'DAY' },
+                ],
+                tileTargets: {
+                    'tile-1': {
+                        controlUuid: 'control-1',
+                        fieldId: 'f',
+                        tableName: 't',
+                    },
+                },
+            },
+        };
+        const savedParameters: Dashboard['parameters'] = {
+            region: { parameterName: 'region', value: 'EU' },
+        };
+
+        beforeEach(() => {
+            (
+                dashboardModel.getByIdOrSlug as import('vitest').Mock
+            ).mockResolvedValueOnce({
+                ...dashboard,
+                config: savedConfig,
+                parameters: savedParameters,
+            });
+        });
+
+        test('keeps the saved config and parameters when the update omits them', async () => {
+            await service.update(user, dashboardUuid, updateDashboardTiles);
+
+            expect(dashboardModel.addVersion).toHaveBeenCalledWith(
+                dashboardUuid,
+                expect.objectContaining({
+                    config: savedConfig,
+                    parameters: savedParameters,
+                }),
+                user,
+                projectUuid,
+            );
+        });
+
+        test('uses the config and parameters sent with the update', async () => {
+            const sentConfig = { isDateZoomDisabled: true };
+            await service.update(user, dashboardUuid, {
+                ...updateDashboardTiles,
+                config: sentConfig,
+                parameters: {},
+            });
+
+            expect(dashboardModel.addVersion).toHaveBeenCalledWith(
+                dashboardUuid,
+                expect.objectContaining({
+                    config: sentConfig,
+                    parameters: {},
+                }),
+                user,
+                projectUuid,
+            );
+        });
     });
     test('should report an owner assignment on top of the update', async () => {
         (dashboardModel.update as import('vitest').Mock).mockResolvedValueOnce(
@@ -1787,6 +1900,9 @@ describe('DashboardService', () => {
         );
 
         expect(result).toEqual([]);
+        expect(
+            contentVerificationModel.getByContentUuids,
+        ).not.toHaveBeenCalled();
     });
     test('should preserve dashboard verification when verifier updates details', async () => {
         contentVerificationModel.getByContent.mockResolvedValue({
@@ -1988,6 +2104,68 @@ describe('DashboardService', () => {
             expect(metricFilter.tileTargets).not.toHaveProperty(
                 dashboardScopedTileUuid,
             );
+        });
+
+        test('should keep config with remapped date zoom tileTargets and parameters', async () => {
+            const parameters: Dashboard['parameters'] = {
+                region: { parameterName: 'region', value: 'EU' },
+            };
+            const withConfig: Dashboard = {
+                ...dashboardWithScopedCharts,
+                parameters,
+                config: {
+                    isDateZoomDisabled: false,
+                    pinnedParameters: ['region'],
+                    dateZoomConfig: {
+                        controls: [
+                            { uuid: 'c1', name: 'Zoom', granularity: 'DAY' },
+                        ],
+                        tileTargets: {
+                            [dashboardScopedTileUuid]: {
+                                controlUuid: 'c1',
+                                fieldId: 'f',
+                                tableName: 't',
+                            },
+                            [spaceTileUuid]: {
+                                controlUuid: 'c1',
+                                fieldId: 'g',
+                                tableName: 't',
+                            },
+                        },
+                    },
+                },
+            };
+            (dashboardModel.create as import('vitest').Mock).mockResolvedValue(
+                withConfig,
+            );
+
+            await service.duplicate(user, projectUuid, dashboard.uuid, {
+                dashboardName: 'Dup',
+                dashboardDesc: '',
+            });
+
+            const versionData = (
+                dashboardModel.addVersion as import('vitest').Mock
+            ).mock.calls[0][1];
+            const newTileUuid = versionData.tiles.find(
+                (t: DashboardChartTile) =>
+                    t.properties.savedChartUuid === 'new-duplicated-chart-uuid',
+            ).uuid;
+
+            expect(versionData.parameters).toEqual(parameters);
+            expect(versionData.config.pinnedParameters).toEqual(['region']);
+            expect(versionData.config.dateZoomConfig.tileTargets).toEqual({
+                [newTileUuid]: {
+                    controlUuid: 'c1',
+                    fieldId: 'f',
+                    tableName: 't',
+                },
+                [spaceTileUuid]: {
+                    controlUuid: 'c1',
+                    fieldId: 'g',
+                    tableName: 't',
+                },
+            });
         });
 
         test('should preserve undefined tileTargets on filters', async () => {

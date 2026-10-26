@@ -1,17 +1,25 @@
 import {
     AnalyticsProjectStatus,
     ConflictError,
+    ContentType,
     EnsureAnalyticsProjectResult,
     ForbiddenError,
+    getContentAsCodePathFromLtreePath,
+    getLtreePathFromContentAsCodePath,
     isUserWithOrg,
     NotFoundError,
     SessionUser,
 } from '@lightdash/common';
 import memoize from 'lodash/memoize';
-import { analyticsContentAsCode } from '../../analytics/systemExplores/sampleContent';
+import {
+    analyticsContentAsCode,
+    analyticsDefaultSpace,
+} from '../../analytics/systemExplores/sampleContent';
+import { type ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type SavedChartModel } from '../../models/SavedChartModel';
+import { type SpaceModel } from '../../models/SpaceModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import { type CoderService } from '../CoderService/CoderService';
@@ -23,8 +31,13 @@ import { ProjectService } from '../ProjectService/ProjectService';
 
 type Dependencies = {
     coderService: Pick<CoderService, 'upsertChart' | 'upsertDashboard'>;
-    dashboardModel: Pick<DashboardModel, 'find'>;
+    contentVerificationModel: Pick<
+        ContentVerificationModel,
+        'getByContentUuids'
+    >;
+    dashboardModel: Pick<DashboardModel, 'find' | 'getByIdOrSlug'>;
     savedChartModel: Pick<SavedChartModel, 'get' | 'find'>;
+    spaceModel: Pick<SpaceModel, 'get' | 'find'>;
     projectModel: Pick<
         ProjectModel,
         | 'getAllByOrganizationUuid'
@@ -102,6 +115,11 @@ export class AnalyticsProjectService extends BaseService {
                 slugs: chartSlugs,
             }),
         ]);
+        const verifications =
+            await this.dependencies.contentVerificationModel.getByContentUuids(
+                ContentType.DASHBOARD,
+                dashboards.map(({ uuid }) => uuid),
+            );
         // Ignore custom models, dashboards and charts when checking managed content.
         const modelsAreCurrent = expectedModelCounts().every((expected) =>
             models.some(
@@ -121,7 +139,8 @@ export class AnalyticsProjectService extends BaseService {
                 hasContentUpdates:
                     !modelsAreCurrent ||
                     dashboards.length !== dashboardSlugs.length ||
-                    charts.length !== chartSlugs.length,
+                    charts.length !== chartSlugs.length ||
+                    dashboards.some(({ uuid }) => !verifications.has(uuid)),
             },
         };
     }
@@ -179,16 +198,55 @@ export class AnalyticsProjectService extends BaseService {
                     true,
                 );
                 for (const { dashboard, charts } of analyticsContentAsCode) {
-                    const options = {
-                        spaceNames: { [dashboard.spaceSlug]: dashboard.name },
-                        publicSpaceCreate: true,
-                        force: true,
-                    };
                     const [existingDashboard] =
                         await this.dependencies.dashboardModel.find({
                             projectUuid: project.projectUuid,
                             slug: dashboard.slug,
                         });
+                    const storedDashboard =
+                        existingDashboard ??
+                        (await this.dependencies.dashboardModel
+                            .getByIdOrSlug(dashboard.slug, {
+                                projectUuid: project.projectUuid,
+                                deleted: true,
+                            })
+                            .catch((error: unknown) => {
+                                if (error instanceof NotFoundError) return null;
+                                throw error;
+                            }));
+                    // Keep inherited access when syncing or restoring a dashboard.
+                    const existingSpace = storedDashboard
+                        ? await this.dependencies.spaceModel.get(
+                              storedDashboard.spaceUuid,
+                          )
+                        : undefined;
+                    const spaceSlug = existingSpace
+                        ? getContentAsCodePathFromLtreePath(existingSpace.path)
+                        : dashboard.spaceSlug;
+                    const matchingSpaces =
+                        await this.dependencies.spaceModel.find({
+                            projectUuid: project.projectUuid,
+                            path: getLtreePathFromContentAsCodePath(spaceSlug),
+                        });
+                    if (
+                        matchingSpaces.length > 1 ||
+                        (existingSpace &&
+                            matchingSpaces[0]?.uuid !== existingSpace.uuid)
+                    ) {
+                        throw new ConflictError(
+                            `Cannot safely resolve the space for dashboard ${dashboard.slug}`,
+                        );
+                    }
+                    const options = {
+                        spaceNames: {
+                            [spaceSlug]:
+                                existingSpace?.name ??
+                                analyticsDefaultSpace.name,
+                        },
+                        publicSpaceCreate: true,
+                        force: true,
+                    };
+                    const dashboardContent = { ...dashboard, spaceSlug };
                     // Restore the dashboard before uploading any owned charts.
                     if (!existingDashboard) {
                         await this.dependencies.coderService.upsertDashboard(
@@ -196,7 +254,8 @@ export class AnalyticsProjectService extends BaseService {
                             project.projectUuid,
                             dashboard.slug,
                             {
-                                ...dashboard,
+                                ...dashboardContent,
+                                verified: false,
                                 tiles: [],
                                 filters: {
                                     dimensions: [],
@@ -212,7 +271,7 @@ export class AnalyticsProjectService extends BaseService {
                             user,
                             project.projectUuid,
                             chart.slug,
-                            chart,
+                            { ...chart, spaceSlug },
                             options,
                         );
                     }
@@ -220,7 +279,7 @@ export class AnalyticsProjectService extends BaseService {
                         user,
                         project.projectUuid,
                         dashboard.slug,
-                        dashboard,
+                        dashboardContent,
                         options,
                     );
                 }

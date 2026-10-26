@@ -83,6 +83,7 @@ const buildAdapter = (
     controller: DataAppAnalysisController,
 ): LauncherAnalysisAdapter => ({
     projectUuid: 'project-1',
+    targetKind: 'app',
     targetName: 'My app',
     availability,
     controller,

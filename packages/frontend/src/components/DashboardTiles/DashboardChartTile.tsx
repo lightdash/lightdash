@@ -164,6 +164,7 @@ import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import { useRegisterTileQuery } from '../../providers/Dashboard/useRegisterTileQuery';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
@@ -2686,6 +2687,31 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         resultsData.isFetchingFirstPage,
         resultsData.error,
     ]);
+
+    // Publish this tile's query as an AI analysis source once it settles.
+    const queryUuid = readyQuery.data?.executeQueryResponse.queryUuid ?? null;
+    const tileError =
+        orphanedChartError ?? readyQuery.error ?? resultsData.error;
+    const registration = useMemo(() => {
+        if (isLoading || (!queryUuid && !tileError)) return null;
+        return {
+            tileUuid: props.tile.uuid,
+            queryUuid,
+            label:
+                props.tile.properties.title ||
+                readyQuery.data?.chart.name ||
+                'Chart',
+            status: (tileError ? 'error' : 'ready') as 'ready' | 'error',
+        };
+    }, [
+        queryUuid,
+        isLoading,
+        props.tile.uuid,
+        props.tile.properties.title,
+        readyQuery.data?.chart.name,
+        tileError,
+    ]);
+    useRegisterTileQuery(registration);
 
     return (
         <GenericDashboardChartTile

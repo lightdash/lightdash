@@ -5,6 +5,7 @@ import {
     FilterOperator,
     MetricType,
     type DashboardFilterRule,
+    type DashboardFilters,
     type DashboardTile,
     type FilterableDimension,
 } from '@lightdash/common';
@@ -119,6 +120,9 @@ const renderWithProviders = (ui: ReactElement) => {
     const store = createDashboardTestStore({
         sqlChartTilesMetadata: tileStatus.current
             .sqlChartTilesMetadata as Record<string, SqlChartTileMetadata>,
+        dashboardFilters: mockDashboardContext.current.dashboardFilters as
+            | DashboardFilters
+            | undefined,
     });
     seedDashboardEditState(
         store,
@@ -178,6 +182,39 @@ describe('TabCounts', () => {
             },
         };
         setSidebar();
+    });
+
+    it("counts a hovered rail row's filter in blue, edited filter or not", () => {
+        mockDashboardContext.current = {
+            ...mockDashboardContext.current,
+            dashboardFilters: {
+                dimensions: [
+                    rule(),
+                    rule({
+                        id: 'hovered',
+                        target: {
+                            fieldId: 'orders_region',
+                            tableName: 'orders',
+                        },
+                    }),
+                ],
+                metrics: [],
+                tableCalculations: [],
+            },
+        };
+        setSidebar({
+            editing: null,
+            editingRule: null,
+            hoveredFilterId: 'hovered',
+        });
+        const { rerender } = renderWithProviders(<TabCounts />);
+        expect(badgeText('tab-1')).toBe('1 of 3');
+        expect(badgeText('tab-2')).toBe('1 of 1');
+        expect(isBadgeBlue('tab-2')).toBe(true);
+
+        setSidebar({ editing: null, editingRule: null, hoveredFilterId: null });
+        rerender(<TabCounts />);
+        expect(badgeText('tab-1')).toBe('');
     });
 
     it('counts the filtered tiles out of every tile on each tab', async () => {
@@ -399,5 +436,75 @@ describe('TabCounts', () => {
         renderWithProviders(<TabCounts />);
 
         TAB_UUIDS.forEach((tabUuid) => expect(badgeText(tabUuid)).toBe(''));
+    });
+
+    describe('the active tab past the strip', () => {
+        const box = (left: number, right: number) =>
+            ({ left, right, top: 0, bottom: 20 }) as DOMRect;
+
+        // tab-2 sits at 150-200 in a strip showing 0-100
+        const clipTab = () => {
+            const list = document.createElement('div');
+            list.setAttribute('role', 'tablist');
+            Object.defineProperty(list, 'scrollLeft', {
+                value: 0,
+                writable: true,
+            });
+            list.getBoundingClientRect = () => box(0, 100);
+            const tab = mockContainers.current['tab-2'];
+            list.appendChild(tab);
+            document.body.appendChild(list);
+            tab.getBoundingClientRect = () => box(150, 200);
+            tab.scrollIntoView = vi.fn();
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                activeTab: { uuid: 'tab-2', name: 'tab-2', order: 1 },
+            };
+            return { list, tab };
+        };
+
+        it('scrolls the strip, and only the strip, to it', () => {
+            const { list, tab } = clipTab();
+            const scrollTo = vi.spyOn(window, 'scrollTo');
+            renderWithProviders(<TabCounts />);
+
+            expect(list.scrollLeft).toBe(100);
+            expect(tab.scrollIntoView).not.toHaveBeenCalled();
+            expect(scrollTo).not.toHaveBeenCalled();
+            scrollTo.mockRestore();
+        });
+
+        it('leaves the strip alone for a hovered row', () => {
+            const { list } = clipTab();
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                hoveredFilterId: 'control',
+            });
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardFilters: {
+                    dimensions: [rule()],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            };
+            renderWithProviders(<TabCounts />);
+
+            expect(badgeText('tab-2')).not.toBe('');
+            expect(list.scrollLeft).toBe(0);
+        });
+
+        it('scrolls once while the edited filter stays, rows hovered or not', () => {
+            const { list } = clipTab();
+            const { rerender } = renderWithProviders(<TabCounts />);
+            list.scrollLeft = 0;
+            setSidebar({ hoveredFilterId: 'other' });
+            rerender(<TabCounts />);
+            setSidebar({ hoveredFilterId: null });
+            rerender(<TabCounts />);
+
+            expect(list.scrollLeft).toBe(0);
+        });
     });
 });

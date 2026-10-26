@@ -1,6 +1,5 @@
 import {
     assertUnreachable,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     NotFoundError,
@@ -102,39 +101,6 @@ export class OAuthCredentialRefreshSource<
             kind: 'default',
         },
     ) {}
-
-    async isLockEnabled(
-        input: OAuthRefreshSelection<C>,
-        owner: OAuthCredentialOwner,
-    ): Promise<boolean> {
-        let { organizationUuid } = input.context;
-        if (organizationUuid === null) {
-            if (owner.kind === 'organization') {
-                organizationUuid = (
-                    await this.deps.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData(
-                        owner.uuid,
-                    )
-                ).organizationUuid;
-            } else if (owner.kind === 'project' || input.projectUuid !== null) {
-                organizationUuid = (
-                    await this.deps.projectModel.getSummary(
-                        owner.kind === 'project'
-                            ? owner.uuid
-                            : (input.projectUuid as string),
-                    )
-                ).organizationUuid;
-            }
-        }
-        const { enabled } = await this.deps.featureFlagModel.get(
-            organizationUuid === null
-                ? { featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock }
-                : {
-                      user: { organizationUuid },
-                      featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
-                  },
-        );
-        return enabled;
-    }
 
     async readCurrentRefreshToken(
         input: OAuthRefreshSelection<C> & CredentialSelectionSource,

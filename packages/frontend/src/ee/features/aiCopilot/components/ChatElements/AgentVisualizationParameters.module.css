@@ -13,3 +13,8 @@
     padding-block: 4px;
     max-width: 100%;
 }
+
+.compact {
+    height: 22px;
+    padding-block: 0;
+}

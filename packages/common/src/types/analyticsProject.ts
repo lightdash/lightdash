@@ -5,7 +5,7 @@ export type AnalyticsProjectStatus = {
         slug: string | null;
         url: string;
         createdAt: string;
-        /** Count-based check only; does not detect edits to existing definitions. */
+        /** Checks counts and dashboard verification, not edits to existing definitions. */
         hasContentUpdates: boolean;
     } | null;
 };

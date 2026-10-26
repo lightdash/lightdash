@@ -49,6 +49,9 @@ export type DbApp = {
     // Whether AI analysis runs when the app loads; 'inherit' takes the org
     // default. Stored as text so an unknown value reads back, not fails.
     auto_analysis: DataAppAutoAnalysis;
+    // When the builder-side "add AI analysis" offer was dismissed for this
+    // app (closed, or acted on once); null = never dismissed.
+    add_analysis_dismissed_at: Date | null;
     design_uuid: string | null;
     // The production app this (preview) app was promoted into. Null until the
     // app is first promoted. Lives on the preview side so a single production
@@ -100,6 +103,7 @@ export type AppsTable = Knex.CompositeTableType<
             | 'sandbox_id'
             | 'icon'
             | 'auto_analysis'
+            | 'add_analysis_dismissed_at'
             | 'design_uuid'
             | 'upstream_app_uuid'
             | 'registry_slug'

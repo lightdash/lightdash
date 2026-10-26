@@ -1,21 +1,27 @@
 import {
     getDashboardFilterField,
+    interpolateUiString,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type DashboardFilters,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
     Group,
-    Menu,
     Text,
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconDots, IconTrash } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import {
+    IconArrowBackUp,
+    IconChevronDown,
+    IconTrash,
+} from '@tabler/icons-react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectActiveTabUuid,
@@ -23,28 +29,25 @@ import {
     selectDashboardTabs,
     selectDashboardTiles,
     useDashboardSelector,
+    useDashboardTemporaryFilters,
 } from '../dashboard/store';
+import { useIsLockedDashboardFilterRule } from '../dashboardFilters/useIsLockedDashboardFilterRule';
 import classes from './ControlSidebar.module.css';
 import { EditorShell } from './EditorShell';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import { FilterRow, FilterTypeIcon } from './FilterRow';
 import { FilterSettings } from './FilterSettings';
-import {
-    canTileTakeFilter,
-    getFilterFields,
-    getTabCounts,
-    getTileField,
-} from './peers';
+import { getFilterFields } from './peers';
 import { getTilesSummary } from './railSummaries';
 import {
     isDefaultValueIncomplete,
     isPlaceholderRule,
     withFilterRuleLabel,
 } from './sidebarState';
+import { useAppliedTileCount } from './useAppliedTileCount';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFilterRuleField } from './useFilterRuleField';
 import { useFocusLabelOnMount, useLabelDraft } from './useLabelDraft';
-import { useSqlColumnsByTile } from './useSqlColumnsByTile';
 
 type FilterEditorProps = {
     rule: DashboardFilterRule;
@@ -61,55 +64,37 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const removeFilter = useControlsSidebarSelector((c) => c.removeFilter);
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
     const discard = useControlsSidebarSelector((c) => c.discard);
+    const collapse = useControlsSidebarSelector((c) => c.collapse);
     const isDirty = useControlsSidebarSelector((c) => c.isDirty);
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const getUiString = useUiStrings();
     useFocusLabelOnMount();
+    // The name takes focus as the edit-mode label input does (`autoFocus`).
+    // A new filter has no name to edit: once a field is picked, the value
+    // does, which mounts in the same commit
+    const [isOpenedNew] = useState(() => isPlaceholder);
+    const focusOnMount = useCallback(
+        (node: HTMLElement | null) => {
+            if (node === null) return;
+            if (!isOpenedNew) {
+                node.focus();
+                return;
+            }
+            node.closest('[data-controls-editor]')
+                ?.querySelector<HTMLElement>(
+                    '[data-controls-value] input:not([type="hidden"])',
+                )
+                ?.focus();
+        },
+        [isOpenedNew],
+    );
     // As the control was opened: an emptied label goes back to exactly that
     const [hadLabelKey] = useState(() => 'label' in filterRule);
     const label = useLabelDraft(filterRule.label ?? '', (next) =>
         updateFilter(withFilterRuleLabel(filterRule, next, hadLabelKey)),
     );
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
-    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
-    const filterableFieldsByTileUuid = useDashboardContext(
-        (c) => c.filterableFieldsByTileUuid,
-    );
-    const sqlColumnsByTile = useSqlColumnsByTile(filterRule);
-
-    // Tiles the filter is on, over every tab
-    const appliedTileCount = useMemo(() => {
-        const tiles = dashboardTiles ?? [];
-        if (dashboardTabs.length === 0) {
-            return tiles.filter(
-                (tile) =>
-                    canTileTakeFilter(
-                        tile,
-                        filterableFieldsByTileUuid,
-                        sqlColumnsByTile,
-                    ) &&
-                    getTileField(
-                        filterRule,
-                        tile,
-                        filterableFieldsByTileUuid,
-                        sqlColumnsByTile,
-                    ) !== null,
-            ).length;
-        }
-        return Object.values(
-            getTabCounts(
-                filterRule,
-                tiles,
-                dashboardTabs,
-                filterableFieldsByTileUuid,
-                sqlColumnsByTile,
-            ),
-        ).reduce((sum, count) => sum + count.applied, 0);
-    }, [
-        filterRule,
-        dashboardTiles,
-        dashboardTabs,
-        filterableFieldsByTileUuid,
-        sqlColumnsByTile,
-    ]);
+    const appliedTileCount = useAppliedTileCount(filterRule);
     // No props, so one element: typing a label does not re-render the list
     const fieldsAndTiles = useMemo(() => <FieldsAndTiles />, []);
 
@@ -121,21 +106,54 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
         field?.label ??
         (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
     const discardLabel = isNew
-        ? 'Discard filter'
+        ? getUiString('filters.rail.discardFilter')
         : isDirty
-          ? 'Discard changes'
+          ? getUiString('filters.rail.discardChanges')
           : null;
     const fieldCount = getFilterFields(filterRule, dashboardTiles).length;
     // A new filter with no field yet leaves through the footer's Cancel
-    const hasMenu = !(isPlaceholder && isNew) && discardLabel !== null;
-
+    const hasDiscard = !(isPlaceholder && isNew) && discardLabel !== null;
+    // A viewer's filter has no label of its own: it goes by its field
+    const viewerName = isPlaceholder
+        ? (emptiedFieldLabel ?? getUiString('filters.rail.filterName'))
+        : (filterRule.label ??
+          fallbackName ??
+          getUiString('filters.rail.filterName'));
     return (
         <Box className={classes.edited}>
-            <Group gap="xs" wrap="nowrap" className={classes.editedHead}>
-                <FilterTypeIcon field={field} />
+            {/* A click on the head collapses the filter, as its chevron does;
+                the name input and the buttons keep their own clicks */}
+            <Group
+                gap="xs"
+                wrap="nowrap"
+                className={classes.editedHead}
+                onClick={(event) => {
+                    if (
+                        event.target instanceof Element &&
+                        event.target.closest('input, button')
+                    )
+                        return;
+                    collapse();
+                }}
+            >
+                {/* No field yet: no type to show */}
+                {!isPlaceholder && <FilterTypeIcon field={field} />}
                 {isPlaceholder && isNew ? (
                     <Text fz="sm" fw={600} flex={1}>
-                        New filter
+                        {getUiString('filters.rail.newFilter')}
+                    </Text>
+                ) : isViewer ? (
+                    // Focus lands here when the filter opens
+                    <Text
+                        fz="sm"
+                        fw={600}
+                        flex={1}
+                        truncate
+                        tabIndex={-1}
+                        ref={focusOnMount}
+                        data-controls-label
+                    >
+                        {viewerName}
                     </Text>
                 ) : (
                     <TextInput
@@ -163,35 +181,39 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                         }}
                     />
                 )}
+                {hasDiscard && (
+                    <Tooltip label={discardLabel}>
+                        <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            aria-label={discardLabel}
+                            onClick={discard}
+                        >
+                            <MantineIcon icon={IconArrowBackUp} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
                 {!isNew && (
                     <ConfirmDeleteButton
-                        aria-label="Remove filter"
-                        tooltip="Click again to remove"
+                        size="sm"
+                        aria-label={getUiString('filters.rail.removeFilter')}
+                        tooltip={getUiString('filters.rail.confirmRemove')}
                         onConfirm={removeFilter}
                     >
                         <MantineIcon icon={IconTrash} />
                     </ConfirmDeleteButton>
                 )}
-                {hasMenu && (
-                    <Menu position="bottom-end">
-                        <Menu.Target>
-                            <Tooltip label="More actions">
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    aria-label="More actions"
-                                >
-                                    <MantineIcon icon={IconDots} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Item onClick={discard}>
-                                {discardLabel}
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
-                )}
+                <Tooltip label={getUiString('filters.rail.collapse')}>
+                    <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        aria-label={getUiString('filters.rail.collapseFilter')}
+                        aria-expanded
+                        onClick={collapse}
+                    >
+                        <MantineIcon icon={IconChevronDown} size={14} />
+                    </ActionIcon>
+                </Tooltip>
             </Group>
             <Box className={classes.editedBody}>
                 {isPlaceholder ? (
@@ -205,6 +227,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                         tilesSummary={getTilesSummary(
                             appliedTileCount,
                             fieldCount,
+                            getUiString,
                         )}
                     />
                 )}
@@ -226,10 +249,20 @@ export const ControlSidebar: FC = () => {
     );
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
     const open = useControlsSidebarSelector((c) => c.open);
+    const setHoveredFilterId = useControlsSidebarSelector(
+        (c) => c.setHoveredFilterId,
+    );
+    const clearHoveredFilterId = useControlsSidebarSelector(
+        (c) => c.clearHoveredFilterId,
+    );
     const close = useControlsSidebarSelector((c) => c.close);
     const discard = useControlsSidebarSelector((c) => c.discard);
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const getUiString = useUiStrings();
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
+    const temporaryFilters = useDashboardTemporaryFilters();
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const hasTabs = useDashboardSelector(
         (state) => selectDashboardTabs(state).length > 0,
@@ -251,55 +284,84 @@ export const ControlSidebar: FC = () => {
     const allFilterableMetricsMap = useDashboardContext(
         (c) => c.allFilterableMetricsMap,
     );
-    if (filterId === null || editingRule === null) return null;
+    const isLockedRule = useIsLockedDashboardFilterRule();
+    if (!isRailOpen) return null;
 
-    const editor = <FilterEditor key={filterId} rule={editingRule} />;
-    const rows = GROUPS.flatMap((group) =>
-        dashboardFilters[group].map((rule) => {
-            if (rule.id === filterId) return editor;
-            const field =
-                getDashboardFilterField<DashboardFilterableField>(
-                    group === 'metrics'
-                        ? allFilterableMetricsMap
-                        : allFilterableFieldsMap,
-                    rule,
-                    filterableFieldsByTileUuid,
-                ) ?? null;
-            const isUnresolved =
-                field === null &&
-                !rule.target.isSqlColumn &&
-                !isPlaceholderRule(rule) &&
-                !areFieldsLoading;
-            return (
-                <FilterRow
-                    key={rule.id}
-                    rule={rule}
-                    field={field}
-                    activeTabUuid={activeTabUuid}
-                    hasTabs={hasTabs}
-                    isDisabled={
-                        isUnresolved ||
-                        (!areFieldsLoaded && !rule.target.isSqlColumn)
-                    }
-                    onOpen={open}
-                />
-            );
-        }),
-    );
+    // The shipped unresolved pills' tooltips: a hidden field, or a gone one
+    const getUnresolvedTooltip = (rule: DashboardFilterRule) =>
+        isLockedRule(rule)
+            ? getUiString('filters.lockedFilterTooltip')
+            : interpolateUiString(getUiString('filters.rail.unknownField'), {
+                  field: rule.target.fieldId,
+              });
+
+    // Null while every filter is a row
+    const editor =
+        filterId === null || editingRule === null ? null : (
+            <FilterEditor key={filterId} rule={editingRule} />
+        );
+    // A viewer's rail lists only their own filters: saved ones stay on the bar
+    const rowsOf = (filters: DashboardFilters, isOwn: boolean) =>
+        GROUPS.flatMap((group) =>
+            filters[group].map((rule) => {
+                if (rule.id === filterId) return editor;
+                const field =
+                    getDashboardFilterField<DashboardFilterableField>(
+                        group === 'metrics'
+                            ? allFilterableMetricsMap
+                            : allFilterableFieldsMap,
+                        rule,
+                        filterableFieldsByTileUuid,
+                    ) ?? null;
+                const isUnresolved =
+                    field === null &&
+                    !rule.target.isSqlColumn &&
+                    !isPlaceholderRule(rule) &&
+                    !areFieldsLoading;
+                return (
+                    <FilterRow
+                        key={rule.id}
+                        rule={rule}
+                        field={field}
+                        activeTabUuid={activeTabUuid}
+                        hasTabs={hasTabs}
+                        isOwn={isOwn}
+                        isReadOnly={isUnresolved}
+                        readOnlyTooltip={
+                            isUnresolved ? getUnresolvedTooltip(rule) : null
+                        }
+                        isDisabled={
+                            !areFieldsLoaded && !rule.target.isSqlColumn
+                        }
+                        onOpen={open}
+                        onHover={setHoveredFilterId}
+                        onUnhover={clearHoveredFilterId}
+                    />
+                );
+            }),
+        );
+    const listedFilters = isViewer ? temporaryFilters : dashboardFilters;
+    const rows = rowsOf(listedFilters, isViewer);
     // A placeholder is not in the dashboard filters yet: it comes last. One
     // keyed list, so the editor keeps its state when its rule joins them
-    const isListed = rows.includes(editor);
+    const isListed = editor === null || rows.includes(editor);
     // Closing keeps the edits, so the footer says what closing would drop
-    const footerStatus = isPlaceholder
-        ? 'Select a field to keep this filter'
-        : isDefaultValueIncomplete(editingRule)
-          ? 'No default value set, so the default stays off'
-          : null;
+    const footerStatus =
+        editingRule === null || editor === null
+            ? null
+            : isPlaceholder
+              ? getUiString('filters.rail.selectFieldToKeep')
+              : !isViewer && isDefaultValueIncomplete(editingRule)
+                ? 'No default value set, so the default stays off'
+                : null;
 
     return (
         <EditorShell
+            filterCount={
+                listedFilters.dimensions.length + listedFilters.metrics.length
+            }
             onClose={close}
-            onCancel={isPlaceholder ? discard : null}
+            onCancel={editor !== null && isPlaceholder ? discard : null}
             footerStatus={footerStatus}
         >
             {isListed ? rows : [...rows, editor]}

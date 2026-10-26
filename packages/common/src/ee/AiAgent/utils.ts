@@ -1,6 +1,5 @@
 import { type DataAppVizChart } from '../../types/savedCharts';
 import { isAiComposerChartArtifactConfig } from './composerArtifact';
-import { parseComposerStoredChartVizConfig } from './composerChartVizConfig';
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
 import type {
     AiChartArtifactConfig,
@@ -16,6 +15,7 @@ import {
     toolRunQueryArgsSchemaPersisted,
     toolRunQueryExpressionResolvedArgsSchema,
 } from './schemas';
+import { parseComposerStoredChartVizConfig } from './schemas/tools/composerChartVizConfigSchema';
 import { AiResultType } from './types';
 import { getValidAiQueryLimit } from './validators';
 

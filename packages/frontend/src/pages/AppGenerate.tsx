@@ -80,6 +80,7 @@ import AddAnalysisOffer from '../features/apps/analysis/AddAnalysisOffer';
 import AnalysisOffChip from '../features/apps/analysis/AnalysisOffChip';
 import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
 import { useDataAppAnalysisController } from '../features/apps/analysis/useDataAppAnalysisController';
+import { useDismissAddAnalysisOffer } from '../features/apps/analysis/useDismissAddAnalysisOffer';
 import { type AppIframePreviewHandle } from '../features/apps/AppIframePreview';
 import AppInspectorPanel from '../features/apps/AppInspectorPanel';
 import {
@@ -1181,11 +1182,16 @@ const AppGenerate: FC = () => {
         () => refreshPreviewRef.current(),
         [],
     );
+    // Author guidance declared in app code, reported by the previewed bundle.
+    const [insightInstructions, setInsightInstructions] = useState<
+        string | null
+    >(null);
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid: previewApp?.appUuid,
         queries: trackedQueries,
         availability: analysisAvailability,
+        instructions: insightInstructions,
         // No agent picker in the builder yet; the viewer's default agent
         // (falling back to the first accessible one) is used.
         onNeedsAgent: () => {},
@@ -1370,29 +1376,30 @@ const AppGenerate: FC = () => {
     // through the upgrade first.
     const latestReadyUsesAnalysis =
         appData?.pages[0]?.latestReadyVersionUsesAiAnalysis ?? null;
-    const [addAnalysisDismissals, setAddAnalysisDismissals] = useState(0);
-    const addAnalysisDismissedKey = activeAppUuid
-        ? `data-apps:add-analysis-dismissed:${activeAppUuid}`
-        : null;
-    const addAnalysisDismissed = useMemo(() => {
-        if (!addAnalysisDismissedKey) return false;
-        void addAnalysisDismissals;
-        try {
-            return localStorage.getItem(addAnalysisDismissedKey) === 'true';
-        } catch {
-            return false;
-        }
-    }, [addAnalysisDismissedKey, addAnalysisDismissals]);
+    const latestReadyHasAnalyzableData =
+        appData?.pages[0]?.latestReadyVersionHasAnalyzableData ?? null;
+    // Dismissal is persisted on the app, so the offer stops nagging across
+    // browsers and builders — including after the build agent declines to add
+    // analysis. Local state hides it instantly while the mutation runs.
+    const serverAddAnalysisDismissed =
+        appData?.pages[0]?.addAnalysisDismissed ?? false;
+    const [locallyDismissedAppUuid, setLocallyDismissedAppUuid] = useState<
+        string | null
+    >(null);
+    const { mutate: persistAddAnalysisDismissal } =
+        useDismissAddAnalysisOffer();
+    const addAnalysisDismissed =
+        serverAddAnalysisDismissed ||
+        (canonicalAppUuid !== undefined &&
+            locallyDismissedAppUuid === canonicalAppUuid);
     const dismissAddAnalysis = useCallback(() => {
-        if (addAnalysisDismissedKey) {
-            try {
-                localStorage.setItem(addAnalysisDismissedKey, 'true');
-            } catch {
-                // Per-viewer convenience only; the offer just reappears.
-            }
-        }
-        setAddAnalysisDismissals((n) => n + 1);
-    }, [addAnalysisDismissedKey]);
+        if (!projectUuid || !canonicalAppUuid) return;
+        setLocallyDismissedAppUuid(canonicalAppUuid);
+        persistAddAnalysisDismissal({
+            projectUuid,
+            appUuid: canonicalAppUuid,
+        });
+    }, [projectUuid, canonicalAppUuid, persistAddAnalysisDismissal]);
     const [isAnalysisUpgradeOpen, setIsAnalysisUpgradeOpen] = useState(false);
     const showAddAnalysisOffer =
         analysisAvailability.status === 'available' &&
@@ -1403,6 +1410,10 @@ const AppGenerate: FC = () => {
         activeAppUuid !== undefined &&
         latestReadyVersion !== null &&
         latestReadyUsesAnalysis === false &&
+        // Analysis runs over query results; an app that pulls no query data
+        // (e.g. metadata from an external connection) would show a blank
+        // summary, so never offer it there.
+        latestReadyHasAnalyzableData === true &&
         sdkUpgradeOffer.status !== 'unknown' &&
         (analysisInUseScope === null || analysisInUseScope !== previewScope);
     const showVizSampleConsent =
@@ -2741,11 +2752,14 @@ const AppGenerate: FC = () => {
                                             sdkUpgradeOffer.status !== 'current'
                                         }
                                         busy={isLoading}
-                                        onAddAnalysis={() =>
+                                        onAddAnalysis={() => {
+                                            // One click is enough: if the
+                                            // agent declines, don't re-nag.
+                                            dismissAddAnalysis();
                                             submitCannedPrompt(
                                                 'Add AI analysis to this app.',
-                                            )
-                                        }
+                                            );
+                                        }}
                                         onUpgradeApp={() =>
                                             setIsAnalysisUpgradeOpen(true)
                                         }
@@ -3554,6 +3568,9 @@ const AppGenerate: FC = () => {
                                             analysisController.handleAction
                                         }
                                         onInsightsInUse={handleInsightsInUse}
+                                        onInsightInstructionsChange={
+                                            setInsightInstructions
+                                        }
                                         onMountedQueriesChange={
                                             analysisController.setMountedQueryUuids
                                         }

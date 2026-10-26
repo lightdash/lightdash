@@ -3,6 +3,7 @@ import { Badge, Group, Popover, Text } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowUp,
+    IconArrowsSort,
     IconChevronDown,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -36,6 +37,7 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
             <Popover.Target>
                 <Badge
                     color="blue"
+                    variant="transparent"
                     className={`${classes.badge} ${isEditMode ? classes.interactive : ''}`}
                     rightSection={
                         isEditMode ? (
@@ -44,20 +46,17 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
                     }
                 >
                     <Group className={classes.content} gap={2} wrap="nowrap">
-                        {sorts.length === 1 && (
-                            <MantineIcon
-                                icon={
-                                    sorts[0].descending
-                                        ? IconArrowDown
-                                        : IconArrowUp
-                                }
-                                strokeWidth={3}
-                                size="sm"
-                            />
-                        )}
-                        <Text span fw={400} fz="xs">
-                            Sorted by
-                        </Text>
+                        <MantineIcon
+                            icon={
+                                sorts.length !== 1
+                                    ? IconArrowsSort
+                                    : sorts[0].descending
+                                      ? IconArrowDown
+                                      : IconArrowUp
+                            }
+                            strokeWidth={3}
+                            size="sm"
+                        />
                         <Text className={classes.field} fw={600} fz="xs">
                             {getSortText()}
                         </Text>

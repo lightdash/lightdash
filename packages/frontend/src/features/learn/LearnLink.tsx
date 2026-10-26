@@ -1,12 +1,11 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, ProjectType } from '@lightdash/common';
+import { ProjectType } from '@lightdash/common';
 import { Button, Tooltip } from '@mantine/core';
 import { IconSchool } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useProjects } from '../../hooks/useProjects';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 
 // The library is available to permitted learners, never inside a training copy.
@@ -20,17 +19,11 @@ export const LearnLink: FC<{ projectUuid: string; withLabel?: boolean }> = ({
         'view',
         subject('Learn', { organizationUuid: user.data.organizationUuid }),
     );
-    const { data: learnFlag } = useServerFeatureFlag(FeatureFlags.EnableLearn);
     const { data: projects } = useProjects();
     const current = projects?.find(
         (project) => project.projectUuid === projectUuid,
     );
-    if (
-        !learnFlag?.enabled ||
-        !canViewLearn ||
-        current?.type === ProjectType.PREVIEW
-    )
-        return null;
+    if (!canViewLearn || current?.type === ProjectType.PREVIEW) return null;
     return (
         <Tooltip label="Learn" position="bottom" withinPortal>
             <Button

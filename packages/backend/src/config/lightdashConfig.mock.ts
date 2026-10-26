@@ -201,6 +201,7 @@ export const lightdashConfigMock: LightdashConfig = {
         },
     },
     staticAssets: {},
+    uploads: { s3: null },
     natsWorker: {
         enabled: false,
         url: undefined,
@@ -231,7 +232,7 @@ export const lightdashConfigMock: LightdashConfig = {
                 retentionDays: 30,
                 batchSize: 1000,
                 delayMs: 100,
-                maxBatches: 100,
+                maxBatches: 300,
                 schedule: '0 2 * * *',
             },
         },
@@ -402,9 +403,6 @@ export const lightdashConfigMock: LightdashConfig = {
     microsoftTeams: {
         enabled: false,
     },
-    serviceAccount: {
-        enabled: false,
-    },
     organizationWarehouseCredentials: {
         enabled: false,
     },
@@ -432,9 +430,6 @@ export const lightdashConfigMock: LightdashConfig = {
         runSqlMaxLimit: 5000,
     },
     customRoles: {
-        enabled: false,
-    },
-    editYamlInUi: {
         enabled: false,
     },
     funnelBuilder: {

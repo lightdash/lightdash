@@ -19,6 +19,11 @@ import {
 } from '../../../ee/services/SandboxRuntime';
 import { traceSpan } from '../../../tracing/tracing';
 import {
+    traceComposerQueryStage,
+    type ComposerQueryStage,
+    type ComposerQueryStageMetrics,
+} from '../composerQueryStage';
+import {
     PYTHON_INPUT_DIR,
     PYTHON_INPUT_META_PATH,
     PYTHON_MAIN_PATH,
@@ -75,14 +80,32 @@ export class PythonSandboxRunner {
 
     private readonly logger: SandboxLogger;
 
+    private readonly metrics: ComposerQueryStageMetrics | null;
+
     private provider: SandboxProvider | undefined;
 
     constructor(args: {
         lightdashConfig: LightdashConfig;
         logger: SandboxLogger;
+        metrics: ComposerQueryStageMetrics | null;
     }) {
         this.lightdashConfig = args.lightdashConfig;
         this.logger = args.logger;
+        this.metrics = args.metrics;
+    }
+
+    private traceStage<T>(
+        stage: ComposerQueryStage<'python'>,
+        attributes: Record<string, string | number>,
+        fn: () => Promise<T>,
+    ): Promise<T> {
+        return traceComposerQueryStage(
+            this.metrics,
+            'python',
+            stage,
+            { name: `python.sandbox.${stage}`, attributes },
+            fn,
+        );
     }
 
     private getProvider(): SandboxProvider {
@@ -180,7 +203,11 @@ export class PythonSandboxRunner {
     async run(args: PythonSandboxRunArgs): Promise<PythonSandboxRunResult> {
         const { queryUuid, code, inputs, inputMeta, timeoutMs } = args;
         const provider = this.getProvider();
-        const spec = this.buildSpec(timeoutMs);
+        const batch = this.lightdashConfig.appRuntime.sandboxProvider === 'e2b';
+        const spec = {
+            ...this.buildSpec(timeoutMs),
+            ...(batch ? { onTimeout: 'kill' as const } : {}),
+        };
         const attributes = {
             'lightdash.queryUuid': queryUuid,
             'lightdash.sandboxProvider':
@@ -188,63 +215,58 @@ export class PythonSandboxRunner {
             'lightdash.templateRef': spec.templateRef,
         };
 
-        const handle = await traceSpan(
-            {
-                op: 'python.sandbox.create',
-                name: 'python.sandbox.create',
-                attributes,
-            },
-            () => provider.create(spec),
+        const handle = await this.traceStage('create', attributes, () =>
+            provider.create(spec),
         );
         this.logger.info(
             `Python query ${queryUuid}: sandbox ${handle.sandboxId} created from ${spec.templateRef}`,
         );
+        const sandboxAttributes = {
+            ...attributes,
+            'lightdash.sandboxId': handle.sandboxId,
+        };
 
-        try {
-            await traceSpan(
+        const writeInputs = () =>
+            this.traceStage(
+                'write_inputs',
                 {
-                    op: 'python.sandbox.compile',
-                    name: 'python.sandbox.compile',
-                    attributes,
-                },
-                () => PythonSandboxRunner.compile(handle, code),
-            );
-
-            await traceSpan(
-                {
-                    op: 'python.sandbox.write_inputs',
-                    name: 'python.sandbox.write_inputs',
-                    attributes: {
-                        ...attributes,
-                        'lightdash.inputCount': inputs.length,
-                        'lightdash.inputBytes': inputs.reduce(
-                            (total, input) => total + input.jsonl.byteLength,
-                            0,
-                        ),
-                    },
+                    ...sandboxAttributes,
+                    'lightdash.inputCount': inputs.length,
+                    'lightdash.inputBytes': inputs.reduce(
+                        (total, input) => total + input.jsonl.byteLength,
+                        0,
+                    ),
                 },
                 () =>
-                    PythonSandboxRunner.writeInputs(handle, inputs, inputMeta),
+                    batch
+                        ? PythonSandboxRunner.writeBatch(
+                              handle,
+                              code,
+                              inputs,
+                              inputMeta,
+                          )
+                        : PythonSandboxRunner.writeInputs(
+                              handle,
+                              inputs,
+                              inputMeta,
+                          ),
             );
+        try {
+            if (batch) await writeInputs();
+            await this.traceStage('compile', sandboxAttributes, () =>
+                PythonSandboxRunner.compile(handle, code, batch),
+            );
+            if (!batch) await writeInputs();
 
-            const stdout = await traceSpan(
-                {
-                    op: 'python.sandbox.run',
-                    name: 'python.sandbox.run',
-                    attributes: {
-                        ...attributes,
-                        'lightdash.timeoutMs': timeoutMs,
-                    },
-                },
+            const stdout = await this.traceStage(
+                'run',
+                { ...sandboxAttributes, 'lightdash.timeoutMs': timeoutMs },
                 () => PythonSandboxRunner.execute(handle, timeoutMs),
             );
 
-            const [resultJsonl, resultMeta] = await traceSpan(
-                {
-                    op: 'python.sandbox.read_output',
-                    name: 'python.sandbox.read_output',
-                    attributes,
-                },
+            const [resultJsonl, resultMeta] = await this.traceStage(
+                'read_output',
+                sandboxAttributes,
                 () =>
                     Promise.all([
                         handle.files.readBytes(PYTHON_OUTPUT_RESULT_PATH, {
@@ -262,12 +284,9 @@ export class PythonSandboxRunner {
             }
             throw error;
         } finally {
-            await traceSpan(
-                {
-                    op: 'python.sandbox.destroy',
-                    name: 'python.sandbox.destroy',
-                    attributes,
-                },
+            const destruction = this.traceStage(
+                'destroy',
+                sandboxAttributes,
                 async () => {
                     try {
                         await provider.destroy(handle.sandboxId);
@@ -280,16 +299,58 @@ export class PythonSandboxRunner {
                     }
                 },
             );
+            if (batch) {
+                void destruction.catch((error: unknown) =>
+                    this.logger.warn(
+                        `Python query ${queryUuid}: sandbox cleanup failed: ${getErrorMessage(error)}`,
+                    ),
+                );
+            } else {
+                await destruction;
+            }
         }
     }
 
-    /** Syntax errors surface here, before any data enters the sandbox. */
+    private static async writeBatch(
+        handle: SandboxHandle,
+        code: string,
+        inputs: PythonSandboxInput[],
+        inputMeta: PythonInputMeta,
+    ): Promise<void> {
+        const files = [
+            { path: PYTHON_MAIN_PATH, contents: code },
+            { path: PYTHON_RUNNER_PATH, contents: PYTHON_RUNNER_SOURCE },
+            ...inputs.map((input) => ({
+                path: `${PYTHON_INPUT_DIR}/${input.name}.jsonl`,
+                contents: input.jsonl,
+            })),
+            {
+                path: PYTHON_INPUT_META_PATH,
+                contents: JSON.stringify(inputMeta),
+            },
+            { path: `${PYTHON_OUTPUT_DIR}/.keep`, contents: '' },
+        ];
+        if (handle.files.writeMany) {
+            await handle.files.writeMany(files);
+        } else {
+            await Promise.all(
+                files.map(({ path, contents }) =>
+                    handle.files.write(path, contents),
+                ),
+            );
+        }
+    }
+
+    /** Syntax errors surface here; unbatched runs check before data enters the sandbox. */
     private static async compile(
         handle: SandboxHandle,
         code: string,
+        alreadyWritten: boolean,
     ): Promise<void> {
-        await handle.files.write(PYTHON_MAIN_PATH, code);
-        await handle.files.write(PYTHON_RUNNER_PATH, PYTHON_RUNNER_SOURCE);
+        if (!alreadyWritten) {
+            await handle.files.write(PYTHON_MAIN_PATH, code);
+            await handle.files.write(PYTHON_RUNNER_PATH, PYTHON_RUNNER_SOURCE);
+        }
         try {
             await handle.commands.run(
                 `python3 -I -m py_compile ${PYTHON_MAIN_PATH}`,
@@ -319,9 +380,20 @@ export class PythonSandboxRunner {
         );
         await Promise.all(
             inputs.map((input) =>
-                handle.files.write(
-                    `${PYTHON_INPUT_DIR}/${input.name}.jsonl`,
-                    input.jsonl,
+                traceSpan(
+                    {
+                        op: 'python.sandbox.write_input',
+                        name: 'python.sandbox.write_input',
+                        attributes: {
+                            'lightdash.inputName': input.name,
+                            'lightdash.inputBytes': input.jsonl.byteLength,
+                        },
+                    },
+                    () =>
+                        handle.files.write(
+                            `${PYTHON_INPUT_DIR}/${input.name}.jsonl`,
+                            input.jsonl,
+                        ),
                 ),
             ),
         );

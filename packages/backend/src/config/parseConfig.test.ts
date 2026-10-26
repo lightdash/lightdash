@@ -40,6 +40,32 @@ beforeEach(() => {
     };
 });
 
+describe('Python E2B template configuration', () => {
+    it('defaults to the python template at the running version', () => {
+        expect(parseConfig().appRuntime).toMatchObject({
+            e2bPythonTemplateName: 'lightdash-python-runner',
+            e2bPythonTemplateTag: VERSION,
+        });
+    });
+
+    it.each<[NodeJS.ProcessEnv, string, string]>([
+        [
+            { E2B_PYTHON_TEMPLATE_TAG: 'pinned' },
+            'lightdash-python-runner',
+            'pinned',
+        ],
+        [{ E2B_PYTHON_TEMPLATE_TAG: '' }, 'lightdash-python-runner', ''],
+        [{ E2B_PYTHON_TEMPLATE_NAME: 'custom' }, 'custom', VERSION],
+        [{ E2B_PYTHON_TEMPLATE_NAME: '' }, 'lightdash-python-runner', VERSION],
+    ])('uses configured settings: %o', (env, name, tag) => {
+        Object.assign(process.env, env);
+        expect(parseConfig().appRuntime).toMatchObject({
+            e2bPythonTemplateName: name,
+            e2bPythonTemplateTag: tag,
+        });
+    });
+});
+
 describe('agent result identity check configuration', () => {
     it.each([
         [undefined, true],
@@ -1144,6 +1170,29 @@ test('Should use explicit apps S3 config when set', () => {
         forcePathStyle: false,
         authMode: 'default',
     });
+});
+
+test('Should have no uploads S3 config until a bucket is set', () => {
+    expect(parseConfig().uploads.s3).toBeNull();
+});
+
+test('Should inherit base S3 settings for the uploads bucket', () => {
+    process.env.S3_ACCESS_KEY = 'mock_access_key';
+    process.env.S3_SECRET_KEY = 'mock_secret_key';
+    process.env.S3_FORCE_PATH_STYLE = 'true';
+    process.env.UPLOADS_S3_BUCKET = 'uploads_bucket';
+    const config = parseConfig();
+    expect(config.uploads.s3).toEqual(
+        expect.objectContaining({
+            endpoint: 'mock_endpoint',
+            bucket: 'uploads_bucket',
+            region: 'mock_region',
+            accessKey: 'mock_access_key',
+            secretKey: 'mock_secret_key',
+            forcePathStyle: true,
+        }),
+    );
+    expect(config.s3?.bucket).toEqual('mock_bucket');
 });
 
 describe('S3_AUTH_MODE', () => {
@@ -2853,7 +2902,6 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
         ['GROUPS_ENABLED', 'user-groups-enabled'],
         ['SHOW_EXECUTION_TIME', 'show-execution-time'],
         ['EMBEDDING_ENABLED', 'embedding'],
-        ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
         ['SCIM_ENABLED', 'scim-token-management'],
         [
             'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',

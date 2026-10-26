@@ -106,7 +106,6 @@ describe('AiAgentMemoryModel integration', () => {
             schedulerModel: getTestContext()
                 .app.getModels()
                 .getSchedulerModel(),
-            featureFlagModel,
         });
         await schedulerClient.graphileUtils;
         const flagIds = [CommercialFeatureFlags.AiCopilot];

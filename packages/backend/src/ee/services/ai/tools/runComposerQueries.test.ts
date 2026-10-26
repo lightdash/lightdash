@@ -6,6 +6,9 @@ import {
     QuerySourceType,
     toolComposerQueryNodeToSourceQuery,
     type AiWebAppPrompt,
+    type ComposerNodeColumn,
+    type Explore,
+    type ParameterDefinitions,
     type SlackPrompt,
     type SourceQuery,
     type SubmittedSourceQuery,
@@ -17,6 +20,7 @@ import {
 import type { ZodType } from 'zod';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
+import type { SearchFieldValuesFn } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { getSlackTablePreviews } from '../utils/slackTablePreviews';
 import { mockOrdersExplore } from '../utils/validationExplore.mock';
@@ -24,6 +28,7 @@ import { resolveComposerQueryNode } from './composerSemanticLayerFilters';
 import {
     getRunComposerQueries,
     resolveTerminalNodeId,
+    type FilterValueHintDependencies,
 } from './runComposerQueries';
 
 type ComposerTool = ReturnType<typeof getRunComposerQueries>;
@@ -63,17 +68,21 @@ const makeNodeRegistry = (initial: ThreadComposerQueryNode[] = []) => {
     const byThread = new Map<string, ThreadComposerQueryNode[]>([
         ['thread-uuid', [...initial]],
     ]);
+    const columnsByNode = new Map<string, ComposerNodeColumn[]>();
     const list = (threadUuid: string) => byThread.get(threadUuid) ?? [];
     return {
         nodes: list,
+        nodeColumns: (nodeId: string) => columnsByNode.get(nodeId) ?? null,
         listThreadComposerQueryNodes: async (threadUuid: string) =>
             list(threadUuid),
         registerThreadComposerQueryNodes: async ({
             threadUuid,
             nodes,
+            nodeColumns,
         }: {
             threadUuid: string;
             nodes: ThreadComposerQueryNode[];
+            nodeColumns: Record<string, ComposerNodeColumn[]>;
         }) => {
             const registered = list(threadUuid);
             nodes.forEach((node) => {
@@ -86,6 +95,9 @@ const makeNodeRegistry = (initial: ThreadComposerQueryNode[] = []) => {
                     );
                 }
             });
+            Object.entries(nodeColumns).forEach(([nodeId, columns]) =>
+                columnsByNode.set(nodeId, columns),
+            );
             byThread.set(threadUuid, [
                 ...registered,
                 ...nodes.filter(
@@ -120,6 +132,7 @@ const semanticNode: ComposerNode = {
     metrics: ['payments_total_revenue'],
     filters: null,
     sorts: null,
+    parameters: null,
     limit: 500,
 };
 
@@ -204,6 +217,8 @@ const makeTool = ({
     agentContext = new AgentContext([mockOrdersExplore]),
     useSlackStreamCard = false,
     registry = makeNodeRegistry(),
+    filterValueHints = null,
+    projectParameterDefinitions = {},
 }: {
     reviewQuery?: QueryReviewer;
     autoApproveSql?: boolean;
@@ -216,10 +231,13 @@ const makeTool = ({
     agentContext?: AgentContext;
     useSlackStreamCard?: boolean;
     registry?: ReturnType<typeof makeNodeRegistry>;
+    filterValueHints?: FilterValueHintDependencies | null;
+    projectParameterDefinitions?: ParameterDefinitions;
 } = {}) => {
     const dependencies = {
         agentContext,
         reviewQuery,
+        filterValueHints,
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runComposerQueries: vi.fn().mockResolvedValue({
             submissions: [
@@ -268,6 +286,7 @@ const makeTool = ({
         autoApproveSql,
         autoApproveSqlUserUuid,
         useSlackStreamCard,
+        projectParameterDefinitions,
     };
 
     return {
@@ -278,59 +297,18 @@ const makeTool = ({
 };
 
 describe('getRunComposerQueries', () => {
-    it('in Slack, the reply can show the terminal result as a table that links to the thread, without an artifact', async () => {
-        const agentContext = new AgentContext([]);
-        const { tool, registry } = makeTool({
+    it('in Slack, asks for visualize as on the web, without a Slack marker', async () => {
+        const { tool } = makeTool({
             autoApproveSql: true,
             prompt: makeSlackPrompt(),
-            agentContext,
         });
 
-        const output = await executeTool(tool, makeArgs(), 'composer-call');
-        expect(output.result).not.toContain('<show');
-        // The model selects the table using the queryUuid it was given.
-        const queryUuid = output.result.match(/queryUuid="([^"]+)"/)?.[1];
+        const output = await executeTool(tool, makeArgs());
 
-        const previews = await getSlackTablePreviews({
-            enableDataAccess: true,
-            slackLinksOnly: false,
-            selectedQueryUuids: queryUuid ? [queryUuid] : [],
-            toolCalls: [
-                {
-                    tool_call_id: 'composer-call',
-                    tool_name: 'runComposerQueries',
-                    tool_args: makeArgs(),
-                },
-            ],
-            toolResults: [
-                {
-                    toolCallId: 'composer-call',
-                    toolType: 'built-in',
-                    toolName: 'runComposerQueries',
-                    metadata: output.metadata,
-                },
-            ],
-            artifacts: [],
-            threadNodes: registry.nodes('thread-uuid'),
-            url: 'https://lightdash.test/threads/thread-uuid',
-            runtimeResults: agentContext.getSlackTableResults(),
-            authorize: vi.fn().mockResolvedValue(undefined),
-            getResults: vi
-                .fn()
-                .mockRejectedValue(new Error('stored results not needed')),
-            onLoadError: vi.fn(),
-        });
-
-        expect(previews).toEqual([
-            expect.objectContaining({
-                status: 'ready',
-                title: 'Revenue vs signups',
-                url: 'https://lightdash.test/threads/thread-uuid',
-                queryResults: expect.objectContaining({
-                    rows: [{ month: '2026-01', signups: 12 }],
-                }),
-            }),
-        ]);
+        expect(output.result).toContain(
+            'Not visualized yet. To present it to the user, call visualize with nodeId "joined".',
+        );
+        expect(output.result).not.toContain('<slack-table');
     });
 
     it('runs the pipeline and returns the terminal without presenting it', async () => {
@@ -357,7 +335,7 @@ describe('getRunComposerQueries', () => {
             description: null,
         });
         expect(output.result).toContain(
-            'Not presented to the user yet. To present it, write <show node="joined"/> in your final answer, in this message or a later one.',
+            'Not visualized yet. To present it to the user, call visualize with nodeId "joined".',
         );
         expect(output.result).toContain(
             [
@@ -395,6 +373,7 @@ describe('getRunComposerQueries', () => {
                 { reference: 'month', type: 'string' },
                 { reference: 'signups', type: 'number' },
             ],
+            parameters: [],
             review: null,
             preview: {
                 rows: [{ month: '2026-01', signups: 12 }],
@@ -522,12 +501,7 @@ describe('getRunComposerQueries', () => {
 
         expect(dependencies.runComposerQueries).toHaveBeenCalledWith({
             queries: [
-                {
-                    ...semanticNode,
-                    description: undefined,
-                    filters: undefined,
-                    sorts: undefined,
-                },
+                asSubmitted([semanticNode])[0],
                 { ...externalNode, description: undefined },
                 composedNode,
             ],
@@ -575,6 +549,18 @@ describe('getRunComposerQueries', () => {
             'signups',
             'joined',
         ]);
+    });
+
+    it("stores the terminal node's columns with its registration", async () => {
+        const { tool, registry } = makeTool({ autoApproveSql: true });
+
+        await executeTool(tool, makeArgs());
+
+        expect(registry.nodeColumns('joined')).toEqual([
+            { reference: 'month', type: 'string' },
+            { reference: 'signups', type: 'number' },
+        ]);
+        expect(registry.nodeColumns('revenue')).toBeNull();
     });
 
     it.each([
@@ -873,6 +859,7 @@ const resubmittedOrders = (limit: number): ComposerNode => ({
     metrics: ['orders_total_order_amount'],
     filters: null,
     sorts: null,
+    parameters: null,
     limit,
 });
 
@@ -1265,6 +1252,7 @@ describe('semanticLayer node filters', () => {
         dimensions: ['orders_customer_name'],
         metrics: ['orders_total_revenue'],
         sorts: null,
+        parameters: null,
         limit: 500,
         filters,
     });
@@ -1374,6 +1362,124 @@ describe('semanticLayer node filters', () => {
         expect(registry.nodes('thread-uuid')).toHaveLength(1);
     });
 
+    describe('empty result filter value hints', () => {
+        const EMPTY_DIAGNOSIS = 'Possible empty-result cause: filter value.';
+        const filteredNode = ordersNodeWithFilters({
+            dimensions: 'orders_customer_name equals=Alic',
+            metrics: null,
+        });
+        const emptyTool = (
+            searchFieldValues: SearchFieldValuesFn,
+            queries: ComposerNode[] = [filteredNode],
+        ) => {
+            const reviewQuery = vi.fn<QueryReviewer>(async (_plan, result) =>
+                result?.emptyResult
+                    ? EMPTY_DIAGNOSIS
+                    : ' Query/question review: check conditions.',
+            );
+            const made = makeTool({
+                reviewQuery,
+                filterValueHints: {
+                    decisions: {
+                        evaluate: vi.fn().mockResolvedValue({
+                            value: {
+                                type: 'choice',
+                                choice: '0',
+                                confidence: 0.99,
+                                probabilities: { '0': 1 },
+                            },
+                        }),
+                    },
+                    searchFieldValues,
+                },
+            });
+            made.dependencies.runComposerQueries.mockResolvedValue({
+                submissions: [],
+                terminal: {
+                    queryUuid: 'empty',
+                    columns: {},
+                    rows: [],
+                    rowCount: 0,
+                },
+            });
+            return {
+                ...made,
+                run: (terminalNodeId: string | null = null) =>
+                    executeTool(
+                        made.tool,
+                        makeArgs({ queries, terminalNodeId }),
+                    ),
+            };
+        };
+
+        it('suggests a stored value equivalent to a filter literal that matched nothing, in place of the diagnosis', async () => {
+            const searchFieldValues = vi.fn().mockResolvedValue(['Alice']);
+            const output = await emptyTool(searchFieldValues).run();
+
+            expect(output.result).toContain(
+                `${EMPTY_QUERY_GUIDANCE} For orders_customer_name, "Alice" is a likely equivalent of "Alic"`,
+            );
+            expect(output.result).toContain('check conditions');
+            expect(output.result).not.toContain(EMPTY_DIAGNOSIS);
+            expect(output.structuredContent).toMatchObject({
+                review: expect.stringContaining('"Alice"'),
+            });
+            expect(searchFieldValues).toHaveBeenCalledWith({
+                table: mockOrdersExplore.name,
+                fieldId: 'orders_customer_name',
+                query: 'Alic',
+            });
+        });
+
+        it('suggests values for a semanticLayer node feeding an empty transform', async () => {
+            const searchFieldValues = vi.fn().mockResolvedValue(['Alice']);
+            const output = await emptyTool(searchFieldValues, [
+                filteredNode,
+                { ...duckdbNode, references: ['revenue'] },
+            ]).run();
+
+            expect(output.result).toContain('"Alice" is a likely equivalent');
+            expect(output.result).not.toContain(EMPTY_DIAGNOSIS);
+        });
+
+        it('keeps the diagnosis when no semanticLayer node feeds the empty terminal', async () => {
+            const searchFieldValues = vi.fn().mockResolvedValue(['Alice']);
+            const output = await emptyTool(searchFieldValues, [
+                filteredNode,
+                sqlNode,
+                { ...duckdbNode, references: ['signups'] },
+            ]).run('joined');
+
+            expect(output.result).toContain(EMPTY_DIAGNOSIS);
+            expect(searchFieldValues).not.toHaveBeenCalled();
+        });
+
+        it('keeps the diagnosis when the value lookup fails', async () => {
+            const output = await emptyTool(
+                vi.fn().mockRejectedValue(new Error('denied')),
+            ).run();
+
+            expect(output.metadata.status).toBe('success');
+            expect(output.result).toContain(EMPTY_DIAGNOSIS);
+        });
+
+        it('stops waiting for a slow value lookup and keeps the diagnosis', async () => {
+            vi.useFakeTimers();
+            try {
+                const pending = emptyTool(
+                    vi.fn().mockReturnValue(new Promise(() => {})),
+                ).run();
+                await vi.advanceTimersByTimeAsync(1_000);
+                const output = await pending;
+
+                expect(output.metadata.status).toBe('success');
+                expect(output.result).toContain(EMPTY_DIAGNOSIS);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+    });
+
     it('rejects a metric placed in the dimension expression', async () => {
         const { tool, dependencies } = makeTool();
         const output = await executeTool(
@@ -1394,5 +1500,164 @@ describe('semanticLayer node filters', () => {
         expect(output.result).toContain('semanticLayer node "revenue"');
         expect(output.result).toContain('orders_total_revenue');
         expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+});
+
+describe('semanticLayer node parameters', () => {
+    const parameterizedExplore: Explore = {
+        ...mockOrdersExplore,
+        tables: {
+            ...mockOrdersExplore.tables,
+            orders: {
+                ...mockOrdersExplore.tables.orders,
+                parameters: {
+                    metric: {
+                        label: 'Metric',
+                        options: ['revenue', 'active_users'],
+                        default: 'revenue',
+                    },
+                    region: { label: 'Region' },
+                },
+                dimensions: {
+                    ...mockOrdersExplore.tables.orders.dimensions,
+                    customer_name: {
+                        ...mockOrdersExplore.tables.orders.dimensions
+                            .customer_name,
+                        parameterReferences: ['orders.metric', 'orders.region'],
+                    },
+                },
+            },
+        },
+    };
+    const parameterizedNode = (
+        parameters: ToolComposerSemanticLayerNode['parameters'],
+    ): ComposerNode => ({
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'orders',
+        title: 'Revenue by customer',
+        description: null,
+        exploreName: parameterizedExplore.name,
+        dimensions: ['orders_customer_name'],
+        metrics: ['orders_total_revenue'],
+        filters: null,
+        sorts: null,
+        parameters,
+        limit: 500,
+    });
+
+    it('runs the node with the supplied values and reports applied, defaulted and unset parameters', async () => {
+        const { tool, dependencies } = makeTool({
+            agentContext: new AgentContext([parameterizedExplore]),
+        });
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    parameterizedNode({ 'orders.metric': 'active_users' }),
+                ],
+            }),
+        );
+
+        const [{ queries }] = dependencies.runComposerQueries.mock.calls[0];
+        expect(queries).toEqual([
+            expect.objectContaining({
+                nodeId: 'orders',
+                parameters: { 'orders.metric': 'active_users' },
+            }),
+        ]);
+        expect(output.result).toContain(
+            'set explicitly: {"orders.metric":"active_users"}',
+        );
+        expect(output.result).toContain('unset with no default: orders.region');
+        expect(output.structuredContent).toMatchObject({
+            parameters: [
+                {
+                    nodeId: 'orders',
+                    applied: { 'orders.metric': 'active_users' },
+                    defaulted: {},
+                    unset: ['orders.region'],
+                },
+            ],
+        });
+    });
+
+    it('reports default-resolved values when the node sets none', async () => {
+        const { tool } = makeTool({
+            agentContext: new AgentContext([parameterizedExplore]),
+        });
+
+        const output = await executeTool(
+            tool,
+            makeArgs({ queries: [parameterizedNode(null)] }),
+        );
+
+        expect(output.result).toContain(
+            'resolved to defaults: {"orders.metric":"revenue"}',
+        );
+        expect(output.structuredContent).toMatchObject({
+            parameters: [
+                {
+                    nodeId: 'orders',
+                    applied: {},
+                    defaulted: { 'orders.metric': 'revenue' },
+                    unset: ['orders.region'],
+                },
+            ],
+        });
+    });
+
+    it('reports the values a reused node was defined with', async () => {
+        const { tool } = makeTool({
+            agentContext: new AgentContext([parameterizedExplore]),
+        });
+        await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    parameterizedNode({ 'orders.metric': 'active_users' }),
+                ],
+            }),
+            'tool-call-1',
+        );
+
+        const output = await executeTool(
+            tool,
+            makeArgs({
+                queries: [
+                    {
+                        ...duckdbNode,
+                        nodeId: 'top',
+                        sql: 'SELECT * FROM orders LIMIT 5',
+                        references: ['orders'],
+                    },
+                ],
+            }),
+            'tool-call-2',
+        );
+
+        expect(output.structuredContent).toMatchObject({
+            parameters: [
+                {
+                    nodeId: 'orders',
+                    applied: { 'orders.metric': 'active_users' },
+                },
+            ],
+        });
+    });
+
+    it('rejects an unknown parameter name without running the pipeline', async () => {
+        const { tool, dependencies } = makeTool({
+            agentContext: new AgentContext([parameterizedExplore]),
+        });
+
+        const output = await executeTool(
+            tool,
+            makeArgs({ queries: [parameterizedNode({ nonsense: 'x' })] }),
+        );
+
+        expect(dependencies.runComposerQueries).not.toHaveBeenCalled();
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain('unknown parameter "nonsense"');
     });
 });

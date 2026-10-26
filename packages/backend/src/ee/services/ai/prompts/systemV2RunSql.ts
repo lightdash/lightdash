@@ -23,34 +23,23 @@ const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
 
 type SqlWords = {
     heading: string;
-    preferSemanticLayer: string;
-    semanticQuery: string;
     approvalCost: string;
-    useSql: string;
     sqlUnit: string;
     sqlUnits: string;
 };
 
 const RUN_SQL_WORDS: SqlWords = {
     heading: '**Raw SQL (runSql tool):**',
-    preferSemanticLayer:
-        'Use the semantic layer when an explore covers the question: it is governed and reusable.',
-    semanticQuery: 'the semantic layer',
     approvalCost: 'Every `runSql` call costs the user an approval click',
-    useSql: 'runSql',
     sqlUnit: '`runSql` call',
     sqlUnits: '`runSql` calls',
 };
 
-// Composer runs raw SQL as `sql` nodes; the node schema states their limits.
+// Composer runs raw SQL as `sql` nodes; when to use one is in the composer section.
 const COMPOSER_SQL_WORDS: SqlWords = {
     heading: '**Raw SQL (query `sql` nodes):**',
-    preferSemanticLayer:
-        'Use semanticLayer nodes when an explore covers the question: they are governed and reusable.',
-    semanticQuery: 'a semanticLayer node',
     approvalCost:
         'Every submission with `sql` nodes costs the user an approval click',
-    useSql: '`sql` nodes',
     sqlUnit: '`sql` node',
     sqlUnits: '`sql` nodes',
 };
@@ -133,15 +122,19 @@ ${connectionLines}
 `
         : ''
 }
-**When to use it:**
-- ${words.preferSemanticLayer}
-- Use ${words.useSql} for these four cases:
+${
+    viaComposerQueries
+        ? ''
+        : `**When to use it:**
+- Use the semantic layer when an explore covers the question: it is governed and reusable.
+- Use runSql for these four cases:
   - joins across tables not modelled in any explore
-  - recursive CTEs, percentile functions (PERCENTILE_CONT), or warehouse-specific syntax that ${words.semanticQuery} cannot produce
+  - recursive CTEs, percentile functions (PERCENTILE_CONT), or warehouse-specific syntax that the semantic layer cannot produce
   - lookups in raw tables that are not part of any explore
   - the user explicitly asks for raw SQL
 
-${words.approvalCost}: the user reads the SQL and approves it before it runs.
+`
+}${words.approvalCost}: the user reads the SQL and approves it before it runs.
 
 - Discover the columns of an explore-backed table with grepFields and getMetadata, and of any other table with listWarehouseTables and describeWarehouseTable, not with SQL: the server rejects any SQL that reads \`information_schema\`. When they do not return what you need, ask the user.
 - After a "column does not exist" or "relation not found" error, describe the offending table and rewrite the SQL once from its real columns. When those columns lack the relationship you need (no foreign key, no junction table), tell the user what you expected and what the table has, then offer a proxy or ask for the right table.

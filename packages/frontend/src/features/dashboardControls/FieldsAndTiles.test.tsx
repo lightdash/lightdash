@@ -31,6 +31,7 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { FieldsAndTiles } from './FieldsAndTiles';
+import { RailContractClasses } from './railContractClasses';
 import { useEditorDismiss } from './useEditorDismiss';
 
 const mockSidebar = vi.hoisted(() => ({
@@ -502,6 +503,30 @@ describe('FieldsAndTiles', () => {
                     'tile-2': [status, revenue],
                 },
             };
+        });
+
+        it('gives "Add another field" an embed\'s add filter dropdown class', async () => {
+            setSidebar(rule('orders_revenue'));
+            renderWithProviders(
+                <RailContractClasses.Provider
+                    value={{
+                        rail: 'rail-class',
+                        addFilterDropdown: 'ld-dashboard-add-filter-dropdown',
+                        filterDropdown: 'ld-dashboard-filter-dropdown',
+                    }}
+                >
+                    <FieldsAndTiles />
+                </RailContractClasses.Provider>,
+            );
+
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Add another field' }),
+            );
+            expect(
+                (await screen.findByRole('option', { name: 'Profit' })).closest(
+                    '.ld-dashboard-add-filter-dropdown',
+                ),
+            ).not.toBeNull();
         });
 
         it('lists its metric with the tiles that offer it', async () => {

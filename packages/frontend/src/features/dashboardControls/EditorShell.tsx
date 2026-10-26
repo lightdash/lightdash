@@ -1,5 +1,6 @@
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     Group,
@@ -8,15 +9,20 @@ import {
     Text,
     Title,
     Tooltip,
+    VisuallyHidden,
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { useRef, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { AddControl } from './AddControl';
 import classes from './ControlSidebar.module.css';
+import { useRailContractClasses } from './railContractClasses';
 import { useRailTop } from './useRailTop';
 
 type Props = {
+    /** The dashboard's filters, listed in the rail. */
+    filterCount: number;
     onClose: () => void;
     /** Set while the filter cannot be kept: the footer offers only this. */
     onCancel: (() => void) | null;
@@ -26,6 +32,7 @@ type Props = {
 
 // The rail: a card next to the grid, stuck under the tabs and filter bar
 export const EditorShell: FC<Props> = ({
+    filterCount,
     onClose,
     onCancel,
     footerStatus,
@@ -33,22 +40,46 @@ export const EditorShell: FC<Props> = ({
 }) => {
     const ref = useRef<HTMLDivElement>(null);
     useRailTop(ref);
+    const getUiString = useUiStrings();
+    const contractClasses = useRailContractClasses();
     return (
-        <Paper ref={ref} className={classes.root} data-controls-editor>
+        <Paper
+            ref={ref}
+            className={
+                contractClasses
+                    ? `${contractClasses.rail} ${classes.root}`
+                    : classes.root
+            }
+            data-controls-editor
+        >
             <Group
                 justify="space-between"
                 wrap="nowrap"
-                pl="md"
-                pr="xs"
+                px="md"
                 py="xs"
                 className={classes.header}
             >
-                <Title order={5}>Filters</Title>
-                <Tooltip label="Close">
+                <Group gap="xs" wrap="nowrap">
+                    <Title order={5}>{getUiString('filters.rail.title')}</Title>
+                    {filterCount > 0 && (
+                        <Badge size="sm">
+                            {filterCount}
+                            <VisuallyHidden>
+                                {` ${getUiString(
+                                    filterCount === 1
+                                        ? 'filters.summary.filterSingular'
+                                        : 'filters.summary.filterPlural',
+                                )}`}
+                            </VisuallyHidden>
+                        </Badge>
+                    )}
+                </Group>
+                <Tooltip label={getUiString('filters.rail.close')}>
                     <ActionIcon
+                        size="sm"
                         variant="subtle"
                         color="gray"
-                        aria-label="Close"
+                        aria-label={getUiString('filters.rail.close')}
                         onClick={onClose}
                     >
                         <MantineIcon icon={IconX} />
@@ -87,18 +118,18 @@ export const EditorShell: FC<Props> = ({
                                 flex="0 0 auto"
                                 onClick={onCancel}
                             >
-                                Cancel
+                                {getUiString('filters.actions.cancel')}
                             </Button>
                         </>
                     ) : (
                         <>
-                            <AddControl isVisibilityToggleHidden />
+                            <AddControl placement="rail" />
                             <Button
                                 size="xs"
                                 className={classes.done}
                                 onClick={onClose}
                             >
-                                Done
+                                {getUiString('filters.rail.done')}
                             </Button>
                         </>
                     )}

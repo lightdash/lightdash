@@ -33,6 +33,7 @@ export interface ClientManifest {
     msTeamsClient: MicrosoftTeamsClient;
     preAggregateResultsFileStorageClient: S3ResultsFileStorageClient;
     resultsFileStorageClient: S3ResultsFileStorageClient;
+    uploadsFileStorageClient: FileStorageClient;
 }
 
 /**
@@ -195,6 +196,18 @@ export class ClientRepository
         );
     }
 
+    public getUploadsFileStorageClient(): FileStorageClient {
+        return this.getClient(
+            'uploadsFileStorageClient',
+            () =>
+                new S3Client({
+                    lightdashConfig: this.context.lightdashConfig,
+                    s3Config:
+                        this.context.lightdashConfig.uploads.s3 ?? undefined,
+                }),
+        );
+    }
+
     public getSchedulerClient(): SchedulerClient {
         return this.getClient(
             'schedulerClient',
@@ -203,7 +216,6 @@ export class ClientRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     schedulerModel: this.models.getSchedulerModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

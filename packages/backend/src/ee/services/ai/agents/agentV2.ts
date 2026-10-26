@@ -155,6 +155,7 @@ import { type SqlChartSaving } from '../tools/sqlChartApproval';
 import { getSubmitWorkerFindings } from '../tools/submitWorkerFindings';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import { getUpdateUserName } from '../tools/updateUserName';
+import { getVisualize } from '../tools/visualize';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
@@ -2189,6 +2190,12 @@ export const getAgentTools = (
             getRunComposerQueries({
                 agentContext,
                 reviewQuery,
+                filterValueHints: args.decisions
+                    ? {
+                          decisions: args.decisions,
+                          searchFieldValues: dependencies.searchFieldValues,
+                      }
+                    : null,
                 updateProgress: dependencies.updateProgress,
                 runComposerQueries: queryDependencies.runComposerQueries,
                 getPrompt: dependencies.getPrompt,
@@ -2211,6 +2218,25 @@ export const getAgentTools = (
                 autoApproveSql: args.autoApproveSql,
                 autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
                 useSlackStreamCard: args.useSlackStreamCard,
+                projectParameterDefinitions,
+            }),
+        visualize: () =>
+            getVisualize({
+                getPrompt: dependencies.getPrompt,
+                listThreadComposerQueryNodes:
+                    dependencies.listThreadComposerQueryNodes,
+                getThreadComposerNodeColumns:
+                    dependencies.getThreadComposerNodeColumns,
+                runComposerQueries: queryDependencies.runComposerQueries,
+                resolveCustomChartType: dependencies.resolveCustomChartType,
+                createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+                updateProgress: dependencies.updateProgress,
+                deferSlackVisualization:
+                    args.execution.mode === 'standard'
+                        ? dependencies.deferSlackVisualization
+                        : undefined,
+                slackLinksOnly: args.slackLinksOnly,
+                maxQueryLimit: args.maxQueryLimit,
             }),
         listWarehouseTables: () =>
             getListWarehouseTables({

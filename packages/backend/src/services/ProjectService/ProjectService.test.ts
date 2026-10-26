@@ -11,7 +11,6 @@ import {
     BigqueryAuthenticationType,
     BigqueryTokenError,
     CatalogType,
-    CommercialFeatureFlags,
     ConflictError,
     convertExplores,
     CreateTrainingPreviewResults,
@@ -465,6 +464,11 @@ const projectModel = {
     ),
     lockProcess: vi.fn((projectUuid, fun) => fun()),
     ...singleRouteProjectModelMethods,
+    getOwnWarehouseCredentialsForProject: vi.fn(
+        async (): Promise<CreateWarehouseCredentials> =>
+            projectModel.getWarehouseCredentialsForProject.mock.results.at(-1)
+                ?.value,
+    ),
     getWarehouseCredentialsForProject: vi.fn(
         async () => warehouseClientMock.credentials,
     ),
@@ -735,7 +739,9 @@ const getMockedProjectService = (
     new ProjectService({
         dbtSourceRefCatalogModel:
             overrides.dbtSourceRefCatalogModel ?? ({} as never),
-        refreshTokenRotation: { run: vi.fn() },
+        refreshTokenRotation: new RefreshTokenRotation({
+            database: createDatabase().database,
+        }),
         lightdashConfig,
         analytics: analyticsMock,
         projectModel:
@@ -764,6 +770,18 @@ const getMockedProjectService = (
         analyticsModel: {} as AnalyticsModel,
         dashboardModel: dashboardModel as unknown as DashboardModel,
         userWarehouseCredentialsModel: {
+            getByUuidWithSecrets: vi.fn(
+                async function readUserCredentialsByUuid(this: {
+                    findForProjectWithSecrets: ReturnType<
+                        typeof vi.fn<
+                            UserWarehouseCredentialsModel['findForProjectWithSecrets']
+                        >
+                    >;
+                }) {
+                    return this.findForProjectWithSecrets.mock.results.at(-1)
+                        ?.value;
+                },
+            ),
             findForProjectWithSecrets: vi.fn(async () => undefined),
         } as unknown as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
@@ -807,15 +825,6 @@ const getMockedProjectService = (
                             return {
                                 id: featureFlagId,
                                 enabled: lightdashConfig.results.cacheEnabled,
-                            };
-                        }
-                        if (
-                            featureFlagId ===
-                            CommercialFeatureFlags.PreAggregates
-                        ) {
-                            return {
-                                id: featureFlagId,
-                                enabled: lightdashConfig.preAggregates.enabled,
                             };
                         }
                         return { id: featureFlagId, enabled: false };
@@ -1300,7 +1309,7 @@ describe('ProjectService', () => {
         );
     });
 
-    describe('Learn flag guards', () => {
+    describe('Learn guards', () => {
         const learnUser: SessionUser = {
             ...user,
             organizationUuid: 'organization-uuid',
@@ -1308,7 +1317,7 @@ describe('ProjectService', () => {
             organizationCreatedAt: new Date('2026-09-01'),
         };
 
-        test('provisions training for an org admin when Learn is enabled', async () => {
+        test('provisions training for an org admin with no feature flag set', async () => {
             const provisionTrainingProject = vi.fn(async () => ({
                 projectUuid: 'training-project',
                 created: true,
@@ -1316,12 +1325,6 @@ describe('ProjectService', () => {
             const learnService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
                 {
-                    featureFlagModel: {
-                        get: vi.fn(async () => ({
-                            id: FeatureFlags.EnableLearn,
-                            enabled: true,
-                        })),
-                    } as unknown as FeatureFlagModel,
                     provisionTrainingProject,
                 },
             );
@@ -1342,42 +1345,35 @@ describe('ProjectService', () => {
             });
         });
         test.each(['enable', 'copy', 'delete'] as const)(
-            'blocks %s when the requesting org has Learn disabled',
+            'blocks %s when the user cannot view Learn',
             async (operation) => {
-                const get = vi.fn(async () => ({
-                    id: FeatureFlags.EnableLearn,
-                    enabled: false,
-                }));
                 const provisionTrainingProject = vi.fn();
                 const learnService = getMockedProjectService(
                     lightdashConfigWithGoogleOAuthMock,
-                    {
-                        featureFlagModel: {
-                            get,
-                        } as unknown as FeatureFlagModel,
-                        provisionTrainingProject,
-                    },
+                    { provisionTrainingProject },
                 );
+                const noLearnUser = {
+                    ...learnUser,
+                    ability: new Ability<PossibleAbilities>([
+                        { action: 'manage', subject: 'Organization' },
+                    ]),
+                };
                 const operations = {
-                    enable: () => learnService.enableLearn(learnUser),
+                    enable: () => learnService.enableLearn(noLearnUser),
                     copy: () =>
                         learnService.createTrainingPreview(
-                            learnUser,
+                            noLearnUser,
                             'training-project',
                         ),
                     delete: () =>
                         learnService.deleteTrainingPreviews(
-                            learnUser,
+                            noLearnUser,
                             'training-project',
                         ),
                 };
                 await expect(operations[operation]()).rejects.toThrow(
-                    'Learn is not enabled for this organization',
+                    new ForbiddenError('You do not have access to Learn'),
                 );
-                expect(get).toHaveBeenCalledExactlyOnceWith({
-                    user: learnUser,
-                    featureFlagId: FeatureFlags.EnableLearn,
-                });
                 expect(provisionTrainingProject).not.toHaveBeenCalled();
             },
         );
@@ -1522,17 +1518,11 @@ describe('ProjectService', () => {
             );
         });
 
-        test('still requires org admin permissions when Learn is enabled', async () => {
+        test('still requires org admin permissions', async () => {
             const provisionTrainingProject = vi.fn();
             const learnService = getMockedProjectService(
                 lightdashConfigWithGoogleOAuthMock,
                 {
-                    featureFlagModel: {
-                        get: vi.fn(async () => ({
-                            id: FeatureFlags.EnableLearn,
-                            enabled: true,
-                        })),
-                    } as unknown as FeatureFlagModel,
                     provisionTrainingProject,
                 },
             );
@@ -3807,14 +3797,7 @@ describe('ProjectService', () => {
             ...overrides,
         });
         const learnService = () =>
-            getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {
-                featureFlagModel: {
-                    get: vi.fn(async () => ({
-                        id: FeatureFlags.EnableLearn,
-                        enabled: true,
-                    })),
-                } as unknown as FeatureFlagModel,
-            });
+            getMockedProjectService(lightdashConfigWithGoogleOAuthMock, {});
 
         beforeEach(() => {
             projectModel.updateExpiresAt.mockClear();
@@ -4060,14 +4043,7 @@ describe('ProjectService', () => {
             async ({ credentials, organizationWarehouseCredentialsUuid }) => {
                 const learnService = getMockedProjectService(
                     lightdashConfigWithGoogleOAuthMock,
-                    {
-                        featureFlagModel: {
-                            get: vi.fn(async () => ({
-                                id: FeatureFlags.EnableLearn,
-                                enabled: true,
-                            })),
-                        } as unknown as FeatureFlagModel,
-                    },
+                    {},
                 );
                 projectModel.get.mockResolvedValueOnce({
                     ...trainingProject,
@@ -7344,7 +7320,7 @@ describe('ProjectService', () => {
             // Verify generateSnowflakeAccessToken was called with user's refreshToken
             expect(
                 UserService.generateSnowflakeAccessToken,
-            ).toHaveBeenCalledWith('user-refresh-token');
+            ).toHaveBeenCalledWith('user-refresh-token', 30_000);
             // Project's refreshToken should NOT have been used
             expect(
                 UserService.generateSnowflakeAccessToken,
@@ -7483,7 +7459,7 @@ describe('ProjectService', () => {
             // Verify generateSnowflakeAccessToken was called with project's refreshToken
             expect(
                 UserService.generateSnowflakeAccessToken,
-            ).toHaveBeenCalledWith('project-refresh-token');
+            ).toHaveBeenCalledWith('project-refresh-token', 30_000);
 
             // User credentials should NOT have been fetched
             expect(findForProjectWithSecretsMock).not.toHaveBeenCalled();
@@ -7568,6 +7544,8 @@ describe('ProjectService', () => {
                 'user-creds-uuid',
                 'user-refresh-token',
                 'rotated-refresh-token',
+                undefined,
+                expect.anything(),
             );
         });
 
@@ -7728,6 +7706,8 @@ describe('ProjectService', () => {
                 'user-creds-uuid',
                 'user-u2m-refresh-token',
                 'rotated-u2m-refresh-token',
+                undefined,
+                expect.anything(),
             );
         });
 
@@ -14611,7 +14591,7 @@ const NO_FETCH_TIMINGS: DbtManifestFetchTimings = {
     manifestMs: 0,
 };
 
-describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firewall)', () => {
+describe('ProjectService.resolveCompileAdapter (single-source regression firewall)', () => {
     beforeEach(() => {
         projectModel.deleteMergedManifest
             .mockReset()
@@ -14656,10 +14636,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         manifestFetchAdapters: [],
     };
 
-    const buildServiceWithMocks = (
-        flagEnabled: boolean,
-        sources: unknown[],
-    ) => {
+    const buildServiceWithMocks = (sources: unknown[]) => {
         const getSources = vi.fn(async () => sources);
         const projectService = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
@@ -14671,10 +14648,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 const { featureFlagId } = args as { featureFlagId: string };
                 return {
                     id: featureFlagId,
-                    enabled:
-                        featureFlagId === FeatureFlags.MultiDbtSources
-                            ? flagEnabled
-                            : false,
+                    enabled: false,
                 };
             }),
         };
@@ -14940,7 +14914,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
     it('fails a compile before adapter creation settles and releases its disk later', async () => {
         vi.useFakeTimers();
-        const { projectService } = buildServiceWithMocks(true, []);
+        const { projectService } = buildServiceWithMocks([]);
         projectService.featureFlagModel.get = vi.fn(async (args: unknown) => ({
             id: (args as { featureFlagId: FeatureFlags }).featureFlagId,
             enabled: true,
@@ -14999,7 +14973,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     });
 
     it('carries a source preparation failure and fetches the primary manifest', async () => {
-        const { projectService } = buildServiceWithMocks(true, []);
+        const { projectService } = buildServiceWithMocks([]);
         projectService.featureFlagModel.get = vi.fn(async (args: unknown) => ({
             id: (args as { featureFlagId: FeatureFlags }).featureFlagId,
             enabled: true,
@@ -15033,7 +15007,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     it.each([true, false])(
         'gates managed cross-source retries with flag enabled=%s',
         async (enabled) => {
-            const { projectService } = buildServiceWithMocks(true, []);
+            const { projectService } = buildServiceWithMocks([]);
             projectService.featureFlagModel.get = vi.fn(
                 async (args: unknown) => {
                     const { featureFlagId } = args as {
@@ -16078,22 +16052,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ).toHaveProperty('compiled', false);
     });
 
-    it('flag OFF returns the primary adapter by identity and never queries getSources', async () => {
-        const { projectService, getSources } = buildServiceWithMocks(false, [
-            { name: 'jaffle-2' },
-        ]);
-
-        const result = await projectService.resolveCompileAdapter(baseArgs);
-
-        expect(result.adapter).toBe(primaryAdapter);
-        expect(getSources).not.toHaveBeenCalled();
-        expect(projectModel.deleteMergedManifest).toHaveBeenCalledWith(
-            'project-uuid',
-        );
-    });
-
-    it('flag ON with zero sources (N=0) returns the primary adapter by identity', async () => {
-        const { projectService, getSources } = buildServiceWithMocks(true, []);
+    it('zero sources (N=0) returns the primary adapter by identity', async () => {
+        const { projectService, getSources } = buildServiceWithMocks([]);
 
         const result = await projectService.resolveCompileAdapter(baseArgs);
 
@@ -16105,36 +16065,27 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
     });
 
-    it.each([
-        { path: 'feature flag off', flagEnabled: false, sources: [] },
-        { path: 'zero additional sources', flagEnabled: true, sources: [] },
-    ])(
-        'BC-6: $path returns the primary adapter when stale manifest deletion fails',
-        async ({ flagEnabled, sources }) => {
-            const { projectService } = buildServiceWithMocks(
-                flagEnabled,
-                sources,
-            );
-            const warn = vi.spyOn(projectService.logger, 'warn');
-            projectModel.deleteMergedManifest.mockRejectedValueOnce(
-                new Error('database unavailable'),
-            );
+    it('BC-6: zero additional sources returns the primary adapter when stale manifest deletion fails', async () => {
+        const { projectService } = buildServiceWithMocks([]);
+        const warn = vi.spyOn(projectService.logger, 'warn');
+        projectModel.deleteMergedManifest.mockRejectedValueOnce(
+            new Error('database unavailable'),
+        );
 
-            const result = await projectService.resolveCompileAdapter(baseArgs);
+        const result = await projectService.resolveCompileAdapter(baseArgs);
 
-            expect(result.adapter).toBe(primaryAdapter);
-            expect(warn).toHaveBeenCalledWith(
-                'Failed to delete merged dbt manifest for project project-uuid: database unavailable',
-            );
-        },
-    );
+        expect(result.adapter).toBe(primaryAdapter);
+        expect(warn).toHaveBeenCalledWith(
+            'Failed to delete merged dbt manifest for project project-uuid: database unavailable',
+        );
+    });
 
     it('BC-7: carries the staged merged manifest through adapter resolution', async () => {
         const mergedAdapter = {
             id: 'merged-adapter',
         } as unknown as ProjectAdapter;
         const stagedMergedManifest = Buffer.from('staged-manifest');
-        const { projectService } = buildServiceWithMocks(true, [
+        const { projectService } = buildServiceWithMocks([
             { name: 'jaffle-2' },
         ]);
         const buildMergedManifestAdapterSpy = vi
@@ -16287,7 +16238,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             get: vi.fn(
                 async ({ featureFlagId }: { featureFlagId: string }) => ({
                     id: featureFlagId,
-                    enabled: featureFlagId === FeatureFlags.MultiDbtSources,
+                    enabled: false,
                 }),
             ),
         } as unknown as FeatureFlagModel;
@@ -16311,6 +16262,9 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         async ({ bound, scheduled }) => {
             vi.clearAllMocks();
             const configured = buildCompilationBoundaryService();
+            vi.mocked(
+                configured.projectDbtSourcesModel.getSources,
+            ).mockResolvedValue([]);
             vi.mocked(configured.featureFlagModel.get).mockResolvedValue({
                 enabled: false,
             } as never);
@@ -17245,7 +17199,6 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 async ({ featureFlagId }) =>
                     ({
                         enabled:
-                            featureFlagId === FeatureFlags.MultiDbtSources ||
                             featureFlagId === FeatureFlags.CrossSourceDbtRefs,
                     }) as never,
             );
@@ -17312,7 +17265,6 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 async ({ featureFlagId }) =>
                     ({
                         enabled:
-                            featureFlagId === FeatureFlags.MultiDbtSources ||
                             featureFlagId === FeatureFlags.CrossSourceDbtRefs,
                     }) as never,
             );
@@ -17365,7 +17317,6 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 async ({ featureFlagId }) =>
                     ({
                         enabled:
-                            featureFlagId === FeatureFlags.MultiDbtSources ||
                             featureFlagId === FeatureFlags.CrossSourceDbtRefs,
                     }) as never,
             );
@@ -17402,7 +17353,6 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 async ({ featureFlagId }) =>
                     ({
                         enabled:
-                            featureFlagId === FeatureFlags.MultiDbtSources ||
                             featureFlagId === FeatureFlags.CrossSourceDbtRefs,
                     }) as never,
             );
@@ -17456,7 +17406,6 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 async ({ featureFlagId }) =>
                     ({
                         enabled:
-                            featureFlagId === FeatureFlags.MultiDbtSources ||
                             featureFlagId === FeatureFlags.CrossSourceDbtRefs,
                     }) as never,
             );
@@ -17671,7 +17620,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     });
 
     it('propagates a ParameterError from buildMergedManifestAdapter when sources collide', async () => {
-        const { projectService } = buildServiceWithMocks(true, [
+        const { projectService } = buildServiceWithMocks([
             { name: 'jaffle-2' },
         ]);
         vi.spyOn(
@@ -18893,8 +18842,11 @@ describe('Snowflake credential pins (SPK-2336)', () => {
         const callRefreshAndPersist = (
             credentials: CreateSnowflakeCredentials,
             source: { kind: 'project'; projectUuid: string },
-        ): Promise<CreateSnowflakeCredentials> =>
-            (
+        ): Promise<CreateSnowflakeCredentials> => {
+            projectModel.getOwnWarehouseCredentialsForProject.mockResolvedValueOnce(
+                credentials,
+            );
+            return (
                 pinsService as unknown as {
                     refreshCredentialsAndPersistRotation: (
                         args: CreateSnowflakeCredentials,
@@ -18907,6 +18859,7 @@ describe('Snowflake credential pins (SPK-2336)', () => {
                 'pin-user-uuid',
                 source,
             );
+        };
 
         test('returns a fresh access token and refresh token, and persists the rotation', async () => {
             const generateSpy = vi
@@ -18933,7 +18886,10 @@ describe('Snowflake credential pins (SPK-2336)', () => {
                 projectUuid: pinsProjectUuid,
             });
 
-            expect(generateSpy).toHaveBeenCalledWith('stale-refresh-token');
+            expect(generateSpy).toHaveBeenCalledWith(
+                'stale-refresh-token',
+                30_000,
+            );
             expect(result).toEqual({
                 ...credentials,
                 authenticationType: SnowflakeAuthenticationType.SSO,
@@ -18944,6 +18900,7 @@ describe('Snowflake credential pins (SPK-2336)', () => {
                 pinsProjectUuid,
                 'stale-refresh-token',
                 'fresh-refresh-token',
+                expect.anything(),
             );
 
             generateSpy.mockRestore();
@@ -19029,11 +18986,15 @@ describe('Snowflake credential pins (SPK-2336)', () => {
                 organizationUuid: 'pin-org-uuid',
             });
 
-            expect(generateSpy).toHaveBeenCalledWith('old-refresh-token');
+            expect(generateSpy).toHaveBeenCalledWith(
+                'old-refresh-token',
+                30_000,
+            );
             expect(rotateRefreshTokenMock).toHaveBeenCalledWith(
                 pinsProjectUuid,
                 'old-refresh-token',
                 'new-refresh-token',
+                expect.anything(),
             );
             expect(result.warehouseCredentials).toMatchObject({
                 token: 'new-access-token',
@@ -19172,6 +19133,7 @@ describe('Snowflake credential pins (SPK-2336)', () => {
 
             expect(generateSpy).toHaveBeenCalledWith(
                 'personal-stale-refresh-token',
+                30_000,
             );
             expect(result).toMatchObject({
                 authenticationType: SnowflakeAuthenticationType.SSO,
@@ -19183,6 +19145,8 @@ describe('Snowflake credential pins (SPK-2336)', () => {
                 'personal-creds-uuid',
                 'personal-stale-refresh-token',
                 'personal-fresh-refresh-token',
+                undefined,
+                expect.anything(),
             );
             expect(JSON.stringify(result)).not.toContain(
                 'project-secret-password',
@@ -19780,7 +19744,6 @@ describe('preview BigQuery SSO credentials', () => {
             ? credentials.keyfileContents.refresh_token
             : undefined;
 
-    let syncEnabled = true;
     const stored = new Map<string, CreateWarehouseCredentials>();
     const previewOwns = new Map<string, boolean>();
     const tokenStatus = new Map<string, 'valid' | 'rejected'>();
@@ -19870,20 +19833,7 @@ describe('preview BigQuery SSO credentials', () => {
     };
     const readProjectWithSensitiveFields =
         model.getWithSensitiveFields.getMockImplementation()!;
-    const service = getMockedProjectService(
-        lightdashConfigWithGoogleOAuthMock,
-        {
-            featureFlagModel: {
-                get: vi.fn(async ({ featureFlagId }) => ({
-                    id: featureFlagId,
-                    enabled:
-                        featureFlagId ===
-                            FeatureFlags.PreviewSsoCredentialSync &&
-                        syncEnabled,
-                })),
-            } as unknown as FeatureFlagModel,
-        },
-    );
+    const service = getMockedProjectService(lightdashConfigWithGoogleOAuthMock);
     Object.assign(service, {
         projectModel: model,
         checkGoogleRefreshToken: checkRefreshToken,
@@ -19914,7 +19864,6 @@ describe('preview BigQuery SSO credentials', () => {
         model.getWithSensitiveFields.mockImplementation(
             readProjectWithSensitiveFields,
         );
-        syncEnabled = true;
         stored.clear();
         previewOwns.clear();
         tokenStatus.clear();
@@ -20089,18 +20038,6 @@ describe('preview BigQuery SSO credentials', () => {
         expect(checkRefreshToken).toHaveBeenCalledTimes(2);
         expect(model.updateWarehouseCredentialsIf).not.toHaveBeenCalled();
     });
-
-    test('the kill switch turns off both the push and the repair', async () => {
-        syncEnabled = false;
-        tokenStatus.set('token-a', 'rejected');
-
-        await reconnectUpstream('token-b');
-
-        expect(refreshTokenOf(await getPreviewCredentials())).toBe('token-a');
-        expect(model.updateAndPushToPreviews).not.toHaveBeenCalled();
-        expect(model.update).toHaveBeenCalledTimes(1);
-        expect(checkRefreshToken).not.toHaveBeenCalled();
-    });
 });
 
 describe('ProjectService expired shared sign-in', () => {
@@ -20120,15 +20057,6 @@ describe('ProjectService expired shared sign-in', () => {
         subject: { userUuid: 'subject-uuid', name: 'Sam Rivera' },
         basis: SignInSubjectBasis.RECORDED,
     };
-    const flagged = (enabled: boolean) =>
-        ({
-            get: vi.fn(
-                async ({ featureFlagId }: { featureFlagId: string }) => ({
-                    id: featureFlagId,
-                    enabled,
-                }),
-            ),
-        }) as unknown as FeatureFlagModel;
     const model = projectModel as unknown as {
         getSharedSignInSubjectForToken: ReturnType<typeof vi.fn>;
         getWarehouseClientFromCredentials: ReturnType<typeof vi.fn>;
@@ -20144,12 +20072,9 @@ describe('ProjectService expired shared sign-in', () => {
         }));
     });
 
-    const queryWith = async (enabled: boolean) => {
+    const queryWith = async () => {
         const service = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
-            {
-                featureFlagModel: flagged(enabled),
-            },
         );
         const { warehouseClient } =
             await service.warehouseClientFactory.acquireUnscoped(
@@ -20162,7 +20087,7 @@ describe('ProjectService expired shared sign-in', () => {
     };
 
     test('keeps attribution for a rejected token until the viewer is known', async () => {
-        await expect(queryWith(true)).rejects.toMatchObject({
+        await expect(queryWith()).rejects.toMatchObject({
             name: 'BigqueryTokenError',
             message:
                 "This project's connection uses a Google sign-in that has expired. Ask a project admin to reconnect it in Project settings → Connection settings.",
@@ -20177,17 +20102,9 @@ describe('ProjectService expired shared sign-in', () => {
         });
     });
 
-    test('leaves the original error when the kill switch is off', async () => {
-        await expect(queryWith(false)).rejects.toThrow(
-            'Google rejected the token',
-        );
-    });
-
     test('does not attribute a personal credential', async () => {
         model.getSharedSignInSubjectForToken.mockResolvedValueOnce(null);
-        await expect(queryWith(true)).rejects.toThrow(
-            'Google rejected the token',
-        );
+        await expect(queryWith()).rejects.toThrow('Google rejected the token');
     });
 
     test('attributes a rejected refresh from the project credential', async () => {
@@ -20203,9 +20120,6 @@ describe('ProjectService expired shared sign-in', () => {
         });
         const service = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
-            {
-                featureFlagModel: flagged(true),
-            },
         );
         vi.spyOn(
             UserService,
@@ -20262,16 +20176,9 @@ describe('ProjectService.reconnectSharedSignIn', () => {
         getSharedSignInSubjectForToken: ReturnType<typeof vi.fn>;
     };
     const grant = { getRefreshToken: vi.fn(async () => 'new-token') };
-    const flag = {
-        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
-            id: featureFlagId,
-            enabled: featureFlagId === FeatureFlags.SharedSignInReconnect,
-        })),
-    };
     const service = getMockedProjectService(
         lightdashConfigWithGoogleOAuthMock,
         {
-            featureFlagModel: flag as unknown as FeatureFlagModel,
             userOAuthGrantsModel: grant as unknown as UserOAuthGrantsModel,
         },
     );
@@ -20315,7 +20222,7 @@ describe('ProjectService.reconnectSharedSignIn', () => {
                 refresh_token: 'new-token',
             },
             developerAccount.user.id,
-            null,
+            expect.any(Function),
         );
         expect(projectModel.update).not.toHaveBeenCalled();
         expect(grant.getRefreshToken).toHaveBeenCalledWith(
@@ -20350,7 +20257,7 @@ describe('ProjectService.reconnectSharedSignIn', () => {
             developerAccount.user.id,
             expect.objectContaining({ refresh_token: 'new-token' }),
             developerAccount.user.id,
-            null,
+            expect.any(Function),
         );
     });
 
@@ -20434,20 +20341,10 @@ describe('ProjectService.reconnectSharedSignIn', () => {
         expect(projectModel.reconnectSharedSignIn).toHaveBeenCalledTimes(2);
     });
 
-    test('refuses a viewer and a disabled flag', async () => {
+    test('refuses a viewer', async () => {
         await expect(
             service.reconnectSharedSignIn(
                 viewerAccount,
-                projectSummary.projectUuid,
-            ),
-        ).rejects.toBeInstanceOf(ForbiddenError);
-        flag.get.mockResolvedValueOnce({
-            id: FeatureFlags.SharedSignInReconnect,
-            enabled: false,
-        });
-        await expect(
-            service.reconnectSharedSignIn(
-                developerAccount,
                 projectSummary.projectUuid,
             ),
         ).rejects.toBeInstanceOf(ForbiddenError);
@@ -20528,18 +20425,7 @@ describe('ProjectService.getSharedSignInStatus', () => {
     const model = projectModel as unknown as {
         getSharedSignInSubjectForToken: ReturnType<typeof vi.fn>;
     };
-    const flag = {
-        get: vi.fn(async () => ({
-            id: FeatureFlags.SharedSignInReconnect,
-            enabled: true,
-        })),
-    };
-    const service = getMockedProjectService(
-        lightdashConfigWithGoogleOAuthMock,
-        {
-            featureFlagModel: flag as unknown as FeatureFlagModel,
-        },
-    );
+    const service = getMockedProjectService(lightdashConfigWithGoogleOAuthMock);
     const owner = { userUuid: developerAccount.user.id, name: 'Owner' };
 
     beforeEach(() => {
@@ -20645,7 +20531,7 @@ describe('ProjectService.getSharedSignInStatus', () => {
         ).resolves.toMatchObject({ canReconnect: false });
     });
 
-    test('returns null for a non-person credential and when disabled', async () => {
+    test('returns null for a non-person credential', async () => {
         projectModel.getWithSensitiveFields.mockResolvedValueOnce({
             ...projectWithSensitiveFields,
             warehouseConnection: {
@@ -20653,16 +20539,6 @@ describe('ProjectService.getSharedSignInStatus', () => {
                 keyfileContents: { type: 'service_account' },
             },
         } as never);
-        await expect(
-            service.getSharedSignInStatus(
-                developerAccount,
-                projectSummary.projectUuid,
-            ),
-        ).resolves.toBeNull();
-        flag.get.mockResolvedValueOnce({
-            id: FeatureFlags.SharedSignInReconnect,
-            enabled: false,
-        });
         await expect(
             service.getSharedSignInStatus(
                 developerAccount,
@@ -22045,7 +21921,7 @@ describe.each([
     DatabricksAuthenticationType.OAUTH_M2M,
 ])('Databricks %s rotation sinks', (authenticationType) => {
     test.each(
-        [false, true].flatMap((enabled) =>
+        [true].flatMap((enabled) =>
             (
                 [
                     'project',

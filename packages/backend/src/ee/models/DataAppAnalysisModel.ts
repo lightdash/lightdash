@@ -1,4 +1,6 @@
 import type {
+    AnalysisTarget,
+    AnalysisTargetRef,
     DataAppAnalysisSource,
     DataAppDetectResult,
     DataAppInvestigateResult,
@@ -12,6 +14,7 @@ import {
     type DataAppAnalysisOperation,
     type DataAppSourceHash,
     type DbDataAppAnalysis,
+    type DbDataAppAnalysisTarget,
 } from '../database/entities/dataAppAnalyses';
 
 type Dependencies = {
@@ -21,8 +24,7 @@ type Dependencies = {
 type CreateBase = {
     organizationUuid: string;
     projectUuid: string;
-    appUuid: string;
-    appVersion: number;
+    target: AnalysisTargetRef;
     createdByUserUuid: string;
     sources: DataAppAnalysisSource[];
     instructions: string | null;
@@ -31,6 +33,37 @@ type CreateBase = {
     outputTokens?: number | null;
     latencyMs?: number | null;
 };
+
+const targetColumns = (target: AnalysisTargetRef): DbDataAppAnalysisTarget =>
+    target.kind === 'app'
+        ? {
+              app_id: target.appUuid,
+              app_version: target.appVersion,
+              dashboard_uuid: null,
+          }
+        : {
+              app_id: null,
+              app_version: null,
+              dashboard_uuid: target.dashboardUuid,
+          };
+
+// Filter on the set side only: the CHECK constraint guarantees the other
+// target's columns are null, and knex renders explicit nulls as `= NULL`.
+const targetWhere = (
+    target: AnalysisTargetRef,
+): Partial<DbDataAppAnalysisTarget> =>
+    target.kind === 'app'
+        ? { app_id: target.appUuid, app_version: target.appVersion }
+        : { dashboard_uuid: target.dashboardUuid };
+
+/** The uuid an analysis row or counter is keyed on, whatever the target. */
+export const analysisTargetUuid = (target: AnalysisTargetRef): string =>
+    target.kind === 'app' ? target.appUuid : target.dashboardUuid;
+
+export const rowTarget = (row: DbDataAppAnalysisTarget): AnalysisTargetRef =>
+    row.app_id !== null
+        ? { kind: 'app', appUuid: row.app_id, appVersion: row.app_version }
+        : { kind: 'dashboard', dashboardUuid: row.dashboard_uuid };
 
 export type CreateDataAppAnalysis = CreateBase &
     (
@@ -64,8 +97,7 @@ export class DataAppAnalysisModel {
             .insert({
                 organization_uuid: data.organizationUuid,
                 project_uuid: data.projectUuid,
-                app_id: data.appUuid,
-                app_version: data.appVersion,
+                ...targetColumns(data.target),
                 created_by_user_uuid: data.createdByUserUuid,
                 operation: data.operation,
                 sources: JSON.stringify(data.sources),
@@ -106,15 +138,13 @@ export class DataAppAnalysisModel {
      * content means identical rows, so nothing leaks).
      */
     async findLatestDetectByHash(filter: {
-        appUuid: string;
-        appVersion: number;
+        target: AnalysisTargetRef;
         contentHash: string;
         userUuid: string | null;
     }): Promise<(DbDataAppAnalysis & { operation: 'detect' }) | null> {
         const row = await this.database(DataAppAnalysesTableName)
             .where({
-                app_id: filter.appUuid,
-                app_version: filter.appVersion,
+                ...targetWhere(filter.target),
                 content_hash: filter.contentHash,
                 operation: 'detect',
                 ...(filter.userUuid
@@ -164,16 +194,17 @@ export class DataAppAnalysisModel {
         return rows as (DbDataAppAnalysis & { operation: 'investigate' })[];
     }
 
-    /** Scoped to the viewer and app so a foreign analysis id reads as absent. */
+    /** Scoped to the viewer and target so a foreign analysis id reads as absent. */
     async find(
         analysisUuid: string,
-        appUuid: string,
+        target: { kind: AnalysisTarget; targetUuid: string },
         userUuid: string,
     ): Promise<DbDataAppAnalysis | null> {
         const row = await this.database(DataAppAnalysesTableName)
             .where({
                 data_app_analysis_uuid: analysisUuid,
-                app_id: appUuid,
+                [target.kind === 'app' ? 'app_id' : 'dashboard_uuid']:
+                    target.targetUuid,
                 created_by_user_uuid: userUuid,
             })
             .first();
@@ -185,14 +216,15 @@ export class DataAppAnalysisModel {
      * window and returns the new count. Shared across pods.
      */
     async incrementRateCounter(args: {
-        appUuid: string;
+        /** App or dashboard uuid; the column keeps its original app name. */
+        targetUuid: string;
         userUuid: string;
         operation: DataAppAnalysisOperation;
         windowStartedAt: Date;
     }): Promise<number> {
         const [row] = await this.database(DataAppAnalysisRateCountersTableName)
             .insert({
-                app_id: args.appUuid,
+                app_id: args.targetUuid,
                 user_uuid: args.userUuid,
                 operation: args.operation,
                 window_started_at: args.windowStartedAt,

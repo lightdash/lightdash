@@ -20,7 +20,7 @@ import {
     type ReviewableMetricQuery,
 } from './queryChecks';
 
-export { EMPTY_QUERY_GUIDANCE } from './emptyResults';
+export { EMPTY_QUERY_GUIDANCE, preferFilterValueHints } from './emptyResults';
 
 export type QueryReviewPlan =
     | {

@@ -8,6 +8,7 @@ const calls = vi.hoisted(() => ({ current: [] as string[] }));
 const mockSidebar = vi.hoisted(() => ({
     current: {
         isSidebarOpen: true,
+        isViewer: false,
         close: () => calls.current.push('close'),
         discard: () => calls.current.push('discard'),
     },
@@ -52,7 +53,11 @@ const headerProps = {
 describe('DashboardHeaderGuard', () => {
     beforeEach(() => {
         calls.current = [];
-        mockSidebar.current = { ...mockSidebar.current, isSidebarOpen: true };
+        mockSidebar.current = {
+            ...mockSidebar.current,
+            isSidebarOpen: true,
+            isViewer: false,
+        };
     });
 
     const isLocked = (name: string) =>
@@ -87,5 +92,11 @@ describe('DashboardHeaderGuard', () => {
         render(<DashboardHeaderGuard {...headerProps} />);
         fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
         expect(calls.current).toEqual(['discard', 'cancel']);
+    });
+
+    it('never locks the header while a viewer edits their filters', () => {
+        mockSidebar.current = { ...mockSidebar.current, isViewer: true };
+        render(<DashboardHeaderGuard {...headerProps} />);
+        expect(document.querySelector('[inert]')).toBeNull();
     });
 });

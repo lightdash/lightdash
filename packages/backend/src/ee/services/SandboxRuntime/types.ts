@@ -52,6 +52,10 @@ export interface SandboxFiles {
     readBytes(path: string, options?: FileReadOptions): Promise<Buffer>;
     /** Write a text or binary file, creating parent directories as needed. */
     write(path: string, contents: string | Uint8Array): Promise<void>;
+    /** Optional provider-native multi-file upload. Creates parent directories. */
+    writeMany?(
+        files: { path: string; contents: string | Uint8Array }[],
+    ): Promise<void>;
     /** Remove a file (no error if it does not exist). */
     remove(path: string): Promise<void>;
 }
@@ -156,6 +160,8 @@ export interface SandboxSpec {
     /** Outbound host allowlist. `denyOut: ALL_TRAFFIC` is implicit. */
     egress: { allow: string[] };
     envs?: Record<string, string>;
+    /** E2B timeout policy; persistent callers default to pause. */
+    onTimeout?: 'kill' | 'pause';
 }
 
 /**

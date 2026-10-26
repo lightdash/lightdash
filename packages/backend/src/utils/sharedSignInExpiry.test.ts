@@ -11,7 +11,6 @@ import {
     type Account,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
-import type { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import {
     attributeClientErrors,
@@ -68,16 +67,12 @@ describe('personaliseStoredSharedSignInError', () => {
             basis: SignInSubjectBasis.RECORDED,
         })),
     } as unknown as ProjectModel;
-    const featureFlagModel = {
-        get: vi.fn(async () => ({ enabled: true })),
-    } as unknown as FeatureFlagModel;
     const read = (viewer: Account, error = generic) =>
         personaliseStoredSharedSignInError({
             account: viewer,
             projectUuid: expiry.projectUuid,
             error,
             projectModel,
-            featureFlagModel,
         });
 
     it('personalises the generic error for a registered member', async () => {
@@ -107,13 +102,6 @@ describe('personaliseStoredSharedSignInError', () => {
         } as Account;
         await expect(read(embed)).resolves.toBe(generic);
         await expect(read(anonymous)).resolves.toBe(generic);
-    });
-
-    it('returns the stored message when the kill switch is off', async () => {
-        vi.mocked(featureFlagModel.get).mockResolvedValueOnce({
-            enabled: false,
-        } as never);
-        await expect(read(account)).resolves.toBe(generic);
     });
 });
 

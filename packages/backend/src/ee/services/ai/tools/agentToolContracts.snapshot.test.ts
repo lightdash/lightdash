@@ -55,6 +55,7 @@ import { getSearchFieldValues } from './searchFieldValues';
 import { getSearchSemanticLayer } from './searchSemanticLayer';
 import { getSetupPreviewDeploy } from './setupPreviewDeploy';
 import { getUpdateUserName } from './updateUserName';
+import { getVisualize } from './visualize';
 
 const schemaToJson = (schema: FlexibleSchema | undefined): unknown => {
     if (!schema) {
@@ -223,6 +224,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         }),
         query: getRunComposerQueries({
             agentContext: new AgentContext([]),
+            filterValueHints: null,
             listThreadComposerQueryNodes: noop,
             registerThreadComposerQueryNodes: noop,
             enableDataAccess: true,
@@ -240,6 +242,18 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             maxQueryLimit: 500,
             updateProgress: noopAsync,
             waitForSqlApproval: noop,
+            projectParameterDefinitions: {},
+        }),
+        visualize: getVisualize({
+            getPrompt: noop,
+            listThreadComposerQueryNodes: noop,
+            getThreadComposerNodeColumns: noop,
+            runComposerQueries: noop,
+            resolveCustomChartType: noop,
+            createOrUpdateArtifact: noop,
+            updateProgress: noopAsync,
+            slackLinksOnly: false,
+            maxQueryLimit: 500,
         }),
         searchFieldValues: getSearchFieldValues({
             searchFieldValues: noop,

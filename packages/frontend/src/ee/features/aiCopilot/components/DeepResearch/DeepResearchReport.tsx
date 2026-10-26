@@ -5,7 +5,6 @@ import { useMemo } from 'react';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import DocumentReportLayout from '../../../../../features/documents/presentation/DocumentReportLayout';
 import reportStyles from '../../../../../features/documents/presentation/ReportPresentation.module.css';
-import { DeepResearchBetaBadge } from '../../deepResearch/DeepResearchBetaBadge';
 import {
     getDeepResearchReportHeadings,
     getDeepResearchReportSourceCount,
@@ -106,12 +105,9 @@ export const DeepResearchReport = ({ run, opened, onClose }: Props) => {
                     )
                 }
                 eyebrow={
-                    <Group gap="xs" align="baseline" wrap="wrap">
-                        <Text inherit className={styles.eyebrow}>
-                            Deep research
-                        </Text>
-                        <DeepResearchBetaBadge />
-                    </Group>
+                    <Text inherit className={styles.eyebrow}>
+                        Deep research
+                    </Text>
                 }
                 headings={headings}
                 headingSelector="h2"

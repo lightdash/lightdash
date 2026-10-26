@@ -10296,6 +10296,8 @@ export class AppGenerateService extends BaseService {
         hasMore: boolean;
         latestReadyVersion: number | null;
         latestReadyVersionUsesAiAnalysis: boolean | null;
+        latestReadyVersionHasAnalyzableData: boolean | null;
+        addAnalysisDismissed: boolean;
         registrySlug: string | null;
         icon: ChartTypeIcon | null;
         verification: ContentVerificationInfo | null;
@@ -10315,6 +10317,7 @@ export class AppGenerateService extends BaseService {
             description,
             icon,
             autoAnalysis,
+            addAnalysisDismissedAt,
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
@@ -10449,6 +10452,16 @@ export class AppGenerateService extends BaseService {
             latestReadyVersion: latestReady?.version ?? null,
             latestReadyVersionUsesAiAnalysis:
                 latestReadyDataReferences?.usesAiAnalysis ?? null,
+            // Analysis runs over query results, so only query and saved-chart
+            // references count — an app that only calls external connections
+            // (e.g. the Lightdash API) has nothing for analysis to summarise.
+            latestReadyVersionHasAnalyzableData: latestReadyDataReferences
+                ? latestReadyDataReferences.references.some(
+                      (ref) =>
+                          ref.kind === 'query' || ref.kind === 'savedChart',
+                  )
+                : null,
+            addAnalysisDismissed: addAnalysisDismissedAt !== null,
             registrySlug,
             // An icon retired from the curated set reads back as no icon.
             icon: isChartTypeIcon(icon) ? icon : null,
@@ -11912,6 +11925,28 @@ export class AppGenerateService extends BaseService {
                 updatedApp.auto_analysis,
             ),
         };
+    }
+
+    /**
+     * Dismiss the builder-side "add AI analysis" offer for an app, so it
+     * stops reappearing for every builder (the old localStorage dismissal
+     * was per browser). Deliberately not part of `updateApp`: dismissing a
+     * nudge must not unverify the app and is allowed on registry-managed
+     * apps.
+     */
+    async dismissAddAnalysisOffer(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<void> {
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to manage data apps',
+        );
+        await this.appModel.dismissAddAnalysisOffer(appUuid, projectUuid);
     }
 
     /**

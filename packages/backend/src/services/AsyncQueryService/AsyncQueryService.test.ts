@@ -101,6 +101,7 @@ import { getTracker, MockClient } from 'knex-mock-client';
 import { StringCodec, type JsMsg } from 'nats';
 import ExecutionContext from 'node-execution-context';
 import { PassThrough, Readable, Writable } from 'stream';
+import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import {
     fromApiKey,
@@ -506,7 +507,11 @@ const inMemoryDuckdbHistory = ({
 
 const getMockedAsyncQueryService = (
     lightdashConfig: LightdashConfig,
-    overrides: Partial<AsyncQueryService> = {},
+    overrides: Partial<AsyncQueryService> & {
+        refreshTokenRotation?: ConstructorParameters<
+            typeof AsyncQueryService
+        >[0]['refreshTokenRotation'];
+    } = {},
     documentService?: Pick<DocumentService, 'get' | 'getVersion'>,
 ) => {
     // The registry is built over the service under test, so a merge's DAG
@@ -514,7 +519,9 @@ const getMockedAsyncQueryService = (
     let querySourceService: QuerySourceService | undefined;
     const service: AsyncQueryService = new AsyncQueryService({
         dbtSourceRefCatalogModel: {} as never,
-        refreshTokenRotation: { run: vi.fn() },
+        refreshTokenRotation: overrides.refreshTokenRotation ?? {
+            run: vi.fn(),
+        },
         aiAccessService: {
             resolvePlan: vi.fn(async () => null),
             assertCanReadResults: vi.fn(async () => null),
@@ -2458,7 +2465,10 @@ describe('AsyncQueryService', () => {
                 instanceCacheKey: COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
             });
             expect(runAsyncWarehouseSpy.mock.calls[0][0]).toMatchObject({
-                warehouseClientOverride: warehouseClientMock,
+                warehouseClientOverride: {
+                    client: warehouseClientMock,
+                    executionSource: 'composer_duckdb',
+                },
                 query: expect.stringContaining(
                     "read_json('s3://mock_bucket/referenced-results.jsonl'",
                 ),
@@ -2850,7 +2860,17 @@ describe('AsyncQueryService', () => {
                                 status: { type: DimensionType.STRING },
                                 revenue: { type: DimensionType.NUMBER },
                             },
-                            rows: [],
+                            rows: [
+                                { column_name: 'month', column_type: 'DATE' },
+                                {
+                                    column_name: 'status',
+                                    column_type: 'VARCHAR',
+                                },
+                                {
+                                    column_name: 'revenue',
+                                    column_type: 'DOUBLE',
+                                },
+                            ],
                         });
                     },
                 );
@@ -2897,11 +2917,12 @@ describe('AsyncQueryService', () => {
                 });
 
             test('is accepted, recorded on the row and composed over the discovered columns', async () => {
-                const { service, runAsyncWarehouseSpy } =
+                const { service, streamQuery, runAsyncWarehouseSpy } =
                     buildService(lightdashConfigMock);
 
                 const result = await submit(service, pivotConfiguration);
 
+                expect(streamQuery.mock.calls[0][0]).toMatch(/^DESCRIBE /);
                 expect(result.queryUuid).toBe('pivoted-uuid');
                 expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
                     sessionAccount,
@@ -11103,14 +11124,31 @@ describe('AsyncQueryService', () => {
             },
         );
 
-        test.each([false, true])(
-            'bypasses the factory with a client override (fails: %s)',
-            async (fails) => {
+        test.each(
+            (
+                [
+                    'pre_aggregate_duckdb',
+                    'external_source_duckdb',
+                    'composer_duckdb',
+                ] as const
+            ).flatMap((source) => [
+                [source, false],
+                [source, true],
+            ]),
+        )(
+            'bypasses the factory with a %s client override (fails: %s)',
+            async (executionSource, fails) => {
                 const service = getMockedAsyncQueryService(lightdashConfigMock);
                 const factory = vi.spyOn(
                     service.warehouseClientFactory,
                     'withWarehouseClient',
                 );
+                const track = vi.spyOn(
+                    (service as unknown as { analytics: LightdashAnalytics })
+                        .analytics,
+                    'track',
+                );
+                track.mockClear();
                 const queryError = new Error('override failed');
                 const client = {
                     ...warehouseClientMock,
@@ -11122,7 +11160,7 @@ describe('AsyncQueryService', () => {
                     client.executeAsyncQuery.mockRejectedValueOnce(queryError);
                 const run = service.runAsyncWarehouseQuery({
                     ...args,
-                    warehouseClientOverride: client,
+                    warehouseClientOverride: { client, executionSource },
                     resultProducerOverride: {
                         version: 1,
                         warehouseConnectionUuid: null,
@@ -11134,6 +11172,20 @@ describe('AsyncQueryService', () => {
                 else await expect(run).resolves.toBeUndefined();
                 expect(factory).not.toHaveBeenCalled();
                 expect(client.executeAsyncQuery).toHaveBeenCalledOnce();
+                const sources = track.mock.calls.flatMap(([event]) =>
+                    event.event === 'query.ready' ? [event] : [],
+                );
+                expect(sources).toEqual(
+                    fails
+                        ? []
+                        : [
+                              expect.objectContaining({
+                                  properties: expect.objectContaining({
+                                      executionSource,
+                                  }),
+                              }),
+                          ],
+                );
             },
         );
 
@@ -11460,14 +11512,12 @@ describe('AsyncQueryService', () => {
         const tunnelDisconnects: string[] = [];
 
         const setup = ({
-            syncEnabled = true,
             isPreviewProject = true,
             projectType = ProjectType.PREVIEW,
             userWarehouseCredentials,
             sharedSignIn = false,
             queryContext = QueryExecutionContext.EXPLORE,
         }: {
-            syncEnabled?: boolean;
             isPreviewProject?: boolean;
             projectType?: ProjectType;
             sharedSignIn?: boolean;
@@ -11523,28 +11573,15 @@ describe('AsyncQueryService', () => {
                     },
                 ),
             };
+            const refreshTokenRotation = { run: vi.fn() };
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                refreshTokenRotation,
                 projectModel: model as unknown as ProjectModel,
                 userWarehouseCredentialsModel: {
                     findForProjectWithSecrets: vi.fn(
                         async () => userWarehouseCredentials,
                     ),
                 } as unknown as UserWarehouseCredentialsModel,
-                featureFlagModel: {
-                    get: vi.fn(
-                        async ({
-                            featureFlagId,
-                        }: {
-                            featureFlagId: string;
-                        }) => ({
-                            id: featureFlagId,
-                            enabled:
-                                featureFlagId ===
-                                    FeatureFlags.PreviewSsoCredentialSync &&
-                                syncEnabled,
-                        }),
-                    ),
-                } as unknown as FeatureFlagModel,
             });
             Object.assign(service, {
                 checkGoogleRefreshToken: cachedCheck,
@@ -11601,7 +11638,7 @@ describe('AsyncQueryService', () => {
                     queryCreatedAt: new Date(),
                     displayTimezone: null,
                 });
-            return { service, model, run };
+            return { service, model, run, refreshTokenRotation };
         };
 
         const readyUpdates = (service: AsyncQueryService) =>
@@ -11653,27 +11690,17 @@ describe('AsyncQueryService', () => {
             'keeps a $type $authenticationType refresh lock timeout retryable without sign-in repair',
             async (credentials) => {
                 stored.set(projectUuid, credentials);
-                const { service, model, run } = setup();
+                const { service, model, run, refreshTokenRotation } = setup();
                 const error = new RefreshTokenLockTimeoutError();
                 const attributeExpiry = vi.spyOn(
                     service.warehouseClientFactory,
                     'attributeSharedSignInExpiry',
                 );
-                const exchange =
-                    credentials.type === WarehouseTypes.SNOWFLAKE
-                        ? vi
-                              .spyOn(
-                                  UserService,
-                                  'generateSnowflakeAccessToken',
-                              )
-                              .mockRejectedValue(error)
-                        : vi
-                              .spyOn(warehouses, 'refreshDatabricksOAuthToken')
-                              .mockRejectedValue(error);
+                refreshTokenRotation.run.mockRejectedValueOnce(error);
 
                 await run();
 
-                expect(exchange).toHaveBeenCalledTimes(1);
+                expect(refreshTokenRotation.run).toHaveBeenCalledTimes(1);
                 expect(
                     service.warehouseClientFactory.acquireUnscoped,
                 ).not.toHaveBeenCalled();
@@ -11696,7 +11723,6 @@ describe('AsyncQueryService', () => {
                 expect(recheck).not.toHaveBeenCalled();
                 expect(readyUpdates(service)).toHaveLength(0);
                 expect(stored.get(projectUuid)).toEqual(credentials);
-                exchange.mockRestore();
                 attributeExpiry.mockRestore();
             },
         );
@@ -11800,7 +11826,6 @@ describe('AsyncQueryService', () => {
                     },
                 },
             },
-            { name: 'the kill switch off', options: { syncEnabled: false } },
         ])('does not retry for $name', async ({ options }) => {
             const { service, model, run } = setup(options);
 
@@ -15751,6 +15776,7 @@ describe('runDuckdbQuery', () => {
             .spyOn(service, 'runAsyncWarehouseQuery')
             .mockResolvedValue(undefined);
         return {
+            service,
             run: (args: RunDuckdbQueryArgs) =>
                 (service as unknown as DuckdbQueryRunner).runDuckdbQuery(args),
             runWarehouseQuery,
@@ -15798,7 +15824,19 @@ describe('runDuckdbQuery', () => {
                     rows: Record<string, unknown>[];
                 }) => void,
             ) => {
-                callback({ fields, rows: [] });
+                callback({
+                    fields,
+                    rows: Object.entries(fields).map(([name, field]) => ({
+                        column_name: name,
+                        column_type: {
+                            [DimensionType.NUMBER]: 'DOUBLE',
+                            [DimensionType.BOOLEAN]: 'BOOLEAN',
+                            [DimensionType.DATE]: 'DATE',
+                            [DimensionType.TIMESTAMP]: 'TIMESTAMP',
+                            [DimensionType.STRING]: 'VARCHAR',
+                        }[field.type],
+                    })),
+                });
             },
         );
         return {
@@ -15842,9 +15880,57 @@ describe('runDuckdbQuery', () => {
         ...overrides,
     });
 
+    it('times each stage of a run over query references', async () => {
+        const { warehouseClient } = probingClient({
+            one: { type: DimensionType.NUMBER },
+        });
+        const { service, run, runWarehouseQuery, update } = buildService();
+        const observeComposerQueryStageDuration = vi.fn();
+        Object.assign(service, {
+            prometheusMetrics: {
+                observeComposerQueryStageDuration,
+                incrementQueryCacheHit: vi.fn(),
+            },
+        });
+
+        await run(
+            baseArgs({
+                engine: { kind: 'client', warehouseClient },
+                references: {
+                    kind: 'queries',
+                    references: { r: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: {},
+                },
+            }),
+        );
+        runWarehouseQuery.mock.calls[0][0].onComposerStageTimed?.(
+            'execute',
+            12,
+        );
+
+        expect(update).not.toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            expect.objectContaining({ status: QueryHistoryStatus.ERROR }),
+            expect.anything(),
+        );
+        expect(
+            observeComposerQueryStageDuration.mock.calls.map(
+                ([source, stage]) => `${source}.${stage}`,
+            ),
+        ).toEqual([
+            'duckdb.wait_references',
+            'duckdb.bind_references',
+            'duckdb.resolve_columns',
+            'duckdb.total',
+            'duckdb.execute',
+        ]);
+    });
+
     // A results file name may contain '--'; the limit's comment stripper
     // must never see the reference CTEs that name it
-    it('discover mode limits the user statement before wrapping it in the reference CTEs', async () => {
+    it('discover mode describes the user statement with intact reference CTEs', async () => {
         const { streamQuery, warehouseClient } = probingClient({
             one: { type: DimensionType.NUMBER },
         });
@@ -15861,15 +15947,15 @@ describe('runDuckdbQuery', () => {
 
         expect(streamQuery.mock.calls[0][0]).toBe(
             [
-                `WITH ${referenceCte}`,
+                `DESCRIBE WITH ${referenceCte}`,
                 'SELECT * FROM (',
-                'SELECT one FROM r LIMIT 1',
+                'SELECT one FROM r',
                 ') AS lightdash_user_query',
             ].join('\n'),
         );
     });
 
-    it('discover mode probes the SQL with one row and executes with the columns it found', async () => {
+    it('discover mode describes the SQL and executes with the columns it found', async () => {
         const { streamQuery, warehouseClient } = probingClient({
             one: { type: DimensionType.NUMBER },
         });
@@ -15878,7 +15964,7 @@ describe('runDuckdbQuery', () => {
         await run(baseArgs({ engine: { kind: 'client', warehouseClient } }));
 
         expect(streamQuery).toHaveBeenCalledTimes(1);
-        expect(streamQuery.mock.calls[0][0]).toMatch(/LIMIT 1$/);
+        expect(streamQuery.mock.calls[0][0]).toBe('DESCRIBE SELECT 1 AS one');
         expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
         expect(streamQuery.mock.invocationCallOrder[0]).toBeLessThan(
             runWarehouseQuery.mock.invocationCallOrder[0],
@@ -15891,7 +15977,10 @@ describe('runDuckdbQuery', () => {
             'sql_query_explorer_one',
         ]);
         expect(executed.pivotConfiguration).toBeUndefined();
-        expect(executed.warehouseClientOverride).toBe(warehouseClient);
+        expect(executed.warehouseClientOverride).toEqual({
+            client: warehouseClient,
+            executionSource: 'composer_duckdb',
+        });
         expect(update).toHaveBeenCalledWith(
             'duckdb-query-uuid',
             projectUuid,
@@ -16096,9 +16185,12 @@ describe('runDuckdbQuery', () => {
             ],
         });
         expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
-        expect(runWarehouseQuery.mock.calls[0][0].warehouseClientOverride).toBe(
-            warehouseClientMock,
-        );
+        expect(
+            runWarehouseQuery.mock.calls[0][0].warehouseClientOverride,
+        ).toEqual({
+            client: warehouseClientMock,
+            executionSource: 'composer_duckdb',
+        });
     });
 
     it('bound references attach without waiting on any query and persist the stored SQL', async () => {
@@ -16166,12 +16258,18 @@ describe('runDuckdbQuery', () => {
     it('a run over the same result files is served from the earlier run without touching DuckDB', async () => {
         const { streamQuery, warehouseClient } = probingClient({});
         const {
+            service,
             run,
             runWarehouseQuery,
             findCachedResultsFile,
             markDuckdbCacheHit,
             update,
         } = buildService(cachedResults);
+        const track = vi.spyOn(
+            (service as unknown as { analytics: LightdashAnalytics }).analytics,
+            'track',
+        );
+        track.mockClear();
 
         await run(
             baseArgs({
@@ -16205,6 +16303,15 @@ describe('runDuckdbQuery', () => {
                 warehouse_execution_time_ms: 0,
             }),
             expect.anything(),
+        );
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'query.completed',
+                properties: expect.objectContaining({
+                    cacheHit: true,
+                    executionSource: 'composer_duckdb',
+                }),
+            }),
         );
     });
 
@@ -20380,7 +20487,6 @@ describe('fresh stored result read boundary', () => {
             updateWarehouseCredentialsIf: vi.fn(async () => true),
         });
         Object.assign(f.service, {
-            isPreviewSsoCredentialSyncEnabled: vi.fn(async () => true),
             checkGoogleRefreshToken: vi.fn(
                 async (keyfile: CreateBigqueryCredentials['keyfileContents']) =>
                     keyfile.refresh_token === 'stale' ? 'rejected' : 'valid',
@@ -21422,7 +21528,7 @@ describe('fresh stored result read boundary', () => {
                 cacheKey: 'key',
                 context: QueryExecutionContext.EXPLORE,
             };
-            const run = f.service['runDuckdbQuery'](args);
+            const run = f.service['runDuckdbQuery'](args, null);
             await vi.waitFor(() => expect(poll).toHaveBeenCalledOnce());
             expect(bind).not.toHaveBeenCalled();
             if (change === 'access') {
@@ -28688,5 +28794,132 @@ describe('late query status writes', () => {
             tracker.reset();
             await database.destroy();
         }
+    });
+});
+
+describe('S3 result pagination', () => {
+    const readPage = async (stream: Readable, page = 1, pageSize = 2) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(
+            service.resultsStorageClient.getDownloadStream,
+        ).mockResolvedValue(stream);
+        const formatter = vi.fn((row) => row);
+        const result = await service['getResultsPageFromS3'](
+            'query-uuid',
+            'results-file',
+            QueryExecutionContext.EXPLORE,
+            page,
+            pageSize,
+            formatter,
+        );
+        return { ...result, formatter };
+    };
+
+    test.each([1, 3])(
+        'stops reading after page %s instead of consuming the tail',
+        async (page) => {
+            let emittedRows = 0;
+            const stream = Readable.from(
+                (async function* generateRows() {
+                    for (let value = 1; value <= 1000; value += 1) {
+                        emittedRows += 1;
+                        yield `${JSON.stringify({ value })}\n`;
+                        // Delay each chunk so the fixture is not fully buffered.
+                        // eslint-disable-next-line no-await-in-loop
+                        await new Promise<void>((resolve) => {
+                            setImmediate(resolve);
+                        });
+                    }
+                })(),
+            );
+            const { rows, formatter } = await readPage(stream, page);
+            expect(rows).toEqual([
+                { value: (page - 1) * 2 + 1 },
+                { value: page * 2 },
+            ]);
+            expect(formatter).toHaveBeenCalledTimes(2);
+            expect(emittedRows).toBeLessThan(1000);
+            expect(stream.destroyed).toBe(true);
+        },
+    );
+
+    test('closes the HTTP source behind a checksum-wrapped S3 body', async () => {
+        const source = new PassThrough({ autoDestroy: false });
+        const body = new PassThrough() as PassThrough & { source: Readable };
+        body.source = source;
+        source.pipe(body);
+        source.end('{"value":1}\n{"value":2}\n{"value":3}\n');
+        const { rows } = await readPage(body);
+        expect(rows).toEqual([{ value: 1 }, { value: 2 }]);
+        expect(body.destroyed).toBe(true);
+        expect(source.destroyed).toBe(true);
+    });
+
+    test.each([
+        [1, [{ value: 1 }, { value: 2 }]],
+        [2, [{ value: 3 }]],
+        [3, []],
+    ])(
+        'preserves the rows of page %s including partial and missing pages',
+        async (page, expected) => {
+            const stream = Readable.from([
+                '{"value":1}\n{"value":2}\n{"value":3}',
+            ]);
+            const { rows } = await readPage(stream, page);
+            expect(rows).toEqual(expected);
+        },
+    );
+
+    test('skips blank lines and preserves CRLF and Unicode inside values', async () => {
+        const first = { value: 'before\u2028after' };
+        const second = { value: 'before\u2029after' };
+        const stream = Readable.from([
+            `\n \r\n${JSON.stringify(first)}\r\n\r\n${JSON.stringify(second)}`,
+        ]);
+        const { rows } = await readPage(stream);
+        expect(rows).toEqual([first, second]);
+    });
+
+    test('returns an empty page for an empty stream', async () => {
+        const { rows, formatter } = await readPage(Readable.from([]));
+        expect(rows).toEqual([]);
+        expect(formatter).not.toHaveBeenCalled();
+    });
+
+    test('preserves JSON errors in the requested page', async () => {
+        await expect(readPage(Readable.from(['not JSON\n']))).rejects.toThrow(
+            SyntaxError,
+        );
+    });
+
+    test.each([1, 2])(
+        'preserves a terminal download error on full final page %s',
+        async (page) => {
+            const stream = Readable.from(
+                (async function* generateRowsWithError() {
+                    yield Array.from(
+                        { length: page * 2 },
+                        (_, index) =>
+                            `${JSON.stringify({ value: index + 1 })}\n`,
+                    ).join('');
+                    await new Promise<void>((resolve) => {
+                        setImmediate(resolve);
+                    });
+                    throw new Error('download failed at EOF');
+                })(),
+            );
+            await expect(readPage(stream, page)).rejects.toThrow(
+                'download failed at EOF',
+            );
+        },
+    );
+
+    test('propagates source errors before the page is complete', async () => {
+        const stream = new Readable({
+            read() {
+                this.destroy(new Error('download failed'));
+            },
+        });
+        await expect(readPage(stream)).rejects.toThrow('download failed');
     });
 });

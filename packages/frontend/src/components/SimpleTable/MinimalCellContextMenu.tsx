@@ -1,4 +1,5 @@
 import {
+    getCellUrls,
     createDashboardFilterRuleFromField,
     isDimension,
     isDimensionValueInvalidDate,
@@ -124,6 +125,11 @@ const MinimalCellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({
         [cell],
     );
 
+    const urls = useMemo(
+        () => getCellUrls(isField(item) ? item.urls : undefined, value.raw),
+        [item, value],
+    );
+
     const fieldValues = useMemo(
         () => mapValues(cell.row.original, (v) => v?.value) || {},
         [cell.row.original],
@@ -149,14 +155,12 @@ const MinimalCellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({
 
     return (
         <>
-            {item &&
-            value.raw !== undefined &&
-            value.raw !== null &&
-            isField(item) ? (
-                <UrlMenuItems urls={item.urls} cell={cell} showErrors={false} />
-            ) : null}
-
-            {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
+            {urls.length > 0 && (
+                <>
+                    <UrlMenuItems urls={urls} cell={cell} showErrors={false} />
+                    <Menu.Divider />
+                </>
+            )}
 
             <Menu.Item
                 leftSection={

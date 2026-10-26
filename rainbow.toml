@@ -3,14 +3,20 @@
 # kernel, network, guest access, paint/warm harnesses and per-env origin and
 # secret values are the platform's, not this file's.
 
-# One process: `pnpm dev` runs the common and warehouses tsc watchers, the
-# backend (tsx watch, :8080) and the Vite frontend (:3000, which proxies /api
-# to :8080). The browser hits 3000.
+# One process: `pnpm dev` runs the common, visualization and warehouses tsc
+# watchers, the backend (tsx watch, :8080) and the Vite dev server (:3000).
+# The browser hits 8080: the backend serves the production bundle the
+# `frontend-build` tier writes to packages/frontend/build, as the Okteto
+# preview image did. The dev server stays up but nothing routes to it — the
+# bundle is ~180 requests per page against the dev server's ~1,200, and
+# that gap is what put the Cypress suites over their ten-second waits
+# (SRE-100).
 [[app.service]]
 name = "dev"
 command = "pnpm dev"
 ports = [8080, 3000]
-serve_port = 3000
+serve_port = 8080
+restart_on_inject = true           # re-exec on fork to read the injected SITE_URL (see [origin])
 
 # The Snowflake AI OAuth/SDK stub the API tests drive (snowflake-ai-stub in
 # docker/docker-compose.preview.yml). Plain node, no deps; it reads only PORT,
@@ -19,6 +25,7 @@ serve_port = 3000
 name = "snowflake-ai-stub"
 command = "PORT=3900 node packages/api-tests/stub/snowflake-ai-stub.mjs"
 port = 3900
+restart_on_inject = true           # re-exec with the fork's injected env, as the dev service does
 
 # Anyone with the URL can open an environment of this repo.
 [access]
@@ -30,17 +37,18 @@ memory = "8gb"
 max_memory = "16gb"                # headroom the migrate rung and the pnpm install borrow
 
 # node comes from .nvmrc and pnpm from package.json's packageManager. The first
-# build step bakes formula/common/warehouses dist into the image so the backend
-# and the migrate rung can import them; from then on the `pnpm dev` watchers
-# keep common and warehouses current (no common-build rung below; formula has
-# no watcher, so it is a run rung). The second is the dbt venv the seed's
-# project compile shells out to (`dbt1.12`). Its adapters and pins are
-# dockerfile-prs's: the API and app tests compile Snowflake, BigQuery,
-# Databricks and Trino projects with dbt1.12 too.
+# build step bakes common and warehouses dist into the image so the backend can
+# import them — through turbo, so the `frontend-build` rung below (which bakes
+# formula, visualization and the bundle the same way, before the migrate rung
+# imports them) finds common in the cache; these steps run before the ladder's
+# first run rung. From then on the `pnpm dev` watchers keep them current. The
+# second is the dbt venv the seed's project compile shells out to (`dbt1.12`).
+# Its adapters and pins are dockerfile-prs's: the API and app tests compile
+# Snowflake, BigQuery, Databricks and Trino projects with dbt1.12 too.
 [runtime]
-system = ["postgresql-16-pgvector", "python3-venv"]  # catalog migrations CREATE EXTENSION vector; the dbt venv
+system = ["postgresql-18-pgvector", "python3-venv"]  # Postgres 18 as the product databases (pgvector/pgvector:pg18); catalog migrations CREATE EXTENSION vector; the dbt venv
 build = [
-  "pnpm formula:build && pnpm common-build && pnpm warehouses-build",
+  "TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1 pnpm turbo run build --filter=@lightdash/warehouses",
   "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' 'dbt-snowflake~=1.12.0' 'dbt-bigquery~=1.12.0' 'dbt-databricks~=1.12.3' 'dbt-trino~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
   # The demo dbt project where the Okteto image and the test suites expect it
   # (the backend's default project_dir is /usr/app/dbt).
@@ -65,8 +73,8 @@ NODE_ENV = "development"
 # already set in the environment, so this value reaches the backend.
 LIGHTDASH_MODE = "pr"
 LIGHTDASH_LOG_LEVEL = "info"
-SECURE_COOKIES = "false"
-TRUST_PROXY = "false"
+SECURE_COOKIES = "true"            # as the Okteto preview: served over https behind an ingress that
+TRUST_PROXY = "true"               # sets X-Forwarded-Proto (ingress.go SetXForwarded); iframe embedding needs it
 SCHEDULER_ENABLED = "true"
 ALLOW_MULTIPLE_ORGS = "true"
 HEADLESS = "true"
@@ -86,12 +94,14 @@ S3_ACCESS_KEY = "minioadmin"
 S3_SECRET_KEY = "minioadmin"
 S3_FORCE_PATH_STYLE = "true"
 APPS_S3_BUCKET = "lightdash-apps"
-# Pre-aggregates, materialized to the same MinIO. Licence comes from [secrets];
-# DuckDB fetches httpfs through the extensions.duckdb.org egress rule below.
-PRE_AGGREGATES_ENABLED = "true"
-PRE_AGGREGATES_PARQUET_ENABLED = "true"
-PRE_AGGREGATE_RESULTS_S3_BUCKET = "default"
-PRE_AGGREGATE_RESULTS_S3_REGION = "us-east-1"
+# Pre-aggregates stay off, as in the Okteto preview: with them on, an embed
+# reader's calculate-total was routed to a pre-aggregate whose result lineage
+# the AI access check refused (403 ai_access_refused, embedDashboard.test.ts
+# "with canExplore"). A product question for the owning team, not a preview
+# setting. Enabling them here needs PRE_AGGREGATES_ENABLED,
+# PRE_AGGREGATES_PARQUET_ENABLED and PRE_AGGREGATE_RESULTS_S3_{BUCKET,REGION}
+# (the same MinIO; DuckDB fetches httpfs through the extensions.duckdb.org
+# egress rule below).
 EMAIL_SMTP_HOST = "localhost"
 EMAIL_SMTP_PORT = "1025"
 EMAIL_SMTP_SECURE = "false"
@@ -103,12 +113,18 @@ EMAIL_SMTP_SENDER_EMAIL = "noreply@lightdash.local"
 # later mode change cannot silently drop the flag-management API.
 LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = "true"
 # No product analytics from previews. The backend's config bakes in a default
-# RudderStack write key and data plane, so without this every environment
+# RudderStack write key and data plane, so without these every environment
 # tracks into production analytics — and the migrate rung's node process
 # stays alive until the client gives up on that request. With the data plane
-# outside the egress list that was four TCP timeouts, 8m47s, on every fork;
-# with this set the same command takes 2.5s.
-RUDDERSTACK_ANALYTICS_DISABLED = "true"
+# outside the egress list that was four TCP timeouts, 8m47s, on every fork.
+# RUDDERSTACK_ANALYTICS_DISABLED would be the obvious switch, but it also
+# empties health.rudder.writeKey, and the frontend hides the new-user
+# onboarding modal when that is undefined (UserCompletionModal.tsx) — the
+# Okteto preview carried a key, and space.cy.ts expects the modal. So: a key
+# that is not the production one, and a data plane on a local port nothing
+# listens on (refused at once, no timeout; the SDK drops the batch).
+RUDDERSTACK_WRITE_KEY = "preview-notrack"
+RUDDERSTACK_DATA_PLANE_URL = "http://localhost:9"
 
 # Parity with the Okteto previews (docker/docker-compose.preview.yml): the
 # settings that switch on the surfaces e2e and QA exercise. Values that name
@@ -116,7 +132,6 @@ RUDDERSTACK_ANALYTICS_DISABLED = "true"
 IS_PULL_REQUEST = "true"
 CUSTOM_ROLES_ENABLED = "true"
 MCP_ENABLED = "true"
-SERVICE_ACCOUNT_ENABLED = "true"       # also lights the semantic-layer connection page
 EMBEDDING_ENABLED = "true"             # the embed specs need it
 PERSISTENT_DOWNLOAD_URLS_ENABLED = "true"
 GROUPS_ENABLED = "true"
@@ -124,7 +139,10 @@ EXTENDED_USAGE_ANALYTICS = "true"
 MICROSOFT_TEAMS_ENABLED = "true"
 APPS_RUNTIME_ENABLED = "true"          # data apps; the E2B key below makes it usable
 ALLOW_MISSING_MIGRATIONS = "true"
-SOFT_DELETE_ENABLED = "true"           # every cloud instance runs with it; Recently deleted needs it
+# SOFT_DELETE_ENABLED stays unset, as in the Okteto preview: with it on, a
+# deleted SQL chart keeps its slug and sqlRunner.test.ts "save & update SQL
+# chart" gets 409 reusing it. Cloud runs with soft delete; whether slug reuse
+# after a soft delete should work is the owning team's call.
 # Postgres wire-protocol server for the semantic layer: setting the port
 # starts the listener and renders the project settings page. No TLS certs in
 # a preview, and the port stays private to the environment.
@@ -163,33 +181,49 @@ env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }  # loaded by the config; ena
 # headless Chrome at the snapshot gate and records first_paint_ms.
 [ready]
 http = "http://localhost:8080/api/v1/health"
-paints = { url = "http://localhost:3000/login", within = "10s", selector = "#root > *" }
+paints = { url = "http://localhost:8080/login", within = "10s", selector = "#root > *" }
 
 [warm]
-routes = ["/", "/login"]
+# The pages the E2E suites open first (the seed project's uuid is fixed by
+# the seed). The bundle is prebuilt, so this warms the backend's caches
+# rather than a dev server's module graph.
+routes = [
+  "/", "/login",
+  "/projects/3675b69e-8324-4110-bdca-059031aa8da3/home",
+  "/projects/3675b69e-8324-4110-bdca-059031aa8da3/dashboards",
+  "/projects/3675b69e-8324-4110-bdca-059031aa8da3/spaces",
+  "/projects/3675b69e-8324-4110-bdca-059031aa8da3/tables",
+  "/projects/3675b69e-8324-4110-bdca-059031aa8da3/sql-runner",
+  "/generalSettings",
+  "/generalSettings/userManagement",
+  "/generalSettings/userAttributes",
+  "/generalSettings/projectManagement",
+]
 
 # The cache-tier ladder (cache-tiers.md), deepest first; first match wins.
 [[tier]]
 preset = "pnpm"                    # lockfile globs; egress and memory headroom for the install
 
+# The production bundle the backend serves (dockerfile-prs's build-frontend
+# stage). turbo builds formula, common and visualization first — vite
+# resolves them from `dist` outside development mode — and skips whatever
+# its local cache (.turbo, gitignored, so a fork inherits the parent's)
+# already holds, so a frontend-only push rebuilds only the bundle. The
+# same rung bakes the dist that `migrate` and `tsoa` import, which the
+# old formula-build and common-build rungs did by hand (2026-09-08: both
+# died reading a watcher's half-written barrel; a run rung executes with
+# the app's units stopped, before any watcher has caught up). Fires on any
+# package the bundle contains.
 [[tier]]
-name = "formula-build"
-files = ["packages/formula/**"]
-run = "pnpm formula:build"         # the backend imports formula's dist and nothing watches it
+name = "frontend-build"
+files = ["packages/frontend/**", "packages/common/**", "packages/visualization/**", "packages/formula/**"]
+run = "pnpm turbo run build --filter=@lightdash/frontend"
+env = { NODE_ENV = "production", TURBO_TELEMETRY_DISABLED = "1", TURBO_NO_UPDATE_NOTIFIER = "1" }
+memory = "12gb"                    # the common barrel is large; the same headroom migrate takes
 
-# `pnpm dev` runs tsc watchers over common and warehouses, so a change to
-# either is a hot reload for a serving environment. The rungs below are the
-# exception: they import those packages' `dist` and they run seconds after
-# the fork, with the app's units stopped, before any watcher has caught up.
-# Without these two they read the parent's build — `migrate` died on a
-# half-written barrel, and `tsoa` could not resolve types the branch had
-# just added (2026-09-08). Each fires only when its own package changes.
-[[tier]]
-name = "common-build"
-files = ["packages/common/**"]
-run = "pnpm common-build"
-memory = "12gb"                    # the barrel is large; the same headroom migrate takes
-
+# `pnpm dev` runs a tsc watcher over warehouses, so a change to it is a hot
+# reload for a serving environment; the backend imports its `dist`, and the
+# rungs below run before the watcher has caught up (see frontend-build).
 [[tier]]
 name = "warehouses-build"
 files = ["packages/warehouses/**"]
@@ -210,7 +244,7 @@ env = { NODE_OPTIONS = "--max-old-space-size=8192" }  # tsoa exceeds the default
 
 [[tier]]
 name = "app"
-watch = ["**"]                     # Vite HMR, tsx watch and the tsc watchers notice the write
+watch = ["**"]                     # tsx watch and the tsc watchers notice the write
 
 # Outbound access, exactly these flows and nothing else (the platform builds
 # the uplink and a default-deny policy around them). The backend validates its
@@ -260,6 +294,16 @@ port = 443
 host = "www.googleapis.com"
 port = 443
 
+# Certificate revocation checks the Snowflake driver makes (fail-open when
+# refused, but each refusal waits out a timeout first).
+[[egress.allow]]
+host = "ocsp.snowflakecomputing.com"
+port = 80
+
+[[egress.allow]]
+host = "ocsp.digicert.com"
+port = 80
+
 # Staging warehouses, by secret (see [secrets]).
 [[egress.allow]]
 host_secret = "WAREHOUSE_POSTGRES_HOST"
@@ -281,11 +325,14 @@ port = 443
 host = "github.com"                 # GitHub OAuth login
 port = 443
 
-# The browser learns its origin from one field of one response, so the ingress
-# corrects it in flight; nothing is re-execed on fork.
+# The app learns its public origin the truthful way: SITE_URL is injected on
+# fork and the dev service re-execs to read it (restart_on_inject above), so
+# every URL the backend emits — invite links, embed and OAuth redirects, the
+# health payload — is the preview's, not localhost. A patch rule here would
+# switch Rainbow to patch mode (one response corrected in flight, no restart)
+# and the E2E suites that read those URLs would fail again.
 [origin]
 vars = ["SITE_URL"]
-patch = [{ path = "/api/v1/health", field = "results.siteUrl" }]
 
 # Names, not values: the platform holds what they resolve to, and every
 # environment of this repo has them from the moment it boots. A name with no

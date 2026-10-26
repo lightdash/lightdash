@@ -1,6 +1,8 @@
+import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
 
 export const usageChartSpecs: UsageChartSpec[] = [
+    ...monthlyQueryComparisonCharts,
     {
         key: 'most-used-fields',
         name: 'Most-used metrics and dimensions',

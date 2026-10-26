@@ -456,32 +456,58 @@ describe('getSystemPromptV2 composer queries', () => {
         );
     });
 
-    test('web answers present composer results with their marker', () => {
+    test('web answers query, then visualize the node they rest on', () => {
         const content = promptText({
             availableExplores: [],
             promptSections: composerSections(),
         });
 
-        expect(content).toContain('Present the result your answer rests on');
         expect(content).toContain(
-            'whose terminal node is the result you present',
+            'After query, call visualize on the node your answer rests on',
         );
+        expect(content).toContain(
+            'call visualize on its node rather than rerunning query',
+        );
+        expect(content).not.toMatch(/\bpresent the result|<show/i);
     });
 
-    test('Slack answers share composer tables without show markers', () => {
+    test('Slack composer answers present with visualize, without Slack markers', () => {
         const content = promptText({
             availableExplores: [],
             promptSections: composerSections(),
             slackChannelId: 'channel',
+            enableDataAccess: true,
         });
 
-        expect(content).not.toContain(
-            'Present the result your answer rests on',
-        );
         expect(content).toContain(
-            'whose terminal node is the table you can share',
+            'call visualize on the node your answer rests on when the user asks for a chart or when its rows materially help',
         );
+        expect(content).not.toContain('<slack-table');
+        expect(content).not.toContain('<slack-chart');
     });
+
+    test.each([
+        [true, true],
+        [false, false],
+    ])(
+        'with SQL %s, scopes sql nodes in the core section: %s',
+        (canRunSql, scoped) => {
+            const content = promptText({
+                availableExplores: [],
+                promptSections: canRunSql
+                    ? composerSections('runSql')
+                    : composerSections(),
+                canRunSql,
+            });
+
+            expect(
+                content.includes(
+                    'Use a semanticLayer node when an explore covers the question',
+                ),
+            ).toBe(scoped);
+            expect(content).not.toContain('**When to use it:**');
+        },
+    );
 
     test.each([
         ['web', null],
@@ -510,7 +536,7 @@ describe('getSystemPromptV2 composer queries', () => {
             );
             for (const content of variants) {
                 expect(content).not.toMatch(
-                    /runQuery|generateVisualization|runSql/,
+                    /runQuery|generateVisualization|runSql|<show|artifact-chart/,
                 );
             }
         },
@@ -1229,7 +1255,7 @@ describe('getSystemPromptV2 Slack links only', () => {
             slackLinksOnly: true,
         });
         expect(content).toContain(noDataInSlackRule);
-        expect(content).toContain('You do not see the actual query results');
+        expect(content).toContain('Never state figures, counts, totals');
     });
 
     test('is absent by default', () => {

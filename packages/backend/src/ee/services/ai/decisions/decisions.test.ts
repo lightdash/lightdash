@@ -186,7 +186,7 @@ describe('decision fallbacks and invariants', () => {
         expect(
             await getEmptyFilterHints({
                 decisions: client({ value: choice('0') }),
-                query: filtered,
+                query: filtered.queryConfig,
                 searchFieldValues,
             }),
         ).toContain('"CA" is a likely equivalent');
@@ -198,7 +198,7 @@ describe('decision fallbacks and invariants', () => {
         expect(
             await getEmptyFilterHints({
                 decisions: offline,
-                query: filtered,
+                query: filtered.queryConfig,
                 searchFieldValues,
             }),
         ).toBe('');

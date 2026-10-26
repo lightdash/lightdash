@@ -45,12 +45,6 @@ export const useSettingsContext = (): SettingsContext => {
     const shouldShowAiAgentReviews =
         aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;
 
-    const { data: serviceAccountsFlag } = useServerFeatureFlag(
-        CommercialFeatureFlags.ServiceAccounts,
-    );
-    const isServiceAccountFeatureFlagEnabled =
-        serviceAccountsFlag?.enabled ?? false;
-
     const {
         health: {
             data: health,
@@ -84,6 +78,10 @@ export const useSettingsContext = (): SettingsContext => {
         FeatureFlags.EnableDataAppAnalysis,
     );
     const { data: dataAppAnalysisFlag } = dataAppAnalysisFlagQuery;
+    const dashboardAnalysisFlagQuery = useServerFeatureFlag(
+        FeatureFlags.EnableDashboardAnalysis,
+    );
+    const { data: dashboardAnalysisFlag } = dashboardAnalysisFlagQuery;
     const isChartStudioAvailable = useChartStudioAvailable();
 
     const { data: externalSourcesFlag } = useServerFeatureFlag(
@@ -101,6 +99,7 @@ export const useSettingsContext = (): SettingsContext => {
 
     // The roadmap proxy is only registered behind a validated enterprise license.
     const isOrganizationRoadmapEnabled = health?.license?.valid === true;
+    const isServiceAccountsEnabled = health?.license?.valid === true;
 
     const { data: ssoOrganizationSettingsFlag } = useServerFeatureFlag(
         FeatureFlags.SsoOrganizationSettings,
@@ -209,10 +208,6 @@ export const useSettingsContext = (): SettingsContext => {
     const isGroupManagementEnabled =
         userGroupsFeatureFlagQuery.data?.enabled ?? false;
 
-    // This allows us to enable service accounts in the UI for on-premise installations
-    const isServiceAccountsEnabled =
-        health?.isServiceAccountEnabled || isServiceAccountFeatureFlagEnabled;
-
     const isAgentIdentityEnabled = agentIdentityFlag?.enabled ?? false;
 
     return {
@@ -242,9 +237,11 @@ export const useSettingsContext = (): SettingsContext => {
             aiOrganizationSettingsQuery.isInitialLoading,
         dataAppsFlag,
         dataAppAnalysisFlag,
+        dashboardAnalysisFlag,
         isDataAppsFlagLoading:
             dataAppsFlagQuery.isInitialLoading ||
-            dataAppAnalysisFlagQuery.isInitialLoading,
+            dataAppAnalysisFlagQuery.isInitialLoading ||
+            dashboardAnalysisFlagQuery.isInitialLoading,
         isChartStudioAvailable,
         externalSourcesFlag,
         isResultsCacheEnabled,

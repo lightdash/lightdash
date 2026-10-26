@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    getCellUrls,
     createDashboardFilterRuleFromField,
     hasCustomBinDimension,
     isDimension,
@@ -54,6 +55,11 @@ const DashboardCellContextMenu: FC<
     const value: ResultValue = useMemo(
         () => cell.getValue()?.value || {},
         [cell],
+    );
+
+    const urls = useMemo(
+        () => getCellUrls(isField(item) ? item.urls : undefined, value.raw),
+        [item, value],
     );
 
     const fieldValues = useMemo(
@@ -153,14 +159,12 @@ const DashboardCellContextMenu: FC<
 
     return (
         <>
-            {item &&
-            value.raw !== undefined &&
-            value.raw !== null &&
-            isField(item) ? (
-                <UrlMenuItems urls={item.urls} cell={cell} />
-            ) : null}
-
-            {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
+            {urls.length > 0 && (
+                <>
+                    <UrlMenuItems urls={urls} cell={cell} />
+                    <Menu.Divider />
+                </>
+            )}
 
             <Menu.Item
                 leftSection={<MantineIcon icon={IconCopy} />}

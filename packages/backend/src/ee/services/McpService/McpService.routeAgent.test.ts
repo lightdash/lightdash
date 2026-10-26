@@ -1,5 +1,15 @@
+import { subject } from '@casl/ability';
+import {
+    ForbiddenError,
+    QueryExecutionContext,
+    QueryHistoryStatus,
+} from '@lightdash/common';
 import type { AiAgentWithContext } from '@lightdash/common';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { ZodRawShape } from 'zod';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { McpService, McpToolName } from './McpService';
+import { makeMcpServerOptions } from './McpService.mock';
 
 type RegisteredToolCallback = (
     args: Record<string, unknown>,
@@ -9,6 +19,7 @@ type RegisteredToolCallback = (
 const mockRegisteredMcpTools = new Map<string, RegisteredToolCallback>();
 
 vi.mock('@sentry/node', () => ({
+    startSpan: (_options: unknown, callback: () => unknown) => callback(),
     captureException: vi.fn(),
     addBreadcrumb: vi.fn(),
     getActiveSpan: () => undefined,
@@ -19,6 +30,7 @@ vi.mock('@sentry/node', () => ({
 }));
 
 vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
+    ResourceTemplate: class {},
     McpServer: vi.fn().mockImplementation(
         // eslint-disable-next-line prefer-arrow-callback
         function MockMcpServer() {
@@ -65,6 +77,7 @@ const account = {
 };
 
 const user = {
+    ...defaultSessionUser,
     userUuid,
     organizationUuid,
     ability: account.user.ability,
@@ -158,6 +171,8 @@ const makeMcpService = () => {
 
     const aiAgentService = {
         getAgent: vi.fn().mockResolvedValue(selectedAgent),
+        listAgents: vi.fn().mockResolvedValue(routeCandidates),
+        getIsCopilotEnabled: vi.fn().mockResolvedValue(true),
     };
 
     const aiAgentToolsService = {
@@ -212,17 +227,42 @@ const makeMcpService = () => {
         }),
     };
 
+    const aiOrganizationSettingsService = {
+        isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
+    };
+    const mcpToolCallModel = {
+        createToolCall: vi.fn().mockResolvedValue(undefined),
+    };
+    const asyncQueryService = {
+        getAsyncQueryHistory: vi.fn().mockResolvedValue({
+            context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            status: QueryHistoryStatus.READY,
+            metricQuery: {
+                exploreName: 'orders',
+                dimensions: [],
+                metrics: [],
+                filters: {},
+                sorts: [],
+                limit: 10,
+                tableCalculations: [],
+            },
+            error: null,
+            requestParameters: null,
+        }),
+        pollQueryHistoryUntilDeadline: vi.fn(),
+        executeAsyncMetricQuery: vi.fn(),
+        getRawAsyncQueryResults: vi.fn(),
+        getAsyncQueryResults: vi.fn(),
+    };
     const service = new McpService({
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiAgentService,
         aiAgentToolsService,
-        aiOrganizationSettingsService: {
-            isMcpAgentsEnabled: vi.fn().mockResolvedValue(true),
-        },
+        aiOrganizationSettingsService,
         aiRouterService,
         aiWritebackService: {},
         analytics: { track: vi.fn() },
-        asyncQueryService: {},
+        asyncQueryService,
         catalogService: {},
         contentVerificationService: {},
         featureFlagService: {},
@@ -239,7 +279,12 @@ const makeMcpService = () => {
             siteUrl: 'https://lightdash.example',
         },
         mcpContextModel,
-        projectModel: {},
+        mcpToolCallModel,
+        projectModel: {
+            getAllByOrganizationUuid: vi
+                .fn()
+                .mockResolvedValue([{ projectUuid, name: 'Project' }]),
+        },
         projectService: {
             getProject: vi
                 .fn()
@@ -259,6 +304,9 @@ const makeMcpService = () => {
         aiRouterService,
         mcpContextModel,
         storedContext,
+        mcpToolCallModel,
+        aiOrganizationSettingsService,
+        asyncQueryService,
     };
 };
 
@@ -380,5 +428,395 @@ describe('McpService route_agent', () => {
             'The requested project does not match the pinned MCP project',
         );
         expect(aiRouterService.routePromptToAgent).not.toHaveBeenCalled();
+    });
+});
+
+describe('McpService pinned agent', () => {
+    const pinnedExtra = {
+        ...extra,
+        authInfo: {
+            extra: {
+                ...extra.authInfo.extra,
+                headerProjectUuid: projectUuid,
+                headerAgentUuid: selectedAgent.uuid,
+            },
+        },
+    };
+    const call = async (
+        name: string,
+        args: Record<string, unknown>,
+        context = pinnedExtra,
+    ) => {
+        const callback = mockRegisteredMcpTools.get(name);
+        if (!callback) throw new Error('Missing tool');
+        return callback(args, context);
+    };
+
+    it('authorizes the pinned agent and refuses disabled MCP agents', async () => {
+        const { service, aiAgentService, aiOrganizationSettingsService } =
+            makeMcpService();
+        await expect(
+            service.getPinnedAgent(
+                { ...defaultSessionUser, userUuid, organizationUuid },
+                {
+                    agentUuid: selectedAgent.uuid,
+                    projectUuid,
+                },
+            ),
+        ).resolves.toEqual({
+            uuid: selectedAgent.uuid,
+            projectUuid,
+            name: selectedAgent.name,
+            instruction: selectedAgent.instruction,
+        });
+        expect(aiAgentService.getAgent).toHaveBeenCalledWith(
+            expect.objectContaining({ userUuid, organizationUuid }),
+            selectedAgent.uuid,
+            projectUuid,
+        );
+        aiAgentService.getAgent.mockClear();
+        aiOrganizationSettingsService.isMcpAgentsEnabled.mockResolvedValue(
+            false,
+        );
+        await expect(
+            service.getPinnedAgent(
+                { ...defaultSessionUser, userUuid, organizationUuid },
+                {
+                    agentUuid: selectedAgent.uuid,
+                    projectUuid,
+                },
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(aiAgentService.getAgent).not.toHaveBeenCalled();
+    });
+
+    it('rejects a pinned agent when its project is not viewable', async () => {
+        const { service, aiAgentService } = makeMcpService();
+        const relevantRuleFor = vi
+            .spyOn(defaultSessionUser.ability, 'relevantRuleFor')
+            .mockReturnValueOnce(null);
+        try {
+            const result = service.getPinnedAgent(
+                { ...defaultSessionUser, userUuid, organizationUuid },
+                { agentUuid: selectedAgent.uuid, projectUuid: undefined },
+            );
+            await expect(result).rejects.toThrow(ForbiddenError);
+            await expect(result).rejects.toThrow(
+                'You do not have access to this project',
+            );
+            expect(aiAgentService.getAgent).toHaveResolvedWith(selectedAgent);
+            expect(relevantRuleFor).toHaveBeenCalledWith(
+                'view',
+                subject('Project', {
+                    projectUuid: selectedAgent.projectUuid,
+                    organizationUuid: selectedAgent.organizationUuid,
+                }),
+            );
+        } finally {
+            relevantRuleFor.mockRestore();
+        }
+    });
+
+    it.each([undefined, selectedAgent.uuid])(
+        'injects the pin into runtime for agentUuid=%s',
+        async (agentUuid) => {
+            const { aiAgentToolsService, mcpToolCallModel } = makeMcpService();
+            await call(McpToolName.LIST_CONTENT, {
+                projectUuid,
+                agentUuid,
+                spaceSlug: null,
+                page: 1,
+                pageSize: 25,
+            });
+            expect(aiAgentToolsService.createRuntime).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    agentUuid: selectedAgent.uuid,
+                    tags: selectedAgent.tags,
+                    spaceAccess: selectedAgent.spaceAccess,
+                }),
+            );
+        },
+    );
+
+    it('refuses a different agent before runtime creation', async () => {
+        const { aiAgentToolsService } = makeMcpService();
+        await expect(
+            call(McpToolName.LIST_CONTENT, { projectUuid, agentUuid: 'other' }),
+        ).rejects.toThrow(
+            'The requested agent does not match the pinned MCP agent',
+        );
+        expect(aiAgentToolsService.createRuntime).not.toHaveBeenCalled();
+    });
+
+    it('does not scope project-independent tools', async () => {
+        const { aiAgentService } = makeMcpService();
+        await expect(call('get_lightdash_version', {})).resolves.toBeDefined();
+        expect(aiAgentService.getAgent).not.toHaveBeenCalled();
+    });
+
+    it('returns the pinned route without routing or writing stored context', async () => {
+        const { aiRouterService, mcpContextModel } = makeMcpService();
+        const result = await call(McpToolName.ROUTE_AGENT, {
+            projectUuid,
+            prompt: 'revenue',
+        });
+        expect(result).toMatchObject({
+            structuredContent: {
+                agentUuid: selectedAgent.uuid,
+                agentName: selectedAgent.name,
+                confidence: 'high',
+                reasoning: 'This MCP connection is pinned to this agent.',
+                candidates: [
+                    {
+                        agentUuid: selectedAgent.uuid,
+                        name: selectedAgent.name,
+                        description: selectedAgent.description,
+                    },
+                ],
+            },
+        });
+        expect(aiRouterService.routePromptToAgent).not.toHaveBeenCalled();
+        expect(mcpContextModel.setContext).not.toHaveBeenCalled();
+    });
+
+    it('lists only the pinned agent', async () => {
+        makeMcpService();
+        const result = await call(McpToolName.LIST_AGENTS, { projectUuid });
+        expect(result).toMatchObject({
+            content: [{ text: expect.stringContaining('"Finance"') }],
+        });
+        expect(result).toMatchObject({
+            content: [{ text: expect.not.stringContaining('"General"') }],
+        });
+    });
+
+    it('uses the pinned agent instead of stored context', async () => {
+        const { storedContext } = makeMcpService();
+        storedContext.agentUuid = 'agent-2';
+        const result = await call('get_context', {});
+        expect(result).toMatchObject({
+            structuredContent: {
+                activeAgent: {
+                    projectUuid,
+                    agentUuid: selectedAgent.uuid,
+                    agentName: selectedAgent.name,
+                },
+            },
+        });
+    });
+
+    it('uses the pin for legacy scope', async () => {
+        const { service, storedContext } = makeMcpService();
+        storedContext.agentUuid = 'agent-2';
+        await expect(
+            service.getLegacyToolScope(
+                { ...defaultSessionUser, userUuid, organizationUuid },
+                projectUuid,
+                selectedAgent.uuid,
+            ),
+        ).resolves.toEqual({ projectUuid, agentUuid: selectedAgent.uuid });
+    });
+
+    it('appends instructions only to pinned servers', async () => {
+        const { service } = makeMcpService();
+        const options = makeMcpServerOptions();
+        await service.createServer(options);
+        const unpinnedCall = vi.mocked(McpServer).mock.calls.at(-1);
+        options.req.pinnedAgent = selectedAgent;
+        await service.createServer(options);
+        const pinnedCall = vi.mocked(McpServer).mock.calls.at(-1);
+        expect(unpinnedCall?.[1]?.instructions).not.toContain(
+            '## Pinned agent',
+        );
+        expect(pinnedCall?.[1]?.instructions).toContain(
+            unpinnedCall?.[1]?.instructions,
+        );
+        expect(pinnedCall?.[1]?.instructions).toContain(
+            selectedAgent.instruction,
+        );
+        expect(pinnedCall?.[1]?.instructions).toContain(selectedAgent.uuid);
+    });
+
+    it('audits a pinned tool call with the effective agent', async () => {
+        const { mcpToolCallModel } = makeMcpService();
+        await call(McpToolName.LIST_CONTENT, {
+            projectUuid,
+            spaceSlug: null,
+            page: 1,
+            pageSize: 25,
+        });
+        await vi.waitFor(() =>
+            expect(mcpToolCallModel.createToolCall).toHaveBeenCalledWith(
+                expect.objectContaining({ agent_uuid: selectedAgent.uuid }),
+            ),
+        );
+    });
+});
+
+describe('every agent-scoped tool re-authorizes the agent it runs as', () => {
+    const inaccessibleAgentUuid = '99999999-9999-4999-8999-999999999999';
+    const permissionError = 'Insufficient permissions to access this agent';
+
+    it.each([
+        { filterExpressionsEnabled: false, documentsEnabled: false },
+        { filterExpressionsEnabled: true, documentsEnabled: false },
+        { filterExpressionsEnabled: false, documentsEnabled: true },
+        { filterExpressionsEnabled: true, documentsEnabled: true },
+    ])('refuses inaccessible agents with flags %o', async (flags) => {
+        mockRegisteredMcpTools.clear();
+        const {
+            service,
+            aiAgentService,
+            aiAgentToolsService,
+            asyncQueryService,
+        } = makeMcpService();
+        aiAgentService.getAgent.mockRejectedValue(
+            new ForbiddenError(permissionError),
+        );
+        const server = await service.createServer(
+            makeMcpServerOptions({
+                mcpContentWritesEnabled: true,
+                scheduledDeliveryEnabled: true,
+                runSqlEnabled: true,
+                runMetricQueryEnabled: true,
+                dataAppBuildsEnabled: true,
+                chartTypeBuildsEnabled: true,
+                customChartTypesEnabled: true,
+                agentIdentityEnabled: true,
+                ...flags,
+            }),
+        );
+        const agentScopedTools = vi
+            .mocked(server.registerTool<ZodRawShape, ZodRawShape>)
+            .mock.calls.filter(
+                ([, config]) =>
+                    config.inputSchema && 'agentUuid' in config.inputSchema,
+            )
+            .map(([name]) => name);
+        expect(agentScopedTools).toEqual(
+            expect.arrayContaining([
+                'list_content',
+                'generate_data_app',
+                'run_metric_query',
+                'get_query_result',
+                'list_verified_content',
+            ]),
+        );
+
+        const scenarios = agentScopedTools.flatMap((tool) =>
+            [false, true].map((pinned) => ({ tool, pinned })),
+        );
+        await scenarios.reduce(async (previous, { tool, pinned }) => {
+            await previous;
+            const callback = mockRegisteredMcpTools.get(tool);
+            if (!callback)
+                throw new Error(`Missing registered callback: ${tool}`);
+            const toolArgs =
+                tool === 'run_metric_query'
+                    ? {
+                          title: 'Orders',
+                          description: 'Orders count',
+                          queryConfig: {
+                              exploreName: 'orders',
+                              dimensions: [],
+                              metrics: ['orders_count'],
+                              sorts: [],
+                              limit: 10,
+                              customMetrics: null,
+                              tableCalculations: null,
+                              filters: flags.filterExpressionsEnabled
+                                  ? {
+                                        dimensions: null,
+                                        metrics: null,
+                                        tableCalculations: null,
+                                    }
+                                  : null,
+                          },
+                          chartConfig: null,
+                      }
+                    : {
+                          queryUuid: '22222222-2222-4222-8222-222222222222',
+                          slug: 'some-slug',
+                          name: 'Name',
+                          prompt: 'prompt',
+                          spaceSlug: null,
+                          page: 1,
+                          pageSize: 25,
+                          search: 'revenue',
+                          url: 'https://lightdash.example/projects/x',
+                          exploreName: 'orders',
+                          table: 'orders',
+                          fieldId: 'orders_status',
+                          query: 'status',
+                          chartType: 'bar',
+                      };
+            aiAgentService.getAgent.mockClear();
+            aiAgentToolsService.createRuntime.mockClear();
+            asyncQueryService.executeAsyncMetricQuery.mockClear();
+            asyncQueryService.getRawAsyncQueryResults.mockClear();
+            asyncQueryService.getAsyncQueryResults.mockClear();
+            const outcome = await callback(
+                {
+                    ...toolArgs,
+                    projectUuid,
+                    ...(pinned ? {} : { agentUuid: inaccessibleAgentUuid }),
+                },
+                pinned
+                    ? {
+                          ...extra,
+                          authInfo: {
+                              extra: {
+                                  ...extra.authInfo.extra,
+                                  headerProjectUuid: projectUuid,
+                                  headerAgentUuid: inaccessibleAgentUuid,
+                              },
+                          },
+                      }
+                    : extra,
+            ).then(
+                (result) => ({
+                    rejected: false,
+                    result,
+                    text: JSON.stringify(result),
+                }),
+                (error: unknown) => ({
+                    rejected: true,
+                    result: undefined,
+                    text:
+                        error instanceof Error ? error.message : String(error),
+                }),
+            );
+            expect
+                .soft(
+                    {
+                        ...outcome,
+                        agentCalls: aiAgentService.getAgent.mock.calls,
+                        runtimeCalls:
+                            aiAgentToolsService.createRuntime.mock.calls,
+                        executeCalls:
+                            asyncQueryService.executeAsyncMetricQuery.mock
+                                .calls,
+                        rawResultsCalls:
+                            asyncQueryService.getRawAsyncQueryResults.mock
+                                .calls,
+                        resultsCalls:
+                            asyncQueryService.getAsyncQueryResults.mock.calls,
+                    },
+                    `${tool} / ${pinned ? 'unvetted pin' : 'explicit agentUuid'} / ${JSON.stringify(flags)}`,
+                )
+                .toMatchObject({
+                    ...(outcome.rejected
+                        ? { rejected: true }
+                        : { result: { isError: true } }),
+                    text: expect.stringContaining(permissionError),
+                    agentCalls: expect.arrayContaining([
+                        [expect.anything(), inaccessibleAgentUuid, projectUuid],
+                    ]),
+                    runtimeCalls: [],
+                    executeCalls: [],
+                    rawResultsCalls: [],
+                    resultsCalls: [],
+                });
+        }, Promise.resolve());
     });
 });

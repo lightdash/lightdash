@@ -849,7 +849,7 @@ export class DashboardService
             ),
         );
 
-        return dashboardsWithContext
+        const visibleDashboards = dashboardsWithContext
             .filter(({ spaceContext }, index) =>
                 includePrivate
                     ? accessResults[index]
@@ -857,6 +857,18 @@ export class DashboardService
                       hasDirectAccessToSpace(user, spaceContext),
             )
             .map(({ dashboard }) => dashboard);
+
+        if (visibleDashboards.length === 0) return [];
+
+        const verifications =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.DASHBOARD,
+                visibleDashboards.map(({ uuid }) => uuid),
+            );
+        return visibleDashboards.map((dashboard) => ({
+            ...dashboard,
+            verification: verifications.get(dashboard.uuid) ?? null,
+        }));
     }
 
     async getByIdOrSlug(
@@ -1829,6 +1841,24 @@ export class DashboardService
                     tiles: [...updatedTiles],
                     filters: remappedFilters,
                     tabs: newTabs,
+                    parameters: newDashboard.parameters,
+                    config: newDashboard.config?.dateZoomConfig
+                        ? {
+                              ...newDashboard.config,
+                              dateZoomConfig: {
+                                  ...newDashboard.config.dateZoomConfig,
+                                  tileTargets: Object.fromEntries(
+                                      Object.entries(
+                                          newDashboard.config.dateZoomConfig
+                                              .tileTargets,
+                                      ).map(([key, value]) => [
+                                          tileUuidMap.get(key) ?? key,
+                                          value,
+                                      ]),
+                                  ),
+                              },
+                          }
+                        : newDashboard.config,
                 },
                 user,
                 projectUuid,
@@ -2447,9 +2477,15 @@ export class DashboardService
                 {
                     tiles: tilesToSave,
                     filters: dashboardFields.filters,
-                    parameters: dashboardFields.parameters,
+                    parameters:
+                        dashboardFields.parameters === undefined
+                            ? existingDashboardDao.parameters
+                            : dashboardFields.parameters,
                     tabs: dashboardFields.tabs || [],
-                    config: dashboardFields.config,
+                    config:
+                        dashboardFields.config === undefined
+                            ? existingDashboardDao.config
+                            : dashboardFields.config,
                 },
                 user,
                 existingDashboardDao.projectUuid,

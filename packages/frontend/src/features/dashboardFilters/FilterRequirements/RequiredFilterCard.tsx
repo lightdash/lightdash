@@ -43,6 +43,8 @@ type Props = {
     disabledReason?: string;
     /** Renders the alternative picker's list in a portal; default false. */
     isListInPortal?: boolean;
+    /** Draws the bordered card, tinted while required; default true. */
+    withCard?: boolean;
 };
 
 const RequiredFilterCard: FC<Props> = ({
@@ -53,6 +55,7 @@ const RequiredFilterCard: FC<Props> = ({
     onChangeOtherFilterRule,
     disabledReason,
     isListInPortal = false,
+    withCard = true,
 }) => {
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const updateFilterRule = useUpdateDashboardFilterRule();
@@ -126,7 +129,12 @@ const RequiredFilterCard: FC<Props> = ({
     );
 
     return (
-        <Box className={clsx(classes.card, isActive && classes.cardActive)}>
+        <Box
+            className={clsx(
+                withCard && classes.card,
+                withCard && isActive && classes.cardActive,
+            )}
+        >
             <Group justify="space-between" wrap="nowrap">
                 <Group gap={6} wrap="nowrap">
                     <MantineIcon

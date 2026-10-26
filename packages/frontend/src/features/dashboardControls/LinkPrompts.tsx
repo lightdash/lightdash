@@ -10,6 +10,7 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams } from 'react-router';
 import FieldSelect from '../../components/common/FieldSelect';
+import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectDashboardFilters,
@@ -101,7 +102,11 @@ const LinkCard: FC<CardProps> = ({
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
     const dismissLink = useControlsSidebarSelector((c) => c.dismissLink);
     const [picks, setPicks] = useState<Picks>({});
-    const tileTitle = getTileTitle(tile);
+    const getUiString = useUiStrings();
+    const tileTitle = getTileTitle(
+        tile,
+        getUiString('filters.tileCard.thisTile'),
+    );
     const getFilterLabel = (rule: DashboardFilterRule) =>
         rule.label ?? getLabel(rule.target.fieldId);
 
@@ -211,7 +216,7 @@ const LinkCard: FC<CardProps> = ({
 };
 
 export const LinkPrompts: FC = () => {
-    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
     const newTileUuids = useControlsSidebarSelector((c) => c.newTileUuids);
     const dismissedLinks = useControlsSidebarSelector((c) => c.dismissedLinks);
     const { mode } = useParams<{ mode?: string }>();
@@ -221,7 +226,7 @@ export const LinkPrompts: FC = () => {
         (c) => c.filterableFieldsByTileUuid,
     );
     const fieldsMap = useDashboardContext((c) => c.allFilterableFieldsMap);
-    const isEnabled = mode === 'edit' && !isSidebarOpen;
+    const isEnabled = mode === 'edit' && !isRailOpen;
 
     const prompts = useMemo(() => {
         const tiles = (dashboardTiles ?? []).filter((tile) =>

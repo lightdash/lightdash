@@ -1,4 +1,4 @@
-import { FeatureFlags, LightdashMode } from '@lightdash/common';
+import { FeatureFlags } from '@lightdash/common';
 import { Knex } from 'knex';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -235,164 +235,40 @@ describe('FeatureFlagModel', () => {
             },
         );
     });
-    describe.each([
-        FeatureFlags.PreviewSsoCredentialSync,
-        FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
-        FeatureFlags.EgressIpNotice,
-    ])('%s kill switch', (featureFlagId) => {
-        it('is on by default', async () => {
-            const model = buildModel({}, buildFakeDatabase({}));
-            await expect(
-                model.get({ user: dbUser, featureFlagId }),
-            ).resolves.toEqual({ id: featureFlagId, enabled: true });
-        });
-
-        it('turns off for one organization with an override', async () => {
-            const model = buildModel(
-                {},
-                buildFakeDatabase({
-                    flag: { default_enabled: null },
-                    orgOverride: { enabled: false },
-                }),
-            );
-            await expect(
-                model.get({ user: dbUser, featureFlagId }),
-            ).resolves.toEqual({ id: featureFlagId, enabled: false });
-        });
-
-        it('is off when the kill switch lists it', async () => {
-            const model = buildModel(
-                { disabledFeatureFlags: new Set([featureFlagId]) },
-                buildFakeDatabase({}),
-            );
-            await expect(
-                model.get({ user: dbUser, featureFlagId }),
-            ).resolves.toEqual({ id: featureFlagId, enabled: false });
-        });
-    });
-
-    describe('Learn', () => {
-        it('is off by default on self-hosted', async () => {
-            const model = buildModel({}, buildFakeDatabase({}));
-            await expect(
-                model.get({
-                    user: dbUser,
-                    featureFlagId: FeatureFlags.EnableLearn,
-                }),
-            ).resolves.toEqual({
-                id: FeatureFlags.EnableLearn,
-                enabled: false,
+    describe.each([FeatureFlags.AgentSqlScopeHyphenatedIdentifiers])(
+        '%s kill switch',
+        (featureFlagId) => {
+            it('is on by default', async () => {
+                const model = buildModel({}, buildFakeDatabase({}));
+                await expect(
+                    model.get({ user: dbUser, featureFlagId }),
+                ).resolves.toEqual({ id: featureFlagId, enabled: true });
             });
-        });
 
-        it('is on by default on Lightdash Cloud', async () => {
-            const model = buildModel(
-                { mode: LightdashMode.CLOUD_BETA },
-                buildFakeDatabase({}),
-            );
-            await expect(
-                model.get({
-                    user: dbUser,
-                    featureFlagId: FeatureFlags.EnableLearn,
-                }),
-            ).resolves.toEqual({ id: FeatureFlags.EnableLearn, enabled: true });
-        });
-
-        it('stays on for Lightdash Cloud when the flag row has no default', async () => {
-            const model = buildModel(
-                { mode: LightdashMode.CLOUD_BETA },
-                buildFakeDatabase({ flag: { default_enabled: null } }),
-            );
-            await expect(
-                model.get({
-                    user: dbUser,
-                    featureFlagId: FeatureFlags.EnableLearn,
-                }),
-            ).resolves.toEqual({ id: FeatureFlags.EnableLearn, enabled: true });
-        });
-
-        it('turns off for one Lightdash Cloud organization with an override', async () => {
-            const model = buildModel(
-                { mode: LightdashMode.CLOUD_BETA },
-                buildFakeDatabase({
-                    flag: { default_enabled: null },
-                    orgOverride: { enabled: false },
-                }),
-            );
-            await expect(
-                model.get({
-                    user: dbUser,
-                    featureFlagId: FeatureFlags.EnableLearn,
-                }),
-            ).resolves.toEqual({
-                id: FeatureFlags.EnableLearn,
-                enabled: false,
-            });
-        });
-
-        it('is off on Lightdash Cloud when the kill switch lists it', async () => {
-            const model = buildModel(
-                {
-                    mode: LightdashMode.CLOUD_BETA,
-                    disabledFeatureFlags: new Set([FeatureFlags.EnableLearn]),
-                },
-                buildFakeDatabase({}),
-            );
-            await expect(
-                model.get({
-                    user: dbUser,
-                    featureFlagId: FeatureFlags.EnableLearn,
-                }),
-            ).resolves.toEqual({
-                id: FeatureFlags.EnableLearn,
-                enabled: false,
-            });
-        });
-
-        it.each([true, false])(
-            'honors an organization override of %s',
-            async (enabled) => {
+            it('turns off for one organization with an override', async () => {
                 const model = buildModel(
                     {},
                     buildFakeDatabase({
-                        flag: { default_enabled: false },
-                        orgOverride: { enabled },
+                        flag: { default_enabled: null },
+                        orgOverride: { enabled: false },
                     }),
                 );
                 await expect(
-                    model.get({
-                        user: dbUser,
-                        featureFlagId: FeatureFlags.EnableLearn,
-                    }),
-                ).resolves.toEqual({ id: FeatureFlags.EnableLearn, enabled });
-            },
-        );
-
-        it('can be enabled through the self-hosted allowlist', async () => {
-            const model = buildModel({
-                enabledFeatureFlags: new Set([FeatureFlags.EnableLearn]),
+                    model.get({ user: dbUser, featureFlagId }),
+                ).resolves.toEqual({ id: featureFlagId, enabled: false });
             });
-            await expect(
-                model.get({
-                    user: dbUser,
-                    featureFlagId: FeatureFlags.EnableLearn,
-                }),
-            ).resolves.toEqual({ id: FeatureFlags.EnableLearn, enabled: true });
-        });
 
-        it('is enabled automatically in previews', async () => {
-            const model = buildModel(
-                { previewFeatureFlags: { enabled: true } },
-                buildFakeDatabase({}),
-            );
-            await expect(
-                model.get({
-                    user: dbUser,
-                    featureFlagId: FeatureFlags.EnableLearn,
-                }),
-            ).resolves.toEqual({ id: FeatureFlags.EnableLearn, enabled: true });
-        });
-    });
+            it('is off when the kill switch lists it', async () => {
+                const model = buildModel(
+                    { disabledFeatureFlags: new Set([featureFlagId]) },
+                    buildFakeDatabase({}),
+                );
+                await expect(
+                    model.get({ user: dbUser, featureFlagId }),
+                ).resolves.toEqual({ id: featureFlagId, enabled: false });
+            });
+        },
+    );
 
     describe('check telemetry', () => {
         beforeEach(() => {
@@ -490,12 +366,17 @@ describe('FeatureFlagModel', () => {
         it('disable-allowlist forces off even when a config handler would enable', async () => {
             // Self-hoster kill switch wins over default-on flags.
             const model = buildModel({
-                disabledFeatureFlags: new Set([FeatureFlags.EditYamlInUi]),
-                editYamlInUi: { enabled: true },
+                disabledFeatureFlags: new Set([
+                    FeatureFlags.EnableTimezoneSupport,
+                ]),
+                query: {
+                    ...lightdashConfigMock.query,
+                    enableTimezoneSupport: true,
+                },
             });
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.EditYamlInUi,
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
             });
 
             expect(result.enabled).toBe(false);
@@ -520,12 +401,17 @@ describe('FeatureFlagModel', () => {
     describe('resolution priority', () => {
         it('env var override takes precedence over config handlers', async () => {
             const model = buildModel({
-                enabledFeatureFlags: new Set([FeatureFlags.EditYamlInUi]),
-                editYamlInUi: { enabled: false },
+                enabledFeatureFlags: new Set([
+                    FeatureFlags.EnableTimezoneSupport,
+                ]),
+                query: {
+                    ...lightdashConfigMock.query,
+                    enableTimezoneSupport: false,
+                },
             });
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.EditYamlInUi,
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
             });
 
             expect(result.enabled).toBe(true);
@@ -640,13 +526,15 @@ describe('FeatureFlagModel', () => {
             const model = buildModel(
                 {
                     ...previewConfig,
-                    enabledFeatureFlags: new Set([FeatureFlags.EditYamlInUi]),
+                    enabledFeatureFlags: new Set([
+                        FeatureFlags.EnableTimezoneSupport,
+                    ]),
                 },
                 buildFakeDatabase({ orgOverride: { enabled: false } }),
             );
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.EditYamlInUi,
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
                 user: dbUser,
             });
 
@@ -655,12 +543,16 @@ describe('FeatureFlagModel', () => {
 
         it('ignores stored overrides outside preview environments', async () => {
             const model = buildModel(
-                { enabledFeatureFlags: new Set([FeatureFlags.EditYamlInUi]) },
+                {
+                    enabledFeatureFlags: new Set([
+                        FeatureFlags.EnableTimezoneSupport,
+                    ]),
+                },
                 buildFakeDatabase({ orgOverride: { enabled: false } }),
             );
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.EditYamlInUi,
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
                 user: dbUser,
             });
 
@@ -671,26 +563,32 @@ describe('FeatureFlagModel', () => {
     describe('config handler resolution', () => {
         it('resolves config-driven flags without hitting the DB', async () => {
             const model = buildModel({
-                editYamlInUi: { enabled: true },
+                query: {
+                    ...lightdashConfigMock.query,
+                    enableTimezoneSupport: true,
+                },
             });
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.EditYamlInUi,
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
             });
 
             expect(result).toEqual({
-                id: FeatureFlags.EditYamlInUi,
+                id: FeatureFlags.EnableTimezoneSupport,
                 enabled: true,
             });
         });
 
         it('respects config disabled state', async () => {
             const model = buildModel({
-                editYamlInUi: { enabled: false },
+                query: {
+                    ...lightdashConfigMock.query,
+                    enableTimezoneSupport: false,
+                },
             });
 
             const result = await model.get({
-                featureFlagId: FeatureFlags.EditYamlInUi,
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
             });
 
             expect(result.enabled).toBe(false);
@@ -1042,90 +940,6 @@ describe('agent silent refresh default-on kill switch', () => {
                 await model.get({
                     user: dbUser,
                     featureFlagId: FeatureFlags.AgentIdentitySilentRefresh,
-                })
-            ).enabled,
-        ).toBe(false);
-    });
-});
-
-describe('warehouse OAuth refresh lock default-on kill switch', () => {
-    test.each([undefined, true, false])(
-        'honours Console override %s',
-        async (enabled) => {
-            const model = buildModel(
-                { previewFeatureFlags: { enabled: false } },
-                buildFakeDatabase({
-                    flag: { default_enabled: null },
-                    orgOverride:
-                        enabled === undefined ? undefined : { enabled },
-                }),
-            );
-            expect(
-                (
-                    await model.get({
-                        user: { organizationUuid: dbUser.organizationUuid },
-                        featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
-                    })
-                ).enabled,
-            ).toBe(enabled ?? true);
-        },
-    );
-    test('honours ENV disable over Console enable', async () => {
-        const model = buildModel(
-            {
-                disabledFeatureFlags: new Set([
-                    FeatureFlags.WarehouseOAuthRefreshLock,
-                ]),
-                previewFeatureFlags: { enabled: false },
-            },
-            buildFakeDatabase({
-                flag: { default_enabled: null },
-                orgOverride: { enabled: true },
-            }),
-        );
-        expect(
-            (
-                await model.get({
-                    user: { organizationUuid: dbUser.organizationUuid },
-                    featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
-                })
-            ).enabled,
-        ).toBe(false);
-    });
-});
-
-describe('ai decisions default-on org switch', () => {
-    test.each([undefined, true, false])(
-        'honours Console override %s',
-        async (enabled) => {
-            const model = buildModel(
-                { previewFeatureFlags: { enabled: false } },
-                buildFakeDatabase({
-                    flag: { default_enabled: null },
-                    orgOverride:
-                        enabled === undefined ? undefined : { enabled },
-                }),
-            );
-            expect(
-                (
-                    await model.get({
-                        user: { organizationUuid: dbUser.organizationUuid },
-                        featureFlagId: FeatureFlags.AiDecisions,
-                    })
-                ).enabled,
-            ).toBe(enabled ?? true);
-        },
-    );
-    test('honours a stored instance default of off', async () => {
-        const model = buildModel(
-            { previewFeatureFlags: { enabled: false } },
-            buildFakeDatabase({ flag: { default_enabled: false } }),
-        );
-        expect(
-            (
-                await model.get({
-                    user: { organizationUuid: dbUser.organizationUuid },
-                    featureFlagId: FeatureFlags.AiDecisions,
                 })
             ).enabled,
         ).toBe(false);

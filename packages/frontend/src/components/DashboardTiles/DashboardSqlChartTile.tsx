@@ -35,6 +35,7 @@ import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import { useRegisterTileQuery } from '../../providers/Dashboard/useRegisterTileQuery';
 import { getConnectionName } from '../common/connectionName';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
@@ -171,6 +172,49 @@ const SqlChartTile: FC<Props> = ({
               },
     );
     const connections = useConnectionBadges(effectiveProjectUuid);
+
+    // Publish this tile's query as an AI analysis source once it settles.
+    const sqlQueryUuid = chartResultsData?.queryUuid ?? null;
+    const tileError = chartError ?? chartResultsError ?? null;
+    const registration = useMemo(() => {
+        const label =
+            tile.properties.title || tile.properties.chartName || 'Chart';
+        // Errors settle the tile before any loading guard: a failed chart
+        // fetch leaves the dependent results query disabled with
+        // isLoading: true forever, which would pin the dashboard in flight.
+        if (tileError) {
+            return {
+                tileUuid: tile.uuid,
+                queryUuid: sqlQueryUuid,
+                label,
+                status: 'error' as const,
+            };
+        }
+        // Withdraw during background refetches too: a cached tab remount
+        // keeps the old queryUuid while replacement results load, and stale
+        // uuids must never be analysed.
+        if (isChartLoading || isChartResultsLoading || isChartResultsFetching) {
+            return null;
+        }
+        if (!sqlQueryUuid) return null;
+        return {
+            tileUuid: tile.uuid,
+            queryUuid: sqlQueryUuid,
+            label,
+            status: 'ready' as const,
+        };
+    }, [
+        sqlQueryUuid,
+        tileError,
+        isChartLoading,
+        isChartResultsLoading,
+        isChartResultsFetching,
+        tile.uuid,
+        tile.properties.title,
+        tile.properties.chartName,
+    ]);
+    useRegisterTileQuery(registration);
+
     // Charts in Dashboard shouldn't have animation
     const specWithoutAnimation = useMemo(() => {
         if (!chartResultsData?.chartSpec) return chartResultsData?.chartSpec;

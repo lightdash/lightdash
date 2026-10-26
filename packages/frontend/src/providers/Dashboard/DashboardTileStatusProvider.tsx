@@ -27,6 +27,7 @@ import {
     useDashboardDispatch,
     useDashboardSelector,
 } from '../../features/dashboard/store';
+import { type TileQueryRegistration } from '../../features/dashboard/store/dashboardTileStatusReducer';
 import {
     auditResponseToTileStatuses,
     useDashboardPreAggregateAudit,
@@ -65,6 +66,22 @@ const DashboardTileStatusProvider: React.FC<
     const setIsAutoRefresh = useCallback(
         (autoRefresh: boolean) => {
             dispatch(dashboardTileStatusActions.setIsAutoRefresh(autoRefresh));
+        },
+        [dispatch],
+    );
+
+    const registerTileQuery = useCallback(
+        (registration: TileQueryRegistration) => {
+            dispatch(
+                dashboardTileStatusActions.registerTileQuery(registration),
+            );
+        },
+        [dispatch],
+    );
+
+    const unregisterTileQuery = useCallback(
+        (tileUuid: string) => {
+            dispatch(dashboardTileStatusActions.unregisterTileQuery(tileUuid));
         },
         [dispatch],
     );
@@ -359,6 +376,8 @@ const DashboardTileStatusProvider: React.FC<
             clearCacheAndFetch,
             updateSqlChartTilesMetadata,
             markTileLoaded,
+            registerTileQuery,
+            unregisterTileQuery,
             markEmbedTileComplete,
             chartTileUuidsToLoad,
             addAvailableCustomGranularities,
@@ -376,6 +395,8 @@ const DashboardTileStatusProvider: React.FC<
             clearCacheAndFetch,
             updateSqlChartTilesMetadata,
             markTileLoaded,
+            registerTileQuery,
+            unregisterTileQuery,
             markEmbedTileComplete,
             chartTileUuidsToLoad,
             addAvailableCustomGranularities,

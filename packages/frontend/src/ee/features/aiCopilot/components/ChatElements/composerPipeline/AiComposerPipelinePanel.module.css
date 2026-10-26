@@ -199,25 +199,9 @@
     overflow-wrap: anywhere;
 }
 
-.fields {
-    padding-left: var(--node-indent);
-}
-
-.exploreName {
-    font-size: var(--mantine-font-size-xs);
-    color: var(--mantine-color-ldGray-6);
-    margin-right: var(--mantine-spacing-xxs);
-}
-
-.fieldChip {
-    display: inline-flex;
-    align-items: center;
-    height: 20px;
-    padding: 0 var(--mantine-spacing-xs);
-    border-radius: var(--mantine-radius-sm);
-    font-size: var(--mantine-font-size-xs);
-    font-weight: 500;
-    white-space: nowrap;
+/* Lines the rows up with the toggle text, past its chevron. */
+.summaryBody {
+    padding: 6px 0 4px 16px;
 }
 
 .details {

@@ -19,6 +19,7 @@ export const QUERY_TOOL_NAMES: ReadonlySet<string> = new Set([
     'runSql',
     'query',
     'runComposerQueries',
+    'visualize',
 ]);
 
 /** Re-running a heavy scan that already timed out is especially wasteful. */

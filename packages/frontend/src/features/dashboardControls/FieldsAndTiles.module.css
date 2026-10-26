@@ -8,7 +8,8 @@
     display: flex;
     align-items: center;
     gap: var(--mantine-spacing-xs);
-    margin: 0 calc(-1 * var(--mantine-spacing-xs));
+    /* Its border too: the icon and the remove button line up with the inputs */
+    margin-inline: calc(-1 * var(--mantine-spacing-xs) - 1px);
     padding: calc(var(--mantine-spacing-xs) / 2) var(--mantine-spacing-xs);
     border: 1px solid transparent;
     border-radius: var(--mantine-radius-sm);
@@ -35,9 +36,13 @@
 }
 
 .rowMain {
-    display: block;
+    display: flex;
+    align-items: center;
     flex: 1;
+    align-self: stretch;
     min-width: 0;
+    /* The full height of the row, its padding included */
+    margin-block: calc(-1 * var(--mantine-spacing-xs) / 2);
     border-radius: var(--mantine-radius-sm);
 }
 
@@ -57,6 +62,8 @@
 /* The press scales the name, not the button: a transform on the button would
    shrink the click area above to the button itself */
 .rowLabel {
+    /* Lets a long name shrink and end in an ellipsis */
+    min-width: 0;
     transition: transform var(--controls-duration-hover) var(--controls-ease);
 }
 

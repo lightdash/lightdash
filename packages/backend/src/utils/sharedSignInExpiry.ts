@@ -1,7 +1,6 @@
 import {
     BigqueryTokenError,
     DatabricksTokenError,
-    FeatureFlags,
     getExpiredSharedSignInMessage,
     getPersonSignIn,
     PersonSignInProvider,
@@ -9,7 +8,6 @@ import {
     type Account,
     type SharedSignInExpiry,
 } from '@lightdash/common';
-import type { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../models/ProjectModel/ProjectModel';
 
 export type WarehouseTokenError =
@@ -62,13 +60,11 @@ export const personaliseStoredSharedSignInError = async ({
     projectUuid,
     error,
     projectModel,
-    featureFlagModel,
 }: {
     account: Account;
     projectUuid: string;
     error: string | null;
     projectModel: ProjectModel;
-    featureFlagModel: FeatureFlagModel;
 }): Promise<string | null> => {
     if (
         !error ||
@@ -92,11 +88,6 @@ export const personaliseStoredSharedSignInError = async ({
         )
     )
         return error;
-    const { enabled } = await featureFlagModel.get({
-        user: { organizationUuid: account.organization.organizationUuid },
-        featureFlagId: FeatureFlags.SharedSignInExpiryMessage,
-    });
-    if (!enabled) return error;
     try {
         const credentials =
             await projectModel.getWarehouseCredentialsForProject(projectUuid);

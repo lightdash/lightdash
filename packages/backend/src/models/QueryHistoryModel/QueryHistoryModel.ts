@@ -43,6 +43,11 @@ import {
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import KnexPaginate from '../../database/pagination';
+import {
+    pauseBetweenBatchesMs,
+    type RetentionCleanupOptions,
+    type RetentionCleanupResult,
+} from '../retentionCleanup';
 
 export type QueryHistoryWithLineage = QueryHistory & {
     duckdbExecutionReferences?: Record<string, string> | null;
@@ -329,6 +334,31 @@ export class QueryHistoryModel {
                 this.database.raw(
                     "jsonb_set(request_parameters, '{resultArtifact}', ?::jsonb, true)",
                     [JSON.stringify(artifact)],
+                ),
+            );
+    }
+
+    async recordResultMessageQuery(
+        queryUuid: string,
+        projectUuid: string,
+        accountId: string,
+        messageQuery: NonNullable<
+            QueryHistory['requestParameters']['resultMessageQuery']
+        >,
+    ): Promise<void> {
+        await this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .andWhere('project_uuid', projectUuid)
+            .andWhere((query) => {
+                void query
+                    .whereRaw('created_by_user_uuid::text = ?', [accountId])
+                    .orWhere('created_by_account', accountId);
+            })
+            .update(
+                'request_parameters',
+                this.database.raw(
+                    "jsonb_set(request_parameters, '{resultMessageQuery}', ?::jsonb, true)",
+                    [JSON.stringify(messageQuery)],
                 ),
             );
     }
@@ -873,24 +903,37 @@ export class QueryHistoryModel {
 
     async cleanupBatch(
         cutoffDate: Date,
-        batchSize: number,
-        delayMs: number,
-        maxBatches?: number,
-        totalDeleted: number = 0,
-        batchCount: number = 0,
-    ): Promise<{ totalDeleted: number; batchCount: number }> {
-        // Get IDs to delete
+        options: RetentionCleanupOptions,
+    ): Promise<RetentionCleanupResult> {
+        return this.deleteExpiredBatches(cutoffDate, options, {
+            totalDeleted: 0,
+            batchCount: 0,
+        });
+    }
+
+    async countOlderThan(cutoffDate: Date): Promise<number> {
+        const [row] = await this.database(QueryHistoryTableName)
+            .where('created_at', '<', cutoffDate)
+            .count<{ count: string }[]>('query_uuid as count');
+        return Number(row?.count ?? 0);
+    }
+
+    private async deleteExpiredBatches(
+        cutoffDate: Date,
+        options: RetentionCleanupOptions,
+        progress: { totalDeleted: number; batchCount: number },
+    ): Promise<RetentionCleanupResult> {
+        const batchStartedAt = Date.now();
         const idsToDelete = await this.database(QueryHistoryTableName)
             .select('query_uuid')
             .where('created_at', '<', cutoffDate)
             .orderBy('created_at', 'asc')
-            .limit(batchSize);
+            .limit(options.batchSize);
 
         if (idsToDelete.length === 0) {
-            return { totalDeleted, batchCount };
+            return { ...progress, completed: true };
         }
 
-        // Delete by IDs
         const deletedCount = await this.database(QueryHistoryTableName)
             .whereIn(
                 'query_uuid',
@@ -898,38 +941,22 @@ export class QueryHistoryModel {
             )
             .del();
 
-        if (deletedCount === 0) {
-            return { totalDeleted, batchCount };
+        const next = {
+            totalDeleted: progress.totalDeleted + deletedCount,
+            batchCount: progress.batchCount + 1,
+        };
+
+        if (deletedCount < options.batchSize) {
+            return { ...next, completed: true };
+        }
+        if (next.batchCount >= options.maxBatches) {
+            return { ...next, completed: false };
         }
 
-        const newTotalDeleted = totalDeleted + deletedCount;
-        const newBatchCount = batchCount + 1;
-
-        // Check if we've reached the maximum number of batches
-        if (maxBatches !== undefined && newBatchCount >= maxBatches) {
-            return { totalDeleted: newTotalDeleted, batchCount: newBatchCount };
-        }
-
-        // Add delay between batches to prevent database overload
-        if (deletedCount === batchSize) {
-            await new Promise<void>((resolve) => {
-                setTimeout(() => resolve(), delayMs);
-            });
-        }
-
-        // Continue with next batch if we deleted a full batch
-        if (deletedCount === batchSize) {
-            return this.cleanupBatch(
-                cutoffDate,
-                batchSize,
-                delayMs,
-                maxBatches,
-                newTotalDeleted,
-                newBatchCount,
-            );
-        }
-
-        return { totalDeleted: newTotalDeleted, batchCount: newBatchCount };
+        await sleep(
+            pauseBetweenBatchesMs(options, Date.now() - batchStartedAt),
+        );
+        return this.deleteExpiredBatches(cutoffDate, options, next);
     }
 
     /**

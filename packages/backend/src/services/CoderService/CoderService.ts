@@ -16,6 +16,7 @@ import {
     ApiSpaceAsCodeUpsertResponse,
     ApiVirtualViewAsCodeListResponse,
     ApiVirtualViewAsCodeUpsertResponse,
+    applyNewChartDefaults,
     assertUnreachable,
     ChartAsCode,
     ChartAsCodeConfig,
@@ -4316,6 +4317,9 @@ export class CoderService extends BaseService {
                 }
                 createChart = {
                     ...chartWithDefaults,
+                    chartConfig: applyNewChartDefaults(
+                        chartWithDefaults.chartConfig,
+                    ),
                     spaceUuid: null,
                     dashboardUuid,
                     updatedByUser: user,
@@ -4324,6 +4328,9 @@ export class CoderService extends BaseService {
             } else {
                 createChart = {
                     ...chartWithDefaults,
+                    chartConfig: applyNewChartDefaults(
+                        chartWithDefaults.chartConfig,
+                    ),
                     spaceUuid: space.uuid,
                     dashboardUuid: null,
                     updatedByUser: user,

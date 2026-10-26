@@ -903,6 +903,10 @@ export class ServiceRepository
                     persistentDownloadFileModel:
                         this.models.getPersistentDownloadFileModel(),
                     fileStorageClient: this.clients.getFileStorageClient(),
+                    uploadsFileStorageClient: this.context.lightdashConfig
+                        .uploads.s3
+                        ? this.clients.getUploadsFileStorageClient()
+                        : null,
                 }),
         );
     }
@@ -979,11 +983,14 @@ export class ServiceRepository
             () =>
                 new AnalyticsProjectService({
                     coderService: this.getCoderService(),
+                    contentVerificationModel:
+                        this.models.getContentVerificationModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     projectModel: this.models.getProjectModel(),
                     projectService: this.getProjectService(),
                     userModel: this.models.getUserModel(),
+                    spaceModel: this.models.getSpaceModel(),
                 }),
         );
     }
@@ -1257,7 +1264,6 @@ export class ServiceRepository
                         provisionTrainingProject({
                             user,
                             projectService,
-                            featureFlagModel: this.models.getFeatureFlagModel(),
                             projectModel: this.models.getProjectModel(),
                             onboardingModel: this.models.getOnboardingModel(),
                             catalogService: this.getCatalogService(),
@@ -1943,7 +1949,6 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     learnWorkspaceModel: this.models.getLearnWorkspaceModel(),
                     projectModel: this.models.getProjectModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     personalAccessTokenService:
                         this.getPersonalAccessTokenService(),
                     userService: this.getUserService(),

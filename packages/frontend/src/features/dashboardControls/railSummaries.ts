@@ -1,4 +1,5 @@
 import {
+    interpolateUiString,
     isEmptyDashboardFilterRule,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -10,7 +11,7 @@ import {
     showsComposedFilterValue,
 } from '../dashboardFilters/ActiveFilters/filterLabels';
 import { getTruncatedValuesDisplay } from '../dashboardFilters/ActiveFilters/utils';
-import { pluralizeTiles } from './fieldLabels';
+import { formatFieldCount, formatTileCount } from './fieldLabels';
 
 // The name and value a pill shows, as one line of text
 export const getFilterRuleSummary = (
@@ -71,7 +72,12 @@ export const getRequiredSummary = (
         : 'Required';
 };
 
-export const getTilesSummary = (tileCount: number, fieldCount: number) =>
-    `${tileCount} ${pluralizeTiles(tileCount)} · ${fieldCount} ${
-        fieldCount === 1 ? 'field' : 'fields'
-    }`;
+export const getTilesSummary = (
+    tileCount: number,
+    fieldCount: number,
+    getUiString: UiStringResolver,
+) =>
+    interpolateUiString(getUiString('filters.rail.tilesSummary'), {
+        tiles: formatTileCount(getUiString, tileCount),
+        fields: formatFieldCount(getUiString, fieldCount),
+    });

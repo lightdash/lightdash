@@ -61,7 +61,10 @@ const DraggableTab: FC<DraggableTabProps> = ({
                             ref={ref}
                             key={idx}
                             value={tab.uuid}
-                            maw={`${100 / (sortedTabs.length || 1)}vw`}
+                            // A stylesheet may lift the cap; unset, it is a share of the viewport
+                            maw={`var(--dashboard-tab-max-width, ${
+                                100 / (sortedTabs.length || 1)
+                            }vw)`}
                             opacity={isEditMode && tab.hidden ? 0.55 : 1}
                             styles={{
                                 tabSection: {

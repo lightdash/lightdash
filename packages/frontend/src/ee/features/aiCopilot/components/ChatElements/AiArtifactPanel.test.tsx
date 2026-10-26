@@ -451,6 +451,7 @@ describe('composer artifact', () => {
     });
 });
 
+// Skipped tests cover the chart panel, hidden until its design is settled.
 describe('composer viz config panel', () => {
     const renderComposer = (
         results: ReturnType<typeof resultsOf>,
@@ -481,7 +482,7 @@ describe('composer viz config panel', () => {
         ],
     );
 
-    it('opens a string + number result as a table offering table, bar, line and pie', async () => {
+    it.skip('opens a string + number result as a table offering table, bar, line and pie', async () => {
         renderComposer(statusCounts);
         expect(chartBar()).toHaveTextContent('Table');
         await openChart();
@@ -497,7 +498,7 @@ describe('composer viz config panel', () => {
         ).toBeInTheDocument();
     });
 
-    it('opens a date + number result as a table and can switch to a line chart', async () => {
+    it.skip('opens a date + number result as a table and can switch to a line chart', async () => {
         renderComposer(
             resultsOf(
                 {
@@ -516,7 +517,7 @@ describe('composer viz config panel', () => {
         expect(screen.getByTestId('chart-view-line')).toBeInTheDocument();
     });
 
-    it('switches back to the table from the same fetched rows', async () => {
+    it.skip('switches back to the table from the same fetched rows', async () => {
         renderComposer(statusCounts);
         await openChart();
         chooseKind('bar');
@@ -536,7 +537,7 @@ describe('composer viz config panel', () => {
         );
     });
 
-    it('opens a duplicate-x result as a table but keeps bar and line selectable', async () => {
+    it.skip('opens a duplicate-x result as a table but keeps bar and line selectable', async () => {
         renderComposer(
             resultsOf(
                 {
@@ -555,7 +556,7 @@ describe('composer viz config panel', () => {
         expect(offeredKinds()).toEqual(['table', 'bar', 'line', 'pie']);
     });
 
-    it('opens a one-row, one-number result as a table and can switch to a big number', async () => {
+    it.skip('opens a one-row, one-number result as a table and can switch to a big number', async () => {
         renderComposer(
             resultsOf(
                 {
@@ -580,7 +581,7 @@ describe('composer viz config panel', () => {
         expect(screen.getByRole('columnheader')).toHaveTextContent('status');
     });
 
-    it('opens on the stored viz config and writes an edit back', async () => {
+    it.skip('opens on the stored viz config and writes an edit back', async () => {
         const { unmount } = renderComposer(statusCounts, {
             ...composerConfig,
             vizConfig: {
@@ -610,7 +611,7 @@ describe('composer viz config panel', () => {
         );
     });
 
-    it("keeps a read-only viewer's kind switch on screen without writing it", async () => {
+    it.skip("keeps a read-only viewer's kind switch on screen without writing it", async () => {
         mocks.thread.mockReturnValue({
             data: {
                 user: { uuid: 'someone-else' },
@@ -643,7 +644,7 @@ describe('composer viz config panel', () => {
         expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
     });
 
-    it('keeps only one of Chart and Queries open', async () => {
+    it.skip('keeps only one of Chart and Queries open', async () => {
         renderComposer(statusCounts);
         await openChart();
         expect(chartBar()).toHaveAttribute('aria-expanded', 'true');
@@ -901,7 +902,7 @@ describe('composer per-node viz switcher', () => {
         fireEvent.click(
             screen.getByRole('button', { name: `Display ${title}` }),
         );
-    it('opens each displayed node as a table and remembers each choice', async () => {
+    it.skip('opens each displayed node as a table and remembers each choice', async () => {
         renderComposer();
         await openChart();
         expect(selectedKind()).toBe('table');

@@ -1,4 +1,5 @@
 import {
+    DimensionType,
     QuerySourceType,
     SEED_ORG_1,
     SEED_PROJECT,
@@ -22,6 +23,8 @@ const orders: ThreadComposerQueryNode = {
     sql: 'SELECT * FROM orders',
     limit: 500,
 };
+
+const totalsColumns = [{ reference: 'count', type: DimensionType.NUMBER }];
 
 const totals: ThreadComposerQueryNode = {
     sourceType: QuerySourceType.DUCKDB,
@@ -70,10 +73,12 @@ describe('AiAgentModel thread composer query nodes', () => {
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
             nodes: [orders],
+            nodeColumns: {},
         });
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
             nodes: [orders, totals],
+            nodeColumns: {},
         });
 
         expect(
@@ -88,11 +93,13 @@ describe('AiAgentModel thread composer query nodes', () => {
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
             nodes: [orders, totals],
+            nodeColumns: {},
         });
 
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
             nodes: [{ ...totals, references: ['orders'] }],
+            nodeColumns: {},
         });
 
         expect(
@@ -107,12 +114,14 @@ describe('AiAgentModel thread composer query nodes', () => {
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
             nodes: [orders],
+            nodeColumns: {},
         });
 
         await expect(
             model.registerComposerQueryNodes({
                 scope: threadComposerQueryScope(threadUuid),
                 nodes: [totals, { ...orders, limit: 10 }],
+                nodeColumns: {},
             }),
         ).rejects.toThrow(
             'Node id "orders" already names a different node in this thread ("Orders"). To reuse it, read "orders" without resubmitting it; to define a new node, give it a different node id.',
@@ -130,11 +139,13 @@ describe('AiAgentModel thread composer query nodes', () => {
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadA),
             nodes: [orders],
+            nodeColumns: {},
         });
 
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadB),
             nodes: [{ ...orders, limit: 10 }],
+            nodeColumns: {},
         });
 
         expect(
@@ -155,10 +166,12 @@ describe('AiAgentModel thread composer query nodes', () => {
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
             nodes: [orders],
+            nodeColumns: {},
         });
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(otherThreadUuid),
             nodes: [orders],
+            nodeColumns: {},
         });
 
         await model.deleteThread({
@@ -190,6 +203,7 @@ describe('AiAgentModel thread composer query nodes', () => {
         await model.registerComposerQueryNodes({
             scope: threadComposerQueryScope(threadUuid),
             nodes: [orders, totals],
+            nodeColumns: { totals: totalsColumns },
         });
 
         const clonedThreadUuid = await model.cloneThread({
@@ -204,5 +218,44 @@ describe('AiAgentModel thread composer query nodes', () => {
                 threadComposerQueryScope(clonedThreadUuid),
             ),
         ).toEqual([orders, totals]);
+        expect(
+            await model.findComposerQueryNodeColumns({
+                scope: threadComposerQueryScope(clonedThreadUuid),
+                nodeId: 'totals',
+            }),
+        ).toEqual(totalsColumns);
+    });
+
+    it('stores the columns a run gives a node, keeping them when a later run gives none', async () => {
+        const threadUuid = await createThread();
+        const scope = threadComposerQueryScope(threadUuid);
+        await model.registerComposerQueryNodes({
+            scope,
+            nodes: [orders, totals],
+            nodeColumns: {},
+        });
+        await model.registerComposerQueryNodes({
+            scope,
+            nodes: [orders, totals],
+            nodeColumns: { totals: totalsColumns },
+        });
+        await model.registerComposerQueryNodes({
+            scope,
+            nodes: [totals],
+            nodeColumns: {},
+        });
+
+        expect(
+            await model.findComposerQueryNodeColumns({
+                scope,
+                nodeId: 'totals',
+            }),
+        ).toEqual(totalsColumns);
+        expect(
+            await model.findComposerQueryNodeColumns({
+                scope,
+                nodeId: 'orders',
+            }),
+        ).toBeNull();
     });
 });

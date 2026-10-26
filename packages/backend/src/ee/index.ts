@@ -338,7 +338,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     groupsModel: models.getGroupsModel(),
                     projectModel: models.getProjectModel(),
                     userModel: models.getUserModel(),
-                    fileStorageClient: clients.getFileStorageClient(),
                     persistentDownloadFileService:
                         repository.getPersistentDownloadFileService(),
                     slackClient: clients.getSlackClient(),
@@ -1068,6 +1067,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dataAppAnalysisModel:
                         models.getDataAppAnalysisModel<DataAppAnalysisModel>(),
                     appModel: models.getAppModel(),
+                    dashboardModel: models.getDashboardModel(),
                     userModel: models.getUserModel(),
                     schedulerService: repository.getSchedulerService(),
                     schedulerClient:
@@ -1384,7 +1384,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         provisionTrainingProject({
                             user,
                             projectService,
-                            featureFlagModel: models.getFeatureFlagModel(),
                             projectModel: models.getProjectModel(),
                             onboardingModel: models.getOnboardingModel(),
                             catalogService: repository.getCatalogService(),
@@ -1566,11 +1565,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getPreAggregateDailyStatsModel(),
                         preAggregateResultsStorageClient:
                             clients.getPreAggregateResultsFileStorageClient(),
-                        isEnabled: (organizationUuid) =>
-                            isPreAggregatesEnabled(
-                                models.getFeatureFlagModel(),
-                                organizationUuid,
-                            ),
+                        isEnabled: async () =>
+                            isPreAggregatesEnabled(context.lightdashConfig),
                         dashboardModel: models.getDashboardModel(),
                         savedChartModel: models.getSavedChartModel(),
                         projectService: repository.getProjectService(),
@@ -1680,9 +1676,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     ) =>
                         enhanceExploresForPreAggregates({
                             explores,
-                            enabled: await isPreAggregatesEnabled(
-                                models.getFeatureFlagModel(),
-                                organizationUuid,
+                            enabled: isPreAggregatesEnabled(
+                                context.lightdashConfig,
                             ),
                             startOfWeek,
                             startOfWeekByExplore,
@@ -1941,7 +1936,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     schedulerModel: models.getSchedulerModel(),
-                    featureFlagModel: models.getFeatureFlagModel(),
                 }),
             slackClient: ({ context, models, repository }) =>
                 new CommercialSlackClient({

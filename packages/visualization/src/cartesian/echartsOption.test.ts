@@ -47,10 +47,7 @@ import {
     selectContinuousDateRange,
     transformStack100ByValueAxis,
 } from './echartsOption';
-import {
-    LEGEND_INTERACTION_HINT,
-    type LegendDoubleClickTooltip,
-} from './legendTooltip';
+import { type LegendLabelTooltipStyle } from './legendTooltip';
 
 dayjs.extend(utcPlugin);
 dayjs.extend(timezonePlugin);
@@ -2470,6 +2467,21 @@ describe('mergeLegendSettings', () => {
         });
     });
 
+    test('returns defaults when config only holds a persisted selection', () => {
+        const result = mergeLegendSettings(
+            { selected: { A: false } },
+            { A: false, B: true },
+            series,
+        );
+        expect(result).toMatchObject({
+            show: true,
+            type: 'scroll',
+            orient: 'horizontal',
+            top: 0,
+            selected: { A: false, B: true },
+        });
+    });
+
     test('passes through user orient/position when placement is unset', () => {
         const result = mergeLegendSettings(
             { orient: 'vertical', right: '10', top: '20' },
@@ -2622,7 +2634,7 @@ describe('composeLegendConfig', () => {
     const series = [{ name: 'A' }, { name: 'B' }] as any;
     const selected = { A: true, B: true };
     const legendStyle = getLegendStyle('square');
-    const doubleClickTooltip: LegendDoubleClickTooltip = {
+    const labelTooltipStyle: LegendLabelTooltipStyle = {
         show: true,
         backgroundColor: '#fff',
         borderColor: '#ddd',
@@ -2631,7 +2643,6 @@ describe('composeLegendConfig', () => {
         textStyle: { color: '#333', fontSize: 12, fontWeight: 400 },
         padding: [4, 8],
         extraCssText: '',
-        formatter: () => LEGEND_INTERACTION_HINT,
     };
 
     test('keeps outside-legend truncation alongside the shared typography', () => {
@@ -2644,7 +2655,7 @@ describe('composeLegendConfig', () => {
         const result = composeLegendConfig(
             merged,
             legendStyle,
-            doubleClickTooltip,
+            labelTooltipStyle,
         );
         expect(result.textStyle).toEqual({
             ...legendStyle.textStyle,
@@ -2660,7 +2671,7 @@ describe('composeLegendConfig', () => {
         });
     });
 
-    test('shows the full label above the hint when labels can be truncated', () => {
+    test('shows the full label when labels can be truncated', () => {
         const merged = mergeLegendSettings(
             { placement: 'outsideLeft' },
             selected,
@@ -2669,15 +2680,16 @@ describe('composeLegendConfig', () => {
         const { tooltip } = composeLegendConfig(
             merged,
             legendStyle,
-            doubleClickTooltip,
+            labelTooltipStyle,
         );
         expect(tooltip).toMatchObject({ show: true, borderRadius: 4 });
-        const html = tooltip.formatter({ name: '<Long> & wordy label' });
-        expect(html).toContain('&lt;Long&gt; &amp; wordy label');
-        expect(html).toContain(LEGEND_INTERACTION_HINT);
+        expect(
+            'formatter' in tooltip &&
+                tooltip.formatter({ name: '<Long> & wordy label' }),
+        ).toBe('&lt;Long&gt; &amp; wordy label');
     });
 
-    test('leaves in-chart legends with the plain hint tooltip and typography', () => {
+    test('hides the tooltip for in-chart legends and keeps the typography', () => {
         const merged = mergeLegendSettings(
             { orient: 'horizontal', top: '0' },
             selected,
@@ -2686,9 +2698,9 @@ describe('composeLegendConfig', () => {
         const result = composeLegendConfig(
             merged,
             legendStyle,
-            doubleClickTooltip,
+            labelTooltipStyle,
         );
-        expect(result.tooltip).toBe(doubleClickTooltip);
+        expect(result.tooltip).toEqual({ show: false });
         expect(result.textStyle).toEqual(legendStyle.textStyle);
     });
 });

@@ -3,6 +3,15 @@ import { createAction, type UnknownAction } from '@reduxjs/toolkit';
 import min from 'lodash/min';
 import { type SqlChartTileMetadata } from '../../../providers/Dashboard/types';
 
+/** One chart/SQL tile's query, published for AI analysis sources. */
+export type TileQueryRegistration = {
+    tileUuid: string;
+    /** Null when the tile failed before a query existed. */
+    queryUuid: string | null;
+    label: string;
+    status: 'ready' | 'error';
+};
+
 export type DashboardTileStatusState = {
     loadedTiles: Set<string>;
     oldestCacheTime: Date | undefined;
@@ -23,6 +32,8 @@ export type DashboardTileStatusState = {
     screenshotErroredTiles: Set<string>;
     /** Visible embed tiles that settled in the load cycle identified by `cycleKey` */
     completedEmbedTiles: { cycleKey: string; tileUuids: Set<string> };
+    /** Ready tile queries, keyed by tileUuid; the AI analysis source registry. */
+    tileQueries: Record<string, TileQueryRegistration>;
 };
 
 export const initialDashboardTileStatusState: DashboardTileStatusState = {
@@ -36,6 +47,7 @@ export const initialDashboardTileStatusState: DashboardTileStatusState = {
     screenshotReadyTiles: new Set(),
     screenshotErroredTiles: new Set(),
     completedEmbedTiles: { cycleKey: '', tileUuids: new Set() },
+    tileQueries: {},
 };
 
 export const dashboardTileStatusActions = {
@@ -71,6 +83,12 @@ export const dashboardTileStatusActions = {
         tileUuid: string;
         cycleKey: string;
     }>('dashboardTileStatus/markEmbedTileComplete'),
+    registerTileQuery: createAction<TileQueryRegistration>(
+        'dashboardTileStatus/registerTileQuery',
+    ),
+    unregisterTileQuery: createAction<string>(
+        'dashboardTileStatus/unregisterTileQuery',
+    ),
 };
 
 const withTile = (tiles: Set<string>, tileUuid: string) =>
@@ -117,6 +135,7 @@ export const dashboardTileStatusReducer = (
             loadedTiles: new Set(),
             invalidateCache: true,
             refreshCounter: state.refreshCounter + 1,
+            tileQueries: {},
         };
     }
     if (dashboardTileStatusActions.setIsAutoRefresh.match(action)) {
@@ -189,6 +208,31 @@ export const dashboardTileStatusReducer = (
             screenshotErroredTiles === state.screenshotErroredTiles
             ? state
             : { ...state, screenshotReadyTiles, screenshotErroredTiles };
+    }
+    if (dashboardTileStatusActions.registerTileQuery.match(action)) {
+        const registration = action.payload;
+        const existing = state.tileQueries[registration.tileUuid];
+        if (
+            existing &&
+            existing.queryUuid === registration.queryUuid &&
+            existing.label === registration.label &&
+            existing.status === registration.status
+        ) {
+            return state;
+        }
+        return {
+            ...state,
+            tileQueries: {
+                ...state.tileQueries,
+                [registration.tileUuid]: registration,
+            },
+        };
+    }
+    if (dashboardTileStatusActions.unregisterTileQuery.match(action)) {
+        if (!(action.payload in state.tileQueries)) return state;
+        const tileQueries = { ...state.tileQueries };
+        delete tileQueries[action.payload];
+        return { ...state, tileQueries };
     }
     if (dashboardTileStatusActions.markEmbedTileComplete.match(action)) {
         const { tileUuid, cycleKey } = action.payload;

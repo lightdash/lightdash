@@ -188,9 +188,7 @@ export class SnowflakeOAuthCredentialResolver implements CredentialResolver<Crea
                     'No refresh token available for Snowflake SSO authentication',
                 );
             }
-            const lockEnabled =
-                owner !== null &&
-                (await this.source.isLockEnabled(input, owner));
+            const lockEnabled = owner !== null;
             const persistOwner = lockEnabled ? owner : policy.legacyOwner;
             if (persistOwner?.kind === 'aiServiceAccount') {
                 throw new ForbiddenError(

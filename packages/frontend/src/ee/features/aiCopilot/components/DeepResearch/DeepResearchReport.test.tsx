@@ -78,10 +78,10 @@ Adoption improved after renewal decisions and therefore does not explain the los
 Reliability at renewal is the clearest intervention point.`;
 
 describe('DeepResearchReport', () => {
-    it('labels the report header as beta exactly once', () => {
+    it('does not label the report header as beta', () => {
         renderReport();
 
-        expect(screen.getAllByText('Beta')).toHaveLength(1);
+        expect(screen.queryByText('Beta')).not.toBeInTheDocument();
     });
 
     it('returns to chat from the report header', async () => {

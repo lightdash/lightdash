@@ -33,9 +33,25 @@ vi.mock('../../../ee/services/SandboxRuntime', async () => ({
     createSandboxProvider,
     S3SnapshotStore: class {},
 }));
-vi.mock('../../../tracing/tracing', () => ({
-    traceSpan: async (_options: unknown, fn: () => Promise<unknown>) => fn(),
+const { spans } = vi.hoisted(() => ({
+    spans: [] as { name: string; attributes: Record<string, unknown> }[],
 }));
+vi.mock('../../../tracing/tracing', () => ({
+    traceSpan: async (
+        options: { name: string; attributes: Record<string, unknown> },
+        fn: (span: unknown) => Promise<unknown>,
+    ) => {
+        spans.push({ name: options.name, attributes: options.attributes });
+        return fn({ setAttribute: vi.fn(), setAttributes: vi.fn() });
+    },
+}));
+
+const silentLogger = {
+    info: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    error: vi.fn(),
+};
 
 describe('PythonSandboxRunner output limits', () => {
     it.each([
@@ -89,12 +105,8 @@ describe('PythonSandboxRunner output limits', () => {
                         sandboxProvider: 'e2b',
                     },
                 },
-                logger: {
-                    info: vi.fn(),
-                    warn: vi.fn(),
-                    debug: vi.fn(),
-                    error: vi.fn(),
-                },
+                logger: silentLogger,
+                metrics: null,
             });
             await expect(
                 runner.run({
@@ -136,6 +148,7 @@ describe('PythonSandboxRunner provider selection', () => {
                 },
             },
             logger,
+            metrics: null,
         }).run({
             queryUuid: 'query',
             code: 'def run(inputs, params):\n    return None',
@@ -147,6 +160,24 @@ describe('PythonSandboxRunner provider selection', () => {
     beforeEach(() => {
         createSandboxProvider.mockClear();
         create.mockRejectedValue(new Error('stop after create'));
+    });
+
+    it('includes the configured template in the results cache version', () => {
+        const version = (tag: string) =>
+            new PythonSandboxRunner({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    appRuntime: {
+                        ...lightdashConfigMock.appRuntime,
+                        sandboxProvider: 'e2b',
+                        e2bPythonTemplateTag: tag,
+                    },
+                },
+                logger,
+                metrics: null,
+            }).version;
+        expect(version('v1')).toContain('lightdash-python-runner:v1:');
+        expect(version('v1')).not.toEqual(version('v2'));
     });
 
     it('creates the cloud run provider with the python gateway config', async () => {
@@ -209,4 +240,207 @@ describe('PythonSandboxRunner provider selection', () => {
             expect(createSandboxProvider).not.toHaveBeenCalled();
         },
     );
+});
+
+describe('PythonSandboxRunner stage instrumentation', () => {
+    it.each([
+        {
+            sandboxProvider: 'e2b' as const,
+            templateRef: 'custom-template:custom-tag',
+            stages: ['create', 'write_inputs', 'compile'],
+            inputSpans: [],
+        },
+        {
+            sandboxProvider: 'docker' as const,
+            templateRef: 'lightdash-python-runner:local',
+            stages: ['create', 'compile', 'write_inputs'],
+            inputSpans: [
+                { 'lightdash.inputName': 'a', 'lightdash.inputBytes': 8 },
+                { 'lightdash.inputName': 'b', 'lightdash.inputBytes': 3 },
+            ],
+        },
+    ])(
+        'traces the template and stages on $sandboxProvider',
+        async ({ sandboxProvider, templateRef, stages, inputSpans }) => {
+            const handle = {
+                sandboxId: 'sandbox-1',
+                commands: {
+                    run: vi.fn(async () => ({
+                        stdout: '',
+                        stderr: '',
+                        exitCode: 0,
+                    })),
+                },
+                files: {
+                    write: vi.fn(),
+                    readBytes: vi.fn(async () => Buffer.from('{}')),
+                    read: vi.fn(async () => '{}'),
+                },
+            } as unknown as SandboxHandle;
+            create.mockResolvedValue(handle);
+            destroy.mockResolvedValue(undefined);
+            const observeComposerQueryStageDuration = vi.fn();
+            spans.length = 0;
+
+            await new PythonSandboxRunner({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    appRuntime: {
+                        ...lightdashConfigMock.appRuntime,
+                        sandboxProvider,
+                        e2bPythonTemplateName: 'custom-template',
+                        e2bPythonTemplateTag: 'custom-tag',
+                    },
+                },
+                logger: silentLogger,
+                metrics: { observeComposerQueryStageDuration },
+            }).run({
+                queryUuid: 'query',
+                code: 'def run(inputs, params):\n    return inputs["a"]',
+                inputs: [
+                    { name: 'a', jsonl: Buffer.from('{"x":1}\n') },
+                    { name: 'b', jsonl: Buffer.from('{}\n') },
+                ],
+                inputMeta: { inputs: {}, params: {}, limit: 10 },
+                timeoutMs: 1000,
+            });
+
+            expect(
+                spans
+                    .filter(({ name }) => name === 'python.sandbox.write_input')
+                    .map(({ attributes }) => attributes),
+            ).toEqual(inputSpans);
+            expect(
+                spans.find(({ name }) => name === 'python.sandbox.run')
+                    ?.attributes,
+            ).toMatchObject({
+                'lightdash.sandboxId': 'sandbox-1',
+                'lightdash.templateRef': templateRef,
+            });
+            expect(create).toHaveBeenLastCalledWith(
+                expect.objectContaining({ templateRef }),
+            );
+            await vi.waitFor(() =>
+                expect(
+                    observeComposerQueryStageDuration.mock.calls.map(
+                        ([, stage]) => stage,
+                    ),
+                ).toEqual([...stages, 'run', 'read_output', 'destroy']),
+            );
+        },
+    );
+});
+
+describe('PythonSandboxRunner batching', () => {
+    beforeEach(() => silentLogger.warn.mockClear());
+    it('batches uploads, keeps the compile check, detaches cleanup', async () => {
+        let rejectDestroy: (error: Error) => void = () => {};
+        destroy.mockImplementationOnce(
+            () =>
+                new Promise<void>((_resolve, reject) => {
+                    rejectDestroy = reject;
+                }),
+        );
+        const handle = {
+            sandboxId: 'batch-test',
+            files: {
+                write: vi.fn(),
+                writeMany: vi.fn(
+                    async (
+                        _files: {
+                            path: string;
+                            contents: string | Uint8Array;
+                        }[],
+                    ) => {},
+                ),
+                readBytes: vi.fn(async () => Buffer.from('{"x":1}\n')),
+                read: vi.fn(async () => '{}'),
+            },
+            commands: {
+                run: vi.fn(async () => ({
+                    stdout: 'user logs',
+                    stderr: '',
+                    exitCode: 0,
+                })),
+            },
+        };
+        create.mockResolvedValueOnce(handle);
+        const runner = new PythonSandboxRunner({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                appRuntime: {
+                    ...lightdashConfigMock.appRuntime,
+                    sandboxProvider: 'e2b',
+                },
+            },
+            logger: silentLogger,
+            metrics: null,
+        });
+        const result = await runner.run({
+            queryUuid: 'query',
+            code: 'def run(inputs, params):\n    return inputs["a"]',
+            inputs: [{ name: 'a', jsonl: Buffer.from('{"x":1}\n') }],
+            inputMeta: { inputs: {}, params: {}, limit: 10 },
+            timeoutMs: 1000,
+        });
+        expect(result.stdout).toBe('user logs');
+        expect(handle.files.write).not.toHaveBeenCalled();
+        expect(handle.files.writeMany).toHaveBeenCalledOnce();
+        expect(handle.files.writeMany.mock.calls[0][0]).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ path: '/work/main.py' }),
+                expect.objectContaining({ path: '/work/runner.py' }),
+                {
+                    path: '/work/in/a.jsonl',
+                    contents: Buffer.from('{"x":1}\n'),
+                },
+                expect.objectContaining({ path: '/work/in/meta.json' }),
+                { path: '/work/out/.keep', contents: '' },
+            ]),
+        );
+        expect(handle.commands.run).toHaveBeenCalledTimes(2);
+        expect(create).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                onTimeout: 'kill',
+                timeoutMs: 61000,
+            }),
+        );
+        expect(destroy).toHaveBeenLastCalledWith('batch-test');
+        rejectDestroy(new Error('cleanup unavailable'));
+        await vi.waitFor(() =>
+            expect(silentLogger.warn).toHaveBeenCalledWith(
+                expect.stringContaining('cleanup unavailable'),
+            ),
+        );
+    });
+    it('destroys the sandbox when a batched upload fails', async () => {
+        const error = new Error('upload failed');
+        const handle = {
+            sandboxId: 'failed-upload',
+            files: { writeMany: vi.fn().mockRejectedValue(error) },
+        };
+        create.mockResolvedValueOnce(handle);
+        destroy.mockResolvedValueOnce(undefined);
+        const runner = new PythonSandboxRunner({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                appRuntime: {
+                    ...lightdashConfigMock.appRuntime,
+                    sandboxProvider: 'e2b',
+                },
+            },
+            logger: silentLogger,
+            metrics: null,
+        });
+        await expect(
+            runner.run({
+                queryUuid: 'query',
+                code: 'code',
+                inputs: [],
+                inputMeta: { inputs: {}, params: {}, limit: 10 },
+                timeoutMs: 1000,
+            }),
+        ).rejects.toBe(error);
+        expect(destroy).toHaveBeenLastCalledWith('failed-upload');
+    });
 });

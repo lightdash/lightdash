@@ -106,6 +106,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     resolveUrl: [AgentCapability.ReadDiscover],
     query: [AgentCapability.Query],
     runComposerQueries: [AgentCapability.Query],
+    visualize: [AgentCapability.Query],
     runContentQuery: [AgentCapability.Query],
     runQuery: [AgentCapability.Query],
     runSavedChart: [AgentCapability.Query],
@@ -304,6 +305,15 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'AiAgentController.getAgentSuggestions': [AgentCapability.ReadDiscover],
     'AiAgentController.getAgentThread': [AgentCapability.ReadDiscover],
+    'AiAgentController.getAgentThreadMessageQueryPipelines': [
+        AgentCapability.ReadDiscover,
+    ],
+    'AiAgentController.getAgentThreadMessageQueryPipelineVizQuery': [
+        AgentCapability.Query,
+    ],
+    'AiAgentController.getAgentThreadMessageQueryPipelineResults': [
+        AgentCapability.ReadDiscover,
+    ],
     'AiAgentController.getAgentThreadLiveStatuses': [
         AgentCapability.ReadDiscover,
     ],
@@ -549,6 +559,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'AppGenerateController.deleteApp': [AgentCapability.Delete],
     'AppGenerateController.deleteAppThumbnail': [AgentCapability.Delete],
+    'AppGenerateController.dismissAddAnalysisOffer': [
+        AgentCapability.ContentWrite,
+    ],
     'AppGenerateController.duplicateApp': [AgentCapability.ContentWrite],
     'AppGenerateController.generateApp': [AgentCapability.ContentWrite],
     'AppGenerateController.getApp': [AgentCapability.ReadDiscover],
@@ -751,6 +764,10 @@ export const REST_OPERATION_CAPABILITIES = {
     'DataAppAnalysisController.investigate': [AgentCapability.Query],
     'DataAppAnalysisController.lookup': [AgentCapability.ReadDiscover],
     'DataAppAnalysisController.prompt': [AgentCapability.Query],
+    'DashboardAnalysisController.detect': [AgentCapability.Query],
+    'DashboardAnalysisController.getAnalysis': [AgentCapability.ReadDiscover],
+    'DashboardAnalysisController.investigate': [AgentCapability.Query],
+    'DashboardAnalysisController.lookup': [AgentCapability.ReadDiscover],
     'DatabricksSSOController.get': [AgentCapability.ReadDiscover],
     'DeployController.addDeployBatch': [AgentCapability.DeployUpload],
     'DeployController.deployExplores': [AgentCapability.DeployUpload],
@@ -948,15 +965,6 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.DbtWriteback,
     ],
     'GitIntegrationController.PreviewPullRequestForCustomDimensions': [
-        AgentCapability.ReadDiscover,
-    ],
-    'GitIntegrationController.createPullRequestForFileChange': [
-        AgentCapability.DbtWriteback,
-    ],
-    'GitIntegrationController.getFileForExplore': [
-        AgentCapability.ReadDiscover,
-    ],
-    'GitIntegrationController.getFilePathForExplore': [
         AgentCapability.ReadDiscover,
     ],
     'GoogleDriveController.get': [AgentCapability.ReadDiscover],

@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import {
     DimensionType,
     FieldType,
@@ -14,7 +13,7 @@ import {
     type DuckdbSourceQuery,
     type QueryNodeId,
 } from '../../types/querySources';
-import { type ResultColumn, type ResultRow } from '../../types/results';
+import { type ResultColumn } from '../../types/results';
 import {
     ChartType,
     type ChartConfig,
@@ -23,6 +22,7 @@ import {
 } from '../../types/savedCharts';
 import { TimeFrames } from '../../types/timeFrames';
 import assertUnreachable from '../../utils/assertUnreachable';
+import { formatItemValue } from '../../utils/formatting';
 import { getItemId } from '../../utils/item';
 import {
     VizAggregationOptions,
@@ -31,139 +31,16 @@ import {
 import { getDataAppVizFieldIds } from '../apps/dataAppVizFieldMapping';
 import { type DataAppVizField } from '../apps/types';
 import { getRunQueryChartConfig } from './chartConfig/web/runQueryTool/getRunQueryChartConfig';
+import { type ComposerNodeColumn } from './composerArtifact';
 import {
-    customChartTypeOptionValueSchema,
+    type ComposerBuiltinChartVizConfig,
+    type ComposerChartVizConfig,
+    type ComposerCustomChartVizConfig,
+    type ComposerStoredChartVizConfig,
+    type ComposerStoredCustomChartVizConfig,
+    type ToolRunQueryArgsTransformed,
     type ToolRunQueryBuiltinChartConfig,
 } from './schemas';
-
-const refSchema = z
-    .string()
-    .describe('A result column reference of the presented node');
-
-const composerBuiltinChartVizTypeSchema = z.enum([
-    'table',
-    'big_number',
-    'bar',
-    'line',
-    'area',
-    'scatter',
-    'pie',
-    'funnel',
-]);
-
-const composerBuiltinChartVizConfigSchemaV1 = z.object({
-    type: composerBuiltinChartVizTypeSchema.describe(
-        'Chart type. area is a filled line.',
-    ),
-    x: refSchema
-        .nullable()
-        .describe(
-            'Category or time column. bar/line/area/scatter/pie/funnel. null for table/big_number, or to use the first non-numeric column.',
-        ),
-    y: z
-        .array(refSchema)
-        .nullable()
-        .describe(
-            'Value columns. big_number, pie and funnel use y[0]. null to use every numeric column not on x or groupBy.',
-        ),
-    groupBy: z
-        .array(refSchema)
-        .nullable()
-        .describe(
-            'Columns that split y into one series per value. bar/line/area/scatter only. Must not include x.',
-        ),
-    stack: z
-        .boolean()
-        .nullable()
-        .describe(
-            'bar: stack series on top of each other. area always stacks. Ignored elsewhere.',
-        ),
-    horizontal: z
-        .boolean()
-        .nullable()
-        .describe('bar only: draw bars horizontally.'),
-    y2: refSchema
-        .nullable()
-        .describe(
-            'Column on a secondary (right) y axis. bar/line/area (drawn as a line on area). Must not be in y.',
-        ),
-    labels: z
-        .object({
-            x: z.string().nullable(),
-            y: z.string().nullable(),
-            y2: z.string().nullable(),
-        })
-        .nullable()
-        .describe('Axis titles. big_number uses labels.y as its label.'),
-});
-
-const composerCustomChartVizConfigSchemaV1 = z.object({
-    type: z.literal('custom').describe('Renders a custom chart type.'),
-    customChartTypeSlug: z.string().describe('Slug of the custom chart type.'),
-    fieldMapping: z
-        .record(z.string(), z.union([refSchema, z.array(refSchema)]))
-        .describe(
-            'Binds each slot of the custom chart type to a column, or ordered columns for a multiple slot.',
-        ),
-    options: z
-        .record(z.string(), customChartTypeOptionValueSchema)
-        .nullable()
-        .describe("Values for the type's options; null for defaults."),
-});
-
-const composerChartVizConfigSchemaV1 = z.discriminatedUnion('type', [
-    composerBuiltinChartVizConfigSchemaV1,
-    composerCustomChartVizConfigSchemaV1,
-]);
-
-/** The viz config the agent writes: the agent chart vocabulary over result column references. */
-export const composerChartVizConfigSchema = composerChartVizConfigSchemaV1;
-
-export type ComposerChartVizConfig = z.infer<
-    typeof composerChartVizConfigSchema
->;
-
-export type ComposerBuiltinChartVizConfig = z.infer<
-    typeof composerBuiltinChartVizConfigSchemaV1
->;
-
-export type ComposerCustomChartVizConfig = z.infer<
-    typeof composerCustomChartVizConfigSchemaV1
->;
-
-const composerStoredCustomChartVizConfigSchemaV1 =
-    composerCustomChartVizConfigSchemaV1.extend({
-        dataAppVizUuid: z.string(),
-        dataAppVizVersion: z.number().nullable(),
-    });
-
-const composerStoredChartVizConfigSchemaV1 = z.discriminatedUnion('type', [
-    composerBuiltinChartVizConfigSchemaV1,
-    composerStoredCustomChartVizConfigSchemaV1,
-]);
-
-// Wide contract for parsing stored viz configs; call sites use this alias.
-// Additive fields are `.nullish().default(null)` on the current version; a
-// restructure adds V(N), bumps the composer artifact schemaVersion with it,
-// and keeps this alias parsing everything ever stored.
-export const composerChartVizConfigSchemaPersisted =
-    composerStoredChartVizConfigSchemaV1;
-
-/** Stored form: a custom chart type carries the version the server pinned. */
-export type ComposerStoredChartVizConfig = z.infer<
-    typeof composerChartVizConfigSchemaPersisted
->;
-
-export type ComposerStoredCustomChartVizConfig = z.infer<
-    typeof composerStoredCustomChartVizConfigSchemaV1
->;
-
-export const parseComposerStoredChartVizConfig = (
-    raw: unknown,
-): ComposerStoredChartVizConfig | null => {
-    const parsed = composerChartVizConfigSchemaPersisted.safeParse(raw);
-    return parsed.success ? parsed.data : null;
-};
 
 /** Synthetic explore of a composer node result; its fields are the result columns. */
 export const COMPOSER_RESULT_TABLE_NAME = 'composer_result';
@@ -301,6 +178,19 @@ const toQuery = (
 type CartesianVizType = 'bar' | 'line' | 'area' | 'scatter';
 type RunQueryBuilderVizType = CartesianVizType | 'pie' | 'funnel';
 
+/** Builtin types Slack posts as a chart image; tables, big numbers and custom types are not images. */
+export const isComposerSlackImageVizConfig = (
+    vizConfig: ComposerStoredChartVizConfig,
+): vizConfig is ComposerBuiltinChartVizConfig & {
+    type: RunQueryBuilderVizType;
+} =>
+    vizConfig.type === 'bar' ||
+    vizConfig.type === 'line' ||
+    vizConfig.type === 'area' ||
+    vizConfig.type === 'scatter' ||
+    vizConfig.type === 'pie' ||
+    vizConfig.type === 'funnel';
+
 const isCartesianVizType = (
     type: RunQueryBuilderVizType,
 ): type is CartesianVizType =>
@@ -336,15 +226,22 @@ const getTableChart = (columns: ComposerColumns): ComposerRunQueryChart => {
     };
 };
 
-const getBigNumberChart = (
+const getBigNumberReferences = (
     columns: ComposerColumns,
     vizConfig: ComposerBuiltinChartVizConfig,
-): ComposerRunQueryChart => {
+): { value: string; label: string | null } => {
     const value =
         vizConfig.y?.[0] ??
         columns.references.find((ref) => columns.isNumeric(ref));
     if (!value) throw new Error('big_number needs a numeric column');
-    const label = vizConfig.labels?.y ?? null;
+    return { value, label: vizConfig.labels?.y || null };
+};
+
+const getBigNumberChart = (
+    columns: ComposerColumns,
+    vizConfig: ComposerBuiltinChartVizConfig,
+): ComposerRunQueryChart => {
+    const { value, label } = getBigNumberReferences(columns, vizConfig);
     return {
         ...toQuery(columns, [], [value]),
         chartConfig: {
@@ -384,12 +281,12 @@ const withUnstackedSecondaryArea = (chartConfig: ChartConfig): ChartConfig => {
     };
 };
 
-const getRunQueryBuilderChart = (
+/** The runQuery tool query and chart config a builtin composer chart maps onto. */
+const getRunQueryBuilderInput = (
     columns: ComposerColumns,
     vizConfig: ComposerBuiltinChartVizConfig,
     type: RunQueryBuilderVizType,
-    metadata: { title: string; description: string },
-): ComposerRunQueryChart => {
+) => {
     const isCartesian = isCartesianVizType(type);
     const groupBy = isCartesian ? (vizConfig.groupBy ?? []) : [];
     const x =
@@ -410,7 +307,33 @@ const getRunQueryBuilderChart = (
     const metrics = unique([...y, ...(y2 ? [y2] : [])]);
     const { metricQuery, fields } = toQuery(columns, dimensions, metrics);
     const fieldIdOf = getComposerResultFieldId;
+    const chartConfig: ToolRunQueryBuiltinChartConfig = {
+        defaultVizType: toRunQueryVizType(type, vizConfig.horizontal),
+        xAxisDimension: x ? fieldIdOf(x) : null,
+        yAxisMetrics: y.map(fieldIdOf),
+        groupBy: groupBy.length > 0 ? groupBy.map(fieldIdOf) : null,
+        xAxisType: x && isTimeType(columns.get(x).type) ? 'time' : 'category',
+        stackBars: type === 'bar' ? vizConfig.stack : null,
+        lineType: type === 'area' ? 'area' : null,
+        xAxisLabel: vizConfig.labels?.x ?? '',
+        yAxisLabel: vizConfig.labels?.y ?? '',
+        secondaryYAxisMetric: y2 ? fieldIdOf(y2) : null,
+        secondaryYAxisLabel: vizConfig.labels?.y2 ?? null,
+    };
+    return { metricQuery, fields, chartConfig };
+};
 
+const getRunQueryBuilderChart = (
+    columns: ComposerColumns,
+    vizConfig: ComposerBuiltinChartVizConfig,
+    type: RunQueryBuilderVizType,
+    metadata: { title: string; description: string },
+): ComposerRunQueryChart => {
+    const { metricQuery, fields, chartConfig } = getRunQueryBuilderInput(
+        columns,
+        vizConfig,
+        type,
+    );
     const builtChartConfig = getRunQueryChartConfig({
         queryTool: {
             ...metadata,
@@ -418,33 +341,19 @@ const getRunQueryBuilderChart = (
                 dimensions: metricQuery.dimensions,
                 metrics: metricQuery.metrics,
             },
-            chartConfig: {
-                defaultVizType: toRunQueryVizType(type, vizConfig.horizontal),
-                xAxisDimension: x ? fieldIdOf(x) : null,
-                yAxisMetrics: y.map(fieldIdOf),
-                groupBy: groupBy.length > 0 ? groupBy.map(fieldIdOf) : null,
-                xAxisType:
-                    x && isTimeType(columns.get(x).type) ? 'time' : 'category',
-                stackBars: type === 'bar' ? vizConfig.stack : null,
-                lineType: type === 'area' ? 'area' : null,
-                xAxisLabel: vizConfig.labels?.x ?? '',
-                yAxisLabel: vizConfig.labels?.y ?? '',
-                secondaryYAxisMetric: y2 ? fieldIdOf(y2) : null,
-                secondaryYAxisLabel: vizConfig.labels?.y2 ?? null,
-            },
+            chartConfig,
         },
         metricQuery,
         fieldsMap: fields,
     });
-    const chartConfig =
-        type === 'area' && y2
-            ? withUnstackedSecondaryArea(builtChartConfig)
-            : builtChartConfig;
     return {
         metricQuery,
         fields,
-        chartConfig,
-        pivotColumns: groupBy.map(fieldIdOf),
+        chartConfig:
+            type === 'area' && chartConfig.secondaryYAxisMetric
+                ? withUnstackedSecondaryArea(builtChartConfig)
+                : builtChartConfig,
+        pivotColumns: chartConfig.groupBy ?? [],
     };
 };
 
@@ -554,10 +463,10 @@ export const getComposerRunQueryChart = ({
 };
 
 /** Row keys renamed to field ids, keeping only the chart's fields: builders treat any extra key as data (funnel labels). */
-export const toComposerResultRows = (
-    chart: ComposerRunQueryChart,
-    rows: ResultRow[],
-): ResultRow[] => {
+export const toComposerResultRows = <Value>(
+    chart: Pick<ComposerRunQueryChart, 'metricQuery' | 'fields'>,
+    rows: Record<string, Value>[],
+): Record<string, Value>[] => {
     const fieldIds = [
         ...chart.metricQuery.dimensions,
         ...chart.metricQuery.metrics,
@@ -570,6 +479,80 @@ export const toComposerResultRows = (
             ]),
         ),
     );
+};
+
+export type ComposerBigNumber = { value: string; label: string };
+
+/** A big number's first-row value, formatted as the web card draws it; null when that value is empty. */
+export const getComposerBigNumber = ({
+    columns,
+    rows,
+    vizConfig,
+}: {
+    columns: ResultColumn[];
+    rows: Record<string, unknown>[];
+    vizConfig: ComposerStoredChartVizConfig;
+}): ComposerBigNumber | null => {
+    if (vizConfig.type !== 'big_number') return null;
+    const composerColumns = new ComposerColumns(columns);
+    const { value: reference, label } = getBigNumberReferences(
+        composerColumns,
+        vizConfig,
+    );
+    const value = rows[0]?.[reference];
+    if (value === null || value === undefined) return null;
+    const metric = toMetric(composerColumns.get(reference));
+    return {
+        value: formatItemValue(metric, value),
+        label: label ?? metric.label,
+    };
+};
+
+/**
+ * A builtin composer chart as runQuery tool args over the chart's fields only,
+ * for the Slack image builders; null for types Slack posts as a link or table.
+ */
+export const getComposerSlackRunQueryChart = ({
+    columns: resultColumns,
+    rows,
+    vizConfig,
+    metadata,
+}: {
+    columns: ResultColumn[];
+    rows: Record<string, unknown>[];
+    vizConfig: ComposerStoredChartVizConfig;
+    metadata: { title: string; description: string };
+}): {
+    tool: ToolRunQueryArgsTransformed;
+    rows: Record<string, unknown>[];
+    fields: ItemsMap;
+} | null => {
+    if (!isComposerSlackImageVizConfig(vizConfig)) return null;
+    const { metricQuery, fields, chartConfig } = getRunQueryBuilderInput(
+        new ComposerColumns(resultColumns),
+        vizConfig,
+        vizConfig.type,
+    );
+    return {
+        tool: {
+            ...metadata,
+            queryConfig: {
+                exploreName: COMPOSER_RESULT_TABLE_NAME,
+                dimensions: metricQuery.dimensions,
+                metrics: metricQuery.metrics,
+                sorts: [],
+                limit: null,
+                parameters: null,
+                customMetrics: null,
+                tableCalculations: null,
+                filters: {},
+            },
+            chartConfig,
+            mergeConfig: null,
+        },
+        rows: toComposerResultRows({ metricQuery, fields }, rows),
+        fields,
+    };
 };
 
 /** References of a series split, from the viz config alone; null without one. */
@@ -670,4 +653,168 @@ export const getComposerChartStage = ({
             sortBy: undefined,
         },
     };
+};
+
+type ReferenceCheck = {
+    has: (reference: string) => boolean;
+    isNumeric: (reference: string) => boolean;
+    typeOf: (reference: string) => DimensionType | null;
+    numericReferences: string[];
+};
+
+const toReferenceCheck = (columns: ComposerNodeColumn[]): ReferenceCheck => {
+    const types = new Map(
+        columns.map(({ reference, type }) => [reference, type]),
+    );
+    return {
+        has: (reference) => types.has(reference),
+        isNumeric: (reference) => types.get(reference) === DimensionType.NUMBER,
+        typeOf: (reference) => types.get(reference) ?? null,
+        numericReferences: columns
+            .filter(({ type }) => type === DimensionType.NUMBER)
+            .map(({ reference }) => reference),
+    };
+};
+
+const getMissingReferenceErrors = (
+    check: ReferenceCheck,
+    bindings: [label: string, references: string[]][],
+): string[] =>
+    bindings.flatMap(([label, references]) =>
+        references
+            .filter((reference) => !check.has(reference))
+            .map(
+                (reference) =>
+                    `${label}: column "${reference}" is not in the result`,
+            ),
+    );
+
+const getNonNumericErrors = (
+    check: ReferenceCheck,
+    label: string,
+    references: string[],
+): string[] =>
+    references
+        .filter(
+            (reference) => check.has(reference) && !check.isNumeric(reference),
+        )
+        .map(
+            (reference) =>
+                `${label}: column "${reference}" is ${check.typeOf(reference) ?? 'untyped'}, not numeric`,
+        );
+
+const getBuiltinReferenceErrors = (
+    check: ReferenceCheck,
+    vizConfig: ComposerBuiltinChartVizConfig,
+): string[] => {
+    const { type, x } = vizConfig;
+    const y = vizConfig.y ?? [];
+    const groupBy = vizConfig.groupBy ?? [];
+    const y2 = vizConfig.y2 === null ? [] : [vizConfig.y2];
+    const isCartesian =
+        type === 'bar' ||
+        type === 'line' ||
+        type === 'area' ||
+        type === 'scatter';
+    const usesY2 = type === 'bar' || type === 'line' || type === 'area';
+    // big_number, pie and funnel draw y[0] only.
+    const drawnY = isCartesian ? y : y.slice(0, 1);
+    const hasDefaultY = check.numericReferences.some(
+        (reference) => reference !== x && !groupBy.includes(reference),
+    );
+    return [
+        ...getMissingReferenceErrors(check, [
+            ['x', x === null ? [] : [x]],
+            ['y', y],
+            ['groupBy', groupBy],
+            ['y2', y2],
+        ]),
+        ...(type === 'table' ? [] : getNonNumericErrors(check, 'y', drawnY)),
+        ...(type !== 'table' && vizConfig.y === null && !hasDefaultY
+            ? ['y: no numeric column to draw; set y to a numeric column']
+            : []),
+        ...(usesY2 ? getNonNumericErrors(check, 'y2', y2) : []),
+        ...(usesY2 && y2.some((reference) => y.includes(reference))
+            ? [`y2: column "${y2[0]}" must not also be in y`]
+            : []),
+        ...(isCartesian
+            ? groupBy
+                  .filter(
+                      (reference) => reference === x || y.includes(reference),
+                  )
+                  .map(
+                      (reference) =>
+                          `groupBy: column "${reference}" must not also be on x or y`,
+                  )
+            : []),
+        ...(isCartesian && groupBy.length > 0 && (x === null || y.length === 0)
+            ? ['groupBy: a series split needs explicit x and y columns']
+            : []),
+    ];
+};
+
+export type ComposerCustomChartTypeSlotSpec = Pick<
+    DataAppVizField,
+    'name' | 'type' | 'required' | 'multiple'
+>;
+
+const getCustomReferenceErrors = (
+    check: ReferenceCheck,
+    { fieldMapping }: ComposerCustomChartVizConfig,
+    slots: ComposerCustomChartTypeSlotSpec[],
+): string[] => {
+    const slotNames = slots.map(({ name }) => name);
+    const unknownSlots = Object.keys(fieldMapping).filter(
+        (name) => !slotNames.includes(name),
+    );
+    const { split, values } = getCustomChartTypeReferences(fieldMapping, slots);
+    return [
+        ...unknownSlots.map(
+            (name) =>
+                `fieldMapping: "${name}" is not a slot of this chart type (slots: ${slotNames.join(', ')})`,
+        ),
+        ...slots
+            .filter(
+                ({ name, required }) =>
+                    required &&
+                    getDataAppVizFieldIds(fieldMapping[name]).length === 0,
+            )
+            .map(
+                ({ name }) =>
+                    `fieldMapping: required slot "${name}" is not bound`,
+            ),
+        ...slots
+            .filter(({ name, multiple }) => {
+                const value = fieldMapping[name];
+                return !multiple && Array.isArray(value) && value.length > 1;
+            })
+            .map(({ name }) => `fieldMapping.${name}: slot takes one column`),
+        ...getMissingReferenceErrors(
+            check,
+            Object.entries(fieldMapping).map(([name, value]) => [
+                `fieldMapping.${name}`,
+                getDataAppVizFieldIds(value),
+            ]),
+        ),
+        ...getNonNumericErrors(check, 'metric slot', values),
+        ...(split.length > 0 && values.length === 0
+            ? ['fieldMapping: a series slot needs a column on a metric slot']
+            : []),
+    ];
+};
+
+/** Viz config references the node's columns cannot draw; empty when the config renders. */
+export const getComposerVizConfigReferenceErrors = ({
+    columns,
+    vizConfig,
+    customChartTypeSlots,
+}: {
+    columns: ComposerNodeColumn[];
+    vizConfig: ComposerChartVizConfig;
+    customChartTypeSlots: ComposerCustomChartTypeSlotSpec[];
+}): string[] => {
+    const check = toReferenceCheck(columns);
+    return vizConfig.type === 'custom'
+        ? getCustomReferenceErrors(check, vizConfig, customChartTypeSlots)
+        : getBuiltinReferenceErrors(check, vizConfig);
 };

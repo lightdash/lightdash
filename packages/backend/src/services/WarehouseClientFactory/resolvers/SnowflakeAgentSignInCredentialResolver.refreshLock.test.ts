@@ -75,7 +75,7 @@ const tokens: refreshModule.SnowflakeRefreshResult = {
     accessTokenExpiresAt: new Date('2099-01-01'),
     refreshTokenExpiresAt: null,
 };
-const setup = (enabled = true) => {
+const setup = () => {
     const { database, raw, transaction } = createDatabase();
     const coordinator = new RefreshTokenRotation({ database });
     const run = vi.spyOn(coordinator, 'run');
@@ -95,7 +95,7 @@ const setup = (enabled = true) => {
         userWarehouseCredentialsModel:
             model as unknown as UserWarehouseCredentialsModel,
         refreshTokenRotation: coordinator,
-        featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled }) },
+        featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled: true }) },
     };
     const exchange = vi
         .spyOn(refreshModule, 'exchangeSnowflakeRefreshToken')
@@ -207,13 +207,6 @@ describe('Snowflake agent refresh locking', () => {
                                 userUuid: 'person',
                             },
                             featureFlagId: FeatureFlags.AgentIdentity,
-                        },
-                    ],
-                    [
-                        {
-                            user: { organizationUuid: 'org' },
-                            featureFlagId:
-                                FeatureFlags.WarehouseOAuthRefreshLock,
                         },
                     ],
                 ]).flat(),
@@ -573,17 +566,4 @@ describe('Snowflake agent refresh locking', () => {
         await f.provider.mint({ ...args, silentRefresh: false });
         expect(f.model.rotateRefreshToken).not.toHaveBeenCalled();
     });
-
-    test.each([true, false])(
-        'bypasses the coordinator when disabled with silent refresh %s',
-        async (silentRefresh) => {
-            const f = setup(false);
-            await f.provider.mint({ ...args, silentRefresh });
-            expect(f.run).not.toHaveBeenCalled();
-            expect(f.model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(
-                1,
-            );
-            expect(f.exchange).toHaveBeenCalledTimes(1);
-        },
-    );
 });

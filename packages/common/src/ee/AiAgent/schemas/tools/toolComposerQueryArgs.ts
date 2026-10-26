@@ -5,6 +5,7 @@ import {
     type MetricQueryRequest,
     type SortField,
 } from '../../../../types/metricQuery';
+import { type ParametersValuesMap } from '../../../../types/parameters';
 import {
     QuerySourceType,
     type DuckdbSourceQuery,
@@ -18,6 +19,10 @@ import assertUnreachable from '../../../../utils/assertUnreachable';
 import { filterExpressionsSchema } from '../filterExpressions/expressionSchemas';
 import { structuredToolOutputSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
+import {
+    appliedParametersSchema,
+    parameterValueSchema,
+} from './toolRunQueryArgs';
 
 /** The composer query tool's name, and the name calls persisted before the rename carry. */
 export const COMPOSER_QUERY_TOOL_NAMES = [
@@ -58,9 +63,7 @@ Node kinds:
 
 A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.
 
-Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.
-
-Results stay hidden until you present one; each successful result says how.`;
+Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({ enablePythonNodes: false });
@@ -166,6 +169,13 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             .describe(
                 'Sorts by fields this node also selects in dimensions or metrics, e.g. [{"fieldId": "orders_order_date", "descending": true}].',
             ),
+        parameters: z
+            .record(z.string(), parameterValueSchema)
+            .nullable()
+            .default(null)
+            .describe(
+                'Parameter values for this node, keyed by parameter name exactly as shown in the explore metadata (e.g. {"orders.metric": "active_users"}). Set them whenever a selected field is marked "requires parameters" and the default does not match what the user asked for: an unset parameter silently resolves to its default, which can return the wrong data. null when the explore has no parameters or the defaults are correct.',
+            ),
         limit: limitSchema,
     });
 
@@ -242,9 +252,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             title: z
                 .string()
                 .nullable()
-                .describe(
-                    'A short title for the result, used when it is presented.',
-                ),
+                .describe('A short title for the result.'),
             description: z
                 .string()
                 .nullable()
@@ -356,6 +364,10 @@ export const toolComposerQueryNodeToSourceQuery = (
             const filters: MetricQueryRequest['filters'] | undefined =
                 node.filters ?? undefined;
             const sorts: SortField[] | undefined = node.sorts ?? undefined;
+            const parameters: ParametersValuesMap | undefined =
+                node.parameters && Object.keys(node.parameters).length > 0
+                    ? node.parameters
+                    : undefined;
             return {
                 sourceType: node.sourceType,
                 nodeId: node.nodeId,
@@ -365,6 +377,7 @@ export const toolComposerQueryNodeToSourceQuery = (
                 metrics: node.metrics,
                 filters,
                 sorts,
+                parameters,
                 limit: node.limit,
             };
         }
@@ -473,6 +486,7 @@ export const parsePartialToolComposerQueriesArgs = (
                         metrics: asStringArray(node.metrics),
                         filters: null,
                         sorts: null,
+                        parameters: null,
                         limit: DEFAULT_COMPOSER_QUERY_LIMIT,
                     },
                 ];
@@ -542,9 +556,7 @@ const composerQueryColumnSchema = z.object({
 });
 
 export const toolComposerQueriesStructuredContentSchema = z.object({
-    terminalNodeId: nodeIdSchema.describe(
-        'Node whose rows are returned and which a presentation can show.',
-    ),
+    terminalNodeId: nodeIdSchema.describe('Node whose rows are returned.'),
     rowCount: z
         .number()
         .int()
@@ -558,6 +570,11 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
     columns: z
         .array(composerQueryColumnSchema)
         .describe('Terminal result columns, in order.'),
+    parameters: z
+        .array(appliedParametersSchema.extend({ nodeId: nodeIdSchema }))
+        .describe(
+            'The parameter state each semanticLayer node of the pipeline ran with; only nodes whose explore references parameters.',
+        ),
     preview: z
         .object({
             rows: z
@@ -581,7 +598,7 @@ export const toolComposerQueriesStructuredContentSchema = z.object({
 const toolComposerQueriesSuccessMetadataSchema = z.object({
     status: z.literal('success'),
     queryUuid: z.string(),
-    terminalNodeId: nodeIdSchema.describe('The node a presentation shows.'),
+    terminalNodeId: nodeIdSchema.describe('Node whose rows are returned.'),
     title: z.string(),
     description: z.string().nullable(),
 });

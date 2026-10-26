@@ -671,7 +671,8 @@ type QueryExecutionSource =
     | 'warehouse'
     | 'pre_aggregate_duckdb'
     | 'pre_aggregate_warehouse'
-    | 'external_source_duckdb';
+    | 'external_source_duckdb'
+    | 'composer_duckdb';
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
@@ -1410,9 +1411,7 @@ type TrainingProjectProvisionedEvent = BaseTrack & {
     };
 };
 
-export type TrainingProjectSkippedReason =
-    | 'learn_disabled'
-    | 'training_project_already_exists';
+export type TrainingProjectSkippedReason = 'training_project_already_exists';
 
 type TrainingProjectSkippedEvent = BaseTrack & {
     event: 'training_project.skipped';
@@ -2362,14 +2361,16 @@ export type DataAppAnalysisOutcome =
     /** Anything unexpected, from the model call to storing the row. */
     | 'error';
 
-/** One per AI analysis operation on a data app, whatever the outcome. */
+/** One per AI analysis operation on a data app or dashboard, whatever the outcome. */
 export type DataAppAnalysisCompletedEvent = BaseTrack & {
     event: 'data_app_analysis.completed';
     userId: string;
     properties: {
         organizationId: string;
         projectId: string;
-        appUuid: string;
+        targetKind: 'app' | 'dashboard';
+        appUuid: string | null;
+        dashboardUuid: string | null;
         appVersion: number | null;
         operation: 'detect' | 'prompt' | 'investigate';
         outcome: DataAppAnalysisOutcome;

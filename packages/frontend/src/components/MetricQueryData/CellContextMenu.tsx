@@ -1,4 +1,4 @@
-import { isField, type FieldUrl, type ResultValue } from '@lightdash/common';
+import { getCellUrls, isField, type ResultValue } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
@@ -23,18 +23,15 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
         showToastSuccess({ title: 'Copied to clipboard!' });
     }, [value, clipboard, showToastSuccess]);
 
-    const urls: FieldUrl[] | undefined = useMemo(
-        () =>
-            value.raw !== undefined && value.raw !== null && isField(item)
-                ? item.urls
-                : undefined,
+    const urls = useMemo(
+        () => getCellUrls(isField(item) ? item.urls : undefined, value.raw),
         [value, item],
     );
 
     return (
         <>
             <UrlMenuItems urls={urls} cell={cell} />
-            {urls && urls.length > 0 && <Menu.Divider />}
+            {urls.length > 0 && <Menu.Divider />}
             <Menu.Item
                 leftSection={<MantineIcon icon={IconCopy} />}
                 onClick={handleCopyToClipboard}
