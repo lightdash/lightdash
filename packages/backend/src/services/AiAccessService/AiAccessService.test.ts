@@ -79,6 +79,8 @@ import {
     type QueryHistoryModel,
     type QueryHistoryWithLineage,
 } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import { createDatabase } from '../../models/RefreshTokenRotation/fakeKnex.mock';
+import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -4903,7 +4905,9 @@ describe('silent refresh routing', () => {
                     featureFlagModel: {
                         get: vi.fn().mockResolvedValue({ enabled: false }),
                     },
-                    refreshTokenRotation: { run: vi.fn() },
+                    refreshTokenRotation: new RefreshTokenRotation({
+                        database: createDatabase().database,
+                    }),
                     snowflakeAgentClientResolver: {
                         resolve: vi
                             .fn()

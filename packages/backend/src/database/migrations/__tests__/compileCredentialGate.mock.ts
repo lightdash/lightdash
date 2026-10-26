@@ -16,6 +16,7 @@ import { JobModel } from '../../../models/JobModel/JobModel';
 import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
+import { RefreshTokenRotation } from '../../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { UserWarehouseCredentialsModel } from '../../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseConnectionCompileModel } from '../../../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
@@ -170,6 +171,7 @@ export const compileCredentialGateFixture = async (
         generateValidation: vi.fn(async () => {}),
     };
     const service = new ProjectService({
+        refreshTokenRotation: new RefreshTokenRotation({ database }),
         lightdashConfig: {
             ...connectionTestConfig,
             warehouseClient: {
