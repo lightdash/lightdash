@@ -1,0 +1,18 @@
+/* The drop indicator: a 2px line in the middle of the bar's 8px gap */
+.dropLine {
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    width: 2px;
+    border-radius: 1px;
+    background-color: var(--mantine-color-blue-4);
+    pointer-events: none;
+}
+
+.dropLine[data-side='after'] {
+    right: -4px;
+}
+
+.dropLine[data-side='before'] {
+    left: -4px;
+}

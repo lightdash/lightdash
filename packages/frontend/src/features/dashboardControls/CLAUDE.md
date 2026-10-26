@@ -1194,8 +1194,12 @@ the language map, as tab names are.
   then `FilterPills sectionId={null}` (the unsectioned saved pills and the
   viewer's own pills, which are never in a section); the sections are
   visible on this tab (`groupRulesBySection`, `useFilterTabPlacement` /
-  `isFilterHiddenOnTab`); a section with none renders nothing, and no
-  capsule renders while the filters load. A capsule (`.capsule` in
+  `isFilterHiddenOnTab`); for a viewer a section with none renders nothing,
+  while an editor's bar renders every section, so each is a drop target: a
+  section with no member on this tab shows, in place of its pills or fold
+  summary, the dimmed count of all its members from `formatSectionCount`
+  ("0 filters" when empty, the plain total when they are all hidden here),
+  the toggle described by it. No capsule renders while the filters load. A capsule (`.capsule` in
   `SectionedFilters.module.css`: no fill, a `default-border` outline, `xl`
   radius, 36px tall at one line with `3px 4px` padding, an `8px 6px` gap so
   wrapped lines keep the bar's row spacing, and `margin-block: -4px` so it
@@ -1220,10 +1224,43 @@ the language map, as tab names are.
   saved rule, the default; `null`; a string) and a shared `popover` state to
   `ViewerSavedPills`, which filters with `isRuleInSection` and keeps the
   saved index for remove and update (the editor's pills filter the same way,
-  per group, so a capsule reorders within itself and the temporary pills
-  render once, in the unsectioned pass); `SectionedFilters` owns the popover
-  state so one saved popover is open across the whole bar, and a lone
-  `FilterPills` keeps its own.
+  per group, and the temporary pills render once, in the unsectioned pass);
+  `SectionedFilters` owns the popover state so one saved popover is open
+  across the whole bar, and a lone `FilterPills` keeps its own.
+- The sectioned bar's drag, edit mode only (a viewer's bar has none): one
+  `DndContext` in `SectionedFilters` over every pass, the rail's model
+  restated. A `FilterPills` pass with a `sectionId` (`null` or a string)
+  opens no context of its own and wraps each pill in `BarDraggable`
+  (`useDraggable`, the whole pill is the handle, `data-dragging` fades it to
+  0.3 and nothing moves) inside the shipped `DroppableArea`, whose
+  indicator is a 2px `blue-4` line (`.dropLine`, `DndHelpers.module.css`)
+  in the middle of the bar's 8px gap on the side the pill would land; only
+  the flat bar (`sectionId` undefined) keeps the shipped per-group contexts
+  and `DraggableItem`. Sensors are the
+  rail's (`PointerSensor` at 5px, `KeyboardSensor` with
+  `sortableKeyboardCoordinates`), the target is what is under the pointer
+  (`pointerWithin`, falling back to `closestCenter` for the keyboard). The
+  targets are every saved pill, each capsule (`useDroppable` with the
+  section id on the outline, folded or not; it does not unfold) and the
+  first button (`UnsectionTarget`, a `useDroppable` with
+  `UNSECTIONED_TARGET_ID` around `AddControl`). Nothing changes size during
+  a drag. A capsule under a pill from elsewhere carries `data-over`, which
+  draws the same 2px `blue-4` line as `.dropLine` after its last pill, or
+  after its label when folded or empty, as a `::after` in the capsule's own
+  padding (`right: 1px`, `4px` when `data-collapsed`): no ring, no fill, no
+  slot. The first button under a sectioned pill carries `data-over` with
+  the rail's hover fill and inset `blue-5` ring, since nothing there can
+  carry a line. A pill leaving a capsule grows nothing: the line beside the
+  unsectioned pill under the pointer, or the first button's ring, is the
+  feedback. The drop goes through
+  `moveRuleToSection`: on a pill, that pill's section and place; on a
+  capsule, that section after its last member of the same kind; on the first
+  button, no section. A drop on its own capsule, on the first button while
+  unsectioned, on itself or nowhere writes nothing; otherwise
+  `setDashboardFilters` and `setHaveFiltersChanged(true)`. A `DragOverlay`
+  carries a 28px pill-shaped copy (`.dragPreview`: field icon and name) and
+  announcements come from `getDragAnnouncements` with the rail's `nameOf`
+  wording.
 
 ## Motion
 

@@ -4,15 +4,14 @@ import {
     MouseSensor,
     TouchSensor,
     useDraggable,
-    useDroppable,
     useSensor,
     useSensors,
     type DragEndEvent,
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { getDashboardFilterField } from '@lightdash/common';
-import { useMantineTheme } from '@mantine/core';
-import { useMemo, type FC, type ReactNode } from 'react';
+import { type FC, type ReactNode } from 'react';
+import { DroppableArea } from '../../../components/common/DndHelpers';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
     selectDashboardFilters,
@@ -59,37 +58,6 @@ const DraggableItem: FC<{
 
     return (
         <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
-            {children}
-        </div>
-    );
-};
-
-const DroppableArea: FC<{ id: string; children: ReactNode }> = ({
-    id,
-    children,
-}) => {
-    const { active, isOver, over, setNodeRef } = useDroppable({ id });
-    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
-    const { colors } = useMantineTheme();
-
-    const placeholderStyle = useMemo(() => {
-        if (isOver && active && over && active.id !== over.id) {
-            const oldIndex = dashboardFilters.dimensions.findIndex(
-                (item) => item.id === active.id,
-            );
-            const newIndex = dashboardFilters.dimensions.findIndex(
-                (item) => item.id === over.id,
-            );
-            if (newIndex < oldIndex) {
-                return { boxShadow: `-8px 0px ${colors.blue[4]}` };
-            } else if (newIndex > oldIndex) {
-                return { boxShadow: `8px 0px ${colors.blue[4]}` };
-            }
-        }
-    }, [isOver, active, over, dashboardFilters.dimensions, colors]);
-
-    return (
-        <div ref={setNodeRef} style={placeholderStyle}>
             {children}
         </div>
     );
@@ -183,6 +151,9 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 onDragEnd={handleDragEnd}
             >
                 {dashboardFilters.dimensions.map((item, index) => {
+                    const orderedKeys = dashboardFilters.dimensions.map(
+                        (rule) => rule.id,
+                    );
                     const field = getDashboardFilterField(
                         allFilterableFieldsMap,
                         item,
@@ -195,7 +166,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                     }
 
                     return (
-                        <DroppableArea key={item.id} id={item.id}>
+                        <DroppableArea
+                            key={item.id}
+                            id={item.id}
+                            orderedKeys={orderedKeys}
+                        >
                             <DraggableItem
                                 key={item.id}
                                 id={item.id}
@@ -257,6 +232,9 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 onDragEnd={handleMetricDragEnd}
             >
                 {dashboardFilters.metrics.map((item, index) => {
+                    const orderedKeys = dashboardFilters.metrics.map(
+                        (rule) => rule.id,
+                    );
                     const metricField = getDashboardFilterField(
                         allFilterableMetricsMap,
                         item,
@@ -269,7 +247,11 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                     }
 
                     return metricField ? (
-                        <DroppableArea key={item.id} id={item.id}>
+                        <DroppableArea
+                            key={item.id}
+                            id={item.id}
+                            orderedKeys={orderedKeys}
+                        >
                             <DraggableItem
                                 id={item.id}
                                 disabled={!isEditMode || !!openPopoverId}

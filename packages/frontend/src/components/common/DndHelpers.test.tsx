@@ -1,8 +1,68 @@
+import type * as DndKitCore from '@dnd-kit/core';
 import { DndContext } from '@dnd-kit/core';
 import { MantineProvider } from '@mantine/core';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { DraggableItem } from './DndHelpers';
+import { DraggableItem, DroppableArea } from './DndHelpers';
+
+// A drop state dnd-kit would report mid-drag, without the gesture
+const mockDroppable = vi.hoisted(() => ({
+    current: null as null | { activeId: string; overId: string },
+}));
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+    const actual = await importOriginal<typeof DndKitCore>();
+    return {
+        ...actual,
+        useDroppable: (args: Parameters<typeof actual.useDroppable>[0]) => {
+            const real = actual.useDroppable(args);
+            const state = mockDroppable.current;
+            if (!state) return real;
+            return {
+                ...real,
+                isOver: args.id === state.overId,
+                active: { id: state.activeId },
+                over: { id: state.overId },
+            };
+        },
+    };
+});
+
+describe('DroppableArea', () => {
+    afterEach(() => {
+        mockDroppable.current = null;
+    });
+
+    it.each([
+        ['after', ['a', 'b']],
+        ['before', ['b', 'a']],
+    ])('draws the drop line %s the item under the drag', (side, order) => {
+        mockDroppable.current = { activeId: 'a', overId: 'b' };
+        const { container } = render(
+            <MantineProvider env="test">
+                <DndContext>
+                    <DroppableArea id="b" orderedKeys={order}>
+                        <span>b</span>
+                    </DroppableArea>
+                </DndContext>
+            </MantineProvider>,
+        );
+        const line = container.querySelector('[class*="dropLine"]');
+        expect(line).toHaveAttribute('data-side', side);
+    });
+
+    it('draws no line with nothing over it', () => {
+        const { container } = render(
+            <MantineProvider env="test">
+                <DndContext>
+                    <DroppableArea id="b" orderedKeys={['a', 'b']}>
+                        <span>b</span>
+                    </DroppableArea>
+                </DndContext>
+            </MantineProvider>,
+        );
+        expect(container.querySelector('[class*="dropLine"]')).toBeNull();
+    });
+});
 
 describe('DraggableItem', () => {
     it('keeps viewer controls keyboard-accessible when dragging is disabled', async () => {
