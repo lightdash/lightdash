@@ -89,8 +89,9 @@ export const EditorShell: FC<Props> = ({
                     )}
                 </Group>
                 <Group gap={4} wrap="nowrap">
+                    {/* Focus must stay on the name input New section opens */}
                     {(onAddFilter || onNewSection) && (
-                        <Menu position="bottom-end">
+                        <Menu position="bottom-end" returnFocus={false}>
                             <Menu.Target>
                                 <Tooltip
                                     label={getUiString('filters.rail.add')}
