@@ -7,6 +7,7 @@ import {
     type DashboardAsCode,
 } from '@lightdash/common';
 import { buildAiTokenDashboard } from './aiTokenDashboard';
+import { withAnalyticsChartPresentation } from './analyticsChartPresentation';
 import { buildUsageDashboards } from './usageDashboards';
 
 type SampleChart = Omit<
@@ -357,7 +358,7 @@ export const analyticsContentAsCode = [
         verified: true,
     },
     charts: charts.map((chartDefinition) => ({
-        ...chartDefinition,
+        ...withAnalyticsChartPresentation(chartDefinition),
         spaceSlug: analyticsDefaultSpace.slug,
     })),
 }));

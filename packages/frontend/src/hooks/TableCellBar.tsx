@@ -29,13 +29,14 @@ export const TableCellBar = ({
     color = DEFAULT_BAR_COLOR,
     negativeColor,
 }: TableCellBarProps) => {
-    // Scale always includes zero (Excel-style automatic axis) so all-negative
-    // columns don't clamp distinct values to identical full-width bars.
-    const range = Math.max(max, 0) - min;
+    // Scale always includes zero (Excel-style automatic axis): positive minima
+    // retain their magnitude, and negative values don't clamp to full width.
+    const baseline = Math.min(min, 0);
+    const range = Math.max(max, 0) - baseline;
     const negativeBarColor = negativeColor ?? color;
 
     // Diverging mode only kicks in when the column contains negative values.
-    // Positive-only columns keep the original left-anchored bar unchanged.
+    // Positive-only columns use a left-anchored bar.
     const isDiverging = min < 0 && range > 0;
 
     let bar: ReactNode;
@@ -43,7 +44,7 @@ export const TableCellBar = ({
     if (!isDiverging) {
         // Positive-only (or zero range): left-anchored fill from the far left.
         const percentage =
-            range > 0 ? clamp(((value - min) / range) * 100, 0, 100) : 0;
+            range > 0 ? clamp(((value - baseline) / range) * 100, 0, 100) : 0;
 
         bar =
             value > 0 ? (

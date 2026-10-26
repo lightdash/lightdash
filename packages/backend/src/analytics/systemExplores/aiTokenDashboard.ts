@@ -17,11 +17,11 @@ const tokens = 'ai_usage_total_tokens_used';
 const day = 'ai_usage_event_ts_day';
 const queryLimit = 5000;
 const colors = [
-    '#9775fa',
-    '#4dabf7',
-    '#38d9a9',
-    '#ffa94d',
-    '#f783ac',
+    '#4263eb',
+    '#0ca678',
+    '#7950f2',
+    '#e67700',
+    '#d6336c',
     '#868e96',
 ];
 const scopeDescription =
@@ -178,8 +178,19 @@ const vegaConfig = {
         gridOpacity: 0.18,
         labelColor: '#868e96',
         titleColor: '#868e96',
+        labelFontSize: 11,
+        titleFontSize: 12,
+        labelPadding: 6,
     },
-    legend: { title: null, orient: 'bottom', labelLimit: 250 },
+    legend: {
+        title: null,
+        orient: 'bottom',
+        columns: 2,
+        labelLimit: 140,
+        labelFontSize: 11,
+        rowPadding: 6,
+        symbolType: 'square',
+    },
 };
 
 // Never show a partial top-five/Other total when the grouped query reaches its cap.
@@ -361,7 +372,9 @@ const visualSpec = (
                                 title: null,
                                 format: '%d %b',
                                 labelAngle: 0,
-                                tickCount: 10,
+                                tickCount: {
+                                    expr: 'max(3, floor(width / 90))',
+                                },
                             },
                         },
                         y: {
@@ -372,7 +385,7 @@ const visualSpec = (
                         },
                         color: {
                             ...color,
-                            legend: { labelLimit: 250 },
+                            legend: { labelLimit: 140 },
                         },
                         order: {
                             field: 'group_order',
@@ -388,7 +401,7 @@ const visualSpec = (
     }
     return {
         ...base,
-        padding: { left: 16, right: 16, top: 30, bottom: 18 },
+        padding: { left: 16, right: 16, top: 30, bottom: 30 },
         encoding: {
             y: {
                 field: 'group',
@@ -402,7 +415,7 @@ const visualSpec = (
             layer(
                 {
                     type: 'bar',
-                    height: 6,
+                    height: 8,
                     color: '#868e96',
                     opacity: 0.15,
                     cornerRadius: 3,
@@ -410,7 +423,7 @@ const visualSpec = (
                 { x: { datum: 0, ...shareScale }, x2: { datum: 1 } },
             ),
             layer(
-                { type: 'bar', height: 6, cornerRadius: 3 },
+                { type: 'bar', height: 8, cornerRadius: 3 },
                 { x: { field: 'share', ...shareScale }, color, tooltip },
             ),
             layer(
@@ -418,12 +431,13 @@ const visualSpec = (
                     ...rankText,
                     color: 'currentColor',
                     align: 'left',
-                    limit: 360,
+                    fontWeight: 500,
+                    limit: { expr: 'max(80, width - 16)' },
                 },
                 { x: { value: 0 }, text: { field: 'group_name' }, tooltip },
             ),
             layer(
-                { ...rankText, align: 'right', color: '#868e96' },
+                { ...rankText, dy: 17, align: 'right', color: '#868e96' },
                 {
                     x: { value: 'width' },
                     text: { field: 'value_label' },
@@ -620,9 +634,9 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                         1,
                         '**Current month through yesterday UTC.** Billing-scope tokens include unpriced models. Credit accounting and allowance are separate measures.',
                     ),
-                    row(2, 'eligible', 'total', 'records'),
-                    row(4, `${key}-daily`),
-                    row(6, `${key}-rank`),
+                    row(3, 'eligible', 'total', 'records'),
+                    row(7, `${key}-daily`),
+                    row(8, `${key}-rank`),
                     note(
                         3,
                         `${scopeDescription} **Top five groups + Other**; bars show share of scope, not remaining allowance. Data updates with the usage-processing refresh; today is excluded.${attributionNotes[key] ?? ''}`,
@@ -637,15 +651,15 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                     2,
                     '### All recorded AI usage\nIncludes billing-scope, excluded/background and self-managed consumption. **Current month through yesterday UTC**; captured usage is not a provider invoice or a count of human questions.',
                 ),
-                row(2, 'total', 'input', 'output'),
-                row(2, 'cache-read', 'cache-write', 'reasoning'),
+                row(3, 'total', 'input', 'output'),
+                row(3, 'cache-read', 'cache-write', 'reasoning'),
                 note(
                     1,
                     '**Do not add all six categories.** Cache reads/writes are included in input; reasoning may be included in output. Missing provider usage is unknown, not zero.',
                 ),
-                row(4, 'model-daily'),
-                row(6, 'model-rank'),
-                row(4, 'key-daily', 'outcome-daily'),
+                row(7, 'model-daily'),
+                row(8, 'model-rank'),
+                row(7, 'key-daily', 'outcome-daily'),
                 row(7, 'quality'),
                 note(
                     5,
