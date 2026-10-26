@@ -217,6 +217,10 @@ export const withAnalyticsChartPresentation = (
     if (chart.chartConfig.type === ChartType.BIG_NUMBER) {
         const isTokens =
             chart.chartConfig.config?.selectedField?.includes('tokens');
+        let style = chart.chartConfig.config?.style;
+        if (isTokens) style = Compact.AUTO;
+        // Keep counts and millisecond values exact; preserve other explicit formats.
+        else if (style === Compact.AUTO) style = undefined;
         let { name } = chart;
         if (chart.slug.endsWith('-avg-execution-time'))
             name = 'Avg. warehouse time (ms)';
@@ -229,7 +233,7 @@ export const withAnalyticsChartPresentation = (
                 ...chart.chartConfig,
                 config: {
                     ...chart.chartConfig.config,
-                    style: isTokens ? Compact.AUTO : undefined,
+                    style,
                 },
             },
         };

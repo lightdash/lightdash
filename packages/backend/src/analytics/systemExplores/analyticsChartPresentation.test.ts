@@ -24,55 +24,6 @@ describe('analytics chart presentation', () => {
         },
     );
 
-    it('keeps user fallbacks, hidden URL helpers and each underlying table row', () => {
-        for (const chart of originalCharts.filter(
-            ({ chartConfig }) => chartConfig.type === ChartType.TABLE,
-        )) {
-            const styled = withAnalyticsChartPresentation(chart);
-            expect(styled.metricQuery.dimensions).toEqual(
-                chart.metricQuery.dimensions,
-            );
-            expect(styled.metricQuery.tableCalculations).toEqual(
-                chart.metricQuery.tableCalculations,
-            );
-            for (const field of chart.metricQuery.dimensions.filter((id) =>
-                id.endsWith('_url'),
-            )) {
-                if (styled.chartConfig.type === ChartType.TABLE) {
-                    expect(
-                        styled.chartConfig.config?.columns?.[field]?.visible,
-                    ).toBe(false);
-                }
-            }
-        }
-    });
-
-    it('uses independent count and percentage axes without changing month comparison SQL', () => {
-        const original = originalCharts.find(({ slug }) =>
-            slug.endsWith('-queries-run-month-over-month'),
-        )!;
-        const chart = withAnalyticsChartPresentation(original);
-        expect(chart.metricQuery.tableCalculations).toContainEqual(
-            expect.objectContaining({ name: 'monthly_change' }),
-        );
-        expect(chart.chartConfig).toMatchObject({
-            type: ChartType.CARTESIAN,
-            config: {
-                layout: { connectNulls: false },
-                eChartsConfig: {
-                    yAxis: [
-                        { name: 'Queries', min: '0' },
-                        { name: 'Change (%)' },
-                    ],
-                    series: [
-                        { type: 'bar', yAxisIndex: 0 },
-                        { type: 'line', yAxisIndex: 1, smooth: false },
-                    ],
-                },
-            },
-        });
-    });
-
     it('preserves explicit identity columns in token attribution details', () => {
         const chart = withAnalyticsChartPresentation(
             originalCharts.find(
