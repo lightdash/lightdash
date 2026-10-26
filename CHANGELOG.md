@@ -1,3 +1,10 @@
+## [3.53.11](https://github.com/lightdash/lightdash/compare/3.53.10...3.53.11) (2026-10-26)
+
+
+### Bug Fixes
+
+* **scope-tours:** repoint ExportCsv step to the moved docs sentence ([#31559](https://github.com/lightdash/lightdash/issues/31559)) ([7b1bfdf](https://github.com/lightdash/lightdash/commit/7b1bfdf8194e0926a3c52bbdadfe30638c227f79))
+
 ## [3.53.10](https://github.com/lightdash/lightdash/compare/3.53.9...3.53.10) (2026-10-26)
 
 
