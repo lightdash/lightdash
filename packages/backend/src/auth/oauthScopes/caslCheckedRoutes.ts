@@ -114,6 +114,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'AppGenerateController.createAppScheduler',
     'AppGenerateController.deleteApp',
     'AppGenerateController.deleteAppThumbnail',
+    'AppGenerateController.dismissAddAnalysisOffer',
     'AppGenerateController.duplicateApp',
     'AppGenerateController.generateApp',
     'AppGenerateController.getAppCode',

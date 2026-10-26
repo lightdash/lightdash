@@ -559,6 +559,9 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'AppGenerateController.deleteApp': [AgentCapability.Delete],
     'AppGenerateController.deleteAppThumbnail': [AgentCapability.Delete],
+    'AppGenerateController.dismissAddAnalysisOffer': [
+        AgentCapability.ContentWrite,
+    ],
     'AppGenerateController.duplicateApp': [AgentCapability.ContentWrite],
     'AppGenerateController.generateApp': [AgentCapability.ContentWrite],
     'AppGenerateController.getApp': [AgentCapability.ReadDiscover],
