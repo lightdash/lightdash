@@ -38,6 +38,11 @@ vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
         useVisualizationServices: useVisualizationContext,
         useVisualizationLayout: useVisualizationContext,
         useVisualizationState: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
+        useVisualizationConfig: () =>
+            useVisualizationContext().visualizationConfig,
+        useEditedChartConfig: () => useVisualizationContext().chartConfig,
+        useSeriesColor: () => useVisualizationContext().getSeriesColor,
     };
 });
 vi.mock('../../MetricQueryData/useMetricQueryDataContext', () => ({

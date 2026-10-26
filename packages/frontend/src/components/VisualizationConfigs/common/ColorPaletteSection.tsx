@@ -11,7 +11,7 @@ import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppea
 import useHealth from '../../../hooks/health/useHealth';
 import Callout from '../../common/Callout';
 import { PalettePicker } from '../../common/PalettePicker/PalettePicker';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from './Config';
 
 type Props = {
@@ -24,7 +24,7 @@ export const ColorPaletteSection: FC<Props> = ({ size = 'sm' }) => {
     const value = useExplorerSelector(selectUnsavedColorPaletteUuid);
     const { data: palettes = [] } = useColorPalettes();
     const { data: health } = useHealth();
-    const { pivotDimensions, itemsMap } = useVisualizationState();
+    const { pivotDimensions, itemsMap } = useVisualizationInputs();
 
     const overrideActive =
         !!health?.appearance.overrideColorPalette &&

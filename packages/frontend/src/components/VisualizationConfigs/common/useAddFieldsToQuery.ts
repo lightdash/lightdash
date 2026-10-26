@@ -16,7 +16,7 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../../LightdashVisualization/useVisualizationContext';
 
 /**
  * The pool behind a config picker's "Add to query" group: visible explore
@@ -24,7 +24,7 @@ import { useVisualizationState } from '../../LightdashVisualization/useVisualiza
  * and re-runs. Explorer-only — the config panels render inside its store.
  */
 export const useAddFieldsToQuery = () => {
-    const { itemsMap } = useVisualizationState();
+    const { itemsMap } = useVisualizationInputs();
     const dispatch = useExplorerDispatch();
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);

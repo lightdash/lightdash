@@ -68,7 +68,9 @@ const seedEditor = (
         case ChartType.TABLE:
             return { tableEditor: buildTableEditorState(chartConfig.config) };
         case ChartType.CUSTOM:
-            return { customEditor: buildCustomEditorState() };
+            return {
+                customEditor: buildCustomEditorState(chartConfig.config),
+            };
         case ChartType.SANKEY:
             return { sankeyEditor: buildSankeyEditorState(chartConfig.config) };
         case ChartType.DATA_APP_VIZ:

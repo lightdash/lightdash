@@ -31,7 +31,9 @@ import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import {
     useVisualizationServices,
-    useVisualizationState,
+    useEditedChartConfig,
+    useVisualizationConfig,
+    useVisualizationInputs,
 } from '../../../../../components/LightdashVisualization/useVisualizationContext';
 import useEmbed from '../../../../../ee/providers/Embed/useEmbed';
 import { useChartVersionPreview } from '../../../../../features/apps/ChartVersionPreview/useChartVersionPreview';
@@ -178,15 +180,10 @@ export const AiChartQuickOptions = ({
         }),
     );
     const { chartRef } = useVisualizationServices();
-    const {
-        visualizationConfig,
-        columnOrder,
-        resultsData,
-        chartConfig,
-        pivotDimensions,
-        savedChartUuid,
-        parameters,
-    } = useVisualizationState();
+    const visualizationConfig = useVisualizationConfig();
+    const chartConfig = useEditedChartConfig();
+    const { columnOrder, resultsData, pivotDimensions, savedChartUuid, parameters } =
+        useVisualizationInputs();
     const canDownloadResults =
         showDownloadResults &&
         (isEmbed
