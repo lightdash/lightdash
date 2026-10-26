@@ -377,7 +377,7 @@ describe('internal Parquet projects', () => {
         expect(run).toHaveBeenCalledWith(`SET allowed_paths = ['${url}'];`);
         expect(run).toHaveBeenCalledWith('SET enable_external_access = false;');
         expect(run).toHaveBeenCalledWith(
-            "SET max_temp_directory_size = '512MB';",
+            "SET max_temp_directory_size = '2GB';",
         );
         expect(run).toHaveBeenCalledWith(
             expect.stringMatching(

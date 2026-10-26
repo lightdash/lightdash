@@ -34,8 +34,9 @@ export const semanticUsageColumns: CompactedStreamColumn[] = [
 ];
 
 // Rank only duplicate identities so unique events stream their wide JSON.
+// Inline the key lookup so joined charts can prune unused lineage columns.
 // Null-field rows retain unavailable lineage; distinct metrics stay non-additive.
-export const semanticUsageSql = `(WITH duplicate_query_ids AS (
+export const semanticUsageSql = `(WITH duplicate_query_ids AS NOT MATERIALIZED (
     SELECT org_id, query_id FROM query_events
     GROUP BY org_id, query_id HAVING COUNT(*) > 1
 ), queries AS (

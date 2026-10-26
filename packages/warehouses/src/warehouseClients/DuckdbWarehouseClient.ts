@@ -1372,7 +1372,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         if (spillDirectory) await fs.mkdir(spillDirectory, { mode: 0o700 });
         // DuckDB allowlists this private child when external access is disabled.
         // User SQL still cannot call file functions or change this configuration.
-        await db.run("SET max_temp_directory_size = '512MB';");
+        await db.run("SET max_temp_directory_size = '2GB';");
         await db.run(`SET temp_directory = ${literal(spillDirectory)};`);
         await db.run('SET allowed_directories = [];');
         // These caches live only in this query's private, memory-limited

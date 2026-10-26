@@ -162,7 +162,7 @@ describe('private query staging of cached Parquet', () => {
                     "SELECT current_setting('temp_directory') AS directory, current_setting('max_temp_directory_size') AS cap, current_setting('allowed_directories') AS directories",
                 )
             ).getRowObjectsJson();
-            expect(settings.cap).toBe('488.2 MiB');
+            expect(settings.cap).toBe('1.8 GiB');
             expect(settings.directories).toEqual([
                 `${await fs.realpath(String(settings.directory))}/`,
             ]);
@@ -191,7 +191,7 @@ describe('private query staging of cached Parquet', () => {
             await db.run("SET TimeZone = 'Europe/Madrid'");
             for (const sql of [
                 "SET temp_directory = '/tmp/shared'",
-                "SET max_temp_directory_size = '2GB'",
+                "SET max_temp_directory_size = '4GB'",
                 "SET memory_limit = '2GB'",
                 'SET lock_configuration = false',
                 "SET allowed_directories = ['/tmp/']",
@@ -306,7 +306,7 @@ describe('private query staging of cached Parquet', () => {
             ) {
                 return nativeRun.call(
                     this,
-                    sql === "SET max_temp_directory_size = '512MB';"
+                    sql === "SET max_temp_directory_size = '2GB';"
                         ? "SET max_temp_directory_size = '1MB';"
                         : sql,
                     ...args,
