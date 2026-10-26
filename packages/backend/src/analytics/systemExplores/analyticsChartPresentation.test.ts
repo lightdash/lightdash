@@ -7,6 +7,30 @@ import {
 } from './sampleContent';
 import { buildUsageDashboards } from './usageDashboards';
 
+type TokenSpec = {
+    transform: { joinaggregate?: unknown[]; calculate?: string; as?: string }[];
+    layer: {
+        transform: unknown[];
+        encoding: {
+            text?: { value?: string };
+            tooltip?: unknown[];
+        };
+    }[];
+};
+
+const getTokenSpec = (key: string): TokenSpec => {
+    const chart = buildAiTokenDashboard().charts.find(({ slug }) =>
+        slug.endsWith(`-${key}`),
+    )!;
+    if (
+        chart.chartConfig.type !== ChartType.CUSTOM ||
+        !chart.chartConfig.config?.spec
+    ) {
+        throw new Error('Expected a custom token chart');
+    }
+    return chart.chartConfig.config.spec as TokenSpec;
+};
+
 describe('analytics chart presentation', () => {
     const originalCharts = [
         ...buildUsageDashboards([]),
@@ -76,6 +100,49 @@ describe('analytics chart presentation', () => {
                 }
             }
         }
+    });
+
+    it.each(['feature-daily', 'feature-rank'])(
+        'distinguishes unreported usage from truncated results in %s',
+        (key) => {
+            const spec = getTokenSpec(key);
+            const missingUsage = spec.layer.find(
+                (layer) =>
+                    layer.encoding?.text?.value === 'No reported token totals',
+            );
+            const truncated = spec.layer.find((layer) =>
+                layer.encoding?.text?.value?.startsWith('Too many groups'),
+            );
+
+            // Missing usage must not claim completeness at the query cap.
+            expect(missingUsage?.transform[0]).toEqual({
+                filter: 'datum.reported_rows === 0 && datum.source_rows < 5000',
+            });
+            expect(truncated?.transform[0]).toEqual({
+                filter: 'datum.source_rows >= 5000',
+            });
+            // Count valid values, including zero, rather than treating a
+            // zero total as absent provider usage.
+            expect(spec.transform[0].joinaggregate).toContainEqual({
+                op: 'valid',
+                field: 'ai_usage_total_tokens_used',
+                as: 'reported_rows',
+            });
+        },
+    );
+
+    it('formats token daily tooltips in UTC rather than the viewer timezone', () => {
+        const spec = getTokenSpec('feature-daily');
+        expect(spec.transform).toContainEqual({
+            calculate:
+                "utcFormat(toDate(datum.ai_usage_event_ts_day), '%d %b %Y')",
+            as: 'utc_day_label',
+        });
+        expect(spec.layer[0].encoding.tooltip).toContainEqual({
+            field: 'utc_day_label',
+            type: 'nominal',
+            title: 'UTC day',
+        });
     });
 
     it('keeps every tile inside the grid without overlapping another tile in its tab', () => {

@@ -209,13 +209,40 @@ const limitWarning = {
         },
     },
 };
-const sourceRows = { joinaggregate: [{ op: 'count', as: 'source_rows' }] };
+const sourceRows = {
+    joinaggregate: [
+        { op: 'count', as: 'source_rows' },
+        { op: 'valid', field: tokens, as: 'reported_rows' },
+    ],
+};
 const preserveSourceRows = {
     op: 'max',
     field: 'source_rows',
     as: 'source_rows',
 };
-const completeRows = { filter: `datum.source_rows < ${queryLimit}` };
+const preserveReportedRows = {
+    op: 'max',
+    field: 'reported_rows',
+    as: 'reported_rows',
+};
+const completeRows = {
+    filter: `datum.source_rows < ${queryLimit} && datum.reported_rows > 0`,
+};
+const noReportedTokens = {
+    transform: [
+        {
+            filter: `datum.reported_rows === 0 && datum.source_rows < ${queryLimit}`,
+        },
+        { aggregate: [{ op: 'count', as: 'groups' }] },
+        { filter: 'datum.groups > 0' },
+    ],
+    mark: { type: 'text', align: 'center', color: '#868e96', fontSize: 12 },
+    encoding: {
+        x: { value: { expr: 'width / 2' } },
+        y: { value: { expr: 'height / 2' } },
+        text: { value: 'No reported token totals' },
+    },
+};
 
 const visualSpec = (
     breakdown: Breakdown,
@@ -225,10 +252,9 @@ const visualSpec = (
         ...(daily
             ? [
                   {
-                      field: day,
-                      type: 'temporal',
+                      field: 'utc_day_label',
+                      type: 'nominal',
                       title: 'UTC day',
-                      format: '%d %b %Y',
                   },
               ]
             : []),
@@ -260,7 +286,11 @@ const visualSpec = (
     };
     const transform = [
         sourceRows,
-        { filter: `isValid(datum.${tokens})` },
+        // Retain an all-null input only to render its missing-usage message.
+        // Those rows are excluded from every plotted mark by completeRows.
+        {
+            filter: `isValid(datum.${tokens}) || datum.reported_rows === 0`,
+        },
         { calculate: breakdown.identity, as: 'identity' },
         { calculate: breakdown.label, as: 'label' },
         {
@@ -278,6 +308,7 @@ const visualSpec = (
             aggregate: [
                 { op: 'sum', field: tokens, as: 'tokens' },
                 preserveSourceRows,
+                preserveReportedRows,
             ],
             groupby: [...(daily ? [day] : []), 'identity', 'display_label'],
         },
@@ -315,10 +346,19 @@ const visualSpec = (
                 { op: 'sum', field: 'tokens', as: 'tokens' },
                 { op: 'min', field: 'group_order', as: 'group_order' },
                 preserveSourceRows,
+                preserveReportedRows,
                 ...(!daily ? [{ op: 'max', field: 'total', as: 'total' }] : []),
             ],
             groupby: [...(daily ? [day] : []), 'group', 'group_name'],
         },
+        ...(daily
+            ? [
+                  {
+                      calculate: `utcFormat(toDate(datum.${day}), '%d %b %Y')`,
+                      as: 'utc_day_label',
+                  },
+              ]
+            : []),
         ...(!daily
             ? [
                   {
@@ -400,6 +440,7 @@ const visualSpec = (
                     },
                 },
                 limitWarning,
+                noReportedTokens,
             ],
         };
     }
@@ -449,6 +490,7 @@ const visualSpec = (
                 },
             ),
             limitWarning,
+            noReportedTokens,
         ],
     };
 };
