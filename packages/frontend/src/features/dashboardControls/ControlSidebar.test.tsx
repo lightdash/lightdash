@@ -1685,6 +1685,38 @@ describe('ControlSidebar', () => {
             ]);
         });
 
+        it('keeps a fieldless new filter rendered when its section collapses', () => {
+            const { collapse, discard } = setSidebar({
+                isPlaceholder: true,
+                editing: { filterId: 'new' },
+                editingRule: makeRule({
+                    id: 'new',
+                    target: { fieldId: '', tableName: '' },
+                    sectionId: 'section-a',
+                }),
+            });
+            renderWithProviders(<ControlSidebar />, sectioned());
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Collapse section Dates' }),
+            );
+            expect(collapse).not.toHaveBeenCalled();
+            expect(discard).not.toHaveBeenCalled();
+            expect(
+                screen.queryByRole('button', { name: /^Created/ }),
+            ).not.toBeInTheDocument();
+            expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
+            // Under its own header, not among the unsectioned rows
+            expect(
+                screen
+                    .getByTestId('fields-and-tiles')
+                    .compareDocumentPosition(
+                        document.querySelector(
+                            '[data-controls-section="section-a"]',
+                        ) as Element,
+                    ) & Node.DOCUMENT_POSITION_PRECEDING,
+            ).toBeTruthy();
+        });
+
         it('folds the expanded filter before collapsing its section', () => {
             const { collapse } = setSidebar({
                 isNew: false,

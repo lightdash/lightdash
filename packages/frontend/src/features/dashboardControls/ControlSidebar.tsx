@@ -667,7 +667,9 @@ const OpenControlSidebar: FC = () => {
                 ...shown.map((rule) => renderRow(rule, false, false)),
                 ...unlistedEditor(null),
             ];
-        // Folding a section folds the filter expanded in it first
+        // Collapsing a section collapses the filter expanded in it first; a
+        // new one with no field yet would be dropped, so it stays, rendered
+        // under the collapsed header
         const holdsEditor =
             editorSectionId === section.id ||
             rules.some(({ rule }) => rule.id === filterId);
@@ -682,7 +684,8 @@ const OpenControlSidebar: FC = () => {
                 isDragDisabled={isDragDisabled}
                 isReadOnly={isViewer}
                 onToggle={() => {
-                    if (!isCollapsed && holdsEditor) collapse();
+                    if (!isCollapsed && holdsEditor && !isPlaceholder)
+                        collapse();
                     setCollapsedIds((ids) =>
                         ids.includes(section.id)
                             ? ids.filter((id) => id !== section.id)
@@ -698,7 +701,7 @@ const OpenControlSidebar: FC = () => {
                 }
             />,
             ...shown.map((rule) => renderRow(rule, isViewer, true)),
-            ...(isCollapsed ? [] : unlistedEditor(section.id)),
+            ...unlistedEditor(section.id),
         ];
     });
     // A compact copy under the pointer; the source row stays in place, dimmed

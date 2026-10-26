@@ -38,7 +38,7 @@ type CapsuleProps = {
 /** A section with more members than this (on any tab) starts collapsed */
 const COLLAPSED_BY_DEFAULT_ABOVE = 6;
 
-const SectionGroup: FC<CapsuleProps> = ({
+const SectionCapsule: FC<CapsuleProps> = ({
     section,
     visibleRules,
     isOpen,
@@ -168,7 +168,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                 popover={popover}
             />
             {groups.map(({ section, rules, visibleRules }) => (
-                <SectionGroup
+                <SectionCapsule
                     key={section.id}
                     section={section}
                     visibleRules={visibleRules}

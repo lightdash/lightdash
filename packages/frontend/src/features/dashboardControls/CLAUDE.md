@@ -1102,7 +1102,10 @@ the language map, as tab names are.
   letter-spaced labels anywhere. There are no drop zones: nothing mounts during
   a drag. Collapsing is local state keyed by section id; collapsing the
   section that holds the expanded filter calls `collapse()` first, so
-  nothing expanded is ever inside a collapsed section. A placeholder (a new
+  nothing expanded is inside a collapsed section, with one exception: a
+  new filter with no field yet (the same `isPlaceholder` guard as "New
+  section"), which `collapse()` would drop, stays rendered under the
+  collapsed header. A placeholder (a new
   filter, or an existing one that lost its field) comes last in its
   section when it has a live `sectionId`, else last among the unsectioned
   rows; `writeFirstRule` drops a `sectionId` whose section is gone before
