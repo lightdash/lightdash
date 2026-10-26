@@ -2,7 +2,8 @@
 // chart series configs if they have more similar options in the future.
 
 import { Box, Group, Stack } from '@mantine/core';
-import { type FC } from 'react';
+import { useDebouncedCallback } from '@mantine/hooks';
+import { useState, type FC } from 'react';
 import ColorSelector from '../ColorSelector';
 import { EditableText } from '../common/EditableText';
 
@@ -35,24 +36,37 @@ export const StepConfig: FC<StepConfigProps> = ({
     ...rest
 }) => {
     const stepId = id ?? defaultLabel;
+    // Typing and colour picking are debounced before they reach the store
+    const [draftLabel, setDraftLabel] = useState(label ?? '');
+    const [draftColor, setDraftColor] = useState<string | undefined>();
+    const commitLabel = useDebouncedCallback(
+        (value: string) => onLabelChange(stepId, value),
+        500,
+    );
+    const commitColor = useDebouncedCallback((value: string) => {
+        onColorChange(stepId, value);
+        setDraftColor(undefined);
+    }, 500);
     return (
         <Stack gap="xs" {...rest}>
             <Group gap="xs">
                 <ColorSelector
-                    color={color}
+                    color={draftColor ?? color}
                     defaultColor={defaultColor}
                     swatches={swatches}
-                    onColorChange={(newColor: string) =>
-                        onColorChange(stepId, newColor)
-                    }
+                    onColorChange={(newColor: string) => {
+                        setDraftColor(newColor);
+                        commitColor(newColor);
+                    }}
                 />
                 <Box flex={1}>
                     <EditableText
                         placeholder={defaultLabel}
-                        value={label}
+                        value={draftLabel}
                         granularityFields={granularityFields}
                         onChange={(event) => {
-                            onLabelChange(stepId, event.currentTarget.value);
+                            setDraftLabel(event.currentTarget.value);
+                            commitLabel(event.currentTarget.value);
                         }}
                     />
                 </Box>

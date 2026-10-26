@@ -1,4 +1,5 @@
 import {
+    ChartType,
     FunnelChartDataInput,
     FunnelChartLabelPosition,
     FunnelChartLegendPosition,
@@ -9,11 +10,13 @@ import { describe, expect, it } from 'vitest';
 import { withVisualizationStore } from '../testing/visualizationStore';
 import useFunnelChartConfig from './useFunnelChartConfig';
 
-const render = (initial?: FunnelChart) =>
-    renderHook(
-        () => useFunnelChartConfig(undefined, initial, undefined, {}, ['#000']),
-        { wrapper: withVisualizationStore() },
-    );
+const render = (config?: FunnelChart) =>
+    renderHook(() => useFunnelChartConfig(), {
+        wrapper: withVisualizationStore(
+            { type: ChartType.FUNNEL, config },
+            { colorPalette: ['#000'] },
+        ),
+    });
 
 describe('useFunnelChartConfig', () => {
     it('seeds from the saved config', () => {
@@ -58,6 +61,9 @@ describe('useFunnelChartConfig', () => {
         act(() => result.current.onColorOverridesChange('a', '#111'));
         expect(result.current.labelOverrides).toEqual({ a: 'Step A' });
         expect(result.current.colorOverrides).toEqual({ a: '#111' });
+        expect(result.current.validConfig.labelOverrides).toEqual({
+            a: 'Step A',
+        });
         act(() => result.current.onLabelOverridesChange('a', '  '));
         act(() => result.current.onColorOverridesChange('a', ''));
         expect(result.current.labelOverrides).toEqual({});

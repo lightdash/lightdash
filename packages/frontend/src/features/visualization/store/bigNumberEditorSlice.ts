@@ -1,6 +1,7 @@
 import {
     ComparisonFormatTypes,
     type BigNumber,
+    type CompactOrAlias,
     type ConditionalFormattingConfig,
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
@@ -24,15 +25,16 @@ export type BigNumberEditorState = {
 export const buildBigNumberEditorState = (
     initialChartConfig: BigNumber | undefined,
 ): BigNumberEditorState => ({
-    selectedField: undefined,
-    showTableNamesInLabel: initialChartConfig?.showTableNamesInLabel,
+    selectedField: initialChartConfig?.selectedField,
+    showTableNamesInLabel: initialChartConfig?.showTableNamesInLabel ?? true,
     bigNumberLabel: initialChartConfig?.label,
-    showBigNumberLabel: initialChartConfig?.showBigNumberLabel,
+    showBigNumberLabel: initialChartConfig?.showBigNumberLabel ?? true,
     bigNumberStyle: initialChartConfig?.style,
     bigNumberComparisonStyle: initialChartConfig?.style,
-    showComparison: initialChartConfig?.showComparison,
-    comparisonFormat: initialChartConfig?.comparisonFormat,
-    flipColors: initialChartConfig?.flipColors,
+    showComparison: initialChartConfig?.showComparison ?? false,
+    comparisonFormat:
+        initialChartConfig?.comparisonFormat ?? ComparisonFormatTypes.RAW,
+    flipColors: initialChartConfig?.flipColors ?? false,
     comparisonLabel: initialChartConfig?.comparisonLabel,
     comparisonField: initialChartConfig?.comparisonField,
     conditionalFormattings: initialChartConfig?.conditionalFormattings ?? [],
@@ -43,27 +45,52 @@ const bigNumberEditorSlice = createSlice({
     initialState: null as BigNumberEditorState | null,
     reducers: {
         ...editorCaseReducers<BigNumberEditorState>(),
-        // Re-seeds every field from a changed saved config, with defaults applied
-        syncFromConfig: (
+        // The value's style also resets the comparison's
+        styleChange: (
             state,
-            action: PayloadAction<BigNumber | undefined>,
+            action: PayloadAction<CompactOrAlias | undefined>,
         ) => {
             if (!state) return;
-            const config = action.payload;
-            if (config?.selectedField !== undefined)
-                state.selectedField = config.selectedField;
-            state.bigNumberLabel = config?.label;
-            state.showBigNumberLabel = config?.showBigNumberLabel ?? true;
-            state.showTableNamesInLabel = config?.showTableNamesInLabel ?? true;
-            state.bigNumberStyle = config?.style;
-            state.bigNumberComparisonStyle = config?.style;
-            state.showComparison = config?.showComparison ?? false;
-            state.comparisonFormat =
-                config?.comparisonFormat ?? ComparisonFormatTypes.RAW;
-            state.flipColors = config?.flipColors ?? false;
-            state.comparisonLabel = config?.comparisonLabel;
-            state.conditionalFormattings = config?.conditionalFormattings ?? [];
-            state.comparisonField = config?.comparisonField;
+            state.bigNumberStyle = action.payload;
+            state.bigNumberComparisonStyle = action.payload;
+        },
+        toggleShowBigNumberLabel: (state) => {
+            if (!state) return;
+            state.showBigNumberLabel = !state.showBigNumberLabel;
+        },
+        toggleShowTableNamesInLabel: (state) => {
+            if (!state) return;
+            state.showTableNamesInLabel = !state.showTableNamesInLabel;
+        },
+        toggleShowComparison: (state) => {
+            if (!state) return;
+            state.showComparison = !state.showComparison;
+        },
+        toggleFlipColors: (state) => {
+            if (!state) return;
+            state.flipColors = !state.flipColors;
+        },
+        conditionalFormattingAdd: (
+            state,
+            action: PayloadAction<ConditionalFormattingConfig>,
+        ) => {
+            if (!state) return;
+            state.conditionalFormattings.push(action.payload);
+        },
+        conditionalFormattingRemove: (state, action: PayloadAction<number>) => {
+            if (!state) return;
+            state.conditionalFormattings.splice(action.payload, 1);
+        },
+        conditionalFormattingChange: (
+            state,
+            action: PayloadAction<{
+                index: number;
+                config: ConditionalFormattingConfig;
+            }>,
+        ) => {
+            if (!state) return;
+            state.conditionalFormattings[action.payload.index] =
+                action.payload.config;
         },
     },
 });

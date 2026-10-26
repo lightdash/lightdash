@@ -1,35 +1,24 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, useMemo, type FC, memo } from 'react';
+import { memo, useEffect, useMemo, type FC } from 'react';
 import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import {
     type VisualizationBigNumberConfigProps,
     type VisualizationConfigBigNumber,
 } from './types';
-import { useVisualizationInputs } from './useVisualizationContext';
 
 const VisualizationBigNumberConfig: FC<VisualizationBigNumberConfigProps> = ({
-    initialChartConfig,
     onChartConfigChange,
     children,
 }) => {
-    const { itemsMap, resultsData, tableCalculationsMetadata, parameters } =
-        useVisualizationInputs();
-    const bigNumberConfig = useBigNumberConfig(
-        initialChartConfig,
-        resultsData,
-        itemsMap,
-        tableCalculationsMetadata,
-        parameters,
-    );
+    const bigNumberConfig = useBigNumberConfig();
 
     useEffect(() => {
-        if (!onChartConfigChange || !bigNumberConfig.validConfig) return;
-
+        if (!onChartConfigChange) return;
         onChartConfigChange({
             type: ChartType.BIG_NUMBER,
             config: bigNumberConfig.validConfig,
         });
-    }, [bigNumberConfig, onChartConfigChange]);
+    }, [bigNumberConfig.validConfig, onChartConfigChange]);
 
     const visualizationConfig: VisualizationConfigBigNumber = useMemo(
         () => ({

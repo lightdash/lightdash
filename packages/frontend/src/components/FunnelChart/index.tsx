@@ -22,8 +22,8 @@ import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import {
+    useVisualizationInputs,
     useVisualizationServices,
-    useVisualizationState,
 } from '../LightdashVisualization/useVisualizationContext';
 import FunnelChartContextMenu, {
     type FunnelChartContextMenuProps,
@@ -58,7 +58,7 @@ const FunnelChart: FC<FunnelChartProps> = memo(
         ...props
     }) => {
         const { chartRef } = useVisualizationServices();
-        const { isLoading, resultsData, minimal } = useVisualizationState();
+        const { isLoading, resultsData, minimal } = useVisualizationInputs();
         const { selectedLegends, onLegendChange } =
             useLegendDoubleClickSelection();
 

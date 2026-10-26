@@ -1,72 +1,38 @@
-import {
-    ChartType,
-    getDimensionsFromItemsMap,
-    getMetricsFromItemsMap,
-    getTableCalculationsFromItemsMap,
-    isNumericItem,
-    type TableCalculation,
-} from '@lightdash/common';
-import { useEffect, useMemo, type FC, memo } from 'react';
+import { ChartType } from '@lightdash/common';
+import { memo, useEffect, useMemo, type FC } from 'react';
+import { selectFunnelFieldPools } from '../../features/visualization/store';
 import useFunnelChartConfig from '../../hooks/useFunnelChartConfig';
 import {
     type VisualizationConfigFunnelProps,
     type VisualizationConfigFunnelType,
 } from './types';
-import { useVisualizationInputs } from './useVisualizationContext';
+import { useVisualizationInputSelector } from './useVisualizationContext';
 
 const VisualizationConfigFunnel: FC<VisualizationConfigFunnelProps> = ({
-    initialChartConfig,
     onChartConfigChange,
     children,
 }) => {
-    const { resultsData, itemsMap, colorPalette, tableCalculationsMetadata } =
-        useVisualizationInputs();
-    const { dimensions, numericFields } = useMemo(() => {
-        const metrics = getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem);
-        const tableCalculations = getTableCalculationsFromItemsMap(itemsMap);
-
-        const numericTableCalculations = Object.keys(tableCalculations).reduce<
-            Record<string, TableCalculation>
-        >((acc, key) => {
-            const tableCalculation = tableCalculations[key];
-            if (isNumericItem(tableCalculation)) {
-                acc[key] = tableCalculation;
-            }
-            return acc;
-        }, {});
-
-        return {
-            dimensions: getDimensionsFromItemsMap(itemsMap ?? {}),
-            numericFields: { ...metrics, ...numericTableCalculations },
-        };
-    }, [itemsMap]);
-
-    const FunnelChartConfig = useFunnelChartConfig(
-        resultsData,
-        initialChartConfig,
-        itemsMap,
-        numericFields,
-        colorPalette,
-        tableCalculationsMetadata,
+    const { dimensions, numericFields } = useVisualizationInputSelector(
+        selectFunnelFieldPools,
     );
+    const funnelChartConfig = useFunnelChartConfig();
 
     useEffect(() => {
-        if (!onChartConfigChange || !FunnelChartConfig.validConfig) return;
-
+        if (!onChartConfigChange) return;
         onChartConfigChange({
             type: ChartType.FUNNEL,
-            config: FunnelChartConfig.validConfig,
+            config: funnelChartConfig.validConfig,
         });
-    }, [FunnelChartConfig, onChartConfigChange]);
+    }, [funnelChartConfig.validConfig, onChartConfigChange]);
 
     const visualizationConfig: VisualizationConfigFunnelType = useMemo(
         () => ({
             chartType: ChartType.FUNNEL,
-            chartConfig: FunnelChartConfig,
+            chartConfig: funnelChartConfig,
             dimensions,
             numericFields,
         }),
-        [FunnelChartConfig, dimensions, numericFields],
+        [funnelChartConfig, dimensions, numericFields],
     );
 
     return children({ visualizationConfig });

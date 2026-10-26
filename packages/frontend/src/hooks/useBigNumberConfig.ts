@@ -1,59 +1,120 @@
+import { type ConditionalFormattingConfig } from '@lightdash/common';
+import { useCallback, useMemo } from 'react';
 import {
-    type BigNumber,
-    type ItemsMap,
-    type ParametersValuesMap,
-    type TableCalculationMetadata,
-} from '@lightdash/common';
-import {
-    buildBigNumberModel,
-    getAvailableBigNumberFieldIds,
-    resolveBigNumberSelectedField,
-} from '@lightdash/visualization/editor';
-import { useCallback, useEffect, useMemo, type SetStateAction } from 'react';
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../components/LightdashVisualization/useVisualizationContext';
 import {
     bigNumberEditorActions,
-    buildBigNumberEditorState,
     selectBigNumberEditor,
+    selectBigNumberModel,
+    selectBigNumberSelectedField,
+    selectBigNumberValidConfig,
     useEditorFieldSetter,
     useVisualizationDispatch,
-    type BigNumberEditorState,
     useVisualizationSelector,
+    type BigNumberEditorState,
 } from '../features/visualization/store';
-import { type InfiniteQueryResults } from './useQueryResults';
 
-const useBigNumberConfig = (
-    bigNumberConfigData: BigNumber | undefined,
-    resultsData:
-        | (InfiniteQueryResults & { resolvedTimezone?: string })
-        | undefined,
-    itemsMap: ItemsMap | undefined,
-    tableCalculationsMetadata?: TableCalculationMetadata[],
-    parameters?: ParametersValuesMap,
-) => {
-    const availableFieldsIds = useMemo(
-        () => getAvailableBigNumberFieldIds(itemsMap),
-        [itemsMap],
-    );
+type Setter<K extends keyof BigNumberEditorState> = (
+    value: BigNumberEditorState[K],
+) => void;
 
-    const {
-        selectedField,
-        showTableNamesInLabel,
-        bigNumberLabel,
-        showBigNumberLabel,
-        bigNumberStyle,
-        bigNumberComparisonStyle,
-        showComparison,
-        comparisonFormat,
-        flipColors,
-        comparisonLabel,
-        comparisonField,
-        conditionalFormattings,
-    } = useVisualizationSelector(selectBigNumberEditor);
+export type BigNumberEditorActions = {
+    setSelectedField: Setter<'selectedField'>;
+    setBigNumberLabel: Setter<'bigNumberLabel'>;
+    setBigNumberStyle: Setter<'bigNumberStyle'>;
+    setBigNumberComparisonStyle: Setter<'bigNumberComparisonStyle'>;
+    setShowBigNumberLabel: Setter<'showBigNumberLabel'>;
+    setShowComparison: Setter<'showComparison'>;
+    setComparisonFormat: Setter<'comparisonFormat'>;
+    setFlipColors: Setter<'flipColors'>;
+    setComparisonLabel: Setter<'comparisonLabel'>;
+    setShowTableNamesInLabel: Setter<'showTableNamesInLabel'>;
+    onSetConditionalFormattings: Setter<'conditionalFormattings'>;
+    setComparisonField: Setter<'comparisonField'>;
+    styleChange: (style: BigNumberEditorState['bigNumberStyle']) => void;
+    toggleShowBigNumberLabel: () => void;
+    toggleShowTableNamesInLabel: () => void;
+    toggleShowComparison: () => void;
+    toggleFlipColors: () => void;
+    conditionalFormattingAdd: (config: ConditionalFormattingConfig) => void;
+    conditionalFormattingRemove: (index: number) => void;
+    conditionalFormattingChange: (
+        index: number,
+        config: ConditionalFormattingConfig,
+    ) => void;
+};
+
+/** Stable big number editor actions */
+export const useBigNumberEditorActions = (): BigNumberEditorActions => {
     const dispatch = useVisualizationDispatch();
     const set = useEditorFieldSetter<BigNumberEditorState>(
         selectBigNumberEditor,
         bigNumberEditorActions.set,
     );
+    return useMemo(
+        () => ({
+            setSelectedField: (value) => set('selectedField', value),
+            setBigNumberLabel: (value) => set('bigNumberLabel', value),
+            setBigNumberStyle: (value) => set('bigNumberStyle', value),
+            setBigNumberComparisonStyle: (value) =>
+                set('bigNumberComparisonStyle', value),
+            setShowBigNumberLabel: (value) => set('showBigNumberLabel', value),
+            setShowComparison: (value) => set('showComparison', value),
+            setComparisonFormat: (value) => set('comparisonFormat', value),
+            setFlipColors: (value) => set('flipColors', value),
+            setComparisonLabel: (value) => set('comparisonLabel', value),
+            setShowTableNamesInLabel: (value) =>
+                set('showTableNamesInLabel', value),
+            onSetConditionalFormattings: (value) =>
+                set('conditionalFormattings', value),
+            setComparisonField: (value) => set('comparisonField', value),
+            styleChange: (style) =>
+                dispatch(bigNumberEditorActions.styleChange(style)),
+            toggleShowBigNumberLabel: () =>
+                dispatch(bigNumberEditorActions.toggleShowBigNumberLabel()),
+            toggleShowTableNamesInLabel: () =>
+                dispatch(bigNumberEditorActions.toggleShowTableNamesInLabel()),
+            toggleShowComparison: () =>
+                dispatch(bigNumberEditorActions.toggleShowComparison()),
+            toggleFlipColors: () =>
+                dispatch(bigNumberEditorActions.toggleFlipColors()),
+            conditionalFormattingAdd: (config) =>
+                dispatch(
+                    bigNumberEditorActions.conditionalFormattingAdd(config),
+                ),
+            conditionalFormattingRemove: (index) =>
+                dispatch(
+                    bigNumberEditorActions.conditionalFormattingRemove(index),
+                ),
+            conditionalFormattingChange: (index, config) =>
+                dispatch(
+                    bigNumberEditorActions.conditionalFormattingChange({
+                        index,
+                        config,
+                    }),
+                ),
+        }),
+        [dispatch, set],
+    );
+};
+
+/**
+ * Everything the big number body and context menu read, re-rendering on
+ * every edit. Config panels select the fields they show instead.
+ */
+const useBigNumberConfig = () => {
+    const { itemsMap } = useVisualizationInputs();
+    const editor = useVisualizationSelector(selectBigNumberEditor);
+    const selectedField = useVisualizationInputSelector(
+        selectBigNumberSelectedField,
+    );
+    const validConfig = useVisualizationInputSelector(
+        selectBigNumberValidConfig,
+    );
+    const model = useVisualizationInputSelector(selectBigNumberModel);
+    const actions = useBigNumberEditorActions();
 
     const getField = useCallback(
         (fieldNameOrId: string | undefined) => {
@@ -63,174 +124,35 @@ const useBigNumberConfig = (
         [itemsMap],
     );
 
-    useEffect(() => {
-        if (itemsMap && availableFieldsIds.length > 0 && bigNumberConfigData) {
-            const nextSelectedField = resolveBigNumberSelectedField({
-                selectedField,
-                configSelectedField: bigNumberConfigData?.selectedField,
-                itemsMap,
-                availableFieldsIds,
-                tableCalculationsMetadata,
-            });
-            if (nextSelectedField !== undefined) {
-                set('selectedField', nextSelectedField);
-            }
-        }
-    }, [
-        itemsMap,
-        bigNumberConfigData,
-        selectedField,
-        availableFieldsIds,
-        tableCalculationsMetadata,
-        set,
-    ]);
-
-    useEffect(() => {
-        dispatch(bigNumberEditorActions.syncFromConfig(bigNumberConfigData));
-    }, [bigNumberConfigData, dispatch]);
-
-    const setters = useMemo(
-        () => ({
-            setSelectedField: (
-                value: SetStateAction<BigNumberEditorState['selectedField']>,
-            ) => set('selectedField', value),
-            setBigNumberLabel: (
-                value: SetStateAction<BigNumberEditorState['bigNumberLabel']>,
-            ) => set('bigNumberLabel', value),
-            setBigNumberStyle: (
-                value: SetStateAction<BigNumberEditorState['bigNumberStyle']>,
-            ) => set('bigNumberStyle', value),
-            setBigNumberComparisonStyle: (
-                value: SetStateAction<
-                    BigNumberEditorState['bigNumberComparisonStyle']
-                >,
-            ) => set('bigNumberComparisonStyle', value),
-            setShowBigNumberLabel: (
-                value: SetStateAction<
-                    BigNumberEditorState['showBigNumberLabel']
-                >,
-            ) => set('showBigNumberLabel', value),
-            setShowComparison: (
-                value: SetStateAction<BigNumberEditorState['showComparison']>,
-            ) => set('showComparison', value),
-            setComparisonFormat: (
-                value: SetStateAction<BigNumberEditorState['comparisonFormat']>,
-            ) => set('comparisonFormat', value),
-            setFlipColors: (
-                value: SetStateAction<BigNumberEditorState['flipColors']>,
-            ) => set('flipColors', value),
-            setComparisonLabel: (
-                value: SetStateAction<BigNumberEditorState['comparisonLabel']>,
-            ) => set('comparisonLabel', value),
-            setShowTableNamesInLabel: (
-                value: SetStateAction<
-                    BigNumberEditorState['showTableNamesInLabel']
-                >,
-            ) => set('showTableNamesInLabel', value),
-            onSetConditionalFormattings: (
-                value: SetStateAction<
-                    BigNumberEditorState['conditionalFormattings']
-                >,
-            ) => set('conditionalFormattings', value),
-            setComparisonField: (
-                value: SetStateAction<BigNumberEditorState['comparisonField']>,
-            ) => set('comparisonField', value),
-        }),
-        [set],
-    );
-
-    const validConfig: BigNumber = useMemo(() => {
-        return {
-            label: bigNumberLabel,
-            style: bigNumberStyle,
-            selectedField: selectedField,
-            showBigNumberLabel,
-            showTableNamesInLabel,
-            showComparison,
-            comparisonFormat,
-            flipColors,
-            comparisonLabel,
-            conditionalFormattings,
-            comparisonField,
-        };
-    }, [
-        bigNumberLabel,
-        bigNumberStyle,
-        selectedField,
-        showBigNumberLabel,
-        showTableNamesInLabel,
-        showComparison,
-        comparisonFormat,
-        flipColors,
-        comparisonLabel,
-        conditionalFormattings,
-        comparisonField,
-    ]);
-
-    const model = useMemo(
-        () =>
-            buildBigNumberModel({
-                resultsData,
-                itemsMap,
-                parameters,
-                chartConfig: validConfig,
-                comparisonStyle: bigNumberComparisonStyle,
-            }),
-        [
-            resultsData,
-            itemsMap,
-            parameters,
-            validConfig,
-            bigNumberComparisonStyle,
-        ],
-    );
-
     return useMemo(
         () => ({
+            ...actions,
             bigNumber: model.value,
-            bigNumberLabel,
+            bigNumberLabel: editor.bigNumberLabel,
             resolvedBigNumberLabel: model.resolvedLabel,
             defaultLabel: model.defaultLabel,
             validConfig,
-            bigNumberStyle,
-            bigNumberComparisonStyle,
+            bigNumberStyle: editor.bigNumberStyle,
+            bigNumberComparisonStyle: editor.bigNumberComparisonStyle,
             showStyle: model.showStyle,
             selectedField,
             getField,
             comparisonValue: model.comparison.formattedValue,
-            showBigNumberLabel,
-            showComparison,
-            comparisonFormat,
+            showBigNumberLabel: editor.showBigNumberLabel,
+            showComparison: editor.showComparison,
+            comparisonFormat: editor.comparisonFormat,
             comparisonDiff: model.comparison.direction,
-            flipColors,
+            flipColors: editor.flipColors,
             comparisonTooltip: model.comparison.tooltip,
-            comparisonLabel,
+            comparisonLabel: editor.comparisonLabel,
             resolvedComparisonLabel: model.comparison.label,
-            showTableNamesInLabel,
-            conditionalFormattings,
+            showTableNamesInLabel: editor.showTableNamesInLabel,
+            conditionalFormattings: editor.conditionalFormattings,
             bigNumberTextColor: model.valueColor,
-            comparisonField,
+            comparisonField: editor.comparisonField,
             granularityFields: model.granularityFields,
-            ...setters,
         }),
-        [
-            model,
-            bigNumberLabel,
-            validConfig,
-            bigNumberStyle,
-            bigNumberComparisonStyle,
-            selectedField,
-            getField,
-            showBigNumberLabel,
-            showComparison,
-            comparisonFormat,
-            flipColors,
-            comparisonLabel,
-            showTableNamesInLabel,
-            conditionalFormattings,
-            comparisonField,
-            setters,
-        ],
+        [actions, model, editor, validConfig, selectedField, getField],
     );
 };
 
