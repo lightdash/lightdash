@@ -263,7 +263,7 @@ const ResultsCard: FC = memo(() => {
                                         // popover opens on a chooser first;
                                         // the `?` hop is taken only there.
                                         data-tour-then='[data-tour-anchor="export-choose-download"]? >> [data-tour-anchor="export-download"]'
-                                        data-tour-docs="explore/share-charts.mdx#download-results-or-a-chart-image:p2:1"
+                                        data-tour-docs="explore/share-charts.mdx#download-results-or-a-chart-image:p3:1"
                                     >
                                         <MantineIcon icon={IconShare2} />
                                     </ActionIcon>
