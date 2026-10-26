@@ -10,23 +10,29 @@ import {
 } from '@lightdash/common';
 import type { BigqueryExternalAccountCredentials } from '@lightdash/warehouses';
 import Logger from '../../logging/logger';
+import { createGoogleIdentitySubjectGetter } from './googleIdentitySubject';
 import {
     getIdTokenExpiry,
     GOOGLE_IDENTITY_TOKEN_UNAVAILABLE,
     type GoogleIdentityTokenSource,
 } from './googleIdentityTokenSource';
+import { BIGQUERY_WORKLOAD_IDENTITY_NOT_ENABLED } from './messages';
 
 const TOKEN_REFRESH_MARGIN_MS = 5 * 60_000;
-const NOT_ENABLED =
-    'BigQuery workload identity federation is not enabled for this organization.';
 
 export class BigqueryWorkloadIdentityResolver {
+    readonly getSubject: () => Promise<string | undefined>;
+
     constructor(
         private readonly dependencies: {
             isEnabledFor: (organizationUuid: string) => Promise<boolean>;
             tokenSource: GoogleIdentityTokenSource;
         },
-    ) {}
+    ) {
+        this.getSubject = createGoogleIdentitySubjectGetter(
+            dependencies.tokenSource,
+        );
+    }
 
     async assertAllowedFor(
         credentials: CreateWarehouseCredentials | undefined,
@@ -34,7 +40,7 @@ export class BigqueryWorkloadIdentityResolver {
     ): Promise<void> {
         if (!usesBigqueryWorkloadIdentity(credentials)) return;
         if (!(await this.dependencies.isEnabledFor(organizationUuid))) {
-            throw new ParameterError(NOT_ENABLED);
+            throw new ParameterError(BIGQUERY_WORKLOAD_IDENTITY_NOT_ENABLED);
         }
         if (
             !credentials.workloadIdentityProvider ||
@@ -114,7 +120,9 @@ export class BigqueryWorkloadIdentityResolver {
                             organizationUuid,
                         ))
                     ) {
-                        throw new WarehouseConnectionError(NOT_ENABLED);
+                        throw new WarehouseConnectionError(
+                            BIGQUERY_WORKLOAD_IDENTITY_NOT_ENABLED,
+                        );
                     }
                     if (
                         cachedToken &&

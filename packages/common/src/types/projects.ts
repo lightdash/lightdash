@@ -17,6 +17,16 @@ export enum ProjectType {
     /** Backend-provisioned usage metadata project, never user-configurable. */
 }
 
+const userCreatableProjectType = {
+    [ProjectType.DEFAULT]: true,
+    [ProjectType.PREVIEW]: true,
+    [ProjectType.TRAINING]: false,
+} satisfies Record<ProjectType, boolean>;
+
+export const USER_CREATABLE_PROJECT_TYPES = Object.values(ProjectType).filter(
+    (type) => userCreatableProjectType[type],
+);
+
 export enum DbtProjectType {
     DBT = 'dbt',
     DBT_CLOUD_IDE = 'dbt_cloud_ide',

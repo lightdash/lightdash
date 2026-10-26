@@ -40,6 +40,7 @@ import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { ComposeEngineClient } from './AsyncQueryService/ComposeEngineClient';
 import { AwsWebIdentityService } from './AwsWebIdentityService';
 import { BaseService } from './BaseService';
+import { BigqueryWorkloadIdentityService } from './BigqueryWorkloadIdentityService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
@@ -182,6 +183,7 @@ interface ServiceManifest {
     slackIntegrationService: SlackIntegrationService;
     sshKeyPairService: SshKeyPairService;
     awsWebIdentityService: AwsWebIdentityService;
+    bigqueryWorkloadIdentityService: BigqueryWorkloadIdentityService;
     spacePermissionService: SpacePermissionService;
     spaceService: SpaceService;
     unfurlService: UnfurlService;
@@ -1531,6 +1533,19 @@ export class ServiceRepository
                     awsWebIdentityResolver:
                         this.models.getProjectModel().awsWebIdentity,
                     projectModel: this.models.getProjectModel(),
+                }),
+        );
+    }
+
+    public getBigqueryWorkloadIdentityService(): BigqueryWorkloadIdentityService {
+        return this.getService(
+            'bigqueryWorkloadIdentityService',
+            () =>
+                new BigqueryWorkloadIdentityService({
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    projectModel: this.models.getProjectModel(),
+                    bigqueryWorkloadIdentityResolver:
+                        this.models.getProjectModel().bigqueryWorkloadIdentity,
                 }),
         );
     }
