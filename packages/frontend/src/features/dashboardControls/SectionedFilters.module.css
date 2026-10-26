@@ -1,3 +1,14 @@
+/* The feature's own flow inside the shipped bar: pills and capsules centred
+   per line, 8px between lines (the bar itself aligns to the top) */
+.flow {
+    display: flex;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 6px;
+    min-width: 0;
+}
+
 /* A section on the bar: an outlined, pill-shaped capsule with no fill
    holding its toggle and, open, its pills with 4px of air around them (the
    1px outline plus 3px); wrapped lines keep the bar's 8px row gap */
@@ -8,9 +19,8 @@
     gap: 8px 6px;
     min-height: 36px;
     padding: 3px 4px;
-    /* The bar aligns its row to the top: centred on the 28px pill line */
-    margin-block: -4px;
-    border: 1px solid var(--mantine-color-default-border);
+    /* One step darker than the default border: visible next to blue pills */
+    border: 1px solid var(--mantine-color-ldGray-3);
     /* A pill at one line (36px), a soft panel once the pills wrap */
     border-radius: 18px;
 }

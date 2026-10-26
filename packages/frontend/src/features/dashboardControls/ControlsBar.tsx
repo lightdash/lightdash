@@ -33,10 +33,9 @@ export const ControlsBar: FC<Props> = (props) => {
                 isRailOpen ? (
                     <EditingStrip />
                 ) : hasSections ? (
-                    <>
-                        <SectionedFilters activeTabUuid={props.activeTabUuid} />
+                    <SectionedFilters activeTabUuid={props.activeTabUuid}>
                         {props.isEditMode && <FilterRequirementsButton />}
-                    </>
+                    </SectionedFilters>
                 ) : (
                     <>
                         <AddControl />

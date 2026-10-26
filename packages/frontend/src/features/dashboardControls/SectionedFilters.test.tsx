@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { act, fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
@@ -127,13 +128,14 @@ const onTabOne = {
 const renderSectioned = (
     dimensions: DashboardFilterRule[],
     activeTabUuid: string | undefined,
+    trailing?: ReactNode,
 ) => {
     const store = createDashboardTestStore({
         dashboardFilters: { dimensions, metrics: [], tableCalculations: [] },
     });
     const onTab = (tab: string | undefined) => (
         <DashboardStoreTestProvider store={store}>
-            <SectionedFilters activeTabUuid={tab} />
+            <SectionedFilters activeTabUuid={tab}>{trailing}</SectionedFilters>
         </DashboardStoreTestProvider>
     );
     seedDashboardEditState(store, {
@@ -202,6 +204,16 @@ describe('SectionedFilters', () => {
         expect(document.querySelectorAll('[class*="capsule"]')).toHaveLength(2);
     });
 
+    it('keeps Add, the capsules, the pills and what follows in one flow', () => {
+        renderSectioned([rule('one', 'a')], 'tab-1', <button>Required</button>);
+        const required = screen.getByRole('button', { name: 'Required' });
+        const flow = screen.getByRole('button', { name: 'Add' }).parentElement;
+        expect(flow?.className).toContain('flow');
+        expect(flow).toContainElement(required);
+        expect(flow?.lastElementChild).toBe(required);
+        expect(flow).toContainElement(screen.getByTestId('pills-unsectioned'));
+    });
+
     it('renders a capsule only for the sections that have a visible member', () => {
         renderSectioned(
             [rule('one', 'a', onTabOne), rule('two', 'b')],
@@ -265,7 +277,7 @@ describe('SectionedFilters', () => {
         const folded = screen.getByRole('button', { name: /^Dates/ });
         expect(folded).toHaveAttribute('aria-expanded', 'false');
         expect(screen.queryByTestId('pills-a')).not.toBeInTheDocument();
-        expect(screen.getByText('7 changed')).toBeInTheDocument();
+        expect(screen.getByText('7 filters')).toBeInTheDocument();
         unmount();
 
         renderSectioned(members(6), 'tab-1');
@@ -316,7 +328,7 @@ describe('SectionedFilters', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('folds a section to its summary of the visible members with a value', async () => {
+    it("folds a section to its visible member count: an editor's values are the defaults", async () => {
         renderSectioned(
             [
                 rule('set', 'a'),
@@ -332,7 +344,7 @@ describe('SectionedFilters', () => {
         await userEvent.click(toggle);
 
         expect(toggle).toHaveAttribute('aria-expanded', 'false');
-        const summary = screen.getByText('1 changed');
+        const summary = screen.getByText('2 filters');
         expect(toggle).toHaveAttribute('aria-describedby', summary.id);
         expect(screen.queryByTestId('pills-a')).not.toBeInTheDocument();
 
@@ -340,7 +352,7 @@ describe('SectionedFilters', () => {
 
         expect(toggle).toHaveAttribute('aria-expanded', 'true');
         expect(screen.getByTestId('pills-a')).toBeInTheDocument();
-        expect(screen.queryByText('1 changed')).not.toBeInTheDocument();
+        expect(screen.queryByText('2 filters')).not.toBeInTheDocument();
     });
 
     it('folds to its member count while nothing differs from its default', async () => {

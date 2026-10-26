@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { Box, Text, UnstyledButton } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { useCallback, useId, useState, type FC } from 'react';
+import { useCallback, useId, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -19,7 +19,6 @@ import {
     isFilterHiddenOnTab,
     useFilterTabPlacement,
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
-import { hasFilterValueSet } from '../dashboardFilters/FilterConfiguration/utils';
 import { AddControl } from './AddControl';
 import { formatSectionCount } from './fieldLabels';
 import { FilterPills } from './FilterPills';
@@ -98,6 +97,8 @@ const SectionCapsule: FC<CapsuleProps> = ({
 
 type Props = {
     activeTabUuid: string | undefined;
+    /** Rendered last in the flow: the edit bar's requirements button. */
+    children?: ReactNode;
 };
 
 // The filter area of a dashboard with sections: Add, then one outlined
@@ -106,7 +107,7 @@ type Props = {
 // viewer's own). Collapsing is local state keyed by section id, as the
 // ids whose state differs from their default; one saved popover is open across
 // every pass
-export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
+export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
     const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
     const [openPopoverId, setOpenPopoverId] = useState<string>();
     const onPopoverClose = useCallback(() => setOpenPopoverId(undefined), []);
@@ -115,13 +116,12 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const overrides = useDashboardSelector(selectSavedFilterOverrides);
     // A viewer's saved pill is changed once Apply wrote it as an override; an
-    // editor's once it has a value and is on
+    // editor's values are the defaults, so nothing of theirs counts
     const isChanged = (rule: DashboardFilterRule) =>
-        isViewer
-            ? [...overrides.dimensions, ...overrides.metrics].some(
-                  (override) => override.id === rule.id,
-              )
-            : hasFilterValueSet(rule) && !rule.disabled;
+        isViewer &&
+        [...overrides.dimensions, ...overrides.metrics].some(
+            (override) => override.id === rule.id,
+        );
     const isLoading = useDashboardContext(
         (c) => c.isLoadingDashboardFilters || c.isFetchingDashboardFilters,
     );
@@ -178,7 +178,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     };
 
     return (
-        <>
+        <Box className={classes.flow}>
             <AddControl />
             {groups.map(({ section, rules, visibleRules }) => (
                 <SectionCapsule
@@ -197,6 +197,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                 sectionId={null}
                 popover={popover}
             />
-        </>
+            {children}
+        </Box>
     );
 };

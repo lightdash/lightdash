@@ -40,6 +40,7 @@ import {
 import {
     type KeyboardEvent,
     useCallback,
+    useEffect,
     useLayoutEffect,
     useMemo,
     useRef,
@@ -256,6 +257,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                         size="sm"
                         aria-label={getUiString('filters.rail.removeFilter')}
                         tooltip={getUiString('filters.rail.confirmRemove')}
+                        tooltipProps={{ position: 'left', withinPortal: true }}
                         data-own-escape
                         onConfirm={removeFilter}
                     >
@@ -397,6 +399,23 @@ const OpenControlSidebar: FC = () => {
         document.querySelector<HTMLElement>(focusAfter.current)?.focus();
         focusAfter.current = null;
     });
+    // Opened from the bar on its list ("Manage filters"), nothing in the rail
+    // has focus yet: the first stop takes it, else "Add". An expanded filter
+    // (its label, or a new one's field search) takes it on the next frame
+    useEffect(() => {
+        if (document.activeElement !== document.body) return;
+        if (
+            document.querySelector(
+                `[data-controls-editor] :is(${RAIL_LABEL_SELECTOR}, [data-controls-start])`,
+            )
+        )
+            return;
+        (
+            document.querySelector<HTMLElement>(
+                '[data-controls-editor] [data-controls-stop]',
+            ) ?? document.querySelector<HTMLElement>(RAIL_ADD_SELECTOR)
+        )?.focus();
+    }, []);
     const sections = nameEdit?.isNew
         ? [...controlSections, { id: nameEdit.id, name: '' }]
         : controlSections;
@@ -458,7 +477,7 @@ const OpenControlSidebar: FC = () => {
         if (!collapsedIds.includes(overId)) return;
         setCollapsedIds((ids) => ids.filter((id) => id !== overId));
     };
-    const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    const handleDragEnd = ({ active, over, activatorEvent }: DragEndEvent) => {
         setDraggedId(null);
         if (!over || active.id === over.id) return;
         const activeId = String(active.id);
@@ -485,6 +504,9 @@ const OpenControlSidebar: FC = () => {
                   : { ruleId: overId };
         const moved = moveRuleToSection(dashboardFilters, activeId, target);
         if (moved === dashboardFilters) return;
+        // Dropped from the keyboard, the row takes focus back from its grip
+        if (activatorEvent instanceof KeyboardEvent)
+            focusAfter.current = railRowSelector(activeId);
         setDashboardFilters(moved);
         setHaveFiltersChanged(true);
     };

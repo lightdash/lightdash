@@ -71,6 +71,7 @@ export const SortableRow: FC<Props> = ({
                     <ConfirmDeleteButton
                         size="sm"
                         tabIndex={-1}
+                        tooltipProps={{ position: 'left', withinPortal: true }}
                         data-own-escape
                         data-controls-remove
                         aria-label={getUiString('filters.rail.removeFilter')}

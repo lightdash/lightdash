@@ -163,7 +163,9 @@ In `FilterConfiguration/`:
   disabled and loading states, no icon. On an editor's bar it has no eye
   (`isVisibilityToggleHidden`) and reads "Add filter" while the dashboard
   has no filter (`openNew`), "Manage filters" once it has one (`label`;
-  `openRail`, the rail on its list with nothing expanded); the viewers
+  `openRail`, the rail on its list with nothing expanded, where a mount
+  effect focuses the first stop, else "Add", when nothing has focus); the
+  viewers
   setting lives in the rail's footer. On a viewer's bar it is the shipped
   view-mode button, with the reset-all button attached once filters changed
   (`resetDashboardFilters`), and nothing but that reset while "Add filter"
@@ -532,9 +534,12 @@ In `FilterConfiguration/`:
   grips, row removes and the expanded editor's own controls are reached
   from their row, not by Tab): Up and Down move between stops in display
   order, Space hands a row or header to its grip (dnd-kit's keyboard drag),
-  Delete is the row's remove, twice, Left and Right collapse and expand a
-  section from its chevron, Enter opens a row as a click does; nothing is
-  handled while a drag is on. Every control stays focusable from code. The
+  Delete is the row's remove, twice (Escape in between disarms it and does
+  not close the rail: `useEditorDismiss` hands that press to any armed
+  `aria-pressed` remove in the rail first), Left and Right collapse and
+  expand a section from its chevron, Enter opens a row as a click does;
+  nothing is handled while a drag is on. A keyboard drop hands focus back
+  from the grip to the dropped row (`focusAfter`). Every control stays focusable from code. The
   section menu button keeps its own stop. Hovering a row, or focusing it
   from the keyboard (`:focus-visible`, so
   focus handed back after a click lights nothing), sets `hoveredFilterId`;
@@ -1202,10 +1207,10 @@ the language map, as tab names are.
   `.pillsEnter` box, whose children arrive with opacity and a 6px
   `translateX`, 20ms apart up to eight; collapsing animates nothing);
   collapsed, a dimmed line inside the same outline (`aria-describedby`):
-  `filters.sectionChanged` ("{changed} changed") when a visible member
-  differs from its default (for a viewer a saved-filter override written
-  by Apply, `selectSavedFilterOverrides`; for an editor `hasFilterValueSet`
-  and not `disabled`), else `formatSectionCount` ("N filters");
+  for a viewer `filters.sectionChanged` ("{changed} changed") when a
+  visible member has a saved-filter override written by Apply
+  (`selectSavedFilterOverrides`), else, and always for an editor (their
+  values are the defaults), `formatSectionCount` ("N filters");
   `filters.sectionSummary` stays in the registry unused. The bar's own gap separates capsules. A section with
   more than `COLLAPSED_BY_DEFAULT_ABOVE` (6) members in all, on any tab,
   starts collapsed, the rest open; the state is local, keyed by section id

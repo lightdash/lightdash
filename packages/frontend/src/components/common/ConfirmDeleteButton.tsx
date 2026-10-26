@@ -1,4 +1,9 @@
-import { ActionIcon, Tooltip, type ActionIconProps } from '@mantine/core';
+import {
+    ActionIcon,
+    Tooltip,
+    type ActionIconProps,
+    type TooltipProps,
+} from '@mantine/core';
 import { useTimeout } from '@mantine/hooks';
 import {
     useCallback,
@@ -21,6 +26,8 @@ type Props = {
     'aria-label': string;
     /** Out of the Tab order when its row reaches it another way. */
     tabIndex?: number;
+    /** Where the armed tooltip goes (default above, inline). */
+    tooltipProps?: Pick<TooltipProps, 'position' | 'withinPortal'>;
 } & Omit<ActionIconProps, 'children' | 'onClick' | 'color' | 'variant'>;
 
 /**
@@ -34,6 +41,7 @@ export const ConfirmDeleteButton: FC<Props> = ({
     tooltip = 'Click again to delete',
     timeoutMs = 3000,
     'aria-label': ariaLabel,
+    tooltipProps,
     ...actionIconProps
 }) => {
     const [armed, setArmed] = useState(false);
@@ -62,7 +70,12 @@ export const ConfirmDeleteButton: FC<Props> = ({
     };
 
     return (
-        <Tooltip label={tooltip} opened={armed} position="top">
+        <Tooltip
+            label={tooltip}
+            opened={armed}
+            position="top"
+            {...tooltipProps}
+        >
             <ActionIcon
                 {...actionIconProps}
                 aria-label={ariaLabel}

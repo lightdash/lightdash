@@ -440,6 +440,28 @@ describe('ControlSidebar', () => {
         const row = (id: string) =>
             document.querySelector<HTMLElement>(`[data-controls-row="${id}"]`);
 
+        it('takes focus on its first row when it opens with nothing else focused', () => {
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                isSidebarOpen: false,
+            });
+            (document.activeElement as HTMLElement | null)?.blur();
+            renderWithProviders(<ControlSidebar />, rows());
+            expect(row('filter-1')).toHaveFocus();
+        });
+
+        it('takes focus on Add when it opens with no filter', () => {
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                isSidebarOpen: false,
+            });
+            (document.activeElement as HTMLElement | null)?.blur();
+            renderWithProviders(<ControlSidebar />);
+            expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
+        });
+
         it('has one tab stop: Tab from Add lands on the first row, the next Tab leaves the list', async () => {
             setSidebar({
                 editing: null,
@@ -2136,7 +2158,7 @@ describe('ControlSidebar', () => {
 
         it('expands a collapsed section when a drag passes over its header', async () => {
             closedRail();
-            const { container } = renderWithProviders(
+            const { container, store } = renderWithProviders(
                 <ControlSidebar />,
                 filters([
                     makeRule({ label: 'Order status' }),
@@ -2189,11 +2211,23 @@ describe('ControlSidebar', () => {
             await act(() => new Promise((resolve) => setTimeout(resolve)));
             fireEvent.keyDown(grip, { code: 'ArrowDown', key: 'ArrowDown' });
             await act(() => new Promise((resolve) => setTimeout(resolve)));
-            rect.mockRestore();
             expect(
                 screen.getByRole('button', { name: /^Created/ }),
             ).toBeInTheDocument();
-            fireEvent.keyDown(document, { code: 'Escape', key: 'Escape' });
+            // Dropped from the keyboard, focus goes back to the row, not the grip
+            mockDashboardContext.current.setDashboardFilters = (
+                update: DashboardFilters,
+            ) =>
+                store.dispatch(
+                    dashboardFiltersActions.setDashboardFilters(update),
+                );
+            fireEvent.keyDown(grip, { code: 'Space', key: ' ' });
+            rect.mockRestore();
+            await waitFor(() =>
+                expect(
+                    container.querySelector('[data-controls-row="filter-1"]'),
+                ).toHaveFocus(),
+            );
         });
 
         it('keeps a collapsed section collapsed when its own header is picked up', async () => {

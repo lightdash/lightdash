@@ -1,5 +1,5 @@
 import { screen } from '@testing-library/react';
-import { type ComponentProps, type ReactElement } from 'react';
+import { type ComponentProps, type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
@@ -65,7 +65,9 @@ vi.mock('./FilterPills', () => ({
     FilterPills: () => <div data-testid="filter-pills" />,
 }));
 vi.mock('./SectionedFilters', () => ({
-    SectionedFilters: () => <div data-testid="sectioned-filters" />,
+    SectionedFilters: ({ children }: { children?: ReactNode }) => (
+        <div data-testid="sectioned-filters">{children}</div>
+    ),
 }));
 
 vi.mock('../dateZoom', () => ({
@@ -165,9 +167,10 @@ describe('ControlsBar', () => {
 
         expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
         expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
-        expect(
+        // Inside the sections' own flow, so it ends the same line
+        expect(screen.getByTestId('sectioned-filters')).toContainElement(
             screen.getByRole('button', { name: 'Required' }),
-        ).toBeInTheDocument();
+        );
     });
 
     it('shows the editing strip in view mode while the rail is open', () => {
