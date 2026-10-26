@@ -238,6 +238,107 @@ describe('createLightdashApi', () => {
     });
 });
 
+describe('networkHistory retention', () => {
+    beforeEach(() => {
+        networkHistory.length = 0;
+        clearInMemoryStorage();
+    });
+
+    afterEach(() => {
+        networkHistory.length = 0;
+    });
+
+    it.each([0, 10, 11, 25])(
+        'keeps the latest ten entries after %i successful requests',
+        async (requestCount) => {
+            const urls = Array.from(
+                { length: requestCount },
+                (_, index) => `/history/${index}`,
+            );
+            for (const url of urls) {
+                const scope = nock(BASE_API_URL)
+                    .get(`/api/v1${url}`)
+                    .reply(200, { status: 'ok', results: url });
+
+                await expect(
+                    sharedLightdashApi({ method: 'GET', url }),
+                ).resolves.toBe(url);
+                scope.done();
+            }
+
+            expect(networkHistory.map((entry) => entry.url)).toEqual(
+                urls.slice(-10),
+            );
+        },
+    );
+
+    it.each(['errors', 'mixed'] as const)(
+        'keeps recent requests in completion order with %s',
+        async (outcomes) => {
+            const urls = Array.from(
+                { length: 15 },
+                (_, index) => `/history/${index}`,
+            );
+            for (const [index, url] of urls.entries()) {
+                const failed = outcomes === 'errors' || index % 2 === 0;
+                const scope = nock(BASE_API_URL)
+                    .get(`/api/v1${url}`)
+                    .reply(
+                        failed ? 404 : 200,
+                        failed
+                            ? {
+                                  status: 'error',
+                                  error: {
+                                      name: 'NotFoundError',
+                                      statusCode: 404,
+                                      message: 'Missing example',
+                                  },
+                              }
+                            : { status: 'ok', results: url },
+                    );
+                const response = sharedLightdashApi({ method: 'GET', url });
+                if (failed) {
+                    await expect(response).rejects.toMatchObject({
+                        error: { name: 'NotFoundError', statusCode: 404 },
+                    });
+                } else {
+                    await expect(response).resolves.toBe(url);
+                }
+                scope.done();
+            }
+
+            expect(networkHistory.map((entry) => entry.url)).toEqual(
+                urls.slice(-10),
+            );
+        },
+    );
+
+    it('bounds shared history across clients and full response requests', async () => {
+        const api = createLightdashApi(() => undefined);
+        for (let index = 0; index < 12; index += 1) {
+            const url = `/history/${index}`;
+            const envelope = { status: 'ok', results: index };
+            const scope = nock(BASE_API_URL)
+                .get(`/api/v1${url}`)
+                .reply(200, envelope);
+            if (index % 2 === 0) {
+                await expect(
+                    api.response({ method: 'GET', url }),
+                ).resolves.toEqual(envelope);
+            } else {
+                await expect(
+                    sharedLightdashApi({ method: 'GET', url }),
+                ).resolves.toBe(index);
+            }
+            scope.done();
+        }
+
+        expect(networkHistory).toHaveLength(10);
+        expect(networkHistory[0].url).toBe('/history/2');
+        expect(networkHistory[9].url).toBe('/history/11');
+    });
+});
+
 describe('networkHistory redaction', () => {
     beforeEach(() => {
         networkHistory.length = 0;

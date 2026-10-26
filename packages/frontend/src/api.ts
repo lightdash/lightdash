@@ -298,6 +298,8 @@ const requestResponse = async <T extends ApiResponse>(
                           json: JSON.stringify(js).substring(0, 500),
                       },
             );
+            if (networkHistory.length > MAX_NETWORK_HISTORY)
+                networkHistory.shift();
             return js;
         })
         .then((d: ApiResponse | ApiError) => {
