@@ -65,14 +65,14 @@ const Page: FC = () => {
     sidebar.current = value;
     const { isSidebarOpen, isRailOpen, editing, openNew, open, close } = value;
     const filters = useDashboardSelector(selectDashboardFilters);
-    // The bar's and, while the rail is open, the rail footer's
+    // The bar's and, while the rail is open, the rail header's
     const add = (
         <div data-filter-actions>
             <button
                 type="button"
                 data-dashboard-filter-control
                 aria-label="Add filter"
-                onClick={openNew}
+                onClick={() => openNew()}
             />
         </div>
     );
@@ -301,6 +301,33 @@ describe('dismissing in the controls editor', () => {
             escape(screen.getByLabelText('Search fields'));
             expect(value().highlightedFieldId).toBe('orders_a');
             expect(value().isSidebarOpen).toBe(true);
+        });
+
+        it('disarms an armed remove first, wherever focus is', () => {
+            const remove = document.createElement('button');
+            remove.setAttribute('data-own-escape', '');
+            remove.setAttribute('aria-pressed', 'true');
+            remove.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape')
+                    remove.setAttribute('aria-pressed', 'false');
+            });
+            screen.getByTestId('editor').appendChild(remove);
+
+            escape(label());
+            expect(remove).toHaveAttribute('aria-pressed', 'false');
+            expect(value().isSidebarOpen).toBe(true);
+            escape(label());
+            expect(value().isSidebarOpen).toBe(false);
+        });
+
+        it('leaves a drag alone: dnd-kit cancels it', () => {
+            const editor = screen.getByTestId('editor');
+            editor.setAttribute('data-controls-dragging', '');
+            escape(label());
+            expect(value().isSidebarOpen).toBe(true);
+            editor.removeAttribute('data-controls-dragging');
+            escape(label());
+            expect(value().isSidebarOpen).toBe(false);
         });
 
         it('does nothing once another handler has taken it', () => {

@@ -1,34 +1,54 @@
+import { useDroppable } from '@dnd-kit/core';
 import {
     ActionIcon,
     Badge,
     Box,
     Button,
     Group,
+    Menu,
     Paper,
     Stack,
+    Switch,
     Text,
     Title,
     Tooltip,
     VisuallyHidden,
 } from '@mantine/core';
-import { IconX } from '@tabler/icons-react';
+import {
+    IconFilterPlus,
+    IconFolderPlus,
+    IconPlus,
+    IconX,
+} from '@tabler/icons-react';
 import { useRef, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import { AddControl } from './AddControl';
 import classes from './ControlSidebar.module.css';
 import { useRailContractClasses } from './railContractClasses';
+import { RAIL_ADD_SELECTOR } from './railSelectors';
+import { UNSECTIONED_TARGET_ID } from './sections';
 import { useRailTop } from './useRailTop';
 
 type Props = {
     /** The dashboard's filters, listed in the rail. */
     filterCount: number;
     onClose: () => void;
+    /** While a section header is dragged: it cannot leave a section. */
+    isUnsectionTargetDisabled: boolean;
+    /** A row or header is dragged: Escape cancels the drag, not the rail. */
+    isDragging: boolean;
     /** Set while the filter cannot be kept: the footer offers only this. */
     onCancel: (() => void) | null;
+    /** Null while no filter can be added. */
+    onAddFilter: (() => void) | null;
     /** Null for a viewer, whose rail has no sections. */
     onNewSection: (() => void) | null;
     footerStatus: string | null;
+    /** Editors only: whether viewers may add their own filters, and its setter. */
+    viewerAdd: {
+        isEnabled: boolean;
+        onChange: (isEnabled: boolean) => void;
+    } | null;
     children: ReactNode;
 };
 
@@ -36,15 +56,31 @@ type Props = {
 export const EditorShell: FC<Props> = ({
     filterCount,
     onClose,
+    isUnsectionTargetDisabled,
+    isDragging,
     onCancel,
+    onAddFilter,
     onNewSection,
     footerStatus,
+    viewerAdd,
     children,
 }) => {
     const ref = useRef<HTMLDivElement>(null);
     useRailTop(ref);
     const getUiString = useUiStrings();
     const contractClasses = useRailContractClasses();
+    // A row dropped on the header leaves its section
+    const { setNodeRef: setDropRef, isOver } = useDroppable({
+        id: UNSECTIONED_TARGET_ID,
+        disabled: isUnsectionTargetDisabled,
+    });
+    // Escape leaves the menu with nothing focused; the name input and the
+    // new filter's editor take focus before this runs
+    const refocusAdd = () =>
+        setTimeout(() => {
+            if (document.activeElement !== document.body) return;
+            document.querySelector<HTMLElement>(RAIL_ADD_SELECTOR)?.focus();
+        });
     return (
         <Paper
             ref={ref}
@@ -54,13 +90,16 @@ export const EditorShell: FC<Props> = ({
                     : classes.root
             }
             data-controls-editor
+            data-controls-dragging={isDragging || undefined}
         >
             <Group
+                ref={setDropRef}
                 justify="space-between"
                 wrap="nowrap"
                 px="md"
                 py="xs"
                 className={classes.header}
+                data-over={isOver || undefined}
             >
                 <Group gap="xs" wrap="nowrap">
                     <Title order={5}>{getUiString('filters.rail.title')}</Title>
@@ -77,17 +116,75 @@ export const EditorShell: FC<Props> = ({
                         </Badge>
                     )}
                 </Group>
-                <Tooltip label={getUiString('filters.rail.close')}>
-                    <ActionIcon
-                        size="sm"
-                        variant="subtle"
-                        color="gray"
-                        aria-label={getUiString('filters.rail.close')}
-                        onClick={onClose}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
+                <Group gap={4} wrap="nowrap">
+                    {/* Focus must stay on the name input New section opens */}
+                    {(onAddFilter || onNewSection) && (
+                        <Menu
+                            position="bottom-end"
+                            returnFocus={false}
+                            onClose={refocusAdd}
+                        >
+                            <Menu.Target>
+                                <Tooltip
+                                    label={getUiString('filters.rail.add')}
+                                >
+                                    <ActionIcon
+                                        size="sm"
+                                        variant="subtle"
+                                        color="gray"
+                                        aria-label={getUiString(
+                                            'filters.rail.add',
+                                        )}
+                                        data-controls-new-section
+                                    >
+                                        <MantineIcon icon={IconPlus} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                {onAddFilter && (
+                                    <Menu.Item
+                                        fz="xs"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconFilterPlus}
+                                                size={14}
+                                            />
+                                        }
+                                        onClick={onAddFilter}
+                                    >
+                                        {getUiString('filters.addFilter')}
+                                    </Menu.Item>
+                                )}
+                                {onNewSection && (
+                                    <Menu.Item
+                                        fz="xs"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconFolderPlus}
+                                                size={14}
+                                            />
+                                        }
+                                        onClick={onNewSection}
+                                    >
+                                        New section
+                                    </Menu.Item>
+                                )}
+                            </Menu.Dropdown>
+                        </Menu>
+                    )}
+                    <Tooltip label={getUiString('filters.rail.close')}>
+                        <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="gray"
+                            aria-label={getUiString('filters.rail.close')}
+                            onClick={onClose}
+                        >
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
             </Group>
 
             <Box className={classes.body}>{children}</Box>
@@ -126,22 +223,24 @@ export const EditorShell: FC<Props> = ({
                         </>
                     ) : (
                         <>
-                            <Group gap="xs" wrap="nowrap">
-                                <AddControl placement="rail" />
-                                {onNewSection && (
-                                    <Button
-                                        variant="subtle"
-                                        color="gray"
-                                        size="xs"
-                                        data-controls-new-section
-                                        onClick={onNewSection}
-                                    >
-                                        New section
-                                    </Button>
-                                )}
-                            </Group>
+                            {viewerAdd && (
+                                <Switch
+                                    size="xs"
+                                    label="Viewers can add filters"
+                                    classNames={{
+                                        label: classes.footerSwitchLabel,
+                                    }}
+                                    checked={viewerAdd.isEnabled}
+                                    onChange={(event) =>
+                                        viewerAdd.onChange(
+                                            event.currentTarget.checked,
+                                        )
+                                    }
+                                />
+                            )}
                             <Button
                                 size="xs"
+                                ml="auto"
                                 className={classes.done}
                                 onClick={onClose}
                             >

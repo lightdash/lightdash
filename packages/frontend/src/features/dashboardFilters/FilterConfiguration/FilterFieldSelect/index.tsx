@@ -17,7 +17,14 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconSelector } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import FieldIcon from '../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../../ee/providers/Embed/useUiStrings';
@@ -166,6 +173,11 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
         estimateSize: getItemSize,
         overscan: 10,
     });
+    // Mounted open, the list exists before the virtualizer has seen its
+    // scroll box; one measure after mount gets the first rows drawn
+    useEffect(() => {
+        virtualizer.measure();
+    }, [virtualizer]);
 
     const collidingFieldIds = useMemo(
         () => getCollidingFieldIds(fields),

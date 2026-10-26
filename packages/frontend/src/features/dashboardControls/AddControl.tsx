@@ -1,7 +1,7 @@
 import { type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
-    selectIsAddFilterDisabled,
+    selectDashboardFilters,
     useDashboardSelector,
 } from '../dashboard/store';
 import AddFilterButton from '../dashboardFilters/AddFilterButton';
@@ -10,49 +10,47 @@ import { useControlsSidebarSelector } from './useControlsSidebar';
 const noop = () => {};
 
 type Props = {
-    /**
-     * The bar's is the shipped one of the mode: the eye in edit mode, the
-     * reset button in view mode. The rail's footer has neither.
-     */
-    placement: 'bar' | 'rail';
     /** An embed's class contract hook on the trigger (default none). */
     triggerClassName?: string;
     /** The viewer bar's tooltip (default: the shipped app wording). */
     unsavedFiltersTooltip?: string;
 };
 
-// The shipped "Add filter". Its popover is never given an id to open on, so a
-// click only calls `onPopoverOpen`, which opens a new control
+// The bar's shipped "Add filter" button. A viewer's is the shipped view-mode
+// one, with the reset button; an editor's has no eye and, once the dashboard
+// has filters, reads "Manage filters" and opens the rail on its list. Its
+// popover is never given an id to open on, so a click only calls
+// `onPopoverOpen`
 export const AddControl: FC<Props> = ({
-    placement,
     triggerClassName,
     unsavedFiltersTooltip,
 }) => {
     const openNew = useControlsSidebarSelector((c) => c.openNew);
+    const openRail = useControlsSidebarSelector((c) => c.openRail);
     const canAddFilters = useControlsSidebarSelector((c) => c.canAddFilters);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
-    const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
     const resetDashboardFilters = useDashboardContext(
         (c) => c.resetDashboardFilters,
     );
-    const isBarOfViewer = isViewer && placement === 'bar';
-    // Hidden from viewers by the editor's eye
-    if (isViewer && placement === 'rail' && isAddFilterDisabled) return null;
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
+    const isManage =
+        !isViewer &&
+        dashboardFilters.dimensions.length + dashboardFilters.metrics.length >
+            0;
     if (!canAddFilters) return null;
     return (
         <AddFilterButton
-            isEditMode={!isBarOfViewer}
-            isVisibilityToggleHidden={placement === 'rail'}
+            isEditMode={!isViewer}
+            isVisibilityToggleHidden={!isViewer}
+            label={isManage ? 'Manage filters' : undefined}
             triggerClassName={triggerClassName}
             unsavedFiltersTooltip={unsavedFiltersTooltip}
             activeTabUuid={undefined}
             openPopoverId={undefined}
-            onPopoverOpen={() => openNew()}
+            onPopoverOpen={() => (isManage ? openRail() : openNew())}
             onPopoverClose={noop}
             onSave={noop}
-            onResetDashboardFilters={
-                isBarOfViewer ? resetDashboardFilters : noop
-            }
+            onResetDashboardFilters={isViewer ? resetDashboardFilters : noop}
         />
     );
 };

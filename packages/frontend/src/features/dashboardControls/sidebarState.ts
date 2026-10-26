@@ -87,6 +87,10 @@ const isSameFilters = (
             ),
     );
 
+// Which section a rule sits in is the rail's, never the editor's edit
+const withoutSection = (rule: DashboardFilterRule | null) =>
+    rule === null ? null : omit(rule, 'sectionId');
+
 export const isFilterRuleDirty = (
     snapshot: DashboardFilters,
     current: DashboardFilters,
@@ -94,8 +98,8 @@ export const isFilterRuleDirty = (
     toSaved: ToSavedRule,
 ): boolean =>
     !isSameRule(
-        findFilterRule(snapshot, filterId),
-        findFilterRule(current, filterId),
+        withoutSection(findFilterRule(snapshot, filterId)),
+        withoutSection(findFilterRule(current, filterId)),
         toSaved,
     );
 
@@ -123,8 +127,20 @@ const putBackFilterRule = (
     saved: DashboardFilterRule,
 ): DashboardFilters => {
     const group = snapshot.metrics.includes(saved) ? 'metrics' : 'dimensions';
-    if (filters[group].some((rule) => rule.id === saved.id))
-        return replaceFilterRule(filters, saved);
+    const current = filters[group].find((rule) => rule.id === saved.id);
+    // Still there: it keeps the section it is in now, and its place
+    if (current !== undefined)
+        return replaceFilterRule(
+            filters,
+            current.sectionId === saved.sectionId
+                ? saved
+                : {
+                      ...omit(saved, 'sectionId'),
+                      ...(current.sectionId === undefined
+                          ? {}
+                          : { sectionId: current.sectionId }),
+                  },
+        );
     const others = removeFilterRule(filters, saved.id);
     const index = snapshot[group].indexOf(saved);
     return {

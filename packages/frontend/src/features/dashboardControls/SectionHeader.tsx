@@ -1,4 +1,3 @@
-import { useDroppable } from '@dnd-kit/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -9,11 +8,12 @@ import { ActionIcon, Box, Menu, Text, TextInput } from '@mantine/core';
 import {
     IconChevronRight,
     IconDots,
+    IconFilterPlus,
     IconGripVertical,
     IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
-import { useRef, type FC } from 'react';
+import { useRef, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import classes from './ControlSidebar.module.css';
@@ -24,17 +24,20 @@ type GripProps = {
     listeners: ReturnType<typeof useSortable>['listeners'];
 };
 
-// The drag handle: a button of its own, shown on hover and focus. It owns
-// Escape so cancelling a keyboard drag does not close the rail
+// The drag handle: a button of its own, shown on hover and focus, reached
+// from its row with Space rather than Tab. It owns Escape so cancelling a
+// keyboard drag does not close the rail
 export const DragGrip: FC<GripProps> = ({ label, attributes, listeners }) => (
     <Box
         component="button"
         type="button"
-        className={classes.grip}
+        className={`${classes.grip} mantine-focus-auto`}
         aria-label={label}
         data-own-escape
+        data-controls-grip
         {...attributes}
         {...listeners}
+        tabIndex={-1}
     >
         <MantineIcon icon={IconGripVertical} size={14} color="dimmed" />
     </Box>
@@ -85,13 +88,19 @@ type Props = {
     countLabel: string;
     isCollapsed: boolean;
     isEditingName: boolean;
+    /** Not saved yet: a blur cancels it, so nothing else here takes a click. */
+    isNew: boolean;
     isDragDisabled: boolean;
     /** A viewer's saved section: chevron, name and count only. */
     isReadOnly: boolean;
+    /** The roving tab stop of the list: the chevron takes Tab only when it is the one. */
+    isTabStop: boolean;
     onToggle: () => void;
     onRename: () => void;
     onCommitName: (name: string) => void;
     onCancelName: () => void;
+    /** A new filter in this section. */
+    onAddFilter: () => void;
     onRemove: () => void;
 };
 
@@ -101,12 +110,15 @@ export const SectionHeader: FC<Props> = ({
     countLabel,
     isCollapsed,
     isEditingName,
+    isNew,
     isDragDisabled,
     isReadOnly,
+    isTabStop,
     onToggle,
     onRename,
     onCommitName,
     onCancelName,
+    onAddFilter,
     onRemove,
 }) => {
     const {
@@ -116,21 +128,25 @@ export const SectionHeader: FC<Props> = ({
         transform,
         transition,
         isDragging,
+        isOver,
     } = useSortable({ id: section.id, disabled: isDragDisabled });
     const getUiString = useUiStrings();
     const name = section.name || getUiString('filters.rail.untitledSection');
+    // "Remove section" asks twice; the menu stays open in between
+    const [isRemoveArmed, setIsRemoveArmed] = useState(false);
     return (
         <Box
             ref={setNodeRef}
             className={classes.sectionHeader}
             data-dragging={isDragging || undefined}
+            data-over={(isOver && !isDragging) || undefined}
             data-controls-section={section.id}
             style={{ transform: CSS.Translate.toString(transform), transition }}
         >
             <Box className={classes.sectionHeadRow}>
                 {!isDragDisabled && !isReadOnly && (
                     <DragGrip
-                        label="Drag to reorder section"
+                        label={`Drag to reorder section ${name}`}
                         attributes={attributes}
                         listeners={listeners}
                     />
@@ -147,6 +163,9 @@ export const SectionHeader: FC<Props> = ({
                         { section: name },
                     )}
                     aria-expanded={!isCollapsed}
+                    disabled={isNew}
+                    tabIndex={isTabStop ? 0 : -1}
+                    data-controls-stop={`section:${section.id}`}
                     onClick={onToggle}
                 >
                     <MantineIcon
@@ -155,23 +174,32 @@ export const SectionHeader: FC<Props> = ({
                         className={classes.chevron}
                     />
                 </ActionIcon>
-                {isEditingName ? (
+                {isEditingName && !isReadOnly ? (
                     <SectionNameInput
                         name={section.name}
                         onCommit={onCommitName}
                         onCancel={onCancelName}
                     />
                 ) : (
-                    <Text fz="sm" fw={600} truncate flex={1}>
+                    <Text fz="sm" fw={600} truncate miw={0}>
                         {name}
                     </Text>
                 )}
-                <Text fz="xs" c="dimmed" flex="0 0 auto">
+                <Text
+                    fz="xs"
+                    c="dimmed"
+                    flex="0 0 auto"
+                    className={classes.sectionCount}
+                >
                     {countLabel}
                 </Text>
                 {/* Focus must stay on the name input Rename opens */}
-                {!isReadOnly && (
-                    <Menu position="bottom-end" returnFocus={false}>
+                {!isReadOnly && !isNew && (
+                    <Menu
+                        position="bottom-end"
+                        returnFocus={false}
+                        onClose={() => setIsRemoveArmed(false)}
+                    >
                         <Menu.Target>
                             <ActionIcon
                                 variant="subtle"
@@ -187,6 +215,18 @@ export const SectionHeader: FC<Props> = ({
                             <Menu.Item
                                 fz="xs"
                                 leftSection={
+                                    <MantineIcon
+                                        icon={IconFilterPlus}
+                                        size={14}
+                                    />
+                                }
+                                onClick={onAddFilter}
+                            >
+                                Add filter
+                            </Menu.Item>
+                            <Menu.Item
+                                fz="xs"
+                                leftSection={
                                     <MantineIcon icon={IconPencil} size={14} />
                                 }
                                 onClick={onRename}
@@ -199,36 +239,21 @@ export const SectionHeader: FC<Props> = ({
                                 leftSection={
                                     <MantineIcon icon={IconTrash} size={14} />
                                 }
-                                onClick={onRemove}
+                                closeMenuOnClick={isRemoveArmed}
+                                aria-pressed={isRemoveArmed}
+                                onClick={() => {
+                                    if (isRemoveArmed) onRemove();
+                                    else setIsRemoveArmed(true);
+                                }}
                             >
-                                Remove section
+                                {isRemoveArmed
+                                    ? `Remove section · ${countLabel}`
+                                    : 'Remove section'}
                             </Menu.Item>
                         </Menu.Dropdown>
                     </Menu>
                 )}
             </Box>
-        </Box>
-    );
-};
-
-type DropZoneProps = { id: string; label: string; isDisabled: boolean };
-
-// An empty section's drop target, or the unsectioned area's
-export const SectionDropZone: FC<DropZoneProps> = ({
-    id,
-    label,
-    isDisabled,
-}) => {
-    const { setNodeRef, isOver } = useDroppable({ id, disabled: isDisabled });
-    return (
-        <Box
-            ref={setNodeRef}
-            className={classes.dropZone}
-            data-over={isOver || undefined}
-        >
-            <Text fz="xs" c="dimmed">
-                {label}
-            </Text>
         </Box>
     );
 };

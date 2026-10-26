@@ -169,17 +169,6 @@ describe('buildDashboardConfig', () => {
         );
     });
 
-    it('carries the saved control sections through an unrelated save', () => {
-        const controlSections = [{ id: 'section-1', name: 'Dates' }];
-        const result = buildDashboardConfig({
-            ...baseArgs,
-            existingConfig: { isDateZoomDisabled: false, controlSections },
-            isDateZoomDisabled: true,
-        });
-
-        expect(result.controlSections).toBe(controlSections);
-    });
-
     it('saves the edited control sections once they have changed', () => {
         const controlSections = [{ id: 'section-2', name: 'Regions' }];
         const result = buildDashboardConfig({

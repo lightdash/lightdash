@@ -54,7 +54,6 @@ const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
     return (
         <>
             <AddControl
-                placement="bar"
                 triggerClassName={embedContractClass('ld-dashboard-add-filter')}
                 unsavedFiltersTooltip={getUiString(
                     'filters.unsavedFiltersTooltip',

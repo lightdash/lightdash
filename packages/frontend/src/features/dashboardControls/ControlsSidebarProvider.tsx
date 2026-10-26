@@ -10,6 +10,7 @@ import {
     type ResultColumn,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
+import omit from 'lodash/omit';
 import omitBy from 'lodash/omitBy';
 import {
     useCallback,
@@ -35,6 +36,7 @@ import { EventName } from '../../types/Events';
 import {
     getSafeTemporaryFilters,
     selectActiveTabUuid,
+    selectControlSections,
     selectDashboardFilters,
     selectDashboardTiles,
     selectHaveFiltersChanged,
@@ -61,6 +63,7 @@ import {
     RailContractClasses,
     type RailContractClassNames,
 } from './railContractClasses';
+import { RAIL_ADD_SELECTOR } from './railSelectors';
 import {
     canKeepFilterRule,
     findFilterRule,
@@ -119,6 +122,8 @@ const FocusReturn: FC<{ target: RefObject<FocusTarget | null> }> = ({
         if (current === null) return;
         if (current.inRail ? isSidebarOpen : isRailOpen) return;
         target.current = null;
+        // An input that took focus meanwhile (a new section's name) keeps it
+        if (document.activeElement?.matches('input, textarea')) return;
         const attribute = current.inRail ? ROW_ATTRIBUTE : PILL_ATTRIBUTE;
         // A pill or row disabled by a refetch cannot take it. "Add" is the
         // rail's while it is open, since the bar's is hidden then
@@ -128,7 +133,13 @@ const FocusReturn: FC<{ target: RefObject<FocusTarget | null> }> = ({
                 (candidate) =>
                     candidate !== null && !candidate.hasAttribute('disabled'),
             );
-        (element ?? document.querySelector<HTMLElement>(ADD_SELECTOR))?.focus();
+        // The bar's "Add" is behind the strip while the rail is open
+        (
+            element ??
+            document.querySelector<HTMLElement>(
+                isRailOpen ? RAIL_ADD_SELECTOR : ADD_SELECTOR,
+            )
+        )?.focus();
     }, [isSidebarOpen, isRailOpen, target]);
     return null;
 };
@@ -155,7 +166,10 @@ type SidebarState = {
     touchedFilterIds: string[];
 };
 
-const createPlaceholder = (id: string): DashboardFilterRule => ({
+const createPlaceholder = (
+    id: string,
+    sectionId?: string,
+): DashboardFilterRule => ({
     id,
     target: PLACEHOLDER_TARGET,
     operator: FilterOperator.EQUALS,
@@ -163,6 +177,8 @@ const createPlaceholder = (id: string): DashboardFilterRule => ({
     label: undefined,
     tileTargets: {},
     disabled: true,
+    // No key written as undefined: the rule must equal a saved one
+    ...(sectionId === undefined ? {} : { sectionId }),
 });
 
 // What the callbacks read. Kept in a ref so their identity never changes, and
@@ -187,6 +203,7 @@ type Latest = {
     haveFiltersChanged: boolean;
     filterableFieldsByTileUuid: DashboardContextType['filterableFieldsByTileUuid'];
     dashboardTiles: Dashboard['tiles'] | undefined;
+    controlSectionIds: string[];
     highlightedFieldId: string | null;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
@@ -329,6 +346,11 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const savedTiles = useDashboardContext((c) => c.dashboard?.tiles);
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    const controlSections = useDashboardSelector(selectControlSections);
+    const controlSectionIds = useMemo(
+        () => controlSections.map((section) => section.id),
+        [controlSections],
+    );
     const { track } = useTracking();
     const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
 
@@ -378,6 +400,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         haveFiltersChanged,
         filterableFieldsByTileUuid,
         dashboardTiles,
+        controlSectionIds,
         highlightedFieldId,
         setDashboardFilters,
         setHaveFiltersChanged,
@@ -583,36 +606,46 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [writeState, writePlaceholder, writeRailOpen, writeUndo],
     );
 
-    const openPlaceholder = useCallback(() => {
-        const current = latest.current;
-        const rule = createPlaceholder(uuidv4());
-        writeUndo(null);
-        focusReturn.current = null;
-        ownRaise.current = null;
-        writePlaceholder(rule);
-        setActiveSection(null);
-        setHighlightedFieldId(null);
-        setHoveredFieldId(null);
-        setWaiting(null);
-        setHoveredFilterId(null);
-        writeRailOpen(true);
-        writeState({
-            filterId: rule.id,
-            isNew: true,
-            isViewer: current.isPageViewer,
-            emptiedAt: null,
-            snapshot: {
-                dashboardFilters: current.dashboardFilters,
-                haveFiltersChanged: current.haveFiltersChanged,
-            },
-            touchedFilterIds: [],
-        });
-    }, [writeState, writePlaceholder, writeRailOpen, writeUndo]);
+    const openPlaceholder = useCallback(
+        (sectionId?: string) => {
+            const current = latest.current;
+            const rule = createPlaceholder(uuidv4(), sectionId);
+            writeUndo(null);
+            focusReturn.current = null;
+            ownRaise.current = null;
+            writePlaceholder(rule);
+            setActiveSection(null);
+            setHighlightedFieldId(null);
+            setHoveredFieldId(null);
+            setWaiting(null);
+            setHoveredFilterId(null);
+            writeRailOpen(true);
+            writeState({
+                filterId: rule.id,
+                isNew: true,
+                isViewer: current.isPageViewer,
+                emptiedAt: null,
+                snapshot: {
+                    dashboardFilters: current.dashboardFilters,
+                    haveFiltersChanged: current.haveFiltersChanged,
+                },
+                touchedFilterIds: [],
+            });
+        },
+        [writeState, writePlaceholder, writeRailOpen, writeUndo],
+    );
 
-    // A control that lost its last field goes back where it was
+    // A control that lost its last field goes back where it was. A section
+    // removed meanwhile is not written back
     const writeFirstRule = useCallback(
-        (rule: DashboardFilterRule, group: FilterGroup) => {
-            const { state: editingState } = latest.current;
+        (adopted: DashboardFilterRule, group: FilterGroup) => {
+            const { state: editingState, controlSectionIds: sectionIds } =
+                latest.current;
+            const rule =
+                adopted.sectionId !== undefined &&
+                !sectionIds.includes(adopted.sectionId)
+                    ? omit(adopted, 'sectionId')
+                    : adopted;
             const emptiedAt = editingState?.emptiedAt ?? null;
             const index =
                 emptiedAt?.group === group ? emptiedAt.index : Infinity;
@@ -1156,14 +1189,25 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     }, [isEditMode, closeEdited]);
 
     // Whatever is being edited is closed first, as "Done" would. A new
-    // control with no field yet stays as it is, label included
-    const openNew = useCallback(() => {
-        const { state: editingState, placeholder: editingPlaceholder } =
-            latest.current;
-        if (editingState?.isNew && editingPlaceholder !== null) return;
-        collapse();
-        openPlaceholder();
-    }, [collapse, openPlaceholder]);
+    // control with no field yet stays as it is, label included; asked for
+    // from a section, it moves there instead
+    const openNew = useCallback(
+        (sectionId?: string) => {
+            const { state: editingState, placeholder: editingPlaceholder } =
+                latest.current;
+            if (editingState?.isNew && editingPlaceholder !== null) {
+                if (sectionId !== undefined)
+                    writePlaceholder({ ...editingPlaceholder, sectionId });
+                return;
+            }
+            collapse();
+            openPlaceholder(sectionId);
+        },
+        [collapse, openPlaceholder, writePlaceholder],
+    );
+
+    // The rail on its rows, nothing expanded; a no-op while it is open
+    const openRail = useCallback(() => writeRailOpen(true), [writeRailOpen]);
 
     // The control that is open stays as it is. Any other one is closed
     // first, as "Done" would, new or not
@@ -1258,6 +1302,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             setActiveSection,
             open,
             openNew,
+            openRail,
             addFirstField,
             addFirstSqlColumn,
             addFirstFieldOnTile,
@@ -1311,6 +1356,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             activeSection,
             open,
             openNew,
+            openRail,
             addFirstField,
             addFirstSqlColumn,
             addFirstFieldOnTile,

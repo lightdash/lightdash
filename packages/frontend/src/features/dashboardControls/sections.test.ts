@@ -128,6 +128,19 @@ describe('moveRuleToSection', () => {
         expect(next.dimensions[0].sectionId).toBe('b');
     });
 
+    it('returns the same filters when nothing moves', () => {
+        const unsectioned = filters([rule('d1'), rule('d2', 'a')]);
+        // An unsectioned row dropped on the rail's header
+        expect(moveRuleToSection(unsectioned, 'd1', { sectionId: null })).toBe(
+            unsectioned,
+        );
+        // A dimension dropped on a metric of its own section
+        const mixed = filters([rule('d1', 'a')], [rule('m1', 'a')]);
+        expect(moveRuleToSection(mixed, 'd1', { ruleId: 'm1' })).toBe(mixed);
+        // The only member dropped on its own section's header
+        expect(moveRuleToSection(mixed, 'd1', { sectionId: 'a' })).toBe(mixed);
+    });
+
     it('returns the same filters for an unknown rule', () => {
         const dashboardFilters = filters([rule('d1')]);
         expect(

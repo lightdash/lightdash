@@ -4,6 +4,10 @@ import { useEffect } from 'react';
 const EDITOR_ATTRIBUTE = 'data-controls-editor';
 // Marks an input that handles Escape itself while its list is closed
 const OWN_ESCAPE_ATTRIBUTE = 'data-own-escape';
+// A remove in the rail that asked for its second click
+const ARMED_REMOVE_SELECTOR = `[${EDITOR_ATTRIBUTE}] [${OWN_ESCAPE_ATTRIBUTE}][aria-pressed="true"]`;
+// The rail root carries it while a row or header is dragged
+const DRAGGING_ATTRIBUTE = 'data-controls-dragging';
 
 // An open list, menu or popover owns Escape; so does a modal. A Mantine
 // combobox target is marked `data-expanded` while its list is open
@@ -38,6 +42,23 @@ export const useEditorDismiss = ({
             const target =
                 event.target instanceof Element ? event.target : null;
             if (target?.closest(`[${OWN_ESCAPE_ATTRIBUTE}]`)) return;
+            // An armed remove takes this press, wherever focus is: it only
+            // disarms, and the next press reaches the rail
+            const armed = document.querySelector<HTMLElement>(
+                ARMED_REMOVE_SELECTOR,
+            );
+            if (armed) {
+                event.preventDefault();
+                armed.dispatchEvent(
+                    new KeyboardEvent('keydown', {
+                        key: 'Escape',
+                        bubbles: true,
+                    }),
+                );
+                return;
+            }
+            // dnd-kit cancels the drag on its own listener
+            if (document.querySelector(`[${DRAGGING_ATTRIBUTE}]`)) return;
             // The query devtools of a dev build always report an open panel
             const hasOpenLayer = [
                 ...document.querySelectorAll(OPEN_LAYER_SELECTOR),

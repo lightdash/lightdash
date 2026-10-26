@@ -134,6 +134,12 @@ export const moveRuleToSection = (
         );
         to = last === -1 ? active.index : active.index > last ? last + 1 : last;
     }
+    // Nothing moved: the same object, so nothing is marked changed
+    if (
+        to === active.index &&
+        (filters[group][active.index].sectionId ?? null) === sectionId
+    )
+        return filters;
     return { ...filters, [group]: arrayMove(list, active.index, to) };
 };
 
@@ -157,15 +163,8 @@ export const removeSectionFromRules = (
     };
 };
 
-const ZONE_PREFIX = 'zone:';
-/** The droppable id of the zone that takes a filter out of its section */
-export const UNSECTIONED_ZONE_ID = 'unsectioned-zone';
-/** The droppable id of an empty section's zone */
-export const sectionZoneId = (sectionId: string) =>
-    `${ZONE_PREFIX}${sectionId}`;
-/** The section an empty drop zone's id stands for, else null */
-export const sectionOfZoneId = (id: string) =>
-    id.startsWith(ZONE_PREFIX) ? id.slice(ZONE_PREFIX.length) : null;
+/** The droppable id of the rail's header, which takes a filter out of its section */
+export const UNSECTIONED_TARGET_ID = 'unsectioned-target';
 
 /** Screen reader wording for a drag; dnd-kit only knows the ids */
 export const getDragAnnouncements = (
