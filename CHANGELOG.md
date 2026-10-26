@@ -1,3 +1,10 @@
+## [3.55.2](https://github.com/lightdash/lightdash/compare/3.55.1...3.55.2) (2026-10-26)
+
+
+### Bug Fixes
+
+* raise the query history cleanup ceiling so retention catches up ([#31518](https://github.com/lightdash/lightdash/issues/31518)) ([bfaad33](https://github.com/lightdash/lightdash/commit/bfaad330c02391fc0a5461d9f6c00631e35f449e))
+
 ## [3.55.1](https://github.com/lightdash/lightdash/compare/3.55.0...3.55.1) (2026-10-26)
 
 
