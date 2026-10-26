@@ -443,6 +443,27 @@ export const expressWinstonPreResponseMiddleware: express.RequestHandler = (
 // args. Place this AFTER session/auth middlewares so req.user and req.account
 // are populated. req.user is set for session-authenticated requests; embed/JWT
 // requests populate req.account only, so we fall back to it.
+// Dev/test canary: an HTTP request must start outside any ExecutionContext;
+// finding one means a callback carried another request's context here.
+// Warns only, and stays silent in production.
+export const foreignExecutionContextCanaryMiddleware: express.RequestHandler = (
+    req,
+    _res,
+    next,
+) => {
+    if (process.env.NODE_ENV !== 'production' && ExecutionContext.exists()) {
+        winstonLogger.warn(
+            'Request started inside an existing execution context',
+            {
+                method: req.method,
+                url: sanitizeRequestUrl(req.originalUrl ?? req.url),
+                inherited: ExecutionContext.get<ExecutionContextInfo>(),
+            },
+        );
+    }
+    next();
+};
+
 export const requestExecutionContextMiddleware: express.RequestHandler = (
     req,
     _res,

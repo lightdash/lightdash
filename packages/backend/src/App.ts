@@ -43,6 +43,7 @@ import { createEventStreamWriter } from './analytics/eventStream/createEventStre
 import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
 import { eventStreamRegistry } from './analytics/eventStream/registry';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
+import { bindSessionStoreCallbacks } from './auth/contextSafeSessionStore';
 import { getFrontendBuildHash } from './buildHash';
 import {
     ClientProviderMap,
@@ -86,6 +87,7 @@ import Logger from './logging/logger';
 import {
     expressWinstonMiddleware,
     expressWinstonPreResponseMiddleware,
+    foreignExecutionContextCanaryMiddleware,
     requestExecutionContextMiddleware,
 } from './logging/winston';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
@@ -521,12 +523,16 @@ export default class App {
 
         const KnexSessionStore = connectSessionKnex(expressSession);
 
-        const store = new KnexSessionStore({
-            knex: this.database as AnyType,
-            createtable: false,
-            tablename: 'sessions',
-            sidfieldname: 'sid',
-        });
+        // The knex store settles callbacks through Bluebird, which can run
+        // them in another request's async context; bind each to its caller
+        const store = bindSessionStoreCallbacks(
+            new KnexSessionStore({
+                knex: this.database as AnyType,
+                createtable: false,
+                tablename: 'sessions',
+                sidfieldname: 'sid',
+            }),
+        );
 
         // Use custom middlewares if provided
         this.customExpressMiddlewares.forEach((middleware) =>
@@ -802,6 +808,7 @@ export default class App {
                 ),
             ),
         );
+        expressApp.use(foreignExecutionContextCanaryMiddleware);
         expressApp.use(flash());
         expressApp.use(passport.initialize());
         expressApp.use(passport.session());
