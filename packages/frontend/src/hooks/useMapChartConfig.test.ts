@@ -42,7 +42,7 @@ describe('useMapChartConfig', () => {
             '#fa5252',
         ]);
         act(() => result.current.updateColor(1, '#000000'));
-        expect(result.current.validConfig.colorRange[1]).toBe('#000000');
+        expect(result.current.validConfig.colorRange?.[1]).toBe('#000000');
         act(() => result.current.removeColor(1));
         act(() => result.current.removeColor(0));
         expect(result.current.validConfig.colorRange).toEqual(
