@@ -289,11 +289,17 @@ const mount = (chartConfig: ChartConfig, panel: ReactNode) => {
     return { dispatches: () => dispatches };
 };
 
-// Long enough for main's 500ms debounced emissions to land, so both trees are measured until quiet
-const settle = () =>
-    act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 600));
-    });
+// Waits until 600ms pass with no commit (main debounces at 500ms), so a slow runner can't leak mount work into the edits
+const settle = async () => {
+    for (let round = 0; round < 10; round += 1) {
+        const before = commits.body + commits.panel;
+        // eslint-disable-next-line no-await-in-loop
+        await act(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 600));
+        });
+        if (commits.body + commits.panel === before) return;
+    }
+};
 
 type Run = {
     mount: { body: number; panel: number };
