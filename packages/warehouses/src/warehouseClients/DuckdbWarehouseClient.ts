@@ -415,7 +415,7 @@ class ConcurrencyBudget {
         return true;
     }
 
-    acquire(timeoutMs: number): Promise<boolean> {
+    acquire(timeoutMs?: number): Promise<boolean> {
         if (this.tryAcquire()) {
             return Promise.resolve(true);
         }
@@ -424,17 +424,19 @@ class ConcurrencyBudget {
             const pendingAcquire: (typeof this.pendingAcquires)[number] = {
                 resolve,
             };
-            const timeout = setTimeout(() => {
-                const index = this.pendingAcquires.indexOf(pendingAcquire);
-                if (index === -1) {
-                    return;
-                }
+            if (timeoutMs !== undefined) {
+                const timeout = setTimeout(() => {
+                    const index = this.pendingAcquires.indexOf(pendingAcquire);
+                    if (index === -1) {
+                        return;
+                    }
 
-                this.pendingAcquires.splice(index, 1);
-                resolve(false);
-            }, timeoutMs);
-            timeout.unref();
-            pendingAcquire.timeout = timeout;
+                    this.pendingAcquires.splice(index, 1);
+                    resolve(false);
+                }, timeoutMs);
+                timeout.unref();
+                pendingAcquire.timeout = timeout;
+            }
             this.pendingAcquires.push(pendingAcquire);
         });
     }
@@ -469,6 +471,16 @@ class ConcurrencyBudget {
             }
             resolve(false);
         });
+    }
+}
+
+const PARQUET_QUERY_TIMEOUT_MS = 120_000;
+
+class ParquetQueryTimeoutError extends WarehouseQueryError {
+    constructor() {
+        super(
+            'Analytics query exceeded the 120 second execution limit and was stopped. Try a narrower date range.',
+        );
     }
 }
 
@@ -642,6 +654,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         EMBEDDED_MAX_CONCURRENT_QUERIES,
     );
 
+    private static readonly parquetConcurrencyBudget = new ConcurrencyBudget(2);
+
     private static readonly embeddedOrganizationConcurrencyBudgets = new Map<
         string,
         ConcurrencyBudget
@@ -812,9 +826,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         this.sharedResourceLimits = isParquet
             ? {
                   memoryLimit: '256MB',
-                  // Overlap remote reads without exhausting the memory budget
-                  // with per-thread scan and aggregation buffers.
-                  threads: 4,
+                  // Parallel JSON decoders can exhaust this budget before spilling.
+                  threads: 1,
                   ...options?.sharedResourceLimits,
               }
             : options?.sharedResourceLimits;
@@ -1170,6 +1183,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             await DuckdbWarehouseClient.restrictToObjectStorage(db, client);
         }
 
+        if (client.parquetConfig) {
+            await db.run("SET allowed_configs = ['TimeZone'];");
+            await db.run('SET lock_configuration = true;');
+        }
+
         const bootstrapMs = performance.now() - bootstrapStart;
         client.logger?.info(
             `DuckDB query bootstrap complete: cacheKey=${client.instanceCacheKey ?? 'none'} bootstrap=${formatMilliseconds(bootstrapMs)}ms httpfs=${formatMilliseconds(httpfsMs)}ms memory_limit=${client.sharedResourceLimits?.memoryLimit ?? 'default'} threads=${client.sharedResourceLimits?.threads ?? 'default'} s3=${client.s3Config ? 'configured' : 'none'} ducklake=${client.ducklakeConfig ? 'configured' : 'none'} shared=${client.instanceCacheKey ? 'true' : 'false'}`,
@@ -1348,9 +1366,15 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 scope: [source.scope],
             });
         }
-        // Restrict the engine, not just SQL validation. No globbing, arbitrary
-        // network reads, local files, or shared spill/cache directories.
-        await db.run("SET temp_directory = '';");
+        const spillDirectory = parquetDirectory
+            ? path.join(parquetDirectory, 'spill')
+            : '';
+        if (spillDirectory) await fs.mkdir(spillDirectory, { mode: 0o700 });
+        // DuckDB allowlists this private child when external access is disabled.
+        // User SQL still cannot call file functions or change this configuration.
+        await db.run("SET max_temp_directory_size = '512MB';");
+        await db.run(`SET temp_directory = ${literal(spillDirectory)};`);
+        await db.run('SET allowed_directories = [];');
         // These caches live only in this query's private, memory-limited
         // instance, which is closed in withEphemeralQuerySession's finally.
         // Reuse metadata between view binding, validation and execution without
@@ -1585,6 +1609,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         DuckdbWarehouseClient.sharedInstanceS3Scopes.clear();
         DuckdbWarehouseClient.sharedInstanceS3SecretLocks.clear();
         DuckdbWarehouseClient.embeddedConcurrencyBudget.reset();
+        DuckdbWarehouseClient.parquetConcurrencyBudget.reset();
         DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.forEach(
             (budget) => budget.reset(),
         );
@@ -2214,17 +2239,37 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         querySql?: string,
     ): Promise<T> {
         const sessionStart = performance.now();
-
-        const instanceCreateStart = performance.now();
-        const instance = await DuckDBInstance.create(':memory:');
-        const instanceCreateMs = performance.now() - instanceCreateStart;
-
-        const connectStart = performance.now();
-        const connection = await instance.connect();
-        const connectMs = performance.now() - connectStart;
-
+        const budget = this.parquetConfig
+            ? DuckdbWarehouseClient.parquetConcurrencyBudget
+            : undefined;
+        if (budget && !(await budget.acquire())) {
+            throw new WarehouseQueryError(
+                'Analytics query capacity was reset. Try again.',
+            );
+        }
+        let instance: DuckDBInstance | undefined;
+        let connection: DuckdbConnection | undefined;
         let parquetDirectory: string | undefined;
+        let queryFailed = false;
+        let deadlineExceeded = false;
+        let timeout: ReturnType<typeof setTimeout> | undefined;
         try {
+            const instanceCreateStart = performance.now();
+            instance = await DuckDBInstance.create(':memory:');
+            const instanceCreateMs = performance.now() - instanceCreateStart;
+
+            const connectStart = performance.now();
+            connection = await instance.connect();
+            const connectMs = performance.now() - connectStart;
+
+            if (this.parquetConfig) {
+                timeout = setTimeout(() => {
+                    deadlineExceeded = true;
+                    connection?.interrupt();
+                }, PARQUET_QUERY_TIMEOUT_MS);
+                timeout.unref();
+            }
+
             if (this.parquetConfig) {
                 parquetDirectory = await fs
                     .mkdtemp(
@@ -2240,8 +2285,13 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                     parquetDirectory,
                 );
 
+            if (deadlineExceeded)
+                throw new Error('Analytics query deadline exceeded');
+
             const queryStart = performance.now();
             const result = await callback(connection);
+            if (deadlineExceeded)
+                throw new Error('Analytics query deadline exceeded');
             const queryMs = performance.now() - queryStart;
 
             const totalMs = performance.now() - sessionStart;
@@ -2257,12 +2307,45 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             );
 
             return result;
+        } catch (error) {
+            queryFailed = true;
+            if (deadlineExceeded) {
+                throw new ParquetQueryTimeoutError();
+            }
+            throw error;
         } finally {
-            connection.closeSync?.();
-            connection.disconnectSync?.();
-            instance.closeSync?.();
-            if (parquetDirectory)
-                await fs.rm(parquetDirectory, { recursive: true, force: true });
+            if (timeout) clearTimeout(timeout);
+            const cleanupErrors: unknown[] = [];
+            try {
+                for (const close of [
+                    () => connection?.closeSync?.(),
+                    () => connection?.disconnectSync?.(),
+                    () => instance?.closeSync?.(),
+                ]) {
+                    try {
+                        close();
+                    } catch (error) {
+                        cleanupErrors.push(error);
+                    }
+                }
+                if (parquetDirectory) {
+                    await fs
+                        .rm(parquetDirectory, {
+                            recursive: true,
+                            force: true,
+                            maxRetries: 3,
+                            retryDelay: 100,
+                        })
+                        .catch((error: unknown) => cleanupErrors.push(error));
+                }
+                if (cleanupErrors.length > 0) {
+                    this.logger?.warn?.('DuckDB query cleanup failed');
+                    // eslint-disable-next-line no-unsafe-finally -- Preserve primary errors, fail successful queries only.
+                    if (!queryFailed) throw cleanupErrors[0];
+                }
+            } finally {
+                budget?.release();
+            }
         }
     }
 
@@ -2367,7 +2450,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                         querySql,
                     );
                 } catch (error) {
-                    if (error instanceof ParameterError) throw error;
+                    if (
+                        error instanceof ParameterError ||
+                        error instanceof ParquetQueryTimeoutError
+                    )
+                        throw error;
                     throw new WarehouseQueryError(
                         'Internal analytics query failed. Check storage access and query permissions.',
                     );
@@ -2910,10 +2997,26 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         db: DuckdbConnection,
         sql: string,
     ): Promise<void> {
+        const stripped = DuckdbWarehouseClient.stripSqlComments(sql);
+        if (this.parquetConfig && /\bU&"/i.test(stripped)) {
+            throw new ParameterError(
+                'Escaped identifiers are not supported in analytics queries',
+            );
+        }
+        if (
+            this.parquetConfig &&
+            stripped
+                .match(/\$\$[\s\S]*?\$\$|'(?:[^']|'')*'|"(?:[^"]|"")*"/g)
+                ?.some((token) => token.startsWith('"') && /[\\/]/.test(token))
+        ) {
+            throw new ParameterError(
+                'File table paths are not allowed in analytics queries',
+            );
+        }
         if (
             this.parquetConfig &&
             /\b(duckdb_\w+|pragma_\w+|sqlite_\w+|pg_\w+|information_schema)\b/i.test(
-                DuckdbWarehouseClient.stripSqlComments(sql),
+                stripped,
             )
         ) {
             throw new ParameterError(

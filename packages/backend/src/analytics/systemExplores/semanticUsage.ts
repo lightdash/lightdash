@@ -33,11 +33,25 @@ export const semanticUsageColumns: CompactedStreamColumn[] = [
     { name: 'cache_hit', type: 'BOOLEAN' },
 ];
 
-// One row per query-field-role. Null-field rows explicitly retain queries whose
-// lineage is unavailable (SQL, old capture, or a query without direct fields).
-// DISTINCT metrics make roles/fields non-additive without changing query_events.
-export const semanticUsageSql = `(WITH queries AS (
-    SELECT * FROM query_events
+// Rank only duplicate identities so unique events stream their wide JSON.
+// Null-field rows retain unavailable lineage; distinct metrics stay non-additive.
+export const semanticUsageSql = `(WITH duplicate_query_ids AS (
+    SELECT org_id, query_id FROM query_events
+    GROUP BY org_id, query_id HAVING COUNT(*) > 1
+), queries AS (
+    SELECT * FROM query_events q
+    WHERE NOT EXISTS (
+        SELECT 1 FROM duplicate_query_ids d
+        WHERE d.org_id IS NOT DISTINCT FROM q.org_id
+          AND d.query_id IS NOT DISTINCT FROM q.query_id
+    )
+    UNION ALL
+    SELECT * FROM query_events q
+    WHERE EXISTS (
+        SELECT 1 FROM duplicate_query_ids d
+        WHERE d.org_id IS NOT DISTINCT FROM q.org_id
+          AND d.query_id IS NOT DISTINCT FROM q.query_id
+    )
     QUALIFY ROW_NUMBER() OVER (
         PARTITION BY org_id, query_id ORDER BY event_ts DESC
     ) = 1
@@ -47,16 +61,21 @@ export const semanticUsageSql = `(WITH queries AS (
         q.workload_origin, q.initiating_actor_type, q.request_id,
         q.parent_operation_id, q.status, q.cache_hit,
         COALESCE(q.semantic_lineage_status, 'not_captured') AS lineage_status,
-        r.value ->> 'fieldId' AS field_id,
-        r.value ->> 'fieldName' AS field_name,
-        r.value ->> 'fieldLabel' AS field_label,
-        r.value ->> 'tableName' AS table_name,
-        r.value ->> 'fieldKind' AS field_kind,
-        r.value ->> 'fieldOrigin' AS field_origin,
-        r.value ->> 'definitionHash' AS definition_hash,
-        r.value ->> 'role' AS role
-    FROM queries q
-    LEFT JOIN LATERAL json_each(TRY_CAST(q.semantic_field_references AS JSON)) r ON true
+        q.field_reference.fieldId AS field_id,
+        q.field_reference.fieldName AS field_name,
+        q.field_reference.fieldLabel AS field_label,
+        q.field_reference.tableName AS table_name,
+        q.field_reference.fieldKind AS field_kind,
+        q.field_reference.fieldOrigin AS field_origin,
+        q.field_reference.definitionHash AS definition_hash,
+        q.field_reference.role AS role
+    FROM (
+        SELECT *, unnest(COALESCE(NULLIF(TRY(from_json(semantic_field_references,
+            '[{"fieldId":"VARCHAR","fieldName":"VARCHAR","fieldLabel":"VARCHAR",
+              "tableName":"VARCHAR","fieldKind":"VARCHAR","fieldOrigin":"VARCHAR",
+              "definitionHash":"VARCHAR","role":"VARCHAR"}]')), []), [NULL])) AS field_reference
+        FROM queries
+    ) q
 )
 SELECT *, CASE WHEN field_id IS NOT NULL
     THEN to_json([project_id, table_name, field_id, field_origin])::VARCHAR
