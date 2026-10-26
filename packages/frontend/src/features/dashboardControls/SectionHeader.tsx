@@ -104,8 +104,8 @@ type Props = {
     onCancelName: () => void;
     /** A new filter in this section. */
     onAddFilter: () => void;
-    /** Flips whether the section starts collapsed (`section.collapsed`). */
-    onToggleStartCollapsed: () => void;
+    /** Flips the saved default, `section.collapsed`; this rail's fold stays. */
+    onToggleCollapsedByDefault: () => void;
     onRemove: () => void;
 };
 
@@ -125,7 +125,7 @@ export const SectionHeader: FC<Props> = ({
     onCommitName,
     onCancelName,
     onAddFilter,
-    onToggleStartCollapsed,
+    onToggleCollapsedByDefault,
     onRemove,
 }) => {
     const {
@@ -263,9 +263,9 @@ export const SectionHeader: FC<Props> = ({
                                         <Box w={14} h={14} />
                                     )
                                 }
-                                onClick={onToggleStartCollapsed}
+                                onClick={onToggleCollapsedByDefault}
                             >
-                                Start collapsed
+                                Collapsed by default
                             </Menu.Item>
                             <Menu.Item
                                 fz="xs"

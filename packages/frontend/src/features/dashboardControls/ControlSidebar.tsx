@@ -99,6 +99,7 @@ import {
     getDragAnnouncements,
     UNSECTIONED_TARGET_ID,
     type SectionRule,
+    isCollapsedByDefault,
 } from './sections';
 import {
     isDefaultValueIncomplete,
@@ -381,9 +382,17 @@ const OpenControlSidebar: FC = () => {
             : interpolateUiString(getUiString('filters.rail.unknownField'), {
                   field: rule.target.fieldId,
               });
-    // Local to this mount: the sections whose fold differs from their saved
-    // default (`section.collapsed`), which can arrive after mount
-    const [flippedIds, setFlippedIds] = useState<string[]>([]);
+    // Local to this mount, seeded from each section's default as the rail
+    // opens; a saved choice changed meanwhile moves nothing here, and a
+    // section made while it is open starts expanded
+    const [collapsedIds, setCollapsedIds] = useState<string[]>(() =>
+        groupRulesBySection(dashboardFilters, controlSections).flatMap(
+            ({ section, rules }) =>
+                section !== null && isCollapsedByDefault(section, rules.length)
+                    ? [section.id]
+                    : [],
+        ),
+    );
     // A new section lives only here until its name is committed
     const [nameEdit, setNameEdit] = useState<NameEdit | null>(null);
     // The row or header under the pointer, copied into the drag overlay
@@ -441,15 +450,15 @@ const OpenControlSidebar: FC = () => {
         : groupRulesBySection(dashboardFilters, sections);
     const sectionIds = new Set(controlSections.map((section) => section.id));
     const isSectionCollapsed = (section: DashboardControlSection) =>
-        (section.collapsed === true) !== flippedIds.includes(section.id);
+        collapsedIds.includes(section.id);
     const setSectionCollapsed = (
         section: DashboardControlSection,
         collapsed: boolean,
     ) =>
-        setFlippedIds((ids) =>
-            collapsed === (section.collapsed === true)
-                ? ids.filter((id) => id !== section.id)
-                : [...ids.filter((id) => id !== section.id), section.id],
+        setCollapsedIds((ids) =>
+            collapsed
+                ? [...ids.filter((id) => id !== section.id), section.id]
+                : ids.filter((id) => id !== section.id),
         );
     const sectionNames = new Map(
         sections.map((section) => [
@@ -929,25 +938,18 @@ const OpenControlSidebar: FC = () => {
                         collapse();
                     setSectionCollapsed(section, !isCollapsed);
                 }}
-                onToggleStartCollapsed={() => {
-                    // Ticked on an open section it folds, as the chevron
-                    // does; unticked, the key goes so the bar's dense-section
-                    // default applies again
-                    const collapsed = section.collapsed !== true;
-                    if (
-                        collapsed &&
-                        !isCollapsed &&
-                        holdsEditor &&
-                        !isPlaceholder
-                    )
-                        collapse();
+                onToggleCollapsedByDefault={() =>
+                    // The saved default only: this rail keeps its own fold.
+                    // Unticked, the key goes so the dense-section default
+                    // applies again
                     dispatch(
                         dashboardEditActions.setControlSectionCollapsed({
                             id: section.id,
-                            collapsed: collapsed ? true : undefined,
+                            collapsed:
+                                section.collapsed !== true ? true : undefined,
                         }),
-                    );
-                }}
+                    )
+                }
                 onRename={() =>
                     setNameEdit({ id: section.id, isNew: false, moveIds: [] })
                 }

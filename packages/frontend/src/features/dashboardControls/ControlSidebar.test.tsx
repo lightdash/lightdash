@@ -1646,7 +1646,7 @@ describe('ControlSidebar', () => {
             ).not.toBeInTheDocument();
         });
 
-        it('marks a section to start collapsed from its menu, folding it in the rail', async () => {
+        it('sets the saved default from the menu without folding this rail', async () => {
             closedRail();
             const { store } = renderWithProviders(
                 <ControlSidebar />,
@@ -1660,7 +1660,7 @@ describe('ControlSidebar', () => {
                 screen.getByRole('button', { name: 'Section Dates actions' }),
             );
             const item = await screen.findByRole('menuitem', {
-                name: 'Start collapsed',
+                name: 'Collapsed by default',
             });
             expect(item.querySelector('.tabler-icon-check')).toBeNull();
             await userEvent.click(item);
@@ -1668,18 +1668,19 @@ describe('ControlSidebar', () => {
                 ...sections[0],
                 collapsed: true,
             });
+            // The rail keeps the fold it opened with
             expect(
-                screen.queryByRole('button', { name: /^Created/ }),
-            ).not.toBeInTheDocument();
+                screen.getByRole('button', { name: /^Created/ }),
+            ).toBeVisible();
             expect(
-                screen.getByRole('button', { name: 'Expand section Dates' }),
+                screen.getByRole('button', { name: 'Collapse section Dates' }),
             ).toBeInTheDocument();
 
             await userEvent.click(
                 screen.getByRole('button', { name: 'Section Dates actions' }),
             );
             const checked = await screen.findByRole('menuitem', {
-                name: 'Start collapsed',
+                name: 'Collapsed by default',
             });
             expect(checked.querySelector('.tabler-icon-check')).not.toBeNull();
             await userEvent.click(checked);
@@ -1810,7 +1811,7 @@ describe('ControlSidebar', () => {
             expect(items.map((item) => item.textContent)).toEqual([
                 'Add filter',
                 'Rename',
-                'Start collapsed',
+                'Collapsed by default',
                 'Remove section',
             ]);
             await userEvent.click(items[0]);
@@ -1927,7 +1928,7 @@ describe('ControlSidebar', () => {
             ).toBeTruthy();
         });
 
-        it('folds the expanded filter when its open section is set to start collapsed', async () => {
+        it('leaves the expanded filter and its open section as they are when the default changes', async () => {
             const { collapse } = setSidebar({
                 isNew: false,
                 editing: { filterId: 'filter-3' },
@@ -1937,7 +1938,7 @@ describe('ControlSidebar', () => {
                     sectionId: 'section-a',
                 }),
             });
-            const { store, rerender } = renderWithProviders(
+            const { store } = renderWithProviders(
                 <ControlSidebar />,
                 sectioned(),
             );
@@ -1946,25 +1947,17 @@ describe('ControlSidebar', () => {
             );
             await userEvent.click(
                 await screen.findByRole('menuitem', {
-                    name: 'Start collapsed',
+                    name: 'Collapsed by default',
                 }),
             );
-            expect(collapse).toHaveBeenCalledTimes(1);
+            expect(collapse).not.toHaveBeenCalled();
             expect(selectControlSections(store.getState())[0].collapsed).toBe(
                 true,
             );
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                isSidebarOpen: false,
-            });
-            rerender(<ControlSidebar />);
+            expect(screen.getByLabelText('Filter label')).toBeInTheDocument();
             expect(
-                screen.queryByLabelText('Filter label'),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: /^Created/ }),
-            ).not.toBeInTheDocument();
+                screen.getByRole('button', { name: 'Collapse section Dates' }),
+            ).toBeInTheDocument();
 
             // Unticked, the saved key goes rather than turning false
             await userEvent.click(
@@ -1972,7 +1965,7 @@ describe('ControlSidebar', () => {
             );
             await userEvent.click(
                 await screen.findByRole('menuitem', {
-                    name: 'Start collapsed',
+                    name: 'Collapsed by default',
                 }),
             );
             expect(selectControlSections(store.getState())[0]).toEqual(

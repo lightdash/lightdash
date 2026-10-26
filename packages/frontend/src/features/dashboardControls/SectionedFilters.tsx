@@ -52,6 +52,7 @@ import {
     moveRuleToSection,
     UNSECTIONED_TARGET_ID,
     type SectionRule,
+    isCollapsedByDefault,
 } from './sections';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { type PillPopoverState } from './ViewerSavedPills';
@@ -76,9 +77,6 @@ type CapsuleProps = {
     activeTabUuid: string | undefined;
     popover: PillPopoverState;
 };
-
-/** With no saved choice, a section with more members than this (on any tab) starts collapsed */
-const COLLAPSED_BY_DEFAULT_ABOVE = 6;
 
 const SectionCapsule: FC<CapsuleProps> = ({
     section,
@@ -255,8 +253,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
               },
           );
     const isOpen = (section: DashboardControlSection, total: number) =>
-        !(section.collapsed ?? total > COLLAPSED_BY_DEFAULT_ABOVE) !==
-        flippedIds.has(section.id);
+        !isCollapsedByDefault(section, total) !== flippedIds.has(section.id);
     // A popover in a collapsed or hidden section is closed with it
     const sectionOfOpenPopover = groupRulesBySection(
         dashboardFilters,
