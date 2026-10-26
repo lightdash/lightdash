@@ -19,6 +19,7 @@ import {
     type ApiDataAppVizRenderMetadataResponse,
     type ApiDataAppVizUpgradeImpactResponse,
     type ApiDeleteAppResponse,
+    type ApiDismissAddAnalysisOfferResponse,
     type ApiDuplicateAppRequest,
     type ApiDuplicateAppResponse,
     type ApiEmbedProjectAppsResponse,
@@ -1054,6 +1055,33 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * Dismiss the builder-side "add AI analysis" offer for this app, for
+     * everyone who builds it. One-way: the offer also disappears on its own
+     * once a build wires up the analysis surface.
+     * @summary Dismiss the add-AI-analysis offer
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/analysis-offer/dismiss')
+    @OperationId('dismissAddAnalysisOffer')
+    async dismissAddAnalysisOffer(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: UUID,
+    ): Promise<ApiDismissAddAnalysisOfferResponse> {
+        assertRegisteredAccount(req.account);
+        await this.getAppGenerateService().dismissAddAnalysisOffer(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 
