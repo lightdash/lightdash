@@ -1,3 +1,10 @@
+## [3.59.2](https://github.com/lightdash/lightdash/compare/3.59.1...3.59.2) (2026-10-26)
+
+
+### Bug Fixes
+
+* **data-apps:** stop app-builder chat snapping to bottom during a build ([#31590](https://github.com/lightdash/lightdash/issues/31590)) ([ec94f9a](https://github.com/lightdash/lightdash/commit/ec94f9a96b52351ca1ef37865b0db0ec54bb2065))
+
 ## [3.59.1](https://github.com/lightdash/lightdash/compare/3.59.0...3.59.1) (2026-10-26)
 
 
