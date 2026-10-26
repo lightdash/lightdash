@@ -14,16 +14,20 @@ const GCP_METADATA_IDENTITY_URL =
     'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity';
 const METADATA_TIMEOUT_MS = 5_000;
 
+/** Builds the fixed metadata identity request shared by Node and dbt credentials. */
+export const getGcpMetadataIdentityRequest = (audience: string) => ({
+    url: `${GCP_METADATA_IDENTITY_URL}?audience=${encodeURIComponent(audience)}&format=full`,
+    headers: { 'Metadata-Flavor': 'Google' },
+});
+
 /** Tokens for the GKE workload identity, from the metadata server. */
 export class GcpMetadataIdentityTokenSource implements GoogleIdentityTokenSource {
     async getIdToken(audience: string): Promise<string> {
-        const url = `${GCP_METADATA_IDENTITY_URL}?audience=${encodeURIComponent(
-            audience,
-        )}&format=full`;
+        const { url, headers } = getGcpMetadataIdentityRequest(audience);
         let response: Response;
         try {
             response = await fetch(url, {
-                headers: { 'Metadata-Flavor': 'Google' },
+                headers,
                 signal: AbortSignal.timeout(METADATA_TIMEOUT_MS),
             });
         } catch (e) {

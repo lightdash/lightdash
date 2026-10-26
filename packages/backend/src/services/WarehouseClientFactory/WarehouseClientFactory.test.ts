@@ -14,6 +14,7 @@ import {
     FeatureFlags,
     getAgentClientLabel,
     ProjectMemberRole,
+    ProjectType,
     QueryExecutionContext,
     QuerySurface,
     RedshiftAuthenticationType,
@@ -53,6 +54,8 @@ import {
 import { Trino } from '../../../../warehouses/node_modules/trino-client';
 import { snowflakeOAuthRefreshClient } from '../../auth/snowflakeOAuthRefresh';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { profileFromTarget } from '../../dbt/profiles';
+import { bigqueryWif } from '../../dbt/targets/targets.mock';
 import Logger from '../../logging/logger';
 import {
     athenaConnection,
@@ -75,6 +78,7 @@ import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshT
 import type { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { type AiUserWarehouseCredentials } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { BigqueryWorkloadIdentityResolver } from '../../utils/googleIdentity/BigqueryWorkloadIdentityResolver';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { getWarehouseIdentityFingerprint } from '../../utils/queryResultProducer';
 import {
@@ -106,6 +110,7 @@ import { AgentSignInResolverHarness } from './resolvers/SnowflakeAgentSignInCred
 import { SnowflakeOAuthCredentialResolver } from './resolvers/SnowflakeOAuthCredentialResolver';
 import {
     WarehouseClientFactory,
+    type ScopedWarehouseConnection,
     type WarehouseClientRef,
     type WarehouseConnectionLeaseRef,
 } from './WarehouseClientFactory';
@@ -357,6 +362,81 @@ beforeEach(() => {
 });
 
 describe('WarehouseClientFactory', () => {
+    test.each([false, true])(
+        'gates WIF dbt profiles on the owning organization with explicitCredentials=%s',
+        async (explicitCredentials) => {
+            const { factory, projectModel } = buildFixture();
+            let enabled = false;
+            const isEnabledFor = vi.fn(
+                async (organizationUuid: string) =>
+                    enabled && organizationUuid === 'owning-org',
+            );
+            const getIdToken = vi.fn(async () => 'unused-token');
+            const resolver = new BigqueryWorkloadIdentityResolver({
+                isEnabledFor,
+                tokenSource: { getIdToken },
+            });
+            projectModel.getSummary.mockResolvedValue({
+                name: 'Project',
+                projectUuid: 'project-uuid',
+                slug: 'project',
+                organizationUuid: 'owning-org',
+                type: ProjectType.DEFAULT,
+                upstreamProjectUuid: undefined,
+                createdByUserUuid: null,
+            });
+            projectModel.getWarehouseClientIdentityOptions.mockImplementation(
+                async (creds, organizationUuid) => ({
+                    bigqueryExternalAccount:
+                        await resolver.getExternalAccountCredentials(
+                            creds,
+                            organizationUuid,
+                        ),
+                }),
+            );
+            const createProfile = vi.fn(
+                async (connection: ScopedWarehouseConnection) =>
+                    profileFromTarget(
+                        factory.toDbtTarget(
+                            connection.warehouseCredentials,
+                            connection.connectionCredentials,
+                            { explicitCredentials },
+                        ),
+                        '/tmp/profiles',
+                    ),
+            );
+            const compile = () =>
+                factory.withWarehouseClient(
+                    compileRef(bigqueryWif),
+                    contextFor(null, 'compile'),
+                    createProfile,
+                );
+
+            await expect(compile()).rejects.toThrow(
+                'BigQuery workload identity federation is not enabled for this organization.',
+            );
+            expect(createProfile).not.toHaveBeenCalled();
+            expect(
+                projectModel.getWarehouseClientFromCredentials,
+            ).not.toHaveBeenCalled();
+            enabled = true;
+            await expect(compile()).resolves.toMatchObject({
+                environment: {
+                    GOOGLE_APPLICATION_CREDENTIALS:
+                        '/tmp/profiles/bigquery-workload-identity.json',
+                },
+            });
+            enabled = false;
+            await expect(compile()).rejects.toThrow(
+                'BigQuery workload identity federation is not enabled for this organization.',
+            );
+            expect(createProfile).toHaveBeenCalledOnce();
+            expect(isEnabledFor).toHaveBeenCalledTimes(3);
+            expect(isEnabledFor).toHaveBeenCalledWith('owning-org');
+            expect(getIdToken).not.toHaveBeenCalled();
+        },
+    );
+
     test('rechecks federated identity before reusing a cached client', async () => {
         const { factory, projectModel } = buildFixture();
         const federated: CreateWarehouseCredentials = {
