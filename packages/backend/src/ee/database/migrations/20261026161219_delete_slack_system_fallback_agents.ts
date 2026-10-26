@@ -46,7 +46,7 @@ export async function up(knex: Knex): Promise<void> {
     const kept = await selectSystemAgents(knex).where(hasLinkedRows(knex));
     if (kept.length > 0) {
         console.warn(
-            `${LOG_PREFIX} Keeping ${kept.length} agent row(s) flagged is_system that have integrations or access rules attached; they now list as normal agents:`,
+            `${LOG_PREFIX} Keeping ${kept.length} agent row(s) flagged is_system that have integrations or access rules attached; listings keep hiding them until the column is dropped:`,
             kept,
         );
     }
