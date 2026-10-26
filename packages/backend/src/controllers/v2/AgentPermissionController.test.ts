@@ -118,7 +118,7 @@ test.each(operations)(
         account.user.ability = createOAuthScopedAbility(account.user.ability, {
             scopes: ['write'],
             clientId: 'client',
-            mode: 'log',
+
             getRequest: () => ({ method: null, routeTemplate: null }),
         });
         await expect(operation(controller, req)).rejects.toBeInstanceOf(

@@ -65,7 +65,5 @@ export const assertOAuthMcpToolAllowed = (
         'McpTool',
         Object.hasOwn(MCP_TOOL_SCOPE_MAP, toolName) ? toolName : '[unknown]',
     );
-    if (context.mode === 'enforce') {
-        throw new ForbiddenError('OAuth scope does not allow this MCP tool');
-    }
+    throw new ForbiddenError('OAuth scope does not allow this MCP tool');
 };

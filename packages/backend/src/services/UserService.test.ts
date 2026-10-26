@@ -4991,7 +4991,6 @@ describe('UserService', () => {
                 const actor = { ...sessionUser };
                 if (mode !== 'pat' && mode !== 'session')
                     actor.ability = createOAuthScopedAbility(actor.ability, {
-                        mode: 'enforce',
                         scopes: ['read', 'write'],
                         clientId: 'agent',
                         getRequest: () => ({
@@ -5064,7 +5063,6 @@ describe('UserService', () => {
                 const actor = {
                     ...sessionUser,
                     ability: createOAuthScopedAbility(sessionUser.ability, {
-                        mode: 'enforce',
                         scopes: ['read', 'write'],
                         clientId: 'agent',
                         getRequest: () => ({

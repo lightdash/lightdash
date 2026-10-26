@@ -24,12 +24,15 @@ export const assertOAuthCredentialOperationAllowed = (
     actor: Account | SessionUser,
     operation: keyof typeof OAUTH_CREDENTIAL_OPERATIONS,
 ): void => {
-    if (isAccount(actor) && actor.authentication.type !== 'oauth') return;
     const context = getOAuthScopeContext(
         isAccount(actor) ? actor.user.ability : actor.ability,
     );
-    if (context === null) return;
+    if (
+        context === null &&
+        !(isAccount(actor) && actor.authentication.type === 'oauth')
+    )
+        return;
     const [action, subjectType] = OAUTH_CREDENTIAL_OPERATIONS[operation];
-    context.record(action, subjectType, null);
+    context?.record(action, subjectType, null);
     throw new ForbiddenError('OAuth tokens cannot manage credentials');
 };

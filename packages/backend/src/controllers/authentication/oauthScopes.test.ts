@@ -2,7 +2,6 @@ import { Ability, subject } from '@casl/ability';
 import {
     AbilityAction,
     CaslSubjectNames,
-    FeatureFlags,
     ForbiddenError,
     PossibleAbilities,
 } from '@lightdash/common';
@@ -112,8 +111,6 @@ afterEach(async () => {
 });
 
 const start = async (
-    agentIdentity: boolean,
-    enforcement: boolean,
     scopes: string[],
     oauthOnly = false,
     authentication: 'oauth' | 'pat' | 'session' | 'service-account' = 'oauth',
@@ -126,14 +123,7 @@ const start = async (
         ability,
         abilityRules: ability.rules,
     };
-    const getFlag = vi.fn(
-        async ({ featureFlagId }: { featureFlagId: string }) => ({
-            enabled:
-                featureFlagId === FeatureFlags.AgentIdentity
-                    ? agentIdentity
-                    : enforcement,
-        }),
-    );
+    const getFlag = vi.fn();
     lightdashConfig.auth.pat.enabled = true;
     vi.mocked(passport.authenticate).mockReturnValue(
         (req: Request, _res: express.Response, next: express.NextFunction) => {
@@ -237,82 +227,59 @@ const start = async (
     };
 };
 
-describe.each([
-    { agentIdentity: false, enforcement: false, mode: null },
-    { agentIdentity: false, enforcement: true, mode: null },
-    { agentIdentity: true, enforcement: false, mode: 'log' },
-    { agentIdentity: true, enforcement: true, mode: 'enforce' },
-])(
-    'OAuth REST permissions $mode (flags $agentIdentity/$enforcement)',
-    ({ agentIdentity, enforcement, mode }) => {
-        it.each(
-            [
-                { scopes: [] as string[] },
-                { scopes: ['read'] },
-                { scopes: ['write'] },
-                { scopes: ['mcp:read'] },
-                { scopes: ['mcp:write'] },
-                { scopes: ['mcp:read', 'write'] },
-            ].flatMap(({ scopes }) =>
-                operations.map((operation) => ({ scopes, operation })),
-            ),
-        )(
-            '$operation.method $operation.path with scopes $scopes',
-            async ({ scopes, operation }) => {
-                const { url, user, getFlag } = await start(
-                    agentIdentity,
-                    enforcement,
-                    scopes,
-                );
-                vi.mocked(Logger.warn).mockClear();
-                const scopedAllowed =
-                    scopes.includes('write') ||
-                    scopes.includes('mcp:write') ||
-                    (scopes.length > 0 && operation.read);
-                const response = await sendRequest(
-                    `${url}${operation.path.replace(':projectUuid', 'private-project')}?token=private-query`,
+describe('OAuth REST permissions', () => {
+    it.each(
+        [
+            { scopes: [] as string[] },
+            { scopes: ['read'] },
+            { scopes: ['write'] },
+            { scopes: ['mcp:read'] },
+            { scopes: ['mcp:write'] },
+            { scopes: ['mcp:read', 'write'] },
+        ].flatMap(({ scopes }) =>
+            operations.map((operation) => ({ scopes, operation })),
+        ),
+    )(
+        '$operation.method $operation.path with scopes $scopes',
+        async ({ scopes, operation }) => {
+            const { url, user, getFlag } = await start(scopes);
+            vi.mocked(Logger.warn).mockClear();
+            const scopedAllowed =
+                scopes.includes('write') ||
+                scopes.includes('mcp:write') ||
+                (scopes.length > 0 && operation.read);
+            const response = await sendRequest(
+                `${url}${operation.path.replace(':projectUuid', 'private-project')}?token=private-query`,
+                {
+                    method: operation.method,
+                    headers: { authorization: 'Bearer secret-token' },
+                },
+            );
+            expect(response.status).toBe(!scopedAllowed ? 403 : 200);
+            expect(Logger.warn).toHaveBeenCalledTimes(!scopedAllowed ? 1 : 0);
+            if (!scopedAllowed) {
+                expect(Logger.warn).toHaveBeenCalledWith(
+                    'oauth_scope_refusal',
                     {
+                        mode: 'enforce',
+                        clientId: 'client',
+                        scopes,
                         method: operation.method,
-                        headers: { authorization: 'Bearer secret-token' },
+                        routeTemplate: operation.path,
+                        toolName: null,
+                        action: operation.action,
+                        subjectType: operation.subjectType,
                     },
                 );
-                expect(response.status).toBe(
-                    mode === 'enforce' && !scopedAllowed ? 403 : 200,
-                );
-                expect(Logger.warn).toHaveBeenCalledTimes(
-                    mode !== null && !scopedAllowed ? 1 : 0,
-                );
-                if (mode !== null && !scopedAllowed) {
-                    expect(Logger.warn).toHaveBeenCalledWith(
-                        'oauth_scope_refusal',
-                        {
-                            mode,
-                            clientId: 'client',
-                            scopes,
-                            method: operation.method,
-                            routeTemplate: operation.path,
-                            toolName: null,
-                            action: operation.action,
-                            subjectType: operation.subjectType,
-                        },
-                    );
-                }
-                expect(user.ability.can('manage', 'Organization')).toBe(true);
-                if (!agentIdentity)
-                    expect(
-                        getFlag.mock.calls.every(
-                            ([args]) =>
-                                args.featureFlagId ===
-                                FeatureFlags.AgentIdentity,
-                        ),
-                    ).toBe(true);
-            },
-        );
-    },
-);
+            }
+            expect(user.ability.can('manage', 'Organization')).toBe(true);
+            expect(getFlag).not.toHaveBeenCalled();
+        },
+    );
+});
 
 it('applies the same scope restriction on OAuth-only authentication', async () => {
-    const { url } = await start(true, true, ['mcp:read'], true);
+    const { url } = await start(['mcp:read'], true);
     const response = await sendRequest(`${url}/org/invite`, {
         method: 'POST',
         headers: { authorization: 'Bearer secret-token' },
@@ -320,22 +287,11 @@ it('applies the same scope restriction on OAuth-only authentication', async () =
     expect(response.status).toBe(403);
 });
 
-describe.each([
-    [false, false],
-    [false, true],
-    [true, false],
-    [true, true],
-])('non-OAuth middleware with flags %s/%s', (agentIdentity, enforcement) => {
+describe('non-OAuth middleware', () => {
     it.each(['pat', 'session', 'service-account'] as const)(
         'leaves %s permissions unchanged without resolving flags',
         async (authentication) => {
-            const { url, getFlag } = await start(
-                agentIdentity,
-                enforcement,
-                [],
-                false,
-                authentication,
-            );
+            const { url, getFlag } = await start([], false, authentication);
             const response = await sendRequest(`${url}/org/invite`, {
                 method: 'POST',
                 headers: { authorization: 'Bearer other-token' },

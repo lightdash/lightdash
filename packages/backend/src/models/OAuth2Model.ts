@@ -22,11 +22,7 @@ import {
     agentConnectionGrantEnabled,
     matchesOAuthGrantBinding,
 } from '../auth/agentConnectionGrants/oauthGrantBinding';
-import {
-    OAUTH_SCOPES,
-    resolveOAuthScopeMode,
-    scopesForOAuthRecord,
-} from '../auth/oauthScopes/mode';
+import { OAUTH_SCOPES, scopesForOAuthRecord } from '../auth/oauthScopes/mode';
 import { OAuthResourceBinding } from '../auth/oauthScopes/oauthResources';
 import { OAuthTokenBinding } from '../auth/oauthScopes/oauthTokenBinding';
 import {
@@ -972,20 +968,6 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return `${AuthTokenPrefix.OAUTH_REFRESH}${nanoid(64)}`;
     }
 
-    async getScopeMode(user: UserWithOrganizationUuid) {
-        const storedUser = await this.database('users')
-            .select('user_uuid')
-            .where('user_id', user.userId)
-            .first();
-        if (!storedUser) {
-            throw new AuthorizationError('OAuth user not found');
-        }
-        return resolveOAuthScopeMode(this.featureFlagModel, {
-            organizationUuid: user.organizationUuid,
-            userUuid: storedUser.user_uuid,
-        });
-    }
-
     async isSecurityStrict(
         user: Pick<LightdashUser, 'userUuid' | 'organizationUuid'> | null,
     ): Promise<boolean> {
@@ -1011,9 +993,6 @@ export class OAuth2Model implements AuthorizationCodeModel {
         client: Client,
         scope: string[] = [],
     ): Promise<string[] | false> {
-        const mode = await this.getScopeMode(user);
-        if (mode === null) return scope;
-
         const registeredScopes: string[] = client.scopes ?? [];
         const allowedScopes = new Set<string>(
             OAUTH_SCOPES.filter(
@@ -1029,7 +1008,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
         }
 
         Logger.warn('oauth_scope_refusal', {
-            mode,
+            mode: 'enforce',
             clientId: client.id,
             scopes: scopesForOAuthRecord(scope),
             method: null,
@@ -1038,7 +1017,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             action: 'validateScope',
             subjectType: 'OAuthClient',
         });
-        return mode === 'enforce' ? false : scope;
+        return false;
     }
 
     async validateRedirectUri(

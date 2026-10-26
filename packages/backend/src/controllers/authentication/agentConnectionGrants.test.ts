@@ -74,7 +74,7 @@ it.each(['subjectUserUuid', 'organizationUuid', 'clientId', 'resource'])(
         });
     },
 );
-it('puts validated metadata on the account in OAuth log and legacy org mode', async () => {
+it('puts validated metadata on the account with legacy org permissions', async () => {
     const { req, run, grant } = setup();
     expect(await run(allowApiKeyAuthentication)).toEqual({
         status: 200,
@@ -128,7 +128,7 @@ it.each([
     'ProjectController.createPreview',
     'organizationRouter POST /projects/precompiled',
     'unknown',
-])('denies %s in legacy/log mode', async (operation) => {
+])('denies %s with legacy org permissions', async (operation) => {
     const { req, run } = setup();
     if (operation.startsWith('organizationRouter')) {
         req.baseUrl = '/api/v1/org';
@@ -165,7 +165,7 @@ it('a normal PAT account remains unchanged', async () => {
     expect(deps.featureFlags.get).not.toHaveBeenCalled();
 });
 
-it('enforces OAuth wire scopes on a bound unchecked operation in legacy/log mode', async () => {
+it('enforces OAuth wire scopes on a bound unchecked operation with legacy org permissions', async () => {
     const { req, grant, token, run } = setup();
     grant.approvedCapabilities = [AgentCapability.DeployUpload];
     req.params.sessionUuid = 'session';

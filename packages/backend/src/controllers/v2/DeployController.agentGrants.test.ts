@@ -15,8 +15,12 @@ const setup = () => {
     const grant = grantFixture();
     const account = fromOauth(
         defaultSessionUser,
-        { accessToken: 'token', client: { id: 'client' } },
-        null,
+        {
+            scope: ['read', 'write'],
+            accessToken: 'token',
+            client: { id: 'client' },
+        },
+        undefined,
         { ...grant, revision: 1 },
     );
     const dispatch = vi.fn().mockResolvedValue({});
@@ -126,8 +130,12 @@ it.each(
         const grant = grantFixture();
         const account = fromOauth(
             defaultSessionUser,
-            { accessToken: 'token', client: { id: grant.clientId } },
-            null,
+            {
+                scope: ['read', 'write'],
+                accessToken: 'token',
+                client: { id: grant.clientId },
+            },
+            undefined,
             {
                 ...grant,
                 revision: 1,

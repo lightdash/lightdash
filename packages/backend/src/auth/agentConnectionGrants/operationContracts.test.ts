@@ -196,7 +196,7 @@ it.each(
         const account = fromOauth(
             user,
             token,
-            null,
+            undefined,
             await service.authenticate(token, user),
         );
         const request = {

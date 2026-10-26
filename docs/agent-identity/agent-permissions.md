@@ -173,7 +173,7 @@ cancel another.
 | Check | Where |
 | ------------------------------------------------------------------------------------ | -------------------------------------------------------- |
 | The person's own permissions on the resource (CASL) | The service that does the work |
-| The OAuth grant and token scopes, when OAuth enforcement is on | `fromOauth`, `scopedAbility.ts`, `mcpTools.ts` |
+| The OAuth grant and token scopes | `fromOauth`, `scopedAbility.ts`, `mcpTools.ts` |
 | Group admission, the organization list, and the capabilities from the person's roles | `AgentPermissionService.assertOperation` and `evaluate`  |
 | Project, data and destination limits (pinned project, agent tags, SQL scope) | MCP, agent tools and data services |
 | MCP settings                                                                         | MCP tool registration and configured-agent gates         |
@@ -217,8 +217,7 @@ for environment and file access.
 
 **OAuth scopes keep their old meaning.** `read`, `write`, `mcp:read` and
 `mcp:write` are separate from the 11 capabilities. `read` and `mcp:read`
-include the SQL runner and exports. Scope enforcement has null, log and
-enforce modes; log mode records but does not refuse.
+include the SQL runner and exports. OAuth scopes are always enforced.
 
 ## MCP settings
 

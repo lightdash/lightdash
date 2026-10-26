@@ -27,13 +27,16 @@ const setup = (mode: 'off' | 'legacy' | 'managed', oauth: boolean) => {
     };
     if (oauth)
         user.ability = createOAuthScopedAbility(ability, {
-            mode: 'enforce',
             scopes: ['read', 'write'],
             clientId: 'agent',
             getRequest: () => ({ method: 'PATCH', routeTemplate: null }),
         });
     const account = oauth
-        ? fromOauth(user, { accessToken: 'token', client: { id: 'agent' } })
+        ? fromOauth(user, {
+              scope: ['read', 'write'],
+              accessToken: 'token',
+              client: { id: 'agent' },
+          })
         : fromApiKey(user, 'token');
     const featureFlagModel = {
         get: vi.fn().mockResolvedValue({ enabled: mode !== 'off' }),

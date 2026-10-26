@@ -1,7 +1,6 @@
 import OAuth2Server from '@node-oauth/oauth2-server';
 import RefreshTokenGrantType from '@node-oauth/oauth2-server/lib/grant-types/refresh-token-grant-type';
 import { randomUUID } from 'node:crypto';
-import { OAuthScopeMode } from '../../auth/oauthScopes/mode';
 import { resolveGrantedOAuthResource } from '../../auth/oauthScopes/oauthResources';
 import {
     OAuthTokenBinding,
@@ -9,7 +8,6 @@ import {
 } from '../../auth/oauthScopes/oauthTokenBinding';
 
 export const createScopeCheckedRefreshTokenGrant = (
-    resolveMode: (user: OAuth2Server.User) => Promise<OAuthScopeMode | null>,
     resolveStrict: (user: OAuth2Server.User) => Promise<boolean>,
     siteUrl: string,
 ) =>
@@ -76,8 +74,6 @@ export const createScopeCheckedRefreshTokenGrant = (
                     token.resource ?? null,
                 );
             }
-            const mode = await resolveMode(token.user);
-            if (mode === null) return token;
             const scope = this.getScope(request, token);
             const validated = await this.validateScope(
                 token.user,
