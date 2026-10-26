@@ -7,10 +7,10 @@ Two dbt projects that live in separate repositories in real life:
   `{{ ref('shared_dimensions', 'dim_calendar') }}` using the dbt-loom / dbt Mesh
   two-argument ref syntax.
 
-Connect both as dbt sources of one Lightdash project (the `multi-dbt-sources`
-feature flag). With the `cross-source-dbt-refs` feature flag on, the server
-compile resolves the ref without dbt-loom. Each source is prepared once (git
-refresh and `dbt deps`), then scanned for its `dbt_project.yml` name, literal
+Connect both as dbt sources of one Lightdash project. With the
+`cross-source-dbt-refs` feature flag on, the server compile resolves the ref
+without dbt-loom. Each source is prepared once (git refresh and `dbt deps`),
+then scanned for its `dbt_project.yml` name, literal
 refs (including versions and one-argument refs) and `dependencies.yml` projects.
 All sources run in one pass with sibling stubs from the cache or scan. Project
 cycles are allowed. The resolver checks bindings against fresh catalogues and

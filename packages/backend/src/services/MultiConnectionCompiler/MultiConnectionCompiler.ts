@@ -218,7 +218,6 @@ type MultiConnectionCompileInput = SourceDiskLifecycle & {
     context: ConnectionContext;
     primary: PrimaryCompileInput;
     dbtVersion: SupportedDbtVersions;
-    includeUnboundSources: boolean;
     fetchSourceManifest: FetchSourceManifest;
     prepareSourceManifest?: PrepareSourceManifest;
     crossSourceRefsEnabled: boolean;
@@ -253,10 +252,7 @@ export class MultiConnectionCompiler {
             args.warehouseConnectionCompileModel;
     }
 
-    async planGroups(
-        projectUuid: string,
-        includeUnboundSources: boolean,
-    ): Promise<CompileGroupPlan[]> {
+    async planGroups(projectUuid: string): Promise<CompileGroupPlan[]> {
         const [connections, sources] = await Promise.all([
             this.warehouseConnectionCompileModel.getCompileConnections(
                 projectUuid,
@@ -266,7 +262,6 @@ export class MultiConnectionCompiler {
         return planCompileGroups({
             connections,
             sources,
-            includeUnboundSources,
         });
     }
 
@@ -785,7 +780,6 @@ export class MultiConnectionCompiler {
             context,
             primary,
             dbtVersion,
-            includeUnboundSources,
             fetchSourceManifest,
             prepareSourceManifest,
             crossSourceRefsEnabled,
@@ -809,10 +803,8 @@ export class MultiConnectionCompiler {
         callerSignal: AbortSignal | undefined,
         resolutionStartedAt: number,
     ): Promise<MultiConnectionCompilation> {
-        const [originalPlan, ...extraPlans] = await this.planGroups(
-            projectUuid,
-            includeUnboundSources,
-        );
+        const [originalPlan, ...extraPlans] =
+            await this.planGroups(projectUuid);
         const identity =
             await this.projectModel.getDbtSourceIdentity(projectUuid);
         const warnings: string[] = [];

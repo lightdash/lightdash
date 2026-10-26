@@ -1,6 +1,10 @@
 {
     "$schema": "./scripts/release-safety-declarations.schema.json",
     "declarations": {
+        "multi-dbt-sources-flag-removed": {
+            "reason": "Projects always compile their additional dbt sources. Projects with no additional sources keep the single-source path. TypeScript consumers that use FeatureFlags.MultiDbtSources must remove that reference on upgrade. Existing flag rows stay in place during the rolling update.",
+            "requiredStop": false
+        },
         "custom-chart-ordered-field-mappings": {
             "reason": "Custom chart inputs declared with multiple: true now return ordered arrays in fieldMapping; single-field inputs still return strings. API and query SDK consumers reading arbitrary mapping entries must narrow string versus string[] before using a field id. Existing scalar saved configurations remain valid.",
             "requiredStop": false

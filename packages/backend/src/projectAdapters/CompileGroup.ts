@@ -188,11 +188,9 @@ export const mergeCompileGroupManifests = (
 export const planCompileGroups = ({
     connections,
     sources,
-    includeUnboundSources,
 }: {
     connections: CompileConnection[];
     sources: BoundProjectDbtSource[];
-    includeUnboundSources: boolean;
 }): CompileGroupPlan[] => {
     const original = connections.find((connection) => connection.isOriginal);
     if (!original) {
@@ -253,11 +251,9 @@ export const planCompileGroups = ({
     return [
         toPlan(
             original,
-            includeUnboundSources
-                ? compilable.filter(
-                      (source) => source.warehouseConnectionUuid === null,
-                  )
-                : [],
+            compilable.filter(
+                (source) => source.warehouseConnectionUuid === null,
+            ),
         ),
         ...extraPlans,
     ];
