@@ -490,7 +490,11 @@ In `FilterConfiguration/`:
   filters", hidden while selecting, and a Close X), the body and the
   footer. Controls are `xs`, names `fz="sm"`, secondary lines `fz="xs"`.
   The list ends with the add row (`AddRow`, `.addRow`: a quiet full-width
-  button at a loose row's height and left padding, `data-controls-new-section`,
+  button, `xs` 500 dimmed with a 14px plus, 36px tall like a section header
+  with its `4px` vertical padding, the loose rows' `md` left padding,
+  `data-controls-new-section`; hidden while a new filter has no field yet or
+  a new section is being named, back once either settles, so the
+  `focusAfter` fallbacks that name it run after it has rendered again),
   a plain tab stop after the roving list, never one of its stops): for an
   editor "Add filter or section" (`filters.rail.addFilterOrSection`), a
   bottom-start menu with "Add filter" (`filters.addFilter`, `openNew`; gone

@@ -224,14 +224,15 @@
     display: contents;
 }
 
-/* The list's last row: quiet, at a loose row's height and left padding */
+/* The list's last row: quiet, a secondary line at a section header's height,
+   its glyph aligned with the loose rows' icons */
 .addRow {
     display: flex;
     align-items: center;
     gap: var(--mantine-spacing-xs);
     width: 100%;
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm)
-        var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    min-height: 36px;
+    padding: 4px var(--mantine-spacing-sm) 4px var(--mantine-spacing-md);
     color: var(--mantine-color-dimmed);
     transition: background-color var(--controls-duration-hover)
         var(--controls-ease);

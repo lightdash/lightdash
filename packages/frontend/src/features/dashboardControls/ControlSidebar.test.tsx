@@ -680,11 +680,49 @@ describe('ControlSidebar', () => {
         expect(
             screen.queryByRole('button', { name: 'Done' }),
         ).not.toBeInTheDocument();
+        // No add row while the new filter is being made
+        expect(
+            screen.queryByRole('button', { name: /Add filter/ }),
+        ).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
         expect(discard).toHaveBeenCalledTimes(1);
         expect(openNew).not.toHaveBeenCalled();
         expect(close).not.toHaveBeenCalled();
+    });
+
+    it('brings the add row back once the new filter is discarded', () => {
+        setSidebar({
+            isPlaceholder: true,
+            editingRule: makeRule({ target: { fieldId: '', tableName: '' } }),
+        });
+        const { rerender } = renderWithProviders(
+            <ControlSidebar />,
+            filters([makeRule({ id: 'filter-2', label: 'Region' })]),
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Add filter or section' }),
+        ).not.toBeInTheDocument();
+        // An existing filter that lost its field is not a new one: the row stays
+        setSidebar({
+            isNew: false,
+            isPlaceholder: true,
+            editing: { filterId: 'filter-2' },
+            editingRule: makeRule({
+                id: 'filter-2',
+                target: { fieldId: '', tableName: '' },
+            }),
+        });
+        rerender(<ControlSidebar />);
+        expect(
+            screen.getByRole('button', { name: 'Add filter or section' }),
+        ).toBeInTheDocument();
+
+        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
+        rerender(<ControlSidebar />);
+        expect(
+            screen.getByRole('button', { name: 'Add filter or section' }),
+        ).toBeInTheDocument();
     });
 
     it('counts the filters in the header from 1, with no badge at 0', () => {
@@ -1672,6 +1710,10 @@ describe('ControlSidebar', () => {
             await newSection();
             const input = screen.getByLabelText('Section name');
             expect(input).toHaveFocus();
+            // The add row waits for the name
+            expect(
+                screen.queryByRole('button', { name: 'Add filter or section' }),
+            ).not.toBeInTheDocument();
             // Nothing else on the header takes a click: a blur would drop it
             expect(
                 screen.queryByRole('button', {
@@ -1693,6 +1735,9 @@ describe('ControlSidebar', () => {
             expect(
                 screen.getByRole('button', { name: 'Section Time actions' }),
             ).toHaveFocus();
+            expect(
+                screen.getByRole('button', { name: 'Add filter or section' }),
+            ).toBeInTheDocument();
 
             await newSection();
             fireEvent.keyDown(screen.getByLabelText('Section name'), {
@@ -1707,8 +1752,8 @@ describe('ControlSidebar', () => {
             ).toHaveFocus();
         });
 
-        it('keeps a fieldless new filter open while a new section is named', async () => {
-            const { collapse, discard, close } = setSidebar({
+        it('offers no new section while a new filter has no field', () => {
+            setSidebar({
                 isPlaceholder: true,
                 editingRule: makeRule({
                     target: { fieldId: '', tableName: '' },
@@ -1716,17 +1761,13 @@ describe('ControlSidebar', () => {
             });
             renderWithProviders(<ControlSidebar />);
             expandAll();
-
-            await newSection();
-            expect(collapse).not.toHaveBeenCalled();
-            expect(discard).not.toHaveBeenCalled();
-            expect(close).not.toHaveBeenCalled();
-            expect(
-                screen.getByRole('heading', { name: 'Filters' }),
-            ).toBeVisible();
             expect(screen.getByText('New filter')).toBeInTheDocument();
-            expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
-            expect(screen.getByLabelText('Section name')).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Add filter or section' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('menuitem', { name: 'New section' }),
+            ).not.toBeInTheDocument();
         });
 
         it('folds the expanded filter before opening a new section', async () => {

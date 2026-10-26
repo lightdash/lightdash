@@ -320,6 +320,7 @@ const OpenControlSidebar: FC = () => {
     );
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    const isNew = useControlsSidebarSelector((c) => c.isNew);
     const open = useControlsSidebarSelector((c) => c.open);
     const setHoveredFilterId = useControlsSidebarSelector(
         (c) => c.setHoveredFilterId,
@@ -1116,7 +1117,15 @@ const OpenControlSidebar: FC = () => {
                     >
                         {body}
                     </SortableContext>
-                    <AddRow onAddFilter={addFilter} onNewSection={newSection} />
+                    {/* Out of the way while a new filter has no field yet or
+                        a new section is being named; back, and focused again
+                        through `focusAfter`, once either is settled */}
+                    {!((isPlaceholder && isNew) || nameEdit?.isNew) && (
+                        <AddRow
+                            onAddFilter={addFilter}
+                            onNewSection={newSection}
+                        />
+                    )}
                 </Box>
                 <DragOverlay>{dragPreview}</DragOverlay>
             </EditorShell>

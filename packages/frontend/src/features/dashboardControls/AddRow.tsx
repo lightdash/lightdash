@@ -27,7 +27,7 @@ export const AddRow: FC<Props> = ({ onAddFilter, onNewSection }) => {
                 onClick={onAddFilter ?? undefined}
             >
                 <MantineIcon icon={IconPlus} size={14} />
-                <Text fz="sm" inherit>
+                <Text fz="xs" fw={500} inherit>
                     {getUiString('filters.addFilter')}
                 </Text>
             </UnstyledButton>
@@ -47,7 +47,7 @@ export const AddRow: FC<Props> = ({ onAddFilter, onNewSection }) => {
                     data-controls-new-section
                 >
                     <MantineIcon icon={IconPlus} size={14} />
-                    <Text fz="sm" inherit>
+                    <Text fz="xs" fw={500} inherit>
                         {getUiString('filters.rail.addFilterOrSection')}
                     </Text>
                 </UnstyledButton>
