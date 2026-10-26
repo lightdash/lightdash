@@ -309,7 +309,7 @@ export const useCartesianEditorSync = () => {
         if (tableCalculation && isNumericItem(tableCalculation)) {
             applyStacking(false);
         }
-    }, [xField, tableCalculations, stacking, applyStacking]);
+    }, [xField, yFields, tableCalculations, stacking, applyStacking]);
 
     // Re-applied when the y fields or pivots change
     useEffect(() => {

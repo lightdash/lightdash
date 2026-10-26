@@ -341,6 +341,9 @@ const VisualizationProvider: FC<
             ),
         );
         setStores({ chartConfig, store });
+    } else if (!hasConfigOwner && stores.chartConfig !== chartConfig) {
+        // An equal new prop: remember it so later renders skip the deep compare
+        setStores({ chartConfig, store });
     }
     // A rename whose old name is in the edited query again names a new field, so it is skipped
     const tableCalculationRenames = useMemo(() => {
