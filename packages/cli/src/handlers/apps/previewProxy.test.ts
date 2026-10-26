@@ -140,6 +140,27 @@ describe('startPreviewProxy', () => {
         expect(forwarded.headers[PREVIEW_PROXY_NONCE_HEADER]).toBeUndefined();
     });
 
+    it('resolves a fresh upstream credential for each forwarded request', async () => {
+        await proxy.close();
+        let accessToken = 'first';
+        const resolveAuthorization = vi.fn(async () => `Bearer ${accessToken}`);
+        proxy = await startPreviewProxy({
+            upstreamUrl: upstream.url,
+            authorization: 'Bearer stale',
+            resolveAuthorization,
+            projectUuid: PROJECT_UUID,
+            nonce: NONCE,
+        });
+        const route = `/api/v2/projects/${PROJECT_UUID}/query/some-query-uuid`;
+        await proxyFetch(route);
+        accessToken = 'second';
+        await proxyFetch(route);
+        expect(
+            upstream.seen.map(({ headers }) => headers.authorization),
+        ).toEqual(['Bearer first', 'Bearer second']);
+        expect(resolveAuthorization).toHaveBeenCalledTimes(2);
+    });
+
     it('stamps the signed-download header on schedule-download and nothing else', async () => {
         await proxyFetch(
             `/api/v2/projects/${PROJECT_UUID}/query/some-query-uuid/schedule-download`,

@@ -25,6 +25,7 @@ export const COMMAND_POLICY: Readonly<Record<string, CommandPolicy>> = {
     'upgrade-check': local('Public release index only'),
     'connect-snowflake': refuse('Separate warehouse credential deposit'),
     login: refuse('Personal bootstrap', personalLoginRequired),
+    logout: refuse('Personal session logout', personalLoginRequired),
     agent: local('Command group'),
     'agent connect': refuse('Personal bootstrap', personalLoginRequired),
     'agent status': admit('Own connection status'),

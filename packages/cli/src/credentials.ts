@@ -4,10 +4,12 @@ import { type AgentTokenProvider } from './agentConnections/agentTokenProvider';
 import { type LifecycleOperation } from './agentConnections/lifecycle';
 import { type AgentConnectionSlot } from './agentConnections/schema';
 import { type Config } from './config';
+import { type PersonalLogin } from './personalLogin/schema';
 
 export type Credential =
     | { kind: 'human_api_key'; token: string }
     | { kind: 'service_account'; token: string }
+    | { kind: 'personal_oauth'; token: string; login: PersonalLogin }
     | { kind: 'agent_connection'; token: string; slot: AgentConnectionSlot };
 type Invocation = {
     readonly selection: string | null;
@@ -132,11 +134,23 @@ export const resolveCredential = async (
     if (name === null) {
         if (lifecycle !== null)
             throw new Error('An agent connection selection is required.');
-        if (!(config.context?.apiKey && config.context.serverUrl))
+        if (!config.context?.serverUrl)
             throw new AuthorizationError(
                 `Not logged in. Run 'lightdash login --help'`,
             );
-        return humanCredential(config.context.apiKey);
+        const apiKey = process.env.LIGHTDASH_API_KEY || config.context.apiKey;
+        if (apiKey) return humanCredential(apiKey);
+        const { PersonalLoginTokenProvider } =
+            await import('./personalLogin/tokenProvider');
+        const login = await new PersonalLoginTokenProvider().getToken(
+            config.context.serverUrl,
+            rejectedGeneration,
+        );
+        return {
+            kind: 'personal_oauth',
+            token: login.tokens.accessToken,
+            login,
+        };
     }
     if (
         !config.context?.serverUrl ||

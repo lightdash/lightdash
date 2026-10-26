@@ -1,6 +1,5 @@
 import {
     ApiJobScheduledResponse,
-    AuthorizationError,
     getErrorMessage,
     LightdashError,
     RenameChange,
@@ -13,7 +12,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { categorizeError, LightdashAnalytics } from '../analytics/analytics';
 import { getConfig } from '../config';
-import { refuseAgentConnection } from '../credentials';
+import { refuseAgentConnection, resolveCredential } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
@@ -86,11 +85,9 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
     const startTime = Date.now();
 
     const config = await getConfig();
-    if (!config.context?.apiKey || !config.context.serverUrl) {
-        throw new AuthorizationError(
-            `Not logged in. Run 'lightdash login --help'`,
-        );
-    }
+    await resolveCredential(config);
+    if (!config.context?.serverUrl)
+        throw new Error("Not logged in. Run 'lightdash login --help'");
 
     const overrideProjectUuid = await resolveProjectOverride(
         config,

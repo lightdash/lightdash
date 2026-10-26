@@ -1,6 +1,7 @@
 import {
     AnyType,
     AuthorizationError,
+    CLI_PERSONAL_SESSION_LIFETIME_SECONDS,
     FeatureFlags,
     TOKEN_EXCHANGE_GRANT_TYPE,
 } from '@lightdash/common';
@@ -1322,5 +1323,176 @@ describe('OAuth2Model.getClient client id metadata documents', () => {
         const client = await model.getClient('mcp-stored');
         expect(client && client.id).toBe('mcp-stored');
         expect(resolver.resolve).not.toHaveBeenCalled();
+    });
+});
+
+describe('OAuth2Model personal CLI sessions', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new OAuth2Model(database, lightdashConfig, featureFlagModel);
+    const client = {
+        id: 'lightdash-cli',
+        grants: ['authorization_code', 'refresh_token'],
+    };
+    const user = { userId: 42, organizationUuid: 'org' };
+    const row = {
+        client_id: client.id,
+        user_id: user.userId,
+        organization_uuid: user.organizationUuid,
+        expires_at: new Date(Date.now() + 86400000),
+        revoked_at: null,
+        scope: ['read', 'write'],
+    };
+    afterEach(() => {
+        getTracker().reset();
+        vi.restoreAllMocks();
+    });
+
+    it.each([
+        ['lightdash-cli', null, true],
+        ['other-client', null, false],
+        ['lightdash-cli', 'grant', false],
+    ] as const)(
+        'sets a deadline only for a personal CLI code: %s grant=%s',
+        async (clientId, grantUuid, personal) => {
+            const tracker = getTracker();
+            tracker.on.insert('oauth2_authorization_codes').response([]);
+            const now = Date.now();
+            vi.spyOn(Date, 'now').mockReturnValue(now);
+            const deadline = personal
+                ? new Date(now + CLI_PERSONAL_SESSION_LIFETIME_SECONDS * 1000)
+                : null;
+            const code = await model.saveAuthorizationCode(
+                {
+                    authorizationCode: 'code',
+                    codeChallenge: 'challenge',
+                    codeChallengeMethod: 'S256',
+                    expiresAt: new Date(now + 60000),
+                    redirectUri: 'http://localhost:8100/callback',
+                    resource: null,
+                    agentConnectionGrantUuid: grantUuid,
+                },
+                { ...client, id: clientId },
+                user,
+            );
+            expect(code.sessionExpiresAt).toEqual(deadline);
+            const query = tracker.history.insert[0];
+            const columns = query.sql
+                .slice(query.sql.indexOf('(') + 1, query.sql.indexOf(')'))
+                .replaceAll('"', '')
+                .split(', ');
+            expect(
+                query.bindings[columns.indexOf('session_expires_at')],
+            ).toEqual(deadline);
+        },
+    );
+
+    it.each([null, new Date(Date.now() + 30000)])(
+        'loads the stored session deadline %s from all credentials',
+        async (deadline) => {
+            const tracker = getTracker();
+            const stored = {
+                ...row,
+                session_expires_at: deadline,
+                redirect_uri: 'http://localhost:8100/callback',
+            };
+            tracker.on.select('oauth2_authorization_codes').response(stored);
+            tracker.on.select('oauth2_access_tokens').response(stored);
+            tracker.on.select('oauth2_refresh_tokens').response(stored);
+            expect(await model.getAuthorizationCode('code')).toMatchObject({
+                sessionExpiresAt: deadline,
+            });
+            expect(await model.getAccessToken('access')).toMatchObject({
+                sessionExpiresAt: deadline,
+            });
+            expect(await model.getRefreshToken('refresh')).toMatchObject({
+                sessionExpiresAt: deadline,
+                refreshTokenExpiresAt: deadline ?? row.expires_at,
+            });
+        },
+    );
+
+    it.each([null, 30000, 7200000])(
+        'clips both token expiries to the persisted deadline %s',
+        async (remaining) => {
+            const tracker = getTracker();
+            tracker.on.insert('oauth2_access_tokens').response([]);
+            tracker.on.insert('oauth2_refresh_tokens').response([]);
+            tracker.on.delete('oauth2_refresh_tokens').response(0);
+            const now = Date.now();
+            const deadline =
+                remaining === null ? null : new Date(now + remaining);
+            const accessExpiry = new Date(now + 3600000);
+            const refreshExpiry = new Date(now + 86400000);
+            const issued = await model.saveToken(
+                {
+                    accessToken: 'access',
+                    refreshToken: 'refresh',
+                    accessTokenExpiresAt: accessExpiry,
+                    refreshTokenExpiresAt: refreshExpiry,
+                    sessionExpiresAt: deadline,
+                    client,
+                    user,
+                },
+                client,
+                user,
+            );
+            expect(issued).toMatchObject({
+                sessionExpiresAt: deadline,
+                accessTokenExpiresAt: new Date(
+                    Math.min(
+                        accessExpiry.getTime(),
+                        deadline?.getTime() ?? Infinity,
+                    ),
+                ),
+                refreshTokenExpiresAt: new Date(
+                    Math.min(
+                        refreshExpiry.getTime(),
+                        deadline?.getTime() ?? Infinity,
+                    ),
+                ),
+            });
+            expect(tracker.history.insert).toHaveLength(2);
+            tracker.history.insert.forEach((query) => {
+                const columns = query.sql
+                    .slice(query.sql.indexOf('(') + 1, query.sql.indexOf(')'))
+                    .replaceAll('"', '')
+                    .split(', ');
+                expect(
+                    query.bindings[columns.indexOf('session_expires_at')],
+                ).toEqual(deadline);
+                expect(query.bindings[columns.indexOf('expires_at')]).toEqual(
+                    query.sql.includes('oauth2_access_tokens')
+                        ? issued.accessTokenExpiresAt
+                        : issued.refreshTokenExpiresAt,
+                );
+            });
+        },
+    );
+
+    it.each([0, -1])(
+        'refuses an expired session before refresh rotation at offset %s',
+        async (offset) => {
+            const tracker = getTracker();
+            tracker.on.select('oauth2_refresh_tokens').response({
+                ...row,
+                session_expires_at: new Date(Date.now() + offset),
+            });
+            await expect(
+                model.getRefreshToken('refresh'),
+            ).rejects.toMatchObject({
+                name: 'invalid_grant',
+                message: 'Session expired. Log in again.',
+            });
+            expect(tracker.history.update).toHaveLength(0);
+            expect(tracker.history.delete).toHaveLength(0);
+            expect(tracker.history.insert).toHaveLength(0);
+        },
+    );
+
+    it('refuses access after the session deadline even when the row expiry is later', async () => {
+        getTracker()
+            .on.select('oauth2_access_tokens')
+            .response({ ...row, session_expires_at: new Date(Date.now() - 1) });
+        expect(await model.getAccessToken('access')).toBe(false);
     });
 });

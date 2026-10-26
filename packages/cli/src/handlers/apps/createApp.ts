@@ -1,5 +1,4 @@
 import {
-    AuthorizationError,
     DATA_APP_VIZ_TEMPLATE,
     generateSlug,
     isValidDataAppSlug,
@@ -15,7 +14,7 @@ import inquirer from 'inquirer';
 import * as path from 'path';
 import { LightdashAnalytics } from '../../analytics/analytics';
 import { getConfig } from '../../config';
-import { refuseAgentConnection } from '../../credentials';
+import { refuseAgentConnection, resolveCredential } from '../../credentials';
 import { CLI_VERSION } from '../../env';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
@@ -346,11 +345,7 @@ export const createAppHandler = async (
         // user to approve any local package installation.
         await checkLightdashVersion();
         const config = await getConfig();
-        if (!config.context?.apiKey || !config.context.serverUrl) {
-            throw new AuthorizationError(
-                `Not logged in. Run 'lightdash login --help'`,
-            );
-        }
+        await resolveCredential(config);
 
         const projectSelection = await selectProject(config, options.project);
         if (!projectSelection) {

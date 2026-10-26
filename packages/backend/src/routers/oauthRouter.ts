@@ -441,6 +441,14 @@ oauthRouter.post('/token', async (req, res, next) => {
                           1000,
                   )
                 : undefined,
+            ...(token.sessionExpiresAt == null
+                ? {}
+                : {
+                      session_expires_in: Math.floor(
+                          (token.sessionExpiresAt.getTime() - Date.now()) /
+                              1000,
+                      ),
+                  }),
             refresh_token: token.refreshToken,
             scope: Array.isArray(token.scope)
                 ? token.scope.join(' ')
