@@ -29,26 +29,18 @@ const dockerfile = fs.readFileSync('e2b.Dockerfile', 'utf-8');
 
 async function main() {
     try {
-        const warm = process.argv.includes('--warm');
-        const base = Template({
+        const template = Template({
             fileContextPath: path.resolve('.'),
-        }).fromDockerfile(dockerfile);
-
-        const template = warm
-            ? base.setStartCmd(
-                  `python3 -I -c 'import numpy, pandas, scipy.stats, pyarrow; from pathlib import Path; import time; Path("/tmp/python-warm-ready").touch(); time.sleep(10**9)'`,
-                  waitForFile('/tmp/python-warm-ready'),
-              )
-            : base;
-        const envPrefix = warm
-            ? 'E2B_PYTHON_WARM_TEMPLATE'
-            : 'E2B_PYTHON_TEMPLATE';
+        })
+            .fromDockerfile(dockerfile)
+            .setStartCmd(
+                `python3 -I -c 'import numpy, pandas, scipy.stats, pyarrow; from pathlib import Path; import time; Path("/tmp/python-warm-ready").touch(); time.sleep(10**9)'`,
+                waitForFile('/tmp/python-warm-ready'),
+            );
         const templateName =
-            process.env[`${envPrefix}_NAME`] ||
-            (warm ? 'lightdash-python-runner-warm' : 'lightdash-python-runner');
-
-        const primaryTag = process.env[`${envPrefix}_TAG`]?.trim() || '';
-        const extraTags = (process.env[`${envPrefix}_EXTRA_TAGS`] || '')
+            process.env.E2B_PYTHON_TEMPLATE_NAME || 'lightdash-python-runner';
+        const primaryTag = process.env.E2B_PYTHON_TEMPLATE_TAG?.trim() || '';
+        const extraTags = (process.env.E2B_PYTHON_TEMPLATE_EXTRA_TAGS || '')
             .split(',')
             .map((t) => t.trim())
             .filter(Boolean);

@@ -41,9 +41,9 @@ beforeEach(() => {
 });
 
 describe('Python E2B template configuration', () => {
-    it('defaults to the warm template at the running version', () => {
+    it('defaults to the python template at the running version', () => {
         expect(parseConfig().appRuntime).toMatchObject({
-            e2bPythonTemplateName: 'lightdash-python-runner-warm',
+            e2bPythonTemplateName: 'lightdash-python-runner',
             e2bPythonTemplateTag: VERSION,
         });
     });
@@ -54,25 +54,14 @@ describe('Python E2B template configuration', () => {
             'lightdash-python-runner',
             'pinned',
         ],
+        [{ E2B_PYTHON_TEMPLATE_TAG: '' }, 'lightdash-python-runner', ''],
         [{ E2B_PYTHON_TEMPLATE_NAME: 'custom' }, 'custom', VERSION],
         [{ E2B_PYTHON_TEMPLATE_NAME: '' }, 'lightdash-python-runner', VERSION],
-    ])('keeps explicit legacy settings unchanged: %o', (env, name, tag) => {
+    ])('uses configured settings: %o', (env, name, tag) => {
         Object.assign(process.env, env);
         expect(parseConfig().appRuntime).toMatchObject({
             e2bPythonTemplateName: name,
             e2bPythonTemplateTag: tag,
-        });
-    });
-
-    it('prefers warm settings over legacy settings', () => {
-        Object.assign(process.env, {
-            E2B_PYTHON_TEMPLATE_NAME: 'custom',
-            E2B_PYTHON_TEMPLATE_TAG: 'custom-tag',
-            E2B_PYTHON_WARM_TEMPLATE_TAG: '',
-        });
-        expect(parseConfig().appRuntime).toMatchObject({
-            e2bPythonTemplateName: 'lightdash-python-runner-warm',
-            e2bPythonTemplateTag: '',
         });
     });
 });
