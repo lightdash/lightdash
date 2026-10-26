@@ -3,7 +3,6 @@ import {
     buildValidCartesianConfig,
     getAvailableCartesianFields,
     getCartesianChartType,
-    getPendingFieldIds,
     hasCartesianCustomColorsStacking,
     isColorByCategoryEligible,
     isConditionalFormattingEligible,
@@ -18,8 +17,8 @@ import {
     inputsMetricQuery,
     inputsPivotDimensions,
     inputsTableCalculationsMetadata,
-    inputsUnsavedMetricQuery,
 } from './inputSelectors';
+import { selectPendingFieldIds } from './pendingFields';
 import { selectCartesianEditor } from './selectors';
 
 type State = VisualizationStoreState;
@@ -41,13 +40,10 @@ const selectCartesianAvailableFields = createSelector(
         getAvailableCartesianFields({ metricQuery, itemsMap, columnOrder }),
 );
 
-// A field just added from a picker must not be stripped before its results land
+// A field just added from a picker must not be stripped before its results land; an array so the action stays serialisable
 const selectCartesianPendingFieldIds = createSelector(
-    [inputsUnsavedMetricQuery],
-    (unsavedMetricQuery) => {
-        const ids = getPendingFieldIds(unsavedMetricQuery);
-        return ids && [...ids];
-    },
+    [selectPendingFieldIds],
+    (ids) => [...ids],
 );
 
 /** What the layout fallbacks follow; a new results object for the same query keeps this reference */
@@ -56,19 +52,20 @@ export const selectCartesianRepairInputs = createSelector(
         selectCartesianAvailableFields,
         selectCartesianPendingFieldIds,
         inputsTableCalculationsMetadata,
-        // Unread, but a pivot change re-runs the fallbacks, as it did before the store
         inputsPivotDimensions,
     ],
     (
         { availableFields, availableDimensions, availableMetrics },
         pendingFieldIds,
         tableCalculationsMetadata,
+        pivotDimensions,
     ): CartesianRepairInputs => ({
         availableFields,
         availableDimensions,
         availableMetrics,
         pendingFieldIds,
         tableCalculationsMetadata,
+        pivotDimensions,
     }),
 );
 

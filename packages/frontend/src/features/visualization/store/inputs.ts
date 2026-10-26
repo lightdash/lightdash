@@ -31,13 +31,13 @@ export type VisualizationInputs = {
     isLoading: boolean;
     minimal: boolean;
     getGroupColor: (groupPrefix: string, groupName: string) => string;
-    savedChartUuid?: string;
-    apiErrorDetail?: ApiErrorDetail | null;
-    isDashboard?: boolean;
-    isEditMode?: boolean;
+    savedChartUuid: string | undefined;
+    apiErrorDetail: ApiErrorDetail | null | undefined;
+    isDashboard: boolean | undefined;
+    isEditMode: boolean | undefined;
     hasExplorerStore: boolean;
     // Resolved timezone for formatting (undefined when EnableTimezoneSupport flag is off)
-    resolvedTimezone?: string;
+    resolvedTimezone: string | undefined;
     // Date-zoom granularity applied by the surface (dashboards); undefined elsewhere.
-    dateZoom?: DateZoom;
+    dateZoom: DateZoom | undefined;
 };

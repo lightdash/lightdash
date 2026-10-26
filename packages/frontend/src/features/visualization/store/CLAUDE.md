@@ -7,7 +7,9 @@ to the next cartesian editor. `VisualizationProvider` creates the store with
 and mounts it on `VisualizationStoreContext`. A chart type switch creates a
 new store seeded from the new type's config, carrying the cartesian intent;
 so does a custom spec arriving while the custom editor has none
-(`isFirstCustomSpec`).
+(`isFirstCustomSpec`), and, when there is no config owner
+(`onChartConfigChange` undefined), a `chartConfig` prop that changes by
+value, since the prop is then the only truth (a dashboard tile refetch).
 
 ## Rules
 
@@ -30,7 +32,9 @@ so does a custom spec arriving while the custom editor has none
 - **Inputs come from context, never the store.** `useVisualizationInputs()`
   is the react-query results and provider props; it does not change on an
   edit. Select with `useVisualizationInputSelector(selector)` to get the
-  inputs passed as the selector's second argument.
+  inputs passed as the selector's second argument. An action that needs them
+  at call time reads `getInputs()` from `useVisualizationServices()`, so it
+  stays stable.
 - **Consumers select what they show.** A config panel reads its fields with
   `useVisualizationSelector`/`useVisualizationInputSelector` and calls stable
   actions from `useXxxEditorActions()`. Only the chart body and the few
@@ -43,18 +47,25 @@ so does a custom spec arriving while the custom editor has none
   via `useEditorFieldSetter`, which takes a value, never an updater; an edit
   that depends on the current value is a reducer.
 - **Table calculation renames are an event.** The provider dispatches
-  `tableCalculationsRenamed` when the explorer's metadata changes; a slice
-  that stores a field id rewrites it with `renamedFieldId` in
+  `tableCalculationsRenamed` when the explorer's metadata changes, minus any
+  rename whose old name is in the edited query again (a new field took the
+  name); a slice that stores a field id rewrites it with `renamedFieldId` in
   `extraReducers`, never in a selector. Cartesian is the exception: its
-  layout repair (`inputsChanged`) applies the renames.
-- **Commit like main did, per control.** Most inputs dispatch on every
-  change; the few main debounced use `useDebouncedDraft`, which also flushes
-  on blur and unmount so a Save or chart type switch never loses an edit.
+  layout repair (`inputsChanged`) applies the renames. Gauge, map and table
+  don't handle it.
+- **Commit per control.** Most inputs dispatch on every change. The few
+  debounced ones use `useDebouncedDraft`, which flushes on blur so the next
+  click sees the edit. Its unmount flush cannot save an edit on a chart type
+  switch: it lands in the store being discarded. Legend area width, the
+  tooltip, the custom vis spec and the map field label call
+  `useDebouncedCallback` directly, because they keep the user's text when the
+  commit is skipped or transformed and the draft would hand back the store
+  value.
 - **Adapters are thin and memoised.** `VisualizationConfigXxx` calls the
   hook, emits `validConfig` with `useEmitChartConfig` when it changes,
   and builds the aggregate. It reads inputs from context, not props, and
-  is wrapped in `memo` so a resize skips it. An echoed config still
-  re-renders it (its `onChartConfigChange` and children change); the
+  is wrapped in `memo` so a resize skips it. Its emit callback is stable; an
+  echoed config still re-renders it (its children change), and the
   memoised aggregate and contexts are what spare the consumers. Data app viz
   emits from its setters instead, since its edits are discrete commands.
 - **Use the typed hooks, never plain `useSelector`/`useDispatch`.** The store
@@ -66,9 +77,10 @@ so does a custom spec arriving while the custom editor has none
 ## Emission and the explorer
 
 The adapter emits the derived `validConfig`; the provider forwards it unless
-it equals the `chartConfig` prop's config, and re-forwards when the owner
-resets that prop to something else, so an edit in progress wins over an
-external reset (pinned). The explorer card follows the chart config only
+it equals the `chartConfig` prop's config. A provider effect keyed on the
+prop re-forwards the last emitted config when the owner resets the prop to
+something else, so an edit in progress wins over an external reset
+(pinned). The explorer card follows the chart config only
 through `ConnectedVisualizationProvider`, so the echo re-renders the
 provider and the adapter; the memoised aggregate and contexts keep the
 consumers below from re-rendering.

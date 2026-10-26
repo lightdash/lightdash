@@ -4,7 +4,6 @@ import {
     serializeCustomVisualizationSpec,
 } from '@lightdash/visualization/editor';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { editorCaseReducers } from './editorSlice';
 
 export type CustomEditorState = {
     visSpec: string | undefined;
@@ -30,7 +29,6 @@ const customEditorSlice = createSlice({
     name: 'customEditor',
     initialState: buildCustomEditorState(),
     reducers: {
-        ...editorCaseReducers<CustomEditorState>(),
         // Empty text is never saved, so clearing the editor keeps the last spec
         specChanged: (state, action: PayloadAction<string>) => {
             if (!action.payload) return;

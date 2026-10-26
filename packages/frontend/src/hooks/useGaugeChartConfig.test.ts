@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
     cartesianIntentActions,
     useVisualizationDispatch,
+    useVisualizationStore,
 } from '../features/visualization/store';
 import { withVisualizationStore } from '../testing/visualizationStore';
 import useGaugeChartConfig from './useGaugeChartConfig';
@@ -37,10 +38,26 @@ const render = (config: GaugeChart | undefined) =>
 
 describe('useGaugeChartConfig', () => {
     it('falls back to the first numeric field without writing it back', () => {
-        const { result } = render(undefined);
+        const { result } = renderHook(
+            () => ({
+                config: useGaugeChartConfig(),
+                store: useVisualizationStore(),
+            }),
+            {
+                wrapper: withVisualizationStore(
+                    { type: ChartType.GAUGE, config: undefined },
+                    { itemsMap: { orders_revenue: revenue } },
+                ),
+            },
+        );
 
-        expect(result.current.selectedField).toBe('orders_revenue');
-        expect(result.current.validConfig.selectedField).toBe('orders_revenue');
+        expect(result.current.config.selectedField).toBe('orders_revenue');
+        expect(result.current.config.validConfig.selectedField).toBe(
+            'orders_revenue',
+        );
+        expect(
+            result.current.store.getState().gaugeEditor.selectedField,
+        ).toBeUndefined();
     });
 
     it('adds, updates and removes sections', () => {

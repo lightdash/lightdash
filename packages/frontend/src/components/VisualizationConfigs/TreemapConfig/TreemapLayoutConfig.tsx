@@ -13,7 +13,7 @@ import { IconHelpCircle } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import {
     selectTreemapEditor,
-    selectTreemapFieldPools,
+    selectDimensionsAndNumericMetrics,
     selectTreemapGroupFieldIds,
     selectTreemapSelectedColorMetric,
     selectTreemapSelectedSizeMetric,
@@ -35,7 +35,9 @@ import { DraggablePortalHandler } from './DraggablePortalHandler';
 
 export const Layout: React.FC = () => {
     const { itemsMap } = useVisualizationInputs();
-    const pools = useVisualizationInputSelector(selectTreemapFieldPools);
+    const pools = useVisualizationInputSelector(
+        selectDimensionsAndNumericMetrics,
+    );
     const groupFieldIds = useVisualizationInputSelector(
         selectTreemapGroupFieldIds,
     );

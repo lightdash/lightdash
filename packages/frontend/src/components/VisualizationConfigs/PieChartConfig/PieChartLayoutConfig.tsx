@@ -15,7 +15,7 @@ import { Box, Group, Stack, SegmentedControl, Tooltip } from '@mantine/core';
 import { useMemo } from 'react';
 import {
     selectPieEditor,
-    selectPieFieldPools,
+    selectDimensionsAndNumericMetrics,
     selectPieGroupFieldIds,
     selectPieMetricId,
     selectPieSelectedMetric,
@@ -33,7 +33,9 @@ import { useAddFieldsToQuery } from '../common/useAddFieldsToQuery';
 
 export const Layout: React.FC = () => {
     const { itemsMap } = useVisualizationInputs();
-    const pools = useVisualizationInputSelector(selectPieFieldPools);
+    const pools = useVisualizationInputSelector(
+        selectDimensionsAndNumericMetrics,
+    );
     const groupFieldIds = useVisualizationInputSelector(selectPieGroupFieldIds);
     const metricId = useVisualizationInputSelector(selectPieMetricId);
     const selectedMetric = useVisualizationInputSelector(

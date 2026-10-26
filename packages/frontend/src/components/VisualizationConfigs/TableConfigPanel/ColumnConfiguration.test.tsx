@@ -92,18 +92,18 @@ const savedColumnName = (store: ExplorerStore) => {
 
 const columnNameInput = () => screen.getByPlaceholderText(/status/i);
 
+// The input commits on every change, so the saved name never lags the input
 describe('ColumnConfiguration under the explorer', () => {
-    it('saves a rename as soon as focus leaves the input', async () => {
+    it('saves exactly what was typed straight after each change', async () => {
         const store = createStore();
         await renderInExplorer(store);
-        fireEvent.change(columnNameInput(), {
-            target: { value: 'Order state' },
-        });
-        fireEvent.blur(columnNameInput());
-        expect(savedColumnName(store)).toBe('Order state');
+        for (const typed of ['O', 'Order', 'Order state']) {
+            fireEvent.change(columnNameInput(), { target: { value: typed } });
+            expect(savedColumnName(store)).toBe(typed);
+        }
     });
 
-    it('keeps a rename when the chart type is switched right after typing', async () => {
+    it('keeps the saved name and shows it again after a chart type switch', async () => {
         const store = createStore();
         await renderInExplorer(store);
         fireEvent.change(columnNameInput(), {
@@ -121,5 +121,6 @@ describe('ColumnConfiguration under the explorer', () => {
         });
         await act(async () => {});
         expect(savedColumnName(store)).toBe('Order state');
+        expect(columnNameInput()).toHaveValue('Order state');
     });
 });

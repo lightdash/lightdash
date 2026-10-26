@@ -16,6 +16,7 @@ import {
     readDataAppVizUuid,
     type SelectedDataAppViz,
 } from '../features/visualization/store/dataAppVizEditorSlice';
+import { useStableCallback } from './useStableCallback';
 
 export { readDataAppVizUuid, type SelectedDataAppViz };
 
@@ -66,8 +67,9 @@ const useDataAppVizVisualizationConfig = (
         () => selectDataAppVizValidConfig(store.getState()),
         [store],
     );
-    const onConfigChangeRef = useRef(onConfigChange);
-    onConfigChangeRef.current = onConfigChange;
+    const emitConfigChange = useStableCallback(
+        (next: SelectedDataAppViz | null) => onConfigChange?.(next),
+    );
 
     // Cleared in the mutation phase, so it is already false by the time the
     // passive cleanups of the same commit (a debounced control's flush) run.
@@ -111,9 +113,9 @@ const useDataAppVizVisualizationConfig = (
             const previous = readConfig();
             store.dispatch(action);
             const next = readConfig();
-            if (next !== previous) onConfigChangeRef.current?.(next);
+            if (next !== previous) emitConfigChange(next);
         },
-        [readConfig, store],
+        [readConfig, store, emitConfigChange],
     );
 
     const setDataAppVizUuid = useCallback(
@@ -130,8 +132,8 @@ const useDataAppVizVisualizationConfig = (
     const clearDataAppViz = useCallback(() => {
         if (!isOwningChartConfigRef.current) return;
         store.dispatch(dataAppVizEditorActions.vizCleared());
-        onConfigChangeRef.current?.(null);
-    }, [store]);
+        emitConfigChange(null);
+    }, [store, emitConfigChange]);
 
     const setDataAppVizVersion = useCallback(
         (dataAppVizVersion: number) =>

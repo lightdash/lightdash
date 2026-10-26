@@ -18,12 +18,12 @@ import { selectTreemapEditor } from './selectors';
 
 type State = VisualizationStoreState;
 
-export const selectTreemapFieldPools = selectDimensionsAndNumericMetrics;
-const selectDimensionIds = createSelector([selectTreemapFieldPools], (pools) =>
-    Object.keys(pools.dimensions),
+const selectDimensionIds = createSelector(
+    [selectDimensionsAndNumericMetrics],
+    (pools) => Object.keys(pools.dimensions),
 );
 const selectNumericMetricIds = createSelector(
-    [selectTreemapFieldPools],
+    [selectDimensionsAndNumericMetrics],
     (pools) => Object.keys(pools.numericMetrics),
 );
 

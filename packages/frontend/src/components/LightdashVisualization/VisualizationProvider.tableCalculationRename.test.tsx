@@ -9,6 +9,7 @@ import { useState, type FC } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import ChartColorMappingContextProvider from '../../hooks/useChartColorConfig/ChartColorMappingContextProvider';
+import { usePieEditorActions } from '../../hooks/usePieChartConfig';
 import { renderWithProviders } from '../../testing/testUtils';
 import { columnOrder, results } from './visualizationDifferential.fixtures';
 import VisualizationProvider from './VisualizationProvider';
@@ -163,11 +164,82 @@ describe('VisualizationProvider table calculation renames', () => {
             act(() => setQuery(second.beforeRun));
             act(() => setQuery(second.afterRun));
 
-            const fields = emitted.map(fieldOf);
-            expect(fields.at(-1)).toBe('margin3');
-            expect(
-                fields.filter((field) => !field?.startsWith('margin')),
-            ).toEqual([]);
+            expect(emitted.map(fieldOf)).toEqual([
+                'margin',
+                'margin2',
+                'margin3',
+            ]);
         },
     );
+
+    it("keeps a new table calculation that reuses a renamed one's old name", () => {
+        const emitted: ChartConfig[] = [];
+        let setChartConfig: (chartConfig: ChartConfig) => void = () => {};
+        let setQuery: (query: Query) => void = () => {};
+        let pickMetric: (metricId: string) => void = () => {};
+        let latest: ChartConfig | undefined;
+        const Picker: FC = () => {
+            pickMetric = usePieEditorActions().metricChange;
+            return null;
+        };
+        const Explorer: FC = () => {
+            const [chartConfig, setChartConfigState] = useState<ChartConfig>(
+                cases[0],
+            );
+            const [query, setQueryState] = useState<Query>({
+                resultsData: numericResults,
+                unsavedMetricQuery: numericResults.metricQuery,
+                tableCalculationsMetadata: undefined,
+            });
+            setChartConfig = setChartConfigState;
+            setQuery = setQueryState;
+            latest = chartConfig;
+            return (
+                <VisualizationProvider
+                    initialPivotDimensions={undefined}
+                    isLoading={false}
+                    columnOrder={columnOrder}
+                    colorPalette={['#111111', '#222222']}
+                    chartConfig={chartConfig}
+                    onChartConfigChange={(next) => {
+                        emitted.push(next);
+                        setChartConfigState(next);
+                    }}
+                    {...query}
+                >
+                    <Picker />
+                </VisualizationProvider>
+            );
+        };
+        renderWithProviders(
+            <MemoryRouter>
+                <ChartColorMappingContextProvider>
+                    <Explorer />
+                </ChartColorMappingContextProvider>
+            </MemoryRouter>,
+        );
+
+        const { beforeRun } = renamed(numericResults, 'margin', 'margin2');
+        act(() => setQuery(beforeRun));
+        const { tableCalculations } = beforeRun.unsavedMetricQuery;
+        act(() =>
+            setQuery({
+                ...beforeRun,
+                unsavedMetricQuery: {
+                    ...beforeRun.unsavedMetricQuery,
+                    tableCalculations: [
+                        ...tableCalculations,
+                        { ...tableCalculations[0], name: 'margin' },
+                    ],
+                },
+            }),
+        );
+        act(() => pickMetric('margin'));
+        const pie = emitted.at(-1);
+        act(() => setChartConfig({ type: ChartType.TABLE, config: undefined }));
+        act(() => pie && setChartConfig(pie));
+
+        expect(latest?.type).toBe(ChartType.PIE);
+        expect(latest && fieldOf(latest)).toBe('margin');
+    });
 });

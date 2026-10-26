@@ -38,6 +38,9 @@ export type VisualizationServices = {
     ) => void;
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
+    setPivotRows: (value: string[] | undefined) => void;
+    // The latest inputs, for actions that read them at call time
+    getInputs: () => VisualizationState;
     // Touch device detection for tooltip positioning
     isTouchDevice: boolean;
 };

@@ -15,7 +15,10 @@ import {
     type Series,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-import { createSeriesColorResolver } from '@lightdash/visualization/editor';
+import {
+    createSeriesColorResolver,
+    getPendingFieldIds,
+} from '@lightdash/visualization/editor';
 import { useMantineTheme } from '@mantine/core';
 import type { Map as LeafletMap } from 'leaflet';
 import isEqual from 'lodash/isEqual';
@@ -295,6 +298,9 @@ const VisualizationProvider: FC<
     // Caller callbacks change identity on unrelated renders; consumers get
     // stable functions that call the latest committed one.
     const setPivotDimensions = useStableCallback(setPivotDimensionsLatest);
+    const setPivotRows = useStableCallback((value: string[] | undefined) =>
+        onPivotRowsChange?.(value),
+    );
     const setChartType = useStableCallback((value: ChartType) =>
         onChartTypeChange?.(value),
     );
@@ -307,24 +313,25 @@ const VisualizationProvider: FC<
     const { colorMappings } = useChartColorMappings();
     const theme = useMantineTheme();
 
-    const seedContext = {
-        itemsMap,
-        hasConfigOwner: onChartConfigChange !== undefined,
-    };
-    // A type switch or a first custom spec starts a new store, carrying the cartesian intent
+    const hasConfigOwner = onChartConfigChange !== undefined;
+    const seedContext = { itemsMap, hasConfigOwner };
+    // A type switch, a first custom spec, or a new prop with no owner to keep edits starts a new store
     const [stores, setStores] = useState<{
-        type: ChartType;
+        chartConfig: ChartConfig;
         store: VisualizationStore;
     }>(() => ({
-        type: chartConfig.type,
+        chartConfig,
         store: createVisualizationStore(
             buildInitialVisualizationState(chartConfig, seedContext),
         ),
     }));
     let { store } = stores;
     if (
-        stores.type !== chartConfig.type ||
-        isFirstCustomSpec(stores.store.getState(), chartConfig)
+        stores.chartConfig.type !== chartConfig.type ||
+        isFirstCustomSpec(stores.store.getState(), chartConfig) ||
+        (!hasConfigOwner &&
+            stores.chartConfig !== chartConfig &&
+            !isEqual(stores.chartConfig.config, chartConfig.config))
     ) {
         store = createVisualizationStore(
             buildInitialVisualizationState(
@@ -333,12 +340,19 @@ const VisualizationProvider: FC<
                 stores.store.getState().cartesianIntent,
             ),
         );
-        setStores({ type: chartConfig.type, store });
+        setStores({ chartConfig, store });
     }
+    // A rename whose old name is in the edited query again names a new field, so it is skipped
+    const tableCalculationRenames = useMemo(() => {
+        const pendingFieldIds = getPendingFieldIds(unsavedMetricQuery);
+        return tableCalculationsMetadata?.filter(
+            ({ oldName }) => !pendingFieldIds?.has(oldName),
+        );
+    }, [tableCalculationsMetadata, unsavedMetricQuery]);
     useEffect(() => {
-        if (tableCalculationsMetadata?.length)
-            store.dispatch(tableCalculationsRenamed(tableCalculationsMetadata));
-    }, [store, tableCalculationsMetadata]);
+        if (tableCalculationRenames?.length)
+            store.dispatch(tableCalculationsRenamed(tableCalculationRenames));
+    }, [store, tableCalculationRenames]);
     const setStacking = useStableCallback(
         (value: CartesianIntentState['stacking']) =>
             store.dispatch(cartesianIntentActions.setStacking(value)),
@@ -367,17 +381,33 @@ const VisualizationProvider: FC<
         return columnOrder.length > 0 ? columnOrder : metricQueryFields;
     }, [resultsData?.metricQuery, columnOrder]);
 
-    // Re-emits the editor's config when the owner resets the prop to a config
-    // that differs from it, so an edit in progress wins over an external reset.
-    const handleChartConfigChange = useCallback(
-        (newChartConfig: ChartConfig) => {
-            if (!onChartConfigChange) return;
-            if (isEqual(newChartConfig.config, chartConfig?.config)) return;
-
-            onChartConfigChange(newChartConfig);
-        },
-        [onChartConfigChange, chartConfig?.config],
-    );
+    // Forwards a config unless the owner already has it
+    const forwardChartConfig = useStableCallback((next: ChartConfig) => {
+        if (!onChartConfigChange || isEqual(next.config, chartConfig.config))
+            return;
+        onChartConfigChange(next);
+    });
+    // The adapter's last emitted config and the prop it was last compared with
+    const emitted = useRef<{
+        config: ChartConfig;
+        comparedWith: ChartConfig;
+    } | null>(null);
+    const emitChartConfig = useStableCallback((next: ChartConfig) => {
+        emitted.current = { config: next, comparedWith: chartConfig };
+        forwardChartConfig(next);
+    });
+    // An owner resetting the prop gets the edited config back, so an edit in progress wins
+    useEffect(() => {
+        const last = emitted.current;
+        if (
+            !last ||
+            last.comparedWith === chartConfig ||
+            last.config.type !== chartConfig.type
+        )
+            return;
+        emitted.current = { ...last, comparedWith: chartConfig };
+        forwardChartConfig(last.config);
+    }, [chartConfig, forwardChartConfig]);
 
     const { data: calculateSeriesColorFlag } = useServerFeatureFlag(
         FeatureFlags.CalculateSeriesColor,
@@ -412,30 +442,6 @@ const VisualizationProvider: FC<
             navigator.msMaxTouchPoints > 0
         );
     }, []);
-
-    const services: VisualizationServices = useMemo(
-        () => ({
-            chartRef,
-            leafletMapRef,
-            setStacking,
-            setCartesianType,
-            onSeriesContextMenu: hasSeriesContextMenu
-                ? stableOnSeriesContextMenu
-                : undefined,
-            setChartType,
-            setPivotDimensions,
-            isTouchDevice,
-        }),
-        [
-            setStacking,
-            setCartesianType,
-            hasSeriesContextMenu,
-            stableOnSeriesContextMenu,
-            setChartType,
-            setPivotDimensions,
-            isTouchDevice,
-        ],
-    );
 
     const layout: VisualizationLayout = useMemo(
         () => ({ containerWidth, containerHeight }),
@@ -496,6 +502,37 @@ const VisualizationProvider: FC<
         ],
     );
 
+    // Actions read the inputs at call time, so they stay stable while results change
+    const getInputs = useStableCallback(() => state);
+
+    const services: VisualizationServices = useMemo(
+        () => ({
+            chartRef,
+            leafletMapRef,
+            setStacking,
+            setCartesianType,
+            onSeriesContextMenu: hasSeriesContextMenu
+                ? stableOnSeriesContextMenu
+                : undefined,
+            setChartType,
+            setPivotDimensions,
+            setPivotRows,
+            getInputs,
+            isTouchDevice,
+        }),
+        [
+            setStacking,
+            setCartesianType,
+            hasSeriesContextMenu,
+            stableOnSeriesContextMenu,
+            setChartType,
+            setPivotDimensions,
+            setPivotRows,
+            getInputs,
+            isTouchDevice,
+        ],
+    );
+
     // Stable across resizes so memoised adapters skip them; an echo changes it
     const renderState = useCallback(
         ({
@@ -533,7 +570,7 @@ const VisualizationProvider: FC<
             case ChartType.CARTESIAN:
                 return (
                     <VisualizationCartesianConfig
-                        onChartConfigChange={handleChartConfigChange}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationCartesianConfig>
@@ -541,7 +578,7 @@ const VisualizationProvider: FC<
             case ChartType.PIE:
                 return (
                     <VisualizationPieConfig
-                        onChartConfigChange={handleChartConfigChange}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationPieConfig>
@@ -549,7 +586,7 @@ const VisualizationProvider: FC<
             case ChartType.FUNNEL:
                 return (
                     <VisualizationConfigFunnel
-                        onChartConfigChange={handleChartConfigChange}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationConfigFunnel>
@@ -557,7 +594,7 @@ const VisualizationProvider: FC<
             case ChartType.BIG_NUMBER:
                 return (
                     <VisualizationBigNumberConfig
-                        onChartConfigChange={handleChartConfigChange}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationBigNumberConfig>
@@ -565,7 +602,7 @@ const VisualizationProvider: FC<
             case ChartType.TREEMAP:
                 return (
                     <VisualizationTreemapConfig
-                        onChartConfigChange={handleChartConfigChange}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationTreemapConfig>
@@ -573,7 +610,7 @@ const VisualizationProvider: FC<
             case ChartType.GAUGE:
                 return (
                     <VisualizationGaugeConfig
-                        onChartConfigChange={handleChartConfigChange}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationGaugeConfig>
@@ -581,7 +618,7 @@ const VisualizationProvider: FC<
             case ChartType.MAP:
                 return (
                     <VisualizationMapConfig
-                        onChartConfigChange={handleChartConfigChange}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationMapConfig>
@@ -589,8 +626,7 @@ const VisualizationProvider: FC<
             case ChartType.TABLE:
                 return (
                     <VisualizationTableConfig
-                        onChartConfigChange={handleChartConfigChange}
-                        onPivotRowsChange={onPivotRowsChange}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationTableConfig>
@@ -598,7 +634,7 @@ const VisualizationProvider: FC<
             case ChartType.CUSTOM:
                 return (
                     <VisualizationCustomConfig
-                        onChartConfigChange={handleChartConfigChange}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationCustomConfig>
@@ -606,7 +642,7 @@ const VisualizationProvider: FC<
             case ChartType.SANKEY:
                 return (
                     <VisualizationConfigSankey
-                        onChartConfigChange={handleChartConfigChange}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationConfigSankey>
@@ -615,7 +651,7 @@ const VisualizationProvider: FC<
                 return (
                     <VisualizationDataAppVizConfig
                         initialChartConfig={chartConfig.config}
-                        onChartConfigChange={handleChartConfigChange}
+                        onChartConfigChange={forwardChartConfig}
                     >
                         {renderState}
                     </VisualizationDataAppVizConfig>

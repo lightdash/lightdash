@@ -69,7 +69,13 @@ const visualizationReducer = combineReducers({
 // One store per mounted VisualizationProvider and chart type
 export const createVisualizationStore = (
     preloadedState: Partial<VisualizationStoreState>,
-) => configureStore({ reducer: visualizationReducer, preloadedState });
+) =>
+    configureStore({
+        reducer: visualizationReducer,
+        preloadedState,
+        // Every mounted chart has a store, so only development registers them
+        devTools: process.env.NODE_ENV === 'development',
+    });
 
 export type VisualizationStore = ReturnType<typeof createVisualizationStore>;
 export type VisualizationStoreDispatch = VisualizationStore['dispatch'];
@@ -107,7 +113,10 @@ export { treemapEditorActions } from './treemapEditorSlice';
 export type { TreemapEditorState } from './treemapEditorSlice';
 export type { VisualizationInputs } from './inputs';
 export * from './hooks';
-export { selectNumericMetricsAndTableCalculations } from './inputSelectors';
+export {
+    selectDimensionsAndNumericMetrics,
+    selectNumericMetricsAndTableCalculations,
+} from './inputSelectors';
 export * from './pieSelectors';
 export * from './bigNumberSelectors';
 export * from './cartesianSelectors';

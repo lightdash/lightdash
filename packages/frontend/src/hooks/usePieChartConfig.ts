@@ -9,13 +9,13 @@ import { type PieChartDataPoint } from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import {
     useVisualizationInputSelector,
-    useVisualizationInputsRef,
+    useVisualizationServices,
 } from '../components/LightdashVisualization/useVisualizationContext';
 import {
     pieEditorActions,
     selectPieData,
     selectPieEditor,
-    selectPieFieldPools,
+    selectDimensionsAndNumericMetrics,
     selectPieGroupColorDefaults,
     selectPieGroupFieldIds,
     selectPieGroupLabels,
@@ -57,11 +57,11 @@ export type PieEditorActions = {
 export const usePieEditorActions = (): PieEditorActions => {
     const dispatch = useVisualizationDispatch();
     const store = useVisualizationStore();
-    const inputsRef = useVisualizationInputsRef();
+    const { getInputs } = useVisualizationServices();
     const set = useEditorFieldSetter<PieEditorState>(pieEditorActions.set);
     return useMemo(() => {
         const shownGroupFieldIds = () =>
-            selectPieGroupFieldIds(store.getState(), inputsRef.current);
+            selectPieGroupFieldIds(store.getState(), getInputs());
         return {
             groupAdd: (dimensionId) =>
                 dispatch(
@@ -69,9 +69,9 @@ export const usePieEditorActions = (): PieEditorActions => {
                         current: shownGroupFieldIds(),
                         dimensionId,
                         dimensionIds: Object.keys(
-                            selectPieFieldPools(
+                            selectDimensionsAndNumericMetrics(
                                 store.getState(),
-                                inputsRef.current,
+                                getInputs(),
                             ).dimensions,
                         ),
                     }),
@@ -115,7 +115,7 @@ export const usePieEditorActions = (): PieEditorActions => {
                         newIndex,
                         groupLabels: selectPieGroupLabels(
                             store.getState(),
-                            inputsRef.current,
+                            getInputs(),
                         ),
                     }),
                 ),
@@ -125,7 +125,7 @@ export const usePieEditorActions = (): PieEditorActions => {
             legendMaxItemLengthChange: (length) =>
                 set('legendMaxItemLength', length),
         };
-    }, [dispatch, store, inputsRef, set]);
+    }, [dispatch, store, getInputs, set]);
 };
 
 export type PieChartConfig = PieEditorActions & {

@@ -27,7 +27,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
     useVisualizationInputs,
     useVisualizationInputSelector,
-    useVisualizationInputsRef,
+    useVisualizationServices,
 } from '../../components/LightdashVisualization/useVisualizationContext';
 import {
     cartesianEditorActions,
@@ -129,11 +129,10 @@ const withoutAutoValues = (legend: EchartsLegend) =>
         {},
     );
 
-/** Stable cartesian editor actions; what they need from the store or inputs is read at call time. */
+/** Stable cartesian editor actions; what they need from the inputs is read at call time. */
 export const useCartesianEditorActions = (): CartesianEditorActions => {
     const dispatch = useVisualizationDispatch();
-    const store = useVisualizationStore();
-    const inputsRef = useVisualizationInputsRef();
+    const { getInputs } = useVisualizationServices();
     const set = useEditorFieldSetter<CartesianEditorState>(
         cartesianEditorActions.set,
     );
@@ -176,9 +175,7 @@ export const useCartesianEditorActions = (): CartesianEditorActions => {
                 dispatch(
                     cartesianEditorActions.stackingApply({
                         stack,
-                        yFields: selectCartesianLayout(store.getState())
-                            ?.yField,
-                        pivotKeys: inputsRef.current.pivotDimensions,
+                        pivotKeys: getInputs().pivotDimensions,
                     }),
                 ),
             addSingleSeries: (yField) =>
@@ -270,7 +267,7 @@ export const useCartesianEditorActions = (): CartesianEditorActions => {
             setRowLimit: (rowLimit) => set('rowLimit', rowLimit),
             setColumnLimit: (columnLimit) => set('columnLimit', columnLimit),
         };
-    }, [dispatch, store, inputsRef, set]);
+    }, [dispatch, getInputs, set]);
 };
 
 /** Applies the gallery's intent, the layout fallbacks and the series the results imply; mounted once */
@@ -294,17 +291,12 @@ export const useCartesianEditorSync = () => {
         dispatch(cartesianEditorActions.typeApply(cartesianType));
     }, [cartesianType, dispatch]);
 
-    // Re-applied when the y fields or pivots change, as the stacking always was
     const applyStacking = useCallback(
         (stack: boolean | StackType) =>
             dispatch(
-                cartesianEditorActions.stackingApply({
-                    stack,
-                    yFields,
-                    pivotKeys,
-                }),
+                cartesianEditorActions.stackingApply({ stack, pivotKeys }),
             ),
-        [dispatch, yFields, pivotKeys],
+        [dispatch, pivotKeys],
     );
 
     const tableCalculations = resultsData?.metricQuery?.tableCalculations;
@@ -319,9 +311,10 @@ export const useCartesianEditorSync = () => {
         }
     }, [xField, tableCalculations, stacking, applyStacking]);
 
+    // Re-applied when the y fields or pivots change
     useEffect(() => {
         if (stacking !== undefined) applyStacking(stacking);
-    }, [stacking, applyStacking]);
+    }, [stacking, applyStacking, yFields]);
 
     const repairInputs = useVisualizationInputSelector(
         selectCartesianRepairInputs,

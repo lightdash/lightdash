@@ -17,7 +17,6 @@ import {
     inputsItemsMap,
     inputsParameters,
     inputsResults,
-    inputsUnsavedMetricQuery,
     keepIfEqual,
     selectDimensionsAndNumericMetrics,
 } from './inputSelectors';
@@ -26,18 +25,13 @@ import { selectPieEditor } from './selectors';
 
 type State = VisualizationStoreState;
 
-export const selectPieFieldPools = selectDimensionsAndNumericMetrics;
-const selectDimensionIds = createSelector([selectPieFieldPools], (pools) =>
-    Object.keys(pools.dimensions),
+const selectDimensionIds = createSelector(
+    [selectDimensionsAndNumericMetrics],
+    (pools) => Object.keys(pools.dimensions),
 );
-const selectNumericMetricIds = createSelector([selectPieFieldPools], (pools) =>
-    Object.keys(pools.numericMetrics),
-);
-// The pools only know the last run; a field just added from the config
-// picker must not be dropped before its results land.
-const selectPendingDimensionIds = createSelector(
-    [inputsUnsavedMetricQuery],
-    (unsavedMetricQuery) => new Set(unsavedMetricQuery?.dimensions),
+const selectNumericMetricIds = createSelector(
+    [selectDimensionsAndNumericMetrics],
+    (pools) => Object.keys(pools.numericMetrics),
 );
 
 /** Stored group fields minus the ones the results no longer have */
@@ -45,11 +39,11 @@ export const selectPieGroupFieldIds = createSelector(
     [
         (state: State) => selectPieEditor(state).groupFieldIds,
         selectDimensionIds,
-        selectPendingDimensionIds,
+        selectPendingFieldIds,
         inputsHasNoResults,
     ],
-    (groupFieldIds, dimensionIds, pendingDimensionIds, isLoading) =>
-        isLoading || dimensionIds.length === 0
+    (groupFieldIds, dimensionIds, pendingDimensionIds, hasNoResults) =>
+        hasNoResults || dimensionIds.length === 0
             ? groupFieldIds
             : keepIfEqual(
                   groupFieldIds,
@@ -69,8 +63,8 @@ export const selectPieMetricId = createSelector(
         selectPendingFieldIds,
         inputsHasNoResults,
     ],
-    (metricId, allNumericMetricIds, pendingMetricIds, isLoading) =>
-        isLoading || allNumericMetricIds.length === 0
+    (metricId, allNumericMetricIds, pendingMetricIds, hasNoResults) =>
+        hasNoResults || allNumericMetricIds.length === 0
             ? metricId
             : repairPieMetricId({
                   metricId,

@@ -1,11 +1,4 @@
-import {
-    useCallback,
-    useContext,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    type Context,
-} from 'react';
+import { useCallback, useContext, useMemo, type Context } from 'react';
 import {
     useVisualizationSelector,
     type VisualizationStoreState,
@@ -43,16 +36,6 @@ export const useVisualizationLayout = (): VisualizationLayout =>
 /** Results, fields, colours and flags; does not re-render on an edit. */
 export const useVisualizationInputs = (): VisualizationState =>
     useRequiredContext(StateContext);
-
-/** The latest inputs for actions that read them at call time, so the actions stay stable. */
-export const useVisualizationInputsRef = () => {
-    const inputs = useVisualizationInputs();
-    const ref = useRef(inputs);
-    useLayoutEffect(() => {
-        ref.current = inputs;
-    });
-    return ref;
-};
 
 /** Selects from the store with the inputs as the selector's second argument. */
 export const useVisualizationInputSelector = <T>(

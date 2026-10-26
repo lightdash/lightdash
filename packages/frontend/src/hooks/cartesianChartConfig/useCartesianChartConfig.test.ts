@@ -26,6 +26,7 @@ vi.mock('../useServerOrClientFeatureFlag', () => ({
 import { finalizeTimeAxisOptions } from '@lightdash/visualization/editor';
 import { type ReferenceLineField } from '../../components/common/ReferenceLine';
 import {
+    ServicesContext,
     StateContext,
     type VisualizationState,
 } from '../../components/LightdashVisualization/context';
@@ -34,6 +35,10 @@ import {
     cartesianIntentActions,
     createVisualizationStore,
 } from '../../features/visualization/store';
+import {
+    defaultVisualizationInputs,
+    visualizationTestServices,
+} from '../../testing/visualizationStore';
 import { VisualizationStoreTestProvider } from '../../testing/VisualizationStoreTestProvider';
 import useCartesianChartConfig, {
     applyReferenceLines,
@@ -82,21 +87,14 @@ type CartesianHookParams = {
 };
 
 const toInputs = (params: CartesianHookParams): VisualizationState => ({
+    ...defaultVisualizationInputs,
     resultsData: params.resultsData,
     itemsMap: params.itemsMap,
     colorPalette: params.colorPalette,
     columnOrder: params.columnOrder,
     pivotDimensions: params.pivotKeys,
-    initialPivotRows: undefined,
-    parameters: undefined,
     unsavedMetricQuery: params.unsavedMetricQuery,
     tableCalculationsMetadata: params.tableCalculationsMetadata,
-    dashboardFilters: undefined,
-    invalidateCache: undefined,
-    isLoading: false,
-    minimal: false,
-    getGroupColor: () => '#000000',
-    hasExplorerStore: true,
 });
 
 // Like withVisualizationStore, plus the gallery intent and inputs a rerender can change
@@ -115,11 +113,20 @@ const renderCartesianConfig = (initialParams: CartesianHookParams) => {
             },
         ),
     );
+    const services = visualizationTestServices(() => inputs);
     const wrapper: FC<PropsWithChildren> = ({ children }) =>
         createElement(
             VisualizationStoreTestProvider,
             { store },
-            createElement(StateContext.Provider, { value: inputs }, children),
+            createElement(
+                ServicesContext.Provider,
+                { value: services },
+                createElement(
+                    StateContext.Provider,
+                    { value: inputs },
+                    children,
+                ),
+            ),
         );
     const rendered = renderHook(
         () => {

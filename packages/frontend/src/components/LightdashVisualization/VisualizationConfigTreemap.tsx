@@ -1,6 +1,6 @@
 import { ChartType } from '@lightdash/common';
 import { memo, useMemo, type FC } from 'react';
-import { selectTreemapFieldPools } from '../../features/visualization/store';
+import { selectDimensionsAndNumericMetrics } from '../../features/visualization/store';
 import useTreemapChartConfig from '../../hooks/useTreemapChartConfig';
 import {
     type VisualizationConfigTreemap,
@@ -14,7 +14,7 @@ const VisualizationConfigTreemap: FC<VisualizationConfigTreemapProps> = ({
     children,
 }) => {
     const { dimensions, numericMetrics } = useVisualizationInputSelector(
-        selectTreemapFieldPools,
+        selectDimensionsAndNumericMetrics,
     );
     const treemapConfig = useTreemapChartConfig();
 

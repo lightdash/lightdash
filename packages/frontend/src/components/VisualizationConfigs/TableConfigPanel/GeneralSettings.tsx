@@ -21,9 +21,7 @@ import {
     useTableEditorActions,
 } from '../../../hooks/tableVisualization/useTableConfig';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import {
-    useVisualizationConfig,
     useVisualizationInputs,
     useVisualizationInputSelector,
     useVisualizationServices,
@@ -58,14 +56,9 @@ const usePivotLayout = () => {
     }, [pivotDimensions, rowFieldIds, selectedItemIds, columnOrder]);
 };
 
-// Reads the aggregate only for setRowFieldIds, the provider's pivot rows callback
 const PivotLayout: FC = () => {
-    const { setPivotDimensions } = useVisualizationServices();
+    const { setPivotDimensions, setPivotRows } = useVisualizationServices();
     const { resultsData } = useVisualizationInputs();
-    const visualizationConfig = useVisualizationConfig();
-    const setRowFieldIds = isTableVisualizationConfig(visualizationConfig)
-        ? visualizationConfig.chartConfig.setRowFieldIds
-        : undefined;
     const isPivotTableEnabled = useVisualizationInputSelector(
         selectTableIsPivotTableEnabled,
     );
@@ -114,7 +107,7 @@ const PivotLayout: FC = () => {
                         fieldId,
                         ...columns.slice(destination.index),
                     ]);
-                    setRowFieldIds?.(rows.filter((key) => key !== fieldId));
+                    setPivotRows(rows.filter((key) => key !== fieldId));
                 } else if (
                     destination.droppableId === DroppableIds.ROWS &&
                     source.droppableId === DroppableIds.COLUMNS
@@ -132,7 +125,7 @@ const PivotLayout: FC = () => {
                         fieldId,
                         ...rows.slice(destination.index),
                     ];
-                    setRowFieldIds?.(
+                    setPivotRows(
                         newPivotDimensions.length > 0
                             ? newRowFields
                             : newRowFields.filter((rowFieldId) =>
@@ -144,7 +137,7 @@ const PivotLayout: FC = () => {
                     source.droppableId === DroppableIds.METRICS &&
                     isValueField
                 ) {
-                    setRowFieldIds?.([
+                    setPivotRows([
                         ...rows.slice(0, destination.index),
                         fieldId,
                         ...rows.slice(destination.index),
@@ -154,7 +147,7 @@ const PivotLayout: FC = () => {
                     source.droppableId === DroppableIds.ROWS &&
                     isValueField
                 ) {
-                    setRowFieldIds?.(rows.filter((key) => key !== fieldId));
+                    setPivotRows(rows.filter((key) => key !== fieldId));
                 }
             } else if (destination.droppableId === DroppableIds.COLUMNS) {
                 // Reorder pivot
@@ -171,7 +164,7 @@ const PivotLayout: FC = () => {
                 const rowsWithoutReorderField = rows.filter(
                     (key) => key !== fieldId,
                 );
-                setRowFieldIds?.([
+                setPivotRows([
                     ...rowsWithoutReorderField.slice(0, destination.index),
                     fieldId,
                     ...rowsWithoutReorderField.slice(destination.index),
@@ -182,7 +175,7 @@ const PivotLayout: FC = () => {
             columns,
             rows,
             metrics,
-            setRowFieldIds,
+            setPivotRows,
             metricsAsRows,
             setMetricsAsRows,
             setPivotDimensions,

@@ -23,7 +23,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     useVisualizationInputs,
     useVisualizationInputSelector,
-    useVisualizationInputsRef,
+    useVisualizationServices,
 } from '../../components/LightdashVisualization/useVisualizationContext';
 import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
 import {
@@ -79,7 +79,7 @@ export type TableEditorActions = {
 export const useTableEditorActions = (): TableEditorActions => {
     const dispatch = useVisualizationDispatch();
     const store = useVisualizationStore();
-    const inputsRef = useVisualizationInputsRef();
+    const { getInputs } = useVisualizationServices();
     const set = useEditorFieldSetter<TableEditorState>(tableEditorActions.set);
     return useMemo(
         () => ({
@@ -96,15 +96,12 @@ export const useTableEditorActions = (): TableEditorActions => {
             toggleShowTableNames: () =>
                 set(
                     'showTableNames',
-                    !selectTableShowTableNames(
-                        store.getState(),
-                        inputsRef.current,
-                    ),
+                    !selectTableShowTableNames(store.getState(), getInputs()),
                 ),
             setMetricsAsRows: (value) => set('metricsAsRows', value),
             setRowLimit: (value) => set('rowLimit', value),
         }),
-        [dispatch, store, inputsRef, set],
+        [dispatch, store, getInputs, set],
     );
 };
 
@@ -121,9 +118,7 @@ export const useTableCanUseSubtotals = (): boolean => {
  * Everything the table body reads; re-renders on every edit. Config panels
  * select the fields they show instead.
  */
-const useTableConfig = (
-    onPivotRowsChange?: (value: string[] | undefined) => void,
-) => {
+const useTableConfig = () => {
     const {
         resultsData,
         itemsMap,
@@ -580,7 +575,6 @@ const useTableConfig = (
             metricsAsRows: effectiveMetricsAsRows,
             rowFieldIds,
             configuredRowFieldIds: pivotRows,
-            setRowFieldIds: onPivotRowsChange,
             isPivotTableEnabled,
             rendersPivotTable,
             isPivotResultStale,
@@ -626,7 +620,6 @@ const useTableConfig = (
             effectiveMetricsAsRows,
             rowFieldIds,
             pivotRows,
-            onPivotRowsChange,
             isPivotTableEnabled,
             rendersPivotTable,
             isPivotResultStale,

@@ -12,7 +12,7 @@ import { useMemo } from 'react';
 import {
     useVisualizationInputs,
     useVisualizationInputSelector,
-    useVisualizationInputsRef,
+    useVisualizationServices,
 } from '../components/LightdashVisualization/useVisualizationContext';
 import {
     selectTreemapEditor,
@@ -48,7 +48,7 @@ export type TreemapEditorActions = {
 export const useTreemapEditorActions = (): TreemapEditorActions => {
     const dispatch = useVisualizationDispatch();
     const store = useVisualizationStore();
-    const inputsRef = useVisualizationInputsRef();
+    const { getInputs } = useVisualizationServices();
     const set = useEditorFieldSetter<TreemapEditorState>(
         treemapEditorActions.set,
     );
@@ -61,7 +61,7 @@ export const useTreemapEditorActions = (): TreemapEditorActions => {
                         to,
                         groupFieldIds: selectTreemapGroupFieldIds(
                             store.getState(),
-                            inputsRef.current,
+                            getInputs(),
                         ),
                     }),
                 ),
@@ -77,7 +77,7 @@ export const useTreemapEditorActions = (): TreemapEditorActions => {
             setVisibleMin: (value) => set('visibleMin', value),
             setLeafDepth: (value) => set('leafDepth', value),
         }),
-        [dispatch, store, inputsRef, set],
+        [dispatch, store, getInputs, set],
     );
 };
 

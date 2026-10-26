@@ -86,8 +86,10 @@ export type CartesianRepairInputs = Omit<
     ReturnType<typeof getAvailableCartesianFields>,
     'sortedDimensions'
 > & {
-    pendingFieldIds: string[] | undefined;
+    pendingFieldIds: string[];
     tableCalculationsMetadata: TableCalculationMetadata[] | undefined;
+    // Not used by the repair, but a pivot change re-runs the fallbacks
+    pivotDimensions: string[] | undefined;
 };
 
 const matchesReferenceLine = (data: MarkLineData, lineId: string) =>
@@ -258,12 +260,21 @@ const cartesianEditorSlice = createSlice({
             state,
             action: PayloadAction<CartesianRepairInputs>,
         ) => {
-            if (action.payload.availableFields.length === 0) return;
-            const { pendingFieldIds, ...fields } = action.payload;
+            const {
+                availableFields,
+                availableDimensions,
+                availableMetrics,
+                pendingFieldIds,
+                tableCalculationsMetadata,
+            } = action.payload;
+            if (availableFields.length === 0) return;
             const repaired = repairCartesianLayout({
-                ...fields,
+                availableFields,
+                availableDimensions,
+                availableMetrics,
+                tableCalculationsMetadata,
                 layout: state.dirtyLayout,
-                pendingFieldIds: pendingFieldIds && new Set(pendingFieldIds),
+                pendingFieldIds: new Set(pendingFieldIds),
             });
             if (!isEqual(repaired, state.dirtyLayout)) {
                 state.dirtyLayout = repaired;
@@ -396,11 +407,11 @@ const cartesianEditorSlice = createSlice({
             state,
             action: PayloadAction<{
                 stack: boolean | StackType;
-                yFields: string[] | undefined;
                 pivotKeys: string[] | undefined;
             }>,
         ) => {
-            const { stack, yFields, pivotKeys } = action.payload;
+            const { stack, pivotKeys } = action.payload;
+            const yFields = state.dirtyLayout?.yField;
             state.isStacked = isStackTypeStacked(stack);
             state.dirtyLayout = {
                 ...state.dirtyLayout,

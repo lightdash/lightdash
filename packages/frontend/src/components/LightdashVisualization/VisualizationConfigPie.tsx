@@ -1,6 +1,6 @@
 import { ChartType } from '@lightdash/common';
 import { memo, useMemo, type FC } from 'react';
-import { selectPieFieldPools } from '../../features/visualization/store';
+import { selectDimensionsAndNumericMetrics } from '../../features/visualization/store';
 import usePieChartConfig from '../../hooks/usePieChartConfig';
 import {
     type VisualizationConfigPie,
@@ -13,8 +13,9 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
     onChartConfigChange,
     children,
 }) => {
-    const { dimensions, numericMetrics } =
-        useVisualizationInputSelector(selectPieFieldPools);
+    const { dimensions, numericMetrics } = useVisualizationInputSelector(
+        selectDimensionsAndNumericMetrics,
+    );
     const pieChartConfig = usePieChartConfig();
 
     useEmitChartConfig(

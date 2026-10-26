@@ -31,7 +31,10 @@ import {
     isCartesianVisualizationConfig,
     isCustomVisualizationConfig,
 } from './types';
-import { useVisualizationContext } from './useVisualizationContext';
+import {
+    useEditedChartConfig,
+    useVisualizationContext,
+} from './useVisualizationContext';
 import VisualizationProvider, {
     type VisualizationProviderProps,
 } from './VisualizationProvider';
@@ -434,6 +437,51 @@ describe('VisualizationProvider render characterization', () => {
         );
 
         expect(counts.mounts).toBe(2);
+    });
+
+    describe('without a config owner', () => {
+        let edited: ChartConfig | undefined;
+        const EditedProbe: FC = () => {
+            edited = useEditedChartConfig();
+            return null;
+        };
+        const ui = (chartConfig: ChartConfig) => (
+            <VisualizationProvider {...baseProps} chartConfig={chartConfig}>
+                <EditedProbe />
+            </VisualizationProvider>
+        );
+
+        it('follows a big number config that changes without a remount', () => {
+            const bigNumber = (label: string): ChartConfig => ({
+                type: ChartType.BIG_NUMBER,
+                config: { selectedField: 'orders_total', label },
+            });
+            const { rerender } = render(ui(bigNumber('V1')));
+
+            rerender(ui(bigNumber('V2')));
+
+            expect(
+                edited?.type === ChartType.BIG_NUMBER && edited.config?.label,
+            ).toBe('V2');
+        });
+
+        it('follows a pie config that changes without a remount', () => {
+            const pie = (isDonut: boolean): ChartConfig => ({
+                type: ChartType.PIE,
+                config: {
+                    groupFieldIds: ['orders_order_date_month'],
+                    metricId: 'orders_total',
+                    isDonut,
+                },
+            });
+            const { rerender } = render(ui(pie(false)));
+
+            rerender(ui(pie(true)));
+
+            expect(
+                edited?.type === ChartType.PIE && edited.config?.isDonut,
+            ).toBe(true);
+        });
     });
 
     describe('instances and services', () => {

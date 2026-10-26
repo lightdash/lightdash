@@ -227,6 +227,39 @@ const byHash = (value: unknown): unknown => {
     return value;
 };
 
+const strictModes = [false, true];
+const caseKey = (
+    strict: boolean,
+    host: 'no-feedback' | 'explorer-store',
+    name: string,
+) => `strict=${strict} ${host} ${name}`;
+const caseKeys = new Set(
+    strictModes.flatMap((strict) =>
+        cases.flatMap((c) => [
+            caseKey(strict, 'no-feedback', c.name),
+            caseKey(strict, 'explorer-store', c.name),
+        ]),
+    ),
+);
+
+// Keeps pins of cases a `-t` filter skipped, drops pins of removed cases and payloads nothing references
+const mergePins = (): Pins => {
+    const merged = Object.fromEntries(
+        Object.entries({ ...pinned.cases, ...observed.cases }).filter(([key]) =>
+            caseKeys.has(key),
+        ),
+    );
+    const referenced = JSON.stringify(merged);
+    return {
+        cases: merged,
+        payloads: Object.fromEntries(
+            Object.entries({ ...pinned.payloads, ...observed.payloads }).filter(
+                ([hash]) => referenced.includes(`"${hash}"`),
+            ),
+        ),
+    };
+};
+
 const pin = (key: string, value: unknown) => {
     const hashed = byHash(value);
     observed.cases[key] = hashed;
@@ -237,15 +270,22 @@ const pin = (key: string, value: unknown) => {
 describe('VisualizationProvider emissions', () => {
     afterEach(() => cleanup());
     afterAll(() => {
-        if (process.env.UPDATE_EMISSIONS) writePins(observed);
+        if (process.env.UPDATE_EMISSIONS) writePins(mergePins());
     });
 
-    describe.each([false, true])('strict mode %s', (strict) => {
+    it('has a case for every pin', () => {
+        if (process.env.UPDATE_EMISSIONS) return;
+        expect(
+            Object.keys(pinned.cases).filter((key) => !caseKeys.has(key)),
+        ).toEqual([]);
+    });
+
+    describe.each(strictModes)('strict mode %s', (strict) => {
         it.each(cases.map((c) => [c.name, c.chartConfig] as const))(
             'without feedback: %s',
             async (name, chartConfig) => {
                 pin(
-                    `strict=${strict} no-feedback ${name}`,
+                    caseKey(strict, 'no-feedback', name),
                     await recordWithoutFeedback(chartConfig, strict),
                 );
             },
@@ -255,7 +295,7 @@ describe('VisualizationProvider emissions', () => {
             'explorer store: %s',
             async (name, chartConfig) => {
                 pin(
-                    `strict=${strict} explorer-store ${name}`,
+                    caseKey(strict, 'explorer-store', name),
                     await recordWithExplorerStore(chartConfig, strict),
                 );
             },

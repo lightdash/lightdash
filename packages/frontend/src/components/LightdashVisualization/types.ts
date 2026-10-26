@@ -119,9 +119,7 @@ export const isTableVisualizationConfig = (
 export type VisualizationTableConfigProps = Pick<
     VisualizationConfigCommon<VisualizationConfigTable>,
     'onChartConfigChange' | 'children'
-> & {
-    onPivotRowsChange?: (value: string[] | undefined) => void;
-};
+>;
 
 // Treemap
 

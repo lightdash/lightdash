@@ -1,7 +1,9 @@
 import { type ChartConfig } from '@lightdash/common';
-import { type FC, type PropsWithChildren } from 'react';
+import { createRef, type FC, type PropsWithChildren } from 'react';
 import {
+    ServicesContext,
     StateContext,
+    type VisualizationServices,
     type VisualizationState,
 } from '../components/LightdashVisualization/context';
 import {
@@ -26,7 +28,28 @@ export const defaultVisualizationInputs: VisualizationState = {
     minimal: false,
     getGroupColor: () => '#000000',
     hasExplorerStore: true,
+    savedChartUuid: undefined,
+    apiErrorDetail: undefined,
+    isDashboard: undefined,
+    isEditMode: undefined,
+    resolvedTimezone: undefined,
+    dateZoom: undefined,
 };
+
+/** No-op services whose `getInputs` reads the given inputs */
+export const visualizationTestServices = (
+    getInputs: () => VisualizationState,
+): VisualizationServices => ({
+    chartRef: createRef(),
+    leafletMapRef: createRef(),
+    setStacking: () => {},
+    setCartesianType: () => {},
+    setChartType: () => {},
+    setPivotDimensions: () => {},
+    setPivotRows: () => {},
+    getInputs,
+    isTouchDevice: false,
+});
 
 /** A `renderHook` wrapper seeding a fresh store as the provider would; `hasConfigOwner` mimics an owner */
 export const withVisualizationStore = (
@@ -44,11 +67,14 @@ export const withVisualizationStore = (
             hasConfigOwner,
         }),
     );
+    const services = visualizationTestServices(() => state);
     return ({ children }) => (
         <VisualizationStoreTestProvider store={store}>
-            <StateContext.Provider value={state}>
-                {children}
-            </StateContext.Provider>
+            <ServicesContext.Provider value={services}>
+                <StateContext.Provider value={state}>
+                    {children}
+                </StateContext.Provider>
+            </ServicesContext.Provider>
         </VisualizationStoreTestProvider>
     );
 };

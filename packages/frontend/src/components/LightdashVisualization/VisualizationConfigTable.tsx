@@ -9,10 +9,9 @@ import { useEmitChartConfig } from './useEmitChartConfig';
 
 const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     onChartConfigChange,
-    onPivotRowsChange,
     children,
 }) => {
-    const tableConfig = useTableConfig(onPivotRowsChange);
+    const tableConfig = useTableConfig();
 
     useEmitChartConfig(
         ChartType.TABLE,

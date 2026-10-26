@@ -94,13 +94,10 @@ export const GroupItem = forwardRef<
             (value) => onLabelChange(defaultLabel, value),
             { delay: 500 },
         );
-        const [draftColor, setDraftColor, flushColor] = useDebouncedDraft<
-            string | undefined
-        >(
-            color,
-            (value) => {
-                if (value) onColorChange(defaultLabel, value);
-            },
+        // An empty colour shows the default, as an unset one does
+        const [draftColor, setDraftColor, flushColor] = useDebouncedDraft(
+            color ?? '',
+            (value) => onColorChange(defaultLabel, value),
             { delay: 500 },
         );
 

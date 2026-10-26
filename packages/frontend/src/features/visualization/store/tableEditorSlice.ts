@@ -26,11 +26,12 @@ export type TableEditorState = {
 
 // Unsaved: the items' default when loaded, off for an owner, else derived once they load
 const seedShowTableNames = (
-    saved: boolean | undefined,
+    saved: boolean | null | undefined,
     seed: EditorSeedContext,
 ): boolean | undefined => {
-    // A YAML or JSON null reads as off, as before the store
-    if (saved !== undefined) return saved ?? false;
+    // A YAML or JSON null reads as off
+    if (saved === null) return false;
+    if (saved !== undefined) return saved;
     if (seed.itemsMap !== undefined)
         return shouldDefaultShowTableNames(seed.itemsMap);
     return seed.hasConfigOwner ? false : undefined;
