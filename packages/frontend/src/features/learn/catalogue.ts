@@ -286,6 +286,29 @@ export const focusModules = (
 };
 
 /**
+ * The one thing to do next, as the library's Up next card shows it: the
+ * recommendation, or whatever was last started if nothing is left to
+ * recommend. Undefined once every walkthrough is finished. Shared by the
+ * library and the homepage's Learn block so they never disagree.
+ */
+export const upNextFor = (
+    held: Set<string>,
+    available: LearnModule[],
+    completed: string[],
+    lastStarted: string | null,
+): { module: LearnModule; source: 'recommended' | 'resume' } | undefined => {
+    const { resume, recommended } = focusModules(
+        held,
+        available,
+        completed,
+        lastStarted,
+    );
+    if (recommended) return { module: recommended, source: 'recommended' };
+    if (resume) return { module: resume, source: 'resume' };
+    return undefined;
+};
+
+/**
  * Whether the learner has finished a module: any of the scopes its lesson
  * teaches is recorded as complete. Finishing the lesson records them all,
  * and progress recorded under a covered scope before that still counts.

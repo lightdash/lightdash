@@ -12,11 +12,11 @@ Code is the reference for anything finer-grained. Specs live in Linear (CS-207, 
 
 - **A project type.** `ProjectType.TRAINING` (`packages/common/src/types/projects.ts`) is a project like any other
   in the database, created once per organisation from the same embedded DuckDB bundle the playground uses:
-  precompiled explores cached from JSON, no dbt, no warehouse. Seeding adds a public *Training* space, charts, a
+  precompiled explores cached from JSON, no dbt, no warehouse. Seeding adds a public _Training_ space, charts, a
   dashboard, pins, a comment and catalog categories; on Enterprise it also adds a data app, an AI agent and a
   finished deep-research report, so every walkthrough has something to show.
 - **A permission layer with no membership rows.** Every member of the organisation, whatever their org role,
-  can see the shared training project and gets a *trainee* set of permissions on their own copies of it. Nothing
+  can see the shared training project and gets a _trainee_ set of permissions on their own copies of it. Nothing
   is granted by an admin and new joiners are covered automatically.
 - **Walkthroughs generated from the product.** A walkthrough is not written by hand. Product components carry
   `data-tour-*` markers beside the permission checks that gate them; a build-time script reads those markers and
@@ -30,14 +30,13 @@ Code is the reference for anything finer-grained. Specs live in Linear (CS-207, 
 
 ## Actors
 
-| Actor            | Role                                                                                              |
-| ---------------- | ------------------------------------------------------------------------------------------------- |
-| **Org admin**    | Presses Enable Learn once; becomes the training project's admin; the only one who can delete it.  |
-| **Learner**      | Any org member. Browses the shared project as a viewer, practises in their own copy as a trainee. |
-| **Seed**         | The playground bundle plus `content.json`: what every training project and every copy starts from. |
-| **Generator**    | Build-time script that turns product markers and docs sentences into walkthrough data; CI enforces it. |
-| **Tour kit**     | Renders one step at a time over the real product and advances on the learner's own click.         |
-
+| Actor         | Role                                                                                                   |
+| ------------- | ------------------------------------------------------------------------------------------------------ |
+| **Org admin** | Presses Enable Learn once; becomes the training project's admin; the only one who can delete it.       |
+| **Learner**   | Any org member. Browses the shared project as a viewer, practises in their own copy as a trainee.      |
+| **Seed**      | The playground bundle plus `content.json`: what every training project and every copy starts from.     |
+| **Generator** | Build-time script that turns product markers and docs sentences into walkthrough data; CI enforces it. |
+| **Tour kit**  | Renders one step at a time over the real product and advances on the learner's own click.              |
 
 ## What is possible
 
@@ -45,10 +44,10 @@ A learner opens the Learn library from the icon beside notifications, picks a mo
 opens their own copy of the training project (made the first time, kept for a day after each start, so what
 earlier modules built is still there), opens the walkthrough on the page where it begins, and highlights the one
 control to click at each step. Typed steps offer a suggestion so the learner never has to invent input. The last
-step shows the result, then *Got it* opens a completion dialog: *Next* starts the recommended module in the same
-copy, *Back to library* returns to the library, where the module is marked done, and *Continue exploring* closes the
-dialog and leaves the learner in the copy. The copy stays either way; the library's *Continue exploring* button opens
-it again, and *Start fresh* removes it, so the next module begins from the seeded state.
+step shows the result, then _Got it_ opens a completion dialog: _Next_ starts the recommended module in the same
+copy, _Back to library_ returns to the library, where the module is marked done, and _Continue exploring_ closes the
+dialog and leaves the learner in the copy. The copy stays either way; the library's _Continue exploring_ button opens
+it again, and _Start fresh_ removes it, so the next module begins from the seeded state.
 
 Inside their copy a trainee can do what a project admin can, minus anything that breaks the project or reaches
 outside it: explore, run SQL, save charts, dashboards and spaces, pin, comment, verify, categorise, export results,
@@ -91,7 +90,7 @@ copies expire after 24 hours, and deleting a copy also removes its duplicated da
 training project deletes its copies first. A copy cannot be minted from the outside: preview creation and
 metadata updates refuse a training project as upstream unless the call comes from the training path.
 
-The navbar shows a copy as *Training copy* and skips the preview banner, since a copy is not a preview in the
+The navbar shows a copy as _Training copy_ and skips the preview banner, since a copy is not a preview in the
 engineering sense: no branch, nothing to promote.
 
 ### Developer sandbox
@@ -225,6 +224,14 @@ browser, because the learner walks straight to the new field and a cached list w
   the scope registry's description, the group is the registry's group, the module is available when a generated
   walkthrough exists, and its blurb is that walkthrough's opening docs sentence. Foundations (what a viewer can
   already do) is the first section. Progress (`progress.ts`) is kept in the browser for now.
+- **Homepage block.** The customisable homepage (Enterprise) has a Learn block
+  (`ee/features/homepageBuilder/blocks/LearnBlock.tsx`). It shows the library's Up next module, read through
+  `useLearnUpNext`, which applies the library's own `upNextFor` to the same catalogue, access and progress, with
+  the learner's progress and a Start or Resume button that calls `useStartWalkthrough` like the library does.
+  Under it, the walkthroughs an editor of the homepage chose (`config.pinnedScopes`) are listed with the learner's
+  state. When everything is done it says so and links to the library. It renders nothing for a viewer without
+  `view:Learn`, before Learn is enabled, and on the training project or a copy. It is page content, not a
+  navigation item.
 - **Library search.** `features/learn/search.ts` indexes module titles, blurbs, permission names, and every
   walkthrough step's title and body with the existing Fuse.js dependency. It ignores conversational filler,
   requires each remaining query word to match, and tolerates small typos. Available walkthroughs rank first;
@@ -250,18 +257,18 @@ browser, because the learner walks straight to the new field and a cached list w
 Learn runs on a self-hosted instance built from the official Docker image with no extra configuration. The
 table lists what each part needs and what happens without it.
 
-| Requirement | Where it comes from | Without it |
-| ----------- | ------------------- | ---------- |
-| Playground bundle (`jaffle_shop.duckdb`, `explores.json`, `content.json`, `SHA256SUMS`) | `packages/backend/assets/playground`, copied into the image. `PLAYGROUND_DATA_DIR` points at it: the image sets it, and from source the default resolves to the same folder | Enable Learn fails with the bundle error, tracks `training_project.failed` and creates nothing |
-| An organization admin with an email address | Presses Enable Learn (`manage:Organization`) | Admins see the Enable Learn call to action; other members are told to ask an admin |
-| Personal access tokens (`DISABLE_PAT` is not `true`) | On by default | `learnSandbox.enabled` is false, so the Developer lessons and content-as-code modules are hidden |
-| `lightdash`, `dbt` with dbt-duckdb, and `node` on the sandbox PATH | The image ships `/usr/local/dbt1.12/bin` (the default `LEARN_SANDBOX_PATH_PREFIX`) and a `lightdash` wrapper in `/usr/local/bin`. From source, install them and set `LEARN_SANDBOX_PATH_PREFIX` | Same as above: the sandbox modules are hidden |
-| A scheduler worker with the same binaries (`SCHEDULER_ENABLED` is not `false`) | Sandbox commands run on the worker | Commands are queued but never run |
-| A backend that can reach its own API | `LEARN_SANDBOX_API_URL`, which defaults to `SITE_URL` | `lightdash deploy` and `download` fail in the terminal. Set the variable when the backend host cannot reach `SITE_URL` |
-| `SOFT_DELETE_ENABLED=true` | Off by default | The deleted-content module is hidden |
-| Enterprise licence (`LIGHTDASH_LICENSE_KEY`) | Licence | Every Enterprise module is hidden: Enterprise scopes, AI agents and deep research, data apps and content as code. Seeding skips the agent, the research run and the data app |
-| Data apps: licence, `enable-data-apps` and S3 (`S3_*`, optionally `APPS_S3_BUCKET`) | Licence, flag and S3 config | Without the licence or the flag the data-app modules are hidden. Without S3 the seed skips the data app |
-| AI agents: licence, AI copilot and agents visible | Licence and organization AI settings | The AI agent modules are hidden |
+| Requirement                                                                             | Where it comes from                                                                                                                                                                             | Without it                                                                                                                                                                   |
+| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Playground bundle (`jaffle_shop.duckdb`, `explores.json`, `content.json`, `SHA256SUMS`) | `packages/backend/assets/playground`, copied into the image. `PLAYGROUND_DATA_DIR` points at it: the image sets it, and from source the default resolves to the same folder                     | Enable Learn fails with the bundle error, tracks `training_project.failed` and creates nothing                                                                               |
+| An organization admin with an email address                                             | Presses Enable Learn (`manage:Organization`)                                                                                                                                                    | Admins see the Enable Learn call to action; other members are told to ask an admin                                                                                           |
+| Personal access tokens (`DISABLE_PAT` is not `true`)                                    | On by default                                                                                                                                                                                   | `learnSandbox.enabled` is false, so the Developer lessons and content-as-code modules are hidden                                                                             |
+| `lightdash`, `dbt` with dbt-duckdb, and `node` on the sandbox PATH                      | The image ships `/usr/local/dbt1.12/bin` (the default `LEARN_SANDBOX_PATH_PREFIX`) and a `lightdash` wrapper in `/usr/local/bin`. From source, install them and set `LEARN_SANDBOX_PATH_PREFIX` | Same as above: the sandbox modules are hidden                                                                                                                                |
+| A scheduler worker with the same binaries (`SCHEDULER_ENABLED` is not `false`)          | Sandbox commands run on the worker                                                                                                                                                              | Commands are queued but never run                                                                                                                                            |
+| A backend that can reach its own API                                                    | `LEARN_SANDBOX_API_URL`, which defaults to `SITE_URL`                                                                                                                                           | `lightdash deploy` and `download` fail in the terminal. Set the variable when the backend host cannot reach `SITE_URL`                                                       |
+| `SOFT_DELETE_ENABLED=true`                                                              | Off by default                                                                                                                                                                                  | The deleted-content module is hidden                                                                                                                                         |
+| Enterprise licence (`LIGHTDASH_LICENSE_KEY`)                                            | Licence                                                                                                                                                                                         | Every Enterprise module is hidden: Enterprise scopes, AI agents and deep research, data apps and content as code. Seeding skips the agent, the research run and the data app |
+| Data apps: licence, `enable-data-apps` and S3 (`S3_*`, optionally `APPS_S3_BUCKET`)     | Licence, flag and S3 config                                                                                                                                                                     | Without the licence or the flag the data-app modules are hidden. Without S3 the seed skips the data app                                                                      |
+| AI agents: licence, AI copilot and agents visible                                       | Licence and organization AI settings                                                                                                                                                            | The AI agent modules are hidden                                                                                                                                              |
 
 Nothing else is needed:
 
@@ -282,15 +289,15 @@ out of the library. Modules with no gate always show.
 
 ## Boundaries and invariants
 
-| Boundary                         | Enforced by                                                                 |
-| -------------------------------- | --------------------------------------------------------------------------- |
-| Shared training project is read-only for learners | `getTrainingProjectViewerScopes()` on `ProjectType.TRAINING`             |
-| Trainee rights only in the learner's own copy     | copy = `PREVIEW` + `provisioning_source='training'` + `created_by` = user |
-| No real data reachable                            | embedded read-only DuckDB file, SELECT-only gate, no filesystem or network functions |
+| Boundary                                          | Enforced by                                                                                                                                                 |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Shared training project is read-only for learners | `getTrainingProjectViewerScopes()` on `ProjectType.TRAINING`                                                                                                |
+| Trainee rights only in the learner's own copy     | copy = `PREVIEW` + `provisioning_source='training'` + `created_by` = user                                                                                   |
+| No real data reachable                            | embedded read-only DuckDB file, SELECT-only gate, no filesystem or network functions                                                                        |
 | No way outside the copy                           | trainee set excludes deliveries, sheets, git, source, external connections; agents in training refuse Slack and MCP; moving an agent checks the destination |
-| One copy per learner, bounded lifetime            | per-user advisory lock, cooldown, 24 h expiry, app files deleted with the copy |
-| Learn only for users who may see it               | `view:Learn` gates the icon, page, endpoints and the permission layer      |
-| A module shows only where it can run              | `useLearnAvailability` hides a module whose licence, flag or tools are missing |
+| One copy per learner, bounded lifetime            | per-user advisory lock, cooldown, 24 h expiry, app files deleted with the copy                                                                              |
+| Learn only for users who may see it               | `view:Learn` gates the icon, page, endpoints and the permission layer                                                                                       |
+| A module shows only where it can run              | `useLearnAvailability` hides a module whose licence, flag or tools are missing                                                                              |
 
 ## Traps
 

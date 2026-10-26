@@ -1180,7 +1180,8 @@ export type LearnStartSource =
     | 'resume'
     | 'recommended'
     | 'next_from_completion'
-    | 'deep_link';
+    | 'deep_link'
+    | 'homepage';
 
 type LearnLibraryViewedEvent = {
     name: EventName.LEARN_LIBRARY_VIEWED;

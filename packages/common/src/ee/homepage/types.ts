@@ -252,6 +252,21 @@ export type HomepageRecentBlock = {
     config: { title: string };
 };
 
+/** The viewer's next Learn module, with their progress. Per viewer: it reads
+ * the same recommendation the Learn library shows, and hides when the viewer
+ * cannot use Learn. */
+export type HomepageLearnBlock = {
+    id: string;
+    type: 'learn';
+    config: {
+        title: string;
+        /** Walkthroughs the data team features under the recommendation, by
+         * Learn module scope, in order. Optional so older configs load; a
+         * scope the instance cannot run is skipped at render. */
+        pinnedScopes?: string[];
+    };
+};
+
 export type HomepageRecommendedActionKey =
     | 'connect-warehouse'
     | 'add-semantic-layer'
@@ -296,7 +311,8 @@ export type HomepageBlock =
     | HomepageQuickActionsBlock
     | HomepageCtaBlock
     | HomepageFavoritesBlock
-    | HomepageRecentBlock;
+    | HomepageRecentBlock
+    | HomepageLearnBlock;
 
 export type HomepageAudience =
     | { type: 'everyone' }
