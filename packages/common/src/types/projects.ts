@@ -1311,6 +1311,22 @@ export type ApiUpdateProjectDbtSource = {
     warehouseLocation?: WarehouseLocation;
 };
 
+/**
+ * Whether a role on this project counts towards the org-wide AI admin pages.
+ * Preview and training access is a copy taken at creation, so it can be stale.
+ */
+export const isAiAdminScopedProjectType = (type: ProjectType): boolean => {
+    switch (type) {
+        case ProjectType.DEFAULT:
+            return true;
+        case ProjectType.PREVIEW:
+        case ProjectType.TRAINING:
+            return false;
+        default:
+            return assertUnreachable(type, `Unknown project type ${type}`);
+    }
+};
+
 export const isGitProjectType = (
     connection: DbtProjectConfig,
 ): connection is

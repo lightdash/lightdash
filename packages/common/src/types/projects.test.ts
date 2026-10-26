@@ -8,6 +8,7 @@ import {
     getDbtVersionSupportedWarehouses,
     getInvalidDbtEnvironmentVariableKeys,
     getLatestSupportDbtVersion,
+    isAiAdminScopedProjectType,
     isMissingBigqueryKeyfile,
     isSafeDbtEnvironmentVariableKey,
     isWarehouseSupportedByDbtVersion,
@@ -18,6 +19,7 @@ import {
     omitEmptySecrets,
     PROJECT_DBT_SOURCE_NAME_MAX_LENGTH,
     PROJECT_DBT_SOURCE_NAME_PATTERN,
+    ProjectType,
     resolveDbtVersion,
     SupportedDbtVersions,
     validateProjectDbtSourceName,
@@ -558,5 +560,13 @@ describe('preview tunnel credential merge', () => {
             useSshTunnel: false,
             sshTunnelHost: 'preview-bastion',
         });
+    });
+});
+
+describe('isAiAdminScopedProjectType', () => {
+    it('counts only default projects towards AI admin access', () => {
+        expect(isAiAdminScopedProjectType(ProjectType.DEFAULT)).toBe(true);
+        expect(isAiAdminScopedProjectType(ProjectType.PREVIEW)).toBe(false);
+        expect(isAiAdminScopedProjectType(ProjectType.TRAINING)).toBe(false);
     });
 });
