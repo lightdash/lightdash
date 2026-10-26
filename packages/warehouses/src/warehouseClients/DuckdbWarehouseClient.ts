@@ -171,7 +171,17 @@ export type DuckdbParquetSource = {
     /** Trusted provider bytes for exact manifest URLs; staged privately per query. */
     fileBuffers?: ReadonlyMap<string, Uint8Array>;
     scope: string;
-    tables: { name: string; urls: string[]; columns?: DuckdbParquetColumns }[];
+    tables: {
+        name: string;
+        urls: string[];
+        columns?: DuckdbParquetColumns;
+        /** Suppress historical fallback rows when a captured row has the same identity. */
+        fallbackRows?: {
+            keyColumns: string[];
+            markerColumn: string;
+            markerValue: string;
+        };
+    }[];
     /** Typed, empty lookups for snapshots which have not been published yet. */
     emptyTables?: {
         name: string;
@@ -1295,8 +1305,29 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             validateColumns(columns);
             names.add(name);
         });
-        source.tables.forEach(({ name, urls, columns }) => {
+        source.tables.forEach(({ name, urls, columns, fallbackRows }) => {
             if (columns) validateColumns(columns);
+            if (fallbackRows) {
+                const { keyColumns, markerColumn, markerValue } = fallbackRows;
+                const columnNames = new Set(
+                    columns?.map((column) => column.name),
+                );
+                if (
+                    !columns ||
+                    keyColumns.length === 0 ||
+                    new Set(keyColumns).size !== keyColumns.length ||
+                    [...keyColumns, markerColumn].some(
+                        (column) =>
+                            !/^[a-z][a-z0-9_]*$/.test(column) ||
+                            !columnNames.has(column),
+                    ) ||
+                    typeof markerValue !== 'string'
+                ) {
+                    throw new ParameterError(
+                        'Invalid Parquet fallback row configuration',
+                    );
+                }
+            }
             if (
                 !/^[a-z][a-z0-9_]*$/.test(name) ||
                 names.has(name) ||
@@ -1419,16 +1450,24 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             );
         }
         // eslint-disable-next-line no-restricted-syntax
-        for (const { name, urls, columns } of tables) {
+        for (const { name, urls, columns, fallbackRows } of tables) {
             // Older retained files may all predate an additive column. A typed
             // zero-row branch supplies its schema without materializing rows.
             const missingColumns = columns
                 ? ` UNION ALL BY NAME SELECT ${columns.map((column) => `NULL::${column.type} AS "${column.name}"`).join(', ')} WHERE false`
                 : '';
+            const sourceQuery = `SELECT * FROM read_parquet([${urls.map(literal).join(',')}], hive_partitioning = true, union_by_name = true)${missingColumns}`;
+            const capturedRow = fallbackRows
+                ? `"${fallbackRows.markerColumn}" IS DISTINCT FROM ${literal(fallbackRows.markerValue)}`
+                : undefined;
+            // Keep every captured row, including its existing duplicate-delivery
+            // semantics. Only historical fallback rows yield to captured identities,
+            // regardless of completion date or nullable identity columns.
+            const viewQuery = fallbackRows
+                ? `SELECT * FROM (${sourceQuery}) AS parquet_source QUALIFY ${capturedRow} OR count(*) FILTER (WHERE ${capturedRow}) OVER (PARTITION BY ${fallbackRows.keyColumns.map((column) => `"${column}"`).join(', ')}) = 0`
+                : sourceQuery;
             // eslint-disable-next-line no-await-in-loop
-            await db.run(
-                `CREATE VIEW "${name}" AS SELECT * FROM read_parquet([${urls.map(literal).join(',')}], hive_partitioning = true, union_by_name = true)${missingColumns};`,
-            );
+            await db.run(`CREATE VIEW "${name}" AS ${viewQuery};`);
         }
     }
 
