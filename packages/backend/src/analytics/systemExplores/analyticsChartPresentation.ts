@@ -17,12 +17,11 @@ const numberRule = (
     field: string,
     operator: FilterOperator,
     color: string,
-    darkColor: string,
 ): ConditionalFormattingConfig => ({
     target: { fieldId: field },
     color,
-    darkColor,
-    applyTo: ConditionalFormattingColorApplyTo.TEXT,
+    // Cell formatting computes a contrasting foreground in both themes.
+    applyTo: ConditionalFormattingColorApplyTo.CELL,
     textStyle: { bold: true },
     rules: [{ id: `${field}-${operator}`, operator, values: [0] }],
 });
@@ -80,14 +79,7 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
     ];
     for (const field of chart.metricQuery.metrics) {
         if (/error|failure|negative_feedback/.test(field)) {
-            rules.push(
-                numberRule(
-                    field,
-                    FilterOperator.GREATER_THAN,
-                    warning,
-                    '#FFA8A8',
-                ),
-            );
+            rules.push(numberRule(field, FilterOperator.GREATER_THAN, warning));
         }
     }
     for (const field of chart.metricQuery.dimensions) {
@@ -116,13 +108,11 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
                 'monthly_change_percent',
                 FilterOperator.GREATER_THAN,
                 '#087F5B',
-                '#63E6BE',
             ),
             numberRule(
                 'monthly_change_percent',
                 FilterOperator.LESS_THAN,
                 '#A65300',
-                '#FFD8A8',
             ),
         );
     }

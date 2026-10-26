@@ -186,7 +186,7 @@ const vegaConfig = {
         title: null,
         orient: 'bottom',
         columns: 2,
-        labelLimit: 140,
+        labelLimit: { expr: 'min(140, max(60, (width - 64) / 2))' },
         labelFontSize: 11,
         rowPadding: 6,
         symbolType: 'square',
@@ -349,7 +349,7 @@ const visualSpec = (
         scale: { domain: [0, 1] },
         axis: null,
     };
-    const rankText = { type: 'text', dy: -15, fontSize: 12 };
+    const rankText = { type: 'text', dy: -11, fontSize: 12 };
     if (daily) {
         return {
             ...base,
@@ -385,7 +385,11 @@ const visualSpec = (
                         },
                         color: {
                             ...color,
-                            legend: { labelLimit: 140 },
+                            legend: {
+                                labelLimit: {
+                                    expr: 'min(140, max(60, (width - 64) / 2))',
+                                },
+                            },
                         },
                         order: {
                             field: 'group_order',
@@ -401,7 +405,7 @@ const visualSpec = (
     }
     return {
         ...base,
-        padding: { left: 16, right: 16, top: 30, bottom: 30 },
+        padding: { left: 16, right: 16, top: 20, bottom: 20 },
         encoding: {
             y: {
                 field: 'group',
@@ -437,7 +441,7 @@ const visualSpec = (
                 { x: { value: 0 }, text: { field: 'group_name' }, tooltip },
             ),
             layer(
-                { ...rankText, dy: 17, align: 'right', color: '#868e96' },
+                { ...rankText, dy: 12, align: 'right', color: '#868e96' },
                 {
                     x: { value: 'width' },
                     text: { field: 'value_label' },
