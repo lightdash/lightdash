@@ -627,6 +627,7 @@ describe('upsertSettings model validation', () => {
                 systemRoleMatrix: {} as never,
             });
         const account = fromOauth(toSessionUser(user), {
+            scope: ['read', 'write'],
             accessToken: 'token',
             client: { id: 'client' },
         });

@@ -13,7 +13,6 @@ export enum FeatureFlags {
      * Snowflake agent sign-in. Off by default; organization scope; no handler.
      */
     AgentIdentity = 'agent-identity',
-    OAuthScopeEnforcement = 'oauth-scope-enforcement',
 
     MultiConnectionProjects = 'multi-connection-projects',
     /** Extra warehouse connections of a different type to the project's original connection. */

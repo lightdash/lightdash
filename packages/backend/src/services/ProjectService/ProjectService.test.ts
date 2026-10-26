@@ -13073,6 +13073,7 @@ describe('ProjectService', () => {
                         organizationUuid: projectSummary.organizationUuid,
                     },
                     {
+                        scope: ['read', 'write'],
                         accessToken: 'trusted-token',
                         client: { id: 'trusted-client' },
                     },

@@ -936,6 +936,7 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                     spaceAsCode({ spaceName: 'Renamed' }),
                     {
                         account: fromOauth(user, {
+                            scope: ['read', 'write'],
                             accessToken: 'token',
                             client: { id: 'agent' },
                         }),
@@ -977,6 +978,7 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                 if (mode === 'pat') account = fromApiKey(user, 'token');
                 else if (mode !== 'session' && mode !== 'agent')
                     account = fromOauth(user, {
+                        scope: ['read', 'write'],
                         accessToken: 'token',
                         client: { id: 'agent' },
                     });
@@ -1066,6 +1068,7 @@ describe.each(['upsertCodeSpace', 'upsertSpaceAsCode'] as const)(
                 if (mode === 'pat') account = fromApiKey(user, 'token');
                 else if (mode !== 'session' && mode !== 'agent')
                     account = fromOauth(user, {
+                        scope: ['read', 'write'],
                         accessToken: 'token',
                         client: { id: 'agent' },
                     });

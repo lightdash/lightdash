@@ -120,8 +120,7 @@ describe('RolesService', () => {
             user: {
                 ...mockAccount.user,
                 ability: createOAuthScopedAbility(mockAccount.user.ability, {
-                    mode: 'log',
-                    scopes: ['admin'],
+                    scopes: ['write'],
                     clientId: 'agent',
                     getRequest: () => ({ method: 'POST', routeTemplate: null }),
                 }),

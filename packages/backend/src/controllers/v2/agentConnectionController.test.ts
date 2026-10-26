@@ -95,6 +95,7 @@ it.each(['session', 'pat'])(
 it('refuses unbound OAuth and service accounts like personal credential management', async () => {
     const f = setup();
     const oauth = fromOauth(f.user, {
+        scope: ['read', 'write'],
         accessToken: 'oauth-secret',
         client: { id: 'client' },
     });
@@ -123,8 +124,12 @@ it('restricts a connection to its own grant at the service boundary too', async 
     const f = setup();
     f.req.account = fromOauth(
         f.user,
-        { accessToken: 'access-secret', client: { id: f.grant.clientId } },
-        null,
+        {
+            scope: ['read', 'write'],
+            accessToken: 'access-secret',
+            client: { id: f.grant.clientId },
+        },
+        undefined,
         { ...f.grant, revision: 1 },
     );
     await expect(f.controller.list(f.req)).rejects.toThrow();

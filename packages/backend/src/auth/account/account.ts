@@ -368,18 +368,17 @@ export const fromOauth = (
         scope?: string[];
         client: { id: string };
     },
-    scopePolicy: OAuthScopePolicy | null = null,
+    scopePolicy: OAuthScopePolicy = {
+        getRequest: () => ({ method: null, routeTemplate: null }),
+    },
     agentConnectionGrant: OAuthAgentConnectionGrant | null = null,
 ): OauthAccount => {
     const [organization, user] = extractOrganizationFromUser(sessionUser);
-    const ability =
-        scopePolicy === null
-            ? user.ability
-            : createOAuthScopedAbility(user.ability, {
-                  ...scopePolicy,
-                  clientId: token.client.id,
-                  scopes: token.scope ?? [],
-              });
+    const ability = createOAuthScopedAbility(user.ability, {
+        ...scopePolicy,
+        clientId: token.client.id,
+        scopes: token.scope ?? [],
+    });
     return createAccount({
         authentication: {
             type: 'oauth',
@@ -393,8 +392,7 @@ export const fromOauth = (
         user: {
             ...user,
             ability,
-            abilityRules:
-                scopePolicy === null ? user.abilityRules : ability.rules,
+            abilityRules: ability.rules,
             type: 'registered',
             id: user.userUuid,
         },

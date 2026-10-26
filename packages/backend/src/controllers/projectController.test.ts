@@ -157,8 +157,12 @@ it('refuses bound refresh sync before queuing work, while keeping compile-only r
     const grant = grantFixture();
     const account = fromOauth(
         defaultSessionUser,
-        { accessToken: 'token', client: { id: grant.clientId } },
-        null,
+        {
+            scope: ['read', 'write'],
+            accessToken: 'token',
+            client: { id: grant.clientId },
+        },
+        undefined,
         {
             ...grant,
             revision: 1,

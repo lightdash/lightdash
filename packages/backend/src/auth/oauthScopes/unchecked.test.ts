@@ -9,20 +9,12 @@ import {
     requireOAuthScopeOperation,
 } from './unchecked';
 
-const actor = (mode: 'log' | 'enforce' | null, scopes: string[]) =>
-    fromOauth(
-        defaultSessionUser,
-        { accessToken: 'secret', client: { id: 'client' }, scope: scopes },
-        mode === null
-            ? null
-            : {
-                  mode,
-                  getRequest: () => ({
-                      method: 'POST',
-                      routeTemplate: '/operation',
-                  }),
-              },
-    );
+const actor = (scopes: string[]) =>
+    fromOauth(defaultSessionUser, {
+        accessToken: 'secret',
+        client: { id: 'client' },
+        scope: scopes,
+    });
 beforeEach(() => {
     vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
 });
@@ -33,49 +25,42 @@ describe.each(
         OAUTH_UNCHECKED_OPERATIONS,
     ) as (keyof typeof OAUTH_UNCHECKED_OPERATIONS)[],
 )('%s', (operation) => {
-    it.each(['log', 'enforce'] as const)(
-        'applies %s policy to accounts and converted session users',
-        (mode) => {
-            for (const scopes of [
-                [],
-                ['read'],
-                ['mcp:read'],
-                ['write'],
-                ['mcp:write'],
-            ]) {
-                const account = actor(mode, scopes);
-                const allowed =
-                    scopes.includes('write') ||
-                    scopes.includes('mcp:write') ||
-                    (OAUTH_UNCHECKED_OPERATIONS[operation] === 'read' &&
-                        scopes.length > 0);
-                const run = () => assertOAuthScopeOperation(account, operation);
-                const converted = () =>
-                    assertOAuthScopeOperation(
-                        toSessionUser(account),
-                        operation,
-                    );
-                if (allowed || mode === 'log') {
-                    expect(run).not.toThrow();
-                    expect(converted).not.toThrow();
-                } else {
-                    expect(run).toThrow(ForbiddenError);
-                    expect(converted).toThrow(ForbiddenError);
-                }
-                expect(Logger.warn).toHaveBeenCalledTimes(allowed ? 0 : 1);
-                vi.mocked(Logger.warn).mockClear();
+    it('enforces scopes for accounts and converted session users', () => {
+        for (const scopes of [
+            [],
+            ['read'],
+            ['mcp:read'],
+            ['write'],
+            ['mcp:write'],
+        ]) {
+            const account = actor(scopes);
+            const allowed =
+                scopes.includes('write') ||
+                scopes.includes('mcp:write') ||
+                (OAUTH_UNCHECKED_OPERATIONS[operation] === 'read' &&
+                    scopes.length > 0);
+            const run = () => assertOAuthScopeOperation(account, operation);
+            const converted = () =>
+                assertOAuthScopeOperation(toSessionUser(account), operation);
+            if (allowed) {
+                expect(run).not.toThrow();
+                expect(converted).not.toThrow();
+            } else {
+                expect(run).toThrow(ForbiddenError);
+                expect(converted).toThrow(ForbiddenError);
             }
-        },
-    );
-    it('preserves flag-off and session requests', () => {
-        assertOAuthScopeOperation(actor(null, []), operation);
+            expect(Logger.warn).toHaveBeenCalledTimes(allowed ? 0 : 1);
+            vi.mocked(Logger.warn).mockClear();
+        }
+    });
+    it('preserves session requests', () => {
         assertOAuthScopeOperation(fromSession(defaultSessionUser), operation);
         expect(Logger.warn).not.toHaveBeenCalled();
     });
     it('stops the route before its handler', () => {
         const next = vi.fn();
         requireOAuthScopeOperation(operation)(
-            { account: actor('enforce', []) } as never,
+            { account: actor([]) } as never,
             {} as never,
             next,
         );
@@ -89,10 +74,7 @@ it('guards email verification before looking up or consuming the code', async ()
         emailModel: { getPrimaryEmailStatusByUserAndOtp: lookup },
     } as unknown as ConstructorParameters<typeof UserService>[0]);
     await expect(
-        service.getPrimaryEmailStatus(
-            toSessionUser(actor('enforce', ['read'])),
-            '123456',
-        ),
+        service.getPrimaryEmailStatus(toSessionUser(actor(['read'])), '123456'),
     ).rejects.toBeInstanceOf(ForbiddenError);
     expect(lookup).not.toHaveBeenCalled();
 });
@@ -113,9 +95,24 @@ it.each(['read', 'mcp:read'])(
     (scope) => {
         expect(() =>
             assertOAuthScopeOperation(
-                actor('enforce', [scope]),
+                actor([scope]),
                 'QueryController.downloadResults',
             ),
         ).not.toThrow();
     },
 );
+
+it('fails closed for an OAuth account without a scope context', () => {
+    const account = actor(['write']);
+    account.user.ability = defaultSessionUser.ability;
+    expect(() =>
+        assertOAuthScopeOperation(account, 'DocumentController.updateContent'),
+    ).toThrow(ForbiddenError);
+});
+
+it('keeps the scope context when an OAuth session user is wrapped as an account', () => {
+    const account = fromSession(toSessionUser(actor(['read'])));
+    expect(() =>
+        assertOAuthScopeOperation(account, 'DocumentController.updateContent'),
+    ).toThrow(ForbiddenError);
+});

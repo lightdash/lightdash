@@ -258,58 +258,46 @@ describe('MCP scoped tool catalogue', () => {
         }
     });
 
-    it.each(['log', 'enforce'] as const)(
-        'guards a direct tool callback in %s mode',
-        async (mode) => {
-            const service = createService();
-            service['recordToolCall'] = vi.fn();
-            const handler = vi.fn().mockResolvedValue({ content: [] });
-            const record = vi.fn();
-            vi.mocked(getOAuthScopeContext).mockReturnValue({
-                mode,
-                scopes: ['mcp:read'],
-                record,
-            });
-            const callback = service['wrapToolCallback'](
-                'create_content',
-                handler,
-            );
-            const result = callback(
-                { secret: 'must-not-be-recorded' },
-                {
-                    authInfo: {
-                        extra: {
-                            user: defaultSessionUser,
-                            getAgentPermissionService: () => ({
-                                loadRequest: vi.fn().mockResolvedValue({
-                                    enforcementMode: 'off',
-                                }),
-                                assertOperationWithRequest: vi.fn(),
+    it('guards a direct tool callback', async () => {
+        const service = createService();
+        service['recordToolCall'] = vi.fn();
+        const handler = vi.fn().mockResolvedValue({ content: [] });
+        const record = vi.fn();
+        vi.mocked(getOAuthScopeContext).mockReturnValue({
+            scopes: ['mcp:read'],
+            record,
+        });
+        const callback = service['wrapToolCallback']('create_content', handler);
+        const result = callback(
+            { secret: 'must-not-be-recorded' },
+            {
+                authInfo: {
+                    extra: {
+                        user: defaultSessionUser,
+                        getAgentPermissionService: () => ({
+                            loadRequest: vi.fn().mockResolvedValue({
+                                enforcementMode: 'off',
                             }),
-                            account: createAccount({
-                                isOauthUser: true,
-                                scopes: ['mcp:read'],
-                            }),
-                        },
+                            assertOperationWithRequest: vi.fn(),
+                        }),
+                        account: createAccount({
+                            isOauthUser: true,
+                            scopes: ['mcp:read'],
+                        }),
                     },
                 },
-            );
-            if (mode === 'enforce') {
-                await expect(result).rejects.toThrow(
-                    'OAuth scope does not allow this MCP tool',
-                );
-                expect(handler).not.toHaveBeenCalled();
-            } else {
-                await expect(result).resolves.toEqual({ content: [] });
-                expect(handler).toHaveBeenCalledOnce();
-            }
-            expect(record).toHaveBeenCalledExactlyOnceWith(
-                'call',
-                'McpTool',
-                'create_content',
-            );
-        },
-    );
+            },
+        );
+        await expect(result).rejects.toThrow(
+            'OAuth scope does not allow this MCP tool',
+        );
+        expect(handler).not.toHaveBeenCalled();
+        expect(record).toHaveBeenCalledExactlyOnceWith(
+            'call',
+            'McpTool',
+            'create_content',
+        );
+    });
 
     it('follows read annotations and the explicit context-write exceptions', () => {
         const contextWrites = new Set(['route_agent']);
@@ -325,39 +313,44 @@ describe('MCP scoped tool catalogue', () => {
     });
 
     it.each([
-        { mode: null, scopes: ['mcp:read'], filtered: false },
-        { mode: 'log' as const, scopes: ['mcp:read'], filtered: false },
-        { mode: 'enforce' as const, scopes: ['mcp:read'], filtered: true },
-        { mode: 'enforce' as const, scopes: ['mcp:write'], filtered: false },
+        { scopes: ['mcp:read'], filtered: true },
+        { scopes: ['mcp:write'], filtered: false },
         {
-            mode: 'enforce' as const,
             scopes: ['mcp:read', 'write'],
             filtered: true,
         },
         {
-            mode: 'enforce' as const,
             scopes: ['mcp:read', 'mcp:write'],
             filtered: false,
         },
+    ])('lists tools with scopes=$scopes', async ({ scopes, filtered }) => {
+        const baseline = await listTools();
+        const record = vi.fn();
+        vi.mocked(getOAuthScopeContext).mockReturnValue({ scopes, record });
+        const names = await listTools();
+        expect(names).toEqual(
+            filtered
+                ? baseline.filter((name) => MCP_TOOL_SCOPE_MAP[name] === 'read')
+                : baseline,
+        );
+        expect(names).toContain('list_projects');
+        expect(names).toContain('route_agent');
+        expect(record).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { scopes: ['mcp:read'], visible: false },
+        { scopes: ['mcp:write'], visible: true },
     ])(
-        'lists tools with mode=$mode scopes=$scopes',
-        async ({ mode, scopes, filtered }) => {
-            const baseline = await listTools();
-            const record = vi.fn();
-            vi.mocked(getOAuthScopeContext).mockReturnValue(
-                mode === null ? null : { mode, scopes, record },
+        'shows create_content only with MCP write scope: $scopes',
+        async ({ scopes, visible }) => {
+            vi.mocked(getOAuthScopeContext).mockReturnValue({
+                scopes,
+                record: vi.fn(),
+            });
+            expect((await listTools()).includes('create_content')).toBe(
+                visible,
             );
-            const names = await listTools();
-            expect(names).toEqual(
-                filtered
-                    ? baseline.filter(
-                          (name) => MCP_TOOL_SCOPE_MAP[name] === 'read',
-                      )
-                    : baseline,
-            );
-            expect(names).toContain('list_projects');
-            expect(names).toContain('route_agent');
-            expect(record).not.toHaveBeenCalled();
         },
     );
 

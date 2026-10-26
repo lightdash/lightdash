@@ -307,11 +307,17 @@ export const assertOAuthScopeOperation = (
     actor: Account | SessionUser,
     operation: keyof typeof OAUTH_UNCHECKED_OPERATIONS,
 ): void => {
-    if (isAccount(actor) && actor.authentication.type !== 'oauth') return;
     const context = getOAuthScopeContext(
         isAccount(actor) ? actor.user.ability : actor.ability,
     );
-    if (context === null) return;
+    if (context === null) {
+        if (isAccount(actor) && actor.authentication.type === 'oauth') {
+            throw new ForbiddenError(
+                'OAuth scope does not allow this operation',
+            );
+        }
+        return;
+    }
     const classification = Object.hasOwn(OAUTH_UNCHECKED_OPERATIONS, operation)
         ? OAUTH_UNCHECKED_OPERATIONS[operation]
         : null;
@@ -326,9 +332,7 @@ export const assertOAuthScopeOperation = (
         );
     if (allowed) return;
     context.record(classification ?? 'unknown', operation, null);
-    if (context.mode === 'enforce') {
-        throw new ForbiddenError('OAuth scope does not allow this operation');
-    }
+    throw new ForbiddenError('OAuth scope does not allow this operation');
 };
 
 const scopeOperations = new WeakMap<

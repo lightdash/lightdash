@@ -130,7 +130,6 @@ export class AgentConnectionGrantService {
                 scope: execution.scopes,
             },
             {
-                mode: 'enforce',
                 getRequest: () => ({ method: null, routeTemplate: null }),
             },
             validatedGrant,

@@ -153,6 +153,7 @@ const setup = (
             surface === AgentActorSurface.MCP &&
             account.authentication.type === 'session'
                 ? fromOauth(defaultSessionUser, {
+                      scope: ['read', 'write'],
                       accessToken: 'test-token',
                       client: { id: 'client' },
                   })
@@ -195,6 +196,7 @@ const setup = (
         getQuerySourceService: () => service,
     } as unknown as ServiceRepository);
     const oauth = fromOauth(defaultSessionUser, {
+        scope: ['read', 'write'],
         accessToken: 'test-token',
         client: { id: 'test-client' },
     });
@@ -363,6 +365,7 @@ describe.each(['pat', 'service-account', 'oauth'] as const)(
                 pat: () => fromApiKey(defaultSessionUser, 'token'),
                 oauth: () =>
                     fromOauth(defaultSessionUser, {
+                        scope: ['read', 'write'],
                         accessToken: 'token',
                         client: { id: 'client' },
                     }),
@@ -495,6 +498,7 @@ test.each(['scan', 'dispatch', 'semantic'] as const)(
             admissionDatabase,
             admissionTracker,
             fromOauth(defaultSessionUser, {
+                scope: ['read', 'write'],
                 accessToken: 'token',
                 client: { id: 'client' },
             }),
