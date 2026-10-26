@@ -1,10 +1,16 @@
-import { DndContext, DragOverlay, type DragEndEvent } from '@dnd-kit/core';
+import {
+    DndContext,
+    DragOverlay,
+    useDraggable,
+    type DragEndEvent,
+} from '@dnd-kit/core';
 import {
     getDashboardFilterField,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Fragment, type FC } from 'react';
+import { Box } from '@mantine/core';
+import { Fragment, type FC, type ReactNode } from 'react';
 import {
     DraggableItem,
     DroppableArea,
@@ -26,6 +32,7 @@ import {
     useFilterTabPlacement,
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { FilterPill, type FilterPillKind } from './FilterPill';
+import classes from './FilterPills.module.css';
 import { isRuleInSection } from './sections';
 import { isPlaceholderRule } from './sidebarState';
 import { TemporaryFilterPills } from './TemporaryFilterPills';
@@ -35,9 +42,10 @@ import { ViewerSavedPills, type PillPopoverState } from './ViewerSavedPills';
 type Props = {
     activeTabUuid: string | undefined;
     /**
-     * `undefined` (default): every saved rule and the viewer's own; `null`:
-     * the unsectioned saved rules and the viewer's own; a string: that
-     * section's saved rules alone.
+     * `undefined` (default): every saved rule and the viewer's own, dragged
+     * in this component's own contexts; `null`: the unsectioned saved rules
+     * and the viewer's own; a string: that section's saved rules alone. A
+     * `null` or string pass drags in the bar's one context (`SectionedFilters`).
      */
     sectionId?: string | null;
     /** A viewer's saved popover state, shared across the bar's passes (default: local) */
@@ -51,6 +59,27 @@ type Props = {
 type FilterPillGroup = 'dimensions' | 'metrics';
 
 const GROUPS: FilterPillGroup[] = ['dimensions', 'metrics'];
+
+// A pill in the bar's one drag context: the overlay moves, the source fades
+const BarDraggable: FC<{ id: string; children: ReactNode }> = ({
+    id,
+    children,
+}) => {
+    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+        id,
+    });
+    return (
+        <Box
+            ref={setNodeRef}
+            className={classes.barDraggable}
+            data-dragging={isDragging || undefined}
+            {...listeners}
+            {...attributes}
+        >
+            {children}
+        </Box>
+    );
+};
 
 export const FilterPills: FC<Props> = ({
     activeTabUuid,
@@ -179,45 +208,44 @@ export const FilterPills: FC<Props> = ({
                     const orderedKeys = dashboardFilters[group].map(
                         (rule) => rule.id,
                     );
-                    return (
+                    const pills = dashboardFilters[group].map((filter) => {
+                        if (!isRuleInSection(filter, sectionId, sections))
+                            return null;
+                        const pill = renderPill(filter, group, 'editor');
+                        return (
+                            pill && (
+                                <DroppableArea
+                                    key={filter.id}
+                                    id={filter.id}
+                                    orderedKeys={orderedKeys}
+                                >
+                                    {sectionId === undefined ? (
+                                        <DraggableItem
+                                            id={filter.id}
+                                            disabled={isSidebarOpen}
+                                        >
+                                            {pill}
+                                        </DraggableItem>
+                                    ) : (
+                                        <BarDraggable id={filter.id}>
+                                            {pill}
+                                        </BarDraggable>
+                                    )}
+                                </DroppableArea>
+                            )
+                        );
+                    });
+                    return sectionId === undefined ? (
                         <DndContext
                             key={group}
                             sensors={dragSensors}
                             onDragEnd={(event) => handleDragEnd(group, event)}
                         >
-                            {dashboardFilters[group].map((filter) => {
-                                if (
-                                    !isRuleInSection(
-                                        filter,
-                                        sectionId,
-                                        sections,
-                                    )
-                                )
-                                    return null;
-                                const pill = renderPill(
-                                    filter,
-                                    group,
-                                    'editor',
-                                );
-                                return (
-                                    pill && (
-                                        <DroppableArea
-                                            key={filter.id}
-                                            id={filter.id}
-                                            orderedKeys={orderedKeys}
-                                        >
-                                            <DraggableItem
-                                                id={filter.id}
-                                                disabled={isSidebarOpen}
-                                            >
-                                                {pill}
-                                            </DraggableItem>
-                                        </DroppableArea>
-                                    )
-                                );
-                            })}
+                            {pills}
                             <DragOverlay />
                         </DndContext>
+                    ) : (
+                        <Fragment key={group}>{pills}</Fragment>
                     );
                 })
             )}

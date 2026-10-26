@@ -12,3 +12,8 @@
 .draftPill {
     border-style: dashed;
 }
+
+/* The bar's drag: the overlay carries the copy, the source stays put */
+.barDraggable[data-dragging] {
+    opacity: 0.3;
+}

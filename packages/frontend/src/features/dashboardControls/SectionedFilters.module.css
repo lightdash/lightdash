@@ -29,6 +29,37 @@
     padding-right: 10px;
 }
 
+/* A pill from elsewhere is over the capsule or the first button: the rail's ring */
+.capsule[data-over],
+.unsectionTarget[data-over] {
+    background-color: var(--mantine-color-default-hover);
+    box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);
+}
+
+.unsectionTarget {
+    display: inline-flex;
+    border-radius: var(--mantine-radius-xl);
+}
+
+/* Where a pill from elsewhere would land: the capsule's last place */
+.slot {
+    flex: none;
+    border: 1px dashed var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-xl);
+}
+
+/* The dragged pill's copy, above the capsules */
+.dragPreview {
+    height: 28px;
+    padding: 0 var(--mantine-spacing-xs);
+    max-width: 240px;
+    background-color: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-xl);
+    box-shadow: var(--mantine-shadow-sm);
+    cursor: grabbing;
+}
+
 .toggle {
     display: inline-flex;
     align-items: center;

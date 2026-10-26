@@ -1,9 +1,12 @@
+import type * as DndKitCore from '@dnd-kit/core';
+import { type DragEndEvent } from '@dnd-kit/core';
 import {
     DashboardTileTypes,
     FieldType,
     FilterOperator,
     type DashboardFilterRule,
     type DashboardFilterableField,
+    type DashboardFilters,
     type DashboardTile,
 } from '@lightdash/common';
 import { act, fireEvent, screen } from '@testing-library/react';
@@ -26,11 +29,12 @@ const pillsProps = vi.hoisted(() => ({
     current: [] as { sectionId: string | null | undefined }[],
 }));
 const mockSidebar = vi.hoisted(() => ({ current: { isViewer: false } }));
-
-vi.mock('./useControlsSidebar', () => ({
-    useControlsSidebarSelector: (
-        selector: (value: typeof mockSidebar.current) => unknown,
-    ) => selector(mockSidebar.current),
+const mockDragEnd = vi.hoisted(() => ({
+    handlers: [] as ((event: DragEndEvent) => void)[],
+}));
+// A drop state dnd-kit would report mid-drag, without the gesture
+const mockDroppable = vi.hoisted(() => ({
+    current: null as null | { activeId: string; overId: string },
 }));
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
@@ -39,35 +43,97 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     ),
 }));
 
-// The pills have their own tests; the mock pins what each pass is asked for
-// and lets a pass open the shared popover
+vi.mock('./useControlsSidebar', () => ({
+    useControlsSidebarSelector: (
+        selector: (value: typeof mockSidebar.current) => unknown,
+    ) => selector(mockSidebar.current),
+}));
+// The drag gesture is dnd-kit's; the drop handler is captured
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+    const actual = await importOriginal<typeof DndKitCore>();
+    return {
+        ...actual,
+        DndContext: (props: Parameters<typeof actual.DndContext>[0]) => {
+            if (props.onDragEnd) mockDragEnd.handlers.push(props.onDragEnd);
+            return <actual.DndContext {...props} />;
+        },
+        useDroppable: (args: Parameters<typeof actual.useDroppable>[0]) => {
+            const real = actual.useDroppable(args);
+            const state = mockDroppable.current;
+            if (!state) return real;
+            return {
+                ...real,
+                isOver: args.id === state.overId,
+                active: { id: state.activeId, rect: { current: {} } },
+                over: { id: state.overId },
+            };
+        },
+    };
+});
+
+// The pills have their own tests; the mock pins what each pass is asked for,
+// lets a pass open the shared popover and gives each of its rules a
+// draggable, as the real pass does in the bar's drag context
 vi.mock('./AddControl', () => ({
     AddControl: () => <button>Add</button>,
 }));
-vi.mock('./FilterPills', () => ({
-    FilterPills: ({
-        sectionId,
-        popover,
-    }: {
-        sectionId: string | null | undefined;
-        popover: {
-            openPopoverId: string | undefined;
-            onPopoverOpen: (id: string) => void;
-        };
-    }) => {
-        pillsProps.current.push({ sectionId });
+vi.mock('./FilterPills', async () => {
+    const { useDraggable } = await import('@dnd-kit/core');
+    const {
+        selectDashboardFilters,
+        selectControlSections,
+        useDashboardSelector,
+    } = await import('../dashboard/store');
+    const { isRuleInSection } = await import('./sections');
+    const Draggable = ({ id }: { id: string }) => {
+        const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+            id,
+        });
         return (
             <div
-                data-testid={`pills-${sectionId ?? 'unsectioned'}`}
-                data-popover={popover.openPopoverId}
+                ref={setNodeRef}
+                data-dragging={isDragging || undefined}
+                {...listeners}
+                {...attributes}
             >
-                <button onClick={() => popover.onPopoverOpen(`${sectionId}`)}>
-                    open {sectionId}
-                </button>
+                pill {id}
             </div>
         );
-    },
-}));
+    };
+    return {
+        FilterPills: ({
+            sectionId,
+            popover,
+        }: {
+            sectionId: string | null | undefined;
+            popover: {
+                openPopoverId: string | undefined;
+                onPopoverOpen: (id: string) => void;
+            };
+        }) => {
+            pillsProps.current.push({ sectionId });
+            const sections = useDashboardSelector(selectControlSections);
+            const rules = useDashboardSelector(
+                selectDashboardFilters,
+            ).dimensions.filter((r) => isRuleInSection(r, sectionId, sections));
+            return (
+                <div
+                    data-testid={`pills-${sectionId ?? 'unsectioned'}`}
+                    data-popover={popover.openPopoverId}
+                >
+                    <button
+                        onClick={() => popover.onPopoverOpen(`${sectionId}`)}
+                    >
+                        open {sectionId}
+                    </button>
+                    {rules.map((r) => (
+                        <Draggable key={r.id} id={r.id} />
+                    ))}
+                </div>
+            );
+        },
+    };
+});
 
 const regionField = {
     name: 'region',
@@ -105,11 +171,11 @@ const tiles = [
 
 const rule = (
     id: string,
-    sectionId: string,
+    sectionId: string | undefined,
     overrides: Partial<DashboardFilterRule> = {},
 ): DashboardFilterRule => ({
     id,
-    sectionId,
+    ...(sectionId !== undefined && { sectionId }),
     target: { fieldId: 'orders_region', tableName: 'orders' },
     operator: FilterOperator.EQUALS,
     values: ['emea'],
@@ -165,11 +231,15 @@ const renderSectioned = (
 describe('SectionedFilters', () => {
     beforeEach(() => {
         pillsProps.current = [];
+        mockDragEnd.handlers = [];
+        mockSidebar.current = { isViewer: false };
         mockDashboardContext.current = {
             filterableFieldsByTileUuid: {
                 'tile-1': [regionField],
                 'tile-2': [regionField],
             },
+            allFilterableFieldsMap: { orders_region: regionField },
+            allFilterableMetricsMap: {},
             isLoadingDashboardFilters: false,
             isFetchingDashboardFilters: false,
         };
@@ -207,8 +277,11 @@ describe('SectionedFilters', () => {
     it('keeps Add, the capsules, the pills and what follows in one flow', () => {
         renderSectioned([rule('one', 'a')], 'tab-1', <button>Required</button>);
         const required = screen.getByRole('button', { name: 'Required' });
-        const flow = screen.getByRole('button', { name: 'Add' }).parentElement;
-        expect(flow?.className).toContain('flow');
+        // In edit mode Add sits in its drop-target wrapper inside the flow
+        const flow = screen
+            .getByRole('button', { name: 'Add' })
+            .closest('[class*="flow"]');
+        expect(flow).not.toBeNull();
         expect(flow).toContainElement(required);
         expect(flow?.lastElementChild).toBe(required);
         expect(flow).toContainElement(screen.getByTestId('pills-unsectioned'));
@@ -393,5 +466,194 @@ describe('SectionedFilters', () => {
         });
         expect(screen.getByText('1 changed')).toBeInTheDocument();
         mockSidebar.current = { isViewer: false };
+    });
+
+    describe('drag in edit mode', () => {
+        const setDashboardFilters = vi.fn();
+        const setHaveFiltersChanged = vi.fn();
+        const dragEvent = (activeId: string, overId: string) =>
+            ({
+                active: { id: activeId },
+                over: { id: overId },
+            }) as DragEndEvent;
+        const sectionIdsOf = (filters: DashboardFilters) =>
+            filters.dimensions.map((r) => [r.id, r.sectionId ?? null]);
+        const tick = () => act(() => new Promise((r) => setTimeout(r)));
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+            mockDroppable.current = null;
+            mockSidebar.current = { isViewer: false };
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                setDashboardFilters,
+                setHaveFiltersChanged,
+            };
+        });
+
+        it('runs one drag context over the bar, none for a viewer', () => {
+            renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
+            expect(mockDragEnd.handlers).toHaveLength(1);
+            expect(
+                screen.getByRole('button', { name: 'Add' }).parentElement
+                    ?.className,
+            ).toContain('unsectionTarget');
+        });
+
+        it('drops a pill on another capsule by keyboard: it joins that section last', async () => {
+            renderSectioned(
+                [rule('one', 'a'), rule('two', 'b'), rule('three', 'b')],
+                'tab-1',
+            );
+            // jsdom lays nothing out: stack every element in document order
+            // so the keyboard sensor has somewhere to go. The overlay (which
+            // dnd-kit collides with) takes the dragged pill's place
+            const rect = vi
+                .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+                .mockImplementation(function (this: HTMLElement) {
+                    const isOverlay =
+                        this.closest('[class*="dragPreview"]') !== null ||
+                        this.querySelector(
+                            ':scope > [class*="dragPreview"]',
+                        ) !== null;
+                    const measured = isOverlay
+                        ? (document.querySelector('[data-dragging]') ?? this)
+                        : this;
+                    const top =
+                        [...document.querySelectorAll('*')].indexOf(measured) *
+                        10;
+                    return {
+                        top,
+                        bottom: top + 10,
+                        left: 0,
+                        right: 300,
+                        width: 300,
+                        height: 10,
+                        x: 0,
+                        y: top,
+                        toJSON: () => ({}),
+                    };
+                });
+            const pill = screen.getByText('pill one');
+            const capsuleA = screen.getByRole('button', { name: 'Dates' })
+                .parentElement as HTMLElement;
+            const capsuleB = screen.getByRole('button', { name: 'Regions' })
+                .parentElement as HTMLElement;
+            act(() => {
+                pill.focus();
+                fireEvent.keyDown(pill, { code: 'Space', key: ' ' });
+            });
+            await tick();
+            expect(pill).toHaveAttribute('data-dragging');
+            // The keyboard sensor falls back to the nearest centre: the next
+            // thing down in document order is capsule b, never its own
+            expect(capsuleA).not.toHaveAttribute('data-over');
+            expect(capsuleB).toHaveAttribute('data-over');
+            expect(capsuleB.querySelector('[class*="slot"]')).not.toBeNull();
+            expect(capsuleA.querySelector('[class*="slot"]')).toBeNull();
+            fireEvent.keyDown(pill, { code: 'Space', key: ' ' });
+            rect.mockRestore();
+            await tick();
+
+            expect(setDashboardFilters).toHaveBeenCalledTimes(1);
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['two', 'b'],
+                ['three', 'b'],
+                ['one', 'b'],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+            expect(pill).not.toHaveAttribute('data-dragging');
+        });
+
+        it('makes room in a capsule only for a pill from elsewhere, folded too', () => {
+            const slotIn = (name: string) =>
+                (
+                    screen.getByRole('button', { name })
+                        .parentElement as HTMLElement
+                ).querySelector('[class*="slot"]');
+            mockDroppable.current = { activeId: 'one', overId: 'a' };
+            const { unmount } = renderSectioned(
+                [rule('one', 'a'), rule('two', 'b')],
+                'tab-1',
+            );
+            expect(slotIn('Dates')).toBeNull();
+            expect(
+                slotIn('Dates')?.parentElement ?? slotIn('Dates'),
+            ).toBeNull();
+            unmount();
+
+            mockDroppable.current = { activeId: 'two', overId: 'a' };
+            renderSectioned(
+                [
+                    ...Array.from({ length: 7 }, (_, i) => rule(`a-${i}`, 'a')),
+                    rule('two', 'b'),
+                ],
+                'tab-1',
+            );
+            const folded = screen.getByRole('button', { name: /^Dates/ });
+            expect(folded).toHaveAttribute('aria-expanded', 'false');
+            const slot = slotIn(folded.textContent ?? 'Dates');
+            expect(slot).not.toBeNull();
+            expect(folded.parentElement).toHaveAttribute('data-over');
+            expect(slot).toHaveStyle({ width: '120px', height: '28px' });
+        });
+
+        it('drops a pill on the first button: it leaves its section', () => {
+            renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
+            act(() =>
+                mockDragEnd.handlers[0](dragEvent('two', 'unsectioned-target')),
+            );
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['one', 'a'],
+                ['two', null],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+        });
+
+        it('writes nothing for a drop on its own capsule, or on the first button while unsectioned', () => {
+            renderSectioned(
+                [rule('one', 'a'), rule('loose', undefined)],
+                'tab-1',
+            );
+            act(() => {
+                mockDragEnd.handlers[0](dragEvent('one', 'a'));
+                mockDragEnd.handlers[0](
+                    dragEvent('loose', 'unsectioned-target'),
+                );
+                mockDragEnd.handlers[0]({
+                    active: { id: 'one' },
+                    over: null,
+                } as DragEndEvent);
+            });
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(setHaveFiltersChanged).not.toHaveBeenCalled();
+        });
+
+        it('takes a drop on a folded capsule', () => {
+            const many = Array.from({ length: 7 }, (_, i) =>
+                rule(`a-${i}`, 'a'),
+            );
+            renderSectioned([...many, rule('two', 'b')], 'tab-1');
+            expect(
+                screen.getByRole('button', { name: /^Dates/ }),
+            ).toHaveAttribute('aria-expanded', 'false');
+            act(() => mockDragEnd.handlers[0](dragEvent('two', 'a')));
+            const ids = sectionIdsOf(setDashboardFilters.mock.calls[0][0]);
+            expect(ids.at(-1)).toEqual(['two', 'a']);
+            expect(ids.every(([, section]) => section === 'a')).toBe(true);
+        });
+
+        it('drops a pill on a pill: it takes that place and section', () => {
+            renderSectioned(
+                [rule('one', 'a'), rule('two', 'b'), rule('three', 'b')],
+                'tab-1',
+            );
+            act(() => mockDragEnd.handlers[0](dragEvent('one', 'two')));
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['two', 'b'],
+                ['one', 'b'],
+                ['three', 'b'],
+            ]);
+        });
     });
 });
