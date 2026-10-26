@@ -1,5 +1,9 @@
 import { ChartType } from '@lightdash/common';
 import { useEffect, useMemo, type FC } from 'react';
+import {
+    selectCartesianIntent,
+    useVisualizationSelector,
+} from '../../features/visualization/store';
 import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import {
     type VisualizationCartesianConfigProps,
@@ -13,13 +17,14 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     columnOrder,
     initialChartConfig,
     onChartConfigChange,
-    stacking,
-    cartesianType,
     colorPalette,
     children,
     tableCalculationsMetadata,
     unsavedMetricQuery,
 }) => {
+    const { stacking, cartesianType } = useVisualizationSelector(
+        selectCartesianIntent,
+    );
     const cartesianConfig = useCartesianChartConfig({
         initialChartConfig,
         pivotKeys: validPivotDimensions,

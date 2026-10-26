@@ -1,6 +1,4 @@
 import {
-    PieChartLegendLabelMaxLengthDefault,
-    PieChartLegendPositionDefault,
     type CustomDimension,
     type Dimension,
     type ItemsMap,
@@ -25,11 +23,17 @@ import {
     type PieChartDataPoint,
 } from '@lightdash/visualization/editor';
 import { useDebouncedValue } from '@mantine/hooks';
-import isEmpty from 'lodash/isEmpty';
 import isEqual from 'lodash/isEqual';
-import mapValues from 'lodash/mapValues';
-import omitBy from 'lodash/omitBy';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
+import {
+    buildPieEditorState,
+    pieEditorActions,
+    selectPieEditor,
+    useEditorFieldSetter,
+    useEditorState,
+    useVisualizationDispatch,
+    type PieEditorState,
+} from '../features/visualization/store';
 import { type InfiniteQueryResults } from './useQueryResults';
 
 type PieChartConfig = {
@@ -110,30 +114,28 @@ const usePieChartConfig: PieChartConfigFn = (
     parameters,
     unsavedMetricQuery,
 ) => {
-    const [groupFieldIds, setGroupFieldIds] = useState(
-        pieChartConfig?.groupFieldIds ?? [],
+    const {
+        groupFieldIds,
+        metricId,
+        isDonut,
+        valueLabel,
+        showValue,
+        showPercentage,
+        valueLabelColor,
+        groupLabelOverrides,
+        groupColorOverrides,
+        groupValueOptionOverrides,
+        groupSortOverrides,
+        showLegend,
+        legendPosition,
+        legendMaxItemLength,
+    } = useEditorState(selectPieEditor, pieEditorActions, () =>
+        buildPieEditorState(pieChartConfig),
     );
-
-    const [metricId, setMetricId] = useState(pieChartConfig?.metricId ?? null);
-
-    const [isDonut, setIsDonut] = useState(pieChartConfig?.isDonut ?? true);
-    const [valueLabel, setValueLabel] = useState(
-        pieChartConfig?.valueLabel ?? 'hidden',
-    );
-
-    const [showValue, setShowValue] = useState(
-        pieChartConfig?.showValue ?? false,
-    );
-
-    const [showPercentage, setShowPercentage] = useState(
-        pieChartConfig?.showPercentage ?? true,
-    );
-    const [valueLabelColor, setValueLabelColor] = useState(
-        pieChartConfig?.valueLabelColor,
-    );
-
-    const [groupLabelOverrides, setGroupLabelOverrides] = useState(
-        pieChartConfig?.groupLabelOverrides ?? {},
+    const dispatch = useVisualizationDispatch();
+    const set = useEditorFieldSetter<PieEditorState>(
+        selectPieEditor,
+        pieEditorActions.set,
     );
 
     const [debouncedGroupLabelOverrides] = useDebouncedValue(
@@ -141,36 +143,9 @@ const usePieChartConfig: PieChartConfigFn = (
         500,
     );
 
-    const [groupColorOverrides, setGroupColorOverrides] = useState(
-        pieChartConfig?.groupColorOverrides ?? {},
-    );
-
     const [debouncedGroupColorOverrides] = useDebouncedValue(
         groupColorOverrides,
         500,
-    );
-
-    const [groupValueOptionOverrides, setGroupValueOptionOverrides] = useState(
-        pieChartConfig?.groupValueOptionOverrides ?? {},
-    );
-
-    const [groupSortOverrides, setGroupSortOverrides] = useState(
-        pieChartConfig?.groupSortOverrides ?? [],
-    );
-
-    const [showLegend, setShowLegend] = useState(
-        pieChartConfig?.showLegend ?? true,
-    );
-
-    const [legendPosition, setLegendPosition] = useState(
-        pieChartConfig?.legendPosition ?? PieChartLegendPositionDefault,
-    );
-
-    const [legendMaxItemLength, setLegendMaxItemLength] = useState<
-        number | undefined
-    >(
-        pieChartConfig?.legendMaxItemLength ??
-            PieChartLegendLabelMaxLengthDefault,
     );
 
     const dimensionIds = useMemo(() => Object.keys(dimensions), [dimensions]);
@@ -209,14 +184,8 @@ const usePieChartConfig: PieChartConfigFn = (
 
         if (isEqual(newGroupFieldIds, groupFieldIds)) return;
 
-        setGroupFieldIds(newGroupFieldIds);
-    }, [
-        isLoading,
-        dimensionIds,
-        groupFieldIds,
-        pendingDimensionIds,
-        pieChartConfig?.groupFieldIds,
-    ]);
+        set('groupFieldIds', newGroupFieldIds);
+    }, [isLoading, dimensionIds, groupFieldIds, pendingDimensionIds, set]);
 
     useEffect(() => {
         if (isLoading || allNumericMetricIds.length === 0) return;
@@ -229,13 +198,14 @@ const usePieChartConfig: PieChartConfigFn = (
         });
         if (nextMetricId === metricId) return;
 
-        setMetricId(nextMetricId);
+        set('metricId', nextMetricId);
     }, [
         allNumericMetricIds,
         isLoading,
         metricId,
         pendingMetricIds,
         tableCalculationsMetadata,
+        set,
     ]);
 
     const isValueLabelOverriden = useMemo(
@@ -285,149 +255,68 @@ const usePieChartConfig: PieChartConfigFn = (
         [groupLabels, colorPalette],
     );
 
-    const handleGroupChange = useCallback(
-        (prevDimensionId: string, newDimensionId: string) => {
-            setGroupFieldIds((prev) => {
-                const newSet = new Set(prev);
-                newSet.delete(prevDimensionId);
-                newSet.add(newDimensionId);
-                return [...newSet.values()];
-            });
-        },
-        [],
-    );
-
     const handleGroupAdd = useCallback(
-        (dimensionId?: string) => {
-            setGroupFieldIds((prev) => {
-                const nextId =
-                    dimensionId ??
-                    dimensionIds.find((id) => !prev.includes(id));
-                if (!nextId) return prev;
-
-                const newSet = new Set(prev);
-                newSet.add(nextId);
-                return [...newSet.values()];
-            });
-        },
-        [dimensionIds],
-    );
-
-    const handleRemoveGroup = useCallback((dimensionId: string) => {
-        setGroupFieldIds((prev) => {
-            const newSet = new Set(prev);
-            newSet.delete(dimensionId);
-            return [...newSet.values()];
-        });
-    }, []);
-
-    const handleValueLabelChange = useCallback(
-        (newValueLabel: PieChartValueOptions['valueLabel']) => {
-            setValueLabel(newValueLabel);
-
-            setGroupValueOptionOverrides((prev) =>
-                mapValues(prev, ({ valueLabel: _, ...rest }) => ({ ...rest })),
-            );
-        },
-        [],
-    );
-
-    const handleToggleShowValue = useCallback(() => {
-        setShowValue((prev) => !prev);
-
-        setGroupValueOptionOverrides((prev) =>
-            mapValues(prev, ({ showValue: _, ...rest }) => ({ ...rest })),
-        );
-    }, []);
-
-    const handleToggleShowPercentage = useCallback(() => {
-        setShowPercentage((prev) => !prev);
-
-        setGroupValueOptionOverrides((prev) =>
-            mapValues(prev, ({ showPercentage: _, ...rest }) => ({ ...rest })),
-        );
-    }, []);
-
-    const handleValueLabelColorChange = useCallback(
-        (color: string | undefined) => {
-            setValueLabelColor(color);
-
-            setGroupValueOptionOverrides((prev) =>
-                mapValues(prev, ({ valueLabelColor: _, ...rest }) => ({
-                    ...rest,
-                })),
-            );
-        },
-        [],
-    );
-
-    const handleGroupLabelChange = useCallback((key: string, value: string) => {
-        setGroupLabelOverrides(({ [key]: _, ...rest }) => {
-            return value === '' ? rest : { ...rest, [key]: value };
-        });
-    }, []);
-
-    const handleGroupColorChange = useCallback((key: string, value: string) => {
-        setGroupColorOverrides(({ [key]: _, ...rest }) => {
-            return value === '' ? rest : { ...rest, [key]: value };
-        });
-    }, []);
-
-    const handleGroupValueOptionChange = useCallback(
-        (label: string, value: Partial<PieChartValueOptions>) => {
-            setGroupValueOptionOverrides((prev) => {
-                const nextOptions = omitBy(
-                    { ...prev[label], ...value },
-                    (option) => option === undefined,
-                );
-
-                if (isEmpty(nextOptions)) {
-                    const { [label]: _, ...rest } = prev;
-                    return rest;
-                }
-
-                return { ...prev, [label]: nextOptions };
-            });
-        },
-        [],
+        (dimensionId?: string) =>
+            dispatch(pieEditorActions.groupAdd({ dimensionId, dimensionIds })),
+        [dispatch, dimensionIds],
     );
 
     const handleGroupSortChange = useCallback(
-        (oldIndex: number, newIndex: number) => {
-            setGroupSortOverrides((overrides) => {
-                const filteredOverrides = overrides.filter((label) =>
-                    groupLabels.includes(label),
-                );
-
-                const newSort = [
-                    ...(filteredOverrides.length > 0
-                        ? filteredOverrides
-                        : groupLabels),
-                ];
-                const [removed] = newSort.splice(oldIndex, 1);
-                newSort.splice(newIndex, 0, removed);
-
-                return newSort;
-            });
-        },
-        [groupLabels],
+        (oldIndex: number, newIndex: number) =>
+            dispatch(
+                pieEditorActions.groupSortChange({
+                    oldIndex,
+                    newIndex,
+                    groupLabels,
+                }),
+            ),
+        [dispatch, groupLabels],
     );
 
-    const handleLegendPositionChange = useCallback(
-        (position: PieChartLegendPosition) => {
-            setLegendPosition(position);
-        },
-        [],
+    const handlers = useMemo(
+        () => ({
+            groupChange: (prevDimensionId: string, newDimensionId: string) =>
+                dispatch(
+                    pieEditorActions.groupChange({
+                        prevDimensionId,
+                        newDimensionId,
+                    }),
+                ),
+            groupRemove: (dimensionId: string) =>
+                dispatch(pieEditorActions.groupRemove(dimensionId)),
+            metricChange: (value: string | null) => set('metricId', value),
+            toggleDonut: () => dispatch(pieEditorActions.toggleDonut()),
+            valueLabelChange: (value: PieChartValueOptions['valueLabel']) =>
+                dispatch(pieEditorActions.valueLabelChange(value)),
+            valueLabelColorChange: (color: string | undefined) =>
+                dispatch(pieEditorActions.valueLabelColorChange(color)),
+            toggleShowValue: () => dispatch(pieEditorActions.toggleShowValue()),
+            toggleShowPercentage: () =>
+                dispatch(pieEditorActions.toggleShowPercentage()),
+            groupLabelChange: (key: string, value: string) =>
+                dispatch(pieEditorActions.groupLabelChange({ key, value })),
+            groupColorChange: (key: string, value: string) =>
+                dispatch(pieEditorActions.groupColorChange({ key, value })),
+            groupValueOptionChange: (
+                label: string,
+                value: Partial<PieChartValueOptions>,
+            ) =>
+                dispatch(
+                    pieEditorActions.groupValueOptionChange({ label, value }),
+                ),
+            toggleShowLegend: () =>
+                dispatch(pieEditorActions.toggleShowLegend()),
+            legendPositionChange: (position: PieChartLegendPosition) =>
+                set('legendPosition', position),
+            legendMaxItemLengthChange: (length: number | undefined) =>
+                set('legendMaxItemLength', length),
+        }),
+        [dispatch, set],
     );
 
     const groupFieldIdsCopy = useMemo(
         () => Array.from(groupFieldIds),
         [groupFieldIds],
-    );
-    const toggleDonut = useCallback(() => setIsDonut((prev) => !prev), []);
-    const toggleShowLegend = useCallback(
-        () => setShowLegend((prev) => !prev),
-        [],
     );
 
     const validConfig: PieChart = useMemo(
@@ -474,24 +363,16 @@ const usePieChartConfig: PieChartConfigFn = (
 
             groupFieldIds: groupFieldIdsCopy,
             groupAdd: handleGroupAdd,
-            groupChange: handleGroupChange,
-            groupRemove: handleRemoveGroup,
 
             selectedMetric,
             metricId,
-            metricChange: setMetricId,
 
             isDonut,
-            toggleDonut,
 
             valueLabel,
-            valueLabelChange: handleValueLabelChange,
             valueLabelColor,
-            valueLabelColorChange: handleValueLabelColorChange,
             showValue,
-            toggleShowValue: handleToggleShowValue,
             showPercentage,
-            toggleShowPercentage: handleToggleShowPercentage,
 
             isValueLabelOverriden,
             isShowValueOverriden,
@@ -499,62 +380,44 @@ const usePieChartConfig: PieChartConfigFn = (
 
             sortedGroupLabels,
             groupLabelOverrides,
-            groupLabelChange: handleGroupLabelChange,
             groupColorOverrides,
             groupColorDefaults,
-            groupColorChange: handleGroupColorChange,
             groupValueOptionOverrides,
-            groupValueOptionChange: handleGroupValueOptionChange,
             groupSortOverrides,
             groupSortChange: handleGroupSortChange,
 
             showLegend,
-            toggleShowLegend,
             legendPosition,
-            legendPositionChange: handleLegendPositionChange,
             legendMaxItemLength,
-            legendMaxItemLengthChange: setLegendMaxItemLength,
             data,
+            ...handlers,
         }),
         [
             validConfig,
             groupFieldIdsCopy,
             handleGroupAdd,
-            handleGroupChange,
-            handleRemoveGroup,
             selectedMetric,
             metricId,
-            setMetricId,
             isDonut,
-            toggleDonut,
             valueLabel,
-            handleValueLabelChange,
             valueLabelColor,
-            handleValueLabelColorChange,
             showValue,
-            handleToggleShowValue,
             showPercentage,
-            handleToggleShowPercentage,
             isValueLabelOverriden,
             isShowValueOverriden,
             isShowPercentageOverriden,
             sortedGroupLabels,
             groupLabelOverrides,
-            handleGroupLabelChange,
             groupColorOverrides,
             groupColorDefaults,
-            handleGroupColorChange,
             groupValueOptionOverrides,
-            handleGroupValueOptionChange,
             groupSortOverrides,
             handleGroupSortChange,
             showLegend,
-            toggleShowLegend,
             legendPosition,
-            handleLegendPositionChange,
             legendMaxItemLength,
-            setLegendMaxItemLength,
             data,
+            handlers,
         ],
     );
 };

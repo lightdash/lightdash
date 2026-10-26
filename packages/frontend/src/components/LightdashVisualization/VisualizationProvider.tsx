@@ -13,7 +13,6 @@ import {
     type MetricQuery,
     type ParametersValuesMap,
     type Series,
-    type StackType,
     type TableCalculationMetadata,
 } from '@lightdash/common';
 import { createSeriesColorResolver } from '@lightdash/visualization/editor';
@@ -30,8 +29,13 @@ import {
     type PropsWithChildren,
     type RefObject,
 } from 'react';
+import { Provider } from 'react-redux';
 import { resolveMergeColumnOrder } from '../../features/mergeQuery/utils/resolveMergeColumnOrder';
-import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import {
+    cartesianIntentActions,
+    createVisualizationStore,
+    VisualizationStoreContext,
+} from '../../features/visualization/store';
 import { useChartColorMappings } from '../../hooks/useChartColorConfig/useChartColorConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
@@ -195,10 +199,21 @@ const VisualizationProvider: FC<
     const { colorMappings } = useChartColorMappings();
     const theme = useMantineTheme();
 
-    // cartesian config related
-    const [stacking, setStacking] = useState<boolean | StackType>();
-    const [cartesianType, setCartesianType] = useState<CartesianTypeOptions>();
-    // --
+    // Editor state for the mounted chart lives here, one store per provider
+    const [store] = useState(createVisualizationStore);
+    const setStacking = useCallback(
+        (value: Parameters<typeof cartesianIntentActions.setStacking>[0]) =>
+            store.dispatch(cartesianIntentActions.setStacking(value)),
+        [store],
+    );
+    const setCartesianType = useCallback(
+        (
+            value: Parameters<
+                typeof cartesianIntentActions.setCartesianType
+            >[0],
+        ) => store.dispatch(cartesianIntentActions.setCartesianType(value)),
+        [store],
+    );
 
     // If we don't toggle any fields, (eg: when you `explore from here`) columnOrder on tableConfig might be empty
     // so we initialize it with the fields from resultData
@@ -305,6 +320,8 @@ const VisualizationProvider: FC<
             isTouchDevice,
         }),
         [
+            setStacking,
+            setCartesianType,
             hasSeriesContextMenu,
             stableOnSeriesContextMenu,
             setChartType,
@@ -389,8 +406,6 @@ const VisualizationProvider: FC<
                         validPivotDimensions={validPivotDimensions}
                         columnOrder={defaultColumnOrder}
                         initialChartConfig={chartConfig.config}
-                        stacking={stacking}
-                        cartesianType={cartesianType}
                         setPivotDimensions={setPivotDimensions}
                         onChartConfigChange={handleChartConfigChange}
                         colorPalette={colorPalette}
@@ -541,11 +556,13 @@ const VisualizationProvider: FC<
     };
 
     return (
-        <ServicesContext.Provider value={services}>
-            <LayoutContext.Provider value={layout}>
-                {renderAdapter()}
-            </LayoutContext.Provider>
-        </ServicesContext.Provider>
+        <Provider store={store} context={VisualizationStoreContext}>
+            <ServicesContext.Provider value={services}>
+                <LayoutContext.Provider value={layout}>
+                    {renderAdapter()}
+                </LayoutContext.Provider>
+            </ServicesContext.Provider>
+        </Provider>
     );
 };
 

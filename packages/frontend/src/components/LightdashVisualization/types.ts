@@ -12,13 +12,11 @@ import {
     type Metric,
     type MetricQuery,
     type ParametersValuesMap,
-    type StackType,
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
 import { type JSX } from 'react';
 import type useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import type useTableConfig from '../../hooks/tableVisualization/useTableConfig';
 import type useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import type useCustomVisualizationConfig from '../../hooks/useCustomVisualizationConfig';
@@ -82,8 +80,6 @@ export const isCartesianVisualizationConfig = (
 export type VisualizationCartesianConfigProps =
     VisualizationConfigCommon<VisualizationConfigCartesian> & {
         itemsMap: ItemsMap | undefined;
-        stacking: boolean | StackType | undefined;
-        cartesianType: CartesianTypeOptions | undefined;
         columnOrder: string[];
         validPivotDimensions: string[] | undefined;
         setPivotDimensions: React.Dispatch<
