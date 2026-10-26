@@ -203,15 +203,6 @@ describe.each([
             'getPullRequestDiff',
         ],
     },
-    {
-        name: 'editing-source-code',
-        tools: [
-            'editRepo',
-            'listWorkstreams',
-            'closePullRequest',
-            'getPullRequestDiff',
-        ],
-    },
 ])('$name skill', ({ name, tools }) => {
     it('is available to agents only', async () => {
         expect(

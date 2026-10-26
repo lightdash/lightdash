@@ -454,7 +454,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     projectModel: models.getProjectModel(),
                     projectDbtSourcesModel: models.getProjectDbtSourcesModel(),
-                    featureFlagModel: models.getFeatureFlagModel(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
                     githubAppService: repository.getGithubAppService(),

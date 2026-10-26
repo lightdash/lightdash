@@ -194,4 +194,3 @@ Available skills:
 - developing-in-lightdash: Guidance for charts and dashboards
 - reading-source-code: Guidance for reading-source-code
 - repository-writeback: Guidance for repository-writeback
-- editing-source-code: Guidance for editing-source-code

@@ -97,19 +97,6 @@
             "repository-writeback"
         ]
     },
-    "codingAgent": {
-        "description": "Edit any writable repository through pull requests",
-        "addsTools": [
-            "editRepo",
-            "loadSkill"
-        ],
-        "addsSections": [
-            "skills"
-        ],
-        "addsSkills": [
-            "editing-source-code"
-        ]
-    },
     "pullRequests": {
         "description": "List, inspect and close the pull requests of a thread",
         "addsTools": [

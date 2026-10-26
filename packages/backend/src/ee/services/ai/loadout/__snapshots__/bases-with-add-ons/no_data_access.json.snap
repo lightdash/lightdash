@@ -1,7 +1,6 @@
 {
     "base": "no_data_access",
     "addOns": [
-        "codingAgent",
         "contentReads",
         "contentTools",
         "customChartTypes",
@@ -34,7 +33,6 @@
         "editContent",
         "editDbtProject",
         "editProjectContext",
-        "editRepo",
         "exploreRepo",
         "findContent",
         "findCustomChartTypes",
@@ -89,7 +87,6 @@
     ],
     "skills": [
         "developing-in-lightdash",
-        "editing-source-code",
         "reading-source-code",
         "repository-writeback"
     ]

@@ -883,10 +883,7 @@ const AssistantBubbleContent: FC<{
                 />
             )}
             {editRepoMetadata && (
-                <AiEditRepoToolCall
-                    metadata={editRepoMetadata}
-                    projectUuid={projectUuid}
-                />
+                <AiEditRepoToolCall metadata={editRepoMetadata} />
             )}
             {dataAppBuild && (
                 <AiDataAppBuildCard

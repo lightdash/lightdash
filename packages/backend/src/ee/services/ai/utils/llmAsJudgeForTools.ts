@@ -1,6 +1,6 @@
 import {
     agentToolDefinitionsByName,
-    isToolName,
+    isAgentToolName,
     type ToolName,
 } from '@lightdash/common';
 import { generateText, Output } from 'ai';
@@ -82,7 +82,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
 } satisfies Record<ToolName, string>;
 
 const getToolInfo = (toolName: string) => {
-    if (!isToolName(toolName)) {
+    if (!isAgentToolName(toolName)) {
         throw new Error(`Tool ${toolName} is not a valid tool`);
     }
     return agentToolDefinitionsByName[toolName].inputSchema;

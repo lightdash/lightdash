@@ -9,7 +9,6 @@ import {
     AiMetricQueryWithFilters,
     AiPromptSteer,
     AiWebAppPrompt,
-    AiWritebackRunResult,
     AllChartsSearchResult,
     AnyType,
     ApiExecuteAsyncMetricQueryResults,
@@ -925,21 +924,6 @@ export type EditProjectContextFn = (
 ) => Promise<{ prUrl: string; prAction: 'opened' | 'updated' }>;
 
 /**
- * Make a code change to a writable repository and open/update a pull request,
- * via the general coding agent. The counterpart to {@link EditDbtProjectFn} for
- * non-dbt repos: no compile/preview step (verification lives in the PR's CI), so
- * it returns the base writeback result without the preview fields.
- */
-export type EditRepoFn = (args: {
-    repoTarget: string;
-    prompt: string | null;
-    prUrl: string | null;
-    /** Open a new PR instead of continuing the repo's existing one in-thread. */
-    startNewPullRequest: boolean | null;
-    progressId?: string;
-}) => Promise<AiWritebackRunResult>;
-
-/**
  * Run one read-only shell command (ls/cat/find/grep/head/wc) against a repo
  * virtual filesystem and return combined stdout. With no `target` this reads the
  * project's dbt repo (subPath-scoped, as before); with an `"owner/repo"` target
@@ -965,7 +949,7 @@ export type DiscoverReposFn = () => Promise<
 
 /**
  * List the pull requests (workstreams) the current chat thread has opened with
- * {@link EditRepoFn}, so the agent can route a follow-up to the right one or
+ * {@link EditDbtProjectFn}, so the agent can route a follow-up to the right one or
  * decide to open a new one. Optionally scoped to a single `owner/repo`.
  */
 export type ListWorkstreamsFn = (args: {
@@ -982,7 +966,7 @@ export type ListWorkstreamsFn = (args: {
 
 /**
  * Close (without merging) a pull request the chat thread opened with
- * {@link EditRepoFn}. Thin wrapper over the same write-back close path the chat
+ * {@link EditDbtProjectFn}. Thin wrapper over the same write-back close path the chat
  * PR card's "Close PR" button uses; the underlying service enforces
  * `manage:SourceCode` and that the URL targets this project's own repo.
  */
