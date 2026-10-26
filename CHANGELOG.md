@@ -1,3 +1,10 @@
+## [3.53.8](https://github.com/lightdash/lightdash/compare/3.53.7...3.53.8) (2026-10-26)
+
+
+### Performance Improvements
+
+* **composer-queries:** make composer latency optimizations default ([#31540](https://github.com/lightdash/lightdash/issues/31540)) ([5074091](https://github.com/lightdash/lightdash/commit/507409165fca1b9a76f7ac548bfb59599a438a24))
+
 ## [3.53.7](https://github.com/lightdash/lightdash/compare/3.53.6...3.53.7) (2026-10-26)
 
 
