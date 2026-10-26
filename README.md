@@ -1,29 +1,16 @@
-# Analytics query history backfill QA
+# PROD-12592 live QA
 
-Isolated local Lightdash instance with seeded Jaffle Shop data and a dedicated test bucket; no production data or production changes.
+Isolated local Lightdash instance, 26 October 2026. Synthetic fixtures only.
 
-- UI trigger imported retained terminal query history; coverage controls action visibility after completion and Settings revisit.
-- A real failed worker job was manually retried through the UI. Its previous failure was shown safely and published data remained intact.
-- Final Query Events Explore: 6 unique query IDs; captured and historical provenance distinguishable. A captured query arriving on another date superseded its fallback, preserving authoritative timings.
-- Identical sequential and concurrent POST reruns did not add rows. Final rerun preserved the canonical history object's ETag exactly.
-- Existing compacted queries and recent pending raw events were skipped; raw events outside the nightly processing window could recover a retained DB fallback.
-- Missing actor, warehouse error, database retention and additive Parquet schema cases were checked. Preview, other-org, in-progress and pre-execution-error records were excluded.
-- Viewer GET/POST 403; another organization's admin could not access this backfill.
-- Storage failure failed closed; safe manual retry succeeded after storage recovery.
+## Combined history backfill
 
-Checks: 137 backend tests, 21 frontend tests, 167 warehouse reader tests; affected package typechecks, changed-file lint and formatting. Only focused suites were run.
+- 13: Existing project before backfill: 26 missing, 8 existing, 11 pending records across queries, AI usage and historical activity.
+- 14: After the single action: 0 missing, 34 existing, 11 pending; the Settings card disappears.
+- 15–16: Historical activity is immediately queryable: 24 records, including AI/tool/app facts, legacy views, download requests and export jobs.
+- 17: AI usage after importing retained records and receiving a late native event: 3 distinct calls, 1,524 tokens. Captured event replaces the imported copy.
 
-Scope: retained Query Events plus current dimensions. Historical People activity summaries, legacy views, AI/token/export reconstruction and SQL/error exposure are excluded.
+Sequential and concurrent reruns preserved AI/history object bytes. Changing one retained app-version snapshot produced exactly one missing record; rerun updated it without increasing the 24-row total. Cross-organization fixtures were excluded and private payload sentinel values were absent.
 
-## Full retained history and automatic onboarding
+Fresh third organization: creating Analytics automatically ran compaction and the combined backfill on the same queue. Coverage reached 0 missing / 3 existing in 8.31 seconds; query, AI usage and app history were immediately queryable without manual backfill or nightly processing.
 
-New Analytics creation now queues initial processing before history backfill, on the same serial queue. The live test used an existing local organization without an Analytics project, with one retained query from 2024-02-01, one completed query from today, and one captured query already in storage.
-
-- Clicking only Create queued initial job 435 (667ms), then backfill job 436 (1246ms), with no overlapping locks.
-- Before any manual backfill POST or nightly run: 2 imported rows + 1 unchanged captured row; Settings 0 missing/3 existing/0 pending and no backfill action.
-- A real Analytics metric query immediately returned those 3 unique identities and expected timestamps/timings.
-- Calling create-or-get again returned created:false and queued no automatic processing/backfill jobs.
-- Existing project retained its manual action for 2 additional completed-today records. Its manual job 456 succeeded in 1172ms; final availability 0 missing/7 existing/9 pending. Captured bytes remained unchanged and prior history was preserved.
-- Real-engine regressions additionally cover a month of captured partitions plus older database history and gaps within already populated dates. Imports cover all retained eligible history through the run-start instant, with no age floor or enablement cutoff.
-
-Recent raw-only events still follow normal closed-day processing. The historical import writes Parquet and current dimensions directly; its imported rows require no additional compaction.
+Screenshots 04–12 are earlier query-specific QA, retained for the failure/retry and existing-project history checks. The implementation now imports all supported sources through one operation; see docs/usage-analytics/history-backfill.md in the PR for the source inventory and limitations.
