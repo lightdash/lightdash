@@ -110,7 +110,7 @@ describe('query history backfill scheduling', () => {
     afterEach(() => vi.restoreAllMocks());
 
     const clientWithJob = (job?: Record<string, unknown>) => {
-        const client = makeClient(false, vi.fn());
+        const client = makeClient(false);
         const query = vi.fn().mockResolvedValue({ rows: job ? [job] : [] });
         client.graphileUtils = Promise.resolve({
             addJob: graphileAddJob,
