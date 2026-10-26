@@ -407,9 +407,13 @@ describe('FilterPills', () => {
             });
             expect(picked.className).toContain('pickedPill');
             expect(picked.className).not.toContain('selectedPill');
-            expect(
-                screen.getByRole('button', { name: /^Region/, pressed: false }),
-            ).toBeInTheDocument();
+            // A check in place of the field icon
+            expect(picked.querySelector('.tabler-icon-check')).not.toBeNull();
+            const unpicked = screen.getByRole('button', {
+                name: /^Region/,
+                pressed: false,
+            });
+            expect(unpicked.querySelector('.tabler-icon-check')).toBeNull();
         });
 
         it('says how to select in the pill tooltip', async () => {

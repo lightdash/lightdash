@@ -172,17 +172,13 @@ describe('ControlsBar', () => {
         );
     });
 
-    it('renders Add, the pills and the Required button in edit mode', () => {
+    it('renders the sectioned bar in edit mode with no sections yet, so its caret can add the first', () => {
         renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
-        expect(
+        expect(screen.getByTestId('sectioned-filters')).toContainElement(
             screen.getByRole('button', { name: 'Required' }),
-        ).toBeInTheDocument();
-        expect(screen.getByTestId('filter-pills')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Add filter' }),
-        ).not.toBeInTheDocument();
+        );
+        expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', {
                 name: 'Toggle date zoom visibility for viewers',
@@ -193,12 +189,11 @@ describe('ControlsBar', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('keeps Add, the pills and Required on the bar while a filter is edited, Required inert', () => {
+    it('keeps the bar and Required while a filter is edited, Required inert', () => {
         mockSidebar.current = { isSidebarOpen: true };
         renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
-        expect(screen.getByTestId('filter-pills')).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
+        expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: 'Required' }).closest('[inert]'),
         ).not.toBeNull();
@@ -213,7 +208,7 @@ describe('ControlsBar', () => {
         // No attribute values here: the walkthrough scanner reads them as steps
         expect(
             container.querySelector('[data-tour-scope][data-tour-look]'),
-        ).toContainElement(screen.getByTestId('filter-pills'));
+        ).toContainElement(screen.getByTestId('sectioned-filters'));
     });
 
     it('leaves the shipped bar as it is when it is given no filter area', () => {

@@ -1,4 +1,11 @@
-import { ActionIcon, Divider, Group, Paper, Text } from '@mantine/core';
+import {
+    ActionIcon,
+    Divider,
+    Group,
+    Paper,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { createPortal } from 'react-dom';
@@ -32,22 +39,22 @@ export const SelectionBar: FC<Props> = ({ onClear, ...actions }) => {
                     <Text fz="sm" fw={600} className={classes.count}>
                         {actions.count} selected
                     </Text>
-                    <Text fz="xs" c="dimmed">
+                    <Text fz="sm" c="dimmed">
                         Shift click for a range
                     </Text>
                 </Group>
                 <Divider orientation="vertical" />
                 <Group gap="xs" wrap="nowrap">
-                    <SelectionActions {...actions} menuPosition="top" />
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        size="sm"
-                        aria-label="Clear selection"
-                        onClick={onClear}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
+                    <SelectionActions {...actions} />
+                    <Tooltip label="Clear selection">
+                        <ActionIcon
+                            size="sm"
+                            aria-label="Clear selection"
+                            onClick={onClear}
+                        >
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    </Tooltip>
                 </Group>
             </Group>
         </Paper>,

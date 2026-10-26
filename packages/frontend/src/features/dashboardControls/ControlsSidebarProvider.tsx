@@ -98,6 +98,19 @@ const findPill = (filterId: string): HTMLElement | null =>
         (element) => element.getAttribute(PILL_ATTRIBUTE) === filterId,
     ) ?? null;
 
+// A pending pill whose rule is gone is no question any more
+const getPendingId = ({
+    pendingFilterId,
+    dashboardFilters,
+}: {
+    pendingFilterId: string | null;
+    dashboardFilters: DashboardFilters;
+}): string | null =>
+    pendingFilterId !== null &&
+    findFilterRule(dashboardFilters, pendingFilterId) !== null
+        ? pendingFilterId
+        : null;
+
 const focusApply = () =>
     document.querySelector<HTMLElement>(APPLY_SELECTOR)?.focus();
 
@@ -1145,7 +1158,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     // open the filter that was clicked
     const resolvePending = useCallback(
         (isApply: boolean) => {
-            const next = latest.current.pendingFilterId;
+            const next = getPendingId(latest.current);
             if (next === null) return;
             if (isApply) close();
             else discard();
@@ -1156,7 +1169,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
 
     // Escape: a pending question is withdrawn, else the edit is cancelled
     const dismiss = useCallback(() => {
-        if (latest.current.pendingFilterId === null) {
+        if (getPendingId(latest.current) === null) {
             discard();
             return;
         }
@@ -1167,13 +1180,10 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     // Derived, not reset: a rule that left the dashboard filters closes the
     // sidebar, and the next open or Add starts over
     const isSidebarOpen = state !== null && editingRule !== null;
-    const pendingRule = useMemo(
-        () =>
-            pendingFilterId === null
-                ? null
-                : findFilterRule(dashboardFilters, pendingFilterId),
-        [pendingFilterId, dashboardFilters],
-    );
+    const pendingRule = useMemo(() => {
+        const id = getPendingId({ pendingFilterId, dashboardFilters });
+        return id === null ? null : findFilterRule(dashboardFilters, id);
+    }, [pendingFilterId, dashboardFilters]);
 
     // Derived: only while Undo can still take it back
     const fieldUndo = useMemo(

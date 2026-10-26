@@ -33,7 +33,8 @@ export const ControlsBar: FC<Props> = (props) => {
             // The rail is on the page: a drawer over it would hide it
             isCompactDrawerSuppressed={isSidebarOpen}
             filterArea={
-                hasSections ? (
+                // An editor's bar is always sectioned: its caret adds the first section
+                hasSections || props.isEditMode ? (
                     <SectionedFilters activeTabUuid={props.activeTabUuid}>
                         {requirements}
                     </SectionedFilters>

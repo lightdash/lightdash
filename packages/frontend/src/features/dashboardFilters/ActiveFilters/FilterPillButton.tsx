@@ -17,6 +17,7 @@ import {
     useMemo,
     type ComponentPropsWithoutRef,
     type MouseEvent,
+    type ReactNode,
 } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -48,7 +49,9 @@ type Props = Omit<
     removeLabel?: string;
     isTablesTooltipDisabled: boolean;
     triggerClassName?: string;
-    onClick: () => void;
+    /** Shown in place of the field icon (default: the field's icon). */
+    fieldIconOverride?: ReactNode;
+    onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 };
 
 // The pill of a dashboard filter on the filter bar
@@ -68,6 +71,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
             removeLabel,
             isTablesTooltipDisabled,
             triggerClassName,
+            fieldIconOverride,
             className,
             onClick,
             ...others
@@ -136,7 +140,10 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                 }${className ? ` ${className}` : ''}`}
                 pr={truncatedValuesDisplay.hasMore ? 6 : undefined}
                 leftSection={
-                    (isDraggable || showRequirementIcon || field) && (
+                    (isDraggable ||
+                        showRequirementIcon ||
+                        field ||
+                        fieldIconOverride) && (
                         <Group gap={4} wrap="nowrap">
                             {isDraggable && (
                                 <MantineIcon
@@ -163,14 +170,15 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                                     />
                                 </Tooltip>
                             )}
-                            {field && (
-                                <FieldIcon
-                                    item={field}
-                                    size="sm"
-                                    color={statusColor}
-                                    className={classes.statusIcon}
-                                />
-                            )}
+                            {fieldIconOverride ??
+                                (field && (
+                                    <FieldIcon
+                                        item={field}
+                                        size="sm"
+                                        color={statusColor}
+                                        className={classes.statusIcon}
+                                    />
+                                ))}
                         </Group>
                     )
                 }

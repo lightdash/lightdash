@@ -1,53 +1,7 @@
-import { ActionIcon, Checkbox, Menu, TextInput } from '@mantine/core';
+import { ActionIcon, Checkbox, Menu, Tooltip } from '@mantine/core';
 import { IconDots, IconTrash } from '@tabler/icons-react';
-import { useRef, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-
-type NameInputProps = {
-    name: string;
-    onCommit: (name: string) => void;
-    onCancel: () => void;
-    classNames: { root: string; input: string };
-};
-
-// Enter or blur with a name commits; Escape or an empty name cancels
-export const SectionNameInput: FC<NameInputProps> = ({
-    name,
-    onCommit,
-    onCancel,
-    classNames,
-}) => {
-    const isDone = useRef(false);
-    const finish = (value: string) => {
-        if (isDone.current) return;
-        isDone.current = true;
-        const trimmed = value.trim();
-        if (trimmed === '') onCancel();
-        else onCommit(trimmed);
-    };
-    return (
-        <TextInput
-            aria-label="Section name"
-            placeholder="Section name"
-            size="xs"
-            className={classNames.root}
-            classNames={{ input: classNames.input }}
-            defaultValue={name}
-            autoFocus
-            data-own-escape
-            onBlur={(event) => finish(event.currentTarget.value)}
-            onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    finish(event.currentTarget.value);
-                } else if (event.key === 'Escape') {
-                    event.preventDefault();
-                    finish('');
-                }
-            }}
-        />
-    );
-};
 
 type MenuProps = {
     /** The "..." button's accessible name. */
@@ -77,15 +31,16 @@ export const SectionMenu: FC<MenuProps> = ({
             onClose={() => setIsRemoveArmed(false)}
         >
             <Menu.Target>
-                <ActionIcon variant="subtle" size="sm" aria-label={label}>
-                    <MantineIcon icon={IconDots} size={14} />
-                </ActionIcon>
+                <Tooltip label={label}>
+                    <ActionIcon size="sm" radius="xl" aria-label={label}>
+                        <MantineIcon icon={IconDots} size={14} />
+                    </ActionIcon>
+                </Tooltip>
             </Menu.Target>
             <Menu.Dropdown>
                 {/* A checkbox item, as the date zoom menu: the item and the
                     box both toggle, the menu stays so the change shows */}
                 <Menu.Item
-                    fz="xs"
                     closeMenuOnClick={false}
                     leftSection={
                         <Checkbox
@@ -101,7 +56,6 @@ export const SectionMenu: FC<MenuProps> = ({
                 </Menu.Item>
                 <Menu.Divider />
                 <Menu.Item
-                    fz="xs"
                     color="red"
                     leftSection={<MantineIcon icon={IconTrash} size={14} />}
                     closeMenuOnClick={isRemoveArmed}

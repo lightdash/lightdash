@@ -55,6 +55,8 @@ behaviour. All but the first are in `features/dashboardFilters/`.
 - `dashboardTabs/Tab.tsx` and the embed's tabs in `EmbedDashboard.tsx`: the
   inline `maw` reads `--dashboard-tab-max-width` first, falling back to
   today's share of the viewport. Nothing sets it outside the tab counts.
+- `AddFilterButton`: `attachedSlot` (default none), rendered in edit mode
+  between the trigger and the eye, so the caret joins the shipped group.
 - `DashboardFiltersBar`: `filterArea`, which replaces the shipped filters and
   the requirements button (default: both, as today), and
   `isCompactDrawerSuppressed` (default false): on a narrow screen the bar is
@@ -68,7 +70,9 @@ behaviour. All but the first are in `features/dashboardFilters/`.
   shipped pill's trigger button, moved out of `Filter.tsx`: field icon and
   lock tinted by status, requirement icon, lock action, read-only lock and
   X, each passed or left out by the caller. `removeLabel` (default none)
-  names the X and gives it a tooltip.
+  names the X and gives it a tooltip, `fieldIconOverride` (default none:
+  the field's icon) is shown in place of the field icon, and `onClick`
+  receives the click event (callers that ignore it are unchanged).
 - `FilterRequirements/RequiredFilterCard`: `onChangeOtherFilterRule`
   (default: the other filter is written to the dashboard filters, and this
   one too), `disabledReason` (default none: the switch is enabled) and
@@ -129,26 +133,36 @@ In `FilterConfiguration/`:
   and the editor only opens in edit mode.
 - `ControlsBar` is the shipped `DashboardFiltersBar` with its openings,
   `filterArea`: the slot that replaces `DashboardFilters` and the
-  requirements button. In edit mode it holds `AddControl`, `FilterPills` and
-  the shipped requirements button; in view mode `AddControl` and
-  `FilterPills` only, as the shipped view bar has no requirements button, or
-  `SectionedFilters` once the dashboard has sections (see "Sections"). The
+  requirements button. In edit mode it is always `SectionedFilters` (sections
+  or not, so the caret can add the first one) followed by the shipped
+  requirements button; in view mode `AddControl` and `FilterPills` only, as
+  the shipped view bar has no requirements button, or `SectionedFilters`
+  once the dashboard has sections (see "Sections"). The
   bar is the list of filters: it stays on screen while a filter is edited,
   and `isCompactDrawerSuppressed` is set then, so a narrow screen shows it in
   place rather than behind its drawer. Separators, parameters, date zoom,
   the hide button and the `data-tour-*` anchors are the shipped bar's own.
 - While a filter is edited (`isSidebarOpen`) the bar's controls that would
   start something else are inert: `InertWhileEditing` (in `AddControl.tsx`,
-  a `display: contents` box carrying `inert`, `.inert` dimming its buttons)
-  wraps "Add filter", the requirements button and, on the sectioned bar,
-  "Add section"; each capsule's name, + and menu carry `inert` themselves.
+  a `display: contents` box carrying `inert`; `.inert` in
+  `FilterPills.module.css` is the one dimming rule, shared with the capsule
+  actions and the header guard)
+  wraps the "Add filter" group (caret and eye included) and the
+  requirements button; each capsule's name, + and menu carry `inert`
+  themselves.
   Dragging and the multi-select are off. The pills stay live (see
   "Switching filters" under the provider contract), and so does a capsule's
   fold.
 - `AddControl` is the shipped `AddFilterButton`: the dashed button with its
   disabled and loading states, no icon, always "Add filter" (`openNew`). On
   an editor's bar it carries the shipped eye ("Toggle filter visibility for
-  viewers"), which writes `setIsAddFilterDisabled` as shipped. On a viewer's
+  viewers"), which writes `setIsAddFilterDisabled` as shipped. Given
+  `onAddSection` (the sectioned bar passes it, for an editor only) it joins
+  a caret between the two through `attachedSlot`: a `Divider`, then an `xs`
+  `default` `Button` with a chevron ("More ways to add",
+  `data-controls-add-more`, radius 0, `.addMore` dashed with no side borders,
+  the dividers drawing them) opening a `Menu` with one item, "Add section".
+  On a viewer's
   bar it is the shipped view-mode button, with the reset-all button attached
   once filters changed (`resetDashboardFilters`), and nothing but that reset
   while "Add filter" is hidden from viewers. It is never given a popover id
@@ -167,9 +181,12 @@ In `FilterConfiguration/`:
   (`dashboard.filters`, through `isFilterRuleDirty` over
   `withoutDefaultTileTargets`, the provider's own reading of "changed",
   `sectionId` included, so a move between sections shows) carries a
-  `.changedDot`: a 7px `yellow-filled` dot on its top right corner,
-  `role="img"` named "Changed". A pill that is not saved yet has one. The
-  dots say what Save will keep; see "Sections" for the capsule's.
+  `ChangedDot` (`ChangedDot.tsx`, one `.changedDot` rule in
+  `FilterPills.module.css`): a `blue-filled` dot the size of the `xs`
+  spacing, `role="img"` named "Changed", on the pill's top right corner
+  (`isCorner`). Blue, never yellow: it is state, not a warning. A pill that
+  is not saved yet has one. The dots say what Save will keep; see
+  "Sections" for the capsule's.
 - One saved rule is one `FilterPill` (memoised; pass it primitives, the rule
   and the field). Its button is the shipped `FilterPillButton`; the feature
   passes only the click, `aria-pressed`, `disabled`, the selected and draft
@@ -320,8 +337,10 @@ In `FilterConfiguration/`:
     `close()` and the other filter opens.
   - Another pill with unapplied changes: the edit stays and the provider
     keeps the clicked id (`pendingFilterId`, through `latest` and
-    `writePending`), exposed as `pendingRule` (derived from the filters,
-    so a pill removed meanwhile ends the question); focus goes to Apply.
+    `writePending`), exposed as `pendingRule`. A pending id whose rule is
+    gone counts as none everywhere (`getPendingId`: `pendingRule`,
+    `resolvePending` and Escape), derived, never reset in an effect; focus
+    goes to Apply.
     `resolvePending(isApply)` applies (`close()`) or discards (`discard()`)
     the edit, then opens the pending filter. Escape withdraws the question
     (see "Dismissing"); any open, reset or new filter drops it.
@@ -481,8 +500,11 @@ In `FilterConfiguration/`:
   default `Badge`: "Edited", or "New" for a new filter
   (`filters.rail.editedBadge` / `newBadge`). No count, menu or X: removing
   is the pill's X and discarding is Cancel.
+- The rail is a `role="region"` named by the header's name
+  (`aria-labelledby`, the id from `ControlSidebar`).
 - Body (`.body` scrolls; `.content` is a padded `Stack`): for an editor the
-  label input ("Filter label", placeholder the field's name), except on a
+  label input (`TextInput size="xs"` labelled "Name", as the shipped popover
+  labels its inputs; placeholder the field's name), except on a
   new filter with no field yet; then a placeholder's field search
   (`FieldsAndTiles`), or `FilterSettings`: the value, a viewer's "Added by
   you" note, the editor's Section select, then the "Tiles" and "Rules"
@@ -1037,7 +1059,7 @@ the language map, as tab names are.
 - State: `controlSections` and `haveControlSectionsChanged` in the store's
   `edit` slice (`syncControlSections` seeds from the saved config unless
   edits are staged, from `DashboardProvider` and the page's Cancel; `add`,
-  `rename`, `remove` and `setControlSectionCollapsed`
+  `rename`, `remove`, `moveControlSection` and `setControlSectionCollapsed`
   mark the change; every reducer spreads the section, so `collapsed`
   survives a rename, and the language map's `mergeExisting` overlays only
   `name`). The bar dispatches them with `useDashboardDispatch`;
@@ -1092,35 +1114,51 @@ the language map, as tab names are.
   `SectionedFilters` owns the popover state so one saved popover is open
   across the whole bar, and a lone `FilterPills` keeps its own.
 - The capsule's controls, edit mode only (`actions` on `SectionCapsule`,
-  null for a viewer, whose capsule is unchanged): the head is the chevron
-  (an `ActionIcon` named by `filters.rail.collapseSection` /
-  `expandSection`, `aria-expanded`, the fold summary's `aria-describedby`;
-  it only folds) and the name, its own button (`.name`), which turns into
-  `SectionNameInput` in place (`.nameInput` / `.nameInputField`, 28px, `sm`
-  600): Enter or blur with a name dispatches `renameControlSection` (an
-  unchanged name writes nothing); Escape or an empty name keeps the old one.
+  null for a viewer, whose capsule is unchanged): the head (`.head`) is the
+  chevron (an `ActionIcon` `size="md"`, the viewer toggle's height, named
+  by `filters.rail.collapseSection` / `expandSection` with the same
+  tooltip, `aria-expanded`, the fold summary's `aria-describedby`; it only
+  folds) and the name, a `Button size="xs"` subtle at `sm` 600 (`.name`
+  only sets the text cursor), which turns into `SectionNameInput`
+  (`SectionNameInput.tsx`, `TextInput size="xs"`, `.nameInputField` sets
+  the weight) in place: Enter or blur with a name dispatches
+  `renameControlSection` (an unchanged name writes nothing); Escape or an
+  empty name keeps the old one. Alt with Left or Right on the name moves
+  the section one place (`moveControlSection` with the neighbour's id).
+  A pointer drags the capsule by its head (`useDraggable` with the
+  section id and `data.kind` `section`; only `onPointerDown` from its
+  listeners, so the keys stay the chevron's and the name's): the capsule
+  fades (`data-dragging`), another capsule under it carries
+  `data-section-drop` `before` or `after` (by bar order) and draws a 2px
+  `blue-4` line in the bar's gap on that side, and the drop dispatches
+  `moveControlSection`. A section drag only meets capsules
+  (`underPointerFor` filters the droppables by `data.kind`), so pills
+  draw no line for it.
   At the capsule's end, always shown and inside the outline (`.actions`;
   `data-editable` drops the collapsed capsule's 10px right padding), two
-  `sm` subtle icons: `+` "Add filter to {name}" (`openNew(section.id)`) and
-  `SectionMenu` named "{name} menu" ("Collapsed by default" and the
+  `sm` `xl`-radius icons, each with a tooltip of its name: `+` "Add filter
+  to {name}" (`openNew(section.id)`) and `SectionMenu` named "{name} menu"
+  ("Collapsed by default" and the
   two-click "Remove section · N filters": the box is
   `isCollapsedByDefault`, a toggle saves the opposite; remove dispatches
   `removeControlSection` and, with members, one `setDashboardFilters` over
-  `removeSectionFromRules` plus `setHaveFiltersChanged(true)`). After the
-  last capsule, `AddSection`: a dashed `xs` "Add section" button
-  (`.addSection`) that becomes a capsule holding a focused, empty
-  `SectionNameInput` ("Section name"); Enter or blur with a name dispatches
-  `addControlSection` (a new uuid, appended last), Escape or an empty name
-  drops it. Focus returns to the name button, or "Add section", when the
-  input unmounts with focus (`useRefocusAfter`: only when focus fell to
-  `body`, so a blur by click keeps where it went). `SectionMenu` and
-  `SectionNameInput` live in `SectionMenu.tsx`. While a filter is edited
-  the name and the `.actions` group carry `inert` (the group dimmed) and
-  "Add section" is inside `InertWhileEditing`; the chevron still folds.
+  `removeSectionFromRules` plus `setHaveFiltersChanged(true)`; focus then
+  goes to the caret by "Add filter"). "Add
+  section" in the caret's menu by "Add filter" puts `NewSection` after the
+  last capsule: a capsule holding a focused, empty `SectionNameInput`
+  ("Section name"); Enter or blur with a name dispatches `addControlSection`
+  (a new uuid, appended last), Escape or an empty name drops it. There is no
+  standalone "Add section" button. Focus returns to the name button after a
+  rename (`useRefocusAfter`), and to the caret (`[data-controls-add-more]`)
+  once `NewSection` unmounts, both only when focus fell to `body`, so a blur
+  by click keeps where it went. While a filter is edited the name and the
+  `.actions` group carry `inert` (the group dimmed by the shared `.inert`
+  rule) and the caret is inert with "Add filter"; the chevron still folds.
   A capsule whose section differs from the saved dashboard
   (`dashboard.config.controlSections`: not there, another name, or another
-  `collapsed`) shows a `.changedDot` after its name, as a pill does
-  (`role="img"`, "Changed"); membership shows on the pills. The strings
+  way to start, read through `isCollapsedByDefault` so no key and its
+  default agree) shows a `ChangedDot` after its name; membership shows on
+  the pills. The strings
   are editor-only and literal.
 - The sectioned bar's drag, edit mode only (a viewer's bar has none): one
   `DndContext` in `SectionedFilters` over every pass. A `FilterPills` pass with a `sectionId` (`null` or a string)
@@ -1129,8 +1167,8 @@ the language map, as tab names are.
   0.3 and nothing moves; `disabled` while a filter is edited) inside the shipped `DroppableArea`, whose
   indicator is a 2px `blue-4` line (`.dropLine`, `DndHelpers.module.css`)
   in the middle of the bar's 8px gap on the side the pill would land; only
-  the flat bar (`sectionId` undefined) keeps the shipped per-group contexts
-  and `DraggableItem`. Sensors are
+  the flat bar (`sectionId` undefined, now a viewer's only) keeps the
+  shipped per-group contexts and `DraggableItem`. Sensors are
   `PointerSensor` at 5px and `KeyboardSensor` with
   `sortableKeyboardCoordinates`; the target is what is under the pointer
   (`pointerWithin`, falling back to `closestCenter` for the keyboard). The
@@ -1156,34 +1194,42 @@ the language map, as tab names are.
   announcements come from `getDragAnnouncements` with a `nameOf` of its
   own.
 - The sectioned bar's selection, edit mode only (a viewer's bar and the flat
-  bar have none): `SectionedFilters` holds `selectedIds` and the pill picked
-  last, and hands them to the pills through `BarSelectionContext`
-  (`barSelection.ts`, null elsewhere). A `FilterPill` that reads a
-  selection catches its click in capture (`onClickCapture` on its box, only
-  for a click on the pill button itself, never its X or lock): Cmd or Ctrl
+  bar have none): `SectionedFilters` holds the picked ids and the pill
+  picked last (`picked`, one state), and hands them to the pills through
+  `BarSelectionContext` (`barSelection.ts`, null elsewhere); the bar order
+  a range reads is a ref synced after render, so the selection value does
+  not change with it. A `FilterPill` that reads a selection handles it in
+  the button's own click (the X and lock stop their clicks): Cmd or Ctrl
   toggles it, Shift selects from the pill picked last to this one in bar
   order (each open capsule's visible pills in section order, then the
   unsectioned ones; a folded capsule's are left out; `rangeBetween`), and
   none of them opens the editor; a plain click clears the selection and
   opens the filter as before. A picked pill has `aria-pressed` and
-  `.pickedPill` (`blue-light` fill, `blue-5` border), apart from the edited
-  `.selectedPill`. On that bar the pill's own tooltip (the orphaned one's)
+  `.pickedPill`: solid `blue-filled` with white text (`--mantine-color-dimmed`
+  is white at 75% inside it) and a check (`fieldIconOverride`, an opening
+  on `FilterPillButton`) in place of the field icon, apart from the edited
+  `.selectedPill`'s ring and a hover. On that bar the pill's own tooltip (the orphaned one's)
   reads "Click to edit · ⌘ click to select" ("Ctrl click" off mac,
   `useOs`) after 500ms, and the tables tooltip on the name is off so only
   one shows. Escape clears it through a document capture listener mounted
   while something is picked, which yields to `[data-own-escape]` and an open
-  layer (`hasOpenLayer`, shared with `useEditorDismiss`). A plain click
-  clears the selection before it opens the filter, and while a filter is
-  edited no pill picks (`isSelectable` is off), so a selection never lives
-  alongside an edit. While something is
-  picked, `SelectionBar` floats where the field bar does (`useBarHost.ts`, moved out of `FieldTilesBar`, and
-  the `.bar` surface from `FieldTilesBar`): "{n} selected", a dimmed "Shift
-  click for a range", then `SelectionActions` ("Move to": "New section"
-  first, then each section with a dimmed "· n" member count, then "No
-  section" under a divider; and the two-click "Remove", "Click again to
-  remove n filters"), and an X ("Clear selection"). Moves go through `moveRulesToSection` in display order, one
+  layer (`hasOpenLayer`, shared with `useEditorDismiss`). A selection never
+  lives alongside an edit: `SectionedFilters` empties it in render as
+  `isSidebarOpen` turns on, however the edit started (a pill, Add filter, a
+  capsule's +, anything calling `open` or `openNew`), the `SelectionBar` is
+  not rendered while a filter is edited, and no pill picks then
+  (`isSelectable` is off), so one Escape does one thing. While something is
+  picked and nothing is edited, `SelectionBar` floats where the field bar does (`useBarHost.ts`, moved out of `FieldTilesBar`, and
+  the `.bar` surface from `FieldTilesBar`): "{n} selected", a dimmed `sm`
+  "Shift click for a range", then `SelectionActions` ("Move to": "New
+  section" first, then each section with a dimmed "· n" member count, then
+  "No section" under a divider; and "Remove", an `xs` subtle red `Button`
+  like "Move to", whose first click arms it to read "Remove n filters" and
+  whose second removes; Escape, blur or the pointer leaving disarm it), and
+  an X with its tooltip ("Clear selection"). Focus after: the first moved
+  pill after a move (else "Add filter"), "Add filter" after Remove. Moves go through `moveRulesToSection` in display order, one
   write plus `setHaveFiltersChanged(true)`; "New section" opens the bar's
-  `AddSection` name input (its state is lifted into `SectionedFilters` as
+  `NewSection` name input (its state is lifted into `SectionedFilters` as
   `naming`, with the ids to move): a committed name adds the section and
   moves them in, a cancelled one moves nothing and keeps the selection.
   Remove is one write over `removeFilterRule`. Every finished action clears

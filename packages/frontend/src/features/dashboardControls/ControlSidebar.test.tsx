@@ -282,6 +282,17 @@ describe('ControlSidebar', () => {
         ).toBeNull();
     });
 
+    it('is a region named by the filter it edits', () => {
+        setSidebar({ editingRule: makeRule({ label: 'Order status' }) });
+        renderWithProviders(<ControlSidebar />);
+        expect(
+            screen.getByRole('region', { name: 'Order status' }),
+        ).toHaveAttribute('data-controls-editor');
+        expect(screen.getByRole('textbox', { name: 'Name' })).toHaveValue(
+            'Order status',
+        );
+    });
+
     it('badges a changed filter Edited, and a new one with a field New', () => {
         setSidebar({ isNew: false, isDirty: true });
         const { container, rerender } = renderWithProviders(<ControlSidebar />);
@@ -328,7 +339,7 @@ describe('ControlSidebar', () => {
         const { container, rerender } = renderWithProviders(<ControlSidebar />);
 
         expect(screen.getByText('New filter')).toBeInTheDocument();
-        expect(screen.queryByLabelText('Filter label')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('Name')).not.toBeInTheDocument();
         expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
         expect(screen.queryByTestId('filter-settings')).not.toBeInTheDocument();
         // No field yet: no type to show
@@ -355,7 +366,7 @@ describe('ControlSidebar', () => {
         renderWithProviders(<ControlSidebar />);
 
         expect(screen.queryByText('New filter')).not.toBeInTheDocument();
-        const label = screen.getByLabelText('Filter label');
+        const label = screen.getByLabelText('Name');
         expect(label).toHaveValue('Order status');
         expect(label).toHaveAttribute('placeholder', 'Status');
         expect(button('Apply')).toBeDisabled();
@@ -471,7 +482,7 @@ describe('ControlSidebar', () => {
         setSidebar({});
         renderWithProviders(<ControlSidebar />);
 
-        const input = screen.getByLabelText('Filter label');
+        const input = screen.getByLabelText('Name');
         expect(input).toHaveValue('');
         expect(input).toHaveAttribute('placeholder', 'Status');
         expect(screen.getByTestId('filter-settings')).toHaveTextContent(
@@ -487,7 +498,7 @@ describe('ControlSidebar', () => {
         });
         renderWithProviders(<ControlSidebar />);
 
-        expect(screen.getByLabelText('Filter label')).toHaveAttribute(
+        expect(screen.getByLabelText('Name')).toHaveAttribute(
             'placeholder',
             'Filter name',
         );
@@ -517,7 +528,7 @@ describe('ControlSidebar', () => {
             setSidebar({ editingRule: metricRule });
             renderWithProviders(<ControlSidebar />);
 
-            expect(screen.getByLabelText('Filter label')).toHaveAttribute(
+            expect(screen.getByLabelText('Name')).toHaveAttribute(
                 'placeholder',
                 'Revenue',
             );
@@ -542,7 +553,7 @@ describe('ControlSidebar', () => {
         });
         renderWithProviders(<ControlSidebar />);
 
-        expect(screen.getByLabelText('Filter label')).toHaveAttribute(
+        expect(screen.getByLabelText('Name')).toHaveAttribute(
             'placeholder',
             'country',
         );
@@ -555,7 +566,7 @@ describe('ControlSidebar', () => {
         setSidebar({});
         renderWithProviders(<ControlSidebar />);
 
-        expect(screen.getByLabelText('Filter label')).toHaveFocus();
+        expect(screen.getByLabelText('Name')).toHaveFocus();
     });
 
     it('moves focus to the field search when a new filter opens', async () => {
@@ -575,7 +586,7 @@ describe('ControlSidebar', () => {
         const { close } = setSidebar({});
         renderWithProviders(<ControlSidebar />);
 
-        fireEvent.keyDown(screen.getByLabelText('Filter label'), {
+        fireEvent.keyDown(screen.getByLabelText('Name'), {
             key: 'Enter',
         });
         expect(close).not.toHaveBeenCalled();
@@ -586,7 +597,7 @@ describe('ControlSidebar', () => {
             vi.useRealTimers();
         });
 
-        const labelInput = () => screen.getByLabelText('Filter label');
+        const labelInput = () => screen.getByLabelText('Name');
         const typeLabel = (value: string) =>
             fireEvent.change(labelInput(), { target: { value } });
 
@@ -833,7 +844,7 @@ describe('ControlSidebar', () => {
                 filters([own]),
             );
             expect(
-                screen.queryByRole('textbox', { name: 'Filter label' }),
+                screen.queryByRole('textbox', { name: 'Name' }),
             ).not.toBeInTheDocument();
             fireEvent.click(button('Apply'));
             expect(close).toHaveBeenCalledTimes(1);

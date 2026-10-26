@@ -1,6 +1,7 @@
 import { type ComponentProps, type FC } from 'react';
 import DashboardHeader from '../../components/common/Dashboard/DashboardHeader';
 import classes from './DashboardHeaderGuard.module.css';
+import pillClasses from './FilterPills.module.css';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
 type Props = ComponentProps<typeof DashboardHeader>;
@@ -13,7 +14,11 @@ export const DashboardHeaderGuard: FC<Props> = (props) => {
         (c) => c.isSidebarOpen && !c.isViewer,
     );
     return (
-        <div className={classes.guard} inert={isLocked || undefined}>
+        <div
+            // The shared dimming of what is inert while a filter is edited
+            className={`${classes.guard} ${pillClasses.inert}`}
+            inert={isLocked || undefined}
+        >
             <DashboardHeader {...props} />
         </div>
     );

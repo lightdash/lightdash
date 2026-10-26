@@ -3,12 +3,6 @@
     display: contents;
 }
 
-/* Dim the locked controls, not the header: it is sticky and has to stay
-   opaque */
-.guard[inert] :is(button, a) {
-    opacity: 0.4;
-}
-
 /* Apply in the rail is the one filled button while a filter is edited:
    Save reads as a default button until then */
 .guard[inert]

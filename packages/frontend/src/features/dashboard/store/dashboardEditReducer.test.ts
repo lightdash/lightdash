@@ -299,7 +299,7 @@ describe('tile selectors', () => {
             ).toBe(sections);
         });
 
-        it('renames and removes a section, marking the change', () => {
+        it('renames, moves and removes a section, marking the change', () => {
             const seeded = reducer(
                 initialDashboardEditState,
                 actions.syncControlSections(sections),
@@ -313,7 +313,18 @@ describe('tile selectors', () => {
                 'Regions',
             ]);
             expect(renamed.haveControlSectionsChanged).toBe(true);
-            const removed = reducer(renamed, actions.removeControlSection('b'));
+            const moved = reducer(
+                renamed,
+                actions.moveControlSection({ id: 'a', overId: 'b' }),
+            );
+            expect(moved.controlSections.map((s) => s.id)).toEqual(['b', 'a']);
+            expect(
+                reducer(
+                    moved,
+                    actions.moveControlSection({ id: 'a', overId: 'missing' }),
+                ),
+            ).toBe(moved);
+            const removed = reducer(moved, actions.removeControlSection('b'));
             expect(removed.controlSections.map((s) => s.id)).toEqual(['a']);
         });
 

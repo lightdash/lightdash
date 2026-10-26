@@ -6,7 +6,11 @@ import { useRailTop } from './useRailTop';
 
 // The rail: a card next to the grid, stuck under the tabs and filter bar. Its
 // content is keyed by the edited filter; the card itself stays
-export const EditorShell: FC<{ children: ReactNode }> = ({ children }) => {
+export const EditorShell: FC<{
+    /** The header's name, which names the rail. */
+    labelId: string;
+    children: ReactNode;
+}> = ({ labelId, children }) => {
     const ref = useRef<HTMLDivElement>(null);
     useRailTop(ref);
     const contractClasses = useRailContractClasses();
@@ -18,6 +22,8 @@ export const EditorShell: FC<{ children: ReactNode }> = ({ children }) => {
                     ? `${contractClasses.rail} ${classes.root}`
                     : classes.root
             }
+            role="region"
+            aria-labelledby={labelId}
             data-controls-editor
         >
             {children}

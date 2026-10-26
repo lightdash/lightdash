@@ -15,7 +15,7 @@ import {
 } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import omit from 'lodash/omit';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useId, useMemo, useState, type FC } from 'react';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -169,11 +169,12 @@ const Footer: FC = () => {
 
 type FilterEditorProps = {
     rule: DashboardFilterRule;
+    labelId: string;
 };
 
 // Mounted with the filter id as key, so the label draft never carries over
 // to another control, and the label takes focus each time
-const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
+const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule, labelId }) => {
     const isNew = useControlsSidebarSelector((c) => c.isNew);
     const emptiedFieldLabel = useControlsSidebarSelector(
         (c) => c.emptiedFieldLabel,
@@ -242,6 +243,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                 {!isPlaceholder && <FilterTypeIcon field={field} />}
                 {/* A viewer's filter has no label input: focus lands here */}
                 <Text
+                    id={labelId}
                     fz="sm"
                     fw={600}
                     flex={1}
@@ -270,7 +272,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                 <Stack gap="xs" className={classes.content}>
                     {!isViewer && !isStarting && (
                         <TextInput
-                            aria-label="Filter label"
+                            label="Name"
                             size="xs"
                             // Left empty, the filter goes by its field's name.
                             // An existing control that lost its last field keeps it
@@ -329,10 +331,11 @@ export const ControlSidebar: FC = () => {
         c.isSidebarOpen ? (c.editing?.filterId ?? null) : null,
     );
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
+    const labelId = useId();
     if (filterId === null || editingRule === null) return null;
     return (
-        <EditorShell>
-            <FilterEditor key={filterId} rule={editingRule} />
+        <EditorShell labelId={labelId}>
+            <FilterEditor key={filterId} rule={editingRule} labelId={labelId} />
         </EditorShell>
     );
 };

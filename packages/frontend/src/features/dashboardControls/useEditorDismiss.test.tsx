@@ -268,6 +268,23 @@ describe('dismissing in the controls editor', () => {
             target.remove();
         });
 
+        it('cancels the edit once the pill that asked is gone', () => {
+            act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
+            fireEvent.click(pill('b'));
+            const setDashboardFilters = mockDashboardContext.current
+                .setDashboardFilters as (value: DashboardFilters) => void;
+            act(() =>
+                setDashboardFilters({
+                    ...initialFilters,
+                    dimensions: [{ ...rule('a'), values: ['9'] }],
+                }),
+            );
+            expect(value().pendingRule).toBeNull();
+
+            escape(apply());
+            expect(value().isSidebarOpen).toBe(false);
+        });
+
         it('is left to a combobox marked open by data-expanded', () => {
             const target = document.createElement('input');
             target.setAttribute('aria-haspopup', 'listbox');

@@ -5,7 +5,9 @@ import {
 } from '@lightdash/common';
 import { Box, Tooltip } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
-import { memo, type FC } from 'react';
+import { IconCheck } from '@tabler/icons-react';
+import { memo, type FC, type MouseEvent } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -16,6 +18,7 @@ import {
 } from '../dashboardFilters/ActiveFilters/filterLock';
 import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
 import { useBarSelection } from './barSelection';
+import { ChangedDot } from './ChangedDot';
 import classes from './FilterPills.module.css';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
@@ -102,6 +105,19 @@ export const FilterPill: FC<Props> = memo(
             setHaveFiltersChanged(true);
         };
 
+        // On an editor's sectioned bar a modified click picks the pill and a
+        // plain one ends the selection before it opens the filter
+        const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+            if (isSelectable) {
+                if (event.metaKey || event.ctrlKey || event.shiftKey) {
+                    selection.pick(filter.id, event.shiftKey);
+                    return;
+                }
+                selection.clear();
+            }
+            open(filter.id);
+        };
+
         return (
             <Tooltip
                 fz="xs"
@@ -114,36 +130,7 @@ export const FilterPill: FC<Props> = memo(
                         : `Click to edit · ${os === 'macos' ? '⌘' : 'Ctrl'} click to select`
                 }
             >
-                <Box
-                    className={classes.pill}
-                    // Capture, so a modified click never reaches the pill's open
-                    onClickCapture={
-                        isSelectable
-                            ? (event) => {
-                                  if (
-                                      !(event.target instanceof Element) ||
-                                      event.target
-                                          .closest('button')
-                                          ?.getAttribute(
-                                              'data-controls-pill',
-                                          ) !== filter.id
-                                  )
-                                      return;
-                                  if (
-                                      event.metaKey ||
-                                      event.ctrlKey ||
-                                      event.shiftKey
-                                  ) {
-                                      event.preventDefault();
-                                      event.stopPropagation();
-                                      selection.pick(filter.id, event.shiftKey);
-                                      return;
-                                  }
-                                  selection.clear();
-                              }
-                            : undefined
-                    }
-                >
+                <Box className={classes.pill}>
                     <FilterPillButton
                         field={field}
                         filterRule={filter}
@@ -179,16 +166,14 @@ export const FilterPill: FC<Props> = memo(
                         ]
                             .filter(Boolean)
                             .join(' ')}
-                        onClick={() => open(filter.id)}
+                        fieldIconOverride={
+                            isPicked ? (
+                                <MantineIcon icon={IconCheck} size="sm" />
+                            ) : undefined
+                        }
+                        onClick={handleClick}
                     />
-                    {isChanged && (
-                        <Box
-                            component="span"
-                            role="img"
-                            aria-label="Changed"
-                            className={classes.changedDot}
-                        />
-                    )}
+                    {isChanged && <ChangedDot isCorner />}
                 </Box>
             </Tooltip>
         );
