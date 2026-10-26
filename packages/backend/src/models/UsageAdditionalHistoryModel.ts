@@ -265,6 +265,22 @@ const activitySources: HistorySource[] = [
             context: 's.task',
         },
     },
+    {
+        table: 'download_audit',
+        id: 'download_uuid',
+        timestamp: 'downloaded_at',
+        fact: 'download_requested',
+        scope: 'organization',
+        fields: {
+            user_id: 's.user_uuid',
+            query_id: 's.query_uuid',
+            file_type: 's.file_type',
+            context: 's.original_query_context',
+            // The audit is written before conversion/URL generation, so it
+            // cannot establish successful delivery or even export completion.
+            current_status: "'requested'",
+        },
+    },
     ...[
         { fact: 'agent_router_decision_recorded', timestamp: 'created_at' },
         { fact: 'agent_router_decision_committed', timestamp: 'committed_at' },

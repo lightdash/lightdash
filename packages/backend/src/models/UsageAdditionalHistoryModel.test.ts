@@ -181,6 +181,7 @@ describe('additional retained Analytics history', () => {
                 'mcp_tool_call',
                 'agent_action_log',
                 'scheduler_log',
+                'download_audit',
                 'ai_router_decision',
                 'ai_eval_run',
                 'ai_eval_run_result',
@@ -382,6 +383,36 @@ describe('additional retained Analytics history', () => {
         expect(result.sql).toContain("'duration_ms', NULL");
         expect(result.sql).toContain("'success', NULL");
         expect(result.sql).not.toContain('agent_steps');
+    });
+
+    it('recovers download audits as requests without inventing success, including records whose project was deleted', async () => {
+        tracker.on.select(() => true).response([]);
+        await activities();
+        const { sql: raw, bindings } = tracker.history.select.find(({ sql }) =>
+            sql.includes('from "download_audit" as "s"'),
+        )!;
+        const sql = normalizeSql(raw);
+        expect(sql).toContain(
+            "'record_id', 'download_requested:' || s.download_uuid::text",
+        );
+        expect(sql).toContain("'activity_type', 'download_requested'");
+        expect(sql).toContain("'event_ts', to_char(s.downloaded_at,");
+        expect(sql).toContain('"s"."downloaded_at" < ?');
+        expect(sql).toContain("'current_status', 'requested'");
+        expect(sql).toContain("'success', NULL");
+        expect(sql).toContain("'query_id', s.query_uuid");
+        expect(sql).toContain("'file_type', s.file_type");
+        expect(sql).toContain("'context', s.original_query_context");
+        expect(sql).toContain(
+            '(s.project_uuid is null or "o"."organization_uuid" = ?)',
+        );
+        expect(sql).toContain('s.organization_uuid = ?');
+        expect(sql).not.toContain('p.project_uuid is not null');
+        expect(sql).not.toMatch(
+            /(?:s\.(?:target|file_name|results)|query_history|\boffset\b)/,
+        );
+        expect(bindings).toContain(before);
+        expect(bindings.filter((value) => value === org)).toHaveLength(2);
     });
 
     it('propagates failures rather than falsely declaring missing data covered', async () => {
