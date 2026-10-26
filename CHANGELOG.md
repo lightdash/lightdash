@@ -1,3 +1,10 @@
+# [3.58.0](https://github.com/lightdash/lightdash/compare/3.57.1...3.58.0) (2026-10-26)
+
+
+### Features
+
+* **data-apps:** org-level default instructions for the AI analysis summary ([#31588](https://github.com/lightdash/lightdash/issues/31588)) ([e940bf2](https://github.com/lightdash/lightdash/commit/e940bf278eb0e9d7f50d3edd5aaa91ab9ce5be44))
+
 ## [3.57.1](https://github.com/lightdash/lightdash/compare/3.57.0...3.57.1) (2026-10-26)
 
 
