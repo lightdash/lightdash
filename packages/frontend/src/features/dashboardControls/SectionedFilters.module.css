@@ -1,12 +1,13 @@
 /* A section on the bar: an outlined, pill-shaped capsule with no fill
-   holding its toggle and, open, its pills with 4px of air around them */
+   holding its toggle and, open, its pills with 4px of air around them (the
+   1px outline plus 3px); wrapped lines keep the bar's 8px row gap */
 .capsule {
     display: inline-flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 8px 6px;
     min-height: 36px;
-    padding: 0 4px;
+    padding: 3px 4px;
     /* The bar aligns its row to the top: centred on the 28px pill line */
     margin-block: -4px;
     border: 1px solid var(--mantine-color-default-border);
