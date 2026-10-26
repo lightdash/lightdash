@@ -15,9 +15,9 @@ import {
     buildBigNumberEditorState,
     selectBigNumberEditor,
     useEditorFieldSetter,
-    useEditorState,
     useVisualizationDispatch,
     type BigNumberEditorState,
+    useVisualizationSelector,
 } from '../features/visualization/store';
 import { type InfiniteQueryResults } from './useQueryResults';
 
@@ -48,9 +48,7 @@ const useBigNumberConfig = (
         comparisonLabel,
         comparisonField,
         conditionalFormattings,
-    } = useEditorState(selectBigNumberEditor, bigNumberEditorActions, () =>
-        buildBigNumberEditorState(bigNumberConfigData),
-    );
+    } = useVisualizationSelector(selectBigNumberEditor);
     const dispatch = useVisualizationDispatch();
     const set = useEditorFieldSetter<BigNumberEditorState>(
         selectBigNumberEditor,

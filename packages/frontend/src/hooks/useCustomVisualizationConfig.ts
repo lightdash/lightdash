@@ -10,8 +10,8 @@ import {
     customEditorActions,
     selectCustomEditor,
     useEditorFieldSetter,
-    useEditorState,
     type CustomEditorState,
+    useVisualizationSelector,
 } from '../features/visualization/store';
 import { type InfiniteQueryResults } from './useQueryResults';
 
@@ -30,11 +30,7 @@ const useCustomVisualizationConfig = (
     chartConfig: CustomVis | undefined,
     resultsData: InfiniteQueryResults | undefined,
 ): CustomVisualizationConfigAndData => {
-    const { visSpec, visSpecObject } = useEditorState(
-        selectCustomEditor,
-        customEditorActions,
-        buildCustomEditorState,
-    );
+    const { visSpec, visSpecObject } = useVisualizationSelector(selectCustomEditor);
     const set = useEditorFieldSetter<CustomEditorState>(
         selectCustomEditor,
         customEditorActions.set,

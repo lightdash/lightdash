@@ -49,9 +49,9 @@ import {
     selectTableEditor,
     tableEditorActions,
     useEditorFieldSetter,
-    useEditorState,
     useVisualizationDispatch,
     type TableEditorState,
+    useVisualizationSelector,
 } from '../../features/visualization/store';
 import {
     useAsyncCalculateGrandTotal,
@@ -98,9 +98,7 @@ const useTableConfig = (
         metricsAsRows,
         rowLimit,
         columnProperties,
-    } = useEditorState(selectTableEditor, tableEditorActions, () =>
-        buildTableEditorState(tableChartConfig),
-    );
+    } = useVisualizationSelector(selectTableEditor);
     const dispatch = useVisualizationDispatch();
     const set = useEditorFieldSetter<TableEditorState>(
         selectTableEditor,

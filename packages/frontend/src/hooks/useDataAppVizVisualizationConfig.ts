@@ -10,8 +10,8 @@ import {
     buildDataAppVizEditorState,
     dataAppVizEditorActions,
     selectDataAppVizEditor,
-    useEditorState,
     useVisualizationStore,
+    useVisualizationSelector,
 } from '../features/visualization/store';
 import {
     readDataAppVizUuid,
@@ -63,11 +63,7 @@ const useDataAppVizVisualizationConfig = (
     initialChartConfig: DataAppVizChart | undefined,
     onConfigChange?: (config: SelectedDataAppViz | null) => void,
 ): DataAppVizVisualizationConfigAndData => {
-    const { config } = useEditorState(
-        selectDataAppVizEditor,
-        dataAppVizEditorActions,
-        () => buildDataAppVizEditorState(initialChartConfig),
-    );
+    const { config } = useVisualizationSelector(selectDataAppVizEditor);
 
     // Read the committed config from the store so setters called within a
     // single commit (debounced controls all flushing as the panel closes)

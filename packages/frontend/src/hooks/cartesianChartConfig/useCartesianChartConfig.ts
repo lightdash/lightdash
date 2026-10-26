@@ -49,9 +49,9 @@ import {
     cartesianEditorActions,
     selectCartesianEditor,
     useEditorFieldSetter,
-    useEditorState,
     useVisualizationDispatch,
     type CartesianEditorState,
+    useVisualizationSelector,
 } from '../../features/visualization/store';
 import type { InfiniteQueryResults } from '../useQueryResults';
 
@@ -112,9 +112,7 @@ const useCartesianChartConfig = ({
         referenceLines,
         tooltip,
         tooltipSort,
-    } = useEditorState(selectCartesianEditor, cartesianEditorActions, () =>
-        buildCartesianEditorState(initialChartConfig),
-    );
+    } = useVisualizationSelector(selectCartesianEditor);
     const dispatch = useVisualizationDispatch();
     const set = useEditorFieldSetter<CartesianEditorState>(
         selectCartesianEditor,

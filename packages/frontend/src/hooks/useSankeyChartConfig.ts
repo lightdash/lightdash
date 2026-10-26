@@ -21,8 +21,8 @@ import {
     sankeyEditorActions,
     selectSankeyEditor,
     useEditorFieldSetter,
-    useEditorState,
     type SankeyEditorState,
+    useVisualizationSelector,
 } from '../features/visualization/store';
 import { type InfiniteQueryResults } from './useQueryResults';
 
@@ -77,9 +77,7 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
         nodeAlign,
         orient,
         nodeLayout,
-    } = useEditorState(selectSankeyEditor, sankeyEditorActions, () =>
-        buildSankeyEditorState(sankeyChartConfig),
-    );
+    } = useVisualizationSelector(selectSankeyEditor);
     const set = useEditorFieldSetter<SankeyEditorState>(
         selectSankeyEditor,
         sankeyEditorActions.set,

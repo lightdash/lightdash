@@ -51,9 +51,12 @@ export type VisualizationStoreState = {
     treemapEditor: TreemapEditorState | null;
 };
 
-// One store per mounted VisualizationProvider
-export const createVisualizationStore = () =>
+// One store per mounted VisualizationProvider and chart type
+export const createVisualizationStore = (
+    preloadedState: VisualizationStoreState,
+) =>
     configureStore({
+        preloadedState,
         reducer: {
             cartesianIntent: cartesianIntentReducer,
             bigNumberEditor: bigNumberEditorReducer,
@@ -74,6 +77,7 @@ export type VisualizationStore = ReturnType<typeof createVisualizationStore>;
 export type VisualizationStoreDispatch = VisualizationStore['dispatch'];
 
 export { VisualizationStoreContext } from './context';
+export { buildInitialVisualizationState } from './buildInitialState';
 export { cartesianIntentActions } from './cartesianIntentSlice';
 export type { CartesianIntentState } from './cartesianIntentSlice';
 export type { EditorFieldUpdate } from './editorSlice';

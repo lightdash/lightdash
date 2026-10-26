@@ -5,13 +5,11 @@ export type EditorFieldUpdate<S> = {
 }[keyof S];
 
 /**
- * Case reducers shared by every chart type's editor slice. The slice is
- * `null` until the chart type's adapter mounts and seeds it from the chart
- * config, and `null` again once the adapter unmounts.
+ * Case reducers shared by every chart type's editor slice. A slice is seeded
+ * by `buildInitialVisualizationState` for the mounted chart type and stays
+ * `null` for the others.
  */
 export const editorCaseReducers = <S extends object>() => ({
-    init: (_state: S | null, action: PayloadAction<S>) => action.payload,
-    clear: () => null,
     set: (state: S | null, action: PayloadAction<EditorFieldUpdate<S>>) => {
         if (!state) return;
         Object.assign(state, { [action.payload.key]: action.payload.value });

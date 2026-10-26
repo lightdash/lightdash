@@ -326,7 +326,7 @@ describe('VisualizationProvider render characterization', () => {
             );
         };
 
-        it('settles after mount and an edit costs extra provider passes', () => {
+        it('settles after mount and an edit costs one render per consumer', () => {
             render(<FeedbackParent initial={cartesianConfig} />);
             const before = renderedCounts();
             const colorIdentitiesBefore = counts.seriesColorIdentities.size;
@@ -339,10 +339,11 @@ describe('VisualizationProvider render characterization', () => {
                 latestParentConfig?.type === ChartType.CARTESIAN &&
                     latestParentConfig.config?.eChartsConfig.xAxis?.[0]?.name,
             ).toBe('Edited');
-            // One edit: the hook's own state render, then the parent's
-            // echoed config render, which also rebuilds the series colours.
-            expect(after.config - before.config).toBe(2);
-            expect(after.loading - before.loading).toBe(2);
+            // One edit: the store update renders each consumer once. The
+            // parent's echoed config no longer rebuilds the state context or
+            // the series colours (it used to cost a second render).
+            expect(after.config - before.config).toBe(1);
+            expect(after.loading - before.loading).toBe(1);
             expect(
                 counts.seriesColorIdentities.size - colorIdentitiesBefore,
             ).toBe(1);

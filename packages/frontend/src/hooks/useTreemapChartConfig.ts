@@ -16,15 +16,16 @@ import {
     repairTreemapSizeMetricId,
     type TreemapNode,
 } from '@lightdash/visualization/editor';
+import isEqual from 'lodash/isEqual';
 import { useEffect, useMemo } from 'react';
 import {
     buildTreemapEditorState,
     selectTreemapEditor,
     treemapEditorActions,
     useEditorFieldSetter,
-    useEditorState,
     useVisualizationDispatch,
     type TreemapEditorState,
+    useVisualizationSelector,
 } from '../features/visualization/store';
 import { useAsyncCalculateSubtotals } from './useAsyncCalculateTotal';
 import { useProjectUuid } from './useProjectUuid';
@@ -119,9 +120,7 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         useDynamicColors,
         startColorThreshold,
         endColorThreshold,
-    } = useEditorState(selectTreemapEditor, treemapEditorActions, () =>
-        buildTreemapEditorState(treemapConfig, validGroupFieldIds),
-    );
+    } = useVisualizationSelector(selectTreemapEditor);
     const dispatch = useVisualizationDispatch();
     const set = useEditorFieldSetter<TreemapEditorState>(
         selectTreemapEditor,
@@ -168,8 +167,9 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
     const isLoading = !resultsData;
 
     useEffect(() => {
+        if (isEqual(validGroupFieldIds, groupFieldIds)) return;
         set('groupFieldIds', validGroupFieldIds);
-    }, [validGroupFieldIds, set]);
+    }, [validGroupFieldIds, groupFieldIds, set]);
 
     useEffect(() => {
         const repairedSizeMetricId = repairTreemapSizeMetricId({

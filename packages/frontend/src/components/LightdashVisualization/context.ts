@@ -53,6 +53,7 @@ export type VisualizationLayout = {
     containerHeight?: number;
 };
 
+// Inputs: results, fields, colours and flags. Stable while a chart is edited.
 export type VisualizationState = {
     minimal: boolean;
     pivotDimensions: string[] | undefined;
@@ -66,11 +67,8 @@ export type VisualizationState = {
     isLoading: boolean;
     columnOrder: string[];
     itemsMap: ItemsMap | undefined;
-    visualizationConfig: VisualizationConfig;
-    getSeriesColor: (seriesLike: SeriesLike) => string;
     getGroupColor: (groupPrefix: string, groupName: string) => string;
     colorPalette: string[];
-    chartConfig: ChartConfig;
     savedChartUuid?: string;
     savedChartReference?: SavedChartReference;
     apiErrorDetail?: ApiErrorDetail | null;
@@ -85,6 +83,14 @@ export type VisualizationState = {
     dateZoom?: DateZoom;
 };
 
+// The editor's current config and what derives from it; changes on every edit.
+export type VisualizationConfigValue = {
+    visualizationConfig: VisualizationConfig;
+    /** The chart config as the editor currently has it */
+    chartConfig: ChartConfig;
+    getSeriesColor: (seriesLike: SeriesLike) => string;
+};
+
 export const ServicesContext = createContext<VisualizationServices | undefined>(
     undefined,
 );
@@ -94,7 +100,11 @@ export const LayoutContext = createContext<VisualizationLayout | undefined>(
 export const StateContext = createContext<VisualizationState | undefined>(
     undefined,
 );
+export const ConfigContext = createContext<
+    VisualizationConfigValue | undefined
+>(undefined);
 
 export type VisualizationContextValue = VisualizationServices &
     VisualizationLayout &
-    VisualizationState;
+    VisualizationState &
+    VisualizationConfigValue;

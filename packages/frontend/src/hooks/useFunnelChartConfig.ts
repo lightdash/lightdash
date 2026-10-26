@@ -22,9 +22,9 @@ import {
     funnelEditorActions,
     selectFunnelEditor,
     useEditorFieldSetter,
-    useEditorState,
     useVisualizationDispatch,
     type FunnelEditorState,
+    useVisualizationSelector,
 } from '../features/visualization/store';
 import { type InfiniteQueryResults } from './useQueryResults';
 
@@ -89,9 +89,7 @@ const useFunnelChartConfig: FunnelChartConfigFn = (
         colorOverrides,
         showLegend,
         legendPosition,
-    } = useEditorState(selectFunnelEditor, funnelEditorActions, () =>
-        buildFunnelEditorState(funnelChartConfig),
-    );
+    } = useVisualizationSelector(selectFunnelEditor);
     const dispatch = useVisualizationDispatch();
     const set = useEditorFieldSetter<FunnelEditorState>(
         selectFunnelEditor,

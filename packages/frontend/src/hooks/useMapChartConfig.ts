@@ -13,9 +13,9 @@ import {
     mapEditorActions,
     selectMapEditor,
     useEditorFieldSetter,
-    useEditorState,
     useVisualizationDispatch,
     type MapEditorState,
+    useVisualizationSelector,
 } from '../features/visualization/store';
 import { DEFAULT_MAP_COLORS } from '../features/visualization/store/mapEditorSlice';
 
@@ -85,9 +85,7 @@ const useMapChartConfig = (
     initialConfig: MapChart | undefined,
     itemsMap: ItemsMap | undefined,
 ): MapChartConfig => {
-    const state = useEditorState(selectMapEditor, mapEditorActions, () =>
-        buildMapEditorState(initialConfig),
-    );
+    const state = useVisualizationSelector(selectMapEditor);
     const { locationType, latitudeFieldId, longitudeFieldId, fieldConfig } =
         state;
     const dispatch = useVisualizationDispatch();

@@ -9,8 +9,8 @@ import {
     gaugeEditorActions,
     selectGaugeEditor,
     useEditorFieldSetter,
-    useEditorState,
     type GaugeEditorState,
+    useVisualizationSelector,
 } from '../features/visualization/store';
 
 /**
@@ -38,9 +38,7 @@ const useGaugeChartConfig = (
         customLabel,
         showPercentage,
         customPercentageLabel,
-    } = useEditorState(selectGaugeEditor, gaugeEditorActions, () =>
-        buildGaugeEditorState(initialChartConfig),
-    );
+    } = useVisualizationSelector(selectGaugeEditor);
     const set = useEditorFieldSetter<GaugeEditorState>(
         selectGaugeEditor,
         gaugeEditorActions.set,

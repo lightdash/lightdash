@@ -30,9 +30,9 @@ import {
     pieEditorActions,
     selectPieEditor,
     useEditorFieldSetter,
-    useEditorState,
     useVisualizationDispatch,
     type PieEditorState,
+    useVisualizationSelector,
 } from '../features/visualization/store';
 import { type InfiniteQueryResults } from './useQueryResults';
 
@@ -129,9 +129,7 @@ const usePieChartConfig: PieChartConfigFn = (
         showLegend,
         legendPosition,
         legendMaxItemLength,
-    } = useEditorState(selectPieEditor, pieEditorActions, () =>
-        buildPieEditorState(pieChartConfig),
-    );
+    } = useVisualizationSelector(selectPieEditor);
     const dispatch = useVisualizationDispatch();
     const set = useEditorFieldSetter<PieEditorState>(
         selectPieEditor,

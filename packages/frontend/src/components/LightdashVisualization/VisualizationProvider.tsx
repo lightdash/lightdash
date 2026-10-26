@@ -32,9 +32,11 @@ import {
 import { Provider } from 'react-redux';
 import { resolveMergeColumnOrder } from '../../features/mergeQuery/utils/resolveMergeColumnOrder';
 import {
+    buildInitialVisualizationState,
     cartesianIntentActions,
     createVisualizationStore,
     VisualizationStoreContext,
+    type VisualizationStore,
 } from '../../features/visualization/store';
 import { useChartColorMappings } from '../../hooks/useChartColorConfig/useChartColorConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
@@ -44,11 +46,13 @@ import { useStableCallback } from '../../hooks/useStableCallback';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import {
+    ConfigContext,
     LayoutContext,
     ServicesContext,
     StateContext,
     type EmbeddedDashboardInteractivity,
     type SavedChartReference,
+    type VisualizationConfigValue,
     type VisualizationLayout,
     type VisualizationServices,
     type VisualizationState,
@@ -108,22 +112,96 @@ export type VisualizationProviderProps = {
     dateZoom?: DateZoom;
 };
 
-type VisualizationStateProviderProps = PropsWithChildren<{
-    state: Omit<VisualizationState, 'visualizationConfig'>;
+// The editor's config is the store's; the provider's `chartConfig` prop only
+// seeds it. Custom and data app viz editors own no chart config of their own,
+// so they keep the prop.
+const editedChartConfig = (
+    visualizationConfig: VisualizationConfig,
+): ChartConfig | null => {
+    switch (visualizationConfig.chartType) {
+        case ChartType.CARTESIAN:
+        case ChartType.PIE:
+        case ChartType.FUNNEL:
+        case ChartType.BIG_NUMBER:
+        case ChartType.TREEMAP:
+        case ChartType.GAUGE:
+        case ChartType.MAP:
+        case ChartType.TABLE:
+        case ChartType.SANKEY:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            } as ChartConfig;
+        case ChartType.CUSTOM:
+        case ChartType.DATA_APP_VIZ:
+            return null;
+        default:
+            return assertUnreachable(visualizationConfig, 'Unknown chart type');
+    }
+};
+
+type VisualizationConfigProviderProps = PropsWithChildren<{
     visualizationConfig: VisualizationConfig;
+    propChartConfig: ChartConfig;
+    itemsMap: ItemsMap | undefined;
+    colorPalette: string[];
+    colorMappings: ReturnType<typeof useChartColorMappings>['colorMappings'];
+    nullColor: string;
+    computedSeries: Series[] | undefined;
+    isCalculateSeriesColorEnabled: boolean;
 }>;
 
-const VisualizationStateProvider: FC<VisualizationStateProviderProps> = ({
-    state,
+const VisualizationConfigProvider: FC<VisualizationConfigProviderProps> = ({
     visualizationConfig,
+    propChartConfig,
+    itemsMap,
+    colorPalette,
+    colorMappings,
+    nullColor,
+    computedSeries,
+    isCalculateSeriesColorEnabled,
     children,
 }) => {
-    const value = useMemo(
-        () => ({ ...state, visualizationConfig }),
-        [state, visualizationConfig],
+    // Keyed on the editor's config alone so an owner echoing the config back
+    // through the prop does not rebuild the colours
+    const edited = useMemo(
+        () => editedChartConfig(visualizationConfig),
+        [visualizationConfig],
+    );
+    const chartConfig = edited ?? propChartConfig;
+    /**
+     * Shared colors for series, resolved by `@lightdash/visualization`. On
+     * dashboards the fallback colors must be passed in the computedSeries
+     * prop; on charts they are computed from the chartConfig. Colors are
+     * pre-calculated per-series, and re-calculated when series change.
+     */
+    const { getSeriesColor } = useMemo(
+        () =>
+            createSeriesColorResolver({
+                colorPalette,
+                colorMappings,
+                nullColor,
+                chartConfig,
+                itemsMap,
+                computedSeries,
+                calculateSeriesColor: isCalculateSeriesColorEnabled,
+            }),
+        [
+            colorPalette,
+            colorMappings,
+            nullColor,
+            chartConfig,
+            itemsMap,
+            computedSeries,
+            isCalculateSeriesColorEnabled,
+        ],
+    );
+    const value: VisualizationConfigValue = useMemo(
+        () => ({ visualizationConfig, chartConfig, getSeriesColor }),
+        [visualizationConfig, chartConfig, getSeriesColor],
     );
     return (
-        <StateContext.Provider value={value}>{children}</StateContext.Provider>
+        <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>
     );
 };
 
@@ -199,8 +277,29 @@ const VisualizationProvider: FC<
     const { colorMappings } = useChartColorMappings();
     const theme = useMantineTheme();
 
-    // Editor state for the mounted chart lives here, one store per provider
-    const [store] = useState(createVisualizationStore);
+    // Editor state for the mounted chart. A chart type switch starts a new
+    // store seeded from the new type's config; the cartesian intent the
+    // gallery set just before the switch carries over.
+    const [stores, setStores] = useState<{
+        type: ChartType;
+        store: VisualizationStore;
+    }>(() => ({
+        type: chartConfig.type,
+        store: createVisualizationStore(
+            buildInitialVisualizationState(chartConfig, itemsMap),
+        ),
+    }));
+    let { store } = stores;
+    if (stores.type !== chartConfig.type) {
+        store = createVisualizationStore(
+            buildInitialVisualizationState(
+                chartConfig,
+                itemsMap,
+                stores.store.getState().cartesianIntent,
+            ),
+        );
+        setStores({ type: chartConfig.type, store });
+    }
     const setStacking = useCallback(
         (value: Parameters<typeof cartesianIntentActions.setStacking>[0]) =>
             store.dispatch(cartesianIntentActions.setStacking(value)),
@@ -234,6 +333,8 @@ const VisualizationProvider: FC<
         return columnOrder.length > 0 ? columnOrder : metricQueryFields;
     }, [resultsData?.metricQuery, columnOrder]);
 
+    // Re-emits the editor's config when the owner resets the prop to a config
+    // that differs from it, so an edit in progress wins over an external reset.
     const handleChartConfigChange = useCallback(
         (newChartConfig: ChartConfig) => {
             if (!onChartConfigChange) return;
@@ -250,35 +351,7 @@ const VisualizationProvider: FC<
     const isCalculateSeriesColorEnabled =
         calculateSeriesColorFlag?.enabled ?? false;
 
-    /**
-     * Shared colors for series and group values, resolved by
-     * `@lightdash/visualization`. On dashboards the fallback colors must be
-     * passed in the computedSeries prop; on charts they are computed from the
-     * chartConfig. Colors are pre-calculated per-series, and re-calculated
-     * when series change.
-     */
     const nullColor = theme.colors.ldGray[6];
-    const { getSeriesColor } = useMemo(
-        () =>
-            createSeriesColorResolver({
-                colorPalette,
-                colorMappings,
-                nullColor,
-                chartConfig,
-                itemsMap,
-                computedSeries,
-                calculateSeriesColor: isCalculateSeriesColorEnabled,
-            }),
-        [
-            colorPalette,
-            colorMappings,
-            nullColor,
-            chartConfig,
-            itemsMap,
-            computedSeries,
-            isCalculateSeriesColorEnabled,
-        ],
-    );
     // Group colors do not depend on the chart config, so they keep their
     // identity while it is edited.
     const { getGroupColor } = useMemo(
@@ -336,7 +409,7 @@ const VisualizationProvider: FC<
     );
 
     const resolvedTimezone = resultsData.resolvedTimezone;
-    const state: Omit<VisualizationState, 'visualizationConfig'> = useMemo(
+    const state: VisualizationState = useMemo(
         () => ({
             minimal,
             pivotDimensions: validPivotDimensions,
@@ -347,8 +420,6 @@ const VisualizationProvider: FC<
             itemsMap,
             colorPalette,
             getGroupColor,
-            getSeriesColor,
-            chartConfig,
             savedChartUuid,
             savedChartReference,
             parameters,
@@ -369,8 +440,6 @@ const VisualizationProvider: FC<
             itemsMap,
             colorPalette,
             getGroupColor,
-            getSeriesColor,
-            chartConfig,
             savedChartUuid,
             savedChartReference,
             parameters,
@@ -388,12 +457,20 @@ const VisualizationProvider: FC<
     }: {
         visualizationConfig: VisualizationConfig;
     }) => (
-        <VisualizationStateProvider
-            state={state}
-            visualizationConfig={visualizationConfig}
-        >
-            {children}
-        </VisualizationStateProvider>
+        <StateContext.Provider value={state}>
+            <VisualizationConfigProvider
+                visualizationConfig={visualizationConfig}
+                propChartConfig={chartConfig}
+                itemsMap={itemsMap}
+                colorPalette={colorPalette}
+                colorMappings={colorMappings}
+                nullColor={nullColor}
+                computedSeries={computedSeries}
+                isCalculateSeriesColorEnabled={isCalculateSeriesColorEnabled}
+            >
+                {children}
+            </VisualizationConfigProvider>
+        </StateContext.Provider>
     );
 
     const renderAdapter = () => {
