@@ -134,3 +134,49 @@ it('refuses a selected agent connection before touching the login', async () => 
     await expect(logout()).rejects.toThrow('requires your personal CLI login');
     expect(mocks.fetch).not.toHaveBeenCalled();
 });
+
+it('keeps the login when access revocation fails after refresh revocation succeeds', async () => {
+    const { PersonalLoginStore } = await import('../personalLogin/store');
+    const store = new PersonalLoginStore();
+    const login = loginFixture();
+    await store.save(instance, login);
+    mocks.fetch.mockResolvedValueOnce({ ok: true, status: 200 });
+    mocks.fetch.mockResolvedValueOnce({ ok: false, status: 500 });
+    const { logout, logoutUnreachable } = await import('./logout');
+    await expect(logout()).rejects.toThrow(logoutUnreachable);
+    expect(mocks.fetch).toHaveBeenCalledTimes(2);
+    expect(await store.read(instance)).toEqual(login);
+});
+it.each([null, 'saved-key', 'environment-key'])(
+    'reports the environment key stays active when the saved key is %s',
+    async (savedKey) => {
+        vi.stubEnv('LIGHTDASH_API_KEY', 'environment-key');
+        await fs.writeFile(
+            configPath,
+            yaml.dump({
+                user: { anonymousUuid: 'existing' },
+                context: {
+                    serverUrl: instance,
+                    ...(savedKey === null ? {} : { apiKey: savedKey }),
+                },
+            }),
+        );
+        const { logout } = await import('./logout');
+        await logout();
+        const { getRawConfig } = await import('../config');
+        expect((await getRawConfig()).context?.apiKey).toBeUndefined();
+        expect(console.error).toHaveBeenCalledWith(
+            'LIGHTDASH_API_KEY is set in the environment and stays active until unset.',
+        );
+        expect(console.error).not.toHaveBeenCalledWith(
+            `Logged out of ${instance}`,
+        );
+        if (savedKey === null)
+            expect(console.error).not.toHaveBeenCalledWith(
+                expect.stringContaining('saved API key was removed'),
+            );
+        expect(
+            vi.mocked(console.error).mock.calls.flat().join(' '),
+        ).not.toContain('environment-key');
+    },
+);

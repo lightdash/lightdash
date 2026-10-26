@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import { loginFixture } from './fixtures';
+import { personalInstanceKey } from './instanceKey';
 import { PersonalLoginStore } from './store';
 
 let directory: string;
@@ -100,3 +101,44 @@ it.each(['generation: 0', 'accessToken: null', 'scopes: []'])(
         );
     },
 );
+
+it.each([
+    ['https://EXAMPLE.com:443/', 'https://example.com'],
+    ['http://INTERNAL.example:80/', 'http://internal.example'],
+    ['http://INTERNAL.example:8080/', 'http://internal.example:8080'],
+    ['https://example.com:8443', 'https://example.com:8443'],
+])(
+    'keys personal records and journals by %s as %s',
+    async (input, expected) => {
+        expect(personalInstanceKey(input)).toBe(expected);
+        const login = loginFixture();
+        await store.save(input, login);
+        expect(await store.read(expected)).toEqual(login);
+        await store.withLock(async (locked) => {
+            const journal = { attemptUuid: randomUUID(), generation: 1 };
+            await locked.writeJournal(input, journal);
+            expect(await locked.readJournal(expected)).toEqual(journal);
+            await locked.clearJournal(expected);
+            await locked.remove(input);
+        });
+        expect(await store.read(expected)).toBeNull();
+    },
+);
+it.each([
+    'ftp://example.com',
+    'https://example.com/path',
+    'https://example.com/path/..',
+    'https://@example.com',
+    ' https://example.com',
+    'https://example.com//',
+    'https://example.com?query=1',
+    'https://example.com?',
+    'https://example.com#fragment',
+    'https://example.com#',
+    'https://user:password@example.com',
+    'not a URL',
+])('rejects an invalid personal instance URL %s', (input) => {
+    expect(() => personalInstanceKey(input)).toThrow(
+        'Invalid personal login instance URL.',
+    );
+});

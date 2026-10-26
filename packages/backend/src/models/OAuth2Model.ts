@@ -35,11 +35,6 @@ import {
     resolveOAuthSecurityStrict,
 } from '../auth/oauthScopes/security';
 import { LightdashConfig } from '../config/parseConfig';
-import type {
-    DbOAuth2AccessToken,
-    DbOAuth2AuthorizationCode,
-    DbOAuth2RefreshToken,
-} from '../database/entities/oauth2';
 import Logger from '../logging/logger';
 import {
     ClientIdMetadataDocumentResolver,
@@ -50,14 +45,6 @@ import { AgentConnectionGrantModel } from './AgentConnectionGrantModel';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import { matchesRegisteredRedirectUri } from './oauthRedirectUri';
 import { matchesRedirectUriStrict } from './oauthStrictRedirectUri';
-
-type OAuth2StoredClient = {
-    client_secret: string | null;
-    redirect_uris: string[];
-    grants: string[];
-    scopes: string[];
-    client_name: string;
-};
 
 export const DEFAULT_OAUTH_CLIENT_ID = 'lightdash-cli';
 
@@ -220,9 +207,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             authorization_code: code.authorizationCode,
             expires_at: code.expiresAt,
             redirect_uri: code.redirectUri,
-            scope: Array.isArray(code.scope)
-                ? code.scope
-                : [code.scope].filter(Boolean),
+            scope: code.scope ?? [],
             client_id: client.id,
             user_id: user.userId,
             organization_uuid: user.organizationUuid,
@@ -277,7 +262,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_authorization_codes.authorization_code',
                 candidates,
             )
-            .first<DbOAuth2AuthorizationCode & OAuth2StoredClient>();
+            .first();
 
         if (!result) {
             return false;
@@ -541,9 +526,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
                         'Agent connection refresh binding is invalid',
                     );
                 const scopes = issued.scope ?? [];
+                const storedScopes = stored.scope ?? [];
                 if (
-                    scopes.length !== stored.scope.length ||
-                    scopes.some((scope) => !stored.scope.includes(scope))
+                    scopes.length !== storedScopes.length ||
+                    scopes.some((scope) => !storedScopes.includes(scope))
                 )
                     throw new OAuth2Server.InvalidScopeError(
                         'Agent connection scopes cannot change',
@@ -615,7 +601,14 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 refreshTokenExpiresAt: clip(token.refreshTokenExpiresAt),
             };
         }
-        const sessionExpiresAt: Date | null = token.sessionExpiresAt ?? null;
+        const sessionExpiresAt: Date | null =
+            token.sessionExpiresAt ??
+            (client.id === DEFAULT_OAUTH_CLIENT_ID &&
+            token.agentConnectionGrantUuid == null
+                ? new Date(
+                      Date.now() + CLI_PERSONAL_SESSION_LIFETIME_SECONDS * 1000,
+                  )
+                : null);
         if (sessionExpiresAt !== null) {
             if (sessionExpiresAt.getTime() <= Date.now())
                 throw new OAuth2Server.InvalidGrantError(
@@ -643,9 +636,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 issued.agentConnectionGrantUuid ?? null,
             expires_at: issued.accessTokenExpiresAt,
             session_expires_at: sessionExpiresAt,
-            scope: Array.isArray(issued.scope)
-                ? issued.scope
-                : [issued.scope].filter(Boolean),
+            scope: issued.scope ?? [],
             client_id: client.id,
             user_id: user.userId,
             organization_uuid: user.organizationUuid,
@@ -660,9 +651,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                     issued.agentConnectionGrantUuid ?? null,
                 expires_at: issued.refreshTokenExpiresAt,
                 session_expires_at: sessionExpiresAt,
-                scope: Array.isArray(issued.scope)
-                    ? issued.scope
-                    : [issued.scope].filter(Boolean),
+                scope: issued.scope ?? [],
                 client_id: client.id,
                 user_id: user.userId,
                 organization_uuid: user.organizationUuid,
@@ -763,9 +752,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             )
             .leftJoin('users', 'oauth2_access_tokens.user_id', 'users.user_id')
             .whereIn('oauth2_access_tokens.access_token', candidates)
-            .first<
-                DbOAuth2AccessToken & OAuth2StoredClient & { user_uuid: string }
-            >();
+            .first();
 
         if (!result) {
             return false;
@@ -934,7 +921,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_clients.client_id',
             )
             .whereIn('oauth2_refresh_tokens.refresh_token', candidates)
-            .first<DbOAuth2RefreshToken & OAuth2StoredClient>();
+            .first();
 
         if (!result) {
             return false;
@@ -945,8 +932,11 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 ? null
                 : new Date(result.session_expires_at);
         if (
-            sessionExpiresAt !== null &&
-            sessionExpiresAt.getTime() <= Date.now()
+            (sessionExpiresAt === null &&
+                result.client_id === DEFAULT_OAUTH_CLIENT_ID &&
+                result.agent_connection_grant_uuid == null) ||
+            (sessionExpiresAt !== null &&
+                sessionExpiresAt.getTime() <= Date.now())
         )
             throw new OAuth2Server.InvalidGrantError(
                 'Session expired. Log in again.',

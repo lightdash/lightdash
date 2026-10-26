@@ -93,7 +93,6 @@ it('refreshes inside the early window with a journal and public client request',
             grant_type: 'refresh_token',
             client_id: 'lightdash-cli',
             refresh_token: 'personal-refresh',
-            resource: instance,
             scope: 'read write',
         });
         expect(init.headers['User-Agent']).toBe(`lightdash-cli/${CLI_VERSION}`);
@@ -132,7 +131,6 @@ it('clips access and session expiry to the server date and remaining session', a
     expect(login.tokens.accessTokenExpiresAt).toBe(login.sessionExpiresAt);
 });
 it.each([
-    'timeout',
     'network',
     '500',
     'invalid body',
@@ -142,7 +140,7 @@ it.each([
     'requires login after %s and never sends the old refresh token again',
     async (failure) => {
         await saveExpiring();
-        if (failure === 'timeout' || failure === 'network')
+        if (failure === 'network')
             fetchMock.mockRejectedValueOnce(new Error(failure));
         else if (failure === '500' || failure === 'invalid_grant')
             fetchMock.mockResolvedValueOnce({
@@ -254,4 +252,73 @@ it('clears a matching journal after a committed refresh', async () => {
     await provider.getToken(instance);
     expect(fetchMock).not.toHaveBeenCalled();
     expect(await fs.readdir(directory)).toEqual(['personal-logins.yaml']);
+});
+
+it.each(['in_progress', 'login_required'] as const)(
+    'refuses a %s record without a journal or request',
+    async (kind) => {
+        const login = loginFixture();
+        login.refreshState =
+            kind === 'in_progress'
+                ? {
+                      kind,
+                      attemptUuid: randomUUID(),
+                      startedAt: new Date().toISOString(),
+                  }
+                : { kind, since: new Date().toISOString() };
+        await store.save(instance, login);
+        expect(await fs.readdir(directory)).toEqual(['personal-logins.yaml']);
+        await expect(provider.getToken(instance)).rejects.toThrow(
+            freshLoginRequired,
+        );
+        expect((await store.read(instance))?.refreshState.kind).toBe(
+            'login_required',
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
+    },
+);
+it('marks a stalled request as login_required when its abort signal fires after 15 seconds', async () => {
+    await saveExpiring();
+    vi.useFakeTimers();
+    const timeout = vi
+        .spyOn(AbortSignal, 'timeout')
+        .mockImplementation((delay) => {
+            const controller = new AbortController();
+            setTimeout(() => controller.abort(), delay);
+            return controller.signal;
+        });
+    let entered = () => {};
+    const started = new Promise<void>((resolve) => {
+        entered = resolve;
+    });
+    fetchMock.mockImplementationOnce(
+        (_url, init: { signal: AbortSignal }) =>
+            new Promise((_resolve, reject) => {
+                init.signal.addEventListener(
+                    'abort',
+                    () => reject(new Error('aborted')),
+                    { once: true },
+                );
+                entered();
+            }),
+    );
+    try {
+        const result = provider
+            .getToken(instance)
+            .catch((error: unknown) => error);
+        await started;
+        expect(timeout).toHaveBeenCalledExactlyOnceWith(15_000);
+        await vi.advanceTimersByTimeAsync(15_001);
+        expect(await result).toMatchObject({ message: freshLoginRequired });
+        expect((await store.read(instance))?.refreshState.kind).toBe(
+            'login_required',
+        );
+        await expect(provider.getToken(instance)).rejects.toThrow(
+            freshLoginRequired,
+        );
+        expect(fetchMock).toHaveBeenCalledOnce();
+    } finally {
+        timeout.mockRestore();
+        vi.useRealTimers();
+    }
 });

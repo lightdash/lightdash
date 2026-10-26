@@ -2,8 +2,8 @@ import { AuthorizationError } from '@lightdash/common';
 import Ajv from 'ajv';
 import { randomUUID } from 'crypto';
 import fetch from 'node-fetch';
-import { canonicalInstanceUrl } from '../agentConnections/schema';
 import { CLI_VERSION } from '../env';
+import { personalInstanceKey } from './instanceKey';
 import { type PersonalLogin } from './schema';
 import { PersonalLoginStore, type LockedPersonalLoginStore } from './store';
 
@@ -94,7 +94,7 @@ export class PersonalLoginTokenProvider {
         instanceUrl: string,
         rejectedGeneration: number | null = null,
     ): Promise<PersonalLogin> {
-        const instance = canonicalInstanceUrl(instanceUrl);
+        const instance = personalInstanceKey(instanceUrl);
         return this.store.withLock(async (locked) => {
             let login = await locked.read(instance);
             if (login === null)
@@ -161,7 +161,6 @@ export class PersonalLoginTokenProvider {
                         grant_type: 'refresh_token',
                         client_id: 'lightdash-cli',
                         refresh_token: login.tokens.refreshToken,
-                        resource: instance,
                         scope: login.tokens.scopes.join(' '),
                     }),
                 });

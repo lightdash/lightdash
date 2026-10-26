@@ -541,7 +541,10 @@ oauthRouter.post('/revoke', async (req, res) => {
         const oauthService = getOAuthService(req);
         await oauthService.revokeToken(token);
     } catch (error) {
-        Logger.error(`Revocation error: ${error}`);
+        if (!(error instanceof OAuth2Server.OAuthError)) {
+            Logger.error(`Revocation error: ${error}`);
+            return res.status(500).json({ error: 'server_error' });
+        }
     }
     return res.status(200).send();
 });
