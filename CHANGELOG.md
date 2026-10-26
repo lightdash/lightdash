@@ -1,3 +1,20 @@
+# [3.60.0](https://github.com/lightdash/lightdash/compare/3.59.2...3.60.0) (2026-10-26)
+
+
+### Bug Fixes
+
+* **dashboards:** calmer sections rail ([#31560](https://github.com/lightdash/lightdash/issues/31560)) ([ccb1272](https://github.com/lightdash/lightdash/commit/ccb1272552dc846f3a012d46cab27ec398c2019e))
+
+
+### Features
+
+* **dashboards:** a section can start collapsed ([#31571](https://github.com/lightdash/lightdash/issues/31571)) ([23b426e](https://github.com/lightdash/lightdash/commit/23b426e8e9d124e2a2b3cad46bf41c1c48f501c8))
+* **dashboards:** move filters between sections from the bar ([#31576](https://github.com/lightdash/lightdash/issues/31576)) ([539e37c](https://github.com/lightdash/lightdash/commit/539e37c94055163fc798d67638c07070c4d45c83))
+* **dashboards:** save control sections on the dashboard ([#31443](https://github.com/lightdash/lightdash/issues/31443)) ([9f89344](https://github.com/lightdash/lightdash/commit/9f89344c171d27db7f4d46b1be34c5f8d1e28d60))
+* **dashboards:** sections in the filter rail ([#31440](https://github.com/lightdash/lightdash/issues/31440)) ([57f31ab](https://github.com/lightdash/lightdash/commit/57f31ab4b4b4b619d11093d71b169c9c4201cdc0))
+* **dashboards:** sections in the viewer's filter bar ([#31441](https://github.com/lightdash/lightdash/issues/31441)) ([f262b86](https://github.com/lightdash/lightdash/commit/f262b865cb65a166e5a1465b7431b0813905f9fb))
+* **dashboards:** select several filters in the rail ([#31581](https://github.com/lightdash/lightdash/issues/31581)) ([b4cadbe](https://github.com/lightdash/lightdash/commit/b4cadbe302ac9249da5b1b79c75801d40d816007))
+
 ## [3.59.2](https://github.com/lightdash/lightdash/compare/3.59.1...3.59.2) (2026-10-26)
 
 
