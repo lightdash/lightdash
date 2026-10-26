@@ -144,10 +144,6 @@
                     "mcp": []
                 }
             }
-        },
-        "connection-rollout-flags-removed": {
-            "reason": "The WarehouseOAuthRefreshLock, SharedSignInExpiryMessage, SharedSignInReconnect, PreviewSsoCredentialSync and EgressIpNotice members are removed from the exported FeatureFlags enum. TypeScript clients that refer to these rollout flags must remove those references when they upgrade. The enabled behaviour is now permanent. Permissions and credential prerequisites still apply. Old pods retain the existing flag resolution until they restart. Console rows remain in place during the code rollout.",
-            "requiredStop": false
         }
     }
 }
