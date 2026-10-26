@@ -1,6 +1,7 @@
 import { type AbilityBuilder } from '@casl/ability';
 import { type MemberAbility } from '../authorization/types';
 import { type AnyType } from './any';
+import { type AccountRequestContext } from './auth';
 import { type ManagedSignIn } from './managedSignIn';
 import { OpenIdIdentityIssuerType } from './openIdIdentity';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
@@ -156,11 +157,7 @@ export interface SessionUser extends LightdashUserWithAbilityRules {
      * middleware. Used by the audit log; intentionally not persisted in the
      * session store.
      */
-    requestContext?: {
-        ip?: string;
-        userAgent?: string;
-        requestId?: string;
-    };
+    requestContext?: AccountRequestContext;
     /* Set only when an admin is impersonating this user via session auth */
     impersonation?: ImpersonationContext;
     /**

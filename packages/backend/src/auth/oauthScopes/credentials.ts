@@ -4,6 +4,8 @@ import {
     isAccount,
     SessionUser,
 } from '@lightdash/common';
+import Logger from '../../logging/logger';
+import { scopesForOAuthRecord } from './mode';
 import { getOAuthScopeContext } from './scopedAbility';
 
 export const OAUTH_CREDENTIAL_OPERATIONS = {
@@ -32,7 +34,17 @@ export const assertOAuthCredentialOperationAllowed = (
         !(isAccount(actor) && actor.authentication.type === 'oauth')
     )
         return;
-    const [action, subjectType] = OAUTH_CREDENTIAL_OPERATIONS[operation];
-    context?.record(action, subjectType, null);
+    const authentication = isAccount(actor) ? actor.authentication : null;
+    const oauth = authentication?.type === 'oauth' ? authentication : null;
+    Logger.warn('oauth_credential_mint_refused', {
+        operation,
+        clientId: oauth?.clientId ?? context?.clientId ?? null,
+        scopes: scopesForOAuthRecord(oauth?.scopes ?? context?.scopes ?? []),
+        userAgent: actor.requestContext?.userAgent ?? null,
+        cliVersion: actor.requestContext?.cliVersion ?? null,
+        organizationUuid: isAccount(actor)
+            ? (actor.organization.organizationUuid ?? null)
+            : (actor.organizationUuid ?? null),
+    });
     throw new ForbiddenError('OAuth tokens cannot manage credentials');
 };
