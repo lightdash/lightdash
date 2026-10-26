@@ -118,6 +118,8 @@ type Props = {
     onCancelName: () => void;
     /** A new filter in this section. */
     onAddFilter: () => void;
+    /** How the bar starts this section: the saved choice, else its size. */
+    isCollapsedByDefault: boolean;
     /** Flips the saved default, `section.collapsed`; this rail's fold stays. */
     onToggleCollapsedByDefault: () => void;
     onRemove: () => void;
@@ -139,6 +141,7 @@ export const SectionHeader: FC<Props> = ({
     onCommitName,
     onCancelName,
     onAddFilter,
+    isCollapsedByDefault,
     onToggleCollapsedByDefault,
     onRemove,
 }) => {
@@ -273,7 +276,7 @@ export const SectionHeader: FC<Props> = ({
                                 leftSection={
                                     <Checkbox
                                         size="xs"
-                                        checked={section.collapsed === true}
+                                        checked={isCollapsedByDefault}
                                         onChange={onToggleCollapsedByDefault}
                                         onClick={(event) =>
                                             event.stopPropagation()

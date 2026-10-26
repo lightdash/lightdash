@@ -95,6 +95,7 @@ import { getTilesSummary } from './railSummaries';
 import { SectionHeader } from './SectionHeader';
 import {
     groupRulesBySection,
+    isCollapsedByDefault,
     moveRuleToSection,
     removeSectionFromRules,
     getDragAnnouncements,
@@ -940,15 +941,20 @@ const OpenControlSidebar: FC = () => {
                         collapse();
                     setSectionCollapsed(section, !isCollapsed);
                 }}
+                isCollapsedByDefault={isCollapsedByDefault(
+                    section,
+                    rules.length,
+                )}
                 onToggleCollapsedByDefault={() =>
                     // The saved default only: this rail keeps its own fold.
-                    // Unticked, the key goes so the dense-section default
-                    // applies again
+                    // Saved either way, so unticked means open on the bar
                     dispatch(
                         dashboardEditActions.setControlSectionCollapsed({
                             id: section.id,
-                            collapsed:
-                                section.collapsed !== true ? true : undefined,
+                            collapsed: !isCollapsedByDefault(
+                                section,
+                                rules.length,
+                            ),
                         }),
                     )
                 }

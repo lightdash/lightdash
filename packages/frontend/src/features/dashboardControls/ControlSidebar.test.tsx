@@ -1946,13 +1946,44 @@ describe('ControlSidebar', () => {
 
             // The box itself toggles too, once
             await userEvent.click(box());
-            // Unticked, the key goes rather than turning false
-            expect(selectControlSections(store.getState())[0]).toEqual(
-                sections[0],
-            );
+            // Unticked is saved too, so the bar opens it whatever its size
+            expect(selectControlSections(store.getState())[0]).toEqual({
+                ...sections[0],
+                collapsed: false,
+            });
             expect(
                 screen.getByRole('button', { name: /^Created/ }),
             ).toBeVisible();
+        });
+
+        it('ticks a dense section with no saved choice, and saves it open when unticked', async () => {
+            closedRail();
+            const { store } = renderWithProviders(
+                <ControlSidebar />,
+                filters(
+                    Array.from({ length: 7 }, (_, index) =>
+                        makeRule({
+                            id: `dense-${index}`,
+                            label: `Dense ${index}`,
+                            sectionId: 'section-a',
+                        }),
+                    ),
+                ),
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            const item = await screen.findByRole('menuitem', {
+                name: 'Collapsed by default',
+            });
+            // The bar starts it collapsed, so the box says so
+            expect(within(item).getByRole('checkbox')).toBeChecked();
+            await userEvent.click(item);
+            expect(selectControlSections(store.getState())[0]).toEqual({
+                ...sections[0],
+                collapsed: false,
+            });
+            expect(within(item).getByRole('checkbox')).not.toBeChecked();
         });
 
         it('opens with every section collapsed, whatever the saved default or size', () => {
@@ -2259,13 +2290,12 @@ describe('ControlSidebar', () => {
                 screen.getByRole('button', { name: 'Collapse section Dates' }),
             ).toBeInTheDocument();
 
-            // Unticked (the menu stayed open), the saved key goes rather than
-            // turning false
+            // Unticked (the menu stayed open), saved as open
             await userEvent.click(
                 screen.getByRole('menuitem', { name: 'Collapsed by default' }),
             );
-            expect(selectControlSections(store.getState())[0]).toEqual(
-                sections[0],
+            expect(selectControlSections(store.getState())[0].collapsed).toBe(
+                false,
             );
         });
 

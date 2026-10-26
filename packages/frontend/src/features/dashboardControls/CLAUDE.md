@@ -714,8 +714,7 @@ In `FilterConfiguration/`:
   "This tab", "All tabs", "Some tabs". The segment is derived from
   `lockedTabUuids` (exactly the tab in view, every tab, anything else); the
   only state is that "Some tabs" was picked, which keeps the locked tabs and
-  shows a `MultiSelect` of the tabs by name, the one in view marked "this
-  tab". Every change goes through the pill's `getFilterLockToggle`
+  shows a `MultiSelect` of the tabs by name. Every change goes through the pill's `getFilterLockToggle`
   (`filterLock.ts`), one tab at a time, and tracks its event, one per tab
   whose lock changes. A segment or tab that would lock more is disabled
   while that would leave a locked, required filter with no value.
@@ -1122,11 +1121,12 @@ the language map, as tab names are.
   `SectionHeader` label row on the card surface, no fill (grip, chevron,
   the name in normal case, "· N filters" in `xs` dimmed right after it, the
   menu with "Add filter" (`openNew(section.id)`), "Rename", "Collapsed by
-  default" (a `Checkbox` in its left slot on `section.collapsed`,
+  default" (a `Checkbox` in its left slot,
   `closeMenuOnClick={false}` so the menu stays and shows the change, the
-  item and the box both toggle; `setControlSectionCollapsed` writes `true`,
-  or removes the key when unticked so the dense-section default applies
-  again; it changes nothing in the open rail) and "Remove section" at the far right on hover) with a
+  item and the box both toggle; the box shows how the bar starts the
+  section (`isCollapsedByDefault`, so a dense one with no saved choice is
+  ticked) and `setControlSectionCollapsed` saves the opposite, `true` or
+  `false`; it changes nothing in the open rail) and "Remove section" at the far right on hover) with a
   hairline above it, none above the first thing in the list
   (`.body > .sectionHeader:first-child`); its rows are indented one `md`
   further than the unsectioned ones (`.sectionRow`, also on a viewer's
