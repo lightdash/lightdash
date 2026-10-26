@@ -256,15 +256,15 @@ describe('AiComposerPipelinePanel query details', () => {
         });
         const row = document.getElementById('composer-pipeline-node-orders')!;
         const toggle = within(row).getByRole('button', {
-            name: 'Fields 2 · Filters 1 · Sort 1 · Parameters 1',
+            name: 'Orders · Fields 2 · Filters 1 · Sort 1 · Parameters 1 · 500 rows',
         });
         fireEvent.click(toggle);
 
         expect(toggle).toHaveAttribute('aria-expanded', 'true');
         expect(within(row).getByText('completed')).toBeInTheDocument();
         expect(
-            within(row).getByTestId('semantic-query-limit'),
-        ).toHaveTextContent(/500 rows/);
+            within(row).getByTestId('semantic-query-sort'),
+        ).toHaveTextContent('Orders count');
         expect(onDisplayNode).not.toHaveBeenCalled();
     });
 

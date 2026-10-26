@@ -349,7 +349,9 @@ export const SemanticNodeDetails: Story = {
         },
     },
     play: async ({ canvas, userEvent }) => {
-        await userEvent.click(canvas.getByRole('button', { name: /^Fields/ }));
+        await userEvent.click(
+            canvas.getByRole('button', { name: /Fields \d/ }),
+        );
     },
 };
 

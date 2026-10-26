@@ -9,7 +9,6 @@
         background-color: var(--mantine-color-ldDark-8);
         border: 1px solid var(--mantine-color-ldDark-7);
     }
-    height: auto;
-    padding-block: 4px;
+    height: 22px;
     max-width: 100%;
 }

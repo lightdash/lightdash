@@ -1,3 +1,14 @@
-.badge {
+/* Centres the icon on the first line of compact chips. */
+.rowIcon {
+    display: flex;
+    align-items: center;
+    height: 22px;
+}
+
+.sortChip {
     max-width: 100%;
+    height: 22px;
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    text-transform: none;
 }

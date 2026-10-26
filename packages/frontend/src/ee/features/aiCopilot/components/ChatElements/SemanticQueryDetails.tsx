@@ -1,58 +1,58 @@
-import {
-    friendlyName,
-    getItemLabelWithoutTableName,
-    interpolateUiString,
-    type ItemsMap,
-    type MetricQuery,
-    type ParametersValuesMap,
-} from '@lightdash/common';
-import { Badge, Button, Collapse, Group, Stack, Text } from '@mantine/core';
+import { type ItemsMap, type ParametersValuesMap } from '@lightdash/common';
+import { Badge, Box, Button, Collapse, Group, Stack } from '@mantine/core';
 import {
     IconArrowDown,
+    IconArrowsSort,
     IconArrowUp,
     IconChevronDown,
     IconChevronUp,
+    IconColumns3,
+    IconFilter,
+    IconVariable,
+    type Icon,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
 import AgentVisualizationParameters from './AgentVisualizationParameters';
-import {
-    getVisualizationFieldsCount,
-    getVisualizationFiltersCount,
-} from './AiVisualizationRenderer.utils';
 import styles from './SemanticQueryDetails.module.css';
+import {
+    semanticItemLabel,
+    useSemanticQuerySummary,
+    type SemanticQueryDetailsQuery,
+    type SemanticQuerySummary,
+    type SemanticQuerySummaryOptions,
+} from './useSemanticQuerySummary';
 
-export type SemanticQueryDetailsQuery = Pick<
-    MetricQuery,
-    'dimensions' | 'metrics' | 'filters' | 'sorts' | 'limit'
-> &
-    Partial<Pick<MetricQuery, 'additionalMetrics'>>;
+const DetailsRow: FC<{ icon: Icon; children: ReactNode }> = ({
+    icon,
+    children,
+}) => (
+    <Group gap="xs" wrap="nowrap" align="flex-start">
+        <Box className={styles.rowIcon}>
+            <MantineIcon icon={icon} size={13} color="ldGray.5" />
+        </Box>
+        <Box flex={1} miw={0}>
+            {children}
+        </Box>
+    </Group>
+);
 
-const itemLabel = (fieldsMap: ItemsMap, fieldId: string) => {
-    const item = fieldsMap[fieldId];
-    return item ? getItemLabelWithoutTableName(item) : friendlyName(fieldId);
-};
-
-const SortAndLimit: FC<{
-    query: SemanticQueryDetailsQuery;
+const Sorts: FC<{
+    sorts: SemanticQueryDetailsQuery['sorts'];
     fieldsMap: ItemsMap;
-}> = ({ query, fieldsMap }) => {
+}> = ({ sorts, fieldsMap }) => {
     const getUiString = useUiStrings();
-    const rowsKey =
-        query.limit === 1
-            ? 'aiAgent.queryDetails.rows.singular'
-            : 'aiAgent.queryDetails.rows.plural';
     return (
-        <Group gap="xs" wrap="wrap">
-            {query.sorts.map((sort) => (
+        <Group gap={4}>
+            {sorts.map((sort) => (
                 <Badge
                     key={sort.fieldId}
-                    color="blue"
-                    className={styles.badge}
+                    variant="default"
+                    className={styles.sortChip}
                     data-testid="semantic-query-sort"
                     leftSection={
                         <MantineIcon
@@ -62,79 +62,72 @@ const SortAndLimit: FC<{
                                     ? 'aiAgent.queryDetails.descending'
                                     : 'aiAgent.queryDetails.ascending',
                             )}
-                            strokeWidth={3}
-                            size="sm"
+                            size={12}
+                            color="ldGray.6"
                         />
                     }
                 >
-                    <Text span fw={400} fz="xs">
-                        {getUiString('aiAgent.queryDetails.sortedBy')}
-                    </Text>{' '}
-                    <Text span fw={600} fz="xs">
-                        {itemLabel(fieldsMap, sort.fieldId)}
-                    </Text>
+                    {semanticItemLabel(fieldsMap, sort.fieldId)}
                 </Badge>
             ))}
-            <Badge
-                color="blue"
-                className={styles.badge}
-                data-testid="semantic-query-limit"
-            >
-                <Text span fw={400} fz="xs">
-                    {getUiString('aiAgent.queryDetails.limit')}
-                </Text>{' '}
-                <Text span fw={600} fz="xs">
-                    {interpolateUiString(getUiString(rowsKey), {
-                        count: query.limit,
-                    })}
-                </Text>
-            </Badge>
         </Group>
     );
 };
 
-type Props = {
+type BodyProps = {
     metricQuery: SemanticQueryDetailsQuery;
     fieldsMap: ItemsMap;
     parameters: ParametersValuesMap;
-    showFields: boolean;
-    showFilters: boolean;
-    showSortAndLimit: boolean;
+    summary: SemanticQuerySummary;
+    /** Field chips; each surface keeps its own field style. */
+    fields: ReactNode;
 };
 
-/** A collapsed count line that expands to a semantic query's fields, filters, sort, limit and parameters. */
-export const SemanticQueryDetails: FC<Props> = ({
+/** Fields, then filters, parameters and sorts, each row marked by its icon. */
+export const SemanticQueryDetailsBody: FC<BodyProps> = ({
     metricQuery,
     fieldsMap,
     parameters,
-    showFields,
-    showFilters,
-    showSortAndLimit,
-}) => {
-    const getUiString = useUiStrings();
+    summary,
+    fields,
+}) => (
+    <Stack gap={6}>
+        <ErrorBoundary>
+            {summary.fieldsCount > 0 && (
+                <DetailsRow icon={IconColumns3}>{fields}</DetailsRow>
+            )}
+            {summary.filtersCount > 0 && (
+                <DetailsRow icon={IconFilter}>
+                    <AgentVisualizationFilters
+                        filters={metricQuery.filters}
+                        fieldsMap={fieldsMap}
+                        compact
+                    />
+                </DetailsRow>
+            )}
+            {summary.parametersCount > 0 && (
+                <DetailsRow icon={IconVariable}>
+                    <AgentVisualizationParameters
+                        parameterValues={parameters}
+                    />
+                </DetailsRow>
+            )}
+            {summary.sortsCount > 0 && (
+                <DetailsRow icon={IconArrowsSort}>
+                    <Sorts sorts={metricQuery.sorts} fieldsMap={fieldsMap} />
+                </DetailsRow>
+            )}
+        </ErrorBoundary>
+    </Stack>
+);
+
+type Props = SemanticQuerySummaryOptions & { fieldsMap: ItemsMap };
+
+/** A collapsed count line that expands to a semantic query's fields, filters, parameters and sorts. */
+export const SemanticQueryDetails: FC<Props> = ({ fieldsMap, ...options }) => {
     const [expanded, setExpanded] = useState(false);
-    const fieldsCount = showFields
-        ? getVisualizationFieldsCount(metricQuery)
-        : 0;
-    const filtersCount = showFilters
-        ? getVisualizationFiltersCount(metricQuery.filters)
-        : 0;
-    const sortsCount = showSortAndLimit ? metricQuery.sorts.length : 0;
-    const parametersCount = Object.keys(parameters).length;
-    const counts = [
-        fieldsCount > 0 ? `Fields ${fieldsCount}` : null,
-        filtersCount > 0 ? `Filters ${filtersCount}` : null,
-        sortsCount > 0
-            ? interpolateUiString(
-                  getUiString('aiAgent.queryDetails.sortCount'),
-                  {
-                      count: sortsCount,
-                  },
-              )
-            : null,
-        parametersCount > 0 ? `Parameters ${parametersCount}` : null,
-    ].filter((count) => count !== null);
-    if (counts.length === 0) return null;
+    const summary = useSemanticQuerySummary(options);
+    if (!summary.expandable) return null;
 
     return (
         <Stack gap="xs">
@@ -155,37 +148,22 @@ export const SemanticQueryDetails: FC<Props> = ({
                     }
                     onClick={() => setExpanded((value) => !value)}
                 >
-                    {counts.join(' · ')}
+                    {summary.parts.join(' · ')}
                 </Button>
             </Group>
             <Collapse expanded={expanded}>
-                <Stack gap="xs">
-                    <ErrorBoundary>
-                        {fieldsCount > 0 && (
-                            <AgentVisualizationMetricsAndDimensions
-                                metricQuery={metricQuery}
-                                fieldsMap={fieldsMap}
-                            />
-                        )}
-                        {filtersCount > 0 && (
-                            <AgentVisualizationFilters
-                                filters={metricQuery.filters}
-                                fieldsMap={fieldsMap}
-                            />
-                        )}
-                        {showSortAndLimit && (
-                            <SortAndLimit
-                                query={metricQuery}
-                                fieldsMap={fieldsMap}
-                            />
-                        )}
-                        {parametersCount > 0 && (
-                            <AgentVisualizationParameters
-                                parameterValues={parameters}
-                            />
-                        )}
-                    </ErrorBoundary>
-                </Stack>
+                <SemanticQueryDetailsBody
+                    metricQuery={options.metricQuery}
+                    fieldsMap={fieldsMap}
+                    parameters={options.parameters}
+                    summary={summary}
+                    fields={
+                        <AgentVisualizationMetricsAndDimensions
+                            metricQuery={options.metricQuery}
+                            fieldsMap={fieldsMap}
+                        />
+                    }
+                />
             </Collapse>
         </Stack>
     );

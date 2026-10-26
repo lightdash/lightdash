@@ -10,10 +10,8 @@ import { fireEvent, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
-import {
-    SemanticQueryDetails,
-    type SemanticQueryDetailsQuery,
-} from './SemanticQueryDetails';
+import { SemanticQueryDetails } from './SemanticQueryDetails';
+import { type SemanticQueryDetailsQuery } from './useSemanticQuerySummary';
 
 const dimension = (
     name: string,
@@ -88,10 +86,10 @@ const renderDetails = (
     );
 
 describe('SemanticQueryDetails', () => {
-    it('summarises counts and shows filters, sort, limit and parameters when expanded', () => {
+    it('summarises counts and limit, and shows filters, sort and parameters when expanded', () => {
         renderDetails();
         const toggle = screen.getByRole('button', {
-            name: 'Fields 1 · Filters 1 · Sort 1 · Parameters 1',
+            name: 'Fields 1 · Filters 1 · Sort 1 · Parameters 1 · 500 rows',
         });
         expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
@@ -100,12 +98,9 @@ describe('SemanticQueryDetails', () => {
         expect(screen.getByText('Is deleted')).toBeInTheDocument();
         expect(screen.getByText('False')).toBeInTheDocument();
         expect(screen.getByTestId('semantic-query-sort')).toHaveTextContent(
-            'Sorted by Last active at day',
+            'Last active at day',
         );
         expect(screen.getByLabelText('descending')).toBeInTheDocument();
-        expect(screen.getByTestId('semantic-query-limit')).toHaveTextContent(
-            'Limit 500 rows',
-        );
         expect(screen.getByText('Region')).toBeInTheDocument();
         expect(screen.getByText('EMEA')).toBeInTheDocument();
     });
@@ -133,7 +128,7 @@ describe('SemanticQueryDetails', () => {
             screen
                 .getAllByTestId('semantic-query-sort')
                 .map((badge) => badge.textContent),
-        ).toEqual(['Sorted by Last active at day', 'Sorted by Is deleted']);
+        ).toEqual(['Last active at day', 'Is deleted']);
         expect(screen.getByLabelText('ascending')).toBeInTheDocument();
     });
 
