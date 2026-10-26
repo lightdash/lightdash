@@ -35,8 +35,24 @@ import {
     shouldDisableSubtotals,
 } from '@lightdash/visualization/editor';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type SetStateAction,
+} from 'react';
 import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
+import {
+    buildTableEditorState,
+    selectTableEditor,
+    tableEditorActions,
+    useEditorFieldSetter,
+    useEditorState,
+    useVisualizationDispatch,
+    type TableEditorState,
+} from '../../features/visualization/store';
 import {
     useAsyncCalculateGrandTotal,
     useAsyncCalculateRowSubtotals,
@@ -69,45 +85,55 @@ const useTableConfig = (
     invalidateCache?: boolean,
     parameters?: ParametersValuesMap,
 ) => {
-    const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
-        !!tableChartConfig?.showColumnCalculation,
+    const {
+        showColumnCalculation,
+        showRowCalculation,
+        conditionalFormattings,
+        showTableNames,
+        showResultsTotal,
+        showSubtotals,
+        showSubtotalsExpanded,
+        showRowGrouping,
+        hideRowNumbers,
+        metricsAsRows,
+        rowLimit,
+        columnProperties,
+    } = useEditorState(selectTableEditor, tableEditorActions, () =>
+        buildTableEditorState(tableChartConfig),
+    );
+    const dispatch = useVisualizationDispatch();
+    const set = useEditorFieldSetter<TableEditorState>(
+        selectTableEditor,
+        tableEditorActions.set,
     );
 
-    const [showRowCalculation, setShowRowCalculation] = useState<boolean>(
-        !!tableChartConfig?.showRowCalculation,
-    );
-
-    const [conditionalFormattings, setConditionalFormattings] = useState<
-        ConditionalFormattingConfig[]
-    >(tableChartConfig?.conditionalFormattings ?? []);
-
-    const [showTableNames, setShowTableNames] = useState<boolean>(
-        tableChartConfig?.showTableNames ?? false,
-    );
-    const [showResultsTotal, setShowResultsTotal] = useState<boolean>(
-        tableChartConfig?.showResultsTotal ?? false,
-    );
-    const [showSubtotals, setShowSubtotals] = useState<boolean>(
-        tableChartConfig?.showSubtotals ?? false,
-    );
-    const [showSubtotalsExpanded, setShowSubtotalsExpanded] = useState<boolean>(
-        tableChartConfig?.showSubtotalsExpanded ?? false,
-    );
-    const [showRowGrouping, setShowRowGrouping] = useState<boolean>(
-        tableChartConfig?.showRowGrouping ?? false,
-    );
-    const [hideRowNumbers, setHideRowNumbers] = useState<boolean>(
-        tableChartConfig?.hideRowNumbers === undefined
-            ? false
-            : tableChartConfig.hideRowNumbers,
-    );
-
-    const [metricsAsRows, setMetricsAsRows] = useState<boolean>(
-        tableChartConfig?.metricsAsRows || false,
-    );
-
-    const [rowLimit, setRowLimit] = useState<RowLimit | undefined>(
-        tableChartConfig?.rowLimit,
+    const setters = useMemo(
+        () => ({
+            setShowColumnCalculation: (value: SetStateAction<boolean>) =>
+                set('showColumnCalculation', value),
+            setShowRowCalculation: (value: SetStateAction<boolean>) =>
+                set('showRowCalculation', value),
+            setShowTableNames: (value: SetStateAction<boolean>) =>
+                set('showTableNames', value),
+            setHideRowNumbers: (value: SetStateAction<boolean>) =>
+                set('hideRowNumbers', value),
+            setShowResultsTotal: (value: SetStateAction<boolean>) =>
+                set('showResultsTotal', value),
+            setShowSubtotals: (value: SetStateAction<boolean>) =>
+                set('showSubtotals', value),
+            setShowSubtotalsExpanded: (value: SetStateAction<boolean>) =>
+                set('showSubtotalsExpanded', value),
+            setShowRowGrouping: (value: SetStateAction<boolean>) =>
+                set('showRowGrouping', value),
+            setMetricsAsRows: (value: SetStateAction<boolean>) =>
+                set('metricsAsRows', value),
+            setRowLimit: (value: SetStateAction<RowLimit | undefined>) =>
+                set('rowLimit', value),
+            setColumnProperties: (
+                value: SetStateAction<Record<string, ColumnProperties>>,
+            ) => set('columnProperties', value),
+        }),
+        [set],
     );
 
     useEffect(() => {
@@ -118,14 +144,10 @@ const useTableConfig = (
             const hasItemsFromMultipleTables =
                 shouldDefaultShowTableNames(itemsMap);
             if (hasItemsFromMultipleTables) {
-                setShowTableNames(true);
+                set('showTableNames', true);
             }
         }
-    }, [itemsMap, tableChartConfig?.showTableNames]);
-
-    const [columnProperties, setColumnProperties] = useState<
-        Record<string, ColumnProperties>
-    >(tableChartConfig?.columns === undefined ? {} : tableChartConfig?.columns);
+    }, [itemsMap, tableChartConfig?.showTableNames, set]);
 
     const selectedItemIds = useMemo(
         () => getTableSelectedItemIds(resultsData?.metricQuery),
@@ -155,8 +177,8 @@ const useTableConfig = (
     const effectiveMetricsAsRows = metricsAsRows && !disableMetricsAsRows;
 
     useEffect(() => {
-        if (disableMetricsAsRows) setMetricsAsRows(false);
-    }, [disableMetricsAsRows]);
+        if (disableMetricsAsRows) set('metricsAsRows', false);
+    }, [disableMetricsAsRows, set]);
 
     const getFieldLabelDefault = useCallback(
         (fieldId: string | null | undefined) =>
@@ -254,8 +276,8 @@ const useTableConfig = (
     // Once dimensions are loaded, turn off subtotals if there are not enough dimensions.
     useEffect(() => {
         if (shouldDisableSubtotals(dimensions.length, numUnpivotedDimensions))
-            setShowSubtotals(false);
-    }, [dimensions.length, numUnpivotedDimensions]);
+            set('showSubtotals', false);
+    }, [dimensions.length, numUnpivotedDimensions, set]);
 
     const projectUuid = useProjectUuid();
     // Only request totals once the initial query has succeeded — a queryUuid can
@@ -538,31 +560,23 @@ const useTableConfig = (
                 Object.keys(columnProperties).length !==
                 Object.keys(newColumnProperties).length
             ) {
-                setColumnProperties(newColumnProperties);
+                set('columnProperties', newColumnProperties);
             }
         }
-    }, [selectedItemIds, columnProperties]);
+    }, [selectedItemIds, columnProperties, set]);
 
     const updateColumnProperty = useCallback(
-        (field: string, properties: Partial<ColumnProperties>) => {
-            // functional setter so consecutive calls compose correctly
-
-            setColumnProperties((prev) => ({
-                ...prev,
-                [field]:
-                    field in prev
-                        ? { ...prev[field], ...properties }
-                        : { ...properties },
-            }));
-        },
-        [],
+        (field: string, properties: Partial<ColumnProperties>) =>
+            dispatch(
+                tableEditorActions.updateColumnProperty({ field, properties }),
+            ),
+        [dispatch],
     );
 
     const handleSetConditionalFormattings = useCallback(
-        (configs: ConditionalFormattingConfig[]) => {
-            setConditionalFormattings(configs);
-        },
-        [],
+        (configs: ConditionalFormattingConfig[]) =>
+            set('conditionalFormattings', configs),
+        [set],
     );
 
     const prevMinMaxQueryUuidRef = useRef<string | undefined>(undefined);
@@ -665,24 +679,15 @@ const useTableConfig = (
             columnOrder,
             validConfig,
             showColumnCalculation,
-            setShowColumnCalculation,
             showRowCalculation,
-            setShowRowCalculation,
             showTableNames,
-            setShowTableNames,
             hideRowNumbers,
-            setHideRowNumbers,
             showResultsTotal,
-            setShowResultsTotal,
             showSubtotals,
-            setShowSubtotals,
             showSubtotalsExpanded,
-            setShowSubtotalsExpanded,
             showRowGrouping,
-            setShowRowGrouping,
 
             columnProperties: exposedColumnProperties,
-            setColumnProperties,
             updateColumnProperty,
             columns,
             getFieldLabelOverride,
@@ -696,7 +701,6 @@ const useTableConfig = (
             onSetConditionalFormattings: handleSetConditionalFormattings,
             pivotTableData,
             metricsAsRows: effectiveMetricsAsRows,
-            setMetricsAsRows,
             rowFieldIds,
             configuredRowFieldIds: pivotRows,
             setRowFieldIds: onPivotRowsChange,
@@ -716,31 +720,22 @@ const useTableConfig = (
             isCalculatingGrandTotals,
             isCalculatingSubtotals,
             rowLimit,
-            setRowLimit,
+            ...setters,
         }),
         [
             selectedItemIds,
             columnOrder,
             validConfig,
             showColumnCalculation,
-            setShowColumnCalculation,
             showRowCalculation,
-            setShowRowCalculation,
             showTableNames,
-            setShowTableNames,
             hideRowNumbers,
-            setHideRowNumbers,
             showResultsTotal,
-            setShowResultsTotal,
             showSubtotals,
-            setShowSubtotals,
             showSubtotalsExpanded,
-            setShowSubtotalsExpanded,
             showRowGrouping,
-            setShowRowGrouping,
 
             exposedColumnProperties,
-            setColumnProperties,
             updateColumnProperty,
             columns,
             getFieldLabelOverride,
@@ -754,7 +749,6 @@ const useTableConfig = (
             handleSetConditionalFormattings,
             pivotTableData,
             effectiveMetricsAsRows,
-            setMetricsAsRows,
             rowFieldIds,
             pivotRows,
             onPivotRowsChange,
@@ -774,7 +768,7 @@ const useTableConfig = (
             isCalculatingGrandTotals,
             isCalculatingSubtotals,
             rowLimit,
-            setRowLimit,
+            setters,
         ],
     );
 };
