@@ -216,7 +216,8 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         );
     };
 
-    const hasVizConfigPanel = config.schemaVersion === 1;
+    // Chart panel hidden until its design is settled.
+    const hasVizConfigPanel = false;
     const panelMode = ((): AiComposerVizConfigPanelMode => {
         if (!isResultReady || options.kinds.length <= 1) return 'static';
         return isTerminalDisplayed ? 'expandable' : 'switcher';
