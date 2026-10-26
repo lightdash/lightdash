@@ -1,3 +1,10 @@
+## [3.59.1](https://github.com/lightdash/lightdash/compare/3.59.0...3.59.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* **frontend:** retry transient network failures when loading user and account ([#31569](https://github.com/lightdash/lightdash/issues/31569)) ([b513d1b](https://github.com/lightdash/lightdash/commit/b513d1b90b806d973e7f306b595c6497279392f9))
+
 # [3.59.0](https://github.com/lightdash/lightdash/compare/3.58.0...3.59.0) (2026-10-26)
 
 
