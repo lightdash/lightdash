@@ -10,5 +10,6 @@
     "E2B_PYTHON_WARM_TEMPLATE_TAG": "Set only by internal composer experiment deployments since 3.53.1; mentioned only in the sandbox README, never in operator docs. The warm build now ships as the default lightdash-python-runner template, so nothing breaks without this setting.",
     "AI_CODING_AGENT_MAX_REPO_SIZE_MB": "Set by developers for the internal general-purpose coding-agent experiment and not documented for operators. That experiment is removed, so this unused setting no longer configures a sandbox or run.",
     "E2B_CODING_AGENT_TEMPLATE_NAME": "Set by developers for the internal general-purpose coding-agent experiment and not documented for operators. That experiment is removed, so this unused setting no longer configures a sandbox or run.",
-    "E2B_CODING_AGENT_TEMPLATE_TAG": "Set by developers for the internal general-purpose coding-agent experiment and not documented for operators. That experiment is removed, so this unused setting no longer configures a sandbox or run."
+    "E2B_CODING_AGENT_TEMPLATE_TAG": "Set by developers for the internal general-purpose coding-agent experiment and not documented for operators. That experiment is removed, so this unused setting no longer configures a sandbox or run.",
+    "METRIC_DASHBOARD_FILTERS_ENABLED": "Self-hosted operators set it to turn on the beta metric dashboard filter UI. The feature is now on for everyone, so nothing breaks when the variable is left set or removed."
 }

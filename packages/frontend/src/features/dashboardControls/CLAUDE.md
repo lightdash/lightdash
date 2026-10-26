@@ -603,7 +603,7 @@ In `FilterConfiguration/`:
 - Field search is the shipped `FilterFieldSelect`, never a picker of our own:
   every time grain is a field, fields of the current tab come first, grouped
   by table. `FieldsAndTiles` feeds it what the shipped "Add filter" does:
-  dimensions, plus metrics under `FeatureFlags.MetricDashboardFilters`.
+  dimensions and metrics.
   - A placeholder shows it inline as a search: no label, "Search fields",
     then the hint in dimmed text. When no tile has fields it shows the
     shipped "Select a column to filter" select instead (`SqlColumnSelect`).

@@ -59,12 +59,6 @@ vi.mock('./useSqlColumnsByTile', () => ({
 const mockTileStatus = vi.hoisted(() => ({
     current: { sqlChartTilesMetadata: {} } as Record<string, unknown>,
 }));
-const mockMetricFiltersFlag = vi.hoisted(() => ({ current: false }));
-vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: mockMetricFiltersFlag.current },
-    }),
-}));
 
 const dimension = (
     name: string,
@@ -254,7 +248,6 @@ describe('FieldsAndTiles', () => {
         vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(
             400,
         );
-        mockMetricFiltersFlag.current = false;
         mockSqlColumnsByTile.current = {};
         mockTileStatus.current = { sqlChartTilesMetadata: {} };
         mockDashboardContext.current = {
@@ -354,19 +347,12 @@ describe('FieldsAndTiles', () => {
             expect(addFirstField).toHaveBeenCalledWith(createdMonth);
         });
 
-        it('lists metrics only where metric filters can be created', async () => {
+        it('lists metrics alongside dimensions', async () => {
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 allFilterableMetrics: [revenue],
             };
             setSidebar(rule(''), { isPlaceholder: true });
-            const { unmount } = renderWithProviders(<FieldsAndTiles />);
-            await userEvent.click(screen.getByTestId(FIELD_SEARCH));
-            await screen.findByText('Orders');
-            expect(optionNames()).toEqual(['Region', 'Status']);
-            unmount();
-
-            mockMetricFiltersFlag.current = true;
             renderWithProviders(<FieldsAndTiles />);
             await userEvent.click(screen.getByTestId(FIELD_SEARCH));
             await screen.findByText('Orders');
