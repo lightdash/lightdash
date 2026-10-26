@@ -1488,6 +1488,10 @@ export class AsyncQueryService extends ProjectService {
                     rows.push(formatter(JSON.parse(line)));
                 }
                 nonEmptyLineCount += 1;
+                if (nonEmptyLineCount >= endLine) {
+                    destroyS3Body(cacheStream);
+                    break;
+                }
             }
         }
 
