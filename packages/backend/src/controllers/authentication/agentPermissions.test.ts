@@ -28,6 +28,7 @@ import {
     expectAdmissionSql,
     setupPermissionSql,
 } from '../../services/AgentPermissionService/agentPermissionSqlFixture';
+import { assertHumanManagedMutation } from '../../services/AgentPermissionService/assertHumanManagedMutation';
 import { type ServiceRepository } from '../../services/ServiceRepository';
 import { SpaceService } from '../../services/SpaceService/SpaceService';
 import { SpaceController } from '../spaceController';
@@ -41,6 +42,9 @@ vi.mock('../../ee/authentication', () => ({
     authenticateServiceAccount: vi.fn(),
 }));
 
+const admissionDatabase = knex({ client: MockClient, dialect: 'pg' });
+const admissionTracker = getTracker();
+
 const restrictedCapabilities = [
     AgentCapability.ReadDiscover,
     AgentCapability.Query,
@@ -49,6 +53,7 @@ const restrictedCapabilities = [
 
 const setup = ({
     mode = 'managed',
+    clientId = 'client',
     operation = 'ProjectController_createDashboard',
     authentication = 'oauth',
     scopes = ['write'],
@@ -59,6 +64,7 @@ const setup = ({
     allowedCapabilities = null,
 }: {
     mode?: 'off' | 'legacy' | 'managed';
+    clientId?: string;
     operation?: string;
     authentication?: 'oauth' | 'pat' | 'session' | 'service-account';
     scopes?: string[];
@@ -159,7 +165,7 @@ const setup = ({
                     return {
                         accessToken: 'token',
                         scope: scopes,
-                        client: { id: 'client' },
+                        client: { id: clientId },
                         user,
                     };
                 },
@@ -224,6 +230,87 @@ describe.each([
     { name: 'OAuth-only', middleware: allowOauthAuthentication },
     { name: 'API-key OAuth', middleware: allowApiKeyAuthentication },
 ])('$name agent policy', ({ middleware }) => {
+    it.each(['off', 'legacy', 'managed'] as const)(
+        'treats a personal CLI login as a person using a tool in %s mode',
+        async (mode) => {
+            const { run, assertOperationWithRequest, getPolicy } = setup({
+                mode,
+                clientId: 'lightdash-cli',
+                allowedGroupUuids: ['other-group'],
+                allowedCapabilities: [],
+            });
+            await expect(run(middleware)).resolves.toBeUndefined();
+            expect(assertOperationWithRequest).not.toHaveBeenCalled();
+            expect(getPolicy).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['legacy', 'managed'] as const)(
+        'still polices other OAuth clients in %s mode',
+        async (mode) => {
+            const { run } = setup({
+                mode,
+                clientId: 'other-client',
+                allowedGroupUuids: ['other-group'],
+                allowedCapabilities: [],
+            });
+            expect(await run(middleware)).toBeInstanceOf(AiAccessRefusedError);
+        },
+    );
+
+    it('keeps personal CLI logins out of human-only agent permission management', async () => {
+        const { request, run } = setup({ clientId: 'lightdash-cli' });
+        await expect(run(middleware)).resolves.toBeUndefined();
+        await expect(
+            request.services
+                .getAgentPermissionService()
+                .getPolicy(request.account!),
+        ).rejects.toThrow('Only a person can manage agent permissions');
+    });
+    it('keeps personal CLI logins out of human-only managed mutations', async () => {
+        const { request, run } = setup({ clientId: 'lightdash-cli' });
+        await expect(run(middleware)).resolves.toBeUndefined();
+        const get = vi
+            .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+            .mockResolvedValue({
+                mode: 'managed',
+                version: 1,
+                allowedCapabilities: null,
+                allowedGroupUuids: null,
+                systemRoleMatrix: agentSystemRoleMatrix([]),
+            });
+        try {
+            await expect(
+                assertHumanManagedMutation({
+                    organizationUuid:
+                        request.account!.organization.organizationUuid,
+                    ability: request.account!.user.ability,
+                    oauth: request.account!.authentication.type === 'oauth',
+                    database: admissionDatabase,
+                    featureFlagModel: {
+                        get: vi.fn().mockResolvedValue({ enabled: true }),
+                    },
+                }),
+            ).rejects.toBeInstanceOf(AiAccessRefusedError);
+        } finally {
+            get.mockRestore();
+        }
+    });
+    it('still checks OAuth scopes for a personal CLI login before skipping agent policy', async () => {
+        const { request, run, assertOperationWithRequest } = setup({
+            clientId: 'lightdash-cli',
+            scopes: ['read'],
+        });
+        request.route.stack = [
+            {
+                handle: requireOAuthScopeOperation(
+                    'DeployController.addDeployBatch',
+                ),
+            },
+        ];
+        expect(await run(middleware)).toBeInstanceOf(ForbiddenError);
+        expect(assertOperationWithRequest).not.toHaveBeenCalled();
+    });
+
     it('refuses content writes for a managed pilot and preserves typed 403 data', async () => {
         const { run, assertOperationWithRequest } = setup();
         const error = await run(middleware);
@@ -694,8 +781,6 @@ test.each([allowOauthAuthentication, allowApiKeyAuthentication])(
     },
 );
 
-const admissionDatabase = knex({ client: MockClient, dialect: 'pg' });
-const admissionTracker = getTracker();
 beforeEach(() => admissionTracker.reset());
 afterAll(async () => admissionDatabase.destroy());
 

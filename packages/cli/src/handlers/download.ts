@@ -28,7 +28,6 @@ import {
     ApiVirtualViewAsCodeListResponse,
     ApiVirtualViewAsCodeUpsertResponse,
     assertUnreachable,
-    AuthorizationError,
     ChartAsCode,
     ChartType,
     computeCustomDependencies,
@@ -2254,13 +2253,7 @@ export const downloadHandler = async (
     const config = await (getAgentConnectionSelection() === null
         ? getConfig()
         : getConfig({ readOnly: true }));
-    if (getAgentConnectionSelection() !== null) {
-        await resolveCredential(config);
-    } else if (!config.context?.apiKey || !config.context.serverUrl) {
-        throw new AuthorizationError(
-            `Not logged in. Run 'lightdash login --help'`,
-        );
-    }
+    await resolveCredential(config);
 
     if (isOrganizationDownload) {
         await downloadOrganizationContent({
@@ -4064,11 +4057,9 @@ export const uploadHandler = async (
     const config = await (getAgentConnectionSelection() === null
         ? getConfig()
         : getConfig({ readOnly: true }));
-    if (!config.context?.apiKey || !config.context.serverUrl) {
-        throw new AuthorizationError(
-            `Not logged in. Run 'lightdash login --help'`,
-        );
-    }
+    await resolveCredential(config);
+    if (!config.context?.serverUrl)
+        throw new Error("Not logged in. Run 'lightdash login --help'");
 
     if (isOrganizationUpload) {
         await uploadOrganizationContent({

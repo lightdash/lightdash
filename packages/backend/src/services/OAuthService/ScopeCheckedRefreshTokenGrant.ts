@@ -26,6 +26,7 @@ export const createScopeCheckedRefreshTokenGrant = (
                 familyUuid: null,
                 agentConnectionGrantUuid: null,
                 parentRefreshToken: null,
+                sessionExpiresAt: null,
             };
             const boundOptions = {
                 ...options,
@@ -47,6 +48,14 @@ export const createScopeCheckedRefreshTokenGrant = (
             client: OAuth2Server.Client,
         ): Promise<OAuth2Server.Token> {
             const token = await super.getRefreshToken(request, client);
+            this.binding.sessionExpiresAt = token.sessionExpiresAt ?? null;
+            if (
+                this.binding.sessionExpiresAt !== null &&
+                this.binding.sessionExpiresAt.getTime() <= Date.now()
+            )
+                throw new OAuth2Server.InvalidGrantError(
+                    'Session expired. Log in again.',
+                );
             this.binding.agentConnectionGrantUuid =
                 token.agentConnectionGrantUuid ?? null;
             if (this.binding.agentConnectionGrantUuid !== null) {

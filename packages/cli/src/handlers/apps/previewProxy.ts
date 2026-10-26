@@ -128,6 +128,7 @@ const secretsMatch = (
 export const startPreviewProxy = (args: {
     upstreamUrl: string;
     authorization: string;
+    resolveAuthorization?: () => Promise<string>;
     proxyAuthorization?: string;
     projectUuid: string;
     nonce: string;
@@ -151,8 +152,11 @@ export const startPreviewProxy = (args: {
     });
 
     // Resolves the parsed body of a successful upstream GET, or null.
-    const getUpstreamJson = (path: string): Promise<unknown> =>
-        new Promise((resolve) => {
+    const getUpstreamJson = async (path: string): Promise<unknown> => {
+        const authorization = args.resolveAuthorization
+            ? await args.resolveAuthorization()
+            : args.authorization;
+        return new Promise((resolve) => {
             const upstreamReq = requestFn(
                 {
                     protocol: upstream.protocol,
@@ -160,9 +164,12 @@ export const startPreviewProxy = (args: {
                     port: upstream.port || undefined,
                     path,
                     method: 'GET',
-                    headers: withUpstreamCredentials({
-                        accept: 'application/json',
-                    }),
+                    headers: {
+                        ...withUpstreamCredentials({
+                            accept: 'application/json',
+                        }),
+                        authorization,
+                    },
                 },
                 (upstreamRes) => {
                     readBody(upstreamRes).then(
@@ -181,10 +188,17 @@ export const startPreviewProxy = (args: {
             upstreamReq.on('error', () => resolve(null));
             upstreamReq.end();
         });
+    };
 
     // Resolves the parsed body of a successful upstream POST, or null.
-    const postUpstreamJson = (path: string, body: string): Promise<unknown> =>
-        new Promise((resolve) => {
+    const postUpstreamJson = async (
+        path: string,
+        body: string,
+    ): Promise<unknown> => {
+        const authorization = args.resolveAuthorization
+            ? await args.resolveAuthorization()
+            : args.authorization;
+        return new Promise((resolve) => {
             const payload = Buffer.from(body, 'utf-8');
             const upstreamReq = requestFn(
                 {
@@ -193,11 +207,14 @@ export const startPreviewProxy = (args: {
                     port: upstream.port || undefined,
                     path,
                     method: 'POST',
-                    headers: withUpstreamCredentials({
-                        accept: 'application/json',
-                        'content-type': 'application/json',
-                        'content-length': payload.length,
-                    }),
+                    headers: {
+                        ...withUpstreamCredentials({
+                            accept: 'application/json',
+                            'content-type': 'application/json',
+                            'content-length': payload.length,
+                        }),
+                        authorization,
+                    },
                 },
                 (upstreamRes) => {
                     readBody(upstreamRes).then(
@@ -216,6 +233,7 @@ export const startPreviewProxy = (args: {
             upstreamReq.on('error', () => resolve(null));
             upstreamReq.end(payload);
         });
+    };
 
     // --show-sql: compile the metric query the app just ran (same payload the
     // customer-facing compileQuery endpoint takes) and report the SQL.
@@ -325,7 +343,10 @@ export const startPreviewProxy = (args: {
         res.end(JSON.stringify({ status: 'ok', results }));
     };
 
-    const server = http.createServer((req, res) => {
+    const handleRequest = async (
+        req: http.IncomingMessage,
+        res: http.ServerResponse,
+    ): Promise<void> => {
         const method = req.method ?? 'GET';
         const nonceHeader = req.headers[PREVIEW_PROXY_NONCE_HEADER];
         const browserAuthorization = req.headers.authorization;
@@ -385,6 +406,8 @@ export const startPreviewProxy = (args: {
         const headers = withUpstreamCredentials(
             filterHeaders(req.headers, DROPPED_REQUEST_HEADERS),
         );
+        if (args.resolveAuthorization)
+            headers.authorization = await args.resolveAuthorization();
         // The previewed app fetches the export's fileUrl directly from the
         // local dev page, which carries no instance credentials — ask the
         // backend for a SIGNED URL, same as the deployed app's bridge.
@@ -438,6 +461,17 @@ export const startPreviewProxy = (args: {
         } else {
             req.pipe(upstreamReq);
         }
+    };
+    const server = http.createServer((req, res) => {
+        handleRequest(req, res).catch(() => {
+            if (!res.headersSent)
+                sendJsonError(
+                    res,
+                    502,
+                    'Preview proxy: could not authenticate the upstream request.',
+                );
+            else res.destroy();
+        });
     });
 
     return new Promise((resolve, reject) => {
