@@ -1307,9 +1307,9 @@ describe('ControlSidebar', () => {
             expect(wrapperOf('filter-4')).not.toContain('sectionRow');
         });
 
-        it('shows the drop zones only while a row is dragged', async () => {
+        it('mounts nothing on pick-up: only the overlay copy, gone on Escape', async () => {
             closedRail();
-            renderWithProviders(
+            const { container } = renderWithProviders(
                 <ControlSidebar />,
                 filters([
                     makeRule({ label: 'Order status' }),
@@ -1320,43 +1320,28 @@ describe('ControlSidebar', () => {
                     }),
                 ]),
             );
-            const noZones = () => {
-                expect(
-                    screen.queryByText('Drag filters here'),
-                ).not.toBeInTheDocument();
-                expect(
-                    screen.queryByText(/take it out of its section/),
-                ).not.toBeInTheDocument();
-            };
-            noZones();
+            const rows = () =>
+                container.querySelectorAll('[data-controls-row]').length;
+            expect(rows()).toBe(2);
+            expect(screen.getAllByText('Created')).toHaveLength(1);
 
-            // An unsectioned row: the empty section's zone, no unsectioned one
-            pickUp(grips()[0]);
-            expect(screen.getByText('Drag filters here')).toBeInTheDocument();
+            pickUp(grips()[1]);
+            expect(rows()).toBe(2);
+            expect(screen.getAllByText('Created')).toHaveLength(2);
             expect(
-                screen.queryByText(/take it out of its section/),
-            ).not.toBeInTheDocument();
+                container.querySelector('[data-controls-row="filter-3"]')
+                    ?.parentElement,
+            ).toHaveAttribute('data-dragging');
+            expect(screen.queryByText(/Drag|Drop/)).not.toBeInTheDocument();
+
             // The sensor listens for Escape from the next tick on
             await act(() => new Promise((resolve) => setTimeout(resolve)));
             fireEvent.keyDown(document, { code: 'Escape', key: 'Escape' });
-            noZones();
-
-            // A sectioned row: both
-            pickUp(grips()[1]);
-            expect(screen.getByText('Drag filters here')).toBeInTheDocument();
-            const zone = screen.getByText(
-                'Drop here to take it out of its section',
-            );
-            // Under the unsectioned rows, above the first section
+            expect(rows()).toBe(2);
             expect(
-                zone.compareDocumentPosition(
-                    screen.getByRole('button', { name: /Order status/ }),
-                ) & Node.DOCUMENT_POSITION_PRECEDING,
-            ).toBeTruthy();
-            expect(
-                zone.compareDocumentPosition(screen.getByText('Dates')) &
-                    Node.DOCUMENT_POSITION_FOLLOWING,
-            ).toBeTruthy();
+                container.querySelector('[data-controls-row="filter-3"]')
+                    ?.parentElement,
+            ).not.toHaveAttribute('data-dragging');
         });
 
         it('counts an empty section and hides rows when collapsed', () => {

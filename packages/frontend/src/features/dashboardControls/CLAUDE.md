@@ -1070,12 +1070,9 @@ the language map, as tab names are.
   `SectionHeader` band on `ldGray-1` (grip, chevron, name, "N filters", a
   menu with "Rename" and "Remove section") over its rows, which are indented
   one `md` further than the unsectioned ones (`.sectionRow`, also on a
-  viewer's read-only rows). The dashed `SectionDropZone`s render only during
-  a drag (`draggedId`, from `onDragStart` to `onDragEnd` / `onDragCancel`):
-  every empty section's ("Drag filters here"), and under the unsectioned
-  rows ("Drop here to take it out of its section") while the dragged row is
-  in a section. Collapsing is local state keyed by section id and still
-  shows the filter being edited. A placeholder
+  viewer's read-only rows). There are no drop zones: nothing mounts during
+  a drag. Collapsing is local state keyed by section id and still shows the
+  filter being edited. A placeholder
   comes last among the unsectioned rows. The header's strings go through
   `useUiStrings` (`filters.rail.sectionCount.*` via `formatSectionCount`,
   `untitledSection`, `collapseSection`, `expandSection`), since a viewer
@@ -1085,8 +1082,7 @@ the language map, as tab names are.
   `SectionHeader` with `isReadOnly` (chevron, name, count; no grip, menu or
   name input) over its members as read-only `FilterRow`s (`isOwn` false,
   no `SortableRow`, dimmed, tooltip `filters.rail.savedFilterReadOnly`):
-  they are set from the bar. No drop zones, no "New section" in the "Add"
-  menu. The same `collapsedIds` state collapses them.
+  they are set from the bar. No "New section" in the "Add" menu. The same `collapsedIds` state collapses them.
 - "New section" in the header's "Add" menu folds the expanded filter
   (`collapse()`, as `openNew` does) and opens a section header with its name
   input, held only in the rail's `nameEdit` state until a name is committed
@@ -1101,24 +1097,32 @@ the language map, as tab names are.
   button (`data-controls-section-menu`) after a commit or a cancelled
   rename, the header's "Add" button after a remove or a dropped new
   section. A drop that moves nothing marks nothing changed.
-- Drag: one `DndContext` with one `SortableContext` over the headers, rows
-  and zones on screen, in display order (`closestCenter`, `PointerSensor` at
-  5px and `KeyboardSensor` with `sortableKeyboardCoordinates`); the items
-  never name a collapsed section's rows, which are not rendered. Droppables
-  are measured `MeasuringStrategy.Always`, since zones appear mid-drag, and
-  `autoScroll` has `layoutShiftCompensation` off (`.body` scrolls). A
-  `DragOverlay` carries a compact copy (type icon and name, `.dragPreview`)
-  while the source stays in place dimmed (`data-dragging`). Dragging over a
-  collapsed section's header expands it, and it stays expanded. The grip
-  (`DragGrip`, a button of its own next to the row, shown on hover and
-  focus) is the handle. A row dropped on a row takes that row's section and
-  its place within the row's own list; dropped on a header or an empty zone
-  it joins that section after its last member of the same kind. A header
-  dropped on a header, or on one of its rows, reorders the sections. Drag is
-  off while a filter is expanded or a name is being edited.
-- Bar, view mode only (edit mode stays flat): with `selectControlSections`
-  non-empty and the rail closed, `ControlsBar` renders `SectionedFilters` in
-  place of `AddControl` + `FilterPills`. It is `AddControl placement="bar"`,
+- Drag: one `DndContext` around `EditorShell`, with one `SortableContext`
+  in the body over the headers and rows on screen, in display order
+  (`closestCenter`, `PointerSensor` at 5px and `KeyboardSensor` with
+  `sortableKeyboardCoordinates`); the items never name a collapsed section's
+  rows, which are not rendered. The targets are rows, section headers and
+  the rail's header bar (`useDroppable` with `UNSECTIONED_TARGET_ID` in
+  `EditorShell`), nothing mounts or unmounts during a drag. Droppables are
+  measured `MeasuringStrategy.Always`, since a collapsed section opens
+  mid-drag, and `autoScroll` has `layoutShiftCompensation` off (`.body`
+  scrolls). A `DragOverlay` carries a compact copy (type icon and name,
+  `.dragPreview`) while the source stays in place at `opacity: 0.3`
+  (`data-dragging`). A section header or the rail header under the drag
+  carries `data-over` (`isOver`): hover fill and an inset `blue-5` ring.
+  Dragging over a collapsed section's header expands it, and it stays
+  expanded. The grip (`DragGrip`, a button of its own next to the row, shown
+  on hover and focus) is the handle. A row dropped on a row takes that row's
+  section and its place within the row's own list; dropped on a header it
+  joins that section after its last member of the same kind (so an empty
+  section is joined on its header); dropped on the rail's header it leaves
+  its section. A header dropped on a header, or on one of its rows, reorders
+  the sections. Drag is off while a filter is expanded or a name is being
+  edited.
+- Bar, in both modes: with `selectControlSections` non-empty and the rail
+  closed, `ControlsBar` renders `SectionedFilters` in place of `AddControl`
+  + `FilterPills` (in edit mode `FilterRequirementsButton` follows it, as
+  it follows the flat pills). It is `AddControl`,
   `FilterPills sectionId={null}` (the unsectioned saved pills and the
   viewer's own pills, which are never in a section) and then one capsule per
   section in `controlSections` order that has a saved member visible on this
@@ -1134,7 +1138,9 @@ the language map, as tab names are.
   nothing in the URL. `FilterPills` threads `sectionId` (`undefined`: every
   saved rule, the default; `null`; a string) and a shared `popover` state to
   `ViewerSavedPills`, which filters with `isRuleInSection` and keeps the
-  saved index for remove and update; `SectionedFilters` owns the popover
+  saved index for remove and update (the editor's pills filter the same way,
+  per group, so a capsule reorders within itself and the temporary pills
+  render once, in the unsectioned pass); `SectionedFilters` owns the popover
   state so one saved popover is open across the whole bar, and a lone
   `FilterPills` keeps its own.
 

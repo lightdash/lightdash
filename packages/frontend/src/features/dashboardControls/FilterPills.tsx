@@ -12,6 +12,7 @@ import {
 import { useDndSensors } from '../../hooks/useDndSensors';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    selectControlSections,
     selectDashboardFilters,
     selectDashboardTabs,
     useDashboardSelector,
@@ -25,6 +26,7 @@ import {
     useFilterTabPlacement,
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { FilterPill, type FilterPillKind } from './FilterPill';
+import { isRuleInSection } from './sections';
 import { isPlaceholderRule } from './sidebarState';
 import { TemporaryFilterPills } from './TemporaryFilterPills';
 import { useControlsSidebarSelector } from './useControlsSidebar';
@@ -33,9 +35,9 @@ import { ViewerSavedPills, type PillPopoverState } from './ViewerSavedPills';
 type Props = {
     activeTabUuid: string | undefined;
     /**
-     * View mode only. `undefined` (default): every saved rule and the
-     * viewer's own; `null`: the unsectioned saved rules and the viewer's own;
-     * a string: that section's saved rules alone.
+     * `undefined` (default): every saved rule and the viewer's own; `null`:
+     * the unsectioned saved rules and the viewer's own; a string: that
+     * section's saved rules alone.
      */
     sectionId?: string | null;
     /** A viewer's saved popover state, shared across the bar's passes (default: local) */
@@ -75,6 +77,7 @@ export const FilterPills: FC<Props> = ({
         (c) => c.setHaveFiltersChanged,
     );
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
+    const sections = useDashboardSelector(selectControlSections);
     const hasTabs = useDashboardSelector(
         (state) => selectDashboardTabs(state).length > 0,
     );
@@ -183,6 +186,14 @@ export const FilterPills: FC<Props> = ({
                             onDragEnd={(event) => handleDragEnd(group, event)}
                         >
                             {dashboardFilters[group].map((filter) => {
+                                if (
+                                    !isRuleInSection(
+                                        filter,
+                                        sectionId,
+                                        sections,
+                                    )
+                                )
+                                    return null;
                                 const pill = renderPill(
                                     filter,
                                     group,
@@ -212,19 +223,21 @@ export const FilterPills: FC<Props> = ({
             )}
             {/* A viewer's own filters open in the rail too; in edit mode
                 they keep the shipped popover. They are never in a section */}
-            {isViewer ? (
-                typeof sectionId !== 'string' &&
-                GROUPS.flatMap((group) =>
-                    temporaryFilters[group].map((filter) => {
-                        const pill = renderPill(filter, group, 'viewerOwn');
-                        return (
-                            pill && <Fragment key={filter.id}>{pill}</Fragment>
-                        );
-                    }),
-                )
-            ) : (
-                <TemporaryFilterPills activeTabUuid={activeTabUuid} />
-            )}
+            {isViewer
+                ? typeof sectionId !== 'string' &&
+                  GROUPS.flatMap((group) =>
+                      temporaryFilters[group].map((filter) => {
+                          const pill = renderPill(filter, group, 'viewerOwn');
+                          return (
+                              pill && (
+                                  <Fragment key={filter.id}>{pill}</Fragment>
+                              )
+                          );
+                      }),
+                  )
+                : typeof sectionId !== 'string' && (
+                      <TemporaryFilterPills activeTabUuid={activeTabUuid} />
+                  )}
         </>
     );
 };

@@ -1,3 +1,4 @@
+import { useDroppable } from '@dnd-kit/core';
 import {
     ActionIcon,
     Badge,
@@ -23,6 +24,7 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import classes from './ControlSidebar.module.css';
 import { useRailContractClasses } from './railContractClasses';
+import { UNSECTIONED_TARGET_ID } from './sections';
 import { useRailTop } from './useRailTop';
 
 type Props = {
@@ -56,6 +58,10 @@ export const EditorShell: FC<Props> = ({
     useRailTop(ref);
     const getUiString = useUiStrings();
     const contractClasses = useRailContractClasses();
+    // A row dropped on the header leaves its section
+    const { setNodeRef: setDropRef, isOver } = useDroppable({
+        id: UNSECTIONED_TARGET_ID,
+    });
     return (
         <Paper
             ref={ref}
@@ -67,11 +73,13 @@ export const EditorShell: FC<Props> = ({
             data-controls-editor
         >
             <Group
+                ref={setDropRef}
                 justify="space-between"
                 wrap="nowrap"
                 px="md"
                 py="xs"
                 className={classes.header}
+                data-over={isOver || undefined}
             >
                 <Group gap="xs" wrap="nowrap">
                     <Title order={5}>{getUiString('filters.rail.title')}</Title>

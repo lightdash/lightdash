@@ -88,7 +88,7 @@ type Props = {
     activeTabUuid: string | undefined;
 };
 
-// The view-mode filter area of a dashboard with sections: the unsectioned
+// The filter area of a dashboard with sections: the unsectioned
 // pass first (Add, the unsectioned saved pills, the viewer's own), then one
 // capsule per section with a member on this tab. A fold is local state keyed
 // by section id; one saved popover is open across every pass

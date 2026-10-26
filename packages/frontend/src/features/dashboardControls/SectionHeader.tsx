@@ -1,4 +1,3 @@
-import { useDroppable } from '@dnd-kit/core';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import {
@@ -119,6 +118,7 @@ export const SectionHeader: FC<Props> = ({
         transform,
         transition,
         isDragging,
+        isOver,
     } = useSortable({ id: section.id, disabled: isDragDisabled });
     const getUiString = useUiStrings();
     const name = section.name || getUiString('filters.rail.untitledSection');
@@ -127,6 +127,7 @@ export const SectionHeader: FC<Props> = ({
             ref={setNodeRef}
             className={classes.sectionHeader}
             data-dragging={isDragging || undefined}
+            data-over={isOver || undefined}
             data-controls-section={section.id}
             style={{ transform: CSS.Translate.toString(transform), transition }}
         >
@@ -211,28 +212,6 @@ export const SectionHeader: FC<Props> = ({
                     </Menu>
                 )}
             </Box>
-        </Box>
-    );
-};
-
-type DropZoneProps = { id: string; label: string; isDisabled: boolean };
-
-// An empty section's drop target, or the unsectioned area's
-export const SectionDropZone: FC<DropZoneProps> = ({
-    id,
-    label,
-    isDisabled,
-}) => {
-    const { setNodeRef, isOver } = useDroppable({ id, disabled: isDisabled });
-    return (
-        <Box
-            ref={setNodeRef}
-            className={classes.dropZone}
-            data-over={isOver || undefined}
-        >
-            <Text fz="xs" c="dimmed">
-                {label}
-            </Text>
         </Box>
     );
 };

@@ -69,7 +69,7 @@ import { FilterRow, FilterTypeIcon } from './FilterRow';
 import { FilterSettings } from './FilterSettings';
 import { getFilterFields } from './peers';
 import { getTilesSummary } from './railSummaries';
-import { SectionDropZone, SectionHeader } from './SectionHeader';
+import { SectionHeader } from './SectionHeader';
 
 const NEW_SECTION_BUTTON = '[data-controls-new-section]';
 const sectionMenuSelector = (sectionId: string) =>
@@ -79,9 +79,7 @@ import {
     moveRuleToSection,
     removeSectionFromRules,
     getDragAnnouncements,
-    sectionOfZoneId,
-    sectionZoneId,
-    UNSECTIONED_ZONE_ID,
+    UNSECTIONED_TARGET_ID,
     type SectionRule,
 } from './sections';
 import {
@@ -355,7 +353,7 @@ export const ControlSidebar: FC = () => {
     const [collapsedIds, setCollapsedIds] = useState<string[]>([]);
     // A new section lives only here until its name is committed
     const [nameEdit, setNameEdit] = useState<NameEdit | null>(null);
-    // The row or header under the pointer: the drop zones show only then
+    // The row or header under the pointer, copied into the drag overlay
     const [draggedId, setDraggedId] = useState<string | null>(null);
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -410,10 +408,8 @@ export const ControlSidebar: FC = () => {
         ),
     );
     const nameOf = (id: string) => {
-        if (id === UNSECTIONED_ZONE_ID) return 'the space outside any section';
-        const zoneSectionId = sectionOfZoneId(id);
-        if (zoneSectionId !== null)
-            return `the empty section ${sectionNames.get(zoneSectionId) ?? ''}`;
+        if (id === UNSECTIONED_TARGET_ID)
+            return 'the space outside any section';
         const sectionName = sectionNames.get(id);
         if (sectionName !== undefined) return `section ${sectionName}`;
         return ruleNames.get(id) ?? 'a filter';
@@ -437,23 +433,18 @@ export const ControlSidebar: FC = () => {
     const handleDragOver = ({ over }: DragOverEvent) => {
         if (!over) return;
         const overId = String(over.id);
-        const overSectionId = sectionIds.has(overId)
-            ? overId
-            : sectionOfZoneId(overId);
-        if (overSectionId === null || !collapsedIds.includes(overSectionId))
-            return;
-        setCollapsedIds((ids) => ids.filter((id) => id !== overSectionId));
+        if (!collapsedIds.includes(overId)) return;
+        setCollapsedIds((ids) => ids.filter((id) => id !== overId));
     };
     const handleDragEnd = ({ active, over }: DragEndEvent) => {
         setDraggedId(null);
         if (!over || active.id === over.id) return;
         const activeId = String(active.id);
         const overId = String(over.id);
-        const zoneSectionId = sectionOfZoneId(overId);
-        // Over a header, its empty zone or one of its rows: that section
+        // Over a header or one of its rows: that section
         const overSectionId = sectionIds.has(overId)
             ? overId
-            : (zoneSectionId ?? sectionOfRule(overId));
+            : sectionOfRule(overId);
         if (sectionIds.has(activeId)) {
             if (overSectionId === null || overSectionId === activeId) return;
             dispatch(
@@ -465,10 +456,10 @@ export const ControlSidebar: FC = () => {
             return;
         }
         const target =
-            overId === UNSECTIONED_ZONE_ID
+            overId === UNSECTIONED_TARGET_ID
                 ? { sectionId: null }
-                : sectionIds.has(overId) || zoneSectionId !== null
-                  ? { sectionId: overSectionId }
+                : sectionIds.has(overId)
+                  ? { sectionId: overId }
                   : { ruleId: overId };
         const moved = moveRuleToSection(dashboardFilters, activeId, target);
         if (moved === dashboardFilters) return;
@@ -576,10 +567,6 @@ export const ControlSidebar: FC = () => {
         grouped.some(({ rules }) =>
             rules.some(({ rule }) => rule.id === filterId),
         );
-    // The zones show only during a drag: every empty section's, and the one
-    // under the unsectioned rows while the dragged row is in a section
-    const hasUnsectionedZone =
-        !isViewer && draggedId !== null && sectionOfRule(draggedId) !== null;
     // What is on screen: the sortable ids must not name an unrendered row
     const listed = grouped.map(({ section, rules }) => {
         const isCollapsed =
@@ -592,78 +579,42 @@ export const ControlSidebar: FC = () => {
             shown: isCollapsed
                 ? rules.filter(({ rule }) => rule.id === filterId)
                 : rules,
-            zoneId:
-                section === null
-                    ? hasUnsectionedZone
-                        ? UNSECTIONED_ZONE_ID
-                        : null
-                    : draggedId !== null && rules.length === 0 && !isCollapsed
-                      ? sectionZoneId(section.id)
-                      : null,
         };
     });
-    const sortableIds = listed.flatMap(({ section, shown, zoneId }) => [
+    const sortableIds = listed.flatMap(({ section, shown }) => [
         ...(section === null ? [] : [section.id]),
         ...shown.map(({ rule }) => rule.id),
-        ...(zoneId === null ? [] : [zoneId]),
     ]);
-    const body = listed.flatMap(
-        ({ section, rules, isCollapsed, shown, zoneId }) => {
-            if (section === null) {
-                const rows = shown.map((rule) => renderRow(rule, false, false));
-                const zone =
-                    zoneId === null
-                        ? []
-                        : [
-                              <SectionDropZone
-                                  key={zoneId}
-                                  id={zoneId}
-                                  label="Drop here to take it out of its section"
-                                  isDisabled={isSidebarOpen}
-                              />,
-                          ];
-                return isListed
-                    ? [...rows, ...zone]
-                    : [...rows, editor, ...zone];
-            }
-            return [
-                <SectionHeader
-                    key={`section:${section.id}`}
-                    section={section}
-                    countLabel={formatSectionCount(getUiString, rules.length)}
-                    isCollapsed={isCollapsed}
-                    isEditingName={nameEdit?.id === section.id}
-                    isNew={nameEdit?.id === section.id && nameEdit.isNew}
-                    isDragDisabled={isSidebarOpen || nameEdit !== null}
-                    isReadOnly={isViewer}
-                    onToggle={() =>
-                        setCollapsedIds((ids) =>
-                            ids.includes(section.id)
-                                ? ids.filter((id) => id !== section.id)
-                                : [...ids, section.id],
-                        )
-                    }
-                    onRename={() =>
-                        setNameEdit({ id: section.id, isNew: false })
-                    }
-                    onCommitName={commitName}
-                    onCancelName={cancelName}
-                    onRemove={() => removeSection(section.id, rules.length > 0)}
-                />,
-                ...shown.map((rule) => renderRow(rule, isViewer, true)),
-                ...(zoneId === null
-                    ? []
-                    : [
-                          <SectionDropZone
-                              key={zoneId}
-                              id={zoneId}
-                              label="Drag filters here"
-                              isDisabled={isSidebarOpen}
-                          />,
-                      ]),
-            ];
-        },
-    );
+    const body = listed.flatMap(({ section, rules, isCollapsed, shown }) => {
+        if (section === null) {
+            const rows = shown.map((rule) => renderRow(rule, false, false));
+            return isListed ? rows : [...rows, editor];
+        }
+        return [
+            <SectionHeader
+                key={`section:${section.id}`}
+                section={section}
+                countLabel={formatSectionCount(getUiString, rules.length)}
+                isCollapsed={isCollapsed}
+                isEditingName={nameEdit?.id === section.id}
+                isNew={nameEdit?.id === section.id && nameEdit.isNew}
+                isDragDisabled={isSidebarOpen || nameEdit !== null}
+                isReadOnly={isViewer}
+                onToggle={() =>
+                    setCollapsedIds((ids) =>
+                        ids.includes(section.id)
+                            ? ids.filter((id) => id !== section.id)
+                            : [...ids, section.id],
+                    )
+                }
+                onRename={() => setNameEdit({ id: section.id, isNew: false })}
+                onCommitName={commitName}
+                onCancelName={cancelName}
+                onRemove={() => removeSection(section.id, rules.length > 0)}
+            />,
+            ...shown.map((rule) => renderRow(rule, isViewer, true)),
+        ];
+    });
     // A compact copy under the pointer; the source row stays in place, dimmed
     const dragged =
         draggedId === null
@@ -691,46 +642,47 @@ export const ControlSidebar: FC = () => {
                 : null;
 
     return (
-        <EditorShell
-            filterCount={
-                listedFilters.dimensions.length + listedFilters.metrics.length
-            }
-            onClose={close}
-            // Done folds the expanded filter first; a second Done closes
-            onDone={editor !== null ? collapse : close}
-            onCancel={editor !== null && isPlaceholder ? discard : null}
-            onAddFilter={
-                canAddFilters && !(isViewer && isAddFilterDisabled)
-                    ? () => openNew()
-                    : null
-            }
-            onNewSection={
-                isViewer
-                    ? null
-                    : () => {
-                          if (nameEdit?.isNew) return;
-                          // As `openNew`: the expanded filter folds first
-                          collapse();
-                          setNameEdit({ id: uuidv4(), isNew: true });
-                      }
-            }
-            footerStatus={footerStatus}
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            accessibility={{
+                announcements: getDragAnnouncements(nameOf),
+            }}
+            // A collapsed section opens mid-drag, so its rows are measured
+            measuring={{
+                droppable: { strategy: MeasuringStrategy.Always },
+            }}
+            autoScroll={{ layoutShiftCompensation: false }}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+            onDragCancel={() => setDraggedId(null)}
         >
-            <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                accessibility={{
-                    announcements: getDragAnnouncements(nameOf),
-                }}
-                // Zones appear mid-drag, so they are measured as they come
-                measuring={{
-                    droppable: { strategy: MeasuringStrategy.Always },
-                }}
-                autoScroll={{ layoutShiftCompensation: false }}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDragEnd={handleDragEnd}
-                onDragCancel={() => setDraggedId(null)}
+            <EditorShell
+                filterCount={
+                    listedFilters.dimensions.length +
+                    listedFilters.metrics.length
+                }
+                onClose={close}
+                // Done folds the expanded filter first; a second Done closes
+                onDone={editor !== null ? collapse : close}
+                onCancel={editor !== null && isPlaceholder ? discard : null}
+                onAddFilter={
+                    canAddFilters && !(isViewer && isAddFilterDisabled)
+                        ? () => openNew()
+                        : null
+                }
+                onNewSection={
+                    isViewer
+                        ? null
+                        : () => {
+                              if (nameEdit?.isNew) return;
+                              // As `openNew`: the expanded filter folds first
+                              collapse();
+                              setNameEdit({ id: uuidv4(), isNew: true });
+                          }
+                }
+                footerStatus={footerStatus}
             >
                 <SortableContext
                     items={sortableIds}
@@ -739,7 +691,7 @@ export const ControlSidebar: FC = () => {
                     {body}
                 </SortableContext>
                 <DragOverlay>{dragPreview}</DragOverlay>
-            </DndContext>
-        </EditorShell>
+            </EditorShell>
+        </DndContext>
     );
 };

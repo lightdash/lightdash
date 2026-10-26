@@ -32,9 +32,11 @@ export const ControlsBar: FC<Props> = (props) => {
                 // says what is being edited
                 isRailOpen ? (
                     <EditingStrip />
-                ) : !props.isEditMode && hasSections ? (
-                    // A viewer's bar with sections; edit mode stays flat
-                    <SectionedFilters activeTabUuid={props.activeTabUuid} />
+                ) : hasSections ? (
+                    <>
+                        <SectionedFilters activeTabUuid={props.activeTabUuid} />
+                        {props.isEditMode && <FilterRequirementsButton />}
+                    </>
                 ) : (
                     <>
                         <AddControl />
