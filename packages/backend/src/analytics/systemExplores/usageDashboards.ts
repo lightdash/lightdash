@@ -284,18 +284,22 @@ const buildChart = (
             ? {
                   dimensions: {
                       id: `${spec.key}-filters`,
-                      and: spec.filters.map(({ field, values, operator }) => ({
-                          id: `${spec.key}-${field}`,
-                          target: { fieldId: field },
-                          operator: operator ?? FilterOperator.EQUALS,
-                          values,
-                      })),
+                      and: spec.filters.map(
+                          ({ field, values, operator, settings }) => ({
+                              id: `${spec.key}-${field}`,
+                              target: { fieldId: field },
+                              operator: operator ?? FilterOperator.EQUALS,
+                              values,
+                              ...(settings ? { settings } : {}),
+                          }),
+                      ),
                   },
               }
             : {},
         sorts: spec.sorts,
         limit: spec.limit,
         tableCalculations: spec.tableCalculations ?? [],
+        ...(spec.timezone ? { timezone: spec.timezone } : {}),
     },
     chartConfig: chartConfig(spec),
     tableConfig: {

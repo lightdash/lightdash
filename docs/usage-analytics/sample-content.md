@@ -11,6 +11,17 @@ a cache-hit share donut, average/P90 warehouse execution trends,
 and top query contexts. Token volume is not cost; warehouse execution time is not
 end-to-end latency. Missing cache flags are not treated as misses.
 
+Queries → **Monthly comparison** shows querying users and query runs for the last
+12 completed UTC calendar months, with absolute and percentage changes against
+the preceding calendar month. Monthly users are counted distinctly across the
+whole month, not summed from daily users. Query runs include recorded cache hits
+and errors; recorded users include service accounts. Missing months are omitted
+and do not become zeroes or comparisons with an older non-adjacent month.
+Percentage change is blank for a zero baseline. Capture and retention can leave
+even closed calendar months incomplete; these comparisons describe recorded usage.
+Existing projects get these charts through **Sync content**; no event backfill,
+compaction changes or automatic edits to saved customer content are required.
+
 Query activity focuses on query totals, distinct users, average/P90 warehouse
 execution time, daily query and active-user trends, cache-hit share and query
 sources. AI usage replaces the former mixed overview while keeping its dashboard

@@ -1,6 +1,7 @@
 import type {
     ChartAsCode,
     DashboardAsCode,
+    DateFilterSettings,
     FilterOperator,
 } from '@lightdash/common';
 import type { analyticsExploreNames } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
@@ -21,9 +22,11 @@ export type UsageChartSpec = {
     sorts: ChartAsCode['metricQuery']['sorts'];
     filters?: {
         field: string;
-        values: (string | boolean)[];
+        values: (string | boolean | number)[];
         operator?: FilterOperator;
+        settings?: DateFilterSettings;
     }[];
+    timezone?: string;
     tableCalculations?: ChartAsCode['metricQuery']['tableCalculations'];
     fieldLabels?: Record<string, string>;
     visualization?: 'number' | 'line' | 'bar' | 'scatter' | 'donut';
