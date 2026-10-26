@@ -1161,9 +1161,7 @@ the language map, as tab names are.
   the same outline. The bar's own gap separates capsules. A section with more than `FOLDED_BY_DEFAULT_ABOVE` (6)
   members on the tab starts folded, the rest open; the fold is local state
   keyed by section id (the ids whose fold differs from that default), nothing
-  saved and nothing in the URL. In edit mode every pill the feature renders
-  (`FilterPill`, `.hoverControls` in `FilterPills.module.css`) shows its grip
-  and X on hover and `:focus-within` only, by opacity so nothing resizes. `FilterPills` threads `sectionId` (`undefined`: every
+  saved and nothing in the URL. `FilterPills` threads `sectionId` (`undefined`: every
   saved rule, the default; `null`; a string) and a shared `popover` state to
   `ViewerSavedPills`, which filters with `isRuleInSection` and keeps the
   saved index for remove and update (the editor's pills filter the same way,
