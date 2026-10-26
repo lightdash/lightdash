@@ -38,6 +38,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import {
+    type KeyboardEvent,
     useCallback,
     useLayoutEffect,
     useMemo,
@@ -380,6 +381,8 @@ const OpenControlSidebar: FC = () => {
     const [nameEdit, setNameEdit] = useState<NameEdit | null>(null);
     // The row or header under the pointer, copied into the drag overlay
     const [draggedId, setDraggedId] = useState<string | null>(null);
+    // One tab stop for the whole list: the row or header chevron focused last
+    const [activeStop, setActiveStop] = useState<string | null>(null);
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
         useSensor(KeyboardSensor, {
@@ -565,6 +568,7 @@ const OpenControlSidebar: FC = () => {
                 <SortableRow
                     key={rule.id}
                     id={rule.id}
+                    name={ruleNames.get(rule.id) ?? ''}
                     isDisabled={isDragDisabled || isViewer}
                     isInSection={isInSection}
                     isExpanded
@@ -597,6 +601,7 @@ const OpenControlSidebar: FC = () => {
                 }
                 isDisabled={!areFieldsLoaded && !rule.target.isSqlColumn}
                 onOpen={open}
+                isTabStop={rule.id === tabStopId}
                 onHover={setHoveredFilterId}
                 onUnhover={clearHoveredFilterId}
             />
@@ -611,6 +616,7 @@ const OpenControlSidebar: FC = () => {
             <SortableRow
                 key={rule.id}
                 id={rule.id}
+                name={ruleNames.get(rule.id) ?? ''}
                 isDisabled={isDragDisabled || isViewer}
                 isInSection={isInSection}
                 isExpanded={false}
@@ -661,6 +667,75 @@ const OpenControlSidebar: FC = () => {
         ...(section === null ? [] : [section.id]),
         ...shown.map(({ rule }) => rule.id),
     ]);
+    // The list's tab stops in display order: header chevrons and rows; the
+    // one focused last takes Tab, else the first
+    const stopIds = listed.flatMap(({ section, shown }) => [
+        ...(section === null ? [] : [`section:${section.id}`]),
+        ...shown.map(({ rule }) => rule.id),
+    ]);
+    const tabStopId =
+        activeStop !== null && stopIds.includes(activeStop)
+            ? activeStop
+            : (stopIds[0] ?? null);
+    // Arrows walk the stops; Space hands the row to its grip (a keyboard
+    // drag); Delete is the row's remove, twice; Left and Right fold and
+    // unfold a section. dnd-kit owns the keys while a drag is on
+    const handleListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (draggedId !== null) return;
+        const stop = event.target as HTMLElement;
+        const stopId = stop.getAttribute('data-controls-stop');
+        if (stopId === null) return;
+        const stops = [
+            ...event.currentTarget.querySelectorAll<HTMLElement>(
+                '[data-controls-stop]',
+            ),
+        ];
+        const index = stops.indexOf(stop);
+        const owner = stop.closest<HTMLElement>(
+            '[data-controls-sortable], [data-controls-section]',
+        );
+        const isHeader = stopId.startsWith('section:');
+        switch (event.key) {
+            case 'ArrowDown':
+                stops[index + 1]?.focus();
+                break;
+            case 'ArrowUp':
+                stops[index - 1]?.focus();
+                break;
+            case ' ': {
+                const grip = owner?.querySelector<HTMLElement>(
+                    '[data-controls-grip]',
+                );
+                if (!grip) return;
+                grip.focus();
+                grip.dispatchEvent(
+                    new KeyboardEvent('keydown', {
+                        key: ' ',
+                        code: 'Space',
+                        bubbles: true,
+                    }),
+                );
+                break;
+            }
+            case 'Delete':
+                if (isHeader) return;
+                owner
+                    ?.querySelector<HTMLElement>('[data-controls-remove]')
+                    ?.click();
+                break;
+            case 'ArrowRight':
+            case 'ArrowLeft': {
+                if (!isHeader) return;
+                const isExpanded =
+                    stop.getAttribute('aria-expanded') === 'true';
+                if ((event.key === 'ArrowRight') !== isExpanded) stop.click();
+                break;
+            }
+            default:
+                return;
+        }
+        event.preventDefault();
+    };
     const body = listed.flatMap(({ section, rules, isCollapsed, shown }) => {
         if (section === null)
             return [
@@ -683,6 +758,7 @@ const OpenControlSidebar: FC = () => {
                 isNew={nameEdit?.id === section.id && nameEdit.isNew}
                 isDragDisabled={isDragDisabled}
                 isReadOnly={isViewer}
+                isTabStop={`section:${section.id}` === tabStopId}
                 onToggle={() => {
                     if (!isCollapsed && holdsEditor && !isPlaceholder)
                         collapse();
@@ -787,9 +863,23 @@ const OpenControlSidebar: FC = () => {
                           }
                 }
             >
-                <SortableContext items={sortableIds} strategy={noDisplacement}>
-                    {body}
-                </SortableContext>
+                <Box
+                    className={classes.rows}
+                    onKeyDown={handleListKeyDown}
+                    onFocusCapture={(event) => {
+                        const stopId = (
+                            event.target as HTMLElement
+                        ).getAttribute('data-controls-stop');
+                        if (stopId !== null) setActiveStop(stopId);
+                    }}
+                >
+                    <SortableContext
+                        items={sortableIds}
+                        strategy={noDisplacement}
+                    >
+                        {body}
+                    </SortableContext>
+                </Box>
                 <DragOverlay>{dragPreview}</DragOverlay>
             </EditorShell>
         </DndContext>

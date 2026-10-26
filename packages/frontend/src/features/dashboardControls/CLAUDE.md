@@ -506,7 +506,8 @@ In `FilterConfiguration/`:
   (`isReadOnly`: a `Group`, not a `<button>`, that only hovers and takes
   focus) is `role="button"` with `aria-disabled`, named by its content and
   described (`aria-describedby`, a `VisuallyHidden` copy) by the
-  `readOnlyTooltip` it also shows on hover.
+  `readOnlyTooltip` it also shows on hover. Every row reads its name, a
+  hidden ", ", then its line, so the two are not run together.
   An own filter opens as in edit mode with no label input (its name is a
   focusable heading, `tabIndex={-1}`, focused on mount as the label input
   is), discard and trash; `FilterSettings` gives it the value in view mode
@@ -526,7 +527,16 @@ In `FilterConfiguration/`:
   place, a placeholder last; with nothing expanded every filter is a row,
   and with no filters the rail is only its header and footer. A row opens
   with `open`. Strings are in `railSummaries.ts`.
-- Hovering a row, or focusing it from the keyboard (`:focus-visible`, so
+- The list is one tab stop (`data-controls-stop` on each row and each
+  section chevron, `tabIndex` 0 on the one focused last, else the first;
+  grips, row removes and the expanded editor's own controls are reached
+  from their row, not by Tab): Up and Down move between stops in display
+  order, Space hands a row or header to its grip (dnd-kit's keyboard drag),
+  Delete is the row's remove, twice, Left and Right collapse and expand a
+  section from its chevron, Enter opens a row as a click does; nothing is
+  handled while a drag is on. Every control stays focusable from code. The
+  section menu button keeps its own stop. Hovering a row, or focusing it
+  from the keyboard (`:focus-visible`, so
   focus handed back after a click lights nothing), sets `hoveredFilterId`;
   leaving or blurring clears it only while it is that row's
   (`clearHoveredFilterId`), so a focused row losing focus keeps the mouse's
@@ -1131,7 +1141,9 @@ the language map, as tab names are.
   empty rename keeps the old name. The input and the grips
   carry `data-own-escape`, so Escape does not close the rail. "Remove
   section" removes the section and strips `sectionId` from its members, in
-  one handler, with no confirm. Focus after the input or the menu unmounts
+  one handler, after a second click (the first arms the item, reading
+  "Remove section · N filters", and keeps the menu open; closing it
+  disarms). Focus after the input or the menu unmounts
   (`focusAfter`, a selector read in a layout effect, selectors in
   `railSelectors.ts` shared with the provider's `FocusReturn` fallback and
   the shell's menu close): the section's menu button
@@ -1157,8 +1169,10 @@ the language map, as tab names are.
   carries `data-over` (`isOver`, never the source row): hover fill and an
   inset `blue-5` ring.
   Dragging over a collapsed section's header expands it, and it stays
-  expanded. The grip (`DragGrip`, a button of its own next to the row, shown
-  on hover and focus) is the handle. A row dropped on a row takes that row's
+  expanded. The grip (`DragGrip`, a 24px button of its own next to the row
+  with Mantine's focus ring, named "Drag to reorder {name}" / "Drag to
+  reorder section {name}", shown on hover and focus, reached with Space) is
+  the handle. A row dropped on a row takes that row's
   section and its place within the row's own list; dropped on a header it
   joins that section after its last member of the same kind (so an empty
   section is joined on its header); dropped on the rail's header it leaves
@@ -1170,10 +1184,10 @@ the language map, as tab names are.
 - Bar, in both modes: with `selectControlSections` non-empty and the rail
   closed, `ControlsBar` renders `SectionedFilters` in place of `AddControl`
   + `FilterPills` (in edit mode `FilterRequirementsButton` follows it, as
-  it follows the flat pills). It is `AddControl`,
-  `FilterPills sectionId={null}` (the unsectioned saved pills and the
-  viewer's own pills, which are never in a section) and then one hairline
-  group per section in `controlSections` order that has a saved member
+  it follows the flat pills). It is `AddControl`, one capsule per section
+  in `controlSections` order that has a saved member visible on this tab,
+  then `FilterPills sectionId={null}` (the unsectioned saved pills and the
+  viewer's own pills, which are never in a section); the sections are
   visible on this tab (`groupRulesBySection`, `useFilterTabPlacement` /
   `isFilterHiddenOnTab`); a section with none renders nothing, and no
   capsule renders while the filters load. A capsule (`.capsule` in
@@ -1187,10 +1201,12 @@ the language map, as tab names are.
   sectionId={section.id}` in its own flow (a `display: contents`
   `.pillsEnter` box, whose children arrive with opacity and a 6px
   `translateX`, 20ms apart up to eight; collapsing animates nothing);
-  collapsed,
-  the dimmed `filters.sectionSummary` ("{set} of {total} set",
-  `hasFilterValueSet` over the visible members, `aria-describedby`) inside
-  the same outline. The bar's own gap separates capsules. A section with
+  collapsed, a dimmed line inside the same outline (`aria-describedby`):
+  `filters.sectionChanged` ("{changed} changed") when a visible member
+  differs from its default (for a viewer a saved-filter override written
+  by Apply, `selectSavedFilterOverrides`; for an editor `hasFilterValueSet`
+  and not `disabled`), else `formatSectionCount` ("N filters");
+  `filters.sectionSummary` stays in the registry unused. The bar's own gap separates capsules. A section with
   more than `COLLAPSED_BY_DEFAULT_ABOVE` (6) members in all, on any tab,
   starts collapsed, the rest open; the state is local, keyed by section id
   (`flippedIds`: the ids whose state differs from that default), nothing

@@ -425,6 +425,7 @@
         "metrics.comparisonMetric": "შესადარებელი მეტრიკა",
         "filters.closeFacet": "{filter} ფილტრის დახურვა",
         "filters.sectionSummary": "{total}-დან {set} დაყენებულია",
+        "filters.sectionChanged": "{changed} შეცვლილია",
         "metrics.ownerDetails": "მფლობელის დეტალები: {owner}",
         "agentAttribution.changedBy": "შეცვლილია აგენტის მიერ {person}-ის სახელით · {surface}",
         "agentAttribution.serviceAccount": "სერვისის ანგარიში",

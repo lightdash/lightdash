@@ -219,7 +219,12 @@
         var(--controls-ease);
 }
 
-.body > .sectionHeader:first-child {
+/* The list itself: a keyboard and focus boundary that takes no space */
+.rows {
+    display: contents;
+}
+
+.rows > .sectionHeader:first-child {
     border-top: 0;
 }
 
@@ -310,12 +315,17 @@
     opacity: 0.3;
 }
 
-/* The grip sits in the row's left padding, shown on hover and focus */
+/* The grip sits in the row's left padding, shown on hover and focus: a 24px
+   target around a 14px glyph that stays where it was */
 .grip {
     position: absolute;
     top: 50%;
-    left: 1px;
+    left: -4px;
     display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
     padding: 0;
     border: 0;
     background: none;

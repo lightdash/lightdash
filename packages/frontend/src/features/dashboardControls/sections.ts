@@ -134,6 +134,12 @@ export const moveRuleToSection = (
         );
         to = last === -1 ? active.index : active.index > last ? last + 1 : last;
     }
+    // Nothing moved: the same object, so nothing is marked changed
+    if (
+        to === active.index &&
+        (filters[group][active.index].sectionId ?? null) === sectionId
+    )
+        return filters;
     return { ...filters, [group]: arrayMove(list, active.index, to) };
 };
 

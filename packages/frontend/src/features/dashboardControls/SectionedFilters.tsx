@@ -12,6 +12,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectControlSections,
     selectDashboardFilters,
+    selectSavedFilterOverrides,
     useDashboardSelector,
 } from '../dashboard/store';
 import {
@@ -20,15 +21,19 @@ import {
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { hasFilterValueSet } from '../dashboardFilters/FilterConfiguration/utils';
 import { AddControl } from './AddControl';
+import { formatSectionCount } from './fieldLabels';
 import { FilterPills } from './FilterPills';
 import classes from './SectionedFilters.module.css';
 import { groupRulesBySection } from './sections';
+import { useControlsSidebarSelector } from './useControlsSidebar';
 import { type PillPopoverState } from './ViewerSavedPills';
 
 type CapsuleProps = {
     section: DashboardControlSection;
     /** Members shown on the tab in view */
     visibleRules: DashboardFilterRule[];
+    /** Whether a member differs from its default, as the bar's reset counts it */
+    isChanged: (rule: DashboardFilterRule) => boolean;
     isOpen: boolean;
     onToggle: () => void;
     activeTabUuid: string | undefined;
@@ -41,6 +46,7 @@ const COLLAPSED_BY_DEFAULT_ABOVE = 6;
 const SectionCapsule: FC<CapsuleProps> = ({
     section,
     visibleRules,
+    isChanged,
     isOpen,
     onToggle,
     activeTabUuid,
@@ -48,7 +54,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
 }) => {
     const getUiString = useUiStrings();
     const summaryId = useId();
-    const setCount = visibleRules.filter(hasFilterValueSet).length;
+    const changedCount = visibleRules.filter(isChanged).length;
     return (
         <Box className={classes.capsule} data-collapsed={!isOpen || undefined}>
             <UnstyledButton
@@ -78,10 +84,12 @@ const SectionCapsule: FC<CapsuleProps> = ({
                 </Box>
             ) : (
                 <Text span id={summaryId} fz="sm" c="dimmed">
-                    {interpolateUiString(
-                        getUiString('filters.sectionSummary'),
-                        { set: setCount, total: visibleRules.length },
-                    )}
+                    {changedCount > 0
+                        ? interpolateUiString(
+                              getUiString('filters.sectionChanged'),
+                              { changed: changedCount },
+                          )
+                        : formatSectionCount(getUiString, visibleRules.length)}
                 </Text>
             )}
         </Box>
@@ -92,10 +100,10 @@ type Props = {
     activeTabUuid: string | undefined;
 };
 
-// The filter area of a dashboard with sections: the unsectioned
-// pass first (Add, the unsectioned saved pills, the viewer's own), then one
-// outlined capsule per section with a member on this tab: its toggle, then
-// its pills inline. Collapsing is local state keyed by section id, as the
+// The filter area of a dashboard with sections: Add, then one outlined
+// capsule per section with a member on this tab (its toggle, then its pills
+// inline), then the unsectioned pass (the unsectioned saved pills, the
+// viewer's own). Collapsing is local state keyed by section id, as the
 // ids whose state differs from their default; one saved popover is open across
 // every pass
 export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
@@ -104,6 +112,16 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     const onPopoverClose = useCallback(() => setOpenPopoverId(undefined), []);
     const sections = useDashboardSelector(selectControlSections);
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
+    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const overrides = useDashboardSelector(selectSavedFilterOverrides);
+    // A viewer's saved pill is changed once Apply wrote it as an override; an
+    // editor's once it has a value and is on
+    const isChanged = (rule: DashboardFilterRule) =>
+        isViewer
+            ? [...overrides.dimensions, ...overrides.metrics].some(
+                  (override) => override.id === rule.id,
+              )
+            : hasFilterValueSet(rule) && !rule.disabled;
     const isLoading = useDashboardContext(
         (c) => c.isLoadingDashboardFilters || c.isFetchingDashboardFilters,
     );
@@ -162,22 +180,23 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     return (
         <>
             <AddControl />
-            <FilterPills
-                activeTabUuid={activeTabUuid}
-                sectionId={null}
-                popover={popover}
-            />
             {groups.map(({ section, rules, visibleRules }) => (
                 <SectionCapsule
                     key={section.id}
                     section={section}
                     visibleRules={visibleRules}
+                    isChanged={isChanged}
                     isOpen={isOpen(section, rules.length)}
                     onToggle={() => toggle(section.id)}
                     activeTabUuid={activeTabUuid}
                     popover={popover}
                 />
             ))}
+            <FilterPills
+                activeTabUuid={activeTabUuid}
+                sectionId={null}
+                popover={popover}
+            />
         </>
     );
 };

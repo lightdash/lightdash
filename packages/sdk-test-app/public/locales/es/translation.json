@@ -425,6 +425,7 @@
         "metrics.comparisonMetric": "Métrica de comparación",
         "filters.closeFacet": "Cerrar filtro {filter}",
         "filters.sectionSummary": "{set} de {total} definidos",
+        "filters.sectionChanged": "{changed} modificados",
         "metrics.ownerDetails": "Detalles del propietario {owner}",
         "agentAttribution.changedBy": "Modificado por un agente en nombre de {person} · {surface}",
         "agentAttribution.serviceAccount": "una cuenta de servicio",

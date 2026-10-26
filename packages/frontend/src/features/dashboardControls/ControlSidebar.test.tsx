@@ -246,7 +246,7 @@ describe('ControlSidebar', () => {
             );
 
             const rows = screen.getAllByRole('button', {
-                name: /Order status|Region/,
+                name: /^Order status|^Region/,
             });
             expect(rows.map((row) => row.textContent)).toEqual([
                 expect.stringContaining('Order status'),
@@ -273,7 +273,7 @@ describe('ControlSidebar', () => {
                 ]),
             );
 
-            const row = screen.getByRole('button', { name: /Order status/ });
+            const row = screen.getByRole('button', { name: /^Order status/ });
             expect(row).toHaveTextContent(
                 /done · Filter is locked · Required$/,
             );
@@ -287,7 +287,7 @@ describe('ControlSidebar', () => {
                 filters([makeRule({}), other({ required: true, values: [] })]),
             );
 
-            const row = screen.getByRole('button', { name: /Order status/ });
+            const row = screen.getByRole('button', { name: /^Order status/ });
             expect(row).toHaveTextContent(
                 /Required: set a value to run this dashboard$/,
             );
@@ -304,7 +304,7 @@ describe('ControlSidebar', () => {
                 ]),
             );
 
-            const row = screen.getByRole('button', { name: /Order status/ });
+            const row = screen.getByRole('button', { name: /^Order status/ });
             expect(row).toHaveTextContent(/· Required$/);
             expect(row).not.toHaveTextContent(/set a value/);
         });
@@ -319,7 +319,7 @@ describe('ControlSidebar', () => {
                 ]),
             );
 
-            const row = screen.getByRole('button', { name: /Order status/ });
+            const row = screen.getByRole('button', { name: /^Order status/ });
             expect(row).toHaveTextContent(
                 DEFAULT_UI_STRINGS['filters.required.setValueGroupTooltip'],
             );
@@ -333,7 +333,7 @@ describe('ControlSidebar', () => {
             );
 
             fireEvent.click(
-                screen.getByRole('button', { name: /Order status/ }),
+                screen.getByRole('button', { name: /^Order status/ }),
             );
             expect(open).toHaveBeenCalledWith('filter-2');
         });
@@ -415,7 +415,7 @@ describe('ControlSidebar', () => {
         );
 
         expect(screen.queryByLabelText('Filter label')).not.toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: /Region/ }));
+        fireEvent.click(screen.getByRole('button', { name: /^Region/ }));
         expect(open).toHaveBeenCalledWith('filter-2');
         expect(screen.getByRole('button', { name: 'Add' })).toBeVisible();
         fireEvent.click(screen.getByRole('button', { name: 'Done' }));
@@ -429,6 +429,110 @@ describe('ControlSidebar', () => {
         expect(screen.getByRole('button', { name: 'Add' })).toBeVisible();
         expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
         expect(screen.queryByText(/to keep|stays off/)).not.toBeInTheDocument();
+    });
+
+    describe('keyboard', () => {
+        const rows = () =>
+            filters([
+                makeRule({ label: 'Order status' }),
+                makeRule({ id: 'filter-2', label: 'Region' }),
+            ]);
+        const row = (id: string) =>
+            document.querySelector<HTMLElement>(`[data-controls-row="${id}"]`);
+
+        it('has one tab stop: Tab from Add lands on the first row, the next Tab leaves the list', async () => {
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                isSidebarOpen: false,
+            });
+            renderWithProviders(<ControlSidebar />, rows());
+            // The header's last control sits right before the list
+            screen.getByRole('button', { name: 'Close' }).focus();
+
+            await userEvent.tab();
+            expect(row('filter-1')).toHaveFocus();
+            await userEvent.tab();
+            // Out of the list: the footer's first control, not a second row
+            expect(screen.getByRole('switch')).toHaveFocus();
+            expect(
+                screen.getAllByRole('button', { name: /^Drag to reorder/ }),
+            ).toSatisfy((grips: HTMLElement[]) =>
+                grips.every((grip) => grip.tabIndex === -1),
+            );
+            expect(
+                screen.getAllByRole('button', { name: 'Remove filter' }),
+            ).toSatisfy((removes: HTMLElement[]) =>
+                removes.every((remove) => remove.tabIndex === -1),
+            );
+        });
+
+        it('walks the rows with the arrows, and the focused row becomes the stop', async () => {
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                isSidebarOpen: false,
+            });
+            renderWithProviders(<ControlSidebar />, rows());
+            row('filter-1')?.focus();
+            fireEvent.keyDown(row('filter-1') as HTMLElement, {
+                key: 'ArrowDown',
+            });
+            expect(row('filter-2')).toHaveFocus();
+            expect(row('filter-2')).toHaveAttribute('tabindex', '0');
+            expect(row('filter-1')).toHaveAttribute('tabindex', '-1');
+            fireEvent.keyDown(row('filter-2') as HTMLElement, {
+                key: 'ArrowUp',
+            });
+            expect(row('filter-1')).toHaveFocus();
+        });
+
+        it('picks the row up for a keyboard drag on Space, and does not open it', async () => {
+            const { open } = setSidebar({
+                editing: null,
+                editingRule: null,
+                isSidebarOpen: false,
+            });
+            renderWithProviders(<ControlSidebar />, rows());
+            row('filter-1')?.focus();
+            fireEvent.keyDown(row('filter-1') as HTMLElement, { key: ' ' });
+            expect(row('filter-1')?.parentElement).toHaveAttribute(
+                'data-dragging',
+            );
+            expect(
+                screen.getAllByRole('button', { name: /^Drag to reorder/ })[0],
+            ).toHaveFocus();
+            expect(open).not.toHaveBeenCalled();
+            // The sensor listens from the next tick on; leave nothing behind
+            await act(() => new Promise((resolve) => setTimeout(resolve)));
+            fireEvent.keyDown(document, { code: 'Escape', key: 'Escape' });
+            expect(row('filter-1')?.parentElement).not.toHaveAttribute(
+                'data-dragging',
+            );
+        });
+
+        it('arms the row remove on Delete and removes on the second', () => {
+            const removeFilterById = vi.fn();
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                isSidebarOpen: false,
+                removeFilterById,
+            });
+            renderWithProviders(<ControlSidebar />, rows());
+            row('filter-1')?.focus();
+            fireEvent.keyDown(row('filter-1') as HTMLElement, {
+                key: 'Delete',
+            });
+            expect(removeFilterById).not.toHaveBeenCalled();
+            expect(
+                screen.getAllByRole('button', { name: 'Remove filter' })[0],
+            ).toHaveAttribute('aria-pressed', 'true');
+            fireEvent.keyDown(row('filter-1') as HTMLElement, {
+                key: 'Delete',
+            });
+            expect(removeFilterById).toHaveBeenCalledWith('filter-1');
+        });
     });
 
     it("lets an editor switch viewers' own filters on and off from the footer", () => {
@@ -508,7 +612,7 @@ describe('ControlSidebar', () => {
             ]),
         );
 
-        const row = screen.getByRole('button', { name: /Region/ });
+        const row = screen.getByRole('button', { name: /^Region/ });
         expect(row).toHaveAttribute('data-controls-row', 'filter-2');
         expect(row).toHaveAttribute('aria-expanded', 'false');
         fireEvent.mouseEnter(row);
@@ -1109,7 +1213,7 @@ describe('ControlSidebar', () => {
             // The badge counts their own filters only
             expect(screen.getByText('1')).toBeInTheDocument();
             expect(
-                screen.queryByRole('button', { name: /Drag to reorder/ }),
+                screen.queryByRole('button', { name: /^Drag to reorder/ }),
             ).not.toBeInTheDocument();
             expect(
                 screen.queryByRole('button', { name: 'Section Dates actions' }),
@@ -1330,7 +1434,9 @@ describe('ControlSidebar', () => {
 
         // The keyboard sensor: Space on a grip picks its row up
         const grips = () =>
-            screen.getAllByRole('button', { name: 'Drag to reorder' });
+            screen.getAllByRole('button', {
+                name: /^Drag to reorder (?!section)/,
+            });
         const pickUp = (grip: HTMLElement) =>
             act(() => {
                 grip.focus();
@@ -1405,13 +1511,13 @@ describe('ControlSidebar', () => {
                 screen.getByRole('button', { name: 'Collapse section Dates' }),
             );
             expect(
-                screen.queryByRole('button', { name: /Created/ }),
+                screen.queryByRole('button', { name: /^Created/ }),
             ).not.toBeInTheDocument();
             fireEvent.click(
                 screen.getByRole('button', { name: 'Expand section Dates' }),
             );
             expect(
-                screen.getByRole('button', { name: /Created/ }),
+                screen.getByRole('button', { name: /^Created/ }),
             ).toBeVisible();
         });
 
@@ -1507,12 +1613,14 @@ describe('ControlSidebar', () => {
                 screen.queryByLabelText('Filter label'),
             ).not.toBeInTheDocument();
             expect(
-                screen.getByRole('button', { name: /Order status/ }),
+                screen.getByRole('button', { name: /^Order status/ }),
             ).toBeVisible();
             expect(screen.getByLabelText('Section name')).toBeInTheDocument();
             // Drag waits for the name
             expect(
-                screen.queryByRole('button', { name: 'Drag to reorder' }),
+                screen.queryByRole('button', {
+                    name: /^Drag to reorder (?!section)/,
+                }),
             ).not.toBeInTheDocument();
         });
 
@@ -1565,9 +1673,16 @@ describe('ControlSidebar', () => {
             await userEvent.click(
                 screen.getByRole('button', { name: 'Section Regions actions' }),
             );
+            // The first click arms it and names what stays; the menu stays
             await userEvent.click(
                 await screen.findByRole('menuitem', { name: 'Remove section' }),
             );
+            expect(selectControlSections(store.getState())).toEqual(sections);
+            const armed = screen.getByRole('menuitem', {
+                name: 'Remove section · 1 filter',
+            });
+            expect(armed).toHaveAttribute('aria-pressed', 'true');
+            await userEvent.click(armed);
             expect(selectControlSections(store.getState())).toEqual([
                 sections[0],
             ]);
@@ -1777,6 +1892,11 @@ describe('ControlSidebar', () => {
             fireEvent.click(
                 await screen.findByRole('menuitem', { name: 'Remove section' }),
             );
+            fireEvent.click(
+                screen.getByRole('menuitem', {
+                    name: 'Remove section · 1 filter',
+                }),
+            );
             expect(label).toBeInTheDocument();
             expect(label).toHaveFocus();
         });
@@ -1829,7 +1949,9 @@ describe('ControlSidebar', () => {
             expect(grips()).toHaveLength(4);
             await newSection();
             expect(
-                screen.queryByRole('button', { name: 'Drag to reorder' }),
+                screen.queryByRole('button', {
+                    name: /^Drag to reorder (?!section)/,
+                }),
             ).not.toBeInTheDocument();
         });
 
@@ -1896,7 +2018,7 @@ describe('ControlSidebar', () => {
                 .closest('[data-expanded]');
             expect(expanded).not.toBeNull();
             const grip = within(expanded as HTMLElement).getByRole('button', {
-                name: 'Drag to reorder',
+                name: /^Drag to reorder/,
             });
             pickUp(grip);
             await act(() => new Promise((resolve) => setTimeout(resolve)));
@@ -1992,6 +2114,88 @@ describe('ControlSidebar', () => {
             expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
         });
 
+        it('folds and unfolds a section from its chevron stop with Left and Right', () => {
+            closedRail();
+            renderWithProviders(<ControlSidebar />, sectioned());
+            const chevron = screen.getByRole('button', {
+                name: 'Collapse section Dates',
+            });
+            chevron.focus();
+            fireEvent.keyDown(chevron, { key: 'ArrowLeft' });
+            expect(
+                screen.queryByRole('button', { name: /^Created/ }),
+            ).not.toBeInTheDocument();
+            const expand = screen.getByRole('button', {
+                name: 'Expand section Dates',
+            });
+            fireEvent.keyDown(expand, { key: 'ArrowRight' });
+            expect(
+                screen.getByRole('button', { name: /^Created/ }),
+            ).toBeVisible();
+        });
+
+        it('expands a collapsed section when a drag passes over its header', async () => {
+            closedRail();
+            const { container } = renderWithProviders(
+                <ControlSidebar />,
+                filters([
+                    makeRule({ label: 'Order status' }),
+                    makeRule({
+                        id: 'filter-3',
+                        label: 'Created',
+                        sectionId: 'section-a',
+                    }),
+                ]),
+            );
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Collapse section Dates' }),
+            );
+            expect(
+                screen.queryByRole('button', { name: /^Created/ }),
+            ).not.toBeInTheDocument();
+            // jsdom lays nothing out: stack every element in document order,
+            // the overlay taking the dragged row's place
+            const rect = vi
+                .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+                .mockImplementation(function (this: HTMLElement) {
+                    const isOverlay =
+                        this.closest('[class*="dragPreview"]') !== null ||
+                        this.querySelector(
+                            ':scope > [class*="dragPreview"]',
+                        ) !== null;
+                    const measured = isOverlay
+                        ? (document.querySelector('[data-dragging]') ?? this)
+                        : this;
+                    const top =
+                        [...document.querySelectorAll('*')].indexOf(measured) *
+                        10;
+                    return {
+                        top,
+                        bottom: top + 10,
+                        left: 0,
+                        right: 300,
+                        width: 300,
+                        height: 10,
+                        x: 0,
+                        y: top,
+                        toJSON: () => ({}),
+                    };
+                });
+            const grip = within(
+                container.querySelector('[data-controls-row="filter-1"]')
+                    ?.parentElement as HTMLElement,
+            ).getByRole('button', { name: /^Drag to reorder/ });
+            pickUp(grip);
+            await act(() => new Promise((resolve) => setTimeout(resolve)));
+            fireEvent.keyDown(grip, { code: 'ArrowDown', key: 'ArrowDown' });
+            await act(() => new Promise((resolve) => setTimeout(resolve)));
+            rect.mockRestore();
+            expect(
+                screen.getByRole('button', { name: /^Created/ }),
+            ).toBeInTheDocument();
+            fireEvent.keyDown(document, { code: 'Escape', key: 'Escape' });
+        });
+
         it('keeps a collapsed section collapsed when its own header is picked up', async () => {
             closedRail();
             renderWithProviders(
@@ -2004,16 +2208,16 @@ describe('ControlSidebar', () => {
                 screen.getByRole('button', { name: 'Collapse section Dates' }),
             );
             expect(
-                screen.queryByRole('button', { name: /Created/ }),
+                screen.queryByRole('button', { name: /^Created/ }),
             ).not.toBeInTheDocument();
 
             const grip = screen.getAllByRole('button', {
-                name: 'Drag to reorder section',
+                name: /^Drag to reorder section/,
             })[0];
             pickUp(grip);
             await act(() => new Promise((resolve) => setTimeout(resolve)));
             expect(
-                screen.queryByRole('button', { name: /Created/ }),
+                screen.queryByRole('button', { name: /^Created/ }),
             ).not.toBeInTheDocument();
             expect(
                 document.querySelector('[data-controls-section="section-a"]'),

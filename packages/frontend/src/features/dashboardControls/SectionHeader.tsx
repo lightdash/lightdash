@@ -13,7 +13,7 @@ import {
     IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
-import { useRef, type FC } from 'react';
+import { useRef, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import classes from './ControlSidebar.module.css';
@@ -24,17 +24,20 @@ type GripProps = {
     listeners: ReturnType<typeof useSortable>['listeners'];
 };
 
-// The drag handle: a button of its own, shown on hover and focus. It owns
-// Escape so cancelling a keyboard drag does not close the rail
+// The drag handle: a button of its own, shown on hover and focus, reached
+// from its row with Space rather than Tab. It owns Escape so cancelling a
+// keyboard drag does not close the rail
 export const DragGrip: FC<GripProps> = ({ label, attributes, listeners }) => (
     <Box
         component="button"
         type="button"
-        className={classes.grip}
+        className={`${classes.grip} mantine-focus-auto`}
         aria-label={label}
         data-own-escape
+        data-controls-grip
         {...attributes}
         {...listeners}
+        tabIndex={-1}
     >
         <MantineIcon icon={IconGripVertical} size={14} color="dimmed" />
     </Box>
@@ -90,6 +93,8 @@ type Props = {
     isDragDisabled: boolean;
     /** A viewer's saved section: chevron, name and count only. */
     isReadOnly: boolean;
+    /** The roving tab stop of the list: the chevron takes Tab only when it is the one. */
+    isTabStop: boolean;
     onToggle: () => void;
     onRename: () => void;
     onCommitName: (name: string) => void;
@@ -108,6 +113,7 @@ export const SectionHeader: FC<Props> = ({
     isNew,
     isDragDisabled,
     isReadOnly,
+    isTabStop,
     onToggle,
     onRename,
     onCommitName,
@@ -126,6 +132,8 @@ export const SectionHeader: FC<Props> = ({
     } = useSortable({ id: section.id, disabled: isDragDisabled });
     const getUiString = useUiStrings();
     const name = section.name || getUiString('filters.rail.untitledSection');
+    // "Remove section" asks twice; the menu stays open in between
+    const [isRemoveArmed, setIsRemoveArmed] = useState(false);
     return (
         <Box
             ref={setNodeRef}
@@ -138,7 +146,7 @@ export const SectionHeader: FC<Props> = ({
             <Box className={classes.sectionHeadRow}>
                 {!isDragDisabled && !isReadOnly && (
                     <DragGrip
-                        label="Drag to reorder section"
+                        label={`Drag to reorder section ${name}`}
                         attributes={attributes}
                         listeners={listeners}
                     />
@@ -156,6 +164,8 @@ export const SectionHeader: FC<Props> = ({
                     )}
                     aria-expanded={!isCollapsed}
                     disabled={isNew}
+                    tabIndex={isTabStop ? 0 : -1}
+                    data-controls-stop={`section:${section.id}`}
                     onClick={onToggle}
                 >
                     <MantineIcon
@@ -185,7 +195,11 @@ export const SectionHeader: FC<Props> = ({
                 </Text>
                 {/* Focus must stay on the name input Rename opens */}
                 {!isReadOnly && !isNew && (
-                    <Menu position="bottom-end" returnFocus={false}>
+                    <Menu
+                        position="bottom-end"
+                        returnFocus={false}
+                        onClose={() => setIsRemoveArmed(false)}
+                    >
                         <Menu.Target>
                             <ActionIcon
                                 variant="subtle"
@@ -225,9 +239,16 @@ export const SectionHeader: FC<Props> = ({
                                 leftSection={
                                     <MantineIcon icon={IconTrash} size={14} />
                                 }
-                                onClick={onRemove}
+                                closeMenuOnClick={isRemoveArmed}
+                                aria-pressed={isRemoveArmed}
+                                onClick={() => {
+                                    if (isRemoveArmed) onRemove();
+                                    else setIsRemoveArmed(true);
+                                }}
                             >
-                                Remove section
+                                {isRemoveArmed
+                                    ? `Remove section · ${countLabel}`
+                                    : 'Remove section'}
                             </Menu.Item>
                         </Menu.Dropdown>
                     </Menu>

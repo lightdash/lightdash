@@ -19,6 +19,8 @@ type Props = {
      */
     timeoutMs?: number;
     'aria-label': string;
+    /** Out of the Tab order when its row reaches it another way. */
+    tabIndex?: number;
 } & Omit<ActionIconProps, 'children' | 'onClick' | 'color' | 'variant'>;
 
 /**

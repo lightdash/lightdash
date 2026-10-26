@@ -49,6 +49,8 @@ type Props = {
     /** Its field cannot be resolved, or the fields are not loaded yet. */
     isDisabled: boolean;
     onOpen: (filterId: string) => void;
+    /** The roving tab stop of the list: Tab lands on this row only. */
+    isTabStop: boolean;
     /** The row's filter under the pointer or focus. */
     onHover: (filterId: string) => void;
     /** The pointer or focus left the row. */
@@ -66,6 +68,7 @@ export const FilterRow: FC<Props> = ({
     readOnlyTooltip,
     isDisabled,
     onOpen,
+    isTabStop,
     onHover,
     onUnhover,
 }) => {
@@ -99,6 +102,8 @@ export const FilterRow: FC<Props> = ({
                 <Text fz="sm" fw={600} truncate>
                     {summary.name}
                 </Text>
+                {/* Read out, the name and its line are two things */}
+                <VisuallyHidden>, </VisuallyHidden>
                 <Text fz="xs" c="dimmed" truncate>
                     {isRequirementUnmet ? (
                         <>
@@ -154,7 +159,8 @@ export const FilterRow: FC<Props> = ({
                         className={`${classes.row} ${classes.readOnlyRow}`}
                         data-controls-row={rule.id}
                         role="button"
-                        tabIndex={0}
+                        tabIndex={isTabStop ? 0 : -1}
+                        data-controls-stop={rule.id}
                         aria-disabled
                         aria-describedby={
                             readOnlyTooltip === null ? undefined : descriptionId
@@ -189,6 +195,8 @@ export const FilterRow: FC<Props> = ({
             className={classes.row}
             disabled={isDisabled}
             data-controls-row={rule.id}
+            data-controls-stop={rule.id}
+            tabIndex={isTabStop ? 0 : -1}
             aria-expanded={false}
             onClick={() => onOpen(rule.id)}
             onMouseEnter={() => onHover(rule.id)}

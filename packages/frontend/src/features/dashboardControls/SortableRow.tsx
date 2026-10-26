@@ -11,6 +11,8 @@ import { DragGrip } from './SectionHeader';
 
 type Props = {
     id: string;
+    /** What the grip says it drags. */
+    name: string;
     isDisabled: boolean;
     /** A section's member: indented under its header. */
     isInSection: boolean;
@@ -24,6 +26,7 @@ type Props = {
 // A row with its grip at the left, dragged within and between sections
 export const SortableRow: FC<Props> = ({
     id,
+    name,
     isDisabled,
     isInSection,
     isExpanded,
@@ -52,11 +55,12 @@ export const SortableRow: FC<Props> = ({
             data-over={(isOver && !isDragging) || undefined}
             data-expanded={isExpanded || undefined}
             data-removable={onRemove !== null || undefined}
+            data-controls-sortable
             style={{ transform: CSS.Translate.toString(transform), transition }}
         >
             {!isDisabled && (
                 <DragGrip
-                    label="Drag to reorder"
+                    label={`Drag to reorder ${name}`}
                     attributes={attributes}
                     listeners={listeners}
                 />
@@ -66,7 +70,9 @@ export const SortableRow: FC<Props> = ({
                 <Box className={classes.rowRemove}>
                     <ConfirmDeleteButton
                         size="sm"
+                        tabIndex={-1}
                         data-own-escape
+                        data-controls-remove
                         aria-label={getUiString('filters.rail.removeFilter')}
                         tooltip={getUiString('filters.rail.confirmRemove')}
                         onConfirm={onRemove}
