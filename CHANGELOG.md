@@ -1,3 +1,11 @@
+## [3.57.1](https://github.com/lightdash/lightdash/compare/3.57.0...3.57.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* **ai:** hide AI admin settings for preview-only access ([#31500](https://github.com/lightdash/lightdash/issues/31500)) ([d3eecac](https://github.com/lightdash/lightdash/commit/d3eecaca27f5e7d024caa460469f7fbb8765f4a5))
+* **ai:** ignore preview projects when scoping AI admin access ([#31493](https://github.com/lightdash/lightdash/issues/31493)) ([1216f70](https://github.com/lightdash/lightdash/commit/1216f709ea72df010874c13bcef076964ec7e268))
+
 # [3.57.0](https://github.com/lightdash/lightdash/compare/3.56.1...3.57.0) (2026-10-26)
 
 
