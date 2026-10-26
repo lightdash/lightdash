@@ -91,3 +91,12 @@ export const buildInitialVisualizationState = (
     ...emptyEditors,
     ...seedEditor(chartConfig, seed),
 });
+
+/** A custom chart mounted before its spec loaded takes the first spec, unless the user typed one */
+export const isFirstCustomSpec = (
+    state: VisualizationStoreState,
+    chartConfig: ChartConfig,
+) =>
+    chartConfig.type === ChartType.CUSTOM &&
+    chartConfig.config?.spec !== undefined &&
+    state.customEditor?.visSpec === undefined;

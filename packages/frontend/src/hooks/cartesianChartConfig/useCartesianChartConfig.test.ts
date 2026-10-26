@@ -1261,6 +1261,25 @@ describe('useCartesianChartConfig', () => {
         columnOrder: ['orders_customer_id', 'orders_total_order_amount'],
     });
 
+    test('a new results object for the same query keeps a cleared x field or y field', () => {
+        const params = getSingleSeriesParams();
+        const clearedX = renderCartesianConfig(params);
+        act(() => clearedX.result.current.setXField(undefined));
+        clearedX.rerender({
+            ...params,
+            resultsData: { ...params.resultsData! },
+        });
+        expect(clearedX.result.current.dirtyLayout?.xField).toBeUndefined();
+
+        const removedY = renderCartesianConfig(params);
+        act(() => removedY.result.current.removeSingleSeries(0));
+        removedY.rerender({
+            ...params,
+            resultsData: { ...params.resultsData! },
+        });
+        expect(removedY.result.current.dirtyLayout?.yField).toEqual([]);
+    });
+
     test('should default series yAxisIndex to 0', () => {
         const { result } = renderCartesianConfig(
             // @ts-expect-error partially mock params for hook

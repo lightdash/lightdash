@@ -27,7 +27,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ChartColorMappingContextProvider from '../../hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { renderWithProviders } from '../../testing/testUtils';
-import { isCartesianVisualizationConfig } from './types';
+import {
+    isCartesianVisualizationConfig,
+    isCustomVisualizationConfig,
+} from './types';
 import { useVisualizationContext } from './useVisualizationContext';
 import VisualizationProvider, {
     type VisualizationProviderProps,
@@ -127,6 +130,7 @@ const counts = {
     mounts: 0,
 };
 let editXAxisName: ((name: string) => void) | undefined;
+let editCustomSpec: ((spec: string) => void) | undefined;
 
 const LoadingProbe = memo(() => {
     const value = useVisualizationContext().isLoading;
@@ -149,6 +153,9 @@ const ConfigProbe = memo(() => {
     counts.seriesColorIdentities.add(getSeriesColor);
     editXAxisName = isCartesianVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.setXAxisName
+        : undefined;
+    editCustomSpec = isCustomVisualizationConfig(visualizationConfig)
+        ? visualizationConfig.chartConfig.setVisSpec
         : undefined;
     useEffect(() => {
         counts.mounts += 1;
@@ -206,6 +213,7 @@ describe('VisualizationProvider render characterization', () => {
         counts.seriesColorIdentities = new Set();
         counts.mounts = 0;
         editXAxisName = undefined;
+        editCustomSpec = undefined;
     });
     afterEach(() => cleanup());
 
@@ -309,12 +317,14 @@ describe('VisualizationProvider render characterization', () => {
 
     describe('with an explorer-like feedback loop', () => {
         let resetToSaved: (() => void) | undefined;
+        let loadConfig: ((config: ChartConfig) => void) | undefined;
         let latestParentConfig: ChartConfig | undefined;
 
         const FeedbackParent: FC<{ initial: ChartConfig }> = ({ initial }) => {
             const [chartConfig, setChartConfig] = useState(initial);
             latestParentConfig = chartConfig;
             resetToSaved = () => setChartConfig(structuredClone(initial));
+            loadConfig = setChartConfig;
             return (
                 <VisualizationProvider
                     {...baseProps}
@@ -362,6 +372,40 @@ describe('VisualizationProvider render characterization', () => {
                 latestParentConfig?.type === ChartType.CARTESIAN &&
                     latestParentConfig.config?.eChartsConfig.xAxis?.[0]?.name,
             ).toBe('Edited');
+        });
+        describe('a custom chart whose spec loads after mount', () => {
+            const emptyCustom: ChartConfig = {
+                type: ChartType.CUSTOM,
+                config: {},
+            };
+            const spec = { mark: 'bar' };
+            const customSpec = (config: ChartConfig | undefined) =>
+                config?.type === ChartType.CUSTOM
+                    ? config.config?.spec
+                    : 'not custom';
+
+            it('takes the spec while the editor is untouched', () => {
+                render(<FeedbackParent initial={emptyCustom} />);
+
+                act(() =>
+                    loadConfig?.({ type: ChartType.CUSTOM, config: { spec } }),
+                );
+
+                expect(customSpec(latestParentConfig)).toEqual(spec);
+            });
+
+            it('keeps an edit over a spec loaded afterwards', () => {
+                render(<FeedbackParent initial={emptyCustom} />);
+                act(() => editCustomSpec?.('{"mark":"line"}'));
+
+                act(() =>
+                    loadConfig?.({ type: ChartType.CUSTOM, config: { spec } }),
+                );
+
+                expect(customSpec(latestParentConfig)).toEqual({
+                    mark: 'line',
+                });
+            });
         });
     });
 

@@ -32,5 +32,5 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     return children({ visualizationConfig });
 };
 
-// Memoised so a resize or an echoed config does not rebuild the aggregate
+// Skips provider re-renders that keep its props, e.g. a resize; an echoed config still re-renders it
 export default memo(VisualizationTableConfig);

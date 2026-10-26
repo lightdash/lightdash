@@ -18,10 +18,6 @@ const inputsResults = (_: State, inputs: VisualizationInputs) =>
     inputs.resultsData;
 const inputsIsLoading = (_: State, inputs: VisualizationInputs) =>
     !inputs.resultsData;
-const inputsTableCalculationsMetadata = (
-    _: State,
-    inputs: VisualizationInputs,
-) => inputs.tableCalculationsMetadata;
 const storedSourceFieldId = (state: State) =>
     selectSankeyEditor(state).sourceFieldId;
 
@@ -39,18 +35,12 @@ const selectNumericFieldIds = createSelector(
 
 /** Stored source, or the first dimension when it is unset or gone */
 export const selectSankeySourceFieldId = createSelector(
-    [
-        storedSourceFieldId,
-        selectDimensionIds,
-        inputsIsLoading,
-        inputsTableCalculationsMetadata,
-    ],
-    (sourceFieldId, dimensionIds, isLoading, tableCalculationsMetadata) =>
+    [storedSourceFieldId, selectDimensionIds, inputsIsLoading],
+    (sourceFieldId, dimensionIds, isLoading) =>
         resolveSankeySourceFieldId({
             sourceFieldId,
             dimensionIds,
             isLoading,
-            tableCalculationsMetadata,
         }),
 );
 
@@ -61,21 +51,13 @@ export const selectSankeyTargetFieldId = createSelector(
         storedSourceFieldId,
         selectDimensionIds,
         inputsIsLoading,
-        inputsTableCalculationsMetadata,
     ],
-    (
-        targetFieldId,
-        sourceFieldId,
-        dimensionIds,
-        isLoading,
-        tableCalculationsMetadata,
-    ) =>
+    (targetFieldId, sourceFieldId, dimensionIds, isLoading) =>
         resolveSankeyTargetFieldId({
             targetFieldId,
             sourceFieldId,
             dimensionIds,
             isLoading,
-            tableCalculationsMetadata,
         }),
 );
 
@@ -85,14 +67,12 @@ export const selectSankeyMetricFieldId = createSelector(
         (state: State) => selectSankeyEditor(state).metricFieldId,
         selectNumericFieldIds,
         inputsIsLoading,
-        inputsTableCalculationsMetadata,
     ],
-    (metricFieldId, numericFieldIds, isLoading, tableCalculationsMetadata) =>
+    (metricFieldId, numericFieldIds, isLoading) =>
         resolveSankeyMetricFieldId({
             metricFieldId,
             numericFieldIds,
             isLoading,
-            tableCalculationsMetadata,
         }),
 );
 

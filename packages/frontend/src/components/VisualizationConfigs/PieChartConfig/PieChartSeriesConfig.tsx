@@ -10,8 +10,19 @@ import {
 } from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
 import { useCallback, type FC } from 'react';
-import usePieChartConfig from '../../../hooks/usePieChartConfig';
-import { useVisualizationInputs } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    selectPieEditor,
+    selectPieGroupColorDefaults,
+    selectPieGroupFieldIds,
+    selectPieSortedGroupLabels,
+    selectPieValueOptionOverrideFlags,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { usePieEditorActions } from '../../../hooks/usePieChartConfig';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { Config } from '../common/Config';
 import { GroupItem } from './GroupItem';
@@ -19,8 +30,49 @@ import { ValueOptions } from './ValueOptions';
 
 export const Series: FC = () => {
     const { colorPalette, getGroupColor, itemsMap } = useVisualizationInputs();
-    const pieChartConfig = usePieChartConfig();
-    const { groupSortChange } = pieChartConfig;
+    const groupFieldIds = useVisualizationInputSelector(selectPieGroupFieldIds);
+    const sortedGroupLabels = useVisualizationInputSelector(
+        selectPieSortedGroupLabels,
+    );
+    const groupColorDefaults = useVisualizationInputSelector(
+        selectPieGroupColorDefaults,
+    );
+    const {
+        isValueLabelOverriden,
+        isShowValueOverriden,
+        isShowPercentageOverriden,
+    } = useVisualizationSelector(selectPieValueOptionOverrideFlags);
+    const valueLabel = useVisualizationSelector(
+        (state) => selectPieEditor(state).valueLabel,
+    );
+    const valueLabelColor = useVisualizationSelector(
+        (state) => selectPieEditor(state).valueLabelColor,
+    );
+    const showValue = useVisualizationSelector(
+        (state) => selectPieEditor(state).showValue,
+    );
+    const showPercentage = useVisualizationSelector(
+        (state) => selectPieEditor(state).showPercentage,
+    );
+    const groupLabelOverrides = useVisualizationSelector(
+        (state) => selectPieEditor(state).groupLabelOverrides,
+    );
+    const groupColorOverrides = useVisualizationSelector(
+        (state) => selectPieEditor(state).groupColorOverrides,
+    );
+    const groupValueOptionOverrides = useVisualizationSelector(
+        (state) => selectPieEditor(state).groupValueOptionOverrides,
+    );
+    const {
+        groupSortChange,
+        valueLabelChange,
+        valueLabelColorChange,
+        toggleShowValue,
+        toggleShowPercentage,
+        groupLabelChange,
+        groupColorChange,
+        groupValueOptionChange,
+    } = usePieEditorActions();
 
     const granularityFields = Object.keys(getGranularityMapFromItems(itemsMap));
 
@@ -33,29 +85,6 @@ export const Series: FC = () => {
         },
         [groupSortChange],
     );
-
-    const {
-        groupFieldIds,
-        valueLabel,
-        valueLabelChange,
-        valueLabelColor,
-        valueLabelColorChange,
-        showValue,
-        toggleShowValue,
-        showPercentage,
-        toggleShowPercentage,
-        isValueLabelOverriden,
-        isShowValueOverriden,
-        isShowPercentageOverriden,
-        sortedGroupLabels,
-        groupLabelOverrides,
-        groupLabelChange,
-        groupColorOverrides,
-        groupColorDefaults,
-        groupColorChange,
-        groupValueOptionOverrides,
-        groupValueOptionChange,
-    } = pieChartConfig;
 
     const firstGroupLabel = sortedGroupLabels[0];
     const firstGroupColor = firstGroupLabel

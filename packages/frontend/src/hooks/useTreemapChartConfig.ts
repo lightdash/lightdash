@@ -12,6 +12,7 @@ import { useMemo } from 'react';
 import {
     useVisualizationInputs,
     useVisualizationInputSelector,
+    useVisualizationInputsRef,
 } from '../components/LightdashVisualization/useVisualizationContext';
 import {
     selectTreemapEditor,
@@ -23,6 +24,7 @@ import {
     treemapEditorActions,
     useEditorFieldSetter,
     useVisualizationDispatch,
+    useVisualizationSelector,
     useVisualizationStore,
     type TreemapEditorState,
 } from '../features/visualization/store';
@@ -46,9 +48,8 @@ export type TreemapEditorActions = {
 export const useTreemapEditorActions = (): TreemapEditorActions => {
     const dispatch = useVisualizationDispatch();
     const store = useVisualizationStore();
-    const inputs = useVisualizationInputs();
+    const inputsRef = useVisualizationInputsRef();
     const set = useEditorFieldSetter<TreemapEditorState>(
-        selectTreemapEditor,
         treemapEditorActions.set,
     );
     return useMemo(
@@ -60,7 +61,7 @@ export const useTreemapEditorActions = (): TreemapEditorActions => {
                         to,
                         groupFieldIds: selectTreemapGroupFieldIds(
                             store.getState(),
-                            inputs,
+                            inputsRef.current,
                         ),
                     }),
                 ),
@@ -76,7 +77,7 @@ export const useTreemapEditorActions = (): TreemapEditorActions => {
             setVisibleMin: (value) => set('visibleMin', value),
             setLeafDepth: (value) => set('leafDepth', value),
         }),
-        [dispatch, store, inputs, set],
+        [dispatch, store, inputsRef, set],
     );
 };
 
@@ -107,7 +108,7 @@ export type TreemapChartConfig = TreemapEditorActions & {
 const useTreemapChartConfig = (): TreemapChartConfig => {
     const projectUuid = useProjectUuid();
     const { resultsData } = useVisualizationInputs();
-    const editor = useVisualizationInputSelector(selectTreemapEditor);
+    const editor = useVisualizationSelector(selectTreemapEditor);
     const groupFieldIds = useVisualizationInputSelector(
         selectTreemapGroupFieldIds,
     );

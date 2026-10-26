@@ -35,7 +35,10 @@ import {
     buildInitialVisualizationState,
     cartesianIntentActions,
     createVisualizationStore,
+    isFirstCustomSpec,
+    tableCalculationsRenamed,
     VisualizationStoreContext,
+    type CartesianIntentState,
     type VisualizationStore,
 } from '../../features/visualization/store';
 import { useChartColorMappings } from '../../hooks/useChartColorConfig/useChartColorConfig';
@@ -120,18 +123,50 @@ const editedChartConfig = (
 ): ChartConfig | null => {
     switch (visualizationConfig.chartType) {
         case ChartType.CARTESIAN:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
         case ChartType.PIE:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
         case ChartType.FUNNEL:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
         case ChartType.BIG_NUMBER:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
         case ChartType.TREEMAP:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
         case ChartType.GAUGE:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
         case ChartType.MAP:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
         case ChartType.TABLE:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
         case ChartType.SANKEY:
             return {
                 type: visualizationConfig.chartType,
                 config: visualizationConfig.chartConfig.validConfig,
-            } as ChartConfig;
+            };
         case ChartType.CUSTOM:
         case ChartType.DATA_APP_VIZ:
             return null;
@@ -283,9 +318,9 @@ const VisualizationProvider: FC<
         itemsMap,
         hasConfigOwner: onChartConfigChange !== undefined,
     };
-    // Editor state for the mounted chart. A chart type switch starts a new
-    // store seeded from the new type's config; the cartesian intent the
-    // gallery set just before the switch carries over.
+    // Editor state for the mounted chart. A chart type switch, or a custom
+    // spec arriving for an untouched editor, starts a new store seeded from
+    // the config; the cartesian intent the gallery set carries over.
     const [stores, setStores] = useState<{
         type: ChartType;
         store: VisualizationStore;
@@ -296,7 +331,10 @@ const VisualizationProvider: FC<
         ),
     }));
     let { store } = stores;
-    if (stores.type !== chartConfig.type) {
+    if (
+        stores.type !== chartConfig.type ||
+        isFirstCustomSpec(stores.store.getState(), chartConfig)
+    ) {
         store = createVisualizationStore(
             buildInitialVisualizationState(
                 chartConfig,
@@ -306,18 +344,17 @@ const VisualizationProvider: FC<
         );
         setStores({ type: chartConfig.type, store });
     }
-    const setStacking = useCallback(
-        (value: Parameters<typeof cartesianIntentActions.setStacking>[0]) =>
+    useEffect(() => {
+        if (tableCalculationsMetadata?.length)
+            store.dispatch(tableCalculationsRenamed(tableCalculationsMetadata));
+    }, [store, tableCalculationsMetadata]);
+    const setStacking = useStableCallback(
+        (value: CartesianIntentState['stacking']) =>
             store.dispatch(cartesianIntentActions.setStacking(value)),
-        [store],
     );
-    const setCartesianType = useCallback(
-        (
-            value: Parameters<
-                typeof cartesianIntentActions.setCartesianType
-            >[0],
-        ) => store.dispatch(cartesianIntentActions.setCartesianType(value)),
-        [store],
+    const setCartesianType = useStableCallback(
+        (value: CartesianIntentState['cartesianType']) =>
+            store.dispatch(cartesianIntentActions.setCartesianType(value)),
     );
 
     // If we don't toggle any fields, (eg: when you `explore from here`) columnOrder on tableConfig might be empty
@@ -468,7 +505,7 @@ const VisualizationProvider: FC<
         ],
     );
 
-    // Stable across resizes and echoes so memoised adapters skip them
+    // Stable across resizes so memoised adapters skip them; an echo changes it
     const renderState = useCallback(
         ({
             visualizationConfig,

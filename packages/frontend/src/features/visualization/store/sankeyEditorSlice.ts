@@ -1,6 +1,10 @@
 import { type SankeyChart } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
-import { editorCaseReducers } from './editorSlice';
+import {
+    editorCaseReducers,
+    renamedFieldId,
+    tableCalculationsRenamed,
+} from './editorSlice';
 
 export type SankeyEditorState = {
     sourceFieldId: string | null;
@@ -26,6 +30,15 @@ const sankeyEditorSlice = createSlice({
     name: 'sankeyEditor',
     initialState: null as SankeyEditorState | null,
     reducers: editorCaseReducers<SankeyEditorState>(),
+    extraReducers: (builder) =>
+        builder.addCase(tableCalculationsRenamed, (state, { payload }) => {
+            if (!state) return;
+            const rename = (id: string | null) =>
+                id === null ? null : renamedFieldId(id, payload);
+            state.sourceFieldId = rename(state.sourceFieldId);
+            state.targetFieldId = rename(state.targetFieldId);
+            state.metricFieldId = rename(state.metricFieldId);
+        }),
 });
 
 export const sankeyEditorActions = sankeyEditorSlice.actions;

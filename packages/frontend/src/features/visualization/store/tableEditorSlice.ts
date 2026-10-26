@@ -24,8 +24,8 @@ export type TableEditorState = {
     columnProperties: Record<string, ColumnProperties>;
 };
 
-// Matches main: an unsaved flag took the items default when the items were
-// loaded at mount, and an owner's echo locked it off when they were not.
+// No saved flag: on when the loaded items have a table; off when an owner
+// mounts before the items load; otherwise derived once they load.
 const seedShowTableNames = (
     saved: boolean | undefined,
     seed: EditorSeedContext,

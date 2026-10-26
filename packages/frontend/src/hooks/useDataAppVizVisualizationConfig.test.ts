@@ -424,6 +424,22 @@ describe('useDataAppVizVisualizationConfig', () => {
         expect(onConfigChange).not.toHaveBeenCalled();
     });
 
+    it('drops a late field edit or clear once this config no longer owns the chart', () => {
+        const onConfigChange = vi.fn();
+        const { result, unmount } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+            { wrapper: dataAppVizStore(initialConfig) },
+        );
+        const { setField, clearDataAppViz } = result.current;
+
+        unmount();
+        act(() => setField('category', 'orders_amount'));
+        act(() => clearDataAppViz());
+
+        expect(onConfigChange).not.toHaveBeenCalled();
+    });
+
     it('still writes options after a StrictMode remount', () => {
         const onConfigChange = vi.fn();
         // StrictMode runs setup → cleanup → setup on mount, so ownership has

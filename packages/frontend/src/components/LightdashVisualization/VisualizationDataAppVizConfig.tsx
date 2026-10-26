@@ -37,5 +37,5 @@ const VisualizationDataAppVizConfig: FC<VisualizationDataAppVizConfigProps> = ({
     return children({ visualizationConfig });
 };
 
-// Memoised so a resize or an echoed config does not rebuild the aggregate
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
 export default memo(VisualizationDataAppVizConfig);

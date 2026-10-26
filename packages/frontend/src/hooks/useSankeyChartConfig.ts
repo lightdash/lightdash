@@ -11,6 +11,7 @@ import {
     selectSankeyTargetFieldId,
     selectSankeyValidConfig,
     useEditorFieldSetter,
+    useVisualizationSelector,
     type SankeyEditorState,
 } from '../features/visualization/store';
 
@@ -26,7 +27,6 @@ export type SankeyEditorActions = {
 /** Stable sankey editor actions. */
 export const useSankeyEditorActions = (): SankeyEditorActions => {
     const set = useEditorFieldSetter<SankeyEditorState>(
-        selectSankeyEditor,
         sankeyEditorActions.set,
     );
     return useMemo(
@@ -59,7 +59,7 @@ export type SankeyChartConfig = SankeyEditorActions & {
  */
 const useSankeyChartConfig = (): SankeyChartConfig => {
     const { nodeAlign, orient, nodeLayout } =
-        useVisualizationInputSelector(selectSankeyEditor);
+        useVisualizationSelector(selectSankeyEditor);
     const sourceFieldId = useVisualizationInputSelector(
         selectSankeySourceFieldId,
     );

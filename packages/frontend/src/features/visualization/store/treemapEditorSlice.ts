@@ -7,7 +7,11 @@ import {
     TREEMAP_DEFAULT_VISIBLE_MIN,
 } from '@lightdash/visualization/editor';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { editorCaseReducers } from './editorSlice';
+import {
+    editorCaseReducers,
+    renamedFieldId,
+    tableCalculationsRenamed,
+} from './editorSlice';
 
 export type TreemapEditorState = {
     visibleMin: number;
@@ -66,6 +70,14 @@ const treemapEditorSlice = createSlice({
             );
         },
     },
+    extraReducers: (builder) =>
+        builder.addCase(tableCalculationsRenamed, (state, { payload }) => {
+            if (!state) return;
+            const rename = (id: string | null) =>
+                id === null ? null : renamedFieldId(id, payload);
+            state.sizeMetricId = rename(state.sizeMetricId);
+            state.colorMetricId = rename(state.colorMetricId);
+        }),
 });
 
 export const treemapEditorActions = treemapEditorSlice.actions;

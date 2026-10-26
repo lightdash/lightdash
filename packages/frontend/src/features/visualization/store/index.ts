@@ -77,10 +77,14 @@ export type VisualizationStore = ReturnType<typeof createVisualizationStore>;
 export type VisualizationStoreDispatch = VisualizationStore['dispatch'];
 
 export { VisualizationStoreContext } from './context';
-export { buildInitialVisualizationState } from './buildInitialState';
+export {
+    buildInitialVisualizationState,
+    isFirstCustomSpec,
+} from './buildInitialState';
 export { cartesianIntentActions } from './cartesianIntentSlice';
 export type { CartesianIntentState } from './cartesianIntentSlice';
 export type { EditorFieldUpdate } from './editorSlice';
+export { tableCalculationsRenamed } from './editorSlice';
 export { bigNumberEditorActions } from './bigNumberEditorSlice';
 export type { BigNumberEditorState } from './bigNumberEditorSlice';
 export { cartesianEditorActions } from './cartesianEditorSlice';

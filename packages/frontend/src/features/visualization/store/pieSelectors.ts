@@ -31,10 +31,6 @@ const inputsParameters = (_: State, inputs: VisualizationInputs) =>
     inputs.parameters;
 const inputsColorPalette = (_: State, inputs: VisualizationInputs) =>
     inputs.colorPalette;
-const inputsTableCalculationsMetadata = (
-    _: State,
-    inputs: VisualizationInputs,
-) => inputs.tableCalculationsMetadata;
 
 // A repaired list that equals the stored one keeps the stored identity
 const keepIfEqual = <T>(stored: T, repaired: T) =>
@@ -96,22 +92,14 @@ export const selectPieMetricId = createSelector(
         selectNumericMetricIds,
         selectPendingMetricIds,
         inputsIsLoading,
-        inputsTableCalculationsMetadata,
     ],
-    (
-        metricId,
-        allNumericMetricIds,
-        pendingMetricIds,
-        isLoading,
-        tableCalculationsMetadata,
-    ) =>
+    (metricId, allNumericMetricIds, pendingMetricIds, isLoading) =>
         isLoading || allNumericMetricIds.length === 0
             ? metricId
             : repairPieMetricId({
                   metricId,
                   allNumericMetricIds,
                   pendingMetricIds,
-                  tableCalculationsMetadata,
               }),
 );
 

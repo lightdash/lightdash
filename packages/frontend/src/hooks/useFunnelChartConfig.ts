@@ -37,7 +37,6 @@ export type FunnelEditorActions = {
 export const useFunnelEditorActions = (): FunnelEditorActions => {
     const dispatch = useVisualizationDispatch();
     const set = useEditorFieldSetter<FunnelEditorState>(
-        selectFunnelEditor,
         funnelEditorActions.set,
     );
     return useMemo(

@@ -5,6 +5,10 @@ import {
     fields,
     results,
 } from '../components/LightdashVisualization/visualizationDifferential.fixtures';
+import {
+    tableCalculationsRenamed,
+    useVisualizationDispatch,
+} from '../features/visualization/store';
 import { withVisualizationStore } from '../testing/visualizationStore';
 import useTreemapChartConfig from './useTreemapChartConfig';
 
@@ -32,6 +36,18 @@ const render = (config: TreemapChart) =>
             { itemsMap: fields, resultsData: results },
         ),
     });
+
+// Seeded with the TC `margin`; the explorer now shows it as margin3 with only the last rename
+const renamedTwice = () => {
+    const { margin, ...rest } = fields;
+    return {
+        itemsMap: {
+            ...rest,
+            margin3: { ...margin, name: 'margin3', sql: '1' },
+        },
+        tableCalculationsMetadata: [{ oldName: 'margin2', name: 'margin3' }],
+    };
+};
 
 describe('useTreemapChartConfig', () => {
     it('falls back to every dimension and the first metric', () => {
@@ -71,5 +87,43 @@ describe('useTreemapChartConfig', () => {
         act(() => result.current.toggleDynamicColors());
         expect(result.current.useDynamicColors).toBe(false);
         expect(result.current.colorMetricId).toBeNull();
+    });
+
+    it('follows a table calculation renamed twice', () => {
+        const { result } = renderHook(
+            () => ({
+                config: useTreemapChartConfig(),
+                dispatch: useVisualizationDispatch(),
+            }),
+            {
+                wrapper: withVisualizationStore(
+                    {
+                        type: ChartType.TREEMAP,
+                        config: {
+                            sizeMetricId: 'margin',
+                            useDynamicColors: true,
+                            colorMetricId: 'margin',
+                        },
+                    },
+                    { ...renamedTwice(), resultsData: results },
+                ),
+            },
+        );
+        act(() => {
+            result.current.dispatch(
+                tableCalculationsRenamed([
+                    { oldName: 'margin', name: 'margin2' },
+                ]),
+            );
+            result.current.dispatch(
+                tableCalculationsRenamed([
+                    { oldName: 'margin2', name: 'margin3' },
+                ]),
+            );
+        });
+        expect(result.current.config.validConfig).toMatchObject({
+            sizeMetricId: 'margin3',
+            colorMetricId: 'margin3',
+        });
     });
 });

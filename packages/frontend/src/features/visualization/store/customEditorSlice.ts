@@ -31,8 +31,9 @@ const customEditorSlice = createSlice({
     initialState: null as CustomEditorState | null,
     reducers: {
         ...editorCaseReducers<CustomEditorState>(),
+        // Empty text is never saved, so clearing the editor keeps the last spec
         specChanged: (state, action: PayloadAction<string>) => {
-            if (!state) return;
+            if (!state || !action.payload) return;
             state.visSpec = action.payload;
             const parsed = parseCustomVisualizationSpec(action.payload);
             if (parsed !== undefined) state.visSpecObject = parsed;

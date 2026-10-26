@@ -14,8 +14,7 @@ import {
     Select,
     Switch,
 } from '@mantine/core';
-import { useDebouncedCallback } from '@mantine/hooks';
-import { memo, useEffect, useMemo, useState, type FC } from 'react';
+import { memo, useEffect, useMemo, type FC } from 'react';
 import {
     selectMapAvailableFields,
     selectMapEditor,
@@ -35,6 +34,7 @@ import {
     useVisualizationInputSelector,
 } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
+import { useDebouncedDraft } from '../common/useDebouncedDraft';
 import MapFieldConfiguration from './MapFieldConfiguration';
 
 // Get the label and description for the region field based on map type
@@ -96,29 +96,20 @@ const findLocationField = (
     return undefined;
 };
 
-// A draft keeps typing responsive; the store gets the URL debounced
 const CustomGeoJsonUrlInput: FC<{
     url: string | undefined;
     onCommit: (url: string | undefined) => void;
 }> = ({ url, onCommit }) => {
-    const [draft, setDraft] = useState<string>();
-    const commit = useDebouncedCallback(
-        (value: string) => {
-            onCommit(value || undefined);
-            setDraft(undefined);
-        },
-        { delay: 500, flushOnUnmount: true },
+    const [draft, setDraft] = useDebouncedDraft(url ?? '', (value) =>
+        onCommit(value || undefined),
     );
     return (
         <TextInput
             size="xs"
             label="Custom GeoJSON URL"
             placeholder="https://example.com/map.geojson"
-            value={draft ?? url ?? ''}
-            onChange={(e) => {
-                setDraft(e.currentTarget.value);
-                commit(e.currentTarget.value);
-            }}
+            value={draft}
+            onChange={(e) => setDraft(e.currentTarget.value)}
         />
     );
 };

@@ -5,7 +5,11 @@ import {
     type ConditionalFormattingConfig,
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { editorCaseReducers } from './editorSlice';
+import {
+    editorCaseReducers,
+    renamedFieldId,
+    tableCalculationsRenamed,
+} from './editorSlice';
 
 export type BigNumberEditorState = {
     selectedField: string | undefined;
@@ -93,6 +97,11 @@ const bigNumberEditorSlice = createSlice({
                 action.payload.config;
         },
     },
+    extraReducers: (builder) =>
+        builder.addCase(tableCalculationsRenamed, (state, { payload }) => {
+            if (!state?.selectedField) return;
+            state.selectedField = renamedFieldId(state.selectedField, payload);
+        }),
 });
 
 export const bigNumberEditorActions = bigNumberEditorSlice.actions;

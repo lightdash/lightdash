@@ -23,6 +23,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     useVisualizationInputs,
     useVisualizationInputSelector,
+    useVisualizationInputsRef,
 } from '../../components/LightdashVisualization/useVisualizationContext';
 import { useMergeSafe } from '../../features/mergeQuery/context/useMerge';
 import {
@@ -70,28 +71,16 @@ export type TableEditorActions = {
     ) => void;
     toggle: (key: TableToggleKey) => void;
     toggleShowTableNames: () => void;
-    setShowColumnCalculation: (value: boolean) => void;
-    setShowRowCalculation: (value: boolean) => void;
-    setShowTableNames: (value: boolean) => void;
-    setHideRowNumbers: (value: boolean) => void;
-    setShowResultsTotal: (value: boolean) => void;
-    setShowSubtotals: (value: boolean) => void;
-    setShowSubtotalsExpanded: (value: boolean) => void;
-    setShowRowGrouping: (value: boolean) => void;
     setMetricsAsRows: (value: boolean) => void;
     setRowLimit: (value: RowLimit | undefined) => void;
-    setColumnProperties: (value: Record<string, ColumnProperties>) => void;
 };
 
 /** Stable table editor actions; the derived show-table-names is read at call time. */
 export const useTableEditorActions = (): TableEditorActions => {
     const dispatch = useVisualizationDispatch();
     const store = useVisualizationStore();
-    const inputs = useVisualizationInputs();
-    const set = useEditorFieldSetter<TableEditorState>(
-        selectTableEditor,
-        tableEditorActions.set,
-    );
+    const inputsRef = useVisualizationInputsRef();
+    const set = useEditorFieldSetter<TableEditorState>(tableEditorActions.set);
     return useMemo(
         () => ({
             updateColumnProperty: (field, properties) =>
@@ -107,23 +96,15 @@ export const useTableEditorActions = (): TableEditorActions => {
             toggleShowTableNames: () =>
                 set(
                     'showTableNames',
-                    !selectTableShowTableNames(store.getState(), inputs),
+                    !selectTableShowTableNames(
+                        store.getState(),
+                        inputsRef.current,
+                    ),
                 ),
-            setShowColumnCalculation: (value) =>
-                set('showColumnCalculation', value),
-            setShowRowCalculation: (value) => set('showRowCalculation', value),
-            setShowTableNames: (value) => set('showTableNames', value),
-            setHideRowNumbers: (value) => set('hideRowNumbers', value),
-            setShowResultsTotal: (value) => set('showResultsTotal', value),
-            setShowSubtotals: (value) => set('showSubtotals', value),
-            setShowSubtotalsExpanded: (value) =>
-                set('showSubtotalsExpanded', value),
-            setShowRowGrouping: (value) => set('showRowGrouping', value),
             setMetricsAsRows: (value) => set('metricsAsRows', value),
             setRowLimit: (value) => set('rowLimit', value),
-            setColumnProperties: (value) => set('columnProperties', value),
         }),
-        [dispatch, store, inputs, set],
+        [dispatch, store, inputsRef, set],
     );
 };
 

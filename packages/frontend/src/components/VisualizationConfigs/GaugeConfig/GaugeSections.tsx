@@ -44,7 +44,8 @@ const GaugeSections: FC = memo(() => {
                         >
                             {sections.map((section, index) => (
                                 <GaugeSectionComponent
-                                    key={index}
+                                    // Remount on add/remove so a pending edit commits against the section it was made on
+                                    key={`${sections.length}:${index}`}
                                     index={index}
                                     onClick={() => {
                                         const indexString = `${index}`;

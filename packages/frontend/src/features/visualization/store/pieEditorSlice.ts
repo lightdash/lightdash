@@ -9,7 +9,11 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import isEmpty from 'lodash/isEmpty';
 import mapValues from 'lodash/mapValues';
 import omitBy from 'lodash/omitBy';
-import { editorCaseReducers } from './editorSlice';
+import {
+    editorCaseReducers,
+    renamedFieldId,
+    tableCalculationsRenamed,
+} from './editorSlice';
 
 export type PieEditorState = {
     groupFieldIds: string[];
@@ -65,40 +69,43 @@ const pieEditorSlice = createSlice({
     initialState: null as PieEditorState | null,
     reducers: {
         ...editorCaseReducers<PieEditorState>(),
+        // Group edits start from the list the panel shows, which may be a repaired fallback
         groupAdd: (
             state,
             action: PayloadAction<{
+                current: string[];
                 dimensionId: string | undefined;
                 dimensionIds: string[];
             }>,
         ) => {
             if (!state) return;
-            const { dimensionId, dimensionIds } = action.payload;
+            const { current, dimensionId, dimensionIds } = action.payload;
             const nextId =
-                dimensionId ??
-                dimensionIds.find((id) => !state.groupFieldIds.includes(id));
+                dimensionId ?? dimensionIds.find((id) => !current.includes(id));
             if (!nextId) return;
-            state.groupFieldIds = [
-                ...new Set([...state.groupFieldIds, nextId]),
-            ];
+            state.groupFieldIds = [...new Set([...current, nextId])];
         },
         groupChange: (
             state,
             action: PayloadAction<{
+                current: string[];
                 prevDimensionId: string;
                 newDimensionId: string;
             }>,
         ) => {
             if (!state) return;
-            const next = new Set(state.groupFieldIds);
+            const next = new Set(action.payload.current);
             next.delete(action.payload.prevDimensionId);
             next.add(action.payload.newDimensionId);
             state.groupFieldIds = [...next];
         },
-        groupRemove: (state, action: PayloadAction<string>) => {
+        groupRemove: (
+            state,
+            action: PayloadAction<{ current: string[]; dimensionId: string }>,
+        ) => {
             if (!state) return;
-            state.groupFieldIds = state.groupFieldIds.filter(
-                (id) => id !== action.payload,
+            state.groupFieldIds = action.payload.current.filter(
+                (id) => id !== action.payload.dimensionId,
             );
         },
         toggleDonut: (state) => {
@@ -212,6 +219,11 @@ const pieEditorSlice = createSlice({
             state.showLegend = !state.showLegend;
         },
     },
+    extraReducers: (builder) =>
+        builder.addCase(tableCalculationsRenamed, (state, { payload }) => {
+            if (!state?.metricId) return;
+            state.metricId = renamedFieldId(state.metricId, payload);
+        }),
 });
 
 export const pieEditorActions = pieEditorSlice.actions;

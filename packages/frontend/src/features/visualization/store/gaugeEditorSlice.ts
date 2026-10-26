@@ -1,5 +1,5 @@
 import { type GaugeChart, type GaugeSection } from '@lightdash/common';
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, original, type PayloadAction } from '@reduxjs/toolkit';
 import { editorCaseReducers } from './editorSlice';
 
 export type GaugeEditorState = {
@@ -46,16 +46,19 @@ const gaugeEditorSlice = createSlice({
             if (!state) return;
             state.sections.splice(action.payload, 1);
         },
+        // Targets the section object the edit was made on, so a late commit for a removed or shifted section is dropped
         updateSection: (
             state,
             action: PayloadAction<{
-                index: number;
-                section: Partial<GaugeSection>;
+                target: GaugeSection;
+                changes: Partial<GaugeSection>;
             }>,
         ) => {
             if (!state) return;
-            const { index, section } = action.payload;
-            state.sections[index] = { ...state.sections[index], ...section };
+            const { target, changes } = action.payload;
+            const index = original(state.sections)?.indexOf(target) ?? -1;
+            if (index === -1) return;
+            Object.assign(state.sections[index], changes);
         },
     },
 });

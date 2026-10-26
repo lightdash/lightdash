@@ -38,5 +38,5 @@ const VisualizationConfigFunnel: FC<VisualizationConfigFunnelProps> = ({
     return children({ visualizationConfig });
 };
 
-// Memoised so a resize or an echoed config does not rebuild the aggregate
+// Skips provider re-renders that keep its props (a resize); an echoed config changes them
 export default memo(VisualizationConfigFunnel);

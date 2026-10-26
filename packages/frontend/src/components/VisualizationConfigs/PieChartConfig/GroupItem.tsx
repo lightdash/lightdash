@@ -15,13 +15,14 @@ import {
     ActionIcon,
     Tooltip,
 } from '@mantine/core';
-import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
+import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
-import { forwardRef, useState } from 'react';
+import { forwardRef } from 'react';
 import MantineIcon from '../../common/MantineIcon';
-import ColorSelector from '../ColorSelector';
+import { DebouncedColorSelector } from '../ChartConfigPanel/common/DebouncedColorSelector';
 import { EditableText } from '../common/EditableText';
 import { GrabIcon } from '../common/GrabIcon';
+import { useDebouncedDraft } from '../common/useDebouncedDraft';
 import { ValueOptions } from './ValueOptions';
 
 type GroupItemProps = {
@@ -88,20 +89,9 @@ export const GroupItem = forwardRef<
         ref,
     ) => {
         const [opened, { toggle }] = useDisclosure();
-        // Typing and colour picking are debounced before they reach the store;
-        // the draft keeps the control responsive meanwhile.
-        const [draftLabel, setDraftLabel] = useState(label ?? '');
-        const [draftColor, setDraftColor] = useState<string | undefined>();
-        const commitLabel = useDebouncedCallback(
-            (value: string) => onLabelChange(defaultLabel, value),
-            { delay: 500, flushOnUnmount: true },
-        );
-        const commitColor = useDebouncedCallback(
-            (value: string) => {
-                onColorChange(defaultLabel, value);
-                setDraftColor(undefined);
-            },
-            { delay: 500, flushOnUnmount: true },
+        const [draftLabel, setDraftLabel] = useDebouncedDraft(
+            label ?? '',
+            (value) => onLabelChange(defaultLabel, value),
         );
 
         return (
@@ -111,24 +101,22 @@ export const GroupItem = forwardRef<
                         <GrabIcon dragHandleProps={dragHandleProps} />
                     )}
 
-                    <ColorSelector
-                        color={draftColor ?? color}
+                    <DebouncedColorSelector
+                        color={color}
                         defaultColor={defaultColor}
                         swatches={swatches}
-                        onColorChange={(newColor: string) => {
-                            setDraftColor(newColor);
-                            commitColor(newColor);
-                        }}
+                        onColorChange={(newColor) =>
+                            onColorChange(defaultLabel, newColor)
+                        }
                     />
                     <Box flex={1}>
                         <EditableText
                             placeholder={defaultLabel}
                             value={draftLabel}
                             granularityFields={granularityFields}
-                            onChange={(event) => {
-                                setDraftLabel(event.currentTarget.value);
-                                commitLabel(event.currentTarget.value);
-                            }}
+                            onChange={(event) =>
+                                setDraftLabel(event.currentTarget.value)
+                            }
                         />
                     </Box>
 

@@ -84,9 +84,9 @@ describe('useTableConfig', () => {
         });
     });
 
-    it('sets values and toggles flags', () => {
+    it('toggles flags', () => {
         const { result } = render(undefined);
-        act(() => result.current.setShowColumnCalculation(true));
+        act(() => result.current.toggle('showColumnCalculation'));
         act(() => result.current.toggle('showResultsTotal'));
         expect(result.current.showColumnCalculation).toBe(true);
         expect(result.current.showResultsTotal).toBe(true);

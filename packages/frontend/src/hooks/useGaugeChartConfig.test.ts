@@ -47,10 +47,12 @@ describe('useGaugeChartConfig', () => {
             { min: 0, max: 50, color: '#5470c6' },
         ]);
 
-        act(() => {
-            result.current.addSection();
-            result.current.updateSection(1, { color: '#ff0000' });
-        });
+        act(() => result.current.addSection());
+        act(() =>
+            result.current.updateSection(result.current.sections[1], {
+                color: '#ff0000',
+            }),
+        );
         expect(result.current.sections[1]).toEqual({
             min: 0,
             max: 50,
@@ -61,6 +63,15 @@ describe('useGaugeChartConfig', () => {
         expect(result.current.validConfig.sections).toEqual([
             { min: 0, max: 50, color: '#ff0000' },
         ]);
+    });
+
+    it('ignores an update for a section that is gone', () => {
+        const { result } = render({ selectedField: 'orders_revenue' });
+        act(() => result.current.addSection());
+        const removed = result.current.sections[0];
+        act(() => result.current.removeSection(0));
+        act(() => result.current.updateSection(removed, { min: 42 }));
+        expect(result.current.validConfig.sections).toEqual([]);
     });
 
     it('keeps the config identity across an unrelated re-render', () => {

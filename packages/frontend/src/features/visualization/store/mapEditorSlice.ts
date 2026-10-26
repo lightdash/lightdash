@@ -45,8 +45,8 @@ export type MapEditorState = {
     minBubbleSize: number | undefined;
     maxBubbleSize: number | undefined;
     sizeFieldId: string | undefined;
-    hexbinConfig: MapChart['hexbinConfig'];
     heatmapConfig: MapHeatmapConfig | undefined;
+    hexbinConfig: MapChart['hexbinConfig'];
     tileBackground: MapTileBackground | undefined;
     darkModeTileBackground: MapTileBackground | undefined;
     backgroundColor: string | undefined;
@@ -76,8 +76,8 @@ export const buildMapEditorState = (
     minBubbleSize: initialConfig?.minBubbleSize,
     maxBubbleSize: initialConfig?.maxBubbleSize,
     sizeFieldId: initialConfig?.sizeFieldId,
-    hexbinConfig: initialConfig?.hexbinConfig,
     heatmapConfig: initialConfig?.heatmapConfig,
+    hexbinConfig: initialConfig?.hexbinConfig,
     tileBackground:
         initialConfig?.tileBackground ?? MapTileBackground.OPENSTREETMAP,
     darkModeTileBackground: initialConfig?.darkModeTileBackground,

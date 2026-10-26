@@ -1,9 +1,6 @@
 import { ChartType, type GaugeSection } from '@lightdash/common';
-import { useCallback, useMemo } from 'react';
-import {
-    useVisualizationInputs,
-    useVisualizationInputSelector,
-} from '../components/LightdashVisualization/useVisualizationContext';
+import { useMemo } from 'react';
+import { useVisualizationInputSelector } from '../components/LightdashVisualization/useVisualizationContext';
 import {
     gaugeEditorActions,
     selectGaugeEditor,
@@ -26,16 +23,16 @@ export type GaugeEditorActions = {
     setCustomPercentageLabel: (value: string | undefined) => void;
     addSection: () => void;
     removeSection: (index: number) => void;
-    updateSection: (index: number, section: Partial<GaugeSection>) => void;
+    updateSection: (
+        section: GaugeSection,
+        changes: Partial<GaugeSection>,
+    ) => void;
 };
 
 /** Stable gauge editor actions */
 export const useGaugeEditorActions = (): GaugeEditorActions => {
     const dispatch = useVisualizationDispatch();
-    const set = useEditorFieldSetter<GaugeEditorState>(
-        selectGaugeEditor,
-        gaugeEditorActions.set,
-    );
+    const set = useEditorFieldSetter<GaugeEditorState>(gaugeEditorActions.set);
     return useMemo(
         () => ({
             setSelectedField: (field) => set('selectedField', field),
@@ -50,8 +47,8 @@ export const useGaugeEditorActions = (): GaugeEditorActions => {
             addSection: () => dispatch(gaugeEditorActions.addSection()),
             removeSection: (index) =>
                 dispatch(gaugeEditorActions.removeSection(index)),
-            updateSection: (index, section) =>
-                dispatch(gaugeEditorActions.updateSection({ index, section })),
+            updateSection: (target, changes) =>
+                dispatch(gaugeEditorActions.updateSection({ target, changes })),
         }),
         [dispatch, set],
     );
@@ -62,21 +59,12 @@ export const useGaugeEditorActions = (): GaugeEditorActions => {
  * Config panels select the fields they show instead.
  */
 const useGaugeChartConfig = () => {
-    const { itemsMap } = useVisualizationInputs();
     const editor = useVisualizationSelector(selectGaugeEditor);
     const selectedField = useVisualizationInputSelector(
         selectGaugeSelectedField,
     );
     const validConfig = useVisualizationInputSelector(selectGaugeValidConfig);
     const actions = useGaugeEditorActions();
-
-    const getField = useCallback(
-        (fieldNameOrId: string | undefined) => {
-            if (!fieldNameOrId || !itemsMap) return;
-            return itemsMap[fieldNameOrId];
-        },
-        [itemsMap],
-    );
 
     return useMemo(
         () => ({
@@ -85,9 +73,8 @@ const useGaugeChartConfig = () => {
             chartType: ChartType.GAUGE as const,
             validConfig,
             selectedField,
-            getField,
         }),
-        [actions, editor, validConfig, selectedField, getField],
+        [actions, editor, validConfig, selectedField],
     );
 };
 

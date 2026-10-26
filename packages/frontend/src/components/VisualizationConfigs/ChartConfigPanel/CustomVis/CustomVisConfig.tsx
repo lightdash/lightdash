@@ -201,14 +201,12 @@ export const ConfigTabs: React.FC = memo(() => {
             );
     }, [fields]);
 
-    // The editor keeps a draft; the store only sees non-empty text, debounced
+    // The editor keeps a draft; the store sees it debounced
     const [editorConfig, setEditorConfigDraft] = useState<string>(
         () => selectCustomEditor(store.getState()).visSpec ?? '',
     );
     const commitVisSpec = useDebouncedCallback(
-        (spec: string) => {
-            if (spec) setVisSpec(spec);
-        },
+        (spec: string) => setVisSpec(spec),
         { delay: 500, flushOnUnmount: true },
     );
     const setEditorConfig = useCallback(
@@ -392,8 +390,6 @@ export const ConfigTabs: React.FC = memo(() => {
                             <Button.Group>
                                 <SelectTemplate
                                     itemsMap={itemsMap}
-                                    isCustomConfig
-                                    isEditorEmpty={isEditorEmpty}
                                     setEditorConfig={setEditorConfig}
                                 />
 

@@ -22,10 +22,6 @@ const inputsItemsMap = (_: State, inputs: VisualizationInputs) =>
     inputs.itemsMap;
 const inputsIsLoading = (_: State, inputs: VisualizationInputs) =>
     !inputs.resultsData;
-const inputsTableCalculationsMetadata = (
-    _: State,
-    inputs: VisualizationInputs,
-) => inputs.tableCalculationsMetadata;
 
 // A repaired list that equals the stored one keeps the stored identity
 const keepIfEqual = <T>(stored: T, repaired: T) =>
@@ -63,25 +59,20 @@ export const selectTreemapGroupFieldIds = createSelector(
         ),
 );
 
-/** Stored size metric, or its renamed or first available replacement */
+/** Stored size metric, or the first available one when it is unset or gone */
 export const selectTreemapSizeMetricId = createSelector(
     [
         (state: State) => selectTreemapEditor(state).sizeMetricId,
         selectNumericMetricIds,
         inputsIsLoading,
-        inputsTableCalculationsMetadata,
     ],
-    (
-        sizeMetricId,
-        allNumericMetricIds,
-        isLoading,
-        tableCalculationsMetadata,
-    ) => {
+    (sizeMetricId, allNumericMetricIds, isLoading) => {
+        // Renames are applied to the stored id by the slice
         const repaired = repairTreemapSizeMetricId({
             sizeMetricId,
             allNumericMetricIds,
             isLoading,
-            tableCalculationsMetadata,
+            tableCalculationsMetadata: undefined,
         });
         return repaired === undefined ? sizeMetricId : repaired;
     },

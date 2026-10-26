@@ -8,8 +8,8 @@ import {
 import { type PieChartDataPoint } from '@lightdash/visualization/editor';
 import { useMemo } from 'react';
 import {
-    useVisualizationInputs,
     useVisualizationInputSelector,
+    useVisualizationInputsRef,
 } from '../components/LightdashVisualization/useVisualizationContext';
 import {
     pieEditorActions,
@@ -56,32 +56,40 @@ export type PieEditorActions = {
 export const usePieEditorActions = (): PieEditorActions => {
     const dispatch = useVisualizationDispatch();
     const store = useVisualizationStore();
-    const inputs = useVisualizationInputs();
-    const set = useEditorFieldSetter<PieEditorState>(
-        selectPieEditor,
-        pieEditorActions.set,
-    );
-    return useMemo(
-        () => ({
+    const inputsRef = useVisualizationInputsRef();
+    const set = useEditorFieldSetter<PieEditorState>(pieEditorActions.set);
+    return useMemo(() => {
+        const shownGroupFieldIds = () =>
+            selectPieGroupFieldIds(store.getState(), inputsRef.current);
+        return {
             groupAdd: (dimensionId) =>
                 dispatch(
                     pieEditorActions.groupAdd({
+                        current: shownGroupFieldIds(),
                         dimensionId,
                         dimensionIds: Object.keys(
-                            selectPieFieldPools(store.getState(), inputs)
-                                .dimensions,
+                            selectPieFieldPools(
+                                store.getState(),
+                                inputsRef.current,
+                            ).dimensions,
                         ),
                     }),
                 ),
             groupChange: (prevDimensionId, newDimensionId) =>
                 dispatch(
                     pieEditorActions.groupChange({
+                        current: shownGroupFieldIds(),
                         prevDimensionId,
                         newDimensionId,
                     }),
                 ),
             groupRemove: (dimensionId) =>
-                dispatch(pieEditorActions.groupRemove(dimensionId)),
+                dispatch(
+                    pieEditorActions.groupRemove({
+                        current: shownGroupFieldIds(),
+                        dimensionId,
+                    }),
+                ),
             metricChange: (metricId) => set('metricId', metricId),
             toggleDonut: () => dispatch(pieEditorActions.toggleDonut()),
             valueLabelChange: (valueLabel) =>
@@ -106,7 +114,7 @@ export const usePieEditorActions = (): PieEditorActions => {
                         newIndex,
                         groupLabels: selectPieGroupLabels(
                             store.getState(),
-                            inputs,
+                            inputsRef.current,
                         ),
                     }),
                 ),
@@ -115,9 +123,8 @@ export const usePieEditorActions = (): PieEditorActions => {
             legendPositionChange: (position) => set('legendPosition', position),
             legendMaxItemLengthChange: (length) =>
                 set('legendMaxItemLength', length),
-        }),
-        [dispatch, store, inputs, set],
-    );
+        };
+    }, [dispatch, store, inputsRef, set]);
 };
 
 export type PieChartConfig = PieEditorActions & {

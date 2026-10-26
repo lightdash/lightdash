@@ -10,7 +10,11 @@ import {
     DEFAULT_FUNNEL_SHOW_LEGEND,
 } from '@lightdash/visualization/editor';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { editorCaseReducers } from './editorSlice';
+import {
+    editorCaseReducers,
+    renamedFieldId,
+    tableCalculationsRenamed,
+} from './editorSlice';
 
 export type FunnelEditorState = {
     fieldId: string | null;
@@ -80,6 +84,11 @@ const funnelEditorSlice = createSlice({
             state.showLegend = !state.showLegend;
         },
     },
+    extraReducers: (builder) =>
+        builder.addCase(tableCalculationsRenamed, (state, { payload }) => {
+            if (!state?.fieldId) return;
+            state.fieldId = renamedFieldId(state.fieldId, payload);
+        }),
 });
 
 export const funnelEditorActions = funnelEditorSlice.actions;

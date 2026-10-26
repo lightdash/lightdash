@@ -87,33 +87,31 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                     <Config.Heading>Reference lines</Config.Heading>
                     <AddButton onClick={onAddReferenceLine} />
                 </Config.Group>
-                {referenceLines && (
-                    <Accordion
-                        multiple
-                        variant="contained"
-                        transparentActiveItem
-                        value={openItems}
-                        onChange={handleAccordionChange}
-                        className={accordionClasses.containedList}
-                    >
-                        {referenceLines.map((line, index) => (
-                            <ReferenceLine
-                                isOpen={openItems.includes(`${index + 1}`)}
-                                addNewItem={addNewItem}
-                                removeItem={removeItem}
-                                key={line.data.uuid}
-                                index={index + 1}
-                                isDefaultOpen={referenceLines.length <= 1}
-                                items={items}
-                                startOfWeek={startOfWeek ?? undefined}
-                                referenceLine={line}
-                                updateReferenceLine={onUpdateReferenceLine}
-                                removeReferenceLine={removeReferenceLine}
-                                data-testid={line.data.uuid}
-                            />
-                        ))}
-                    </Accordion>
-                )}
+                <Accordion
+                    multiple
+                    variant="contained"
+                    transparentActiveItem
+                    value={openItems}
+                    onChange={handleAccordionChange}
+                    className={accordionClasses.containedList}
+                >
+                    {referenceLines.map((line, index) => (
+                        <ReferenceLine
+                            isOpen={openItems.includes(`${index + 1}`)}
+                            addNewItem={addNewItem}
+                            removeItem={removeItem}
+                            key={line.data.uuid}
+                            index={index + 1}
+                            isDefaultOpen={referenceLines.length <= 1}
+                            items={items}
+                            startOfWeek={startOfWeek ?? undefined}
+                            referenceLine={line}
+                            updateReferenceLine={onUpdateReferenceLine}
+                            removeReferenceLine={removeReferenceLine}
+                            data-testid={line.data.uuid}
+                        />
+                    ))}
+                </Accordion>
             </Config.Section>
         </Config>
     );

@@ -1,5 +1,8 @@
-import { type ItemsMap } from '@lightdash/common';
-import { type PayloadAction } from '@reduxjs/toolkit';
+import {
+    type ItemsMap,
+    type TableCalculationMetadata,
+} from '@lightdash/common';
+import { createAction, type PayloadAction } from '@reduxjs/toolkit';
 
 /** What the provider knows when it seeds a chart type's editor */
 export type EditorSeedContext = {
@@ -22,3 +25,13 @@ export const editorCaseReducers = <S extends object>() => ({
         Object.assign(state, { [action.payload.key]: action.payload.value });
     },
 });
+
+/** The explorer renamed table calculations; each editor rewrites the field ids it stores */
+export const tableCalculationsRenamed = createAction<
+    TableCalculationMetadata[]
+>('visualization/tableCalculationsRenamed');
+
+export const renamedFieldId = (
+    fieldId: string,
+    renames: TableCalculationMetadata[],
+) => renames.find((rename) => rename.oldName === fieldId)?.name ?? fieldId;

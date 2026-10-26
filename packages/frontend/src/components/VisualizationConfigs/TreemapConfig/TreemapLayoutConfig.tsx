@@ -27,12 +27,12 @@ import {
     useVisualizationInputs,
     useVisualizationInputSelector,
 } from '../../LightdashVisualization/useVisualizationContext';
-import ColorSelector from '../ColorSelector';
+import { DebouncedColorSelector } from '../ChartConfigPanel/common/DebouncedColorSelector';
 import { Config } from '../common/Config';
 import { GrabIcon } from '../common/GrabIcon';
+import { useDebouncedDraft } from '../common/useDebouncedDraft';
 import classes from './DndList.module.css';
 import { DraggablePortalHandler } from './DraggablePortalHandler';
-import { useDebouncedDraft } from './useDebouncedDraft';
 
 export const Layout: React.FC = () => {
     const { itemsMap } = useVisualizationInputs();
@@ -59,17 +59,11 @@ export const Layout: React.FC = () => {
         setStartColorThreshold,
         setEndColorThreshold,
     } = useTreemapEditorActions();
-    const [startColor, onStartColorDraft] = useDebouncedDraft(
-        useVisualizationSelector(
-            (state) => selectTreemapEditor(state).startColor,
-        ),
-        onStartColorChange,
+    const startColor = useVisualizationSelector(
+        (state) => selectTreemapEditor(state).startColor,
     );
-    const [endColor, onEndColorDraft] = useDebouncedDraft(
-        useVisualizationSelector(
-            (state) => selectTreemapEditor(state).endColor,
-        ),
-        onEndColorChange,
+    const endColor = useVisualizationSelector(
+        (state) => selectTreemapEditor(state).endColor,
     );
     const [startColorThreshold, onStartColorThresholdDraft] = useDebouncedDraft(
         useVisualizationSelector(
@@ -263,11 +257,11 @@ export const Layout: React.FC = () => {
                                     <Config.Label>Min color</Config.Label>
                                 </Grid.Col>
                                 <Grid.Col span={1}>
-                                    <ColorSelector
+                                    <DebouncedColorSelector
                                         color={startColor}
                                         swatches={ECHARTS_DEFAULT_COLORS}
                                         withAlpha
-                                        onColorChange={onStartColorDraft}
+                                        onColorChange={onStartColorChange}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={8}>
@@ -290,11 +284,11 @@ export const Layout: React.FC = () => {
                                     <Config.Label>Max color</Config.Label>
                                 </Grid.Col>
                                 <Grid.Col span={1}>
-                                    <ColorSelector
+                                    <DebouncedColorSelector
                                         color={endColor}
                                         swatches={ECHARTS_DEFAULT_COLORS}
                                         withAlpha
-                                        onColorChange={onEndColorDraft}
+                                        onColorChange={onEndColorChange}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={8}>

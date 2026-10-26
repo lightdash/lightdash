@@ -1,5 +1,6 @@
 import {
     getSeriesId,
+    isCompleteLayout,
     isNumericItem,
     type CartesianChart,
     type ConditionalFormattingConfig,
@@ -16,16 +17,17 @@ import {
 } from '@lightdash/common';
 import {
     applyReferenceLines,
+    buildCartesianSeries,
     EMPTY_CARTESIAN_CHART_CONFIG,
     EMPTY_X_AXIS,
     getXAxisSortConfig,
     type CartesianTypeOptions,
-    type ReferenceLineField,
 } from '@lightdash/visualization/editor';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
     useVisualizationInputs,
     useVisualizationInputSelector,
+    useVisualizationInputsRef,
 } from '../../components/LightdashVisualization/useVisualizationContext';
 import {
     cartesianEditorActions,
@@ -34,21 +36,17 @@ import {
     selectCartesianEditor,
     selectCartesianIntent,
     selectCartesianLayout,
-    selectCartesianReconcileInputs,
-    selectCartesianSeriesHiddenKey,
+    selectCartesianReconcileTrigger,
+    selectCartesianRepairInputs,
     selectCartesianValidConfig,
-    selectIsCartesianColorByCategoryAllowed,
-    selectIsCartesianConditionalFormattingAllowed,
     useEditorFieldSetter,
     useVisualizationDispatch,
     useVisualizationSelector,
     useVisualizationStore,
     type CartesianEditorState,
-    type VisualizationStoreState,
 } from '../../features/visualization/store';
 import {
-    reconcileCartesianEditor,
-    type CartesianReconcileInputs,
+    type CartesianRepairInputs,
     type ReferenceLineUpdate,
 } from '../../features/visualization/store/cartesianEditorSlice';
 
@@ -94,7 +92,6 @@ export type CartesianEditorActions = {
     setShowGridX: (show: boolean) => void;
     setShowGridY: (show: boolean) => void;
     setShowXAxis: (show: boolean) => void;
-    setShowYAxis: (show: boolean) => void;
     setShowLeftYAxis: (show: boolean) => void;
     setShowRightYAxis: (show: boolean) => void;
     setShowAxisTicks: (show: boolean) => void;
@@ -115,13 +112,11 @@ export type CartesianEditorActions = {
     setDataZoomAnchor: (dataZoomAnchor: 'start' | 'end') => void;
     setDataZoomItemCount: (dataZoomItemCount: number) => void;
     updateSeries: (series: Series[]) => void;
-    setReferenceLines: (referenceLines: ReferenceLineField[]) => void;
     addReferenceLine: (uuid: string) => void;
     removeReferenceLine: (lineId: string) => void;
     updateReferenceLine: (update: ReferenceLineUpdate) => void;
     setTooltip: (tooltip: string | undefined) => void;
     setTooltipSort: (tooltipSort: TooltipSortBy | undefined) => void;
-    updateMetadata: (metadata: Record<string, SeriesMetadata>) => void;
     mergeMetadata: (metadata: Record<string, SeriesMetadata>) => void;
     setRowLimit: (rowLimit: RowLimit | undefined) => void;
     setColumnLimit: (columnLimit: number | undefined) => void;
@@ -138,9 +133,8 @@ const withoutAutoValues = (legend: EchartsLegend) =>
 export const useCartesianEditorActions = (): CartesianEditorActions => {
     const dispatch = useVisualizationDispatch();
     const store = useVisualizationStore();
-    const inputs = useVisualizationInputs();
+    const inputsRef = useVisualizationInputsRef();
     const set = useEditorFieldSetter<CartesianEditorState>(
-        selectCartesianEditor,
         cartesianEditorActions.set,
     );
     return useMemo(() => {
@@ -184,7 +178,7 @@ export const useCartesianEditorActions = (): CartesianEditorActions => {
                         stack,
                         yFields: selectCartesianLayout(store.getState())
                             ?.yField,
-                        pivotKeys: inputs.pivotDimensions,
+                        pivotKeys: inputsRef.current.pivotDimensions,
                     }),
                 ),
             addSingleSeries: (yField) =>
@@ -225,7 +219,6 @@ export const useCartesianEditorActions = (): CartesianEditorActions => {
             setShowGridX: (show) => layout({ showGridX: show }),
             setShowGridY: (show) => layout({ showGridY: show }),
             setShowXAxis: (show) => layout({ showXAxis: show }),
-            setShowYAxis: (show) => layout({ showYAxis: show }),
             setShowLeftYAxis: (show) => layout({ showLeftYAxis: show }),
             setShowRightYAxis: (show) => layout({ showRightYAxis: show }),
             setShowAxisTicks: (show) => echarts({ showAxisTicks: show }),
@@ -264,8 +257,6 @@ export const useCartesianEditorActions = (): CartesianEditorActions => {
                 firstXAxis({ dataZoomItemCount }),
             updateSeries: (series) =>
                 dispatch(cartesianEditorActions.seriesSet(series)),
-            setReferenceLines: (referenceLines) =>
-                set('referenceLines', referenceLines),
             addReferenceLine: (uuid) =>
                 dispatch(cartesianEditorActions.referenceLineAdd(uuid)),
             removeReferenceLine: (lineId) =>
@@ -274,32 +265,27 @@ export const useCartesianEditorActions = (): CartesianEditorActions => {
                 dispatch(cartesianEditorActions.referenceLineUpdate(update)),
             setTooltip: (tooltip) => set('tooltip', tooltip),
             setTooltipSort: (tooltipSort) => set('tooltipSort', tooltipSort),
-            updateMetadata: (metadata) => set('dirtyMetadata', metadata),
             mergeMetadata: (metadata) =>
                 dispatch(cartesianEditorActions.metadataMerge(metadata)),
             setRowLimit: (rowLimit) => set('rowLimit', rowLimit),
             setColumnLimit: (columnLimit) => set('columnLimit', columnLimit),
         };
-    }, [dispatch, store, inputs.pivotDimensions, set]);
+    }, [dispatch, store, inputsRef, set]);
 };
-
-const selectIsStacked = (state: VisualizationStoreState) =>
-    selectCartesianEditor(state).isStacked;
-const selectReferenceLines = (state: VisualizationStoreState) =>
-    selectCartesianEditor(state).referenceLines;
-const selectColumnLimit = (state: VisualizationStoreState) =>
-    selectCartesianEditor(state).columnLimit;
 
 /**
  * Applies what the editor cannot derive: the gallery's stacking and type
- * intent, and the expected series, layout fallbacks and eligibility resets
- * the results imply, in one `inputsChanged` per change. Mounted once, by the adapter.
+ * intent, the layout fallbacks the query's fields imply, and the series the
+ * results imply. Mounted once, by the adapter.
  */
 export const useCartesianEditorSync = () => {
     const dispatch = useVisualizationDispatch();
     const store = useVisualizationStore();
-    const { resultsData, pivotDimensions: pivotKeys } =
-        useVisualizationInputs();
+    const {
+        resultsData,
+        pivotDimensions: pivotKeys,
+        itemsMap,
+    } = useVisualizationInputs();
     const { stacking, cartesianType } = useVisualizationSelector(
         selectCartesianIntent,
     );
@@ -341,45 +327,48 @@ export const useCartesianEditorSync = () => {
         if (stacking !== undefined) applyStacking(stacking);
     }, [stacking, applyStacking]);
 
-    const reconcileInputs = useVisualizationInputSelector(
-        selectCartesianReconcileInputs,
+    const repairInputs = useVisualizationInputSelector(
+        selectCartesianRepairInputs,
     );
-    const isStacked = useVisualizationSelector(selectIsStacked);
-    const referenceLines = useVisualizationSelector(selectReferenceLines);
-    const columnLimit = useVisualizationSelector(selectColumnLimit);
-    const seriesHiddenKey = useVisualizationSelector(
-        selectCartesianSeriesHiddenKey,
+    const reconcileTrigger = useVisualizationInputSelector(
+        selectCartesianReconcileTrigger,
     );
-    const isConditionalFormattingAllowed = useVisualizationInputSelector(
-        selectIsCartesianConditionalFormattingAllowed,
-    );
-    const isColorByCategoryAllowed = useVisualizationInputSelector(
-        selectIsCartesianColorByCategoryAllowed,
-    );
-    const reconciledInputs = useRef<CartesianReconcileInputs | null>(null);
+    const repairedFor = useRef<CartesianRepairInputs | null>(null);
 
     useEffect(() => {
-        // Layout fallbacks only follow the inputs, never an edit in progress
-        const repairLayout = reconciledInputs.current !== reconcileInputs;
-        reconciledInputs.current = reconcileInputs;
-        const state = store.getState();
-        const patch = reconcileCartesianEditor({
-            editor: selectCartesianEditor(state),
-            inputs: reconcileInputs,
-            cartesianType: selectCartesianIntent(state).cartesianType,
-            repairLayout,
-        });
-        if (patch) dispatch(cartesianEditorActions.inputsChanged(patch));
+        // Layout fallbacks follow the query's fields, never an edit in progress
+        if (repairedFor.current !== repairInputs) {
+            repairedFor.current = repairInputs;
+            dispatch(cartesianEditorActions.inputsChanged(repairInputs));
+        }
+        const editor = selectCartesianEditor(store.getState());
+        const layout = editor.dirtyLayout;
+        dispatch(
+            cartesianEditorActions.seriesReconciled({
+                expectedSeries:
+                    isCompleteLayout(layout) && resultsData?.hasFetchedAllRows
+                        ? buildCartesianSeries({
+                              layout,
+                              existingSeries: editor.dirtyEchartsConfig?.series,
+                              cartesianType,
+                              isStacked: editor.isStacked,
+                              pivotKeys,
+                              resultsData,
+                              itemsMap,
+                              columnLimit: editor.columnLimit,
+                              referenceLines: editor.referenceLines,
+                          })
+                        : undefined,
+                pivotKeys,
+            }),
+        );
     }, [
-        reconcileInputs,
-        dirtyLayout,
-        isStacked,
-        referenceLines,
-        columnLimit,
-        seriesHiddenKey,
+        repairInputs,
+        reconcileTrigger,
+        resultsData,
+        pivotKeys,
+        itemsMap,
         cartesianType,
-        isConditionalFormattingAllowed,
-        isColorByCategoryAllowed,
         store,
         dispatch,
     ]);

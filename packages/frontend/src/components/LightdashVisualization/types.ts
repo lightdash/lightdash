@@ -5,10 +5,7 @@ import {
     type DataAppVizChartConfig,
     type Dimension,
     type ItemsMap,
-    type MergeFieldOrigins,
     type Metric,
-    type MetricQuery,
-    type ParametersValuesMap,
     type TableCalculation,
 } from '@lightdash/common';
 import { type JSX } from 'react';
@@ -20,25 +17,14 @@ import type useDataAppVizVisualizationConfig from '../../hooks/useDataAppVizVisu
 import type useFunnelChartConfig from '../../hooks/useFunnelChartConfig';
 import type useGaugeChartConfig from '../../hooks/useGaugeChartConfig';
 import type usePieChartConfig from '../../hooks/usePieChartConfig';
-import type { InfiniteQueryResults } from '../../hooks/useQueryResults';
 import type useTreemapChartConfig from '../../hooks/useTreemapChartConfig';
 
 export type VisualizationConfigCommon<T extends VisualizationConfig> = {
-    resultsData:
-        | (InfiniteQueryResults & {
-              metricQuery?: MetricQuery;
-              fields?: ItemsMap;
-              resolvedTimezone?: string;
-              fieldOrigins?: MergeFieldOrigins;
-          })
-        | undefined;
-    initialChartConfig: T['chartConfig']['validConfig'] | undefined;
     onChartConfigChange?: (chartConfig: {
         type: T['chartType'];
         config: T['chartConfig']['validConfig'];
     }) => void;
     children: (props: { visualizationConfig: T }) => JSX.Element;
-    parameters?: ParametersValuesMap;
 };
 
 // Big Number

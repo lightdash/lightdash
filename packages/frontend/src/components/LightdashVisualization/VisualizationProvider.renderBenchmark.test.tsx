@@ -653,9 +653,9 @@ describe('VisualizationProvider render benchmark', () => {
         report('table mount', mountRenders, { dispatches: mountDispatches });
 
         const beforeToggles = snapshotCounts();
-        act(() => table?.setShowTableNames(false));
-        act(() => table?.setShowRowCalculation(true));
-        act(() => table?.setHideRowNumbers(true));
+        act(() => table?.toggleShowTableNames());
+        act(() => table?.toggle('showRowCalculation'));
+        act(() => table?.toggle('hideRowNumbers'));
         await settle();
         const toggles = diffCounts(beforeToggles);
         report('table 3 toggles', toggles, {});

@@ -61,26 +61,31 @@ const selectLatLonCandidates = createSelector([inputsItemsMap], (itemsMap) => ({
 const selectUsesLatLon = (state: State) =>
     selectMapEditor(state).locationType !== MapChartType.AREA;
 
-/** Stored latitude field, or a field named like one in point modes */
+// In point modes an unset field falls back to one named like it
+const withLatLonFallback = (
+    stored: string | undefined,
+    usesLatLon: boolean,
+    candidate: string | undefined,
+) => (stored || !usesLatLon ? stored : (candidate ?? stored));
+
 export const selectMapLatitudeFieldId = createSelector(
     [
         (state: State) => selectMapEditor(state).latitudeFieldId,
         selectUsesLatLon,
-        selectLatLonCandidates,
+        (state: State, inputs: VisualizationInputs) =>
+            selectLatLonCandidates(state, inputs).latitude,
     ],
-    (stored, usesLatLon, candidates) =>
-        stored || (usesLatLon ? (candidates.latitude ?? stored) : stored),
+    withLatLonFallback,
 );
 
-/** Stored longitude field, or a field named like one in point modes */
 export const selectMapLongitudeFieldId = createSelector(
     [
         (state: State) => selectMapEditor(state).longitudeFieldId,
         selectUsesLatLon,
-        selectLatLonCandidates,
+        (state: State, inputs: VisualizationInputs) =>
+            selectLatLonCandidates(state, inputs).longitude,
     ],
-    (stored, usesLatLon, candidates) =>
-        stored || (usesLatLon ? (candidates.longitude ?? stored) : stored),
+    withLatLonFallback,
 );
 
 export const selectMapValidConfig = createSelector(

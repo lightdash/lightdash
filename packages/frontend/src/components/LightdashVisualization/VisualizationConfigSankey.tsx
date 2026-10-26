@@ -38,5 +38,5 @@ const VisualizationConfigSankey: FC<VisualizationConfigSankeyProps> = ({
     return children({ visualizationConfig });
 };
 
-// Memoised so a resize or an echoed config does not rebuild the aggregate
+// Memoised so a resize skips it; an echoed config still re-renders it (new chartConfig in its props)
 export default memo(VisualizationConfigSankey);

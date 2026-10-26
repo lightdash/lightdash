@@ -23,15 +23,9 @@ type Setter<K extends keyof BigNumberEditorState> = (
 export type BigNumberEditorActions = {
     setSelectedField: Setter<'selectedField'>;
     setBigNumberLabel: Setter<'bigNumberLabel'>;
-    setBigNumberStyle: Setter<'bigNumberStyle'>;
     setBigNumberComparisonStyle: Setter<'bigNumberComparisonStyle'>;
-    setShowBigNumberLabel: Setter<'showBigNumberLabel'>;
-    setShowComparison: Setter<'showComparison'>;
     setComparisonFormat: Setter<'comparisonFormat'>;
-    setFlipColors: Setter<'flipColors'>;
     setComparisonLabel: Setter<'comparisonLabel'>;
-    setShowTableNamesInLabel: Setter<'showTableNamesInLabel'>;
-    onSetConditionalFormattings: Setter<'conditionalFormattings'>;
     setComparisonField: Setter<'comparisonField'>;
     styleChange: (style: BigNumberEditorState['bigNumberStyle']) => void;
     toggleShowBigNumberLabel: () => void;
@@ -50,25 +44,16 @@ export type BigNumberEditorActions = {
 export const useBigNumberEditorActions = (): BigNumberEditorActions => {
     const dispatch = useVisualizationDispatch();
     const set = useEditorFieldSetter<BigNumberEditorState>(
-        selectBigNumberEditor,
         bigNumberEditorActions.set,
     );
     return useMemo(
         () => ({
             setSelectedField: (value) => set('selectedField', value),
             setBigNumberLabel: (value) => set('bigNumberLabel', value),
-            setBigNumberStyle: (value) => set('bigNumberStyle', value),
             setBigNumberComparisonStyle: (value) =>
                 set('bigNumberComparisonStyle', value),
-            setShowBigNumberLabel: (value) => set('showBigNumberLabel', value),
-            setShowComparison: (value) => set('showComparison', value),
             setComparisonFormat: (value) => set('comparisonFormat', value),
-            setFlipColors: (value) => set('flipColors', value),
             setComparisonLabel: (value) => set('comparisonLabel', value),
-            setShowTableNamesInLabel: (value) =>
-                set('showTableNamesInLabel', value),
-            onSetConditionalFormattings: (value) =>
-                set('conditionalFormattings', value),
             setComparisonField: (value) => set('comparisonField', value),
             styleChange: (style) =>
                 dispatch(bigNumberEditorActions.styleChange(style)),

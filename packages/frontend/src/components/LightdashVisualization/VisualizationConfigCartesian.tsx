@@ -34,5 +34,5 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     return children({ visualizationConfig });
 };
 
-// Memoised so a resize or an echoed config does not rebuild the aggregate
+// Memoised so a resize skips it; an echoed config changes its callbacks and still re-renders it
 export default memo(VisualizationCartesianConfig);

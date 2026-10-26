@@ -13,8 +13,9 @@ import {
 } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import {
+    getGaugeItem,
     selectGaugeEditor,
-    selectGaugeNumericMetrics,
+    selectNumericMetricsAndTableCalculations,
     selectGaugeSelectedField,
     useVisualizationSelector,
 } from '../../../features/visualization/store';
@@ -33,7 +34,7 @@ import { GaugeValueMode } from './types';
 export const GaugeDisplayConfig: FC = memo(() => {
     const { itemsMap } = useVisualizationInputs();
     const numericMetrics = useVisualizationInputSelector(
-        selectGaugeNumericMetrics,
+        selectNumericMetricsAndTableCalculations,
     );
     const selectedFieldId = useVisualizationInputSelector(
         selectGaugeSelectedField,
@@ -73,10 +74,8 @@ export const GaugeDisplayConfig: FC = memo(() => {
     const maxValueMode = maxFieldId
         ? GaugeValueMode.FIELD
         : GaugeValueMode.FIXED;
-    const maxField = maxFieldId ? itemsMap?.[maxFieldId] : undefined;
-    const selectedField = selectedFieldId
-        ? itemsMap?.[selectedFieldId]
-        : undefined;
+    const maxField = getGaugeItem(itemsMap, maxFieldId);
+    const selectedField = getGaugeItem(itemsMap, selectedFieldId);
 
     const numericMetricsList = Object.values(numericMetrics);
 

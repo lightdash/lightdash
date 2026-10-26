@@ -5,7 +5,6 @@ import {
     type DataAppVizOptionValues,
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { editorCaseReducers } from './editorSlice';
 
 /**
  * The chart's binding to a picked viz; null while it points at none.
@@ -31,7 +30,7 @@ export const readDataAppVizUuid = (
     return typeof uuid === 'string' && uuid !== '' ? uuid : null;
 };
 
-export const toSelectedDataAppViz = (
+const toSelectedDataAppViz = (
     chartConfig: DataAppVizChart | undefined,
 ): SelectedDataAppViz | null => {
     const dataAppVizUuid = readDataAppVizUuid(chartConfig);
@@ -56,7 +55,18 @@ const dataAppVizEditorSlice = createSlice({
     name: 'dataAppVizEditor',
     initialState: null as DataAppVizEditorState | null,
     reducers: {
-        ...editorCaseReducers<DataAppVizEditorState>(),
+        // The owner switched the viz from outside the editor (the chart gallery)
+        externalConfigReceived: (
+            state,
+            action: PayloadAction<DataAppVizChart | undefined>,
+        ) => {
+            if (!state) return;
+            state.config = toSelectedDataAppViz(action.payload);
+        },
+        vizCleared: (state) => {
+            if (!state) return;
+            state.config = null;
+        },
         vizSelected: (
             state,
             action: PayloadAction<{

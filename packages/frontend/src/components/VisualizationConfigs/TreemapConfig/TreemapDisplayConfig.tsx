@@ -9,7 +9,7 @@ import { useTreemapEditorActions } from '../../../hooks/useTreemapChartConfig';
 import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
 import { Config } from '../common/Config';
-import { useDebouncedDraft } from './useDebouncedDraft';
+import { useDebouncedDraft } from '../common/useDebouncedDraft';
 
 export const Display: React.FC = () => {
     const { setVisibleMin, setLeafDepth } = useTreemapEditorActions();

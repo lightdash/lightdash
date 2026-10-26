@@ -14,7 +14,6 @@ import {
 } from '../features/visualization/store';
 import {
     readDataAppVizUuid,
-    toSelectedDataAppViz,
     type SelectedDataAppViz,
 } from '../features/visualization/store/dataAppVizEditorSlice';
 
@@ -99,10 +98,7 @@ const useDataAppVizVisualizationConfig = (
             return;
         }
         store.dispatch(
-            dataAppVizEditorActions.set({
-                key: 'config',
-                value: toSelectedDataAppViz(initialChartConfig),
-            }),
+            dataAppVizEditorActions.externalConfigReceived(initialChartConfig),
         );
     }, [
         externalDataAppVizUuid,
@@ -112,9 +108,12 @@ const useDataAppVizVisualizationConfig = (
         store,
     ]);
 
-    // Pushes the edit up only when the reducer applied it
+    // Pushes the edit up only when the reducer applied it. A debounced control
+    // flushes from its unmount cleanup, by which point the edit can belong to
+    // a config that no longer owns the chart.
     const commit = useCallback(
         (action: UnknownAction) => {
+            if (!isOwningChartConfigRef.current) return;
             const previous = readConfig();
             store.dispatch(action);
             const next = readConfig();
@@ -135,9 +134,8 @@ const useDataAppVizVisualizationConfig = (
     );
 
     const clearDataAppViz = useCallback(() => {
-        store.dispatch(
-            dataAppVizEditorActions.set({ key: 'config', value: null }),
-        );
+        if (!isOwningChartConfigRef.current) return;
+        store.dispatch(dataAppVizEditorActions.vizCleared());
         onConfigChangeRef.current?.(null);
     }, [store]);
 
@@ -174,19 +172,15 @@ const useDataAppVizVisualizationConfig = (
             dataAppVizUuid: string,
             optionName: string,
             value: DataAppVizOptionValue,
-        ) => {
-            // A debounced control flushes from its unmount cleanup, by which
-            // point the edit can belong to a config that no longer owns the
-            // chart, or to a viz the user has switched away from.
-            if (!isOwningChartConfigRef.current) return;
+        ) =>
+            // The reducer drops an edit to a viz the user has switched away from
             commit(
                 dataAppVizEditorActions.optionSet({
                     dataAppVizUuid,
                     optionName,
                     value,
                 }),
-            );
-        },
+            ),
         [commit],
     );
 

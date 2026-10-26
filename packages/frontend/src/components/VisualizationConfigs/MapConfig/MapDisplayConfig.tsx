@@ -21,7 +21,7 @@ import {
     Text,
 } from '@mantine/core';
 import { useDebouncedCallback } from '@mantine/hooks';
-import { memo, useState, type ComponentProps, type FC } from 'react';
+import { memo, useState, type FC } from 'react';
 import { shallowEqual } from 'react-redux';
 import {
     selectMapAvailableFields,
@@ -44,9 +44,10 @@ import {
     DEFAULT_FIXED_RESOLUTION,
     HEXBIN_SIZE_PRESETS,
 } from '../../SimpleMap/hexbin/zoomToResolution';
-import ColorSelector from '../ColorSelector';
+import { DebouncedColorSelector } from '../ChartConfigPanel/common/DebouncedColorSelector';
 import { Config } from '../common/Config';
 import { GradientStopsEditor } from '../common/GradientStopsEditor';
+import { useDebouncedDraft } from '../common/useDebouncedDraft';
 
 const findPresetIdxByResolution = (resolution: number): number => {
     const idx = HEXBIN_SIZE_PRESETS.findIndex(
@@ -126,37 +127,6 @@ const pickDisplayFields = (state: VisualizationStoreState) => {
     };
 };
 
-type DebouncedColorSelectorProps = Omit<
-    ComponentProps<typeof ColorSelector>,
-    'onColorChange'
-> & { onColorChange: (color: string) => void };
-
-// Keeps a draft while picking; the store gets the colour debounced
-const DebouncedColorSelector: FC<DebouncedColorSelectorProps> = ({
-    color,
-    onColorChange,
-    ...rest
-}) => {
-    const [draft, setDraft] = useState<string>();
-    const commit = useDebouncedCallback(
-        (value: string) => {
-            onColorChange(value);
-            setDraft(undefined);
-        },
-        { delay: 300, flushOnUnmount: true },
-    );
-    return (
-        <ColorSelector
-            {...rest}
-            color={draft ?? color}
-            onColorChange={(value) => {
-                setDraft(value);
-                commit(value);
-            }}
-        />
-    );
-};
-
 const tileBackgroundOptions = [
     { value: MapTileBackground.NONE, label: 'None' },
     { value: MapTileBackground.OPENSTREETMAP, label: 'OpenStreetMap' },
@@ -181,6 +151,7 @@ export const Display: FC = memo(() => {
         addColor,
         removeColor,
         updateColor,
+        setColorRange,
         setShowLegend,
         setSaveMapExtent,
         setMinBubbleSize,
@@ -197,33 +168,22 @@ export const Display: FC = memo(() => {
         setColorOverride,
     } = useMapEditorActions();
 
-    const [draftOpacity, setDraftOpacity] = useState<number>();
-    const commitOpacity = useDebouncedCallback(
-        (value: number) => {
-            setDataLayerOpacity(value);
-            setDraftOpacity(undefined);
-        },
-        { delay: 100, flushOnUnmount: true },
-    );
-
-    const [draftStop, setDraftStop] = useState<{
-        index: number;
-        color: string;
-    }>();
-    const commitStop = useDebouncedCallback(
-        (index: number, color: string) => {
-            updateColor(index, color);
-            setDraftStop(undefined);
-        },
-        { delay: 300, flushOnUnmount: true },
+    const [opacity, setOpacity] = useDebouncedDraft(
+        config.dataLayerOpacity ?? 0.7,
+        setDataLayerOpacity,
     );
 
     const storedColors = config.colorRange ?? DEFAULT_MAP_COLORS;
-    const colors = draftStop
-        ? storedColors.map((c, i) =>
-              i === draftStop.index ? draftStop.color : c,
-          )
-        : storedColors;
+    // One draft per stop; add and remove flush first so a pending edit keeps its stop
+    const [draftStops, setDraftStops] = useState<Record<number, string>>({});
+    const commitStops = useDebouncedCallback(
+        (drafts: Record<number, string>) => {
+            setColorRange(storedColors.map((c, i) => drafts[i] ?? c));
+            setDraftStops({});
+        },
+        { delay: 300, flushOnUnmount: true },
+    );
+    const colors = storedColors.map((c, i) => draftStops[i] ?? c);
     const isScatterMap =
         !config.locationType || config.locationType === MapChartType.SCATTER;
     const isAreaMap = config.locationType === MapChartType.AREA;
@@ -395,11 +355,21 @@ export const Display: FC = memo(() => {
                                 <Config.Label>Color range</Config.Label>
                                 <GradientStopsEditor
                                     colors={colors}
-                                    onAddColor={addColor}
-                                    onRemoveColor={removeColor}
+                                    onAddColor={() => {
+                                        commitStops.flush();
+                                        addColor();
+                                    }}
+                                    onRemoveColor={(index) => {
+                                        commitStops.flush();
+                                        removeColor(index);
+                                    }}
                                     onColorChange={(index, color) => {
-                                        setDraftStop({ index, color });
-                                        commitStop(index, color);
+                                        const next = {
+                                            ...draftStops,
+                                            [index]: color,
+                                        };
+                                        setDraftStops(next);
+                                        commitStops(next);
                                     }}
                                 />
                                 {isHexbin && (
@@ -502,15 +472,8 @@ export const Display: FC = memo(() => {
                                 min={0.1}
                                 max={1}
                                 step={0.1}
-                                value={
-                                    draftOpacity ??
-                                    config.dataLayerOpacity ??
-                                    0.7
-                                }
-                                onChange={(value) => {
-                                    setDraftOpacity(value);
-                                    commitOpacity(value);
-                                }}
+                                value={opacity}
+                                onChange={setOpacity}
                                 marks={[
                                     { value: 0.1, label: '0.1' },
                                     { value: 0.5, label: '0.5' },

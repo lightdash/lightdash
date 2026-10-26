@@ -1,6 +1,6 @@
 import { ChartType } from '@lightdash/common';
 import { memo, useEffect, useMemo, type FC } from 'react';
-import { selectGaugeNumericMetrics } from '../../features/visualization/store';
+import { selectNumericMetricsAndTableCalculations } from '../../features/visualization/store';
 import useGaugeChartConfig from '../../hooks/useGaugeChartConfig';
 import {
     type VisualizationConfigGauge,
@@ -13,7 +13,7 @@ const VisualizationGaugeConfig: FC<VisualizationConfigGaugeProps> = ({
     children,
 }) => {
     const numericMetrics = useVisualizationInputSelector(
-        selectGaugeNumericMetrics,
+        selectNumericMetricsAndTableCalculations,
     );
     const gaugeConfig = useGaugeChartConfig();
 
@@ -37,5 +37,5 @@ const VisualizationGaugeConfig: FC<VisualizationConfigGaugeProps> = ({
     return children({ visualizationConfig });
 };
 
-// Memoised so a resize or an echoed config does not rebuild the aggregate
+// Skips provider re-renders that keep its props (a resize); an echoed config changes them
 export default memo(VisualizationGaugeConfig);

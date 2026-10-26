@@ -18,7 +18,7 @@ const selectAvailableFieldIds = createSelector(
     getAvailableBigNumberFieldIds,
 );
 
-/** Stored field, a renamed table calculation's new name, or the first available field when it is gone */
+/** Stored field, or the first available field when it is gone */
 export const selectBigNumberSelectedField = createSelector(
     [
         (state: State) => selectBigNumberEditor(state).selectedField,
@@ -28,13 +28,15 @@ export const selectBigNumberSelectedField = createSelector(
             inputs.tableCalculationsMetadata,
     ],
     (selectedField, itemsMap, availableFieldsIds, tableCalculationsMetadata) =>
-        resolveBigNumberSelectedField({
-            selectedField,
-            configSelectedField: selectedField,
-            itemsMap,
-            availableFieldsIds,
-            tableCalculationsMetadata,
-        }) ?? selectedField,
+        // A just-renamed table calculation is missing from the results until the query re-runs
+        tableCalculationsMetadata?.some((tc) => tc.name === selectedField)
+            ? selectedField
+            : (resolveBigNumberSelectedField({
+                  selectedField,
+                  configSelectedField: selectedField,
+                  itemsMap,
+                  availableFieldsIds,
+              }) ?? selectedField),
 );
 
 export const selectBigNumberComparisonFieldItem = createSelector(

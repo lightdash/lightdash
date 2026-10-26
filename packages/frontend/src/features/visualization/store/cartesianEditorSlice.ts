@@ -1,9 +1,7 @@
 import {
     getSeriesId,
-    isCompleteLayout,
     type CartesianChart,
     type ConditionalFormattingConfig,
-    type ItemsMap,
     type MarkLineData,
     type RowLimit,
     type Series,
@@ -16,9 +14,7 @@ import {
 import {
     applyCartesianStacking,
     applyCartesianType,
-    buildCartesianSeries,
     EMPTY_CARTESIAN_CHART_CONFIG,
-    type getAvailableCartesianFields,
     getReferenceLinesFromSeries,
     isCartesianStacked,
     isColorByCategoryEligible,
@@ -27,12 +23,12 @@ import {
     repairCartesianLayout,
     toStackType,
     type CartesianTypeOptions,
+    type getAvailableCartesianFields,
     type ReferenceLineField,
 } from '@lightdash/visualization/editor';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import isEqual from 'lodash/isEqual';
 import { editorCaseReducers } from './editorSlice';
-import { type VisualizationInputs } from './inputs';
 
 type Layout = Partial<CartesianChart['layout']>;
 type EchartsConfig = Partial<CartesianChart['eChartsConfig']>;
@@ -85,98 +81,13 @@ type AxisPatch =
     | { axis: 'xAxis'; index: number; patch: Partial<XAxis> }
     | { axis: 'yAxis'; index: number; patch: Partial<YAxis> };
 
-/** What the results-driven repairs read from the inputs */
-export type CartesianReconcileInputs = Omit<
+/** What the layout fallbacks read: the fields of the query behind the results */
+export type CartesianRepairInputs = Omit<
     ReturnType<typeof getAvailableCartesianFields>,
     'sortedDimensions'
 > & {
-    pendingFieldIds: Set<string> | undefined;
+    pendingFieldIds: string[] | undefined;
     tableCalculationsMetadata: TableCalculationMetadata[] | undefined;
-    pivotKeys: string[] | undefined;
-    resultsData: VisualizationInputs['resultsData'];
-    itemsMap: ItemsMap | undefined;
-};
-
-export type CartesianInputsPatch = Partial<
-    Pick<
-        CartesianEditorState,
-        'dirtyLayout' | 'dirtyEchartsConfig' | 'conditionalFormattings'
-    >
->;
-
-/**
- * The editor state the results imply, as a patch of what changed: layout
- * fallbacks (only when the inputs changed), the expected series, and the
- * colour-by-category and conditional formatting resets. Null when nothing changes.
- */
-export const reconcileCartesianEditor = ({
-    editor,
-    inputs,
-    cartesianType,
-    repairLayout,
-}: {
-    editor: CartesianEditorState;
-    inputs: CartesianReconcileInputs;
-    cartesianType: CartesianTypeOptions | undefined;
-    repairLayout: boolean;
-}): CartesianInputsPatch | null => {
-    const patch: CartesianInputsPatch = {};
-    let layout = editor.dirtyLayout;
-    if (repairLayout && inputs.availableFields.length > 0) {
-        const repaired = repairCartesianLayout({
-            layout,
-            availableFields: inputs.availableFields,
-            availableDimensions: inputs.availableDimensions,
-            availableMetrics: inputs.availableMetrics,
-            tableCalculationsMetadata: inputs.tableCalculationsMetadata,
-            pendingFieldIds: inputs.pendingFieldIds,
-        });
-        if (!isEqual(repaired, layout)) layout = repaired;
-    }
-
-    let series = editor.dirtyEchartsConfig?.series;
-    if (isCompleteLayout(layout) && inputs.resultsData?.hasFetchedAllRows) {
-        const expected = buildCartesianSeries({
-            layout,
-            existingSeries: series,
-            cartesianType,
-            isStacked: editor.isStacked,
-            pivotKeys: inputs.pivotKeys,
-            resultsData: inputs.resultsData,
-            itemsMap: inputs.itemsMap,
-            columnLimit: editor.columnLimit,
-            referenceLines: editor.referenceLines,
-        });
-        if (!isEqual(expected, series) || !editor.dirtyEchartsConfig) {
-            series = expected;
-            patch.dirtyEchartsConfig = { ...editor.dirtyEchartsConfig, series };
-        }
-    }
-
-    if (
-        (layout?.colorByCategory || layout?.categoryColorOverrides) &&
-        !isColorByCategoryEligible({
-            series,
-            pivotKeys: inputs.pivotKeys,
-            layout,
-        })
-    ) {
-        layout = {
-            ...layout,
-            colorByCategory: undefined,
-            categoryColorOverrides: undefined,
-        };
-    }
-    if (layout !== editor.dirtyLayout) patch.dirtyLayout = layout;
-
-    if (
-        editor.conditionalFormattings.length > 0 &&
-        !isConditionalFormattingEligible(series, inputs.pivotKeys)
-    ) {
-        patch.conditionalFormattings = [];
-    }
-
-    return Object.keys(patch).length > 0 ? patch : null;
 };
 
 const matchesReferenceLine = (data: MarkLineData, lineId: string) =>
@@ -353,9 +264,60 @@ const cartesianEditorSlice = createSlice({
             if (!state?.dirtyEchartsConfig) return;
             state.dirtyEchartsConfig.series = action.payload;
         },
-        inputsChanged: (state, action: PayloadAction<CartesianInputsPatch>) => {
+        // The query's fields changed: rename, drop or fall back to valid fields
+        inputsChanged: (
+            state,
+            action: PayloadAction<CartesianRepairInputs>,
+        ) => {
+            if (!state || action.payload.availableFields.length === 0) return;
+            const { pendingFieldIds, ...fields } = action.payload;
+            const repaired = repairCartesianLayout({
+                ...fields,
+                layout: state.dirtyLayout,
+                pendingFieldIds: pendingFieldIds && new Set(pendingFieldIds),
+            });
+            if (!isEqual(repaired, state.dirtyLayout)) {
+                state.dirtyLayout = repaired;
+            }
+        },
+        // The series the results imply, and the resets they make necessary
+        seriesReconciled: (
+            state,
+            action: PayloadAction<{
+                expectedSeries: Series[] | undefined;
+                pivotKeys: string[] | undefined;
+            }>,
+        ) => {
             if (!state) return;
-            Object.assign(state, action.payload);
+            const { expectedSeries, pivotKeys } = action.payload;
+            if (
+                expectedSeries &&
+                (!state.dirtyEchartsConfig ||
+                    !isEqual(expectedSeries, state.dirtyEchartsConfig.series))
+            ) {
+                state.dirtyEchartsConfig = {
+                    ...state.dirtyEchartsConfig,
+                    series: expectedSeries,
+                };
+            }
+            const series = state.dirtyEchartsConfig?.series;
+            const layout = state.dirtyLayout;
+            if (
+                (layout?.colorByCategory || layout?.categoryColorOverrides) &&
+                !isColorByCategoryEligible({ series, pivotKeys, layout })
+            ) {
+                state.dirtyLayout = {
+                    ...layout,
+                    colorByCategory: undefined,
+                    categoryColorOverrides: undefined,
+                };
+            }
+            if (
+                state.conditionalFormattings.length > 0 &&
+                !isConditionalFormattingEligible(series, pivotKeys)
+            ) {
+                state.conditionalFormattings = [];
+            }
         },
         gridMerge: (
             state,

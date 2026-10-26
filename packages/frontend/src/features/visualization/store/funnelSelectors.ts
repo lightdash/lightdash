@@ -1,10 +1,4 @@
-import {
-    getDimensionsFromItemsMap,
-    getMetricsFromItemsMap,
-    getTableCalculationsFromItemsMap,
-    isNumericItem,
-    type TableCalculation,
-} from '@lightdash/common';
+import { getDimensionsFromItemsMap } from '@lightdash/common';
 import {
     buildValidFunnelConfig,
     getFunnelChartData,
@@ -14,6 +8,7 @@ import {
 } from '@lightdash/visualization/editor';
 import { createSelector } from '@reduxjs/toolkit';
 import { type VisualizationStoreState } from '.';
+import { selectNumericMetricsAndTableCalculations } from './gaugeSelectors';
 import { type VisualizationInputs } from './inputs';
 import { selectFunnelEditor } from './selectors';
 
@@ -24,49 +19,28 @@ const inputsResults = (_: State, inputs: VisualizationInputs) =>
     inputs.resultsData;
 
 export const selectFunnelFieldPools = createSelector(
-    [inputsItemsMap],
-    (itemsMap) => {
-        const metrics = getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem);
-        const tableCalculations = getTableCalculationsFromItemsMap(itemsMap);
-        const numericTableCalculations = Object.keys(tableCalculations).reduce<
-            Record<string, TableCalculation>
-        >((acc, key) => {
-            if (isNumericItem(tableCalculations[key])) {
-                acc[key] = tableCalculations[key];
-            }
-            return acc;
-        }, {});
-        return {
-            dimensions: getDimensionsFromItemsMap(itemsMap ?? {}),
-            numericFields: { ...metrics, ...numericTableCalculations },
-        };
-    },
+    [inputsItemsMap, selectNumericMetricsAndTableCalculations],
+    (itemsMap, numericFields) => ({
+        dimensions: getDimensionsFromItemsMap(itemsMap ?? {}),
+        numericFields,
+    }),
 );
 const selectNumericFieldIds = createSelector(
     [selectFunnelFieldPools],
     (pools) => Object.keys(pools.numericFields),
 );
 
-/** Stored field, a renamed table calculation's new name, or the first numeric field when it is gone */
+/** Stored field, or the first numeric field when it is gone */
 export const selectFunnelFieldId = createSelector(
     [
         (state: State) => selectFunnelEditor(state).fieldId,
         selectNumericFieldIds,
         inputsResults,
-        (_: State, inputs: VisualizationInputs) =>
-            inputs.tableCalculationsMetadata,
     ],
-    (fieldId, allNumericFieldIds, resultsData, tableCalculationsMetadata) => {
-        if (!resultsData) return fieldId;
-        // Twice: a renamed table calculation whose new name is not numeric falls back too
-        const repair = (id: string | null) =>
-            resolveFunnelFieldId({
-                fieldId: id,
-                allNumericFieldIds,
-                tableCalculationsMetadata,
-            });
-        return repair(repair(fieldId));
-    },
+    (fieldId, allNumericFieldIds, resultsData) =>
+        resultsData
+            ? resolveFunnelFieldId({ fieldId, allNumericFieldIds })
+            : fieldId,
 );
 
 export const selectFunnelSelectedField = createSelector(

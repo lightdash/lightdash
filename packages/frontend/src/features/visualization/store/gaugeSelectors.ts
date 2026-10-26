@@ -25,10 +25,10 @@ const selectGaugeAvailableFieldIds = createSelector(
     getAvailableGaugeFieldIds,
 );
 
-/** Numeric metrics and table calculations the gauge can bind */
-export const selectGaugeNumericMetrics = createSelector(
+/** Numeric metrics and table calculations, the pool gauge and funnel bind to */
+export const selectNumericMetricsAndTableCalculations = createSelector(
     [inputsItemsMap],
-    (itemsMap): ItemsMap => ({
+    (itemsMap) => ({
         ...getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem),
         ...pickBy(getTableCalculationsFromItemsMap(itemsMap), isNumericItem),
     }),
@@ -43,6 +43,11 @@ export const selectGaugeSelectedField = createSelector(
     ],
     getEffectiveGaugeSelectedField,
 );
+
+export const getGaugeItem = (
+    itemsMap: ItemsMap | undefined,
+    fieldId: string | undefined,
+) => (fieldId ? itemsMap?.[fieldId] : undefined);
 
 export const selectGaugeValidConfig = createSelector(
     [selectGaugeEditor, selectGaugeSelectedField],

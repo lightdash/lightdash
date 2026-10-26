@@ -71,10 +71,7 @@ export type MapEditorActions = {
 /** Stable map editor actions. */
 export const useMapEditorActions = (): MapEditorActions => {
     const dispatch = useVisualizationDispatch();
-    const set = useEditorFieldSetter<MapEditorState>(
-        selectMapEditor,
-        mapEditorActions.set,
-    );
+    const set = useEditorFieldSetter<MapEditorState>(mapEditorActions.set);
     return useMemo(
         () => ({
             setMapType: (mapType) => set('mapType', mapType),

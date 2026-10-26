@@ -1,7 +1,8 @@
 import { getItemId } from '@lightdash/common';
 import { memo, type FC } from 'react';
 import {
-    selectGaugeNumericMetrics,
+    getGaugeItem,
+    selectNumericMetricsAndTableCalculations,
     selectGaugeSelectedField,
 } from '../../../features/visualization/store';
 import { useGaugeEditorActions } from '../../../hooks/useGaugeChartConfig';
@@ -15,16 +16,14 @@ import { Config } from '../common/Config';
 export const GaugeFieldsConfig: FC = memo(() => {
     const { itemsMap } = useVisualizationInputs();
     const numericMetrics = useVisualizationInputSelector(
-        selectGaugeNumericMetrics,
+        selectNumericMetricsAndTableCalculations,
     );
     const selectedFieldId = useVisualizationInputSelector(
         selectGaugeSelectedField,
     );
     const { setSelectedField } = useGaugeEditorActions();
 
-    const selectedField = selectedFieldId
-        ? itemsMap?.[selectedFieldId]
-        : undefined;
+    const selectedField = getGaugeItem(itemsMap, selectedFieldId);
 
     return (
         <Config>

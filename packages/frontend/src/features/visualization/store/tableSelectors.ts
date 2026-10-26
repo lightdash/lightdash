@@ -1,5 +1,5 @@
 import { type TableChart } from '@lightdash/common';
-// Totals, subtotals, merge totals, the columns that render them, the pivot worker and the min/max cache stay in useTableConfig: they come from server queries
+// Server-query results (totals, subtotals, the pivot worker, min/max) stay in useTableConfig
 import {
     canUseTableSubtotals,
     getNumUnpivotedDimensions,

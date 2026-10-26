@@ -11,7 +11,7 @@ import {
 } from '@lightdash/visualization/editor';
 import { createSelector } from '@reduxjs/toolkit';
 import { type VisualizationStoreState } from '.';
-import { type CartesianReconcileInputs } from './cartesianEditorSlice';
+import { type CartesianRepairInputs } from './cartesianEditorSlice';
 import { type VisualizationInputs } from './inputs';
 import { selectCartesianEditor } from './selectors';
 
@@ -46,36 +46,34 @@ const selectCartesianAvailableFields = createSelector(
 // config picker must not be stripped before its results land.
 const selectCartesianPendingFieldIds = createSelector(
     [(_: State, inputs: VisualizationInputs) => inputs.unsavedMetricQuery],
-    getPendingFieldIds,
+    (unsavedMetricQuery) => {
+        const ids = getPendingFieldIds(unsavedMetricQuery);
+        return ids && [...ids];
+    },
 );
 
-/** The inputs the results-driven repairs depend on; stable while the chart is edited */
-export const selectCartesianReconcileInputs = createSelector(
+/**
+ * What the layout fallbacks follow. A new results object for the same query
+ * keeps this reference; a pivot change re-runs them, as it always did.
+ */
+export const selectCartesianRepairInputs = createSelector(
     [
         selectCartesianAvailableFields,
         selectCartesianPendingFieldIds,
         (_: State, inputs: VisualizationInputs) =>
             inputs.tableCalculationsMetadata,
         inputsPivotKeys,
-        (_: State, inputs: VisualizationInputs) => inputs.resultsData,
-        inputsItemsMap,
     ],
     (
         { availableFields, availableDimensions, availableMetrics },
         pendingFieldIds,
         tableCalculationsMetadata,
-        pivotKeys,
-        resultsData,
-        itemsMap,
-    ): CartesianReconcileInputs => ({
+    ): CartesianRepairInputs => ({
         availableFields,
         availableDimensions,
         availableMetrics,
         pendingFieldIds,
         tableCalculationsMetadata,
-        pivotKeys,
-        resultsData,
-        itemsMap,
     }),
 );
 
@@ -85,7 +83,7 @@ export const selectCartesianDirtyChartType = createSelector(
 );
 
 /** Series visibility as a string, so it compares by value */
-export const selectCartesianSeriesHiddenKey = createSelector(
+const selectCartesianSeriesHiddenKey = createSelector(
     [selectCartesianSeries],
     (series) =>
         JSON.stringify(
@@ -99,12 +97,12 @@ const selectCartesianHasCustomColorsStacking = createSelector(
     hasCartesianCustomColorsStacking,
 );
 
-export const selectIsCartesianConditionalFormattingAllowed = createSelector(
+const selectIsCartesianConditionalFormattingAllowed = createSelector(
     [selectCartesianSeries, inputsPivotKeys],
     isConditionalFormattingEligible,
 );
 
-export const selectIsCartesianColorByCategoryAllowed = createSelector(
+const selectIsCartesianColorByCategoryAllowed = createSelector(
     [selectCartesianSeries, inputsPivotKeys, selectCartesianLayout],
     (series, pivotKeys, layout) =>
         isColorByCategoryEligible({ series, pivotKeys, layout }),
@@ -141,4 +139,18 @@ export const selectCartesianValidConfig = createSelector(
             rowLimit: editor.rowLimit,
             columnLimit: editor.columnLimit,
         }),
+);
+
+/** Changes whenever an edit can change the series the results imply */
+export const selectCartesianReconcileTrigger = createSelector(
+    [
+        selectCartesianLayout,
+        (state: State) => selectCartesianEditor(state).isStacked,
+        (state: State) => selectCartesianEditor(state).referenceLines,
+        (state: State) => selectCartesianEditor(state).columnLimit,
+        selectCartesianSeriesHiddenKey,
+        selectIsCartesianConditionalFormattingAllowed,
+        selectIsCartesianColorByCategoryAllowed,
+    ],
+    (...trigger) => trigger,
 );

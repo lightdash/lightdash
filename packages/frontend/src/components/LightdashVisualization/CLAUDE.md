@@ -79,7 +79,9 @@ and is kept for the regression replay and tests.
 
 ### 8. Frontend Config Adapter (`VisualizationConfigXxx.tsx` in this directory)
 
-- Memoised; reads inputs from `useVisualizationInputs()`, not props
+- Memoised, so a resize skips it; an echoed config re-renders it, and its
+  memoised aggregate is what keeps consumers from re-rendering
+- Reads inputs from `useVisualizationInputs()`, not props
 - Calls the config hook, emits `validConfig` via `onChartConfigChange` when
   it changes, and builds the `visualizationConfig` aggregate
 - Register the type's seed in `store/buildInitialState.ts` and its slice and

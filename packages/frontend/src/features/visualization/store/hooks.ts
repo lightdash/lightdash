@@ -2,7 +2,7 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
 import type * as rtk from '@reduxjs/toolkit';
 import { type ActionCreatorWithPayload } from '@reduxjs/toolkit';
-import { useCallback, type SetStateAction } from 'react';
+import { useCallback } from 'react';
 import {
     createDispatchHook,
     createSelectorHook,
@@ -28,28 +28,15 @@ export const useVisualizationStore = createStoreHook(
     VisualizationStoreContext,
 ).withTypes<VisualizationStore>();
 
-/**
- * A stable, key-typed setter over a slice's `set` action. Accepts a value or
- * a `useState`-style updater, which reads the committed value at call time.
- */
+/** A stable, key-typed setter over a slice's `set` action */
 export const useEditorFieldSetter = <S extends object>(
-    select: (state: VisualizationStoreState) => S | null,
     set: ActionCreatorWithPayload<EditorFieldUpdate<S>>,
 ) => {
-    const store = useVisualizationStore();
+    const dispatch = useVisualizationDispatch();
     return useCallback(
-        <K extends keyof S>(key: K, value: SetStateAction<S[K]>) => {
-            let next: S[K];
-            if (typeof value === 'function') {
-                const current = select(store.getState());
-                if (!current) return;
-                next = (value as (prev: S[K]) => S[K])(current[key]);
-            } else {
-                next = value;
-            }
+        <K extends keyof S>(key: K, value: S[K]) =>
             // A generic pair narrows to one member of the key/value union
-            store.dispatch(set({ key, value: next } as EditorFieldUpdate<S>));
-        },
-        [store, select, set],
+            dispatch(set({ key, value } as EditorFieldUpdate<S>)),
+        [dispatch, set],
     );
 };

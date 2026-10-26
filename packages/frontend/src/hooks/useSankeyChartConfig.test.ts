@@ -5,6 +5,10 @@ import {
     fields,
     results,
 } from '../components/LightdashVisualization/visualizationDifferential.fixtures';
+import {
+    tableCalculationsRenamed,
+    useVisualizationDispatch,
+} from '../features/visualization/store';
 import { withVisualizationStore } from '../testing/visualizationStore';
 import useSankeyChartConfig from './useSankeyChartConfig';
 
@@ -15,6 +19,18 @@ const render = (config: SankeyChart, loaded = true) =>
             { itemsMap: fields, resultsData: loaded ? results : undefined },
         ),
     });
+
+// Seeded with the TC `margin`; the explorer now shows it as margin3 with only the last rename
+const renamedTwice = () => {
+    const { margin, ...rest } = fields;
+    return {
+        itemsMap: {
+            ...rest,
+            margin3: { ...margin, name: 'margin3', sql: '1' },
+        },
+        tableCalculationsMetadata: [{ oldName: 'margin2', name: 'margin3' }],
+    };
+};
 
 describe('useSankeyChartConfig', () => {
     it('auto-selects source, target and metric without writing them', () => {
@@ -50,5 +66,40 @@ describe('useSankeyChartConfig', () => {
             orient: 'vertical',
         });
         expect(result.current.onSourceFieldChange).toBe(actions);
+    });
+
+    it('follows a table calculation renamed twice', () => {
+        const { result } = renderHook(
+            () => ({
+                config: useSankeyChartConfig(),
+                dispatch: useVisualizationDispatch(),
+            }),
+            {
+                wrapper: withVisualizationStore(
+                    {
+                        type: ChartType.SANKEY,
+                        config: {
+                            sourceFieldId: 'orders_status',
+                            targetFieldId: 'orders_channel',
+                            metricFieldId: 'margin',
+                        },
+                    },
+                    { ...renamedTwice(), resultsData: results },
+                ),
+            },
+        );
+        act(() => {
+            result.current.dispatch(
+                tableCalculationsRenamed([
+                    { oldName: 'margin', name: 'margin2' },
+                ]),
+            );
+            result.current.dispatch(
+                tableCalculationsRenamed([
+                    { oldName: 'margin2', name: 'margin3' },
+                ]),
+            );
+        });
+        expect(result.current.config.validConfig.metricFieldId).toBe('margin3');
     });
 });
