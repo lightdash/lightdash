@@ -1007,6 +1007,21 @@ describe('SectionedFilters', () => {
             expect(pickedIds()).toEqual([]);
         });
 
+        it('moves nothing when a picked pill is dropped back on itself', () => {
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+            fireEvent.click(pillOf('one'), { metaKey: true });
+
+            act(() =>
+                mockDragEnd.handlers.at(-1)!({
+                    active: { id: 'one' },
+                    over: { id: 'one' },
+                } as DragEndEvent),
+            );
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(pickedIds()).toEqual(['one', 'loose']);
+        });
+
         it('drags an unpicked pill alone', () => {
             renderSectioned(rules(), 'tab-1');
             fireEvent.click(pillOf('loose'), { metaKey: true });

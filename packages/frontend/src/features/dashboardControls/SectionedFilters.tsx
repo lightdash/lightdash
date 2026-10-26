@@ -814,6 +814,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
         // A picked pill carries the selection: all of them join the target's section
         if (over && selected.length > 1 && selected.includes(activeId)) {
             const overId = String(over.id);
+            // Dropped back on itself: nothing moves
+            if (overId === activeId) return;
             const overRule = allRules.find(({ rule }) => rule.id === overId);
             moveSelected(
                 overId === UNSECTIONED_TARGET_ID
