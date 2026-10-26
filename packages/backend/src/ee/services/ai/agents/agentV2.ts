@@ -145,7 +145,6 @@ import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
-import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
 import { type SqlApprovalDependencies } from '../tools/sqlApprovalGate';
 import {
     buildSqlApprovalDecidedEvent,
@@ -946,7 +945,7 @@ export const buildDeepResearchExecutionContextSnapshot = (
         projectContextEnabled: args.projectContextEnabled,
         aiWritebackEnabled: args.enableAiWriteback,
         codingAgentEnabled: args.enableCodingAgent,
-        previewDeploySetupEnabled: args.enablePreviewDeploySetup,
+        previewDeploySetupEnabled: null,
         repoDiscoveryEnabled: args.enableRepoDiscovery,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
@@ -1997,7 +1996,6 @@ export const getAgentTools = (
                           approval: sqlApproval,
                           maxLimit: args.runSqlMaxLimit,
                           sqlScope: args.sqlScope ?? null,
-                          hyphenatedIdentifiers: args.hyphenatedIdentifiers,
                       }
                     : null,
             }),
@@ -2123,10 +2121,6 @@ export const getAgentTools = (
                 syncDbtProject: dependencies.syncDbtProject,
                 updateProgress: dependencies.updateProgress,
             }),
-        setupPreviewDeploy: () =>
-            getSetupPreviewDeploy({
-                setupPreviewDeploy: dependencies.setupPreviewDeploy,
-            }),
         exploreRepo: () =>
             getExploreRepo({ exploreRepo: dependencies.exploreRepo }),
         readAttachments: () =>
@@ -2181,7 +2175,6 @@ export const getAgentTools = (
                 enableDataAccess: args.enableDataAccess,
                 slackLinksOnly: args.slackLinksOnly,
                 sqlScope: args.sqlScope,
-                hyphenatedIdentifiers: args.hyphenatedIdentifiers,
                 autoApproveSql: args.autoApproveSql,
                 autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
                 useSlackStreamCard: args.useSlackStreamCard,

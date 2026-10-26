@@ -241,7 +241,6 @@ export type ModelManifest = {
     aiDeepResearchRunModel: unknown;
     agentOnboardingRunModel: unknown;
     sandboxRegistryModel: unknown;
-    projectCiStatusModel: unknown;
     aiAgentReviewClassifierModel: unknown;
     aiAgentReviewNotificationModel: unknown;
     projectContextModel: unknown;
@@ -1299,10 +1298,6 @@ export class ModelRepository
 
     public getSandboxRegistryModel<ModelImplT>(): ModelImplT {
         return this.getModel('sandboxRegistryModel');
-    }
-
-    public getProjectCiStatusModel<ModelImplT>(): ModelImplT {
-        return this.getModel('projectCiStatusModel');
     }
 
     public getProjectContextModel<ModelImplT>(): ModelImplT {

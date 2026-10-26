@@ -33210,7 +33210,6 @@
                     "runSavedChart",
                     "searchFieldValues",
                     "searchSemanticLayer",
-                    "setupPreviewDeploy",
                     "submitResearchReport",
                     "submitWorkerFindings",
                     "syncDbtProject",
@@ -44188,59 +44187,6 @@
             "ApiAiWritebackRunStatusResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiWritebackRunStatusResult_"
             },
-            "ProjectCiStatus": {
-                "properties": {
-                    "checkedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "detectedCommitSha": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Repo HEAD commit the scan ran against, for debugging staleness."
-                    },
-                    "workflowPath": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Path of the detected workflow file, or null when none was found."
-                    },
-                    "hasPreviewDeployWorkflow": {
-                        "type": "boolean"
-                    },
-                    "projectUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "checkedAt",
-                    "detectedCommitSha",
-                    "workflowPath",
-                    "hasPreviewDeployWorkflow",
-                    "projectUuid"
-                ],
-                "type": "object",
-                "description": "Per-project record of whether a project's git repo has Lightdash CI/CD set\nup. Populated as a secondary task of the AI writeback sandbox agent: while it\nhas the repo cloned it scans `.github/workflows/` for a Lightdash\npreview-deploy workflow and persists the result so we don't re-scan a project\nthat already has it set up."
-            },
-            "ApiProjectCiStatusResponse": {
-                "properties": {
-                    "results": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ProjectCiStatus"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object",
-                "description": "CI status for a project, or null when the project has never been scanned\n(e.g. no AI writeback has run yet). A null result means \"unknown\", which is\ndistinct from a record with `hasPreviewDeployWorkflow: false` (\"scanned, no\npreview workflow\")."
-            },
             "CiProviderType": {
                 "description": "Continuous-integration status for a pull request, abstracted across CI\nproviders. GitHub Actions is the first (and currently only) adapter, but the\nvocabulary here is deliberately host-agnostic so GitLab pipelines, Buildkite,\netc. can be added behind the same interface without changing consumers.",
                 "enum": ["github"],
@@ -50252,6 +50198,10 @@
                     "requireExplicitSlackChannelLinking": {
                         "type": "boolean"
                     },
+                    "dataAppAnalysisDefaultInstructions": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "dataAppAnalysisLimits": {
                         "$ref": "#/components/schemas/DataAppAnalysisLimits"
                     },
@@ -50520,6 +50470,10 @@
                     },
                     "requireExplicitSlackChannelLinking": {
                         "type": "boolean"
+                    },
+                    "dataAppAnalysisDefaultInstructions": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "dataAppAnalysisLimits": {
                         "$ref": "#/components/schemas/DataAppAnalysisLimits"
@@ -73925,7 +73879,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.57.0",
+        "version": "3.58.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

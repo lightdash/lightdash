@@ -87,8 +87,6 @@ const buildService = (overrides: {
     run?: ReturnType<typeof vi.fn>;
     getRunStatus?: ReturnType<typeof vi.fn>;
     reviewRemediation?: unknown;
-    previewDeploySetupEnabled?: boolean;
-    ciStatus?: { hasPreviewDeployWorkflow: boolean } | null;
     previewUrl?: string | null;
 }) => {
     const prompt = {
@@ -178,16 +176,6 @@ const buildService = (overrides: {
         createRemediationEvent,
     };
     const slackClient = { addReaction, postMessage };
-    const featureFlagService = {
-        get: vi.fn().mockResolvedValue({
-            enabled: overrides.previewDeploySetupEnabled ?? false,
-        }),
-    };
-    const previewDeploySetupService = {
-        getOrScanProjectCiStatus: vi
-            .fn()
-            .mockResolvedValue(overrides.ciStatus ?? null),
-    };
     const writebackPreviewService = { createPreviewForPullRequest };
 
     const loadRequest = vi.fn().mockResolvedValue({});
@@ -200,8 +188,6 @@ const buildService = (overrides: {
         aiWritebackService,
         aiAgentReviewClassifierModel,
         slackClient,
-        featureFlagService,
-        previewDeploySetupService,
         writebackPreviewService,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
@@ -210,7 +196,6 @@ const buildService = (overrides: {
         service,
         userModel,
         aiWritebackService,
-        featureFlagService,
         loadRequest,
         assertOperationWithRequest,
         updateToolResult,
@@ -221,7 +206,6 @@ const buildService = (overrides: {
         hasToolResult,
         createRemediationEvent,
         createPreviewForPullRequest,
-        previewDeploySetupService,
     };
 };
 
@@ -240,7 +224,6 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
             expect(
                 h.userModel.findSessionUserAndOrgByUuid,
             ).toHaveBeenCalledTimes(1);
-            expect(h.featureFlagService.get).toHaveBeenCalledTimes(1);
             expect(h.loadRequest).not.toHaveBeenCalled();
             expect(h.assertOperationWithRequest).not.toHaveBeenCalled();
             expect(h.aiWritebackService.run).toHaveBeenCalledTimes(1);
@@ -414,25 +397,16 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         );
     });
 
-    it('does not offer or create preview deployment for a Bitbucket pull request', async () => {
-        const {
-            service,
-            updateToolResult,
-            createPreviewForPullRequest,
-            previewDeploySetupService,
-        } = buildService({
-            previewDeploySetupEnabled: true,
-            ciStatus: { hasPreviewDeployWorkflow: false },
-            run: vi.fn().mockResolvedValue({
-                ...WRITEBACK_RESULT,
-                prUrl: 'https://bitbucket.org/workspace/dbt/pull-requests/7',
-            }),
-        });
+    it('does not create a preview deployment for a Bitbucket pull request', async () => {
+        const { service, updateToolResult, createPreviewForPullRequest } =
+            buildService({
+                run: vi.fn().mockResolvedValue({
+                    ...WRITEBACK_RESULT,
+                    prUrl: 'https://bitbucket.org/workspace/dbt/pull-requests/7',
+                }),
+            });
         await service.runEditDbtProjectPipeline(PAYLOAD);
         expect(createPreviewForPullRequest).not.toHaveBeenCalled();
-        expect(
-            previewDeploySetupService.getOrScanProjectCiStatus,
-        ).not.toHaveBeenCalled();
         expect(updateToolResult).toHaveBeenCalledWith(
             'prompt-1',
             'tool-call-1',

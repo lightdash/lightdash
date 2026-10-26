@@ -145,6 +145,7 @@ describe('ChartActionsMenu', () => {
                 'Add to dashboard',
                 'Move chart',
                 'Change URL slug',
+                'Change explore',
             ]) {
                 expect(screen.getByRole('menuitem', { name })).toBeVisible();
             }
@@ -163,6 +164,7 @@ describe('ChartActionsMenu', () => {
             'Add to dashboard',
             'Move chart',
             'Change URL slug',
+            'Change explore',
         ]) {
             expect(screen.queryByText(name, { exact: true })).toBeNull();
         }
@@ -189,6 +191,7 @@ describe('ChartActionsMenu', () => {
 
         expect(await screen.findByText('Version history')).toBeVisible();
         expect(screen.queryByText('Move to space')).toBeNull();
+        expect(screen.queryByText('Change explore')).toBeNull();
         expect(screen.getByText('Ask AI Agent')).toBeVisible();
 
         await user.click(screen.getByText('Version history'));

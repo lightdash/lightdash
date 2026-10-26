@@ -729,6 +729,26 @@ export class DataAppAnalysisService extends BaseService {
         return instructions;
     }
 
+    /**
+     * Org-wide default guidance precedes app-author guidance. Applied
+     * server-side so it reaches the prompt and the cache identity without any
+     * SDK transport: changing the org default invalidates reuse org-wide, and
+     * apps on older bundles pick it up with no code change.
+     */
+    private async withOrgDefaultInstructions(
+        organizationUuid: string,
+        appInstructions: string | null,
+    ): Promise<string | null> {
+        const orgDefault =
+            await this.aiOrganizationSettingsService.getDataAppAnalysisDefaultInstructions(
+                organizationUuid,
+            );
+        if (!orgDefault) return appInstructions;
+        return appInstructions
+            ? `${orgDefault}\n\n${appInstructions}`
+            : orgDefault;
+    }
+
     private static toDetection(
         row: DbDataAppAnalysis & { operation: 'detect' },
     ): DataAppAnalysis {
@@ -857,13 +877,17 @@ export class DataAppAnalysisService extends BaseService {
         body: DataAppLookupRequest,
     ): Promise<DataAppAnalysisLookup | null> {
         DataAppAnalysisService.validateSources(body.sources);
-        const instructions = DataAppAnalysisService.validateInstructions(
+        const appInstructions = DataAppAnalysisService.validateInstructions(
             body.instructions,
         );
         const { user, target } = await this.assertViewer(
             account,
             projectUuid,
             locator,
+        );
+        const instructions = await this.withOrgDefaultInstructions(
+            user.organizationUuid!,
+            appInstructions,
         );
         const { sectionHashes } = await this.buildContent(
             account,
@@ -948,13 +972,17 @@ export class DataAppAnalysisService extends BaseService {
         outcome: Extract<DataAppAnalysisOutcome, 'ok' | 'cached'>;
     }> {
         DataAppAnalysisService.validateSources(body.sources);
-        const instructions = DataAppAnalysisService.validateInstructions(
+        const appInstructions = DataAppAnalysisService.validateInstructions(
             body.instructions,
         );
         const { user, target } = await this.assertViewer(
             account,
             projectUuid,
             locator,
+        );
+        const instructions = await this.withOrgDefaultInstructions(
+            user.organizationUuid!,
+            appInstructions,
         );
         note({
             appVersion: target.kind === 'app' ? target.appVersion : null,

@@ -103,7 +103,6 @@ import {
     SearchSemanticLayerFn,
     SendFileFn,
     SendSlackBlocksFn,
-    SetupPreviewDeployFn,
     StoreLoadoutFn,
     StoreReasoningFn,
     StoreToolCallErrorFn,
@@ -286,7 +285,6 @@ export type AiAgentArgs = AnyAiModel & {
     // Which GitHub identity a writeback PR would be attributed to (advisory,
     // resolved at prompt-assembly time). null when not applicable/unresolved.
     writebackAttribution: AiWritebackAttribution | null;
-    enablePreviewDeploySetup: boolean;
     enableRepoDiscovery: boolean;
     // The thread owns at least one attached document, so readAttachments is
     // registered.
@@ -340,7 +338,6 @@ export type AiAgentArgs = AnyAiModel & {
     maxQueryLimit: number;
     runSqlMaxLimit: number;
     sqlScope?: AgentSqlScope | null;
-    hyphenatedIdentifiers: boolean;
     /** Rows of a query result written into model context; the query keeps the rest. */
     maxContextRows: number;
     siteUrl: string;
@@ -449,7 +446,6 @@ export type AiAgentDependencies = {
     editProjectContext: EditProjectContextFn;
     editRepo: EditRepoFn;
     syncDbtProject: SyncDbtProjectFn;
-    setupPreviewDeploy: SetupPreviewDeployFn;
     exploreRepo: ExploreRepoFn;
     discoverRepos: DiscoverReposFn;
     listWorkstreams: ListWorkstreamsFn;

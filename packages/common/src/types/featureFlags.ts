@@ -15,7 +15,6 @@ export enum FeatureFlags {
      */
     AgentIdentity = 'agent-identity',
     OAuthScopeEnforcement = 'oauth-scope-enforcement',
-    AgentIdentitySilentRefresh = 'agent-identity-silent-refresh',
 
     MultiConnectionProjects = 'multi-connection-projects',
     /** Extra warehouse connections of a different type to the project's original connection. */
@@ -59,11 +58,6 @@ export enum FeatureFlags {
     CustomGroupBins = 'custom-group-bins',
 
     /**
-     * Enable changing the explore a chart points to from the chart UI
-     */
-    ChangeChartExplore = 'change-chart-explore',
-
-    /**
      * Keep visited dashboard tabs mounted in the DOM (hidden) for instant
      * re-switching. Enabled by default; disabled per-org for orgs where
      * large dashboards spiked browser memory to 3 GB+ from accumulated
@@ -94,12 +88,6 @@ export enum FeatureFlags {
      * sandbox provider, but still keeps installed chart types usable.
      */
     EnableDataApps = 'enable-data-apps',
-
-    /**
-     * Read hyphenated warehouse identifiers in agent SQL scope checks.
-     * On by default; the flag is a kill switch only.
-     */
-    AgentSqlScopeHyphenatedIdentifiers = 'agent-sql-scope-hyphenated-identifiers',
 
     /**
      * AI access (in-app agent, Slack agent, MCP) skips the results cache,
@@ -184,16 +172,6 @@ export enum FeatureFlags {
      * product action (query execution). Off by default; enable per-org.
      */
     OrganizationTrialBlock = 'organization-trial-block',
-
-    /**
-     * Enable the AI writeback sandbox agent's preview-deploy secondary task:
-     * detecting whether a repo deploys Lightdash preview projects via GitHub
-     * Actions, offering to set it up during a writeback, and the
-     * setupPreviewDeploy tool (direct or on consent). Off by default and
-     * independent of AiWriteback, so this outward-facing behaviour (it opens
-     * extra PRs) can be dark-launched and killed without touching writeback.
-     */
-    AiPreviewDeploySetup = 'ai-preview-deploy-setup',
 
     /**
      * Enable the built-in system agent fallback in Slack. When enabled, if a

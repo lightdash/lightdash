@@ -233,7 +233,6 @@ const buildAgentTools = (overrides: Partial<AiAgentArgs>) => {
         enableDocuments: true,
         enableEditProjectContext: true,
         enableGenerateDataApp: true,
-        enablePreviewDeploySetup: true,
         enableRepoDiscovery: true,
         enableReadAttachments: true,
         enableFilterExpressions: true,
@@ -338,7 +337,6 @@ it('covers common agent definitions and all runtime variants without stale entri
             'createContent',
             'editDbtProject',
             'editRepo',
-            'setupPreviewDeploy',
             'readAttachments',
         ]),
     );
@@ -606,11 +604,6 @@ const compositeFixtures = [
         'rest',
         'ProjectCoderController.pullContentAsCodeFromGit',
         [AgentCapability.DbtWriteback, AgentCapability.ContentWrite],
-    ],
-    [
-        'agent',
-        'setupPreviewDeploy',
-        [AgentCapability.DeployUpload, AgentCapability.DbtWriteback],
     ],
 ] as const;
 

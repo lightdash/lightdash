@@ -11,8 +11,7 @@ import { ForbiddenError } from '@lightdash/common';
  * - SECRET paths (`.env*`, private keys, credential files) must never land in a
  *   PR (R6).
  * - CI/workflow paths (`.github/**`, `.gitlab-ci.yml`, `Jenkinsfile`,
- *   `.circleci/**`) can execute code in the customer's CI (R3). Trusted preview
- *   workflows are generated outside the coding agent by PreviewDeploySetupService.
+ *   `.circleci/**`) can execute code in the customer's CI (R3).
  */
 
 /** Secret/credential files — denied on every coding-agent commit. */

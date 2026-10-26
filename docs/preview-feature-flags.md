@@ -18,8 +18,6 @@ exclusion, with a reason, when that isn't safe. Flags are excluded when they:
 - change query or compile semantics, so QA results would mislead,
 - change the signup flow (`new-onboarding` also needs SMTP for its email OTP,
   and the register page evaluates it anonymously so no override can undo it),
-- act outside the environment (`ai-preview-deploy-setup` opens pull requests on
-  real repos),
 - are off pending a security review, or are deprecated,
 - derive their value from instance configuration (`ai-copilot`,
   `results-cache-enabled`, `enable-timezone-support`) — these are left to their

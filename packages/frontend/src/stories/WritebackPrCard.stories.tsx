@@ -201,7 +201,6 @@ export const WorkingOnChange: Story = {
                                             'story-writeback-run',
                                     }}
                                     projectUuid={PROJECT_UUID}
-                                    isPreviewDeploySetup={false}
                                 />
                             </Stack>
                         </MemoryRouter>

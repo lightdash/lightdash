@@ -60,7 +60,6 @@ const credential = {
 } satisfies AiUserWarehouseCredentials;
 const args = {
     connection,
-    silentRefresh: true,
     organizationUuid: 'log-org',
     evaluationKind: 'query' as const,
     person: {
@@ -113,106 +112,82 @@ const setup = () => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('Snowflake agent refresh locking', () => {
-    test.each([true, false])(
-        'keeps the transport deadline retryable with silent refresh %s',
-        async (silentRefresh) => {
-            const f = setup();
-            f.exchange.mockRejectedValue(new OAuthRequestTimeoutError());
-            await expect(
-                f.provider.mint({ ...args, silentRefresh }),
-            ).rejects.toMatchObject({
-                data: {
-                    code: 'warehouse_oauth_refresh_failed',
-                    retryable: true,
-                },
-            });
-            expect(f.model.rotateRefreshToken).not.toHaveBeenCalled();
-        },
-    );
+    test('keeps the transport deadline retryable', async () => {
+        const f = setup();
+        f.exchange.mockRejectedValue(new OAuthRequestTimeoutError());
+        await expect(f.provider.mint({ ...args })).rejects.toMatchObject({
+            data: {
+                code: 'warehouse_oauth_refresh_failed',
+                retryable: true,
+            },
+        });
+        expect(f.model.rotateRefreshToken).not.toHaveBeenCalled();
+    });
 
-    test.each([true, false])(
-        'shares an exchange and guarded write with silent refresh %s',
-        async (silentRefresh) => {
-            const f = setup();
-            const exchanged = deferred<refreshModule.SnowflakeRefreshResult>();
-            f.exchange.mockReturnValue(exchanged.promise);
-            const first = f.provider.mint({ ...args, silentRefresh });
-            await vi.waitFor(() => expect(f.exchange).toHaveBeenCalledTimes(1));
-            const follower = new AgentSignInResolverHarness(f.deps);
-            const second = follower.mint({
-                ...args,
-                silentRefresh,
-                connection: { ...connection, warehouse: 'other-warehouse' },
-            });
-            await vi.waitFor(() => expect(f.run).toHaveBeenCalledTimes(2));
-            expect(f.exchange).toHaveBeenCalledTimes(1);
-            exchanged.resolve(tokens);
-            const results = await Promise.all([first, second]);
-            expect(results.map((result) => result.credentials.token)).toEqual([
-                'fresh-access',
-                'fresh-access',
-            ]);
-            expect(
-                results.map((result) => result.credentials.warehouse),
-            ).toEqual(['warehouse', 'other-warehouse']);
-            expect(results[0]).toMatchObject({
-                identityUuid: 'credential',
-                credentials: {
-                    user: 'person-user',
-                    refreshToken: 'new-refresh',
-                    requireAgentSession: true,
-                    requireUserCredentials: false,
-                },
-                assurances: [
-                    { kind: 'agent_session_active' },
-                    { kind: 'result_cache_off' },
-                ],
-            });
-            if (silentRefresh) {
-                expect(results[0].expiresAt).toEqual(
-                    tokens.accessTokenExpiresAt,
-                );
-                expect(
-                    f.model.rotateRefreshToken,
-                ).toHaveBeenCalledExactlyOnceWith(
-                    'credential',
-                    'old-refresh',
-                    'new-refresh',
-                    { kind: 'unreported' },
-                    { raw: f.raw },
-                );
-            } else {
-                expect(
-                    f.model.rotateRefreshToken,
-                ).toHaveBeenCalledExactlyOnceWith(
-                    'credential',
-                    'old-refresh',
-                    'new-refresh',
-                    undefined,
-                    { raw: f.raw },
-                );
-            }
-            expect(f.transaction).toHaveBeenCalledTimes(1);
-            expect(f.run.mock.calls[0][0].key).toEqual({
-                kind: 'user',
-                uuid: 'credential',
-                purpose: UserWarehouseCredentialPurpose.AI,
-            });
-            expect(f.deps.featureFlagModel.get.mock.calls).toEqual(
-                Array.from({ length: 2 }, () => [
-                    [
-                        {
-                            user: {
-                                organizationUuid: 'org',
-                                userUuid: 'person',
-                            },
-                            featureFlagId: FeatureFlags.AgentIdentity,
+    test('shares an exchange and guarded write', async () => {
+        const f = setup();
+        const exchanged = deferred<refreshModule.SnowflakeRefreshResult>();
+        f.exchange.mockReturnValue(exchanged.promise);
+        const first = f.provider.mint({ ...args });
+        await vi.waitFor(() => expect(f.exchange).toHaveBeenCalledTimes(1));
+        const follower = new AgentSignInResolverHarness(f.deps);
+        const second = follower.mint({
+            ...args,
+            connection: { ...connection, warehouse: 'other-warehouse' },
+        });
+        await vi.waitFor(() => expect(f.run).toHaveBeenCalledTimes(2));
+        expect(f.exchange).toHaveBeenCalledTimes(1);
+        exchanged.resolve(tokens);
+        const results = await Promise.all([first, second]);
+        expect(results.map((result) => result.credentials.token)).toEqual([
+            'fresh-access',
+            'fresh-access',
+        ]);
+        expect(results.map((result) => result.credentials.warehouse)).toEqual([
+            'warehouse',
+            'other-warehouse',
+        ]);
+        expect(results[0]).toMatchObject({
+            identityUuid: 'credential',
+            credentials: {
+                user: 'person-user',
+                refreshToken: 'new-refresh',
+                requireAgentSession: true,
+                requireUserCredentials: false,
+            },
+            assurances: [
+                { kind: 'agent_session_active' },
+                { kind: 'result_cache_off' },
+            ],
+        });
+        expect(results[0].expiresAt).toEqual(tokens.accessTokenExpiresAt);
+        expect(f.model.rotateRefreshToken).toHaveBeenCalledExactlyOnceWith(
+            'credential',
+            'old-refresh',
+            'new-refresh',
+            { kind: 'unreported' },
+            { raw: f.raw },
+        );
+        expect(f.transaction).toHaveBeenCalledTimes(1);
+        expect(f.run.mock.calls[0][0].key).toEqual({
+            kind: 'user',
+            uuid: 'credential',
+            purpose: UserWarehouseCredentialPurpose.AI,
+        });
+        expect(f.deps.featureFlagModel.get.mock.calls).toEqual(
+            Array.from({ length: 2 }, () => [
+                [
+                    {
+                        user: {
+                            organizationUuid: 'org',
+                            userUuid: 'person',
                         },
-                    ],
-                ]).flat(),
-            );
-        },
-    );
+                        featureFlagId: FeatureFlags.AgentIdentity,
+                    },
+                ],
+            ]).flat(),
+        );
+    });
 
     test.each(['organization', 'clientVersion'] as const)(
         'does not share refresh results across a different %s binding',
@@ -417,28 +392,25 @@ describe('Snowflake agent refresh locking', () => {
         },
     );
 
-    test.each([true, false])(
-        'maps a lock timeout to a retryable error with silent refresh %s',
-        async (silentRefresh) => {
-            const f = setup();
-            f.raw.mockResolvedValueOnce(undefined).mockRejectedValueOnce(
-                Object.assign(new DatabaseError('timeout', 0, 'error'), {
-                    code: '55P03',
-                }),
-            );
-            const error = await f.provider
-                .mint({ ...args, silentRefresh })
-                .catch((caught: unknown) => caught);
-            expect(error).toBeInstanceOf(UnexpectedServerError);
-            expect(error).toMatchObject({
-                data: {
-                    code: 'warehouse_oauth_refresh_failed',
-                    retryable: true,
-                },
-            });
-            expect(f.exchange).not.toHaveBeenCalled();
-        },
-    );
+    test('maps a lock timeout to a retryable error', async () => {
+        const f = setup();
+        f.raw.mockResolvedValueOnce(undefined).mockRejectedValueOnce(
+            Object.assign(new DatabaseError('timeout', 0, 'error'), {
+                code: '55P03',
+            }),
+        );
+        const error = await f.provider
+            .mint({ ...args })
+            .catch((caught: unknown) => caught);
+        expect(error).toBeInstanceOf(UnexpectedServerError);
+        expect(error).toMatchObject({
+            data: {
+                code: 'warehouse_oauth_refresh_failed',
+                retryable: true,
+            },
+        });
+        expect(f.exchange).not.toHaveBeenCalled();
+    });
 
     test.each([
         {
@@ -532,38 +504,10 @@ describe('Snowflake agent refresh locking', () => {
         },
     );
 
-    test.each([true, false])(
-        'propagates guarded write failures with silent refresh %s',
-        async (silentRefresh) => {
-            const f = setup();
-            const failure = new Error('CAS failed');
-            f.model.rotateRefreshToken.mockRejectedValue(failure);
-            await expect(
-                f.provider.mint({ ...args, silentRefresh }),
-            ).rejects.toBe(failure);
-        },
-    );
-
-    test('retains the silent-off invalid_grant mapping', async () => {
+    test('propagates guarded write failures', async () => {
         const f = setup();
-        const failure = { message: 'invalid_grant' };
-        f.exchange.mockRejectedValue(failure);
-        await expect(
-            f.provider.mint({ ...args, silentRefresh: false }),
-        ).rejects.toMatchObject({
-            refusal: { reason: AiAccessRefusalReason.SIGN_IN_EXPIRED },
-            cause: failure,
-        });
-    });
-
-    test('does not write an unchanged token with silent refresh off', async () => {
-        const f = setup();
-        f.exchange.mockResolvedValue({
-            ...tokens,
-            refreshToken: 'old-refresh',
-            refreshTokenExpiresAt: new Date('2099-02-01'),
-        });
-        await f.provider.mint({ ...args, silentRefresh: false });
-        expect(f.model.rotateRefreshToken).not.toHaveBeenCalled();
+        const failure = new Error('CAS failed');
+        f.model.rotateRefreshToken.mockRejectedValue(failure);
+        await expect(f.provider.mint({ ...args })).rejects.toBe(failure);
     });
 });

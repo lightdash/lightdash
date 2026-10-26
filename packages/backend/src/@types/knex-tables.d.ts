@@ -742,10 +742,6 @@ import {
     PreAggregateMaterializationsTableName,
 } from '../ee/database/entities/preAggregates';
 import {
-    ProjectCiStatusTable,
-    ProjectCiStatusTableName,
-} from '../ee/database/entities/projectCiStatus';
-import {
     AnnouncementsTable,
     AnnouncementsTableName,
     HomepageAssignmentsTable,
@@ -928,7 +924,6 @@ declare module 'knex/types/tables' {
         [AiAgentLiveActivityStartAttemptsTableName]: AiAgentLiveActivityStartAttemptTable;
         [AgentOnboardingRunsTableName]: AgentOnboardingRunsTable;
         [HomepageRecommendedActionSkipsTableName]: HomepageRecommendedActionSkipsTable;
-        [ProjectCiStatusTableName]: ProjectCiStatusTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;
         [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;

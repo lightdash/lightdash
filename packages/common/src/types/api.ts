@@ -376,7 +376,6 @@ import {
     type ApiPreviewExpirationProjectSettingsResponse,
     type ApiPreviewExpiresAtResponse,
 } from './previewExpirationProjectSettings';
-import { type ProjectCiStatus } from './projectCiStatus';
 import {
     type ApiProjectCompileLogResponse,
     type ApiProjectCompileLogsResponse,
@@ -1547,7 +1546,6 @@ type ApiResults =
     | PullRequestCreated
     | PullRequestPreview
     | ProjectFiles
-    | ProjectCiStatus
     | ApiGitFileContent
     | GitIntegrationConfiguration
     | GithubUserCredential

@@ -53,7 +53,6 @@ import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
 import { getSearchFieldValues } from './searchFieldValues';
 import { getSearchSemanticLayer } from './searchSemanticLayer';
-import { getSetupPreviewDeploy } from './setupPreviewDeploy';
 import { getUpdateUserName } from './updateUserName';
 import { getVisualize } from './visualize';
 
@@ -153,9 +152,6 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         editRepo: getEditRepo({
             editRepo: noop,
         }),
-        setupPreviewDeploy: getSetupPreviewDeploy({
-            setupPreviewDeploy: noop,
-        }),
         exploreRepo: getExploreRepo({ exploreRepo: noop }),
         discoverRepos: getDiscoverRepos({ discoverRepos: noop }),
         listWorkstreams: getListWorkstreams({ listWorkstreams: noop }),
@@ -203,7 +199,6 @@ const makeAgentTools = (enableFilterExpressions = false) => {
             updateProgress: noopAsync,
         }),
         runSql: getRunSql({
-            hyphenatedIdentifiers: true,
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
             slackLinksOnly: false,

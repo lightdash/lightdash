@@ -92,6 +92,7 @@ function buildService(
         dashboardAnalysisEnabled?: boolean;
         canViewDashboard?: boolean;
         queryContext?: QueryExecutionContext;
+        orgDefaultInstructions?: string | null;
     } = {},
 ) {
     const dataAppAnalysisModel = {
@@ -179,6 +180,9 @@ function buildService(
         getDataAppAnalysisLimits: vi
             .fn()
             .mockResolvedValue(DATA_APP_ANALYSIS_DEFAULT_LIMITS),
+        getDataAppAnalysisDefaultInstructions: vi
+            .fn()
+            .mockResolvedValue(overrides.orgDefaultInstructions ?? null),
     };
     const aiAgentModel = { deleteThread: vi.fn().mockResolvedValue(undefined) };
     const analytics = { track: vi.fn() };
@@ -917,6 +921,65 @@ describe('DataAppAnalysisService reuse', () => {
         expect(bare.contentHash).not.toBe(instructed.contentHash);
         // Whitespace-only differences never fork the cache.
         expect(padded.contentHash).toBe(instructed.contentHash);
+    });
+
+    it('applies the org default: joins the prompt before app instructions and forks the cache identity', async () => {
+        const bare = buildService();
+        await bare.service.detect(
+            account(),
+            'proj-1',
+            { kind: 'app', appUuid: 'app-1' },
+            { ...request, force: true },
+        );
+        const withDefault = buildService({
+            orgDefaultInstructions: 'Write in British English.',
+        });
+        await withDefault.service.detect(
+            account(),
+            'proj-1',
+            { kind: 'app', appUuid: 'app-1' },
+            { ...request, instructions: 'Use covenant-stage vocabulary.' },
+        );
+        expect(
+            withDefault.aiService.detectDataAppAnomalies,
+        ).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                instructions:
+                    'Write in British English.\n\nUse covenant-stage vocabulary.',
+            }),
+        );
+        const [bareCall] = bare.dataAppAnalysisModel.create.mock.calls.map(
+            ([data]) => data as { contentHash: string },
+        );
+        const [defaultCall] =
+            withDefault.dataAppAnalysisModel.create.mock.calls.map(
+                ([data]) => data as { contentHash: string },
+            );
+        // Same rows, different org default → never reuses the stored analysis.
+        expect(defaultCall.contentHash).not.toBe(bareCall.contentHash);
+        // Lookup must miss on a hash computed without the org default.
+        expect(
+            withDefault.dataAppAnalysisModel.findLatestDetectByHash,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({ contentHash: defaultCall.contentHash }),
+        );
+    });
+
+    it('serves the org default alone when the app sends no instructions', async () => {
+        const { service, aiService } = buildService({
+            orgDefaultInstructions: 'Amounts in ZAR.',
+        });
+        await service.detect(
+            account(),
+            'proj-1',
+            { kind: 'app', appUuid: 'app-1' },
+            { ...request, force: true },
+        );
+        expect(aiService.detectDataAppAnomalies).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ instructions: 'Amounts in ZAR.' }),
+        );
     });
 
     it('rejects instructions beyond the length cap on detect and lookup', async () => {

@@ -220,7 +220,6 @@ interface ServiceManifest {
     onboardingAgentService: unknown;
     aiAgentReviewNotificationService: unknown;
     writebackPreviewService: unknown;
-    previewDeploySetupService: unknown;
     appGenerateService: unknown;
     externalSourceService: unknown;
     embedService: unknown;
@@ -2064,12 +2063,6 @@ export class ServiceRepository
         OnboardingAgentServiceImplT,
     >(): OnboardingAgentServiceImplT {
         return this.getService('onboardingAgentService');
-    }
-
-    public getPreviewDeploySetupService<
-        PreviewDeploySetupServiceImplT,
-    >(): PreviewDeploySetupServiceImplT {
-        return this.getService('previewDeploySetupService');
     }
 
     public getWritebackPreviewService<

@@ -21,6 +21,7 @@ import {
     findBaseUrlRemovalsBlockedByInstanceGateway,
     findUnconfiguredProviderKeyWrites,
     isModelConfigAvailable,
+    normalizeAnalysisDefaultInstructions,
     pickReplacementDefaultModelConfig,
     validateDataAppAnalysisLimits,
     validateDeepResearchLimits,
@@ -131,6 +132,25 @@ describe('validateDataAppAnalysisLimits', () => {
                 extra: 1,
             } as never),
         ).toThrow('Unknown limit extra');
+    });
+});
+
+describe('normalizeAnalysisDefaultInstructions', () => {
+    it('trims and maps blank input to null (cleared)', () => {
+        expect(
+            normalizeAnalysisDefaultInstructions('  British English.  '),
+        ).toBe('British English.');
+        expect(normalizeAnalysisDefaultInstructions('   ')).toBeNull();
+        expect(normalizeAnalysisDefaultInstructions(null)).toBeNull();
+    });
+
+    it('rejects instructions beyond the length cap', () => {
+        expect(() =>
+            normalizeAnalysisDefaultInstructions('x'.repeat(2001)),
+        ).toThrow('limited to 2000 characters');
+        expect(() =>
+            normalizeAnalysisDefaultInstructions('x'.repeat(2000)),
+        ).not.toThrow();
     });
 });
 

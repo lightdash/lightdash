@@ -652,7 +652,6 @@ import {
     parseSlackVisualizationSelection,
     stripSlackVisualizationSelection,
 } from '../ai/utils/slackVisualizationSelection';
-import { isSqlScopeConfigured } from '../ai/utils/sqlScope';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import {
@@ -675,7 +674,6 @@ import { type WritebackPreviewService } from '../AiWritebackService/WritebackPre
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { resolveRenderableDataAppVizVersion } from '../AppGenerateService/dataAppVizRender';
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
-import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
 import {
@@ -1010,7 +1008,6 @@ type AiAgentServiceDependencies = {
     aiAgentContentValidation: AiAgentContentValidation;
     aiWritebackService: AiWritebackService;
     projectContextService: ProjectContextService;
-    previewDeploySetupService: PreviewDeploySetupService;
     writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     githubAppService: GithubAppService;
@@ -1103,8 +1100,6 @@ const SYSTEM_AGENT_INSTRUCTION = `You are Lightdash's built-in assistant. Help t
 If the user asks about the current project or its underlying dbt project — for example which dbt project this is, which git repository or branch it connects to, or what dbt version or warehouse it uses — call the getProjectInfo tool and answer from its result. Do not guess these details.
 
 If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the editDbtProject tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way.
-
-If the user asks to set up Lightdash preview deploys / preview projects for pull requests (or they accept the offer surfaced after a writeback), use the setupPreviewDeploy tool. It opens a separate pull request adding the Lightdash preview GitHub Actions workflow; a prior writeback is not required.
 
 After a writeback, tell the user which Lightdash project and which GitHub repository the change was made against (the tool result includes both), so they can confirm it went to the right place.`;
 
@@ -1414,8 +1409,6 @@ export class AiAgentService extends BaseService {
     private readonly aiWritebackService: AiWritebackService;
 
     private readonly projectContextService: ProjectContextService;
-
-    private readonly previewDeploySetupService: PreviewDeploySetupService;
 
     private readonly writebackPreviewService: WritebackPreviewService;
 
@@ -2046,7 +2039,6 @@ export class AiAgentService extends BaseService {
         this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
         this.aiWritebackService = dependencies.aiWritebackService;
         this.projectContextService = dependencies.projectContextService;
-        this.previewDeploySetupService = dependencies.previewDeploySetupService;
         this.writebackPreviewService = dependencies.writebackPreviewService;
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
@@ -13352,30 +13344,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
 
             const isBitbucketPullRequest =
                 result.prUrl?.startsWith('https://bitbucket.org/') === true;
-            let previewDeployConfigured: boolean | null = null;
-            try {
-                const { enabled: previewDeploySetupEnabled } =
-                    await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.AiPreviewDeploySetup,
-                    });
-                if (previewDeploySetupEnabled && !isBitbucketPullRequest) {
-                    const ciStatus =
-                        await this.previewDeploySetupService.getOrScanProjectCiStatus(
-                            user,
-                            projectUuid,
-                        );
-                    previewDeployConfigured = ciStatus
-                        ? ciStatus.hasPreviewDeployWorkflow
-                        : null;
-                }
-            } catch (err) {
-                Logger.debug(
-                    'Failed to resolve preview-deploy CI status after writeback:',
-                    err,
-                );
-            }
-
             let previewUrl: string | null = null;
             if (
                 result.prUrl &&
@@ -13411,8 +13379,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             let toolResult = base;
             if (result.prUrl && previewUrl) {
                 toolResult += `\n\nA Lightdash preview environment was created from the pull request's branch: ${previewUrl} — include this link in your reply so the user can review the change in Lightdash before merging. Explores may take a minute to appear while the preview compiles.`;
-            } else if (previewDeployConfigured === false) {
-                toolResult += `\n\nIMPORTANT — also tell the user: this project does NOT have Lightdash preview deploys set up via GitHub Actions. Offer to set it up by opening a pull request that adds the preview workflow (a preview Lightdash project per PR, torn down on close). If they agree, call the \`setupPreviewDeploy\` tool. Do not call it unless they say yes.`;
             }
 
             if (assertPublishAllowed) await assertPublishAllowed();
@@ -14857,7 +14823,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
             editDbtProject,
             editProjectContext,
             editRepo,
-            setupPreviewDeploy: toolsRuntime.setupPreviewDeploy,
             exploreRepo,
             readAttachments,
             discoverRepos,
@@ -16837,17 +16802,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                           prompt.projectUuid,
                       )
                     : null;
-                const hyphenatedIdentifiers = isSqlScopeConfigured(
-                    agentSqlScope,
-                )
-                    ? (
-                          await this.featureFlagService.get({
-                              user,
-                              featureFlagId:
-                                  FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
-                          })
-                      ).enabled
-                    : false;
 
                 const [knowledgeDocuments, threadDeepResearchRuns, mcpServers] =
                     await Promise.all([
@@ -17025,19 +16979,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                       )
                     : [];
 
-                // Preview-deploy setup rides the writeback infra, so it requires both
-                // the writeback flag (and trusted identity, applied above) and its own
-                // ai-preview-deploy-setup flag.
-                const { enabled: aiPreviewDeploySetupFlag } =
-                    await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.AiPreviewDeploySetup,
-                    });
-                const aiPreviewDeploySetupEnabled =
-                    aiWritebackEnabled &&
-                    writebackConnectionSupport.editRepo &&
-                    aiPreviewDeploySetupFlag;
-
                 // exploreRepo/discoverRepos read repo source and the view:SourceCode
                 // check evaluates against the resolved user. On Slack without
                 // aiRequireOAuth that user is the app installer, not the requester — so
@@ -17154,7 +17095,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     editDbtProject,
                     editProjectContext,
                     editRepo,
-                    setupPreviewDeploy,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -17450,7 +17390,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     writebackAttribution,
                     enableCodingAgent: codingAgentEnabled,
-                    enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
                     enableFilterExpressions: filterExpressionsEnabled,
@@ -17474,7 +17413,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     warehouseSchema,
                     warehouseConnections,
                     sqlScope: agentSqlScope,
-                    hyphenatedIdentifiers,
                     builtInSkills,
                     customSkills,
                     modelReasoningEnabled:
@@ -17662,7 +17600,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     editDbtProject,
                     editProjectContext,
                     editRepo,
-                    setupPreviewDeploy,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -19533,8 +19470,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     return 'Checking the available themes...';
                 case 'listDataAppConnections':
                     return 'Checking the available connections...';
-                case 'setupPreviewDeploy':
-                    return 'Setting up the preview...';
                 case 'exploreRepo':
                 case 'discoverRepos':
                 case 'getPullRequestDiff':

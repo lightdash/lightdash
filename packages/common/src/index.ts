@@ -205,7 +205,6 @@ export * from './types/persistentDownloadFile';
 export * from './types/pinning';
 export * from './types/pivot';
 export * from './types/preAggregate';
-export * from './types/projectCiStatus';
 export * from './types/projectCompileLogs';
 export * from './types/projectGroupAccess';
 export * from './types/projectMemberProfile';
@@ -233,6 +232,7 @@ export {
     PROJECT_DBT_SOURCE_NAME_MAX_LENGTH,
     PROJECT_DBT_SOURCE_NAME_PATTERN,
     validateProjectDbtSourceName,
+    isAiAdminScopedProjectType,
     isGitProjectType,
     isSafeDbtEnvironmentVariableKey,
     isWarehouseSupportedByDbtVersion,
@@ -446,7 +446,6 @@ export * from './utils/metricsExplorer';
 export * from './utils/normalizeCellRawForFilter';
 export * from './utils/oauth';
 export * from './utils/organization';
-export * from './utils/previewDeployWorkflow';
 export * from './utils/projectMemberRole';
 export * from './utils/promises';
 export * from './utils/sanitizeHtml';
