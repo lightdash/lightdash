@@ -11,7 +11,8 @@
     /* The bar aligns its row to the top: centred on the 28px pill line */
     margin-block: -4px;
     border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-xl);
+    /* A pill at one line (36px), a soft panel once the pills wrap */
+    border-radius: 18px;
 }
 
 .capsule[data-collapsed] {
