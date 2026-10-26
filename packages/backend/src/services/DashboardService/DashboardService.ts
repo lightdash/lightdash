@@ -849,7 +849,7 @@ export class DashboardService
             ),
         );
 
-        return dashboardsWithContext
+        const visibleDashboards = dashboardsWithContext
             .filter(({ spaceContext }, index) =>
                 includePrivate
                     ? accessResults[index]
@@ -857,6 +857,18 @@ export class DashboardService
                       hasDirectAccessToSpace(user, spaceContext),
             )
             .map(({ dashboard }) => dashboard);
+
+        if (visibleDashboards.length === 0) return [];
+
+        const verifications =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.DASHBOARD,
+                visibleDashboards.map(({ uuid }) => uuid),
+            );
+        return visibleDashboards.map((dashboard) => ({
+            ...dashboard,
+            verification: verifications.get(dashboard.uuid) ?? null,
+        }));
     }
 
     async getByIdOrSlug(

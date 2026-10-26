@@ -1,9 +1,13 @@
 import {
     ConflictError,
+    ContentType,
     ForbiddenError,
     NotFoundError,
 } from '@lightdash/common';
-import { analyticsContentAsCode } from '../../analytics/systemExplores/sampleContent';
+import {
+    analyticsContentAsCode,
+    analyticsDefaultSpace,
+} from '../../analytics/systemExplores/sampleContent';
 import * as analyticsExplores from '../ProjectService/analyticsProject/createAnalyticsExplores';
 import {
     user as baseUser,
@@ -50,12 +54,18 @@ describe('AnalyticsProjectService', () => {
     const upsertChart = vi.fn();
     const upsertDashboard = vi.fn();
     const findDashboard = vi.fn();
+    const getDashboard = vi.fn();
     const findCharts = vi.fn();
     const getChart = vi.fn();
+    const getSpace = vi.fn();
+    const findSpaces = vi.fn();
+    const getVerifications = vi.fn();
     const service = new AnalyticsProjectService({
         coderService: { upsertChart, upsertDashboard },
-        dashboardModel: { find: findDashboard },
+        contentVerificationModel: { getByContentUuids: getVerifications },
+        dashboardModel: { find: findDashboard, getByIdOrSlug: getDashboard },
         savedChartModel: { get: getChart, find: findCharts },
+        spaceModel: { get: getSpace, find: findSpaces },
         projectModel: {
             getAllByOrganizationUuid,
             saveExploresToCache,
@@ -79,7 +89,20 @@ describe('AnalyticsProjectService', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
         vi.resetAllMocks();
-        findDashboard.mockResolvedValue([{ uuid: 'existing-dashboard' }]);
+        findDashboard.mockResolvedValue([
+            { uuid: 'existing-dashboard', spaceUuid: 'existing-space' },
+        ]);
+        getSpace.mockResolvedValue({
+            uuid: 'existing-space',
+            path: 'lightdash_analytics_default_dashboards',
+            name: analyticsDefaultSpace.name,
+        });
+        findSpaces.mockResolvedValue([{ uuid: 'existing-space' }]);
+        getDashboard.mockRejectedValue(new NotFoundError('missing'));
+        getVerifications.mockImplementation(
+            async (_type, uuids) =>
+                new Map(uuids.map((uuid: string) => [uuid, {}])),
+        );
         findCharts.mockResolvedValue(
             analyticsContentAsCode.flatMap(({ charts }) =>
                 charts.map(({ slug }) => ({ slug })),
@@ -151,6 +174,23 @@ describe('AnalyticsProjectService', () => {
         findDashboard.mockResolvedValue([]);
         expect((await service.getStatus(user)).project?.hasContentUpdates).toBe(
             true,
+        );
+    });
+
+    it('offers sync when a built-in dashboard has not yet been verified', async () => {
+        findDashboard.mockResolvedValue(
+            analyticsContentAsCode.map(({ dashboard }) => ({
+                uuid: dashboard.slug,
+                slug: dashboard.slug,
+            })),
+        );
+        getVerifications.mockResolvedValue(new Map());
+        expect((await service.getStatus(user)).project?.hasContentUpdates).toBe(
+            true,
+        );
+        expect(getVerifications).toHaveBeenCalledWith(
+            ContentType.DASHBOARD,
+            analyticsContentAsCode.map(({ dashboard }) => dashboard.slug),
         );
     });
 
@@ -249,7 +289,9 @@ describe('AnalyticsProjectService', () => {
         expect(lock).toHaveBeenCalledWith(user.organizationUuid);
         for (const { dashboard, charts } of analyticsContentAsCode) {
             const options = {
-                spaceNames: { [dashboard.spaceSlug]: dashboard.name },
+                spaceNames: {
+                    [dashboard.spaceSlug]: analyticsDefaultSpace.name,
+                },
                 publicSpaceCreate: true,
                 force: true,
             };
@@ -270,6 +312,62 @@ describe('AnalyticsProjectService', () => {
                 options,
             );
         }
+    });
+
+    it('keeps existing dashboards and their charts in their current space on sync', async () => {
+        getSpace.mockResolvedValue({
+            uuid: 'existing-space',
+            path: 'restricted.existing_dashboards',
+            name: 'Existing dashboards',
+            inheritParentPermissions: false,
+        });
+        await service.installSampleContent(user);
+        expect(getSpace).toHaveBeenCalledWith('existing-space');
+        for (const [, , , content] of [
+            ...upsertChart.mock.calls,
+            ...upsertDashboard.mock.calls,
+        ]) {
+            expect(content.spaceSlug).toBe('restricted/existing-dashboards');
+        }
+        for (const [, , , content] of upsertDashboard.mock.calls) {
+            expect(content.verified).toBe(true);
+        }
+    });
+
+    it('fails rather than moving existing content when its space path is ambiguous', async () => {
+        findSpaces.mockResolvedValue([
+            { uuid: 'other-space' },
+            { uuid: 'existing-space' },
+        ]);
+        await expect(service.installSampleContent(user)).rejects.toThrow(
+            ConflictError,
+        );
+        expect(upsertDashboard).not.toHaveBeenCalled();
+        expect(upsertChart).not.toHaveBeenCalled();
+    });
+
+    it('restores a deleted dashboard in its existing restricted space', async () => {
+        findDashboard.mockResolvedValue([]);
+        getDashboard.mockResolvedValue({ spaceUuid: 'existing-space' });
+        getSpace.mockResolvedValue({
+            uuid: 'existing-space',
+            path: 'restricted.existing_dashboards',
+            name: 'Existing dashboards',
+            inheritParentPermissions: false,
+        });
+        await service.installSampleContent(user);
+        expect(getDashboard).toHaveBeenCalledWith(
+            analyticsContentAsCode[0].dashboard.slug,
+            { projectUuid: 'analytics-project', deleted: true },
+        );
+        expect(upsertDashboard.mock.calls[0][3]).toMatchObject({
+            spaceSlug: 'restricted/existing-dashboards',
+            verified: false,
+        });
+        expect(upsertDashboard.mock.calls[1][3]).toMatchObject({
+            spaceSlug: 'restricted/existing-dashboards',
+            verified: true,
+        });
     });
 
     it('refreshes all system explores under the org lock before uploading any content', async () => {
@@ -391,6 +489,7 @@ describe('AnalyticsProjectService', () => {
         });
         expect(upsertDashboard.mock.calls[0][3]).toEqual({
             ...dashboard,
+            verified: false,
             tiles: [],
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
         });
@@ -402,6 +501,17 @@ describe('AnalyticsProjectService', () => {
             upsertChart.mock.invocationCallOrder[0],
         );
         expect(upsertDashboard.mock.calls[1][3]).toEqual(dashboard);
+        expect(getSpace).not.toHaveBeenCalled();
+    });
+
+    it('does not verify an empty new dashboard when its chart upload fails', async () => {
+        findDashboard.mockResolvedValue([]);
+        upsertChart.mockRejectedValueOnce(new Error('upload failed'));
+        await expect(service.installSampleContent(user)).rejects.toThrow(
+            'upload failed',
+        );
+        expect(upsertDashboard).toHaveBeenCalledTimes(1);
+        expect(upsertDashboard.mock.calls[0][3].verified).toBe(false);
     });
 
     it('retries the same slug targets after a partial upload failure', async () => {

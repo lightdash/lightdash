@@ -342,7 +342,22 @@ const legacyContentAsCode: {
     };
 });
 
+export const analyticsDefaultSpace = {
+    slug: 'lightdash-analytics-default-dashboards',
+    name: 'Default dashboards',
+};
+
 export const analyticsContentAsCode = [
     ...buildUsageDashboards(legacyContentAsCode),
     buildAiTokenDashboard(),
-];
+].map(({ dashboard, charts }) => ({
+    dashboard: {
+        ...dashboard,
+        spaceSlug: analyticsDefaultSpace.slug,
+        verified: true,
+    },
+    charts: charts.map((chartDefinition) => ({
+        ...chartDefinition,
+        spaceSlug: analyticsDefaultSpace.slug,
+    })),
+}));
