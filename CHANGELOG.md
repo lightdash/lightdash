@@ -1,3 +1,10 @@
+## [3.56.1](https://github.com/lightdash/lightdash/compare/3.56.0...3.56.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* **explorer:** compact chart warning and sort badge labels ([#31580](https://github.com/lightdash/lightdash/issues/31580)) ([c691e2e](https://github.com/lightdash/lightdash/commit/c691e2ef9b2368c4543040e5a29047a129077669))
+
 # [3.56.0](https://github.com/lightdash/lightdash/compare/3.55.2...3.56.0) (2026-10-26)
 
 

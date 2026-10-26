@@ -1,28 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.56.0",
-  "previousVersion": "3.55.2",
-  "releaseDate": "2026-10-26T12:38:03.171Z",
+  "version": "3.56.1",
+  "previousVersion": "3.56.0",
+  "releaseDate": "2026-10-26T14:03:45.584Z",
   "migrations": {
-    "present": true,
-    "count": 1,
-    "coreCount": 1,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261020150000_add_storage_to_persistent_download_files.ts",
-        "edition": "core",
-        "tables": [
-          "persistent_download_files",
-          "pg_constraint"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
