@@ -21,6 +21,7 @@ import {
     selectControlSections,
     selectDashboardFilters,
     selectDashboardTabs,
+    selectDashboardTiles,
     useDashboardSelector,
     useDashboardTemporaryFilters,
 } from '../dashboard/store';
@@ -33,8 +34,9 @@ import {
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
 import { FilterPill, type FilterPillKind } from './FilterPill';
 import classes from './FilterPills.module.css';
+import { withoutDefaultTileTargets } from './peers';
 import { isRuleInSection } from './sections';
-import { isPlaceholderRule } from './sidebarState';
+import { isFilterRuleDirty, isPlaceholderRule } from './sidebarState';
 import { TemporaryFilterPills } from './TemporaryFilterPills';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { ViewerSavedPills, type PillPopoverState } from './ViewerSavedPills';
@@ -61,12 +63,14 @@ type FilterPillGroup = 'dimensions' | 'metrics';
 const GROUPS: FilterPillGroup[] = ['dimensions', 'metrics'];
 
 // A pill in the bar's one drag context: the overlay moves, the source fades
-const BarDraggable: FC<{ id: string; children: ReactNode }> = ({
-    id,
-    children,
-}) => {
+const BarDraggable: FC<{
+    id: string;
+    isDisabled: boolean;
+    children: ReactNode;
+}> = ({ id, isDisabled, children }) => {
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id,
+        disabled: isDisabled,
     });
     return (
         <Box
@@ -127,7 +131,19 @@ export const FilterPills: FC<Props> = ({
     const allFilterableMetricsMap = useDashboardContext(
         (c) => c.allFilterableMetricsMap,
     );
+    const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const { getTabsUsingFilter, getOrphanedState } = useFilterTabPlacement();
+    // What Save would keep: the rule differs from the saved dashboard
+    const isChanged = (filter: DashboardFilterRule) =>
+        savedFilters !== undefined &&
+        isFilterRuleDirty(savedFilters, dashboardFilters, filter.id, (rule) =>
+            withoutDefaultTileTargets(
+                rule,
+                dashboardTiles,
+                filterableFieldsByTileUuid,
+            ),
+        );
     const dragSensors = useDndSensors();
 
     const handleDragEnd = (group: FilterPillGroup, event: DragEndEvent) => {
@@ -181,6 +197,7 @@ export const FilterPills: FC<Props> = ({
                 isSelected={isSelected}
                 isDisabled={!areFieldsLoaded && !filter.target.isSqlColumn}
                 isDraft={isNew && isSelected && !filter.label}
+                isChanged={kind === 'editor' && isChanged(filter)}
                 isSidebarOpen={isSidebarOpen}
                 activeTabUuid={activeTabUuid}
                 hasTabs={hasTabs}
@@ -227,7 +244,10 @@ export const FilterPills: FC<Props> = ({
                                             {pill}
                                         </DraggableItem>
                                     ) : (
-                                        <BarDraggable id={filter.id}>
+                                        <BarDraggable
+                                            id={filter.id}
+                                            isDisabled={isSidebarOpen}
+                                        >
                                             {pill}
                                         </BarDraggable>
                                     )}

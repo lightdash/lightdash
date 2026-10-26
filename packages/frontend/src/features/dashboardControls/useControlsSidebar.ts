@@ -39,26 +39,28 @@ export type ControlsSidebarContextValue = {
     isPlaceholder: boolean;
     editingRule: DashboardFilterRule | null;
     /**
-     * A filter is being edited: false as soon as the edited filter is no
-     * longer in the dashboard. The rail can be open without it.
+     * A filter is being edited, so the rail is on screen: false as soon as
+     * the edited filter is no longer in the dashboard.
      */
     isSidebarOpen: boolean;
-    /** The rail is open, with a filter expanded in it or every filter a row. */
-    isRailOpen: boolean;
-    /** The rail row under the pointer or focus: its tiles are highlighted. */
-    hoveredFilterId: string | null;
-    setHoveredFilterId: (filterId: string | null) => void;
-    /** Clears the hover only while it is this filter's, so leaving one row keeps another's. */
-    clearHoveredFilterId: (filterId: string) => void;
+    /**
+     * A pill clicked while the edit had unapplied changes: the footer asks to
+     * Apply or Discard before opening it. Null otherwise.
+     */
+    pendingRule: DashboardFilterRule | null;
+    /** Applies (true) or discards (false) the edit, then opens the pending filter. */
+    resolvePending: (isApply: boolean) => void;
     /** Null when both are closed, as they are each time a filter opens. */
     activeSection: ControlsSidebarSection | null;
     setActiveSection: (section: ControlsSidebarSection | null) => void;
-    /** Closes any other control first, as "Done" would; a no-op on the open one. */
+    /**
+     * A pill's click. Opens the filter; on the edited one it closes a clean
+     * edit and focuses Apply otherwise; another filter switches a clean edit
+     * and sets `pendingRule` otherwise.
+     */
     open: (filterId: string) => void;
     /** A new filter (a placeholder until its first field), in a section when one is given. */
     openNew: (sectionId?: string) => void;
-    /** The rail on its rows with nothing expanded; a no-op while it is open. */
-    openRail: () => void;
     /** Turns the placeholder into a filter control on the given field. */
     addFirstField: (field: DashboardFilterableField) => void;
     /**
@@ -116,22 +118,20 @@ export type ControlsSidebarContextValue = {
      * Discard and Remove put them back as they were when the control opened.
      */
     updateOtherFilters: (rules: DashboardFilterRule[]) => void;
-    /** Removes the edited filter; the rail stays open on the other rows. */
-    removeFilter: () => void;
+    /** The pill's X: on the edited filter it ends the edit too. */
     removeFilterById: (filterId: string) => void;
     /**
-     * Puts the edited filter back as it was when it was opened, or removes it
-     * when it was new, and undoes the editor's own writes to other filters.
-     * The rail stays open.
+     * Cancel: puts the edited filter back as it was when it was opened, or
+     * removes it when it was new, undoes the editor's own writes to other
+     * filters and closes the rail.
      */
     discard: () => void;
     /**
-     * Closes the rail and keeps the edits; saving stays with the dashboard's
-     * own Save. A control with no field is discarded.
+     * Apply: closes the rail and keeps the edits; saving stays with the
+     * dashboard's own Save. A control with no field is discarded.
      */
     close: () => void;
-    /** What `close` does to the edited filter, but the rail stays open. */
-    collapse: () => void;
+    /** Apply or Cancel would change something; a new filter with no field yet would not. */
     isDirty: boolean;
     /** Tiles added since the dashboard was last saved. */
     newTileUuids: string[];

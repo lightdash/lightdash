@@ -6,7 +6,7 @@ import {
     type InteractivityOptions,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createDashboardTestStore } from '../../../../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../../../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../../../../testing/testUtils';
@@ -18,13 +18,6 @@ vi.mock('../../../../../providers/Dashboard/useDashboardContext', () => ({
     ),
 }));
 
-const mockSidebar = vi.hoisted(() => ({ current: { isRailOpen: false } }));
-
-vi.mock('../../../../../features/dashboardControls/useControlsSidebar', () => ({
-    useControlsSidebarSelector: (
-        selector: (value: { isRailOpen: boolean }) => unknown,
-    ) => selector(mockSidebar.current),
-}));
 vi.mock('../../../../../features/dashboardControls/AddControl', () => ({
     AddControl: ({
         triggerClassName,
@@ -56,9 +49,6 @@ vi.mock('../../../../../features/dashboardControls/FilterPills', () => ({
             data-dropdown-class={dropdownClassName}
         />
     ),
-}));
-vi.mock('../../../../../features/dashboardControls/EditingStrip', () => ({
-    EditingStrip: () => <div data-testid="editing-strip" />,
 }));
 vi.mock('./EmbedDashboardFilters', () => ({
     default: () => <div data-testid="shipped-filters" />,
@@ -112,10 +102,6 @@ const renderBar = (canAddFilters: boolean, isControlsEnabled: boolean) =>
     );
 
 describe('EmbedDashboardFilterBar', () => {
-    beforeEach(() => {
-        mockSidebar.current = { isRailOpen: false };
-    });
-
     it('keeps the shipped filters while the rail is off', () => {
         renderBar(true, false);
         expect(screen.getByTestId('shipped-filters')).toBeInTheDocument();
@@ -152,12 +138,5 @@ describe('EmbedDashboardFilterBar', () => {
         expect(
             screen.getByRole('button', { name: 'Reset' }),
         ).toBeInTheDocument();
-    });
-
-    it('says what is being edited while the rail is open', () => {
-        mockSidebar.current = { isRailOpen: true };
-        renderBar(true, true);
-        expect(screen.getByTestId('editing-strip')).toBeInTheDocument();
-        expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
     });
 });

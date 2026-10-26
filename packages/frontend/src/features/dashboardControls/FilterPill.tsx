@@ -34,7 +34,9 @@ type Props = {
     isDisabled: boolean;
     /** A new control that has no label yet. */
     isDraft: boolean;
-    /** While open the pill is only a click target: no grip, lock or X. */
+    /** Edit mode: the rule differs from the saved dashboard. */
+    isChanged: boolean;
+    /** While a filter is edited the pill has no grip or lock. */
     isSidebarOpen: boolean;
     activeTabUuid: string | undefined;
     hasTabs: boolean;
@@ -52,6 +54,7 @@ export const FilterPill: FC<Props> = memo(
         isSelected,
         isDisabled,
         isDraft,
+        isChanged,
         isSidebarOpen,
         activeTabUuid,
         hasTabs,
@@ -61,7 +64,6 @@ export const FilterPill: FC<Props> = memo(
         const { track } = useTracking();
         const getUiString = useUiStrings();
         const open = useControlsSidebarSelector((c) => c.open);
-        const close = useControlsSidebarSelector((c) => c.close);
         const removeFilterById = useControlsSidebarSelector(
             (c) => c.removeFilterById,
         );
@@ -159,14 +161,10 @@ export const FilterPill: FC<Props> = memo(
                             toggleLock();
                         }}
                         readOnlyLockLabel={null}
-                        onRemove={
-                            isSidebarOpen
-                                ? null
-                                : (e) => {
-                                      e.stopPropagation();
-                                      removeFilterById(filter.id);
-                                  }
-                        }
+                        onRemove={(e) => {
+                            e.stopPropagation();
+                            removeFilterById(filter.id);
+                        }}
                         removeLabel={getUiString('filters.rail.removeFilter')}
                         // One tooltip at a time: the hint takes the pill's
                         isTablesTooltipDisabled={isSelected || isSelectable}
@@ -181,8 +179,16 @@ export const FilterPill: FC<Props> = memo(
                         ]
                             .filter(Boolean)
                             .join(' ')}
-                        onClick={() => (isSelected ? close() : open(filter.id))}
+                        onClick={() => open(filter.id)}
                     />
+                    {isChanged && (
+                        <Box
+                            component="span"
+                            role="img"
+                            aria-label="Changed"
+                            className={classes.changedDot}
+                        />
+                    )}
                 </Box>
             </Tooltip>
         );

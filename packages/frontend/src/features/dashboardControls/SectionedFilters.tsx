@@ -61,12 +61,12 @@ import {
     isFilterHiddenOnTab,
     useFilterTabPlacement,
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
-import { AddControl } from './AddControl';
+import { AddControl, InertWhileEditing } from './AddControl';
 import { BarSelectionContext, type BarSelection } from './barSelection';
 import { formatSectionCount } from './fieldLabels';
 import { FilterPills } from './FilterPills';
 import classes from './SectionedFilters.module.css';
-import { SectionMenu, SectionNameInput } from './SectionHeader';
+import { SectionMenu, SectionNameInput } from './SectionMenu';
 import {
     getDragAnnouncements,
     groupRulesBySection,
@@ -117,6 +117,10 @@ const nameInputClassNames = {
 
 /** An editor's capsule controls; a viewer's capsule has none. */
 type CapsuleActions = {
+    /** A filter is edited: the name, + and menu are inert. */
+    isLocked: boolean;
+    /** Its name or saved fold differs from the saved dashboard. */
+    isUnsaved: boolean;
     onRename: (name: string) => void;
     onAddFilter: () => void;
     onToggleCollapsedByDefault: () => void;
@@ -233,12 +237,21 @@ const SectionCapsule: FC<CapsuleProps> = ({
                         <UnstyledButton
                             ref={nameRef}
                             className={`${classes.name} mantine-focus-auto`}
+                            inert={actions.isLocked || undefined}
                             onClick={() => setIsRenaming(true)}
                         >
                             <Text span fz="sm" fw={600}>
                                 {section.name}
                             </Text>
                         </UnstyledButton>
+                    )}
+                    {actions.isUnsaved && (
+                        <Box
+                            component="span"
+                            role="img"
+                            aria-label="Changed"
+                            className={classes.changedDot}
+                        />
                     )}
                 </>
             )}
@@ -267,7 +280,12 @@ const SectionCapsule: FC<CapsuleProps> = ({
                 </Text>
             )}
             {actions !== null && (
-                <Group gap={2} wrap="nowrap" className={classes.actions}>
+                <Group
+                    gap={2}
+                    wrap="nowrap"
+                    className={classes.actions}
+                    inert={actions.isLocked || undefined}
+                >
                     <ActionIcon
                         variant="subtle"
                         color="gray"
@@ -370,9 +388,22 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
     const onPopoverClose = useCallback(() => setOpenPopoverId(undefined), []);
     const getUiString = useUiStrings();
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const isEditing = useControlsSidebarSelector((c) => c.isSidebarOpen);
     const openNew = useControlsSidebarSelector((c) => c.openNew);
     const dispatch = useDashboardDispatch();
     const sections = useDashboardSelector(selectControlSections);
+    const savedSections = useDashboardContext(
+        (c) => c.dashboard?.config?.controlSections,
+    );
+    // What Save would keep: a new section, a rename or another saved fold
+    const isUnsaved = (section: DashboardControlSection) => {
+        const saved = savedSections?.find(({ id }) => id === section.id);
+        return (
+            saved === undefined ||
+            saved.name !== section.name ||
+            saved.collapsed !== section.collapsed
+        );
+    };
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const overrides = useDashboardSelector(selectSavedFilterOverrides);
     // A viewer's saved pill is changed once Apply wrote it as an override; an
@@ -545,6 +576,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
                 isViewer
                     ? null
                     : {
+                          isLocked: isEditing,
+                          isUnsaved: isUnsaved(section),
                           onRename: (name) =>
                               dispatch(
                                   dashboardEditActions.renameControlSection({
@@ -714,33 +747,38 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
                         <AddControl />
                     </UnsectionTarget>
                     {capsules}
-                    <AddSection
-                        isNaming={naming !== null}
-                        onStart={() => setNaming({ moveIds: [] })}
-                        onAdd={(name) => {
-                            const id = uuidv4();
-                            dispatch(
-                                dashboardEditActions.addControlSection({
-                                    id,
-                                    name,
-                                }),
-                            );
-                            if (naming !== null && naming.moveIds.length > 0) {
-                                const moved = moveRulesToSection(
-                                    dashboardFilters,
-                                    naming.moveIds,
-                                    id,
-                                    sections,
+                    <InertWhileEditing>
+                        <AddSection
+                            isNaming={naming !== null}
+                            onStart={() => setNaming({ moveIds: [] })}
+                            onAdd={(name) => {
+                                const id = uuidv4();
+                                dispatch(
+                                    dashboardEditActions.addControlSection({
+                                        id,
+                                        name,
+                                    }),
                                 );
-                                setDashboardFilters(moved);
-                                setHaveFiltersChanged(true);
-                                clearSelection();
-                            }
-                            setNaming(null);
-                        }}
-                        // A cancelled name moves nothing and keeps the selection
-                        onCancel={() => setNaming(null)}
-                    />
+                                if (
+                                    naming !== null &&
+                                    naming.moveIds.length > 0
+                                ) {
+                                    const moved = moveRulesToSection(
+                                        dashboardFilters,
+                                        naming.moveIds,
+                                        id,
+                                        sections,
+                                    );
+                                    setDashboardFilters(moved);
+                                    setHaveFiltersChanged(true);
+                                    clearSelection();
+                                }
+                                setNaming(null);
+                            }}
+                            // A cancelled name moves nothing and keeps the selection
+                            onCancel={() => setNaming(null)}
+                        />
+                    </InertWhileEditing>
                     {pills}
                     {children}
                 </Box>

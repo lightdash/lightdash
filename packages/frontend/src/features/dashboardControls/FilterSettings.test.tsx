@@ -164,6 +164,7 @@ const renderSettings = (
             rule={filterRule}
             field={field}
             onChange={vi.fn()}
+            sectionSelect={null}
             tiles={<div data-testid="tiles-panel" />}
             tilesSummary="3 tiles · 1 field"
         />,
@@ -348,6 +349,7 @@ describe('FilterSettings', () => {
                     })}
                     field={amount}
                     onChange={vi.fn()}
+                    sectionSelect={null}
                     tiles={null}
                     tilesSummary=""
                 />

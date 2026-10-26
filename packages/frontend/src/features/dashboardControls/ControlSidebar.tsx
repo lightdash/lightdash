@@ -1,136 +1,185 @@
 import {
-    closestCenter,
-    DndContext,
-    pointerWithin,
-    type CollisionDetection,
-    DragOverlay,
-    KeyboardSensor,
-    MeasuringStrategy,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    type DragEndEvent,
-    type DragOverEvent,
-    type DragStartEvent,
-} from '@dnd-kit/core';
-import {
-    SortableContext,
-    sortableKeyboardCoordinates,
-    type SortingStrategy,
-} from '@dnd-kit/sortable';
-import {
-    getDashboardFilterField,
     interpolateUiString,
-    type DashboardControlSection,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
 import {
-    ActionIcon,
+    Badge,
     Box,
+    Button,
     Group,
+    Select,
+    Stack,
     Text,
     TextInput,
-    Tooltip,
 } from '@mantine/core';
-import {
-    IconArrowBackUp,
-    IconChevronDown,
-    IconTrash,
-} from '@tabler/icons-react';
-import {
-    type KeyboardEvent,
-    useCallback,
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
+import { IconFilter } from '@tabler/icons-react';
+import omit from 'lodash/omit';
+import { useCallback, useMemo, useState, type FC } from 'react';
+import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
-    dashboardEditActions,
-    selectActiveTabUuid,
     selectControlSections,
-    selectDashboardFilters,
-    selectDashboardTabs,
     selectDashboardTiles,
-    selectIsAddFilterDisabled,
-    useDashboardDispatch,
     useDashboardSelector,
-    useDashboardTemporaryFilters,
 } from '../dashboard/store';
-import { useIsLockedDashboardFilterRule } from '../dashboardFilters/useIsLockedDashboardFilterRule';
-import { AddRow } from './AddRow';
 import classes from './ControlSidebar.module.css';
 import { EditorShell } from './EditorShell';
-import { formatSectionCount } from './fieldLabels';
 import { FieldsAndTiles } from './FieldsAndTiles';
-import { FilterRow, FilterTypeIcon } from './FilterRow';
 import { FilterSettings } from './FilterSettings';
 import { getFilterFields } from './peers';
-import {
-    RAIL_ADD_SELECTOR,
-    RAIL_LABEL_SELECTOR,
-    railRowSelector,
-    sectionMenuSelector,
-    sectionStopSelector,
-} from './railSelectors';
-import { SortableRow, type RowSelection } from './SortableRow';
-
-// The target is what is under the pointer; the keyboard sensor has none,
-// so it falls back to the nearest centre
-const underPointer: CollisionDetection = (args) => {
-    const within = pointerWithin(args);
-    return within.length > 0 ? within : closestCenter(args);
-};
-// Nothing moves until the drop: the overlay and `data-over` are the feedback
-const noDisplacement: SortingStrategy = () => null;
 import { getTilesSummary } from './railSummaries';
-import { SectionHeader } from './SectionHeader';
-import {
-    groupRulesBySection,
-    isCollapsedByDefault,
-    moveRuleToSection,
-    moveRulesToSection,
-    rangeBetween,
-    removeSectionFromRules,
-    getDragAnnouncements,
-    UNSECTIONED_TARGET_ID,
-    type SectionRule,
-} from './sections';
-import {
-    isDefaultValueIncomplete,
-    isPlaceholderRule,
-    removeFilterRule,
-    withFilterRuleLabel,
-} from './sidebarState';
+import { withFilterRuleLabel } from './sidebarState';
 import { useAppliedTileCount } from './useAppliedTileCount';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFilterRuleField } from './useFilterRuleField';
 import { useFocusLabelOnMount, useLabelDraft } from './useLabelDraft';
 
+const FilterTypeIcon: FC<{ field: DashboardFilterableField | null }> = ({
+    field,
+}) =>
+    field !== null ? (
+        <FieldIcon item={field} size={14} className={classes.typeIcon} />
+    ) : (
+        <MantineIcon
+            icon={IconFilter}
+            size={14}
+            color="dimmed"
+            className={classes.typeIcon}
+        />
+    );
+
+// What the bar shows for a filter: its label, else its field's or column's name
+const useFilterName = (rule: DashboardFilterRule | null): string | null => {
+    const field = useFilterRuleField(rule);
+    if (rule === null) return null;
+    return (
+        rule.label ??
+        field?.label ??
+        (rule.target.isSqlColumn ? rule.target.fieldId : null)
+    );
+};
+
+const NO_SECTION = 'none';
+
+// Which section the filter sits in on the bar, written live like any edit
+const SectionSelect: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
+    const sections = useDashboardSelector(selectControlSections);
+    const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
+    if (sections.length === 0) return null;
+    const value =
+        rule.sectionId !== undefined &&
+        sections.some((section) => section.id === rule.sectionId)
+            ? rule.sectionId
+            : NO_SECTION;
+    return (
+        <Select
+            size="xs"
+            label="Section"
+            allowDeselect={false}
+            data={[
+                { value: NO_SECTION, label: 'None' },
+                ...sections.map((section) => ({
+                    value: section.id,
+                    label: section.name || 'Untitled section',
+                })),
+            ]}
+            value={value}
+            onChange={(next) => {
+                if (next === null || next === value) return;
+                updateFilter(
+                    next === NO_SECTION
+                        ? omit(rule, 'sectionId')
+                        : { ...rule, sectionId: next },
+                );
+            }}
+        />
+    );
+};
+
+// Cancel and Apply, or, after a click on another pill with changes unapplied,
+// the question that pill asked
+const Footer: FC = () => {
+    const isNew = useControlsSidebarSelector((c) => c.isNew);
+    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    const pendingRule = useControlsSidebarSelector((c) => c.pendingRule);
+    const resolvePending = useControlsSidebarSelector((c) => c.resolvePending);
+    const discard = useControlsSidebarSelector((c) => c.discard);
+    const close = useControlsSidebarSelector((c) => c.close);
+    const getUiString = useUiStrings();
+    const pendingName = useFilterName(pendingRule);
+    const applyLabel = getUiString(
+        isNew ? 'filters.rail.create' : 'filters.apply',
+    );
+    // The same button in both states, so focus stays on it
+    const apply = (
+        <Button
+            size="xs"
+            className={classes.apply}
+            data-controls-apply
+            disabled={isPlaceholder}
+            onClick={pendingRule === null ? close : () => resolvePending(true)}
+        >
+            {applyLabel}
+        </Button>
+    );
+    return (
+        <Stack gap="xs" p="sm" className={classes.footer}>
+            {pendingRule !== null && (
+                <Text
+                    fz="xs"
+                    c="dimmed"
+                    role="status"
+                    className={classes.footerStatus}
+                >
+                    {interpolateUiString(
+                        getUiString(
+                            isNew
+                                ? 'filters.rail.createBeforeOpening'
+                                : 'filters.rail.applyBeforeOpening',
+                        ),
+                        {
+                            filter:
+                                pendingName ??
+                                getUiString('filters.rail.filterName'),
+                        },
+                    )}
+                </Text>
+            )}
+            <Group justify="flex-end" gap="xs" wrap="nowrap">
+                {pendingRule === null ? (
+                    <Button variant="default" size="xs" onClick={discard}>
+                        {getUiString('filters.actions.cancel')}
+                    </Button>
+                ) : (
+                    <Button
+                        variant="default"
+                        size="xs"
+                        onClick={() => resolvePending(false)}
+                    >
+                        {getUiString('filters.rail.discard')}
+                    </Button>
+                )}
+                {apply}
+            </Group>
+        </Stack>
+    );
+};
+
 type FilterEditorProps = {
     rule: DashboardFilterRule;
 };
 
-// Mounted with the filter id as key, so the label draft and the armed state
-// never carry over to another control, and the label takes focus each time
+// Mounted with the filter id as key, so the label draft never carries over
+// to another control, and the label takes focus each time
 const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
     const isNew = useControlsSidebarSelector((c) => c.isNew);
     const emptiedFieldLabel = useControlsSidebarSelector(
         (c) => c.emptiedFieldLabel,
     );
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const removeFilter = useControlsSidebarSelector((c) => c.removeFilter);
     const updateFilter = useControlsSidebarSelector((c) => c.updateFilter);
-    const discard = useControlsSidebarSelector((c) => c.discard);
-    const collapse = useControlsSidebarSelector((c) => c.collapse);
     const isDirty = useControlsSidebarSelector((c) => c.isDirty);
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const getUiString = useUiStrings();
@@ -166,984 +215,124 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
 
     // A dimension or a metric, as the shipped bar resolves it
     const field = useFilterRuleField(filterRule);
-    // What the bar shows for a filter with no label: its field's name, or
-    // the column's for a SQL column filter
-    const fallbackName =
+    const fieldName =
         field?.label ??
         (filterRule.target.isSqlColumn ? filterRule.target.fieldId : null);
-    const discardLabel = isNew
-        ? getUiString('filters.rail.discardFilter')
-        : isDirty
-          ? getUiString('filters.rail.discardChanges')
-          : null;
     const fieldCount = getFilterFields(filterRule, dashboardTiles).length;
-    // A new filter with no field yet leaves through the footer's Cancel
-    const hasDiscard = !(isPlaceholder && isNew) && discardLabel !== null;
-    // A viewer's filter has no label of its own: it goes by its field
-    const viewerName = isPlaceholder
-        ? (emptiedFieldLabel ?? getUiString('filters.rail.filterName'))
-        : (filterRule.label ??
-          fallbackName ??
-          getUiString('filters.rail.filterName'));
+    const isStarting = isPlaceholder && isNew;
+    const name = isStarting
+        ? getUiString('filters.rail.newFilter')
+        : isPlaceholder
+          ? (filterRule.label ??
+            emptiedFieldLabel ??
+            getUiString('filters.rail.filterName'))
+          : (filterRule.label ??
+            fieldName ??
+            getUiString('filters.rail.filterName'));
     return (
-        <Box className={classes.edited}>
-            {/* A click on the head collapses the filter, as its chevron does;
-                the name input and the buttons keep their own clicks */}
+        <>
             <Group
                 gap="xs"
                 wrap="nowrap"
-                className={classes.editedHead}
-                onClick={(event) => {
-                    if (
-                        event.target instanceof Element &&
-                        event.target.closest('input, button')
-                    )
-                        return;
-                    collapse();
-                }}
+                px="md"
+                py="xs"
+                className={classes.header}
             >
                 {/* No field yet: no type to show */}
                 {!isPlaceholder && <FilterTypeIcon field={field} />}
-                {isPlaceholder && isNew ? (
-                    <Text fz="sm" fw={600} flex={1}>
-                        {getUiString('filters.rail.newFilter')}
-                    </Text>
-                ) : isViewer ? (
-                    // Focus lands here when the filter opens
-                    <Text
-                        fz="sm"
-                        fw={600}
-                        flex={1}
-                        truncate
-                        tabIndex={-1}
-                        ref={focusOnMount}
-                        data-controls-label
-                    >
-                        {viewerName}
-                    </Text>
-                ) : (
-                    <TextInput
-                        aria-label="Filter label"
-                        size="xs"
-                        className={classes.nameInput}
-                        classNames={{ input: classes.nameInputField }}
-                        // Left empty, the filter goes by its field's name.
-                        // An existing control that lost its last field keeps it
-                        placeholder={
-                            fallbackName ?? emptiedFieldLabel ?? 'Filter name'
-                        }
-                        autoFocus
-                        data-controls-label
-                        value={label.draft}
-                        onChange={(event) =>
-                            label.type(event.currentTarget.value)
-                        }
-                        // Synchronous, so a click on Done closes with the label
-                        onBlur={label.flush}
-                        onKeyDown={(event) => {
-                            if (event.key !== 'Enter') return;
-                            event.preventDefault();
-                            label.flush();
-                        }}
-                    />
-                )}
-                {hasDiscard && (
-                    <Tooltip label={discardLabel}>
-                        <ActionIcon
-                            size="sm"
-                            variant="subtle"
-                            aria-label={discardLabel}
-                            onClick={discard}
-                        >
-                            <MantineIcon icon={IconArrowBackUp} />
-                        </ActionIcon>
-                    </Tooltip>
-                )}
-                {!isNew && (
-                    <ConfirmDeleteButton
-                        size="sm"
-                        aria-label={getUiString('filters.rail.removeFilter')}
-                        tooltip={getUiString('filters.rail.confirmRemove')}
-                        tooltipProps={{ position: 'left', withinPortal: true }}
-                        data-own-escape
-                        onConfirm={removeFilter}
-                    >
-                        <MantineIcon icon={IconTrash} />
-                    </ConfirmDeleteButton>
-                )}
-                <Tooltip label={getUiString('filters.rail.collapse')}>
-                    <ActionIcon
-                        size="sm"
-                        variant="subtle"
-                        aria-label={getUiString('filters.rail.collapseFilter')}
-                        aria-expanded
-                        onClick={collapse}
-                    >
-                        <MantineIcon icon={IconChevronDown} size={14} />
-                    </ActionIcon>
-                </Tooltip>
-            </Group>
-            <Box className={classes.editedBody}>
-                {isPlaceholder ? (
-                    fieldsAndTiles
-                ) : (
-                    <FilterSettings
-                        rule={filterRule}
-                        field={field}
-                        onChange={updateFilter}
-                        tiles={fieldsAndTiles}
-                        tilesSummary={getTilesSummary(
-                            appliedTileCount,
-                            fieldCount,
-                            getUiString,
+                {/* A viewer's filter has no label input: focus lands here */}
+                <Text
+                    fz="sm"
+                    fw={600}
+                    flex={1}
+                    truncate
+                    {...(isViewer && !isStarting
+                        ? {
+                              tabIndex: -1,
+                              ref: focusOnMount,
+                              'data-controls-label': true,
+                          }
+                        : {})}
+                >
+                    {name}
+                </Text>
+                {isDirty && (
+                    <Badge size="sm">
+                        {getUiString(
+                            isNew
+                                ? 'filters.rail.newBadge'
+                                : 'filters.rail.editedBadge',
                         )}
-                    />
+                    </Badge>
                 )}
+            </Group>
+            <Box className={classes.body}>
+                <Stack gap="xs" className={classes.content}>
+                    {!isViewer && !isStarting && (
+                        <TextInput
+                            aria-label="Filter label"
+                            size="xs"
+                            // Left empty, the filter goes by its field's name.
+                            // An existing control that lost its last field keeps it
+                            placeholder={
+                                fieldName ?? emptiedFieldLabel ?? 'Filter name'
+                            }
+                            autoFocus
+                            data-controls-label
+                            value={label.draft}
+                            onChange={(event) =>
+                                label.type(event.currentTarget.value)
+                            }
+                            // Synchronous, so a click on Apply keeps the label
+                            onBlur={label.flush}
+                            onKeyDown={(event) => {
+                                if (event.key !== 'Enter') return;
+                                event.preventDefault();
+                                label.flush();
+                            }}
+                        />
+                    )}
+                    {isPlaceholder ? (
+                        fieldsAndTiles
+                    ) : (
+                        <FilterSettings
+                            rule={filterRule}
+                            field={field}
+                            onChange={updateFilter}
+                            sectionSelect={
+                                isViewer ? null : (
+                                    <SectionSelect rule={filterRule} />
+                                )
+                            }
+                            tiles={fieldsAndTiles}
+                            tilesSummary={getTilesSummary(
+                                appliedTileCount,
+                                fieldCount,
+                                getUiString,
+                            )}
+                        />
+                    )}
+                </Stack>
             </Box>
-        </Box>
+            <Footer />
+        </>
     );
 };
 
 /** For the dashboard grid's row, which holds the rail next to the grid. */
 export const CONTROLS_RAIL_LAYOUT = classes.layout;
 
-// `moveIds`: the selection a new section is named for, moved in on commit
-type NameEdit = { id: string; isNew: boolean; moveIds: string[] };
-
-// Mounted only while the rail is open, so `nameEdit`, the fold state and the
-// drag reset with it
+// On screen only while a filter is edited: one filter at a time, finished
+// with Cancel or Apply
 export const ControlSidebar: FC = () => {
-    const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
-    return isRailOpen ? <OpenControlSidebar /> : null;
-};
-
-const OpenControlSidebar: FC = () => {
-    const filterId = useControlsSidebarSelector(
-        (c) => c.editing?.filterId ?? null,
+    const filterId = useControlsSidebarSelector((c) =>
+        c.isSidebarOpen ? (c.editing?.filterId ?? null) : null,
     );
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
-    const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const isNew = useControlsSidebarSelector((c) => c.isNew);
-    const open = useControlsSidebarSelector((c) => c.open);
-    const setHoveredFilterId = useControlsSidebarSelector(
-        (c) => c.setHoveredFilterId,
-    );
-    const clearHoveredFilterId = useControlsSidebarSelector(
-        (c) => c.clearHoveredFilterId,
-    );
-    const close = useControlsSidebarSelector((c) => c.close);
-    const collapse = useControlsSidebarSelector((c) => c.collapse);
-    const discard = useControlsSidebarSelector((c) => c.discard);
-    const openNew = useControlsSidebarSelector((c) => c.openNew);
-    const removeFilterById = useControlsSidebarSelector(
-        (c) => c.removeFilterById,
-    );
-    const canAddFilters = useControlsSidebarSelector((c) => c.canAddFilters);
-    const isViewer = useControlsSidebarSelector((c) => c.isViewer);
-    // The footer's viewers switch, off: viewers get no "Add filter"
-    const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
-    const getUiString = useUiStrings();
-    const dispatch = useDashboardDispatch();
-    const setDashboardFilters = useDashboardContext(
-        (c) => c.setDashboardFilters,
-    );
-    const setHaveFiltersChanged = useDashboardContext(
-        (c) => c.setHaveFiltersChanged,
-    );
-    const setIsAddFilterDisabled = useDashboardContext(
-        (c) => c.setIsAddFilterDisabled,
-    );
-    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
-    const temporaryFilters = useDashboardTemporaryFilters();
-    const controlSections = useDashboardSelector(selectControlSections);
-    const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
-    const hasTabs = useDashboardSelector(
-        (state) => selectDashboardTabs(state).length > 0,
-    );
-    const filterableFieldsByTileUuid = useDashboardContext(
-        (c) => c.filterableFieldsByTileUuid,
-    );
-    // While fields load nothing resolves, which is not the same as invalid
-    const areFieldsLoading = useDashboardContext(
-        (c) => c.isLoadingDashboardFilters || c.isFetchingDashboardFilters,
-    );
-    // As the shipped pill: no editor until the fields exist
-    const areFieldsLoaded = useDashboardContext(
-        (c) => c.allFilterableFields !== undefined,
-    );
-    const allFilterableFieldsMap = useDashboardContext(
-        (c) => c.allFilterableFieldsMap,
-    );
-    const allFilterableMetricsMap = useDashboardContext(
-        (c) => c.allFilterableMetricsMap,
-    );
-    const isLockedRule = useIsLockedDashboardFilterRule();
-
-    // The shipped unresolved pills' tooltips: a hidden field, or a gone one
-    const getUnresolvedTooltip = (rule: DashboardFilterRule) =>
-        isLockedRule(rule)
-            ? getUiString('filters.lockedFilterTooltip')
-            : interpolateUiString(getUiString('filters.rail.unknownField'), {
-                  field: rule.target.fieldId,
-              });
-    // Local to this mount: every section starts collapsed as the rail opens,
-    // except the one holding the filter it opened on (the saved default is
-    // the bar's); a section made while it is open starts expanded
-    const [collapsedIds, setCollapsedIds] = useState<string[]>(() =>
-        controlSections
-            .filter(({ id }) => id !== editingRule?.sectionId)
-            .map(({ id }) => id),
-    );
-    // A new section lives only here until its name is committed
-    const [nameEdit, setNameEdit] = useState<NameEdit | null>(null);
-    // The row or header under the pointer, copied into the drag overlay
-    const [draggedId, setDraggedId] = useState<string | null>(null);
-    // One tab stop for the whole list: the row or header chevron focused last
-    const [activeStop, setActiveStop] = useState<string | null>(null);
-    // Select mode: null outside it, else the selected rule ids
-    const [selectedIds, setSelectedIds] = useState<string[] | null>(null);
-    // The row toggled last: a shift-click selects from it
-    const lastToggledId = useRef<string | null>(null);
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        }),
-    );
-    // The menu and the name input unmount with focus on them: it goes to the
-    // section's menu button, or the header's "Add" once the section is gone
-    const focusAfter = useRef<string | null>(null);
-    useLayoutEffect(() => {
-        if (focusAfter.current === null) return;
-        document.querySelector<HTMLElement>(focusAfter.current)?.focus();
-        focusAfter.current = null;
-    });
-    // Opened from the bar on its list ("Manage filters"), nothing in the rail
-    // has focus yet: the first stop takes it, else "Add". An expanded filter
-    // (its label, or a new one's field search) takes it on the next frame
-    useEffect(() => {
-        if (document.activeElement !== document.body) return;
-        if (
-            document.querySelector(
-                `[data-controls-editor] :is(${RAIL_LABEL_SELECTOR}, [data-controls-start])`,
-            )
-        )
-            return;
-        (
-            document.querySelector<HTMLElement>(
-                '[data-controls-editor] [data-controls-stop]',
-            ) ?? document.querySelector<HTMLElement>(RAIL_ADD_SELECTOR)
-        )?.focus();
-    }, []);
-    const sections = nameEdit?.isNew
-        ? [...controlSections, { id: nameEdit.id, name: '' }]
-        : controlSections;
-    // A viewer's rail lists their own filters first, then the saved
-    // sections read-only; a saved filter with no section stays on the bar
-    const listedFilters = isViewer ? temporaryFilters : dashboardFilters;
-    const grouped = isViewer
-        ? [
-              ...groupRulesBySection(temporaryFilters, []),
-              ...groupRulesBySection(dashboardFilters, sections).filter(
-                  ({ section, rules }) => section !== null && rules.length > 0,
-              ),
-          ]
-        : groupRulesBySection(dashboardFilters, sections);
-    const sectionIds = new Set(controlSections.map((section) => section.id));
-    const isSectionCollapsed = (section: DashboardControlSection) =>
-        collapsedIds.includes(section.id);
-    const setSectionCollapsed = (
-        section: DashboardControlSection,
-        collapsed: boolean,
-    ) =>
-        setCollapsedIds((ids) =>
-            collapsed
-                ? [...ids.filter((id) => id !== section.id), section.id]
-                : ids.filter((id) => id !== section.id),
-        );
-    const sectionNames = new Map(
-        sections.map((section) => [
-            section.id,
-            section.name || getUiString('filters.rail.untitledSection'),
-        ]),
-    );
-    const fieldOf = ({ rule, group }: SectionRule) =>
-        getDashboardFilterField<DashboardFilterableField>(
-            group === 'metrics'
-                ? allFilterableMetricsMap
-                : allFilterableFieldsMap,
-            rule,
-            filterableFieldsByTileUuid,
-        ) ?? null;
-    const ruleNames = new Map(
-        grouped.flatMap(({ rules }) =>
-            rules.map((sectionRule): [string, string] => [
-                sectionRule.rule.id,
-                sectionRule.rule.label ||
-                    fieldOf(sectionRule)?.label ||
-                    sectionRule.rule.target.fieldId,
-            ]),
-        ),
-    );
-    const nameOf = (id: string) => {
-        if (id === UNSECTIONED_TARGET_ID)
-            return 'the space outside any section';
-        const sectionName = sectionNames.get(id);
-        if (sectionName !== undefined) return `section ${sectionName}`;
-        return ruleNames.get(id) ?? 'a filter';
-    };
-    const sectionOfRule = (ruleId: string) =>
-        grouped.find(({ rules }) =>
-            rules.some(({ rule }) => rule.id === ruleId),
-        )?.section?.id ?? null;
-
-    const handleDragStart = ({ active }: DragStartEvent) =>
-        setDraggedId(String(active.id));
-    // A collapsed section opens under the drag, so its rows become targets
-    const handleDragOver = ({ active, over }: DragOverEvent) => {
-        // A dragged header starts over itself
-        if (!over || sectionIds.has(String(active.id))) return;
-        const overSection = sections.find(({ id }) => id === String(over.id));
-        if (!overSection || !isSectionCollapsed(overSection)) return;
-        setSectionCollapsed(overSection, false);
-    };
-    const handleDragEnd = ({ active, over, activatorEvent }: DragEndEvent) => {
-        setDraggedId(null);
-        if (!over || active.id === over.id) return;
-        const activeId = String(active.id);
-        const overId = String(over.id);
-        // Over a header or one of its rows: that section
-        const overSectionId = sectionIds.has(overId)
-            ? overId
-            : sectionOfRule(overId);
-        if (sectionIds.has(activeId)) {
-            if (overSectionId === null || overSectionId === activeId) return;
-            dispatch(
-                dashboardEditActions.moveControlSection({
-                    id: activeId,
-                    overId: overSectionId,
-                }),
-            );
-            return;
-        }
-        const target =
-            overId === UNSECTIONED_TARGET_ID
-                ? { sectionId: null }
-                : sectionIds.has(overId)
-                  ? { sectionId: overId }
-                  : { ruleId: overId };
-        const moved = moveRuleToSection(
-            dashboardFilters,
-            activeId,
-            target,
-            controlSections,
-        );
-        if (moved === dashboardFilters) return;
-        // Dropped from the keyboard, the row takes focus back from its grip
-        if (activatorEvent instanceof KeyboardEvent)
-            focusAfter.current = railRowSelector(activeId);
-        setDashboardFilters(moved);
-        setHaveFiltersChanged(true);
-    };
-
-    const removeSection = (
-        sectionId: string,
-        hasMembers: boolean,
-        holdsEditor: boolean,
-    ) => {
-        // The menu button is going away: focus goes to the expanded filter's
-        // label when the section held it, else to the header's "Add"
-        focusAfter.current = holdsEditor
-            ? RAIL_LABEL_SELECTOR
-            : RAIL_ADD_SELECTOR;
-        dispatch(dashboardEditActions.removeControlSection(sectionId));
-        if (!hasMembers) return;
-        setDashboardFilters((filters) =>
-            removeSectionFromRules(filters, sectionId),
-        );
-        setHaveFiltersChanged(true);
-    };
-
-    const commitName = (name: string) => {
-        if (nameEdit === null) return;
-        focusAfter.current = sectionMenuSelector(nameEdit.id);
-        dispatch(
-            nameEdit.isNew
-                ? dashboardEditActions.addControlSection({
-                      id: nameEdit.id,
-                      name,
-                  })
-                : dashboardEditActions.renameControlSection({
-                      id: nameEdit.id,
-                      name,
-                  }),
-        );
-        setNameEdit(null);
-        if (nameEdit.moveIds.length > 0)
-            moveRules(nameEdit.moveIds, nameEdit.id);
-    };
-    // Each rule, in display order, joins the section at its end; the first
-    // moved row takes focus once the footer's menu is gone with the mode
-    const moveRules = (ids: string[], sectionId: string | null) => {
-        const moved = moveRulesToSection(
-            dashboardFilters,
-            ids,
-            sectionId,
-            controlSections,
-        );
-        if (moved !== dashboardFilters) {
-            setDashboardFilters(moved);
-            setHaveFiltersChanged(true);
-        }
-        // A collapsed target hides its rows: its header's stop takes focus
-        const target = controlSections.find(({ id }) => id === sectionId);
-        focusAfter.current =
-            target !== undefined && isSectionCollapsed(target)
-                ? sectionStopSelector(target.id)
-                : ids[0]
-                  ? railRowSelector(ids[0])
-                  : RAIL_ADD_SELECTOR;
-        leaveSelectMode();
-    };
-    const cancelName = () => {
-        if (nameEdit === null) return;
-        focusAfter.current = nameEdit.isNew
-            ? RAIL_ADD_SELECTOR
-            : sectionMenuSelector(nameEdit.id);
-        setNameEdit(null);
-    };
-
-    // Null while every filter is a row
-    const editor =
-        filterId === null || editingRule === null ? null : (
-            <FilterEditor key={filterId} rule={editingRule} />
-        );
-    // Drag is off while a section is being named and in select mode
-    const isSelecting = selectedIds !== null;
-    const isDragDisabled = nameEdit !== null || isSelecting;
-    // The shift anchor goes with the session, both ways
-    const leaveSelectMode = () => {
-        lastToggledId.current = null;
-        setSelectedIds(null);
-    };
-    // Rows on screen, in display order; a collapsed section's are left out
-    const shownRowIds = () =>
-        listed.flatMap(({ shown }) => shown.map(({ rule }) => rule.id));
-    const selectRows = (ids: string[]) =>
-        setSelectedIds((current) => [
-            ...(current ?? []),
-            ...ids.filter((id) => !current?.includes(id)),
-        ]);
-    // A click toggles the row; a shift-click selects from the row toggled last
-    const toggleRow = (ruleId: string, isRange: boolean) => {
-        const range = isRange
-            ? rangeBetween(shownRowIds(), lastToggledId.current, ruleId)
-            : null;
-        lastToggledId.current = ruleId;
-        if (range !== null) {
-            selectRows(range);
-            return;
-        }
-        setSelectedIds((current) =>
-            current?.includes(ruleId)
-                ? current.filter((id) => id !== ruleId)
-                : [...(current ?? []), ruleId],
-        );
-    };
-    // Shift with an arrow extends the selection to the next row and moves there
-    const extendSelection = (event: KeyboardEvent<HTMLDivElement>) => {
-        if (
-            !event.shiftKey ||
-            (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') ||
-            !(event.target instanceof HTMLElement)
-        )
-            return;
-        const rowId = event.target
-            .closest('[data-controls-row]')
-            ?.getAttribute('data-controls-row');
-        if (!rowId) return;
-        const rowIds = shownRowIds();
-        const nextId =
-            rowIds[
-                rowIds.indexOf(rowId) + (event.key === 'ArrowDown' ? 1 : -1)
-            ];
-        if (nextId === undefined) return;
-        event.preventDefault();
-        lastToggledId.current = nextId;
-        selectRows([rowId, nextId]);
-        document.querySelector<HTMLElement>(railRowSelector(nextId))?.focus();
-    };
-    // In display order, and only what is still a filter
-    const selected =
-        selectedIds === null
-            ? []
-            : grouped
-                  .flatMap(({ rules }) => rules.map(({ rule }) => rule.id))
-                  .filter((id) => selectedIds.includes(id));
-    const selectionOf = (ruleId: string): RowSelection | null =>
-        isSelecting
-            ? {
-                  label: ruleNames.get(ruleId) ?? 'Filter',
-                  isChecked: selected.includes(ruleId),
-                  onToggle: (isRange) => toggleRow(ruleId, isRange),
-              }
-            : null;
-    const selectedCountIn = (rules: SectionRule[]) =>
-        rules.filter(({ rule }) => selected.includes(rule.id)).length;
-    const removeSelected = () => {
-        focusAfter.current = RAIL_ADD_SELECTOR;
-        setDashboardFilters((filters) =>
-            selected.reduce(removeFilterRule, filters),
-        );
-        setHaveFiltersChanged(true);
-        leaveSelectMode();
-    };
-    // The pill's X and the rail's row remove take the same path. Focus goes
-    // to the next row on screen, else the one before, else the header's
-    // "Add"; the expanded filter takes it on its label
-    const removeRow = (ruleId: string) => {
-        const rowIds = listed.flatMap(({ shown }) =>
-            shown.map(({ rule }) => rule.id),
-        );
-        const index = rowIds.indexOf(ruleId);
-        const nextId = rowIds[index + 1] ?? rowIds[index - 1];
-        focusAfter.current =
-            nextId === undefined
-                ? RAIL_ADD_SELECTOR
-                : nextId === filterId
-                  ? RAIL_LABEL_SELECTOR
-                  : railRowSelector(nextId);
-        removeFilterById(ruleId);
-    };
-    // A viewer's saved row (in a section) opens nothing and has no grip
-    const renderRow = (
-        sectionRule: SectionRule,
-        isSaved: boolean,
-        isInSection: boolean,
-    ) => {
-        const { rule } = sectionRule;
-        // The expanded filter drags as a row; its head has its own remove
-        if (rule.id === filterId)
-            return (
-                <SortableRow
-                    key={rule.id}
-                    id={rule.id}
-                    name={ruleNames.get(rule.id) ?? ''}
-                    isDisabled={isDragDisabled || isViewer}
-                    isInSection={isInSection}
-                    isExpanded
-                    onRemove={null}
-                    selection={null}
-                >
-                    {editor}
-                </SortableRow>
-            );
-        const field = fieldOf(sectionRule);
-        const isUnresolved =
-            field === null &&
-            !rule.target.isSqlColumn &&
-            !isPlaceholderRule(rule) &&
-            !areFieldsLoading;
-        const row = (
-            <FilterRow
-                key={rule.id}
-                rule={rule}
-                field={field}
-                activeTabUuid={activeTabUuid}
-                hasTabs={hasTabs}
-                isOwn={isViewer && !isSaved}
-                isReadOnly={isUnresolved || isSaved}
-                readOnlyTooltip={
-                    isUnresolved
-                        ? getUnresolvedTooltip(rule)
-                        : isSaved
-                          ? getUiString('filters.rail.savedFilterReadOnly')
-                          : null
-                }
-                isDisabled={!areFieldsLoaded && !rule.target.isSqlColumn}
-                onOpen={isSelecting ? toggleRow : (id) => open(id)}
-                isTabStop={rule.id === tabStopId}
-                onHover={setHoveredFilterId}
-                onUnhover={clearHoveredFilterId}
-            />
-        );
-        if (isSaved)
-            return (
-                <Box key={rule.id} className={classes.sectionRow}>
-                    {row}
-                </Box>
-            );
-        return (
-            <SortableRow
-                key={rule.id}
-                id={rule.id}
-                name={ruleNames.get(rule.id) ?? ''}
-                isDisabled={isDragDisabled || isViewer}
-                isInSection={isInSection}
-                isExpanded={false}
-                onRemove={
-                    isViewer || isSelecting ? null : () => removeRow(rule.id)
-                }
-                selection={selectionOf(rule.id)}
-            >
-                {row}
-            </SortableRow>
-        );
-    };
-    // A placeholder is not in the dashboard filters yet: it comes last in its
-    // section, or among the unsectioned rows
-    const isListed =
-        editor === null ||
-        grouped.some(({ rules }) =>
-            rules.some(({ rule }) => rule.id === filterId),
-        );
-    const editorSectionId =
-        !isListed &&
-        editingRule?.sectionId !== undefined &&
-        sectionIds.has(editingRule.sectionId)
-            ? editingRule.sectionId
-            : null;
-    const unlistedEditor = (sectionId: string | null) =>
-        isListed || editorSectionId !== sectionId
-            ? []
-            : sectionId === null
-              ? [editor]
-              : [
-                    <Box
-                        key={`placeholder:${filterId}`}
-                        className={classes.sectionRow}
-                    >
-                        {editor}
-                    </Box>,
-                ];
-    // What is on screen: the sortable ids must not name an unrendered row
-    const listed = grouped.map(({ section, rules }) => {
-        const isCollapsed = section !== null && isSectionCollapsed(section);
-        return {
-            section,
-            rules,
-            isCollapsed,
-            shown: isCollapsed ? [] : rules,
-        };
-    });
-    const sortableIds = listed.flatMap(({ section, shown }) => [
-        ...(section === null ? [] : [section.id]),
-        ...shown.map(({ rule }) => rule.id),
-    ]);
-    // The list's tab stops in display order: header chevrons and rows; the
-    // one focused last takes Tab, else the first
-    const stopIds = listed.flatMap(({ section, shown }) => [
-        ...(section === null ? [] : [`section:${section.id}`]),
-        ...shown.map(({ rule }) => rule.id),
-    ]);
-    const tabStopId =
-        activeStop !== null && stopIds.includes(activeStop)
-            ? activeStop
-            : (stopIds[0] ?? null);
-    // Arrows walk the stops; Space hands the row to its grip (a keyboard
-    // drag); Delete is the row's remove, twice; Left and Right fold and
-    // unfold a section. dnd-kit owns the keys while a drag is on. In select
-    // mode Shift with an arrow extends the selection, Space is the row's
-    // own click (a toggle) and Delete does nothing, the remove being hidden
-    const handleListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-        if (draggedId !== null) return;
-        const stop = event.target as HTMLElement;
-        const stopId = stop.getAttribute('data-controls-stop');
-        if (stopId === null) return;
-        if (isSelecting) {
-            if (event.shiftKey && !stopId.startsWith('section:')) {
-                extendSelection(event);
-                return;
-            }
-            if (event.key === ' ' || event.key === 'Delete') return;
-        }
-        const stops = [
-            ...event.currentTarget.querySelectorAll<HTMLElement>(
-                '[data-controls-stop]',
-            ),
-        ];
-        const index = stops.indexOf(stop);
-        const owner = stop.closest<HTMLElement>(
-            '[data-controls-sortable], [data-controls-section]',
-        );
-        const isHeader = stopId.startsWith('section:');
-        switch (event.key) {
-            case 'ArrowDown':
-                stops[index + 1]?.focus();
-                break;
-            case 'ArrowUp':
-                stops[index - 1]?.focus();
-                break;
-            case ' ': {
-                const grip = owner?.querySelector<HTMLElement>(
-                    '[data-controls-grip]',
-                );
-                if (!grip) return;
-                grip.focus();
-                grip.dispatchEvent(
-                    new KeyboardEvent('keydown', {
-                        key: ' ',
-                        code: 'Space',
-                        bubbles: true,
-                    }),
-                );
-                break;
-            }
-            case 'Delete':
-                if (isHeader) return;
-                owner
-                    ?.querySelector<HTMLElement>('[data-controls-remove]')
-                    ?.click();
-                break;
-            case 'ArrowRight':
-            case 'ArrowLeft': {
-                if (!isHeader) return;
-                const isExpanded =
-                    stop.getAttribute('aria-expanded') === 'true';
-                if ((event.key === 'ArrowRight') !== isExpanded) stop.click();
-                break;
-            }
-            default:
-                return;
-        }
-        event.preventDefault();
-    };
-    const body = listed.flatMap(({ section, rules, isCollapsed, shown }) => {
-        if (section === null)
-            return [
-                ...shown.map((rule) => renderRow(rule, false, false)),
-                ...unlistedEditor(null),
-            ];
-        // Collapsing a section collapses the filter expanded in it first; a
-        // new one with no field yet would be dropped, so it stays, rendered
-        // under the collapsed header
-        const holdsEditor =
-            editorSectionId === section.id ||
-            rules.some(({ rule }) => rule.id === filterId);
-        return [
-            <SectionHeader
-                key={`section:${section.id}`}
-                section={section}
-                countLabel={formatSectionCount(getUiString, rules.length)}
-                selectedLabel={
-                    isSelecting && isCollapsed && selectedCountIn(rules) > 0
-                        ? `${selectedCountIn(rules)} selected`
-                        : null
-                }
-                isCollapsed={isCollapsed}
-                isEditingName={nameEdit?.id === section.id}
-                isNew={nameEdit?.id === section.id && nameEdit.isNew}
-                isDragDisabled={isDragDisabled}
-                isReadOnly={isViewer}
-                isTabStop={`section:${section.id}` === tabStopId}
-                onToggle={() => {
-                    if (!isCollapsed && holdsEditor && !isPlaceholder)
-                        collapse();
-                    setSectionCollapsed(section, !isCollapsed);
-                }}
-                isCollapsedByDefault={isCollapsedByDefault(
-                    section,
-                    rules.length,
-                )}
-                onToggleCollapsedByDefault={() =>
-                    // The saved default only: this rail keeps its own fold.
-                    // Saved either way, so unticked means open on the bar
-                    dispatch(
-                        dashboardEditActions.setControlSectionCollapsed({
-                            id: section.id,
-                            collapsed: !isCollapsedByDefault(
-                                section,
-                                rules.length,
-                            ),
-                        }),
-                    )
-                }
-                onRename={() =>
-                    setNameEdit({ id: section.id, isNew: false, moveIds: [] })
-                }
-                onAddFilter={() => {
-                    leaveSelectMode();
-                    openNew(section.id);
-                }}
-                onCommitName={commitName}
-                onCancelName={cancelName}
-                onRemove={() =>
-                    removeSection(section.id, rules.length > 0, holdsEditor)
-                }
-            />,
-            ...shown.map((rule) => renderRow(rule, isViewer, true)),
-            ...unlistedEditor(section.id),
-        ];
-    });
-    // A compact copy under the pointer; the source row stays in place, dimmed
-    const dragged =
-        draggedId === null
-            ? null
-            : grouped
-                  .flatMap(({ rules }) => rules)
-                  .find(({ rule }) => rule.id === draggedId);
-    const dragPreview =
-        draggedId === null ? null : (
-            <Group gap="xs" wrap="nowrap" className={classes.dragPreview}>
-                {dragged && <FilterTypeIcon field={fieldOf(dragged)} />}
-                <Text fz="sm" fw={dragged ? undefined : 600} truncate>
-                    {sectionNames.get(draggedId) ?? nameOf(draggedId)}
-                </Text>
-            </Group>
-        );
-    // Closing keeps the edits, so the footer says what closing would drop
-    // A new section being named takes the footer as a new filter with no
-    // field does: the hint and Cancel in place of the switch and Done
-    const footerStatus = nameEdit?.isNew
-        ? getUiString('filters.rail.nameSectionToKeep')
-        : editingRule === null || editor === null
-          ? null
-          : isPlaceholder
-            ? getUiString('filters.rail.selectFieldToKeep')
-            : !isViewer && isDefaultValueIncomplete(editingRule)
-              ? 'No default value set, so the default stays off'
-              : null;
-
-    const addFilter =
-        canAddFilters && !(isViewer && isAddFilterDisabled)
-            ? () => {
-                  leaveSelectMode();
-                  openNew();
-              }
-            : null;
-    const newSection = isViewer
-        ? null
-        : () => {
-              if (nameEdit?.isNew) return;
-              leaveSelectMode();
-              // As `openNew`: the expanded filter folds first,
-              // but a new one with no field yet stays as it is
-              if (!isPlaceholder) collapse();
-              setNameEdit({
-                  id: uuidv4(),
-                  isNew: true,
-                  moveIds: [],
-              });
-          };
-
+    if (filterId === null || editingRule === null) return null;
     return (
-        <DndContext
-            sensors={sensors}
-            collisionDetection={underPointer}
-            accessibility={{
-                announcements: getDragAnnouncements(nameOf),
-            }}
-            // A collapsed section opens mid-drag, so its rows are measured
-            measuring={{
-                droppable: { strategy: MeasuringStrategy.Always },
-            }}
-            autoScroll={{ layoutShiftCompensation: false }}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-            onDragCancel={() => setDraggedId(null)}
-        >
-            <EditorShell
-                filterCount={
-                    listedFilters.dimensions.length +
-                    listedFilters.metrics.length
-                }
-                onClose={close}
-                // Dropping a header on the rail's header moves nothing
-                isUnsectionTargetDisabled={
-                    draggedId !== null && sectionIds.has(draggedId)
-                }
-                isDragging={draggedId !== null}
-                onCancel={
-                    nameEdit?.isNew
-                        ? cancelName
-                        : editor !== null && isPlaceholder
-                          ? discard
-                          : null
-                }
-                selectFilters={
-                    isViewer || isSelecting
-                        ? null
-                        : {
-                              onSelect: () => {
-                                  if (editor !== null) collapse();
-                                  lastToggledId.current = null;
-                                  setSelectedIds([]);
-                              },
-                              disabledReason:
-                                  editor !== null && isPlaceholder
-                                      ? 'Finish the new filter first'
-                                      : null,
-                          }
-                }
-                selectMode={
-                    isSelecting
-                        ? {
-                              count: selected.length,
-                              sections: grouped.flatMap(({ section, rules }) =>
-                                  section === null ||
-                                  !sectionIds.has(section.id)
-                                      ? []
-                                      : [
-                                            {
-                                                ...section,
-                                                count: rules.length,
-                                            },
-                                        ],
-                              ),
-                              onExit: leaveSelectMode,
-                              onMove: (sectionId) =>
-                                  moveRules(selected, sectionId),
-                              onMoveToNewSection: () =>
-                                  setNameEdit({
-                                      id: uuidv4(),
-                                      isNew: true,
-                                      moveIds: selected,
-                                  }),
-                              onRemove: removeSelected,
-                          }
-                        : null
-                }
-                footerStatus={footerStatus}
-                // The saved flag stays "disabled"; the switch reads positively
-                viewerAdd={
-                    isViewer
-                        ? null
-                        : {
-                              isEnabled: !isAddFilterDisabled,
-                              onChange: (isEnabled) =>
-                                  setIsAddFilterDisabled(!isEnabled),
-                          }
-                }
-            >
-                <Box
-                    className={classes.rows}
-                    onKeyDown={handleListKeyDown}
-                    onFocusCapture={(event) => {
-                        const stopId = (
-                            event.target as HTMLElement
-                        ).getAttribute('data-controls-stop');
-                        if (stopId !== null) setActiveStop(stopId);
-                    }}
-                >
-                    <SortableContext
-                        items={sortableIds}
-                        strategy={noDisplacement}
-                    >
-                        {body}
-                    </SortableContext>
-                    {/* Out of the way while a new filter has no field yet or
-                        a new section is being named; back, and focused again
-                        through `focusAfter`, once either is settled */}
-                    {!((isPlaceholder && isNew) || nameEdit?.isNew) && (
-                        <AddRow
-                            onAddFilter={addFilter}
-                            onNewSection={newSection}
-                        />
-                    )}
-                </Box>
-                <DragOverlay>{dragPreview}</DragOverlay>
-            </EditorShell>
-        </DndContext>
+        <EditorShell>
+            <FilterEditor key={filterId} rule={editingRule} />
+        </EditorShell>
     );
 };

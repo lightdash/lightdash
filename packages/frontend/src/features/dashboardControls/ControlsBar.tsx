@@ -5,8 +5,7 @@ import {
 } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import FilterRequirementsButton from '../dashboardFilters/FilterRequirements/FilterRequirementsButton';
-import { AddControl } from './AddControl';
-import { EditingStrip } from './EditingStrip';
+import { AddControl, InertWhileEditing } from './AddControl';
 import { FilterPills } from './FilterPills';
 import { SectionedFilters } from './SectionedFilters';
 import { useControlsSidebarSelector } from './useControlsSidebar';
@@ -16,31 +15,33 @@ type Props = Omit<
     'filterArea' | 'isCompactDrawerSuppressed'
 >;
 
-// The shipped bar with its filter area swapped, in edit and view mode alike
+// The shipped bar with its filter area swapped, in edit and view mode alike.
+// It stays on screen while a filter is edited in the rail
 export const ControlsBar: FC<Props> = (props) => {
-    const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
+    const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
     const hasSections = useDashboardSelector(
         (state) => selectControlSections(state).length > 0,
+    );
+    const requirements = props.isEditMode && (
+        <InertWhileEditing>
+            <FilterRequirementsButton />
+        </InertWhileEditing>
     );
     return (
         <DashboardFiltersBar
             {...props}
             // The rail is on the page: a drawer over it would hide it
-            isCompactDrawerSuppressed={isRailOpen}
+            isCompactDrawerSuppressed={isSidebarOpen}
             filterArea={
-                // The open rail holds the filters and "Add filter"; the bar
-                // says what is being edited
-                isRailOpen ? (
-                    <EditingStrip />
-                ) : hasSections ? (
+                hasSections ? (
                     <SectionedFilters activeTabUuid={props.activeTabUuid}>
-                        {props.isEditMode && <FilterRequirementsButton />}
+                        {requirements}
                     </SectionedFilters>
                 ) : (
                     <>
                         <AddControl />
                         <FilterPills activeTabUuid={props.activeTabUuid} />
-                        {props.isEditMode && <FilterRequirementsButton />}
+                        {requirements}
                     </>
                 )
             }

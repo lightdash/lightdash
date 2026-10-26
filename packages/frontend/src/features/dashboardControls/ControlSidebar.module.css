@@ -60,78 +60,25 @@
 
 .header {
     border-bottom: 1px solid var(--mantine-color-default-border);
-    transition: background-color var(--controls-duration-hover)
-        var(--controls-ease);
 }
 
 .body {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    /* An expanded last filter's bottom hairline sits under the footer's */
-    margin-bottom: -1px;
 }
 
-/* Doubled so the padding outranks the group button's reset. No hairlines
-   between rows: sections and the expanded filter carry the lines */
-.row.row {
-    width: 100%;
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm)
-        var(--mantine-spacing-sm) var(--mantine-spacing-md);
-    transition: background-color var(--controls-duration-hover)
-        var(--controls-ease);
+.content {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md)
+        var(--mantine-spacing-md);
 }
 
-.row:hover:not(:disabled) {
-    background-color: var(--mantine-color-default-hover);
-}
-
-.row:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-.readOnlyRow.readOnlyRow {
-    cursor: default;
-    opacity: 0.6;
-}
-
-.readOnlyRow.readOnlyRow:hover {
-    background-color: transparent;
-}
-
-.rowIcon {
+.typeIcon {
     flex: 0 0 auto;
-    /* Even, so it centres on the name's first line both in a row aligned to
-       the top and in the head aligned to the centre */
-    margin-block: 3px;
 }
 
 .required {
     color: var(--mantine-color-yellow-text);
-}
-
-.edited {
-    background-color: var(--mantine-color-ldGray-1);
-    border-top: 1px solid var(--mantine-color-default-border);
-    border-bottom: 1px solid var(--mantine-color-default-border);
-
-    /* Dimmed text on this fill is under 4.5:1 in light: one step darker */
-    @mixin light {
-        --mantine-color-dimmed: var(--mantine-color-ldGray-7);
-    }
-}
-
-.editedHead {
-    padding-block: var(--mantine-spacing-xs) 0;
-    padding-inline: var(--mantine-spacing-md);
-    /* A click on it collapses the filter */
-    cursor: pointer;
-}
-
-.editedBody {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md)
-        var(--mantine-spacing-md);
 }
 
 /* The shipped clear X sits beside the value input, so the operator select
@@ -144,28 +91,6 @@
     margin-inline-end: calc(
         var(--controls-action-size) + var(--mantine-spacing-xs)
     );
-}
-
-.nameInput {
-    flex: 1;
-    min-width: 0;
-}
-
-/* The name is typed in place: a border shows only on hover and focus */
-.nameInputField {
-    font-weight: 600;
-    border-color: transparent;
-    background-color: transparent;
-    transition: border-color var(--controls-duration-hover) var(--controls-ease);
-}
-
-.nameInputField:hover {
-    border-color: var(--mantine-color-default-border);
-}
-
-.nameInputField:focus {
-    border-color: var(--mantine-color-ldGray-3);
-    background-color: var(--mantine-color-body);
 }
 
 /* Inset to the editor's padding; one hairline above the pair */
@@ -211,233 +136,21 @@
     padding: 2px 0 var(--mantine-spacing-xs);
 }
 
-/* Sections: a label row on the card surface, a hairline above each but the
-   first, dragged as one with its rows */
-.sectionHeader {
-    border-top: 1px solid var(--mantine-color-default-border);
-    transition: background-color var(--controls-duration-hover)
-        var(--controls-ease);
-}
-
-/* The list itself: a keyboard and focus boundary that takes no space */
-.rows {
-    display: contents;
-}
-
-/* The list's last row: quiet, a secondary line at a section header's height,
-   its glyph aligned with the loose rows' icons */
-.addRow {
-    display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-xs);
-    width: 100%;
-    min-height: 36px;
-    padding: 4px var(--mantine-spacing-sm) 4px var(--mantine-spacing-md);
-    color: var(--mantine-color-dimmed);
-    transition: background-color var(--controls-duration-hover)
-        var(--controls-ease);
-}
-
-.addRow:hover {
-    background-color: var(--mantine-color-default-hover);
-}
-
-/* The add row opened in place: the label, two choices and an X */
-.addRowOpen {
-    display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-xs);
-    min-height: 36px;
-    padding: 4px var(--mantine-spacing-sm) 4px var(--mantine-spacing-md);
-}
-
-.addRowChoice {
-    animation: addRowChoiceEnter var(--controls-duration-hover)
-        var(--controls-ease);
-}
-
-@keyframes addRowChoiceEnter {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
-.rows > .sectionHeader:first-child {
-    border-top: 0;
-}
-
-/* A dragged row would join this section, or leave its section on the
-   rail's header */
-.sectionHeader[data-over],
-.sortableRow[data-over],
-.header[data-over] {
-    background-color: var(--mantine-color-default-hover);
-    box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);
-}
-
-.sectionHeadRow {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-xs);
-    min-height: 36px;
-    padding: 4px var(--mantine-spacing-xs) 4px var(--mantine-spacing-md);
-}
-
-.sectionHeadRow [aria-expanded='true'] .chevron {
-    transform: rotate(90deg);
-}
-
-/* The separator is drawn, not read out */
-.sectionCount::before {
-    content: '· ';
-}
-
-.sectionMenu {
-    margin-left: auto;
-    opacity: 0;
-    transition: opacity var(--controls-duration-hover) var(--controls-ease);
-}
-
-.sectionHeadRow:hover .sectionMenu,
-.sectionMenu:focus-visible,
-.sectionMenu[aria-expanded='true'] {
-    opacity: 1;
-}
-
-.sortableRow {
-    position: relative;
-}
-
-/* A section's rows sit one step in; the grip keeps the first step */
-.sectionRow .row.row,
-.sectionRow .editedHead,
-.sectionRow .editedBody {
-    padding-left: calc(2 * var(--mantine-spacing-md));
-}
-
-/* Room for the remove at the row's right end */
-.sortableRow[data-removable] .row.row {
-    padding-right: calc(var(--mantine-spacing-sm) + 28px);
-}
-
-/* A closed row's remove, shown on hover and focus as the grip is */
-.rowRemove {
-    position: absolute;
-    top: 50%;
-    right: var(--mantine-spacing-xs);
-    transform: translateY(-50%);
-    opacity: 0;
-    transition: opacity var(--controls-duration-hover) var(--controls-ease);
-}
-
-.sortableRow:hover .rowRemove,
-.sortableRow:focus-within .rowRemove {
-    opacity: 1;
-}
-
-/* The copy under the pointer while a row or header is dragged */
-.dragPreview {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
-    background-color: var(--mantine-color-body);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-sm);
-    box-shadow: var(--mantine-shadow-sm);
-    cursor: grabbing;
-}
-
-.sortableRow[data-dragging],
-.sectionHeader[data-dragging] {
-    position: relative;
-    z-index: 1;
-    opacity: 0.3;
-}
-
-/* The grip sits in the row's left padding, shown on hover and focus: a 24px
-   target around a 14px glyph that stays where it was */
-.grip {
-    position: absolute;
-    top: 50%;
-    left: -4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: 0;
-    background: none;
-    color: inherit;
-    cursor: grab;
-    touch-action: none;
-    opacity: 0;
-    transform: translateY(-50%);
-    transition: opacity var(--controls-duration-hover) var(--controls-ease);
-}
-
-.sortableRow:hover .grip,
-.sectionHeadRow:hover .grip,
-.grip:focus-visible {
-    opacity: 1;
-}
-
-/* In select mode the row makes room for its checkbox in the left padding: a
-   16px box centred on the name's first line as `.rowIcon` is (padding `sm`
-   plus 2px, the icon's 3px margin less the box's extra pixel), followed by
-   the row's `xs` gap; a sectioned row keeps its extra `md` of indent */
-.sortableRow[data-selecting] .row.row {
-    padding-left: calc(
-        var(--mantine-spacing-md) + 16px + var(--mantine-spacing-xs)
-    );
-}
-
-.sortableRow[data-selecting].sectionRow .row.row {
-    padding-left: calc(
-        2 * var(--mantine-spacing-md) + 16px + var(--mantine-spacing-xs)
-    );
-}
-
-.rowCheck {
-    position: absolute;
-    top: calc(var(--mantine-spacing-sm) + 2px);
-    left: var(--mantine-spacing-md);
-    display: flex;
-    width: 16px;
-    height: 16px;
-}
-
-.sectionRow .rowCheck {
-    left: calc(2 * var(--mantine-spacing-md));
-}
-
-/* On the expanded editor the grip sits by the head, not the card's centre */
-.sortableRow[data-expanded] .grip {
-    top: calc(var(--mantine-spacing-xs) + 15px);
-}
-
-.footerSwitchLabel {
-    font-size: var(--mantine-font-size-xs);
-    color: var(--mantine-color-dimmed);
-}
-
 .footer {
     border-top: 1px solid var(--mantine-color-default-border);
 }
 
-/* Keyed by its text, so it arrives again when the message changes */
+/* The pending question arrives as the footer changes */
 .footerStatus {
     animation: statusEnter var(--controls-duration-arrive)
         var(--controls-ease-arrive);
 }
 
-.done {
+.apply {
     transition: transform var(--controls-duration-hover) var(--controls-ease);
 }
 
-.footer .done:active {
+.footer .apply:active:not(:disabled) {
     transform: scale(0.97);
 }
 
@@ -465,22 +178,13 @@
 
 @media (prefers-reduced-motion: reduce) {
     .root > *,
-    .footerStatus,
-    .addRowChoice {
+    .footerStatus {
         animation: none;
     }
 
-    .done,
-    .nameInputField,
-    .row,
+    .apply,
     .disclosure,
-    .chevron,
-    .grip,
-    .addRow,
-    .rowRemove,
-    .sectionMenu,
-    .header,
-    .sectionHeader {
+    .chevron {
         transition: none;
     }
 }

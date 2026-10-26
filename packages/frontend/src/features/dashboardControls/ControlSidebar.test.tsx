@@ -1,20 +1,13 @@
 import {
     DashboardTileTypes,
-    DEFAULT_UI_STRINGS,
     type DashboardFilters,
     type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
-import {
-    act,
-    fireEvent,
-    screen,
-    waitFor,
-    within,
-} from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { type ReactElement } from 'react';
+import { type ReactElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
@@ -23,11 +16,6 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
-import {
-    dashboardFiltersActions,
-    selectControlSections,
-    selectDashboardFilters,
-} from '../dashboard/store';
 import { ControlSidebar } from './ControlSidebar';
 import { RailContractClasses } from './railContractClasses';
 import { type ControlsSidebarContextValue } from './useControlsSidebar';
@@ -68,9 +56,11 @@ vi.mock('./FieldsAndTiles', () => ({
 vi.mock('./FilterSettings', () => ({
     FilterSettings: ({
         field,
+        sectionSelect,
         tilesSummary,
     }: {
         field: { label: string } | null;
+        sectionSelect: ReactNode;
         tilesSummary: string;
     }) => (
         <div data-testid="filter-settings">
@@ -78,6 +68,7 @@ vi.mock('./FilterSettings', () => ({
                 <input aria-label="Operator" />
             </div>
             {field ? `Settings for ${field.label}` : 'Settings with no field'}
+            {sectionSelect}
             <span data-testid="tiles-summary">{tilesSummary}</span>
         </div>
     ),
@@ -124,10 +115,8 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         isPlaceholder: false,
         editingRule: makeRule({}),
         isSidebarOpen: true,
-        isRailOpen: true,
-        hoveredFilterId: null,
-        setHoveredFilterId: vi.fn(),
-        clearHoveredFilterId: vi.fn(),
+        pendingRule: null,
+        resolvePending: vi.fn(),
         applyWithUndo: vi.fn(),
         undoApply: vi.fn(),
         fieldUndo: null,
@@ -135,7 +124,6 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         setActiveSection: vi.fn(),
         open: vi.fn(),
         openNew: vi.fn(),
-        openRail: vi.fn(),
         addFirstField: vi.fn(),
         addFirstSqlColumn: vi.fn(),
         addFirstFieldOnTile: vi.fn(),
@@ -152,11 +140,9 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         removeWaitingField: vi.fn(),
         updateFilter: vi.fn(),
         updateOtherFilters: vi.fn(),
-        removeFilter: vi.fn(),
         removeFilterById: vi.fn(),
         discard: vi.fn(),
         close: vi.fn(),
-        collapse: vi.fn(),
         isDirty: true,
         newTileUuids: [],
         dismissedLinks: [],
@@ -230,135 +216,8 @@ describe('ControlSidebar', () => {
         tableCalculations: [],
     });
 
-    describe('closed rows', () => {
-        const other = (overrides: Partial<DashboardFilterRule>) =>
-            makeRule({ id: 'filter-2', label: 'Order status', ...overrides });
-
-        it('lists every filter, the edited one open in its place', () => {
-            setSidebar({ isNew: false });
-            renderWithProviders(
-                <ControlSidebar />,
-                filters([
-                    other({}),
-                    makeRule({}),
-                    other({ id: 'filter-3', label: 'Region' }),
-                ]),
-            );
-
-            const rows = screen.getAllByRole('button', {
-                name: /^Order status|^Region/,
-            });
-            expect(rows.map((row) => row.textContent)).toEqual([
-                expect.stringContaining('Order status'),
-                expect.stringContaining('Region'),
-            ]);
-            const label = screen.getByLabelText('Filter label');
-            expect(
-                rows[0].compareDocumentPosition(label) &
-                    Node.DOCUMENT_POSITION_FOLLOWING,
-            ).toBeTruthy();
-            expect(
-                rows[1].compareDocumentPosition(label) &
-                    Node.DOCUMENT_POSITION_PRECEDING,
-            ).toBeTruthy();
-        });
-
-        it('reads the value on one line, then Locked and Required', () => {
-            setSidebar({ isNew: false });
-            renderWithProviders(
-                <ControlSidebar />,
-                filters([
-                    makeRule({}),
-                    other({ lockedTabUuids: ['dashboard-1'], required: true }),
-                ]),
-            );
-
-            const row = screen.getByRole('button', { name: /^Order status/ });
-            expect(row).toHaveTextContent(
-                /done · Filter is locked · Required$/,
-            );
-            expect(screen.getByText('Required')).toHaveClass(/required/);
-        });
-
-        it('says a required filter with no value has none yet', () => {
-            setSidebar({ isNew: false });
-            renderWithProviders(
-                <ControlSidebar />,
-                filters([makeRule({}), other({ required: true, values: [] })]),
-            );
-
-            const row = screen.getByRole('button', { name: /^Order status/ });
-            expect(row).toHaveTextContent(
-                /Required: set a value to run this dashboard$/,
-            );
-            expect(row).not.toHaveTextContent('done');
-        });
-
-        it('reads a group member as met while its alternative has a value', () => {
-            setSidebar({ isNew: false });
-            renderWithProviders(
-                <ControlSidebar />,
-                filters([
-                    makeRule({ requiredGroupId: 'group-1' }),
-                    other({ requiredGroupId: 'group-1', values: [] }),
-                ]),
-            );
-
-            const row = screen.getByRole('button', { name: /^Order status/ });
-            expect(row).toHaveTextContent(/· Required$/);
-            expect(row).not.toHaveTextContent(/set a value/);
-        });
-
-        it('gives an unmet group member the group wording', () => {
-            setSidebar({ isNew: false });
-            renderWithProviders(
-                <ControlSidebar />,
-                filters([
-                    makeRule({ requiredGroupId: 'group-1', values: [] }),
-                    other({ requiredGroupId: 'group-1', values: [] }),
-                ]),
-            );
-
-            const row = screen.getByRole('button', { name: /^Order status/ });
-            expect(row).toHaveTextContent(
-                DEFAULT_UI_STRINGS['filters.required.setValueGroupTooltip'],
-            );
-        });
-
-        it('opens the filter of a row on click', () => {
-            const { open } = setSidebar({ isNew: false });
-            renderWithProviders(
-                <ControlSidebar />,
-                filters([makeRule({}), other({})]),
-            );
-
-            fireEvent.click(
-                screen.getByRole('button', { name: /^Order status/ }),
-            );
-            expect(open).toHaveBeenCalledWith('filter-2');
-        });
-
-        it('leaves a row whose field cannot be resolved one that opens nothing', () => {
-            const { open } = setSidebar({ isNew: false });
-            const { container } = renderWithProviders(
-                <ControlSidebar />,
-                filters([
-                    makeRule({}),
-                    other({
-                        target: { fieldId: 'orders_gone', tableName: 'orders' },
-                    }),
-                ]),
-            );
-
-            const row = container.querySelector(
-                '[data-controls-row="filter-2"]',
-            );
-            expect(row?.tagName).not.toBe('BUTTON');
-            expect(row).toHaveAttribute('aria-disabled', 'true');
-            fireEvent.click(row as Element);
-            expect(open).not.toHaveBeenCalled();
-        });
-    });
+    const placeholder = makeRule({ target: { fieldId: '', tableName: '' } });
+    const button = (name: string) => screen.getByRole('button', { name });
 
     it('summarises the tiles and fields of the open filter', () => {
         setSidebar({});
@@ -389,375 +248,101 @@ describe('ControlSidebar', () => {
         );
     });
 
-    it('renders nothing while the rail is closed', () => {
-        setSidebar({
-            editing: null,
-            editingRule: null,
-            isSidebarOpen: false,
-            isRailOpen: false,
-        });
-        renderWithProviders(<ControlSidebar />);
-        expect(screen.queryByText('Done')).not.toBeInTheDocument();
-    });
-
-    it('lists every filter as a row while the rail is open with none expanded', () => {
-        const { open, close } = setSidebar({
-            editing: null,
-            editingRule: null,
-            isSidebarOpen: false,
-        });
-        renderWithProviders(
-            <ControlSidebar />,
-            filters([
-                makeRule({ label: 'Order status' }),
-                makeRule({ id: 'filter-2', label: 'Region' }),
-            ]),
-        );
-
-        expect(screen.queryByLabelText('Filter label')).not.toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: /^Region/ }));
-        expect(open).toHaveBeenCalledWith('filter-2');
-        expect(screen.getByRole('button', { name: 'Add' })).toBeVisible();
-        fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-        expect(close).toHaveBeenCalledTimes(1);
-    });
-
-    it('shows only the footer once the last filter is gone', () => {
+    it('renders nothing while no filter is edited', () => {
         setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
-        renderWithProviders(<ControlSidebar />);
-
-        expect(screen.getByRole('button', { name: 'Add' })).toBeVisible();
-        expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
-        expect(screen.queryByText(/to keep|stays off/)).not.toBeInTheDocument();
+        const { container } = renderWithProviders(<ControlSidebar />);
+        expect(container.querySelector('[data-controls-editor]')).toBeNull();
     });
 
-    describe('keyboard', () => {
-        const rows = () =>
-            filters([
-                makeRule({ label: 'Order status' }),
-                makeRule({ id: 'filter-2', label: 'Region' }),
-            ]);
-        const row = (id: string) =>
-            document.querySelector<HTMLElement>(`[data-controls-row="${id}"]`);
-
-        it('takes focus on its first row when it opens with nothing else focused', () => {
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                isSidebarOpen: false,
-            });
-            (document.activeElement as HTMLElement | null)?.blur();
-            renderWithProviders(<ControlSidebar />, rows());
-            expect(row('filter-1')).toHaveFocus();
-        });
-
-        it('takes focus on the add row when it opens with no filter', () => {
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                isSidebarOpen: false,
-            });
-            (document.activeElement as HTMLElement | null)?.blur();
-            renderWithProviders(<ControlSidebar />);
-            expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
-        });
-
-        it('has one tab stop: Tab from the X lands on the first row, the next Tab is the add row', async () => {
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                isSidebarOpen: false,
-            });
-            renderWithProviders(<ControlSidebar />, rows());
-            // The header's last control sits right before the list
-            screen.getByRole('button', { name: 'Close' }).focus();
-
-            await userEvent.tab();
-            expect(row('filter-1')).toHaveFocus();
-            await userEvent.tab();
-            // Out of the roving list: the add row, not a second row
-            expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
-            await userEvent.tab();
-            expect(screen.getByRole('switch')).toHaveFocus();
-            expect(
-                screen.getAllByRole('button', { name: /^Drag to reorder/ }),
-            ).toSatisfy((grips: HTMLElement[]) =>
-                grips.every((grip) => grip.tabIndex === -1),
-            );
-            expect(
-                screen.getAllByRole('button', { name: 'Remove filter' }),
-            ).toSatisfy((removes: HTMLElement[]) =>
-                removes.every((remove) => remove.tabIndex === -1),
-            );
-        });
-
-        it('walks the rows with the arrows, and the focused row becomes the stop', async () => {
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                isSidebarOpen: false,
-            });
-            renderWithProviders(<ControlSidebar />, rows());
-            row('filter-1')?.focus();
-            fireEvent.keyDown(row('filter-1') as HTMLElement, {
-                key: 'ArrowDown',
-            });
-            expect(row('filter-2')).toHaveFocus();
-            expect(row('filter-2')).toHaveAttribute('tabindex', '0');
-            expect(row('filter-1')).toHaveAttribute('tabindex', '-1');
-            fireEvent.keyDown(row('filter-2') as HTMLElement, {
-                key: 'ArrowUp',
-            });
-            expect(row('filter-1')).toHaveFocus();
-        });
-
-        it('picks the row up for a keyboard drag on Space, and does not open it', async () => {
-            const { open } = setSidebar({
-                editing: null,
-                editingRule: null,
-                isSidebarOpen: false,
-            });
-            renderWithProviders(<ControlSidebar />, rows());
-            row('filter-1')?.focus();
-            fireEvent.keyDown(row('filter-1') as HTMLElement, { key: ' ' });
-            expect(row('filter-1')?.parentElement).toHaveAttribute(
-                'data-dragging',
-            );
-            expect(
-                screen.getAllByRole('button', { name: /^Drag to reorder/ })[0],
-            ).toHaveFocus();
-            expect(open).not.toHaveBeenCalled();
-            // The sensor listens from the next tick on; leave nothing behind
-            await act(() => new Promise((resolve) => setTimeout(resolve)));
-            fireEvent.keyDown(document, { code: 'Escape', key: 'Escape' });
-            expect(row('filter-1')?.parentElement).not.toHaveAttribute(
-                'data-dragging',
-            );
-        });
-
-        it('arms the row remove on Delete and removes on the second', () => {
-            const removeFilterById = vi.fn();
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                isSidebarOpen: false,
-                removeFilterById,
-            });
-            renderWithProviders(<ControlSidebar />, rows());
-            row('filter-1')?.focus();
-            fireEvent.keyDown(row('filter-1') as HTMLElement, {
-                key: 'Delete',
-            });
-            expect(removeFilterById).not.toHaveBeenCalled();
-            expect(
-                screen.getAllByRole('button', { name: 'Remove filter' })[0],
-            ).toHaveAttribute('aria-pressed', 'true');
-            fireEvent.keyDown(row('filter-1') as HTMLElement, {
-                key: 'Delete',
-            });
-            expect(removeFilterById).toHaveBeenCalledWith('filter-1');
-        });
-    });
-
-    it("lets an editor switch viewers' own filters on and off from the footer", () => {
-        const setIsAddFilterDisabled = vi.fn();
-        mockDashboardContext.current.setIsAddFilterDisabled =
-            setIsAddFilterDisabled;
-        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
-        const { rerender } = renderWithProviders(<ControlSidebar />);
-        const toggle = () =>
-            screen.getByRole('switch', {
-                name: 'Viewers can add filters',
-            });
-        expect(toggle()).toBeChecked();
-        fireEvent.click(toggle());
-        expect(setIsAddFilterDisabled).toHaveBeenCalledWith(true);
-
-        mockDashboardContext.current.isAddFilterDisabled = true;
-        rerender(<ControlSidebar />);
-        expect(toggle()).not.toBeChecked();
-        fireEvent.click(toggle());
-        expect(setIsAddFilterDisabled).toHaveBeenLastCalledWith(false);
-    });
-
-    it('offers no viewers switch to a viewer, nor while a new filter has no field', () => {
+    it('heads the rail with the filter alone: its type and name, no count, menu or X', () => {
         setSidebar({
-            isViewer: true,
-            editing: null,
-            editingRule: null,
-            isSidebarOpen: false,
-        });
-        const { unmount } = renderWithProviders(<ControlSidebar />);
-        expect(screen.queryByRole('switch')).not.toBeInTheDocument();
-        unmount();
-
-        setSidebar({
-            isPlaceholder: true,
-            editingRule: makeRule({ target: { fieldId: '', tableName: '' } }),
-        });
-        renderWithProviders(<ControlSidebar />);
-        expect(screen.getByRole('button', { name: 'Cancel' })).toBeVisible();
-        expect(screen.queryByRole('switch')).not.toBeInTheDocument();
-    });
-
-    it('collapses the open filter from its chevron and its head, never from the input or buttons', () => {
-        const { collapse, discard } = setSidebar({
             isNew: false,
+            isDirty: false,
             editingRule: makeRule({ label: 'Order status' }),
         });
+        const { container } = renderWithProviders(
+            <ControlSidebar />,
+            filters([makeRule({ label: 'Order status' })]),
+        );
+        const header = container.querySelector(
+            '[data-controls-editor] > [class*="header"]',
+        ) as HTMLElement;
+        expect(header).toHaveTextContent(/^Order status$/);
+        expect(header.querySelector('svg')).not.toBeNull();
+        expect(container.querySelector('.mantine-Badge-root')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Close' })).toBeNull();
+        expect(screen.queryByRole('button', { name: 'More' })).toBeNull();
+        // Removing is the pill's X; Cancel is the way to discard
+        expect(
+            screen.queryByRole('button', { name: 'Remove filter' }),
+        ).toBeNull();
+        expect(screen.queryByRole('button', { name: /Discard/ })).toBeNull();
+        expect(
+            screen.queryByRole('button', { name: 'Collapse filter' }),
+        ).toBeNull();
+    });
+
+    it('badges a changed filter Edited, and a new one with a field New', () => {
+        setSidebar({ isNew: false, isDirty: true });
+        const { container, rerender } = renderWithProviders(<ControlSidebar />);
+        const badge = () => container.querySelector('.mantine-Badge-root');
+        expect(badge()).toHaveTextContent('Edited');
+
+        setSidebar({ isNew: true, isDirty: true });
+        rerender(<ControlSidebar />);
+        expect(badge()).toHaveTextContent('New');
+
+        // A new filter with no field yet has nothing to lose
+        setSidebar({
+            isNew: true,
+            isDirty: false,
+            isPlaceholder: true,
+            editingRule: placeholder,
+        });
+        rerender(<ControlSidebar />);
+        expect(badge()).toBeNull();
+    });
+
+    it('ends with Cancel and Apply, the only filled button', () => {
+        const { close, discard } = setSidebar({ isNew: false });
         renderWithProviders(<ControlSidebar />);
 
-        const chevron = screen.getByRole('button', { name: 'Collapse filter' });
-        expect(chevron).toHaveAttribute('aria-expanded', 'true');
-        fireEvent.click(chevron);
-        expect(collapse).toHaveBeenCalledTimes(1);
+        const apply = button('Apply');
+        expect(apply).toBeEnabled();
+        expect(apply).toHaveAttribute('data-controls-apply');
+        expect(button('Cancel')).toHaveAttribute('data-variant', 'default');
+        expect(screen.queryByRole('switch')).toBeNull();
+        expect(screen.queryByText(/stays off|to keep/)).toBeNull();
 
-        const input = screen.getByLabelText('Filter label');
-        fireEvent.click(input.closest('[class*="editedHead"]') as HTMLElement);
-        expect(collapse).toHaveBeenCalledTimes(2);
-
-        fireEvent.click(input);
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Discard changes' }),
-        );
-        expect(collapse).toHaveBeenCalledTimes(2);
+        fireEvent.click(apply);
+        expect(close).toHaveBeenCalledTimes(1);
+        fireEvent.click(button('Cancel'));
         expect(discard).toHaveBeenCalledTimes(1);
     });
 
-    it('reports the row under the pointer or focus as hovered, and its leaving', () => {
-        const { setHoveredFilterId, clearHoveredFilterId } = setSidebar({
-            isNew: false,
-        });
-        renderWithProviders(
-            <ControlSidebar />,
-            filters([
-                makeRule({}),
-                makeRule({ id: 'filter-2', label: 'Region' }),
-            ]),
-        );
-
-        const row = screen.getByRole('button', { name: /^Region/ });
-        expect(row).toHaveAttribute('data-controls-row', 'filter-2');
-        expect(row).toHaveAttribute('aria-expanded', 'false');
-        fireEvent.mouseEnter(row);
-        expect(setHoveredFilterId).toHaveBeenLastCalledWith('filter-2');
-        fireEvent.mouseLeave(row);
-        expect(clearHoveredFilterId).toHaveBeenLastCalledWith('filter-2');
-        act(() => row.focus());
-        expect(setHoveredFilterId).toHaveBeenLastCalledWith('filter-2');
-        act(() => row.blur());
-        expect(clearHoveredFilterId).toHaveBeenLastCalledWith('filter-2');
-        expect(setHoveredFilterId).not.toHaveBeenCalledWith(null);
-    });
-
-    it('opens a new filter on its field search, with Cancel as the only way out', () => {
-        const { discard, openNew, close } = setSidebar({
+    it('opens a new filter on its field search, with Create disabled until a field', () => {
+        const { discard } = setSidebar({
             isPlaceholder: true,
-            editingRule: makeRule({
-                target: { fieldId: '', tableName: '' },
-            }),
+            editingRule: placeholder,
         });
-        renderWithProviders(<ControlSidebar />);
+        const { container, rerender } = renderWithProviders(<ControlSidebar />);
 
         expect(screen.getByText('New filter')).toBeInTheDocument();
         expect(screen.queryByLabelText('Filter label')).not.toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: /Discard/ }),
-        ).not.toBeInTheDocument();
         expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
         expect(screen.queryByTestId('filter-settings')).not.toBeInTheDocument();
-        expect(
-            screen.getByText('Select a field to keep this filter'),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'Done' }),
-        ).not.toBeInTheDocument();
-        // No add row while the new filter is being made
-        expect(
-            screen.queryByRole('button', { name: /Add filter/ }),
-        ).not.toBeInTheDocument();
-
-        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        // No field yet: no type to show
+        expect(container.querySelector('[class*="header"] svg')).toBeNull();
+        expect(button('Create')).toBeDisabled();
+        fireEvent.click(button('Cancel'));
         expect(discard).toHaveBeenCalledTimes(1);
-        expect(openNew).not.toHaveBeenCalled();
-        expect(close).not.toHaveBeenCalled();
-    });
-
-    it('brings the add row back once the new filter is discarded', () => {
-        setSidebar({
-            isPlaceholder: true,
-            editingRule: makeRule({ target: { fieldId: '', tableName: '' } }),
-        });
-        const { rerender } = renderWithProviders(
-            <ControlSidebar />,
-            filters([makeRule({ id: 'filter-2', label: 'Region' })]),
-        );
-        expect(
-            screen.queryByRole('button', { name: 'Add' }),
-        ).not.toBeInTheDocument();
-        // An existing filter that lost its field is not a new one: the row stays
-        setSidebar({
-            isNew: false,
-            isPlaceholder: true,
-            editing: { filterId: 'filter-2' },
-            editingRule: makeRule({
-                id: 'filter-2',
-                target: { fieldId: '', tableName: '' },
-            }),
-        });
-        rerender(<ControlSidebar />);
-        expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
-
-        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
-        rerender(<ControlSidebar />);
-        expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
-    });
-
-    it('counts the filters in the header from 1, with no badge at 0', () => {
-        setSidebar({ editing: null, editingRule: null });
-        const { container, unmount } = renderWithProviders(
-            <ControlSidebar />,
-            filters([]),
-        );
-        expect(container.querySelector('.mantine-Badge-root')).toBeNull();
-        unmount();
-
-        const { container: withOne, unmount: unmountOne } = renderWithProviders(
-            <ControlSidebar />,
-            filters([makeRule({})]),
-        );
-        expect(withOne.querySelector('.mantine-Badge-root')).toHaveTextContent(
-            /^1 filter$/,
-        );
-        unmountOne();
-
-        const { container: withTwo } = renderWithProviders(
-            <ControlSidebar />,
-            filters([makeRule({}), makeRule({ id: 'filter-2' })]),
-        );
-        expect(withTwo.querySelector('.mantine-Badge-root')).toHaveTextContent(
-            /^2 filters$/,
-        );
-    });
-
-    it('shows no type icon in the head until the new filter has a field', () => {
-        setSidebar({
-            isPlaceholder: true,
-            editingRule: makeRule({
-                target: { fieldId: '', tableName: '' },
-            }),
-        });
-        const { container, rerender } = renderWithProviders(<ControlSidebar />);
-        const headIcon = () =>
-            container.querySelector('[class*="editedHead"] [class*="rowIcon"]');
-        expect(headIcon()).toBeNull();
 
         setSidebar({ isPlaceholder: false, editingRule: makeRule({}) });
         rerender(<ControlSidebar />);
-        expect(headIcon()).not.toBeNull();
+        expect(button('Create')).toBeEnabled();
     });
 
-    it('keeps the name of an existing control left with no field', () => {
+    it('keeps the name of an existing control left with no field, Apply disabled', () => {
         setSidebar({
             isNew: false,
             isPlaceholder: true,
@@ -773,10 +358,113 @@ describe('ControlSidebar', () => {
         const label = screen.getByLabelText('Filter label');
         expect(label).toHaveValue('Order status');
         expect(label).toHaveAttribute('placeholder', 'Status');
-        expect(
-            screen.getByText('Select a field to keep this filter'),
-        ).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Cancel' })).toBeVisible();
+        expect(button('Apply')).toBeDisabled();
+    });
+
+    describe('a pill clicked with changes unapplied', () => {
+        const region = makeRule({ id: 'filter-2', label: 'Region' });
+
+        it('asks in the footer: Discard or Apply, then that filter opens', () => {
+            const { resolvePending, close, discard } = setSidebar({
+                isNew: false,
+                pendingRule: region,
+            });
+            renderWithProviders(<ControlSidebar />);
+
+            expect(
+                screen.getByText('Apply before opening Region?'),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Cancel' }),
+            ).not.toBeInTheDocument();
+            fireEvent.click(button('Discard'));
+            expect(resolvePending).toHaveBeenLastCalledWith(false);
+            fireEvent.click(button('Apply'));
+            expect(resolvePending).toHaveBeenLastCalledWith(true);
+            expect(close).not.toHaveBeenCalled();
+            expect(discard).not.toHaveBeenCalled();
+        });
+
+        it('keeps the focused Apply as the footer changes', () => {
+            setSidebar({ isNew: false });
+            const { rerender } = renderWithProviders(<ControlSidebar />);
+            act(() => button('Apply').focus());
+
+            setSidebar({ isNew: false, pendingRule: region });
+            rerender(<ControlSidebar />);
+            expect(button('Apply')).toHaveFocus();
+        });
+
+        it('reads Create for a new filter, by the field name of the pill', () => {
+            setSidebar({
+                isNew: true,
+                pendingRule: makeRule({ id: 'filter-2' }),
+            });
+            renderWithProviders(<ControlSidebar />);
+            expect(
+                screen.getByText('Create before opening Status?'),
+            ).toBeInTheDocument();
+            expect(button('Create')).toBeEnabled();
+        });
+    });
+
+    describe('section', () => {
+        const withSections = () => {
+            mockDashboardContext.current.dashboard = {
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: [
+                        { id: 'section-a', name: 'Dates' },
+                        { id: 'section-b', name: 'Regions' },
+                    ],
+                },
+            };
+        };
+
+        it('picks the section live: None, then each section in order', async () => {
+            withSections();
+            const { updateFilter, editingRule } = setSidebar({
+                editingRule: makeRule({ sectionId: 'section-b' }),
+            });
+            renderWithProviders(<ControlSidebar />);
+
+            const select = screen.getByRole('combobox', { name: 'Section' });
+            expect(select).toHaveValue('Regions');
+            await userEvent.click(select);
+            expect(
+                screen
+                    .getAllByRole('option')
+                    .map((option) => option.textContent),
+            ).toEqual(['None', 'Dates', 'Regions']);
+            await userEvent.click(
+                screen.getByRole('option', { name: 'Dates' }),
+            );
+            expect(updateFilter).toHaveBeenLastCalledWith({
+                ...editingRule,
+                sectionId: 'section-a',
+            });
+
+            await userEvent.click(select);
+            await userEvent.click(screen.getByRole('option', { name: 'None' }));
+            const unsectioned = vi.mocked(updateFilter).mock.lastCall?.[0];
+            expect(unsectioned && 'sectionId' in unsectioned).toBe(false);
+        });
+
+        it('is not offered without sections, nor to a viewer', () => {
+            setSidebar({});
+            const { unmount } = renderWithProviders(<ControlSidebar />);
+            expect(
+                screen.queryByRole('combobox', { name: 'Section' }),
+            ).not.toBeInTheDocument();
+            unmount();
+
+            withSections();
+            setSidebar({ isViewer: true });
+            renderWithProviders(<ControlSidebar />);
+            expect(
+                screen.queryByRole('combobox', { name: 'Section' }),
+            ).not.toBeInTheDocument();
+        });
     });
 
     it('names the open filter after its field while it has no label', () => {
@@ -863,30 +551,6 @@ describe('ControlSidebar', () => {
         );
     });
 
-    it('closes with a missing default value and says it stays off', () => {
-        const { close } = setSidebar({
-            editingRule: makeRule({ label: 'Order status', values: [] }),
-        });
-        renderWithProviders(<ControlSidebar />);
-
-        expect(
-            screen.getByText('No default value set, so the default stays off'),
-        ).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-        expect(close).toHaveBeenCalledTimes(1);
-    });
-
-    it('says nothing in the footer for a filter that can be kept', () => {
-        setSidebar({
-            isNew: false,
-            editingRule: makeRule({ label: 'Order status', disabled: true }),
-        });
-        renderWithProviders(<ControlSidebar />);
-
-        expect(screen.queryByText(/to keep/)).not.toBeInTheDocument();
-        expect(screen.queryByText(/stays off/)).not.toBeInTheDocument();
-    });
-
     it('moves focus to the label when the editor opens', () => {
         setSidebar({});
         renderWithProviders(<ControlSidebar />);
@@ -915,283 +579,6 @@ describe('ControlSidebar', () => {
             key: 'Enter',
         });
         expect(close).not.toHaveBeenCalled();
-    });
-
-    it('closes on Done and the X, adds from the add row, and discards a new filter from its icon', async () => {
-        const { close, discard, openNew } = setSidebar({
-            editingRule: makeRule({ label: 'Order status' }),
-        });
-        renderWithProviders(
-            <ControlSidebar />,
-            filters([makeRule({ label: 'Order status' })]),
-        );
-
-        expect(screen.getByRole('heading', { name: 'Filters' })).toBeVisible();
-        // The count badge reads as words, not a bare number
-        expect(
-            screen.getByRole('heading', { name: 'Filters' }).nextElementSibling
-                ?.textContent,
-        ).toMatch(/^1 filter$/);
-        fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-        expect(close).toHaveBeenCalledTimes(1);
-
-        fireEvent.click(screen.getByRole('button', { name: 'Close' }));
-        expect(close).toHaveBeenCalledTimes(2);
-
-        await userEvent.click(screen.getByRole('button', { name: 'Add' }));
-        await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
-        expect(openNew).toHaveBeenCalledTimes(1);
-
-        expect(screen.queryByLabelText('More actions')).not.toBeInTheDocument();
-        expect(
-            screen.queryByLabelText('Remove filter'),
-        ).not.toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'Discard filter' }));
-        expect(discard).toHaveBeenCalledTimes(1);
-    });
-
-    it('opens in place on Enter, folds back on Escape with focus on the row, and Section hands focus to the name', async () => {
-        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
-        renderWithProviders(<ControlSidebar />);
-        const add = () => screen.getByRole('button', { name: 'Add' });
-
-        add().focus();
-        await userEvent.keyboard('{Enter}');
-        expect(screen.getByRole('button', { name: 'Filter' })).toHaveFocus();
-        expect(screen.getByRole('button', { name: 'Section' })).toBeVisible();
-        expect(screen.getByRole('button', { name: 'Cancel' })).toBeVisible();
-        await userEvent.keyboard('{Escape}');
-        expect(
-            screen.queryByRole('button', { name: 'Filter' }),
-        ).not.toBeInTheDocument();
-        expect(add()).toHaveFocus();
-        // The rail itself did not take that Escape
-        expect(screen.getByRole('heading', { name: 'Filters' })).toBeVisible();
-
-        await userEvent.click(add());
-        await userEvent.click(screen.getByRole('button', { name: 'Section' }));
-        const input = screen.getByLabelText('Section name');
-        await act(() => new Promise((resolve) => setTimeout(resolve)));
-        expect(input).toHaveFocus();
-    });
-
-    it('ends the list with an add row that opens "Add filter" and "New section"', async () => {
-        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
-        renderWithProviders(
-            <ControlSidebar />,
-            filters([
-                makeRule({ label: 'Order status' }),
-                makeRule({ id: 'filter-2', label: 'Region' }),
-            ]),
-        );
-        const addRow = screen.getByRole('button', {
-            name: 'Add',
-        });
-        expect(addRow).toHaveAttribute('data-controls-new-section');
-        // After every row, and not one of the list's roving stops
-        expect(
-            screen
-                .getByRole('button', { name: /^Region/ })
-                .compareDocumentPosition(addRow) &
-                Node.DOCUMENT_POSITION_FOLLOWING,
-        ).toBeTruthy();
-        expect(addRow).not.toHaveAttribute('data-controls-stop');
-        expect(addRow.tabIndex).toBe(0);
-        expect(addRow).toHaveAttribute('aria-expanded', 'false');
-
-        // Opened in place: the label, Filter, Section and an X, focus on Filter
-        await userEvent.click(addRow);
-        expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
-        const filter = screen.getByRole('button', { name: 'Filter' });
-        expect(filter).toHaveFocus();
-        expect(screen.getByRole('button', { name: 'Section' })).toBeVisible();
-        const cancel = screen.getByRole('button', { name: 'Cancel' });
-        expect(
-            filter.parentElement?.querySelector('[data-controls-new-section]'),
-        ).toBeNull();
-        // The X folds it with focus back on the row
-        await userEvent.click(cancel);
-        expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
-        // Focus leaving folds it quietly
-        await userEvent.click(screen.getByRole('button', { name: 'Add' }));
-        act(() => screen.getByRole('button', { name: 'Done' }).focus());
-        expect(
-            screen.queryByRole('button', { name: 'Filter' }),
-        ).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus();
-    });
-
-    it('folds when a click lands outside it', async () => {
-        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
-        renderWithProviders(<ControlSidebar />);
-        await userEvent.click(screen.getByRole('button', { name: 'Add' }));
-        expect(screen.getByRole('button', { name: 'Filter' })).toBeVisible();
-        fireEvent.mouseDown(screen.getByRole('heading', { name: 'Filters' }));
-        expect(
-            screen.queryByRole('button', { name: 'Filter' }),
-        ).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Add' })).toHaveAttribute(
-            'aria-expanded',
-            'false',
-        );
-    });
-
-    it('hides the row while a new section is named from it, and brings it back folded after Cancel', async () => {
-        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
-        renderWithProviders(<ControlSidebar />);
-        await userEvent.click(screen.getByRole('button', { name: 'Add' }));
-        await userEvent.click(screen.getByRole('button', { name: 'Section' }));
-        expect(screen.getByLabelText('Section name')).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: /^Add$|^Section$/ }),
-        ).not.toBeInTheDocument();
-
-        await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-        const add = screen.getByRole('button', { name: 'Add' });
-        expect(add).toHaveAttribute('aria-expanded', 'false');
-        expect(add).toHaveFocus();
-    });
-
-    it('hides the row while a new filter is started from it, then shows it folded again', async () => {
-        const { openNew } = setSidebar({
-            editing: null,
-            editingRule: null,
-            isSidebarOpen: false,
-        });
-        const { rerender } = renderWithProviders(
-            <ControlSidebar />,
-            filters([makeRule({ label: 'Order status' })]),
-        );
-        await userEvent.click(screen.getByRole('button', { name: 'Add' }));
-        await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
-        expect(openNew).toHaveBeenCalledTimes(1);
-
-        setSidebar({
-            isPlaceholder: true,
-            editingRule: makeRule({
-                id: 'new',
-                target: { fieldId: '', tableName: '' },
-            }),
-            editing: { filterId: 'new' },
-        });
-        rerender(<ControlSidebar />);
-        expect(
-            screen.queryByRole('button', { name: /^Add$|^Filter$/ }),
-        ).not.toBeInTheDocument();
-
-        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
-        rerender(<ControlSidebar />);
-        expect(screen.getByRole('button', { name: 'Add' })).toHaveAttribute(
-            'aria-expanded',
-            'false',
-        );
-    });
-
-    it('keeps "Select filters" in the header\'s "..." menu, which enters select mode', async () => {
-        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
-        renderWithProviders(
-            <ControlSidebar />,
-            filters([makeRule({ label: 'Order status' })]),
-        );
-        await userEvent.click(screen.getByRole('button', { name: 'More' }));
-        expect(
-            (await screen.findAllByRole('menuitem')).map(
-                (item) => item.textContent,
-            ),
-        ).toEqual(['Select filters']);
-        await userEvent.click(
-            screen.getByRole('menuitem', { name: 'Select filters' }),
-        );
-        expect(screen.getAllByRole('checkbox')).toHaveLength(1);
-        // Hidden while selecting
-        expect(
-            screen.queryByRole('button', { name: 'More' }),
-        ).not.toBeInTheDocument();
-    });
-
-    it('has no add row and no "..." for a viewer who cannot add', () => {
-        setSidebar({
-            editing: null,
-            editingRule: null,
-            isSidebarOpen: false,
-            isViewer: true,
-            canAddFilters: false,
-        });
-        renderWithProviders(<ControlSidebar />);
-        expect(
-            screen.queryByRole('button', { name: /Add filter/ }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: 'More' }),
-        ).not.toBeInTheDocument();
-    });
-
-    it('sends focus to the add row once the last row is removed', () => {
-        const removeViaStore = vi.fn();
-        setSidebar({
-            editing: null,
-            editingRule: null,
-            isSidebarOpen: false,
-            removeFilterById: removeViaStore,
-        });
-        const { store } = renderWithProviders(
-            <ControlSidebar />,
-            filters([makeRule({ label: 'Order status' })]),
-        );
-        removeViaStore.mockImplementation((ruleId: string) =>
-            store.dispatch(
-                dashboardFiltersActions.setDashboardFilters({
-                    ...selectDashboardFilters(store.getState()),
-                    dimensions: selectDashboardFilters(
-                        store.getState(),
-                    ).dimensions.filter((rule) => rule.id !== ruleId),
-                }),
-            ),
-        );
-        const remove = screen.getByRole('button', { name: 'Remove filter' });
-        fireEvent.click(remove);
-        fireEvent.click(remove);
-        expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
-    });
-
-    it('offers Discard changes only once an existing filter has changed', () => {
-        const { discard } = setSidebar({
-            isNew: false,
-            isDirty: false,
-            editingRule: makeRule({ label: 'Order status' }),
-        });
-        const { rerender } = renderWithProviders(<ControlSidebar />);
-        expect(
-            screen.queryByRole('button', { name: /Discard/ }),
-        ).not.toBeInTheDocument();
-
-        setSidebar({
-            isNew: false,
-            isDirty: true,
-            discard,
-            editingRule: makeRule({ label: 'Order status' }),
-        });
-        rerender(<ControlSidebar />);
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Discard changes' }),
-        );
-        expect(discard).toHaveBeenCalledTimes(1);
-    });
-
-    it('removes an existing filter on the second click', async () => {
-        const { removeFilter } = setSidebar({
-            isNew: false,
-            isDirty: false,
-            editingRule: makeRule({ label: 'Order status' }),
-        });
-        renderWithProviders(<ControlSidebar />);
-
-        const remove = screen.getByRole('button', { name: 'Remove filter' });
-        fireEvent.click(remove);
-        expect(removeFilter).not.toHaveBeenCalled();
-        expect(remove).toHaveAttribute('aria-pressed', 'true');
-        fireEvent.click(remove);
-        expect(removeFilter).toHaveBeenCalledTimes(1);
     });
 
     describe('label draft', () => {
@@ -1295,12 +682,16 @@ describe('ControlSidebar', () => {
             );
         });
 
-        it('sends the typed label before Done closes', async () => {
-            const { updateFilter, close, editingRule } = setSidebar({});
+        it('sends the typed label before Apply closes', async () => {
+            const { updateFilter, close, editingRule } = setSidebar({
+                isNew: false,
+            });
             renderWithProviders(<ControlSidebar />);
 
             await userEvent.type(labelInput(), 'Order status');
-            await userEvent.click(screen.getByRole('button', { name: 'Done' }));
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Apply' }),
+            );
 
             expect(updateFilter).toHaveBeenLastCalledWith({
                 ...editingRule,
@@ -1365,121 +756,14 @@ describe('ControlSidebar', () => {
     });
 
     describe('for a viewer', () => {
-        const saved = makeRule({ id: 'saved', label: 'Order status' });
         const own = makeRule({ id: 'own', label: undefined });
 
-        it('lists only their own filters, marked "Added by you"', () => {
-            setSidebar({ isViewer: true, editing: null, editingRule: null });
-            renderWithProviders(
-                <ControlSidebar />,
-                filters([saved]),
-                filters([own]),
-            );
-            const rows = screen
-                .getAllByRole('button', { expanded: false })
-                .filter((row) => row.hasAttribute('data-controls-row'));
-            expect(rows.map((row) => row.dataset.controlsRow)).toEqual(['own']);
-            expect(rows[0]).toHaveTextContent('Added by you');
-            expect(screen.getByText('1')).toBeInTheDocument();
-        });
-
-        it('lists the saved sections read-only after their own filters', async () => {
-            mockDashboardContext.current.dashboard = {
-                config: {
-                    isDateZoomDisabled: false,
-                    controlSections: [
-                        { id: 'section-a', name: 'Dates' },
-                        { id: 'section-b', name: 'Empty' },
-                    ],
-                },
-            };
-            const open = vi.fn();
+        it('carries the class an embed gives the rail', () => {
             setSidebar({
                 isViewer: true,
-                editing: null,
-                editingRule: null,
-                isSidebarOpen: false,
-                open,
+                editing: { filterId: 'own' },
+                editingRule: own,
             });
-            const { container } = renderWithProviders(
-                <ControlSidebar />,
-                filters([
-                    makeRule({
-                        id: 'created',
-                        label: 'Created',
-                        sectionId: 'section-a',
-                    }),
-                    saved,
-                ]),
-                filters([own]),
-            );
-            // Saved sections open collapsed for a viewer too
-            expect(
-                container.querySelector('[data-controls-row="created"]'),
-            ).toBeNull();
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Expand section Dates' }),
-            );
-            const listed = [
-                ...container.querySelectorAll(
-                    '[data-controls-row], [data-controls-section]',
-                ),
-            ].map(
-                (node) =>
-                    node.getAttribute('data-controls-row') ??
-                    `# ${node.textContent}`,
-            );
-            expect(listed).toEqual(['own', '# Dates1 filter', 'created']);
-            expect(screen.queryByText('Empty')).not.toBeInTheDocument();
-            // The badge counts their own filters only
-            expect(screen.getByText('1')).toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: /^Drag to reorder/ }),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: 'Section Dates actions' }),
-            ).not.toBeInTheDocument();
-            // A viewer adds at once from the list's last row, and has no "..."
-            expect(
-                screen.queryByRole('button', { name: 'Add' }),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: 'More' }),
-            ).not.toBeInTheDocument();
-            const addRow = screen.getByRole('button', { name: 'Add filter' });
-            expect(addRow).toHaveAttribute('data-controls-new-section');
-            await userEvent.click(addRow);
-            expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
-
-            const row = container.querySelector<HTMLElement>(
-                '[data-controls-row="created"]',
-            );
-            expect(row?.parentElement?.className).toContain('sectionRow');
-            expect(row).toHaveAttribute('aria-disabled', 'true');
-            expect(row).not.toHaveTextContent('Added by you');
-            expect(row).toHaveAccessibleDescription(
-                'Set this filter from the bar',
-            );
-            fireEvent.click(row as Element);
-            expect(open).not.toHaveBeenCalled();
-            fireEvent.mouseEnter(row as Element);
-            expect(
-                await screen.findByText('Set this filter from the bar'),
-            ).toBeInTheDocument();
-
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Collapse section Dates' }),
-            );
-            expect(
-                container.querySelector('[data-controls-row="created"]'),
-            ).toBeNull();
-            expect(
-                container.querySelector('[data-controls-row="own"]'),
-            ).not.toBeNull();
-        });
-
-        it('carries the class an embed gives the rail', () => {
-            setSidebar({ isViewer: true, editing: null, editingRule: null });
             const { container } = renderWithProviders(
                 <RailContractClasses.Provider
                     value={{
@@ -1494,44 +778,6 @@ describe('ControlSidebar', () => {
             expect(
                 container.querySelector('[data-controls-editor]'),
             ).toHaveClass('ld-dashboard-filter-rail');
-        });
-
-        it('says which field a row cannot resolve, as the invalid pill', async () => {
-            const open = vi.fn();
-            setSidebar({
-                isViewer: true,
-                editing: null,
-                editingRule: null,
-                open,
-            });
-            const { container } = renderWithProviders(
-                <ControlSidebar />,
-                filters([]),
-                filters([
-                    {
-                        ...own,
-                        target: { fieldId: 'orders_gone', tableName: 'orders' },
-                    },
-                ]),
-            );
-            const row = container.querySelector<HTMLElement>(
-                '[data-controls-row="own"]',
-            );
-            expect(row).toHaveAttribute('tabindex', '0');
-            expect(row).toHaveAttribute('role', 'button');
-            expect(row).toHaveAttribute('aria-disabled', 'true');
-            expect(row).toHaveAccessibleName(/Added by you/);
-            expect(row).toHaveAccessibleDescription(
-                'Tried to reference field with unknown id: orders_gone',
-            );
-            fireEvent.click(row as Element);
-            expect(open).not.toHaveBeenCalled();
-            fireEvent.mouseEnter(row as Element);
-            expect(
-                await screen.findByText(
-                    'Tried to reference field with unknown id: orders_gone',
-                ),
-            ).toBeInTheDocument();
         });
 
         it('sends focus to the value once a new filter gets a field', () => {
@@ -1574,8 +820,8 @@ describe('ControlSidebar', () => {
             );
         });
 
-        it('edits their own filter with no label input, and can remove it', () => {
-            setSidebar({
+        it('edits their own filter in the same editor: no label input, Cancel and Apply', () => {
+            const { close, discard } = setSidebar({
                 isViewer: true,
                 isNew: false,
                 editing: { filterId: 'own' },
@@ -1583,1540 +829,27 @@ describe('ControlSidebar', () => {
             });
             renderWithProviders(
                 <ControlSidebar />,
-                filters([saved]),
+                filters([]),
                 filters([own]),
             );
             expect(
                 screen.queryByRole('textbox', { name: 'Filter label' }),
             ).not.toBeInTheDocument();
-            expect(
-                screen.getByRole('button', { name: 'Remove filter' }),
-            ).toBeInTheDocument();
+            fireEvent.click(button('Apply'));
+            expect(close).toHaveBeenCalledTimes(1);
+            fireEvent.click(button('Cancel'));
+            expect(discard).toHaveBeenCalledTimes(1);
         });
-    });
 
-    describe('sections', () => {
-        const sections = [
-            { id: 'section-a', name: 'Dates' },
-            { id: 'section-b', name: 'Regions' },
-        ];
-        const sectioned = () =>
-            filters([
-                makeRule({
-                    id: 'filter-2',
-                    label: 'Region',
-                    sectionId: 'section-b',
-                }),
-                makeRule({ label: 'Order status' }),
-                makeRule({
-                    id: 'filter-3',
-                    label: 'Created',
-                    sectionId: 'section-a',
-                }),
-                makeRule({ id: 'filter-4', label: 'Lost', sectionId: 'gone' }),
-            ]);
-        const closedRail = () =>
+        it('creates a new filter of theirs with Create', () => {
             setSidebar({
-                editing: null,
-                editingRule: null,
-                isSidebarOpen: false,
-            });
-        // The rail opens with every section collapsed; most of these look
-        // at the rows under their headers
-        const expandAll = () =>
-            screen
-                .queryAllByRole('button', { name: /^Expand section/ })
-                .forEach((chevron) => fireEvent.click(chevron));
-        const rowNames = () =>
-            [
-                ...document.querySelectorAll(
-                    '[data-controls-row], [data-controls-section]',
-                ),
-            ].map((node) =>
-                node.hasAttribute('data-controls-row')
-                    ? node.querySelector('p')?.textContent
-                    : `# ${node.textContent}`,
-            );
-
-        beforeEach(() => {
-            mockDashboardContext.current.dashboard = {
-                config: {
-                    isDateZoomDisabled: false,
-                    controlSections: sections,
-                },
-            };
-            mockDashboardContext.current.setDashboardFilters = vi.fn();
-            mockDashboardContext.current.setHaveFiltersChanged = vi.fn();
-        });
-
-        it('lists unsectioned rows first, then each section with its count', () => {
-            closedRail();
-            renderWithProviders(<ControlSidebar />, sectioned());
-            expandAll();
-
-            expect(rowNames()).toEqual([
-                'Order status',
-                'Lost',
-                '# Dates1 filter',
-                'Created',
-                '# Regions1 filter',
-                'Region',
-            ]);
-        });
-
-        // The keyboard sensor: Space on a grip picks its row up
-        const grips = () =>
-            screen.getAllByRole('button', {
-                name: /^Drag to reorder (?!section)/,
-            });
-        const pickUp = (grip: HTMLElement) =>
-            act(() => {
-                grip.focus();
-                fireEvent.keyDown(grip, { code: 'Space', key: ' ' });
-            });
-
-        it('indents the rows of a section, not the unsectioned ones', () => {
-            closedRail();
-            renderWithProviders(<ControlSidebar />, sectioned());
-            expandAll();
-            const wrapperOf = (id: string) =>
-                document.querySelector(`[data-controls-row="${id}"]`)
-                    ?.parentElement?.className ?? '';
-            expect(wrapperOf('filter-3')).toContain('sectionRow');
-            expect(wrapperOf('filter-1')).not.toContain('sectionRow');
-            expect(wrapperOf('filter-4')).not.toContain('sectionRow');
-        });
-
-        it('mounts nothing on pick-up: only the overlay copy, gone on Escape', async () => {
-            closedRail();
-            const { container } = renderWithProviders(
-                <ControlSidebar />,
-                filters([
-                    makeRule({ label: 'Order status' }),
-                    makeRule({
-                        id: 'filter-3',
-                        label: 'Created',
-                        sectionId: 'section-a',
-                    }),
-                ]),
-            );
-            expandAll();
-            const rows = () =>
-                container.querySelectorAll('[data-controls-row]').length;
-            expect(rows()).toBe(2);
-            expect(screen.getAllByText('Created')).toHaveLength(1);
-
-            pickUp(grips()[1]);
-            expect(rows()).toBe(2);
-            expect(screen.getAllByText('Created')).toHaveLength(2);
-            expect(
-                container.querySelector('[data-controls-row="filter-3"]')
-                    ?.parentElement,
-            ).toHaveAttribute('data-dragging');
-            expect(screen.queryByText(/Drag|Drop/)).not.toBeInTheDocument();
-            // The keyboard sensor falls back to the nearest centre: one
-            // target, a row, never the source row
-            const over = container.querySelectorAll('[data-over]');
-            expect(over).toHaveLength(1);
-            expect(over[0].className).toContain('sortableRow');
-            expect(over[0]).not.toHaveAttribute('data-dragging');
-
-            // The sensor listens for Escape from the next tick on
-            await act(() => new Promise((resolve) => setTimeout(resolve)));
-            fireEvent.keyDown(document, { code: 'Escape', key: 'Escape' });
-            expect(rows()).toBe(2);
-            expect(
-                container.querySelector('[data-controls-row="filter-3"]')
-                    ?.parentElement,
-            ).not.toHaveAttribute('data-dragging');
-        });
-
-        it('counts an empty section and hides rows when collapsed', () => {
-            closedRail();
-            renderWithProviders(
-                <ControlSidebar />,
-                filters([
-                    makeRule({ label: 'Created', sectionId: 'section-a' }),
-                ]),
-            );
-            expandAll();
-
-            expect(screen.getByText('0 filters')).toBeInTheDocument();
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Collapse section Dates' }),
-            );
-            expect(
-                screen.queryByRole('button', { name: /^Created/ }),
-            ).not.toBeInTheDocument();
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Expand section Dates' }),
-            );
-            expect(
-                screen.getByRole('button', { name: /^Created/ }),
-            ).toBeVisible();
-        });
-
-        const newSection = async () => {
-            await userEvent.click(screen.getByRole('button', { name: 'Add' }));
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Section' }),
-            );
-        };
-
-        it('adds a section named on Enter and drops one left empty on Escape', async () => {
-            closedRail();
-            const { store } = renderWithProviders(<ControlSidebar />);
-            expandAll();
-
-            await newSection();
-            const input = screen.getByLabelText('Section name');
-            expect(input).toHaveFocus();
-            // The footer is the new filter's: a hint and Cancel, no switch or Done
-            expect(
-                screen.getByText('Name this section to keep it'),
-            ).toBeInTheDocument();
-            expect(
-                screen.getByRole('button', { name: 'Cancel' }),
-            ).toBeVisible();
-            expect(screen.queryByRole('switch')).not.toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: 'Done' }),
-            ).not.toBeInTheDocument();
-            // The add row waits for the name
-            expect(
-                screen.queryByRole('button', { name: 'Add' }),
-            ).not.toBeInTheDocument();
-            // Nothing else on the header takes a click: a blur would drop it
-            expect(
-                screen.queryByRole('button', {
-                    name: /Untitled section actions/,
-                }),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.getByRole('button', {
-                    name: 'Collapse section Untitled section',
-                }),
-            ).toBeDisabled();
-            fireEvent.change(input, { target: { value: ' Time ' } });
-            fireEvent.keyDown(input, { key: 'Enter' });
-            expect(selectControlSections(store.getState())).toEqual([
-                ...sections,
-                { id: expect.any(String), name: 'Time' },
-            ]);
-            expect(screen.getByText('Time')).toBeInTheDocument();
-            expect(
-                screen.getByRole('button', { name: 'Section Time actions' }),
-            ).toHaveFocus();
-            expect(
-                screen.getByRole('button', { name: 'Add' }),
-            ).toBeInTheDocument();
-
-            await newSection();
-            fireEvent.keyDown(screen.getByLabelText('Section name'), {
-                key: 'Escape',
-            });
-            expect(
-                screen.queryByLabelText('Section name'),
-            ).not.toBeInTheDocument();
-            expect(selectControlSections(store.getState())).toHaveLength(3);
-            expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
-        });
-
-        it('drops a new section from the footer Cancel, even with a name typed, focus back on the add row', async () => {
-            closedRail();
-            const { store } = renderWithProviders(<ControlSidebar />);
-            expandAll();
-            await newSection();
-            const input = screen.getByLabelText('Section name');
-            fireEvent.change(input, { target: { value: 'Time' } });
-
-            // The click moves focus to the Cancel first: that blur commits nothing
-            const cancel = screen.getByRole('button', { name: 'Cancel' });
-            await userEvent.click(cancel);
-            expect(selectControlSections(store.getState())).toHaveLength(2);
-            expect(
-                screen.queryByLabelText('Section name'),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.queryByText('Name this section to keep it'),
-            ).not.toBeInTheDocument();
-            // The normal footer is back
-            expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
-            expect(screen.getByRole('switch')).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
-
-            // A rename keeps the normal footer
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Section Dates actions' }),
-            );
-            await userEvent.click(
-                await screen.findByRole('menuitem', { name: 'Rename' }),
-            );
-            expect(screen.getByLabelText('Section name')).toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: 'Cancel' }),
-            ).not.toBeInTheDocument();
-            expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
-        });
-
-        it('offers no new section while a new filter has no field', () => {
-            setSidebar({
-                isPlaceholder: true,
-                editingRule: makeRule({
-                    target: { fieldId: '', tableName: '' },
-                }),
+                isViewer: true,
+                isNew: true,
+                editing: { filterId: 'own' },
+                editingRule: own,
             });
             renderWithProviders(<ControlSidebar />);
-            expandAll();
-            expect(screen.getByText('New filter')).toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: /^Add$|^Section$/ }),
-            ).not.toBeInTheDocument();
-        });
-
-        it('folds the expanded filter before opening a new section', async () => {
-            const { collapse } = setSidebar({
-                isNew: false,
-                editingRule: makeRule({ label: 'Order status' }),
-            });
-            const { rerender } = renderWithProviders(
-                <ControlSidebar />,
-                filters([makeRule({ label: 'Order status' })]),
-            );
-            expandAll();
-            expect(screen.getByLabelText('Filter label')).toBeInTheDocument();
-
-            await newSection();
-            expect(collapse).toHaveBeenCalledTimes(1);
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                isSidebarOpen: false,
-                collapse,
-            });
-            rerender(<ControlSidebar />);
-            expect(
-                screen.queryByLabelText('Filter label'),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.getByRole('button', { name: /^Order status/ }),
-            ).toBeVisible();
-            expect(screen.getByLabelText('Section name')).toBeInTheDocument();
-            // Drag waits for the name
-            expect(
-                screen.queryByRole('button', {
-                    name: /^Drag to reorder (?!section)/,
-                }),
-            ).not.toBeInTheDocument();
-        });
-
-        it('sets the saved default from the menu without folding this rail', async () => {
-            closedRail();
-            const { store } = renderWithProviders(
-                <ControlSidebar />,
-                sectioned(),
-            );
-            expandAll();
-            expect(
-                screen.getByRole('button', { name: /^Created/ }),
-            ).toBeVisible();
-
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Section Dates actions' }),
-            );
-            const item = await screen.findByRole('menuitem', {
-                name: 'Collapsed by default',
-            });
-            const box = () => within(item).getByRole('checkbox');
-            expect(box()).not.toBeChecked();
-            await userEvent.click(item);
-            expect(selectControlSections(store.getState())[0]).toEqual({
-                ...sections[0],
-                collapsed: true,
-            });
-            // The menu stays open and shows the change
-            expect(box()).toBeChecked();
-            // The rail keeps the fold it opened with
-            expect(
-                screen.getByRole('button', { name: /^Created/ }),
-            ).toBeVisible();
-            expect(
-                screen.getByRole('button', { name: 'Collapse section Dates' }),
-            ).toBeInTheDocument();
-
-            // The box itself toggles too, once
-            await userEvent.click(box());
-            // Unticked is saved too, so the bar opens it whatever its size
-            expect(selectControlSections(store.getState())[0]).toEqual({
-                ...sections[0],
-                collapsed: false,
-            });
-            expect(
-                screen.getByRole('button', { name: /^Created/ }),
-            ).toBeVisible();
-        });
-
-        it('ticks a dense section with no saved choice, and saves it open when unticked', async () => {
-            closedRail();
-            const { store } = renderWithProviders(
-                <ControlSidebar />,
-                filters(
-                    Array.from({ length: 7 }, (_, index) =>
-                        makeRule({
-                            id: `dense-${index}`,
-                            label: `Dense ${index}`,
-                            sectionId: 'section-a',
-                        }),
-                    ),
-                ),
-            );
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Section Dates actions' }),
-            );
-            const item = await screen.findByRole('menuitem', {
-                name: 'Collapsed by default',
-            });
-            // The bar starts it collapsed, so the box says so
-            expect(within(item).getByRole('checkbox')).toBeChecked();
-            await userEvent.click(item);
-            expect(selectControlSections(store.getState())[0]).toEqual({
-                ...sections[0],
-                collapsed: false,
-            });
-            expect(within(item).getByRole('checkbox')).not.toBeChecked();
-        });
-
-        it('opens with every section collapsed, whatever the saved default or size', () => {
-            mockDashboardContext.current.dashboard = {
-                config: {
-                    isDateZoomDisabled: false,
-                    controlSections: [
-                        sections[0],
-                        { ...sections[1], collapsed: false },
-                    ],
-                },
-            };
-            closedRail();
-            renderWithProviders(<ControlSidebar />, sectioned());
-            expect(
-                screen.getByRole('button', { name: 'Expand section Dates' }),
-            ).toBeInTheDocument();
-            expect(
-                screen.getByRole('button', { name: 'Expand section Regions' }),
-            ).toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: /^Created/ }),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: /^Region/ }),
-            ).not.toBeInTheDocument();
-            // The loose rows are there
-            expect(
-                screen.getByRole('button', { name: /^Order status/ }),
-            ).toBeVisible();
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Expand section Dates' }),
-            );
-            expect(
-                screen.getByRole('button', { name: /^Created/ }),
-            ).toBeVisible();
-        });
-
-        it('opens the section of the filter it was opened on, the others collapsed', () => {
-            setSidebar({
-                isNew: false,
-                editing: { filterId: 'filter-2' },
-                editingRule: makeRule({
-                    id: 'filter-2',
-                    label: 'Region',
-                    sectionId: 'section-b',
-                }),
-            });
-            renderWithProviders(<ControlSidebar />, sectioned());
-            expect(screen.getByLabelText('Filter label')).toBeInTheDocument();
-            expect(
-                screen.getByRole('button', {
-                    name: 'Collapse section Regions',
-                }),
-            ).toBeInTheDocument();
-            expect(
-                screen.getByRole('button', { name: 'Expand section Dates' }),
-            ).toBeInTheDocument();
-        });
-
-        it('renames a section from its menu, keeping the name when emptied', async () => {
-            closedRail();
-            const { store } = renderWithProviders(<ControlSidebar />);
-            expandAll();
-
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Section Dates actions' }),
-            );
-            await userEvent.click(
-                await screen.findByRole('menuitem', { name: 'Rename' }),
-            );
-            const input = screen.getByLabelText('Section name');
-            expect(input).toHaveValue('Dates');
-            fireEvent.change(input, { target: { value: 'When' } });
-            fireEvent.blur(input);
-            expect(
-                selectControlSections(store.getState()).map((s) => s.name),
-            ).toEqual(['When', 'Regions']);
-            expect(
-                screen.getByRole('button', { name: 'Section When actions' }),
-            ).toHaveFocus();
-
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Section When actions' }),
-            );
-            await userEvent.click(
-                await screen.findByRole('menuitem', { name: 'Rename' }),
-            );
-            fireEvent.change(screen.getByLabelText('Section name'), {
-                target: { value: '' },
-            });
-            fireEvent.keyDown(screen.getByLabelText('Section name'), {
-                key: 'Enter',
-            });
-            expect(
-                selectControlSections(store.getState()).map((s) => s.name),
-            ).toEqual(['When', 'Regions']);
-        });
-
-        it('removes a section and unsections its filters', async () => {
-            closedRail();
-            const dashboardFilters = sectioned();
-            const { store } = renderWithProviders(
-                <ControlSidebar />,
-                dashboardFilters,
-            );
-            expandAll();
-
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Section Regions actions' }),
-            );
-            // The first click arms it and names what stays; the menu stays
-            await userEvent.click(
-                await screen.findByRole('menuitem', { name: 'Remove section' }),
-            );
-            expect(selectControlSections(store.getState())).toEqual(sections);
-            const armed = screen.getByRole('menuitem', {
-                name: 'Remove section · 1 filter',
-            });
-            expect(armed).toHaveAttribute('aria-pressed', 'true');
-            await userEvent.click(armed);
-            expect(selectControlSections(store.getState())).toEqual([
-                sections[0],
-            ]);
-            const setDashboardFilters = mockDashboardContext.current
-                .setDashboardFilters as ReturnType<typeof vi.fn>;
-            const update = setDashboardFilters.mock.calls[0][0] as (
-                f: DashboardFilters,
-            ) => DashboardFilters;
-            expect(
-                update(dashboardFilters).dimensions.map((r) => r.sectionId),
-            ).toEqual([undefined, undefined, 'section-a', 'gone']);
-            expect(
-                mockDashboardContext.current.setHaveFiltersChanged,
-            ).toHaveBeenCalledWith(true);
-            expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
-        });
-
-        it('lists "Add filter" first in the section menu, opening a new filter in it', async () => {
-            const openNew = vi.fn();
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                isSidebarOpen: false,
-                openNew,
-            });
-            renderWithProviders(<ControlSidebar />, sectioned());
-            expandAll();
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Section Dates actions' }),
-            );
-            const items = await screen.findAllByRole('menuitem');
-            expect(items.map((item) => item.textContent)).toEqual([
-                'Add filter',
-                'Rename',
-                'Collapsed by default',
-                'Remove section',
-            ]);
-            await userEvent.click(items[0]);
-            expect(openNew).toHaveBeenCalledWith('section-a');
-        });
-
-        it('lists a new filter under its section, and an emptied one where it was', () => {
-            setSidebar({
-                isPlaceholder: true,
-                editingRule: makeRule({
-                    id: 'new',
-                    target: { fieldId: '', tableName: '' },
-                    sectionId: 'section-a',
-                }),
-                editing: { filterId: 'new' },
-            });
-            const { rerender } = renderWithProviders(
-                <ControlSidebar />,
-                sectioned(),
-            );
-            expandAll();
-            const order = () =>
-                [
-                    ...document.querySelectorAll(
-                        '[data-controls-row], [data-controls-section], [data-controls-start]',
-                    ),
-                ].map(
-                    (node) =>
-                        node.getAttribute('data-controls-row') ??
-                        node.getAttribute('data-controls-section') ??
-                        'editor',
-                );
-            expect(order()).toEqual([
-                'filter-1',
-                'filter-4',
-                'section-a',
-                'filter-3',
-                'editor',
-                'section-b',
-                'filter-2',
-            ]);
-            expect(
-                screen
-                    .getByTestId('fields-and-tiles')
-                    .closest('[class*="sectionRow"]'),
-            ).not.toBeNull();
-
-            // An existing filter that lost its field keeps its section too
-            setSidebar({
-                isNew: false,
-                isPlaceholder: true,
-                editingRule: makeRule({
-                    id: 'filter-3',
-                    target: { fieldId: '', tableName: '' },
-                    sectionId: 'section-a',
-                }),
-                editing: { filterId: 'filter-3' },
-            });
-            rerender(<ControlSidebar />);
-            expect(order()).toEqual([
-                'filter-1',
-                'filter-4',
-                'section-a',
-                'editor',
-                'section-b',
-                'filter-2',
-            ]);
-            // A placeholder whose section is gone lists with the unsectioned rows
-            setSidebar({
-                isPlaceholder: true,
-                editingRule: makeRule({
-                    id: 'new',
-                    target: { fieldId: '', tableName: '' },
-                    sectionId: 'gone',
-                }),
-                editing: { filterId: 'new' },
-            });
-            rerender(<ControlSidebar />);
-            expect(order().slice(0, 3)).toEqual([
-                'filter-1',
-                'filter-4',
-                'editor',
-            ]);
-        });
-
-        it('keeps a fieldless new filter rendered when its section collapses', () => {
-            const { collapse, discard } = setSidebar({
-                isPlaceholder: true,
-                editing: { filterId: 'new' },
-                editingRule: makeRule({
-                    id: 'new',
-                    target: { fieldId: '', tableName: '' },
-                    sectionId: 'section-a',
-                }),
-            });
-            renderWithProviders(<ControlSidebar />, sectioned());
-            expandAll();
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Collapse section Dates' }),
-            );
-            expect(collapse).not.toHaveBeenCalled();
-            expect(discard).not.toHaveBeenCalled();
-            expect(
-                screen.queryByRole('button', { name: /^Created/ }),
-            ).not.toBeInTheDocument();
-            expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
-            // Under its own header, not among the unsectioned rows
-            expect(
-                screen
-                    .getByTestId('fields-and-tiles')
-                    .compareDocumentPosition(
-                        document.querySelector(
-                            '[data-controls-section="section-a"]',
-                        ) as Element,
-                    ) & Node.DOCUMENT_POSITION_PRECEDING,
-            ).toBeTruthy();
-        });
-
-        it('leaves the expanded filter and its open section as they are when the default changes', async () => {
-            const { collapse } = setSidebar({
-                isNew: false,
-                editing: { filterId: 'filter-3' },
-                editingRule: makeRule({
-                    id: 'filter-3',
-                    label: 'Created',
-                    sectionId: 'section-a',
-                }),
-            });
-            const { store } = renderWithProviders(
-                <ControlSidebar />,
-                sectioned(),
-            );
-            expandAll();
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Section Dates actions' }),
-            );
-            await userEvent.click(
-                await screen.findByRole('menuitem', {
-                    name: 'Collapsed by default',
-                }),
-            );
-            expect(collapse).not.toHaveBeenCalled();
-            expect(selectControlSections(store.getState())[0].collapsed).toBe(
-                true,
-            );
-            expect(screen.getByLabelText('Filter label')).toBeInTheDocument();
-            expect(
-                screen.getByRole('button', { name: 'Collapse section Dates' }),
-            ).toBeInTheDocument();
-
-            // Unticked (the menu stayed open), saved as open
-            await userEvent.click(
-                screen.getByRole('menuitem', { name: 'Collapsed by default' }),
-            );
-            expect(selectControlSections(store.getState())[0].collapsed).toBe(
-                false,
-            );
-        });
-
-        it('folds the expanded filter before collapsing its section', () => {
-            const { collapse } = setSidebar({
-                isNew: false,
-                editing: { filterId: 'filter-3' },
-                editingRule: makeRule({
-                    id: 'filter-3',
-                    label: 'Created',
-                    sectionId: 'section-a',
-                }),
-            });
-            const { rerender } = renderWithProviders(
-                <ControlSidebar />,
-                sectioned(),
-            );
-            expandAll();
-            fireEvent.click(
-                screen.getByRole('button', {
-                    name: 'Collapse section Regions',
-                }),
-            );
-            expect(collapse).not.toHaveBeenCalled();
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Collapse section Dates' }),
-            );
-            expect(collapse).toHaveBeenCalledTimes(1);
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                isSidebarOpen: false,
-            });
-            rerender(<ControlSidebar />);
-            expect(
-                screen.queryByLabelText('Filter label'),
-            ).not.toBeInTheDocument();
-            expect(
-                screen.queryByRole('button', { name: /^Created/ }),
-            ).not.toBeInTheDocument();
-            expect(
-                document.querySelector('[data-controls-section="section-a"]'),
-            ).toHaveTextContent(/^Dates1 filter$/);
-        });
-
-        it('removing the section of the expanded filter leaves focus on its label', async () => {
-            setSidebar({
-                isNew: false,
-                editing: { filterId: 'filter-3' },
-                editingRule: makeRule({
-                    id: 'filter-3',
-                    label: 'Created',
-                    sectionId: 'section-a',
-                }),
-            });
-            renderWithProviders(<ControlSidebar />, sectioned());
-            expandAll();
-            const label = screen.getByLabelText('Filter label');
-            expect(label).toHaveFocus();
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Section Dates actions' }),
-            );
-            fireEvent.click(
-                await screen.findByRole('menuitem', { name: 'Remove section' }),
-            );
-            fireEvent.click(
-                screen.getByRole('menuitem', {
-                    name: 'Remove section · 1 filter',
-                }),
-            );
-            expect(label).toBeInTheDocument();
-            expect(label).toHaveFocus();
-        });
-
-        it('forgets a half-named section and a fold once the rail has closed', async () => {
-            closedRail();
-            const { rerender } = renderWithProviders(
-                <ControlSidebar />,
-                sectioned(),
-            );
-            expandAll();
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Collapse section Dates' }),
-            );
-            await newSection();
-            expect(screen.getByLabelText('Section name')).toBeInTheDocument();
-
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                isSidebarOpen: false,
-                isRailOpen: false,
-            });
-            rerender(<ControlSidebar />);
-            closedRail();
-            rerender(<ControlSidebar />);
-            expect(
-                screen.queryByLabelText('Section name'),
-            ).not.toBeInTheDocument();
-            // Reopened, every section starts collapsed again
-            expect(
-                screen.getByRole('button', { name: 'Expand section Dates' }),
-            ).toBeInTheDocument();
-        });
-
-        it('lets Escape disarm a row remove without reaching the rail', () => {
-            closedRail();
-            renderWithProviders(<ControlSidebar />, sectioned());
-            expandAll();
-            const remove = screen.getAllByRole('button', {
-                name: 'Remove filter',
-            })[0];
-            expect(remove).toHaveAttribute('data-own-escape');
-            fireEvent.click(remove);
-            expect(remove).toHaveAttribute('aria-pressed', 'true');
-            fireEvent.keyDown(remove, { key: 'Escape' });
-            expect(remove).toHaveAttribute('aria-pressed', 'false');
-        });
-
-        it('offers no grip while a section is being named', async () => {
-            closedRail();
-            renderWithProviders(<ControlSidebar />, sectioned());
-            expandAll();
-            expect(grips()).toHaveLength(4);
-            await newSection();
-            expect(
-                screen.queryByRole('button', {
-                    name: /^Drag to reorder (?!section)/,
-                }),
-            ).not.toBeInTheDocument();
-        });
-
-        it('drags an expanded filter as a row, and it stays expanded in its new section', async () => {
-            setSidebar({
-                isNew: false,
-                editingRule: makeRule({ label: 'Order status' }),
-            });
-            const dashboardFilters = filters([
-                makeRule({ label: 'Order status' }),
-                makeRule({
-                    id: 'filter-3',
-                    label: 'Created',
-                    sectionId: 'section-a',
-                }),
-            ]);
-            const { store } = renderWithProviders(
-                <ControlSidebar />,
-                dashboardFilters,
-            );
-            expandAll();
-            // The drop writes the dashboard draft, as the provider would
-            mockDashboardContext.current.setDashboardFilters = (
-                update: (f: DashboardFilters) => DashboardFilters,
-            ) =>
-                store.dispatch(
-                    dashboardFiltersActions.setDashboardFilters(
-                        typeof update === 'function'
-                            ? update(selectDashboardFilters(store.getState()))
-                            : update,
-                    ),
-                );
-            // jsdom lays nothing out: stack every element in document order
-            // so the keyboard sensor has somewhere to go. The overlay (which
-            // dnd-kit collides with) takes the dragged row's place
-            const rect = vi
-                .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
-                .mockImplementation(function (this: HTMLElement) {
-                    const isOverlay =
-                        this.closest('[class*="dragPreview"]') !== null ||
-                        this.querySelector(
-                            ':scope > [class*="dragPreview"]',
-                        ) !== null;
-                    const measured = isOverlay
-                        ? (document.querySelector('[data-dragging]') ?? this)
-                        : this;
-                    const top =
-                        [...document.querySelectorAll('*')].indexOf(measured) *
-                        10;
-                    return {
-                        top,
-                        bottom: top + 10,
-                        left: 0,
-                        right: 300,
-                        width: 300,
-                        height: 10,
-                        x: 0,
-                        y: top,
-                        toJSON: () => ({}),
-                    };
-                });
-
-            const expanded = screen
-                .getByLabelText('Filter label')
-                .closest('[data-expanded]');
-            expect(expanded).not.toBeNull();
-            const grip = within(expanded as HTMLElement).getByRole('button', {
-                name: /^Drag to reorder/,
-            });
-            pickUp(grip);
-            await act(() => new Promise((resolve) => setTimeout(resolve)));
-            fireEvent.keyDown(grip, { code: 'ArrowDown', key: 'ArrowDown' });
-            await act(() => new Promise((resolve) => setTimeout(resolve)));
-            fireEvent.keyDown(grip, { code: 'Space', key: ' ' });
-            rect.mockRestore();
-
-            await waitFor(() =>
-                expect(
-                    selectDashboardFilters(store.getState()).dimensions.map(
-                        (r) => r.sectionId,
-                    ),
-                ).toEqual(['section-a', 'section-a']),
-            );
-            expect(screen.getByLabelText('Filter label')).toBeInTheDocument();
-            expect(
-                screen.getByLabelText('Filter label').closest('[data-expanded]')
-                    ?.className,
-            ).toContain('sectionRow');
-        });
-
-        // Removal through the store, as the provider writes it
-        const removeThroughStore =
-            (store: ReturnType<typeof renderWithProviders>['store']) =>
-            (ruleId: string) =>
-                store.dispatch(
-                    dashboardFiltersActions.setDashboardFilters({
-                        ...selectDashboardFilters(store.getState()),
-                        dimensions: selectDashboardFilters(
-                            store.getState(),
-                        ).dimensions.filter((rule) => rule.id !== ruleId),
-                    }),
-                );
-        const removeTwice = (ruleId: string) => {
-            const remove = within(
-                document.querySelector(`[data-controls-row="${ruleId}"]`)
-                    ?.parentElement as HTMLElement,
-            ).getByRole('button', { name: 'Remove filter' });
-            fireEvent.click(remove);
-            fireEvent.click(remove);
-        };
-
-        it('sends focus to the expanded filter when it is the next row', () => {
-            const removeViaStore = vi.fn();
-            setSidebar({
-                isNew: false,
-                editing: { filterId: 'filter-2' },
-                editingRule: makeRule({ id: 'filter-2', label: 'Region' }),
-                removeFilterById: removeViaStore,
-            });
-            const { store } = renderWithProviders(
-                <ControlSidebar />,
-                filters([
-                    makeRule({ label: 'Order status' }),
-                    makeRule({ id: 'filter-2', label: 'Region' }),
-                ]),
-            );
-            expandAll();
-            removeViaStore.mockImplementation(removeThroughStore(store));
-
-            removeTwice('filter-1');
-            expect(
-                document.querySelector('[data-controls-row="filter-1"]'),
-            ).toBeNull();
-            expect(screen.getByLabelText('Filter label')).toHaveFocus();
-        });
-
-        it('sends focus to Add when the only other row is in a collapsed section', () => {
-            const removeViaStore = vi.fn();
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                isSidebarOpen: false,
-                removeFilterById: removeViaStore,
-            });
-            const { store } = renderWithProviders(
-                <ControlSidebar />,
-                filters([
-                    makeRule({ label: 'Order status' }),
-                    makeRule({
-                        id: 'filter-3',
-                        label: 'Created',
-                        sectionId: 'section-a',
-                    }),
-                ]),
-            );
-            expandAll();
-            removeViaStore.mockImplementation(removeThroughStore(store));
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Collapse section Dates' }),
-            );
-
-            removeTwice('filter-1');
-            expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
-        });
-
-        it('folds and unfolds a section from its chevron stop with Left and Right', () => {
-            closedRail();
-            renderWithProviders(<ControlSidebar />, sectioned());
-            expandAll();
-            const chevron = screen.getByRole('button', {
-                name: 'Collapse section Dates',
-            });
-            chevron.focus();
-            fireEvent.keyDown(chevron, { key: 'ArrowLeft' });
-            expect(
-                screen.queryByRole('button', { name: /^Created/ }),
-            ).not.toBeInTheDocument();
-            const expand = screen.getByRole('button', {
-                name: 'Expand section Dates',
-            });
-            fireEvent.keyDown(expand, { key: 'ArrowRight' });
-            expect(
-                screen.getByRole('button', { name: /^Created/ }),
-            ).toBeVisible();
-        });
-
-        it('expands a collapsed section when a drag passes over its header', async () => {
-            closedRail();
-            const { container, store } = renderWithProviders(
-                <ControlSidebar />,
-                filters([
-                    makeRule({ label: 'Order status' }),
-                    makeRule({
-                        id: 'filter-3',
-                        label: 'Created',
-                        sectionId: 'section-a',
-                    }),
-                ]),
-            );
-            expandAll();
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Collapse section Dates' }),
-            );
-            expect(
-                screen.queryByRole('button', { name: /^Created/ }),
-            ).not.toBeInTheDocument();
-            // jsdom lays nothing out: stack every element in document order,
-            // the overlay taking the dragged row's place
-            const rect = vi
-                .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
-                .mockImplementation(function (this: HTMLElement) {
-                    const isOverlay =
-                        this.closest('[class*="dragPreview"]') !== null ||
-                        this.querySelector(
-                            ':scope > [class*="dragPreview"]',
-                        ) !== null;
-                    const measured = isOverlay
-                        ? (document.querySelector('[data-dragging]') ?? this)
-                        : this;
-                    const top =
-                        [...document.querySelectorAll('*')].indexOf(measured) *
-                        10;
-                    return {
-                        top,
-                        bottom: top + 10,
-                        left: 0,
-                        right: 300,
-                        width: 300,
-                        height: 10,
-                        x: 0,
-                        y: top,
-                        toJSON: () => ({}),
-                    };
-                });
-            const grip = within(
-                container.querySelector('[data-controls-row="filter-1"]')
-                    ?.parentElement as HTMLElement,
-            ).getByRole('button', { name: /^Drag to reorder/ });
-            pickUp(grip);
-            await act(() => new Promise((resolve) => setTimeout(resolve)));
-            fireEvent.keyDown(grip, { code: 'ArrowDown', key: 'ArrowDown' });
-            await act(() => new Promise((resolve) => setTimeout(resolve)));
-            expect(
-                screen.getByRole('button', { name: /^Created/ }),
-            ).toBeInTheDocument();
-            // Dropped from the keyboard, focus goes back to the row, not the grip
-            mockDashboardContext.current.setDashboardFilters = (
-                update: DashboardFilters,
-            ) =>
-                store.dispatch(
-                    dashboardFiltersActions.setDashboardFilters(update),
-                );
-            fireEvent.keyDown(grip, { code: 'Space', key: ' ' });
-            rect.mockRestore();
-            await waitFor(() =>
-                expect(
-                    container.querySelector('[data-controls-row="filter-1"]'),
-                ).toHaveFocus(),
-            );
-        });
-
-        it('keeps a collapsed section collapsed when its own header is picked up', async () => {
-            closedRail();
-            renderWithProviders(
-                <ControlSidebar />,
-                filters([
-                    makeRule({ label: 'Created', sectionId: 'section-a' }),
-                ]),
-            );
-            expandAll();
-            fireEvent.click(
-                screen.getByRole('button', { name: 'Collapse section Dates' }),
-            );
-            expect(
-                screen.queryByRole('button', { name: /^Created/ }),
-            ).not.toBeInTheDocument();
-
-            const grip = screen.getAllByRole('button', {
-                name: /^Drag to reorder section/,
-            })[0];
-            pickUp(grip);
-            await act(() => new Promise((resolve) => setTimeout(resolve)));
-            expect(
-                screen.queryByRole('button', { name: /^Created/ }),
-            ).not.toBeInTheDocument();
-            expect(
-                document.querySelector('[data-controls-section="section-a"]'),
-            ).not.toHaveAttribute('data-over');
-            fireEvent.keyDown(document, { code: 'Escape', key: 'Escape' });
-        });
-
-        it('removes a closed row from its hover action, on the second click only', async () => {
-            closedRail();
-            const removeFilterById = vi.fn();
-            mockSidebar.current = { ...mockSidebar.current, removeFilterById };
-            renderWithProviders(<ControlSidebar />, sectioned());
-            expandAll();
-
-            const removes = screen.getAllByRole('button', {
-                name: 'Remove filter',
-            });
-            expect(removes).toHaveLength(4);
-            const row = document.querySelector(
-                '[data-controls-row="filter-1"]',
-            );
-            expect(row?.parentElement).toContainElement(removes[0]);
-
-            // One click arms it; leaving disarms it
-            fireEvent.click(removes[0]);
-            expect(removes[0]).toHaveAttribute('aria-pressed', 'true');
-            fireEvent.blur(removes[0]);
-            expect(removes[0]).toHaveAttribute('aria-pressed', 'false');
-            expect(removeFilterById).not.toHaveBeenCalled();
-
-            fireEvent.click(removes[0]);
-            fireEvent.click(removes[0]);
-            // The same call the pill's X makes
-            expect(removeFilterById).toHaveBeenCalledWith('filter-1');
-            expect(removeFilterById).toHaveBeenCalledTimes(1);
-        });
-
-        describe('select mode', () => {
-            const selectFromMenu = async () => {
-                await userEvent.click(
-                    screen.getByRole('button', { name: 'More' }),
-                );
-                await userEvent.click(
-                    await screen.findByRole('menuitem', {
-                        name: 'Select filters',
-                    }),
-                );
-            };
-            const row = (name: string) =>
-                screen.getByRole('button', { name: new RegExp(`^${name}`) });
-            const badge = (text: string) => screen.queryByText(text);
-            const selectThree = async () => {
-                await selectFromMenu();
-                fireEvent.click(row('Order status'));
-                fireEvent.click(row('Created'), { shiftKey: true });
-                expect(badge('3 selected')).toBeInTheDocument();
-            };
-
-            it('enters from the menu: checkboxes, no grips or removes, actions disabled', async () => {
-                closedRail();
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                expect(grips()).toHaveLength(4);
-
-                await selectFromMenu();
-                expect(badge('0 selected')).toBeInTheDocument();
-                expect(screen.getAllByRole('checkbox')).toHaveLength(4);
-                // The row makes room for its checkbox through this attribute
-                expect(
-                    document.querySelectorAll('[data-selecting]'),
-                ).toHaveLength(4);
-                expect(
-                    screen.queryByRole('button', { name: 'Drag to reorder' }),
-                ).not.toBeInTheDocument();
-                expect(
-                    screen.queryByRole('button', { name: 'Remove filter' }),
-                ).not.toBeInTheDocument();
-                expect(
-                    screen.getByRole('button', { name: 'Move to' }),
-                ).toBeDisabled();
-                expect(
-                    screen.getByRole('button', { name: 'Remove' }),
-                ).toBeDisabled();
-                expect(
-                    screen.queryByRole('button', { name: 'Done' }),
-                ).not.toBeInTheDocument();
-            });
-
-            it('shows no checkbox at rest: the grip keeps its slot', () => {
-                closedRail();
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
-                expect(grips()).toHaveLength(4);
-            });
-
-            it('is disabled while a new filter has no field, with no row checkboxes', async () => {
-                setSidebar({ isPlaceholder: true });
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
-                await userEvent.click(
-                    screen.getByRole('button', { name: 'More' }),
-                );
-                expect(
-                    await screen.findByRole('menuitem', {
-                        name: 'Select filters',
-                    }),
-                ).toBeDisabled();
-            });
-
-            it('folds the expanded filter when the mode starts', async () => {
-                const { collapse } = setSidebar({ isNew: false });
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                await selectFromMenu();
-                expect(collapse).toHaveBeenCalledTimes(1);
-            });
-
-            it('forgets the shift anchor between select sessions', async () => {
-                closedRail();
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                await selectThree();
-                fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-                expect(badge('3 selected')).not.toBeInTheDocument();
-
-                await selectFromMenu();
-                fireEvent.click(row('Created'), { shiftKey: true });
-                expect(badge('1 selected')).toBeInTheDocument();
-                expect(
-                    screen
-                        .getAllByRole('checkbox')
-                        .filter((box) => (box as HTMLInputElement).checked)
-                        .map((box) => box.getAttribute('aria-label')),
-                ).toEqual(['Created']);
-            });
-
-            it('selects a range with shift-click and extends it with shift and an arrow', async () => {
-                closedRail();
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                await selectThree();
-                expect(
-                    screen.getByRole('checkbox', { name: 'Lost' }),
-                ).toBeChecked();
-                // A plain click toggles, then shift and an arrow select the next
-                fireEvent.click(row('Lost'));
-                expect(badge('2 selected')).toBeInTheDocument();
-                row('Created').focus();
-                fireEvent.keyDown(row('Created'), {
-                    key: 'ArrowDown',
-                    shiftKey: true,
-                });
-                expect(badge('3 selected')).toBeInTheDocument();
-                expect(row('Region')).toHaveFocus();
-            });
-
-            it("focuses the collapsed target section's header after a move, its rows being hidden", async () => {
-                closedRail();
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                fireEvent.click(
-                    screen.getByRole('button', {
-                        name: 'Collapse section Regions',
-                    }),
-                );
-                await selectThree();
-                await userEvent.click(
-                    screen.getByRole('button', { name: 'Move to' }),
-                );
-                await userEvent.click(
-                    await screen.findByRole('menuitem', {
-                        name: 'Regions · 1',
-                    }),
-                );
-                expect(
-                    screen.getByRole('button', {
-                        name: 'Expand section Regions',
-                    }),
-                ).toHaveFocus();
-            });
-
-            it('moves the selection to a section, appended in display order, and leaves the mode', async () => {
-                closedRail();
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                await selectThree();
-                await userEvent.click(
-                    screen.getByRole('button', { name: 'Move to' }),
-                );
-                const items = await screen.findAllByRole('menuitem');
-                expect(items.map((item) => item.textContent)).toEqual([
-                    'New section',
-                    'Dates · 1',
-                    'Regions · 1',
-                    'No section',
-                ]);
-                await userEvent.click(items[2]);
-
-                const setDashboardFilters = mockDashboardContext.current
-                    .setDashboardFilters as ReturnType<typeof vi.fn>;
-                expect(setDashboardFilters).toHaveBeenCalledTimes(1);
-                const written = setDashboardFilters.mock
-                    .calls[0][0] as DashboardFilters;
-                expect(
-                    written.dimensions.map((rule) => [rule.id, rule.sectionId]),
-                ).toEqual([
-                    ['filter-2', 'section-b'],
-                    ['filter-1', 'section-b'],
-                    ['filter-4', 'section-b'],
-                    ['filter-3', 'section-b'],
-                ]);
-                expect(
-                    mockDashboardContext.current.setHaveFiltersChanged,
-                ).toHaveBeenCalledWith(true);
-                expect(badge('3 selected')).not.toBeInTheDocument();
-                // The footer's menu is gone with the mode: the first moved row
-                expect(row('Order status')).toHaveFocus();
-            });
-
-            it('names a new section from Move to and moves the selection into it', async () => {
-                closedRail();
-                const { store } = renderWithProviders(
-                    <ControlSidebar />,
-                    sectioned(),
-                );
-                expandAll();
-                await selectThree();
-                await userEvent.click(
-                    screen.getByRole('button', { name: 'Move to' }),
-                );
-                await userEvent.click(
-                    await screen.findByRole('menuitem', {
-                        name: 'New section',
-                    }),
-                );
-                const input = screen.getByLabelText('Section name');
-                expect(input).toHaveFocus();
-                // Still selecting until the name is committed
-                expect(badge('3 selected')).toBeInTheDocument();
-                fireEvent.change(input, { target: { value: 'Fresh' } });
-                fireEvent.keyDown(input, { key: 'Enter' });
-
-                const added = selectControlSections(store.getState()).find(
-                    (section) => section.name === 'Fresh',
-                );
-                expect(added).toBeDefined();
-                const setDashboardFilters = mockDashboardContext.current
-                    .setDashboardFilters as ReturnType<typeof vi.fn>;
-                expect(setDashboardFilters).toHaveBeenCalledTimes(1);
-                const written = setDashboardFilters.mock
-                    .calls[0][0] as DashboardFilters;
-                expect(
-                    written.dimensions.map((rule) => [rule.id, rule.sectionId]),
-                ).toEqual([
-                    ['filter-2', 'section-b'],
-                    ['filter-1', added?.id],
-                    ['filter-4', added?.id],
-                    ['filter-3', added?.id],
-                ]);
-                expect(badge('3 selected')).not.toBeInTheDocument();
-            });
-
-            it('keeps the selection where it is when the new section is cancelled', async () => {
-                closedRail();
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                await selectThree();
-                await userEvent.click(
-                    screen.getByRole('button', { name: 'Move to' }),
-                );
-                await userEvent.click(
-                    await screen.findByRole('menuitem', {
-                        name: 'New section',
-                    }),
-                );
-                fireEvent.keyDown(screen.getByLabelText('Section name'), {
-                    key: 'Escape',
-                });
-                expect(
-                    mockDashboardContext.current.setDashboardFilters,
-                ).not.toHaveBeenCalled();
-                expect(badge('3 selected')).toBeInTheDocument();
-                expect(
-                    screen.queryByLabelText('Section name'),
-                ).not.toBeInTheDocument();
-            });
-
-            it('removes the selection on the second click only, in one write', async () => {
-                closedRail();
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                await selectThree();
-                const remove = screen.getByRole('button', { name: 'Remove' });
-                fireEvent.click(remove);
-                const setDashboardFilters = mockDashboardContext.current
-                    .setDashboardFilters as ReturnType<typeof vi.fn>;
-                expect(setDashboardFilters).not.toHaveBeenCalled();
-                fireEvent.click(remove);
-                expect(setDashboardFilters).toHaveBeenCalledTimes(1);
-                const write = setDashboardFilters.mock.calls[0][0] as (
-                    filters: DashboardFilters,
-                ) => DashboardFilters;
-                expect(
-                    write(sectioned()).dimensions.map((rule) => rule.id),
-                ).toEqual(['filter-2']);
-                expect(badge('3 selected')).not.toBeInTheDocument();
-            });
-
-            it('lets Escape disarm the footer Remove without leaving the mode', async () => {
-                closedRail();
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                await selectThree();
-                const remove = screen.getByRole('button', { name: 'Remove' });
-                fireEvent.click(remove);
-                expect(remove).toHaveAttribute('aria-pressed', 'true');
-                fireEvent.keyDown(remove, { key: 'Escape' });
-                expect(remove).toHaveAttribute('aria-pressed', 'false');
-                expect(badge('3 selected')).toBeInTheDocument();
-            });
-
-            it('keeps the rows and their focus across entering and leaving the mode', async () => {
-                closedRail();
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                const created = row('Created');
-                await selectFromMenu();
-                expect(row('Created')).toBe(created);
-                created.focus();
-                fireEvent.keyDown(created, { key: 'Escape' });
-                expect(badge('0 selected')).not.toBeInTheDocument();
-                expect(row('Created')).toBe(created);
-                expect(created).toHaveFocus();
-            });
-
-            it('leaves the mode from the footer Cancel, clearing the selection', async () => {
-                const { close } = closedRail();
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                await selectFromMenu();
-                fireEvent.click(row('Created'));
-                expect(badge('1 selected')).toBeInTheDocument();
-                fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-                expect(badge('1 selected')).not.toBeInTheDocument();
-                expect(close).not.toHaveBeenCalled();
-                await selectFromMenu();
-                expect(badge('0 selected')).toBeInTheDocument();
-            });
-
-            it('says how many hidden rows a collapsed section holds selected', async () => {
-                closedRail();
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                await selectFromMenu();
-                fireEvent.click(row('Created'));
-                const header = document.querySelector(
-                    '[data-controls-section="section-a"]',
-                );
-                expect(header).not.toHaveTextContent('selected');
-                fireEvent.click(
-                    screen.getByRole('button', {
-                        name: 'Collapse section Dates',
-                    }),
-                );
-                expect(header).toHaveTextContent('1 selected');
-                // The header badge and the section header both say it
-                expect(screen.getAllByText('1 selected')).toHaveLength(2);
-            });
-
-            it('leaves the mode on Escape and on the X without closing the rail', async () => {
-                const { close } = closedRail();
-                renderWithProviders(<ControlSidebar />, sectioned());
-                expandAll();
-                await selectFromMenu();
-                fireEvent.keyDown(row('Created'), { key: 'Escape' });
-                expect(badge('0 selected')).not.toBeInTheDocument();
-
-                await selectFromMenu();
-                fireEvent.click(
-                    screen.getByRole('button', { name: 'Stop selecting' }),
-                );
-                expect(badge('0 selected')).not.toBeInTheDocument();
-                expect(close).not.toHaveBeenCalled();
-                expect(grips()).toHaveLength(4);
-            });
-
-            it('offers a viewer neither the entry nor the checkboxes', async () => {
-                setSidebar({
-                    isViewer: true,
-                    editing: null,
-                    editingRule: null,
-                });
-                renderWithProviders(
-                    <ControlSidebar />,
-                    filters([]),
-                    filters([makeRule({ label: 'Mine' })]),
-                );
-                expandAll();
-                expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
-                expect(
-                    screen.queryByRole('button', { name: 'More' }),
-                ).not.toBeInTheDocument();
-                expect(
-                    screen.getByRole('button', { name: 'Add filter' }),
-                ).toHaveAttribute('data-controls-new-section');
-            });
+            expect(button('Create')).toBeEnabled();
         });
     });
 });

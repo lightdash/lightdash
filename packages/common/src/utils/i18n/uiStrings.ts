@@ -434,6 +434,12 @@ export const DEFAULT_UI_STRINGS = {
     'filters.rail.filterNoun': 'Filter',
     'filters.rail.sectionNoun': 'Section',
     'filters.rail.more': 'More',
+    'filters.rail.create': 'Create',
+    'filters.rail.discard': 'Discard',
+    'filters.rail.newBadge': 'New',
+    'filters.rail.editedBadge': 'Edited',
+    'filters.rail.applyBeforeOpening': 'Apply before opening {filter}?',
+    'filters.rail.createBeforeOpening': 'Create before opening {filter}?',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':
         'This tile has no field this filter can use',

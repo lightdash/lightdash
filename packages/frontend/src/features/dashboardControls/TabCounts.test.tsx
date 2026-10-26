@@ -184,39 +184,6 @@ describe('TabCounts', () => {
         setSidebar();
     });
 
-    it("counts a hovered rail row's filter in blue, edited filter or not", () => {
-        mockDashboardContext.current = {
-            ...mockDashboardContext.current,
-            dashboardFilters: {
-                dimensions: [
-                    rule(),
-                    rule({
-                        id: 'hovered',
-                        target: {
-                            fieldId: 'orders_region',
-                            tableName: 'orders',
-                        },
-                    }),
-                ],
-                metrics: [],
-                tableCalculations: [],
-            },
-        };
-        setSidebar({
-            editing: null,
-            editingRule: null,
-            hoveredFilterId: 'hovered',
-        });
-        const { rerender } = renderWithProviders(<TabCounts />);
-        expect(badgeText('tab-1')).toBe('1 of 3');
-        expect(badgeText('tab-2')).toBe('1 of 1');
-        expect(isBadgeBlue('tab-2')).toBe(true);
-
-        setSidebar({ editing: null, editingRule: null, hoveredFilterId: null });
-        rerender(<TabCounts />);
-        expect(badgeText('tab-1')).toBe('');
-    });
-
     it('counts the filtered tiles out of every tile on each tab', async () => {
         renderWithProviders(<TabCounts />);
 
@@ -474,34 +441,12 @@ describe('TabCounts', () => {
             scrollTo.mockRestore();
         });
 
-        it('leaves the strip alone for a hovered row', () => {
-            const { list } = clipTab();
-            setSidebar({
-                editing: null,
-                editingRule: null,
-                hoveredFilterId: 'control',
-            });
-            mockDashboardContext.current = {
-                ...mockDashboardContext.current,
-                dashboardFilters: {
-                    dimensions: [rule()],
-                    metrics: [],
-                    tableCalculations: [],
-                },
-            };
-            renderWithProviders(<TabCounts />);
-
-            expect(badgeText('tab-2')).not.toBe('');
-            expect(list.scrollLeft).toBe(0);
-        });
-
-        it('scrolls once while the edited filter stays, rows hovered or not', () => {
+        it('scrolls once while the edited filter stays', () => {
             const { list } = clipTab();
             const { rerender } = renderWithProviders(<TabCounts />);
             list.scrollLeft = 0;
-            setSidebar({ hoveredFilterId: 'other' });
+            setSidebar();
             rerender(<TabCounts />);
-            setSidebar({ hoveredFilterId: null });
             rerender(<TabCounts />);
 
             expect(list.scrollLeft).toBe(0);

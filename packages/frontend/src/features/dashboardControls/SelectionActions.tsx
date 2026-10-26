@@ -17,8 +17,8 @@ export type SelectionActionsProps = {
     onRemove: () => void;
 };
 
-// "Move to" and the two-click "Remove" over selected filters, in the rail's
-// footer and on the bar's selection bar
+// "Move to" and the two-click "Remove" over selected filters, on the bar's
+// selection bar
 export const SelectionActions: FC<
     SelectionActionsProps & { menuPosition: MenuProps['position'] }
 > = ({

@@ -17,9 +17,7 @@ import {
     useDashboardTemporaryFilters,
 } from '../../../../../features/dashboard/store';
 import { AddControl } from '../../../../../features/dashboardControls/AddControl';
-import { EditingStrip } from '../../../../../features/dashboardControls/EditingStrip';
 import { FilterPills } from '../../../../../features/dashboardControls/FilterPills';
-import { useControlsSidebarSelector } from '../../../../../features/dashboardControls/useControlsSidebar';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
 import { getDateZoomSummaryLabel } from '../../../../../features/dateZoom/utils';
@@ -42,15 +40,13 @@ type Props = {
     isControlsEnabled?: boolean;
 };
 
-// The filters as the rail's bar has them: "Add filter" and the pills open the
-// rail, and while it is open the bar says what is being edited
+// The filters as the rail's bar has them: "Add filter" and the pills open
+// the rail, and stay on screen while it is open
 const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
     canAddFilters,
 }) => {
-    const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const getUiString = useUiStrings();
-    if (isRailOpen) return <EditingStrip />;
     return (
         <>
             <AddControl

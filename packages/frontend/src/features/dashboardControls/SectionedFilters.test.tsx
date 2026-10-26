@@ -24,6 +24,7 @@ import {
     dashboardFiltersActions,
     selectControlSections,
 } from '../dashboard/store';
+import type * as AddControlModule from './AddControl';
 import { SectionedFilters } from './SectionedFilters';
 
 const mockDashboardContext = vi.hoisted(() => ({
@@ -32,7 +33,9 @@ const mockDashboardContext = vi.hoisted(() => ({
 const pillsProps = vi.hoisted(() => ({
     current: [] as { sectionId: string | null | undefined }[],
 }));
-const mockSidebar = vi.hoisted(() => ({ current: { isViewer: false } }));
+const mockSidebar = vi.hoisted(() => ({
+    current: { isViewer: false, isSidebarOpen: false },
+}));
 const mockOpenNew = vi.hoisted(() => vi.fn());
 const mockDragEnd = vi.hoisted(() => ({
     handlers: [] as ((event: DragEndEvent) => void)[],
@@ -81,7 +84,8 @@ vi.mock('@dnd-kit/core', async (importOriginal) => {
 // The pills have their own tests; the mock pins what each pass is asked for,
 // lets a pass open the shared popover and gives each of its rules a
 // draggable, as the real pass does in the bar's drag context
-vi.mock('./AddControl', () => ({
+vi.mock('./AddControl', async (importOriginal) => ({
+    ...(await importOriginal<typeof AddControlModule>()),
     AddControl: () => <button>Add</button>,
 }));
 vi.mock('./FilterPills', async () => {
@@ -257,7 +261,7 @@ describe('SectionedFilters', () => {
     beforeEach(() => {
         pillsProps.current = [];
         mockDragEnd.handlers = [];
-        mockSidebar.current = { isViewer: false };
+        mockSidebar.current = { isViewer: false, isSidebarOpen: false };
         mockDashboardContext.current = {
             filterableFieldsByTileUuid: {
                 'tile-1': [regionField],
@@ -272,7 +276,7 @@ describe('SectionedFilters', () => {
 
     it('renders Add, then a capsule per section in order, then the unsectioned pass', () => {
         // A viewer's bar: only the sections with a member on this tab
-        mockSidebar.current = { isViewer: true };
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
         renderSectioned([rule('two', 'b'), rule('one', 'a')], 'tab-1');
 
         const order = screen
@@ -321,7 +325,7 @@ describe('SectionedFilters', () => {
 
     it('renders a capsule only for the sections that have a visible member', () => {
         // A viewer's bar: only the sections with a member on this tab
-        mockSidebar.current = { isViewer: true };
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
         renderSectioned(
             [rule('one', 'a', onTabOne), rule('two', 'b')],
             'tab-2',
@@ -350,7 +354,7 @@ describe('SectionedFilters', () => {
 
     it('closes a pill popover when its section folds or leaves the tab', async () => {
         // A viewer's bar: only the sections with a member on this tab
-        mockSidebar.current = { isViewer: true };
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
         // The mock opens the popover of a pill named after its section
         const { switchTab } = renderSectioned(
             [rule('a', 'a', onTabOne), rule('b', 'b')],
@@ -431,7 +435,7 @@ describe('SectionedFilters', () => {
 
     it('leaves out a section whose members are all hidden on the active tab', () => {
         // A viewer's bar: only the sections with a member on this tab
-        mockSidebar.current = { isViewer: true };
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
         renderSectioned(
             [rule('one', 'a', onTabOne), rule('two', 'b')],
             'tab-2',
@@ -496,7 +500,7 @@ describe('SectionedFilters', () => {
     });
 
     it("counts a viewer's saved pills as changed once Apply wrote an override", async () => {
-        mockSidebar.current = { isViewer: true };
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
         const { store } = renderSectioned(
             [rule('one', 'a'), rule('two', 'a')],
             'tab-1',
@@ -520,7 +524,7 @@ describe('SectionedFilters', () => {
             );
         });
         expect(screen.getByText('1 changed')).toBeInTheDocument();
-        mockSidebar.current = { isViewer: false };
+        mockSidebar.current = { isViewer: false, isSidebarOpen: false };
     });
 
     describe('drag in edit mode', () => {
@@ -538,7 +542,7 @@ describe('SectionedFilters', () => {
         beforeEach(() => {
             vi.clearAllMocks();
             mockDroppable.current = null;
-            mockSidebar.current = { isViewer: false };
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
             mockDashboardContext.current = {
                 ...mockDashboardContext.current,
                 setDashboardFilters,
@@ -968,12 +972,12 @@ describe('SectionedFilters', () => {
         });
 
         it("gives a viewer's bar no selection", () => {
-            mockSidebar.current = { isViewer: true };
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
             renderSectioned(rules(), 'tab-1');
             fireEvent.click(pillOf('one'), { metaKey: true });
             expect(pickedIds()).toEqual([]);
             expect(bar()).not.toBeInTheDocument();
-            mockSidebar.current = { isViewer: false };
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
         });
     });
 
@@ -1028,6 +1032,74 @@ describe('SectionedFilters', () => {
             await userEvent.click(foldOf('Dates'));
             expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
             expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+        });
+
+        it('makes the name, +, menu and Add section inert while a filter is edited; the fold and pills stay', () => {
+            mockSidebar.current = { isViewer: false, isSidebarOpen: true };
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            const isInert = (element: Element) =>
+                element.closest('[inert]') !== null;
+
+            const dates = screen.getByRole('group', { name: 'Dates' });
+            expect(
+                isInert(within(dates).getByRole('button', { name: 'Dates' })),
+            ).toBe(true);
+            expect(
+                isInert(
+                    screen.getByRole('button', {
+                        name: 'Add filter to Dates',
+                        hidden: true,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                isInert(
+                    screen.getByRole('button', {
+                        name: 'Dates menu',
+                        hidden: true,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                isInert(
+                    screen.getByRole('button', {
+                        name: 'Add section',
+                        hidden: true,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                isInert(
+                    screen.getByRole('button', {
+                        name: 'Collapse section Dates',
+                    }),
+                ),
+            ).toBe(false);
+            expect(isInert(screen.getByTestId('pills-a'))).toBe(false);
+        });
+
+        it('dots a section that differs from the saved dashboard', () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboard: {
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [
+                            { id: 'a', name: 'Dates' },
+                            { id: 'b', name: 'Places' },
+                        ],
+                    },
+                },
+            };
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            const dotIn = (name: string) =>
+                within(screen.getByRole('group', { name })).queryByRole('img', {
+                    name: 'Changed',
+                });
+            expect(dotIn('Dates')).toBeNull();
+            // Renamed, and not saved at all
+            expect(dotIn('Regions')).not.toBeNull();
+            expect(dotIn('Empty')).not.toBeNull();
         });
 
         it('opens a new filter in the section from its +', async () => {
@@ -1135,7 +1207,7 @@ describe('SectionedFilters', () => {
         });
 
         it("gives a viewer's bar none of these controls", () => {
-            mockSidebar.current = { isViewer: true };
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
             renderSectioned([rule('one', 'a')], 'tab-1');
             expect(
                 screen.getByRole('button', { name: 'Dates', expanded: true }),

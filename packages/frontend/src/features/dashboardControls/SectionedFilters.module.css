@@ -175,3 +175,17 @@
         animation: none;
     }
 }
+
+.actions[inert] {
+    opacity: 0.4;
+}
+
+/* The section differs from the saved dashboard: what Save will keep */
+.changedDot {
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    margin-left: -4px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-yellow-filled);
+}

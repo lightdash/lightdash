@@ -186,7 +186,7 @@ const Editor = () => {
         isOpen: true,
         isFieldClicked: false,
         clearField: clearHighlightedField,
-        close,
+        dismiss: close,
     });
     return (
         <Box data-controls-editor>

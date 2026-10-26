@@ -4,10 +4,6 @@ import { useEffect } from 'react';
 const EDITOR_ATTRIBUTE = 'data-controls-editor';
 // Marks an input that handles Escape itself while its list is closed
 const OWN_ESCAPE_ATTRIBUTE = 'data-own-escape';
-// A remove in the rail that asked for its second click
-const ARMED_REMOVE_SELECTOR = `[${EDITOR_ATTRIBUTE}] [${OWN_ESCAPE_ATTRIBUTE}][aria-pressed="true"]`;
-// The rail root carries it while a row or header is dragged
-const DRAGGING_ATTRIBUTE = 'data-controls-dragging';
 
 // An open list, menu or popover owns Escape; so does a modal. A Mantine
 // combobox target is marked `data-expanded` while its list is open
@@ -28,17 +24,18 @@ type Args = {
     isOpen: boolean;
     isFieldClicked: boolean;
     clearField: () => void;
-    close: () => void;
+    /** Withdraws a pending question, else cancels the edit. */
+    dismiss: () => void;
 };
 
 // One Escape listener while the editor is open, so one press does one thing:
 // an open list closes itself, else the clicked field is cleared, else the
-// editor closes. A mouse down never clears the field.
+// editor is dismissed. A mouse down never clears the field.
 export const useEditorDismiss = ({
     isOpen,
     isFieldClicked,
     clearField,
-    close,
+    dismiss,
 }: Args) => {
     useEffect(() => {
         if (!isOpen) return;
@@ -48,23 +45,6 @@ export const useEditorDismiss = ({
             const target =
                 event.target instanceof Element ? event.target : null;
             if (target?.closest(`[${OWN_ESCAPE_ATTRIBUTE}]`)) return;
-            // An armed remove takes this press, wherever focus is: it only
-            // disarms, and the next press reaches the rail
-            const armed = document.querySelector<HTMLElement>(
-                ARMED_REMOVE_SELECTOR,
-            );
-            if (armed) {
-                event.preventDefault();
-                armed.dispatchEvent(
-                    new KeyboardEvent('keydown', {
-                        key: 'Escape',
-                        bubbles: true,
-                    }),
-                );
-                return;
-            }
-            // dnd-kit cancels the drag on its own listener
-            if (document.querySelector(`[${DRAGGING_ATTRIBUTE}]`)) return;
             if (hasOpenLayer()) return;
             if (isFieldClicked) {
                 clearField();
@@ -74,11 +54,11 @@ export const useEditorDismiss = ({
             // Blur commits a label that is still being typed
             if (document.activeElement instanceof HTMLElement)
                 document.activeElement.blur();
-            close();
+            dismiss();
         };
         // Capture: lists are still open when this runs, so they can be seen
         document.addEventListener('keydown', handleKeyDown, true);
         return () =>
             document.removeEventListener('keydown', handleKeyDown, true);
-    }, [isOpen, isFieldClicked, clearField, close]);
+    }, [isOpen, isFieldClicked, clearField, dismiss]);
 };

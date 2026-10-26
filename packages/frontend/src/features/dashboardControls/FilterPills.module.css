@@ -27,3 +27,20 @@
 .barDraggable[data-dragging] {
     opacity: 0.3;
 }
+
+/* Inert while a filter is edited (`InertWhileEditing`) */
+.inert[inert] :is(button, a) {
+    opacity: 0.4;
+}
+
+/* The rule differs from the saved dashboard: what Save will keep */
+.changedDot {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-yellow-filled);
+    pointer-events: none;
+}

@@ -63,68 +63,47 @@ const disabledPills = { current: false };
 const Page: FC = () => {
     const value = useControlsSidebar();
     sidebar.current = value;
-    const { isSidebarOpen, isRailOpen, editing, openNew, open, close } = value;
+    const { isSidebarOpen, openNew, open, close, discard } = value;
     const filters = useDashboardSelector(selectDashboardFilters);
-    // The bar's and, while the rail is open, the rail header's
-    const add = (
-        <div data-filter-actions>
-            <button
-                type="button"
-                data-dashboard-filter-control
-                aria-label="Add filter"
-                onClick={() => openNew()}
-            />
-        </div>
-    );
     return (
         <>
+            {/* The bar stays on screen while a filter is edited */}
             <div data-testid="bar">
-                {/* Add and the pills fold away while the rail is open */}
-                {!isRailOpen && add}
-                {!isRailOpen &&
-                    filters.dimensions.map((filter) => (
-                        <button
-                            key={filter.id}
-                            type="button"
-                            data-controls-pill={filter.id}
-                            disabled={disabledPills.current}
-                            onClick={() => open(filter.id)}
-                        >
-                            {`Pill ${filter.id}`}
-                        </button>
-                    ))}
+                <div data-filter-actions>
+                    <button
+                        type="button"
+                        data-dashboard-filter-control
+                        aria-label="Add filter"
+                        onClick={() => openNew()}
+                    />
+                </div>
+                {filters.dimensions.map((filter) => (
+                    <button
+                        key={filter.id}
+                        type="button"
+                        data-controls-pill={filter.id}
+                        disabled={disabledPills.current}
+                        onClick={() => open(filter.id)}
+                    >
+                        {`Pill ${filter.id}`}
+                    </button>
+                ))}
             </div>
-            {isRailOpen && (
+            {isSidebarOpen && (
                 <div data-controls-editor data-testid="editor">
-                    {filters.dimensions
-                        .filter((filter) => filter.id !== editing?.filterId)
-                        .map((filter) => (
-                            <button
-                                key={filter.id}
-                                type="button"
-                                data-controls-row={filter.id}
-                                onClick={() => open(filter.id)}
-                            >
-                                {`Row ${filter.id}`}
-                            </button>
-                        ))}
-                    {isSidebarOpen && (
-                        <>
-                            <input
-                                aria-label="Label"
-                                onBlur={() =>
-                                    onLabelBlur(sidebar.current?.editing)
-                                }
-                            />
-                            <button type="button" aria-pressed>
-                                Field row
-                            </button>
-                            <input aria-label="Search fields" data-own-escape />
-                        </>
-                    )}
-                    {add}
-                    <button type="button" onClick={close}>
-                        Done
+                    <input
+                        aria-label="Label"
+                        onBlur={() => onLabelBlur(sidebar.current?.editing)}
+                    />
+                    <button type="button" aria-pressed>
+                        Field row
+                    </button>
+                    <input aria-label="Search fields" data-own-escape />
+                    <button type="button" onClick={discard}>
+                        Cancel
+                    </button>
+                    <button type="button" data-controls-apply onClick={close}>
+                        Apply
                     </button>
                 </div>
             )}
@@ -165,11 +144,14 @@ const storeSetters = (store: DashboardStore) => ({
         ),
 });
 
+const store: { current: DashboardStore | null } = { current: null };
+
 const Wrapper: FC = () => {
-    const [store] = useState(() =>
+    const [dashboardStore] = useState(() =>
         createDashboardTestStore({ dashboardFilters: initialFilters }),
     );
-    const [setters] = useState(() => storeSetters(store));
+    store.current = dashboardStore;
+    const [setters] = useState(() => storeSetters(dashboardStore));
     mockDashboardContext.current = {
         ...setters,
         filterableFieldsByTileUuid: {},
@@ -177,7 +159,7 @@ const Wrapper: FC = () => {
         dashboardTiles: [],
     };
     return (
-        <DashboardStoreTestProvider store={store}>
+        <DashboardStoreTestProvider store={dashboardStore}>
             <ControlsSidebarProvider>
                 <Page />
             </ControlsSidebarProvider>
@@ -190,7 +172,7 @@ const value = () => {
     return sidebar.current;
 };
 const pill = (id: string) => screen.getByRole('button', { name: `Pill ${id}` });
-const row = (id: string) => screen.getByRole('button', { name: `Row ${id}` });
+const apply = () => screen.getByRole('button', { name: 'Apply' });
 const addButton = () => screen.getByRole('button', { name: 'Add filter' });
 const label = () => screen.getByLabelText('Label');
 const escape = (target: Element = document.body) =>
@@ -210,10 +192,25 @@ describe('dismissing in the controls editor', () => {
     });
 
     describe('Escape', () => {
-        it('closes the editor from inside it, as Done does', () => {
+        it('cancels the edit from inside it, focus back on the pill', () => {
+            act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
             escape(label());
             expect(value().isSidebarOpen).toBe(false);
+            expect(
+                selectDashboardFilters(store.current!.getState()).dimensions[0],
+            ).toEqual(rule('a'));
             expect(pill('a')).toHaveFocus();
+        });
+
+        it('withdraws the question a pill asked and keeps the edit, focus on Apply', () => {
+            act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
+            fireEvent.click(pill('b'));
+            expect(value().pendingRule?.id).toBe('b');
+
+            escape(apply());
+            expect(value().pendingRule).toBeNull();
+            expect(value().editing).toEqual({ filterId: 'a' });
+            expect(apply()).toHaveFocus();
         });
 
         it('lets the label commit before it closes', () => {
@@ -303,33 +300,6 @@ describe('dismissing in the controls editor', () => {
             expect(value().isSidebarOpen).toBe(true);
         });
 
-        it('disarms an armed remove first, wherever focus is', () => {
-            const remove = document.createElement('button');
-            remove.setAttribute('data-own-escape', '');
-            remove.setAttribute('aria-pressed', 'true');
-            remove.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape')
-                    remove.setAttribute('aria-pressed', 'false');
-            });
-            screen.getByTestId('editor').appendChild(remove);
-
-            escape(label());
-            expect(remove).toHaveAttribute('aria-pressed', 'false');
-            expect(value().isSidebarOpen).toBe(true);
-            escape(label());
-            expect(value().isSidebarOpen).toBe(false);
-        });
-
-        it('leaves a drag alone: dnd-kit cancels it', () => {
-            const editor = screen.getByTestId('editor');
-            editor.setAttribute('data-controls-dragging', '');
-            escape(label());
-            expect(value().isSidebarOpen).toBe(true);
-            editor.removeAttribute('data-controls-dragging');
-            escape(label());
-            expect(value().isSidebarOpen).toBe(false);
-        });
-
         it('does nothing once another handler has taken it', () => {
             const taken = (event: KeyboardEvent) => event.preventDefault();
             window.addEventListener('keydown', taken, true);
@@ -341,7 +311,7 @@ describe('dismissing in the controls editor', () => {
 
         it('is listened for only while the editor is open', () => {
             const remove = vi.spyOn(document, 'removeEventListener');
-            fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+            fireEvent.click(apply());
 
             expect(
                 remove.mock.calls.filter(([type]) => type === 'keydown'),
@@ -359,7 +329,7 @@ describe('dismissing in the controls editor', () => {
             ['a field row', () => screen.getByText('Field row')],
             ['a tile card', () => screen.getByText('Tile card')],
             ['an open list or menu', () => screen.getByText('In a list')],
-            ['the empty sidebar', () => screen.getByTestId('editor')],
+            ['the editor', () => screen.getByTestId('editor')],
             ["a tile's veil", () => screen.getByTestId('veil')],
             ['the bar', () => screen.getByTestId('bar')],
             ['the label', () => label()],
@@ -385,55 +355,26 @@ describe('dismissing in the controls editor', () => {
     });
 
     describe('focus after the editor is gone', () => {
-        it('returns to the pill after Done, and to the row after discarding changes', () => {
-            fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+        it('returns to the pill after Apply and after Cancel', () => {
+            fireEvent.click(apply());
             expect(pill('a')).toHaveFocus();
 
             fireEvent.click(pill('b'));
             act(() => label().focus());
-            act(() => value().discard());
-            expect(value().isRailOpen).toBe(true);
-            expect(row('b')).toHaveFocus();
+            fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+            expect(value().isSidebarOpen).toBe(false);
+            expect(pill('b')).toHaveFocus();
         });
 
-        it('goes to the filter row after a collapse', () => {
-            act(() => value().collapse());
-            expect(value().isRailOpen).toBe(true);
-            expect(row('a')).toHaveFocus();
-        });
-
-        it('after a remove goes to the next row; the last one closes the rail, focus on "Add"', () => {
-            act(() => value().removeFilter());
-            expect(value().isRailOpen).toBe(true);
-            expect(screen.queryByText('Row a')).not.toBeInTheDocument();
-            expect(row('b')).toHaveFocus();
-
-            fireEvent.click(row('b'));
-            act(() => value().removeFilter());
-            expect(value().isRailOpen).toBe(false);
+        it('goes to "Add" once the pill\'s X removed the edited filter', () => {
+            act(() => value().removeFilterById('a'));
+            expect(value().isSidebarOpen).toBe(false);
+            expect(screen.queryByText('Pill a')).not.toBeInTheDocument();
             expect(addButton()).toHaveFocus();
         });
 
-        it('goes to the row before when the last row is removed', () => {
-            fireEvent.click(row('b'));
-            act(() => value().removeFilter());
-            expect(row('a')).toHaveFocus();
-        });
-
-        it('goes to the bar\'s "Add" once Done closes the rail with nothing expanded', () => {
-            act(() => value().collapse());
-            fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-            expect(value().isRailOpen).toBe(false);
-            expect(addButton()).toHaveFocus();
-        });
-
-        it('closes the rail on Escape with nothing expanded', () => {
-            act(() => value().collapse());
-            escape(row('a'));
-            expect(value().isRailOpen).toBe(false);
-        });
-
-        it('goes to "Add" after a new control is closed with no field', () => {
+        it('goes to "Add" after a new control is cancelled with no field', () => {
+            fireEvent.click(apply());
             fireEvent.click(addButton());
             act(() => label().focus());
             escape(label());
@@ -442,6 +383,7 @@ describe('dismissing in the controls editor', () => {
         });
 
         it('goes to the new pill once a new control is kept with a field', () => {
+            fireEvent.click(apply());
             fireEvent.click(addButton());
             act(() =>
                 value().addFirstField({
@@ -456,7 +398,7 @@ describe('dismissing in the controls editor', () => {
                 }),
             );
             const newId = value().editing?.filterId;
-            fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+            fireEvent.click(apply());
 
             expect(pill(newId ?? '')).toHaveFocus();
         });
@@ -470,8 +412,9 @@ describe('dismissing in the controls editor', () => {
             expect(addButton()).toHaveFocus();
         });
 
-        it('is not moved to the row left behind when the filter opened next is removed from outside', () => {
-            act(() => value().open('b'));
+        it('is not moved when the edited filter is removed from outside', () => {
+            fireEvent.click(pill('b'));
+            act(() => label().focus());
             const setDashboardFilters = mockDashboardContext.current
                 .setDashboardFilters as (value: DashboardFilters) => void;
             act(() =>
@@ -481,11 +424,24 @@ describe('dismissing in the controls editor', () => {
                 }),
             );
             expect(value().isSidebarOpen).toBe(false);
-            expect(row('a')).not.toHaveFocus();
+            expect(pill('a')).not.toHaveFocus();
         });
 
-        it('is not moved when another control opens', () => {
-            act(() => value().open('b'));
+        it('goes to Apply when the edited pill is clicked with changes, and the edit stays', () => {
+            act(() => value().updateFilter({ ...rule('a'), values: ['9'] }));
+            fireEvent.click(pill('a'));
+            expect(value().editing).toEqual({ filterId: 'a' });
+            expect(apply()).toHaveFocus();
+        });
+
+        it('closes a clean edit from its own pill, focus back on it', () => {
+            fireEvent.click(pill('a'));
+            expect(value().isSidebarOpen).toBe(false);
+            expect(pill('a')).toHaveFocus();
+        });
+
+        it('is not moved when a clean edit switches to another filter', () => {
+            fireEvent.click(pill('b'));
             expect(value().editing).toEqual({ filterId: 'b' });
             expect(label()).toHaveFocus();
         });

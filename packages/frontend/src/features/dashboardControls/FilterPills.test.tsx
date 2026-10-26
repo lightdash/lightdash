@@ -238,7 +238,7 @@ describe('FilterPills', () => {
         expect(removeFilterById).not.toHaveBeenCalled();
     });
 
-    it('closes the editor from the pill being edited, as Done does', async () => {
+    it('hands a click on the pill being edited to open, which decides what it does', async () => {
         const user = userEvent.setup();
         mockSidebar.current = {
             ...mockSidebar.current,
@@ -249,8 +249,56 @@ describe('FilterPills', () => {
 
         await user.click(pill(/^Status/));
 
-        expect(close).toHaveBeenCalledTimes(1);
-        expect(open).not.toHaveBeenCalled();
+        expect(open).toHaveBeenCalledWith('saved');
+    });
+
+    it('dots the pills whose rule differs from the saved dashboard', () => {
+        setContext({
+            dashboard: {
+                uuid: 'dashboard-1',
+                filters: {
+                    dimensions: [
+                        savedRule,
+                        { ...noDefaultRule, label: 'Old name' },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            },
+        });
+        renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+        expect(
+            within(pill(/^Status/).parentElement!).queryByRole('img', {
+                name: 'Changed',
+            }),
+        ).not.toBeInTheDocument();
+        expect(
+            within(pill(/^Region/).parentElement!).getByRole('img', {
+                name: 'Changed',
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('dots a pill moved to another section, and one not saved yet', () => {
+        setContext({
+            dashboardFilters: {
+                dimensions: [{ ...savedRule, sectionId: 'a' }, noDefaultRule],
+                metrics: [],
+                tableCalculations: [],
+            },
+            dashboard: {
+                uuid: 'dashboard-1',
+                filters: {
+                    dimensions: [savedRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            },
+        });
+        renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+        expect(screen.getAllByRole('img', { name: 'Changed' })).toHaveLength(2);
     });
 
     it('removes the filter from the X without opening it', async () => {
@@ -281,16 +329,31 @@ describe('FilterPills', () => {
         ).toBeInTheDocument();
     });
 
-    it('hides the remove and lock actions while the sidebar is open', () => {
+    it("turns the sectioned bar's drag off while a filter is edited", () => {
+        mockSidebar.current = { ...mockSidebar.current, isSidebarOpen: true };
+        const { container } = renderWithProviders(
+            <FilterPills activeTabUuid={undefined} sectionId={null} />,
+        );
+
+        const draggables = container.querySelectorAll('[aria-roledescription]');
+        expect(draggables.length).toBeGreaterThan(0);
+        draggables.forEach((draggable) =>
+            expect(draggable).toHaveAttribute('aria-disabled', 'true'),
+        );
+    });
+
+    it('keeps the X but hides the lock while a filter is edited', async () => {
+        const user = userEvent.setup();
         mockSidebar.current = { ...mockSidebar.current, isSidebarOpen: true };
         renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
         expect(
-            screen.queryByRole('button', { name: 'Remove filter' }),
-        ).not.toBeInTheDocument();
-        expect(
             screen.queryByRole('button', { name: /ock filter/ }),
         ).not.toBeInTheDocument();
+        await user.click(
+            screen.getAllByRole('button', { name: 'Remove filter' })[0],
+        );
+        expect(removeFilterById).toHaveBeenCalledWith('saved');
     });
 
     describe('selection on the sectioned bar', () => {

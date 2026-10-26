@@ -62,31 +62,14 @@ describe('sidebarState', () => {
         ).toBe(true);
     });
 
-    it('ignores the section a rule sits in, which is not an edit', () => {
+    it('counts the section a rule sits in as an edit, and puts it back', () => {
         const moved = replaceFilterRule(filters, {
             ...rule('a', ['1']),
             sectionId: 's',
         });
-        expect(isFilterRuleDirty(filters, moved, 'a', asIs)).toBe(false);
-        // Put back, the rule keeps the section it is in now
-        const restored = restoreFilterRule(
-            replaceFilterRule(moved, { ...rule('a', ['9']), sectionId: 's' }),
-            filters,
-            'a',
-        );
-        expect(findFilterRule(restored, 'a')).toEqual({
-            ...rule('a', ['1']),
-            sectionId: 's',
-        });
+        expect(isFilterRuleDirty(filters, moved, 'a', asIs)).toBe(true);
         expect(
-            findFilterRule(
-                restoreFilterRule(
-                    replaceFilterRule(filters, rule('a', ['9'])),
-                    moved,
-                    'a',
-                ),
-                'a',
-            ),
+            findFilterRule(restoreFilterRule(moved, filters, 'a'), 'a'),
         ).toEqual(rule('a', ['1']));
     });
 
