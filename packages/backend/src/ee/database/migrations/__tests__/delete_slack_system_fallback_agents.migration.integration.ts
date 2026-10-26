@@ -273,7 +273,9 @@ describe('delete Slack system fallback agents migration', () => {
         );
         await database('ai_agent')
             .whereIn('ai_agent_uuid', [configured, oldWriterRow])
-            .update({ created_at: database.raw("now() - interval '60 days'") });
+            .update({
+                created_at: database.raw("now() - interval '60 days'"),
+            } as never);
         const aiAgentModel = new AiAgentModel({
             database,
             lightdashConfig: lightdashConfigMock,
