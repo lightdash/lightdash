@@ -8675,11 +8675,6 @@ export class ProjectService
             user,
         });
         if (!enabled) return;
-        const { enabled: multiSource } = await this.featureFlagModel.get({
-            featureFlagId: FeatureFlags.MultiDbtSources,
-            user,
-        });
-        if (!multiSource) return;
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         if (sources.length > 0) armCompileShutdown();
@@ -9381,11 +9376,6 @@ export class ProjectService
         manifestFetchAdapters: ProjectAdapter[];
         trackingParams: TrackingParams;
     }): Promise<MultiConnectionCompilation> {
-        const { enabled: includeUnboundSources } =
-            await this.featureFlagModel.get({
-                featureFlagId: FeatureFlags.MultiDbtSources,
-                user: { userUuid, organizationUuid },
-            });
         const { enabled: crossSourceRefsEnabled } =
             await this.featureFlagModel.get({
                 featureFlagId: FeatureFlags.CrossSourceDbtRefs,
@@ -9531,7 +9521,6 @@ export class ProjectService
             },
             context: compileContext,
             dbtVersion: resolveDbtVersion(primary.dbtVersionOption),
-            includeUnboundSources,
             crossSourceRefsEnabled,
             mixedWarehouseConnectionsEnabled,
             ...(crossSourceRefsEnabled
@@ -9597,15 +9586,6 @@ export class ProjectService
         });
     }
 
-    /**
-     * Resolve the adapter to compile a project with. When the MultiDbtSources
-     * flag is on and the project has additional sources, returns a merged
-     * manifest adapter (the union of every source); otherwise returns the
-     * primary adapter unchanged (N=0 short-circuit / regression firewall).
-     * Source git clones are pushed onto `manifestFetchAdapters` for the caller
-     * to destroy. Shared by both compile entry points (compileProject /
-     * testAndCompileProject) so "Refresh dbt" and "Test & deploy" merge alike.
-     */
     private async resolveCompileAdapter({
         projectUuid,
         organizationUuid,
@@ -9631,11 +9611,6 @@ export class ProjectService
         manifestFetchAdapters: ProjectAdapter[];
         onDbtSourceCount?: (dbtSourceCount: number) => void;
     }): Promise<ResolvedCompileAdapter> {
-        const { enabled: multiDbtSourcesEnabled } =
-            await this.featureFlagModel.get({
-                featureFlagId: FeatureFlags.MultiDbtSources,
-                user: { userUuid, organizationUuid },
-            });
         const existingNaming = async (): Promise<ExploreNaming | undefined> => {
             if (
                 !(await this.projectModel.hasExploreNameAllocations(
@@ -9652,14 +9627,6 @@ export class ProjectService
                 refreshedSourceUuids: [identity.dbtSourceUuid],
             };
         };
-        if (!multiDbtSourcesEnabled) {
-            await this.deleteMergedManifestBestEffort(projectUuid);
-            onDbtSourceCount?.(1);
-            return {
-                adapter: primary.adapter,
-                exploreNaming: await existingNaming(),
-            };
-        }
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         if (sources.length === 0) {

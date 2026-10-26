@@ -222,17 +222,6 @@ export enum FeatureFlags {
     ProLimits = 'pro-limits',
 
     /**
-     * Allow a single Lightdash project to connect to multiple dbt sources
-     * (repos/CLI deploys). Each source stores its latest compiled manifest in
-     * S3; on every deploy or preview the backend merges all sources' manifests
-     * into one, compiles once, and writes a single combined explore set. Off by
-     * default; the N=0 short-circuit (a project with zero registered sources
-     * runs today's single-source code path byte-for-byte) is the regression
-     * firewall. Enable per-org for gradual rollout.
-     */
-    MultiDbtSources = 'multi-dbt-sources',
-
-    /**
      * Enable the general-purpose coding agent: the WRITE counterpart to repo
      * discovery (`repo-fs`). Lets the AI agent make a code change to any repo
      * the org's GitHub/GitLab App installation can write (intersected with the

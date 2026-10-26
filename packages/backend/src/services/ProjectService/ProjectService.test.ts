@@ -14282,7 +14282,7 @@ const NO_FETCH_TIMINGS: DbtManifestFetchTimings = {
     manifestMs: 0,
 };
 
-describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firewall)', () => {
+describe('ProjectService.resolveCompileAdapter (single-source regression firewall)', () => {
     beforeEach(() => {
         projectModel.deleteMergedManifest
             .mockReset()
@@ -14327,10 +14327,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         manifestFetchAdapters: [],
     };
 
-    const buildServiceWithMocks = (
-        flagEnabled: boolean,
-        sources: unknown[],
-    ) => {
+    const buildServiceWithMocks = (sources: unknown[]) => {
         const getSources = vi.fn(async () => sources);
         const projectService = getMockedProjectService(
             lightdashConfigWithGoogleOAuthMock,
@@ -14342,10 +14339,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 const { featureFlagId } = args as { featureFlagId: string };
                 return {
                     id: featureFlagId,
-                    enabled:
-                        featureFlagId === FeatureFlags.MultiDbtSources
-                            ? flagEnabled
-                            : false,
+                    enabled: false,
                 };
             }),
         };
@@ -14611,7 +14605,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
 
     it('fails a compile before adapter creation settles and releases its disk later', async () => {
         vi.useFakeTimers();
-        const { projectService } = buildServiceWithMocks(true, []);
+        const { projectService } = buildServiceWithMocks([]);
         projectService.featureFlagModel.get = vi.fn(async (args: unknown) => ({
             id: (args as { featureFlagId: FeatureFlags }).featureFlagId,
             enabled: true,
@@ -14670,7 +14664,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     });
 
     it('carries a source preparation failure and fetches the primary manifest', async () => {
-        const { projectService } = buildServiceWithMocks(true, []);
+        const { projectService } = buildServiceWithMocks([]);
         projectService.featureFlagModel.get = vi.fn(async (args: unknown) => ({
             id: (args as { featureFlagId: FeatureFlags }).featureFlagId,
             enabled: true,
@@ -14704,7 +14698,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     it.each([true, false])(
         'gates managed cross-source retries with flag enabled=%s',
         async (enabled) => {
-            const { projectService } = buildServiceWithMocks(true, []);
+            const { projectService } = buildServiceWithMocks([]);
             projectService.featureFlagModel.get = vi.fn(
                 async (args: unknown) => {
                     const { featureFlagId } = args as {
@@ -15749,22 +15743,8 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         ).toHaveProperty('compiled', false);
     });
 
-    it('flag OFF returns the primary adapter by identity and never queries getSources', async () => {
-        const { projectService, getSources } = buildServiceWithMocks(false, [
-            { name: 'jaffle-2' },
-        ]);
-
-        const result = await projectService.resolveCompileAdapter(baseArgs);
-
-        expect(result.adapter).toBe(primaryAdapter);
-        expect(getSources).not.toHaveBeenCalled();
-        expect(projectModel.deleteMergedManifest).toHaveBeenCalledWith(
-            'project-uuid',
-        );
-    });
-
-    it('flag ON with zero sources (N=0) returns the primary adapter by identity', async () => {
-        const { projectService, getSources } = buildServiceWithMocks(true, []);
+    it('zero sources (N=0) returns the primary adapter by identity', async () => {
+        const { projectService, getSources } = buildServiceWithMocks([]);
 
         const result = await projectService.resolveCompileAdapter(baseArgs);
 
@@ -15776,36 +15756,27 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         expect(projectModel.upsertMergedManifest).not.toHaveBeenCalled();
     });
 
-    it.each([
-        { path: 'feature flag off', flagEnabled: false, sources: [] },
-        { path: 'zero additional sources', flagEnabled: true, sources: [] },
-    ])(
-        'BC-6: $path returns the primary adapter when stale manifest deletion fails',
-        async ({ flagEnabled, sources }) => {
-            const { projectService } = buildServiceWithMocks(
-                flagEnabled,
-                sources,
-            );
-            const warn = vi.spyOn(projectService.logger, 'warn');
-            projectModel.deleteMergedManifest.mockRejectedValueOnce(
-                new Error('database unavailable'),
-            );
+    it('BC-6: zero additional sources returns the primary adapter when stale manifest deletion fails', async () => {
+        const { projectService } = buildServiceWithMocks([]);
+        const warn = vi.spyOn(projectService.logger, 'warn');
+        projectModel.deleteMergedManifest.mockRejectedValueOnce(
+            new Error('database unavailable'),
+        );
 
-            const result = await projectService.resolveCompileAdapter(baseArgs);
+        const result = await projectService.resolveCompileAdapter(baseArgs);
 
-            expect(result.adapter).toBe(primaryAdapter);
-            expect(warn).toHaveBeenCalledWith(
-                'Failed to delete merged dbt manifest for project project-uuid: database unavailable',
-            );
-        },
-    );
+        expect(result.adapter).toBe(primaryAdapter);
+        expect(warn).toHaveBeenCalledWith(
+            'Failed to delete merged dbt manifest for project project-uuid: database unavailable',
+        );
+    });
 
     it('BC-7: carries the staged merged manifest through adapter resolution', async () => {
         const mergedAdapter = {
             id: 'merged-adapter',
         } as unknown as ProjectAdapter;
         const stagedMergedManifest = Buffer.from('staged-manifest');
-        const { projectService } = buildServiceWithMocks(true, [
+        const { projectService } = buildServiceWithMocks([
             { name: 'jaffle-2' },
         ]);
         const buildMergedManifestAdapterSpy = vi
@@ -15958,7 +15929,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
             get: vi.fn(
                 async ({ featureFlagId }: { featureFlagId: string }) => ({
                     id: featureFlagId,
-                    enabled: featureFlagId === FeatureFlags.MultiDbtSources,
+                    enabled: false,
                 }),
             ),
         } as unknown as FeatureFlagModel;
@@ -15982,6 +15953,9 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
         async ({ bound, scheduled }) => {
             vi.clearAllMocks();
             const configured = buildCompilationBoundaryService();
+            vi.mocked(
+                configured.projectDbtSourcesModel.getSources,
+            ).mockResolvedValue([]);
             vi.mocked(configured.featureFlagModel.get).mockResolvedValue({
                 enabled: false,
             } as never);
@@ -16916,7 +16890,6 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 async ({ featureFlagId }) =>
                     ({
                         enabled:
-                            featureFlagId === FeatureFlags.MultiDbtSources ||
                             featureFlagId === FeatureFlags.CrossSourceDbtRefs,
                     }) as never,
             );
@@ -16983,7 +16956,6 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 async ({ featureFlagId }) =>
                     ({
                         enabled:
-                            featureFlagId === FeatureFlags.MultiDbtSources ||
                             featureFlagId === FeatureFlags.CrossSourceDbtRefs,
                     }) as never,
             );
@@ -17036,7 +17008,6 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 async ({ featureFlagId }) =>
                     ({
                         enabled:
-                            featureFlagId === FeatureFlags.MultiDbtSources ||
                             featureFlagId === FeatureFlags.CrossSourceDbtRefs,
                     }) as never,
             );
@@ -17073,7 +17044,6 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 async ({ featureFlagId }) =>
                     ({
                         enabled:
-                            featureFlagId === FeatureFlags.MultiDbtSources ||
                             featureFlagId === FeatureFlags.CrossSourceDbtRefs,
                     }) as never,
             );
@@ -17127,7 +17097,6 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
                 async ({ featureFlagId }) =>
                     ({
                         enabled:
-                            featureFlagId === FeatureFlags.MultiDbtSources ||
                             featureFlagId === FeatureFlags.CrossSourceDbtRefs,
                     }) as never,
             );
@@ -17342,7 +17311,7 @@ describe('ProjectService.resolveCompileAdapter (MultiDbtSources regression firew
     });
 
     it('propagates a ParameterError from buildMergedManifestAdapter when sources collide', async () => {
-        const { projectService } = buildServiceWithMocks(true, [
+        const { projectService } = buildServiceWithMocks([
             { name: 'jaffle-2' },
         ]);
         vi.spyOn(
