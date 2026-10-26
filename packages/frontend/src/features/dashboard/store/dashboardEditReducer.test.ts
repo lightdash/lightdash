@@ -327,5 +327,50 @@ describe('tile selectors', () => {
             const removed = reducer(moved, actions.removeControlSection('b'));
             expect(removed.controlSections.map((s) => s.id)).toEqual(['a']);
         });
+
+        it('sets a section to start collapsed, keeping it through a sync and a rename', () => {
+            const seeded = reducer(
+                initialDashboardEditState,
+                actions.syncControlSections([
+                    { ...sections[0], collapsed: true },
+                    sections[1],
+                ]),
+            );
+            expect(seeded.controlSections[0].collapsed).toBe(true);
+            const renamed = reducer(
+                seeded,
+                actions.renameControlSection({ id: 'a', name: 'When' }),
+            );
+            expect(renamed.controlSections[0]).toEqual({
+                id: 'a',
+                name: 'When',
+                collapsed: true,
+            });
+            const reset = reducer(
+                initialDashboardEditState,
+                actions.syncControlSections(sections),
+            );
+            const collapsed = reducer(
+                reset,
+                actions.setControlSectionCollapsed({
+                    id: 'b',
+                    collapsed: true,
+                }),
+            );
+            expect(collapsed.controlSections).toEqual([
+                sections[0],
+                { ...sections[1], collapsed: true },
+            ]);
+            expect(collapsed.haveControlSectionsChanged).toBe(true);
+            expect(
+                reducer(
+                    collapsed,
+                    actions.setControlSectionCollapsed({
+                        id: 'b',
+                        collapsed: false,
+                    }),
+                ).controlSections[1].collapsed,
+            ).toBe(false);
+        });
     });
 });

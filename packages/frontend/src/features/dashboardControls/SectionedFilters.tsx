@@ -77,7 +77,7 @@ type CapsuleProps = {
     popover: PillPopoverState;
 };
 
-/** A section with more members than this (on any tab) starts collapsed */
+/** With no saved choice, a section with more members than this (on any tab) starts collapsed */
 const COLLAPSED_BY_DEFAULT_ABOVE = 6;
 
 const SectionCapsule: FC<CapsuleProps> = ({
@@ -255,7 +255,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
               },
           );
     const isOpen = (section: DashboardControlSection, total: number) =>
-        !(total > COLLAPSED_BY_DEFAULT_ABOVE) !== flippedIds.has(section.id);
+        !(section.collapsed ?? total > COLLAPSED_BY_DEFAULT_ABOVE) !==
+        flippedIds.has(section.id);
     // A popover in a collapsed or hidden section is closed with it
     const sectionOfOpenPopover = groupRulesBySection(
         dashboardFilters,

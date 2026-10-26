@@ -1646,6 +1646,77 @@ describe('ControlSidebar', () => {
             ).not.toBeInTheDocument();
         });
 
+        it('marks a section to start collapsed from its menu, folding it in the rail', async () => {
+            closedRail();
+            const { store } = renderWithProviders(
+                <ControlSidebar />,
+                sectioned(),
+            );
+            expect(
+                screen.getByRole('button', { name: /^Created/ }),
+            ).toBeVisible();
+
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            const item = await screen.findByRole('menuitem', {
+                name: 'Start collapsed',
+            });
+            expect(item.querySelector('.tabler-icon-check')).toBeNull();
+            await userEvent.click(item);
+            expect(selectControlSections(store.getState())[0]).toEqual({
+                ...sections[0],
+                collapsed: true,
+            });
+            expect(
+                screen.queryByRole('button', { name: /^Created/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Expand section Dates' }),
+            ).toBeInTheDocument();
+
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            const checked = await screen.findByRole('menuitem', {
+                name: 'Start collapsed',
+            });
+            expect(checked.querySelector('.tabler-icon-check')).not.toBeNull();
+            await userEvent.click(checked);
+            expect(selectControlSections(store.getState())[0].collapsed).toBe(
+                false,
+            );
+            expect(
+                screen.getByRole('button', { name: /^Created/ }),
+            ).toBeVisible();
+        });
+
+        it('starts a saved collapsed section folded, and a drag over its header opens it', async () => {
+            mockDashboardContext.current.dashboard = {
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: [
+                        { ...sections[0], collapsed: true },
+                        sections[1],
+                    ],
+                },
+            };
+            closedRail();
+            renderWithProviders(<ControlSidebar />, sectioned());
+            expect(
+                screen.queryByRole('button', { name: /^Created/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: /^Region/ }),
+            ).toBeVisible();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Expand section Dates' }),
+            );
+            expect(
+                screen.getByRole('button', { name: /^Created/ }),
+            ).toBeVisible();
+        });
+
         it('renames a section from its menu, keeping the name when emptied', async () => {
             closedRail();
             const { store } = renderWithProviders(<ControlSidebar />);
@@ -1738,6 +1809,7 @@ describe('ControlSidebar', () => {
             expect(items.map((item) => item.textContent)).toEqual([
                 'Add filter',
                 'Rename',
+                'Start collapsed',
                 'Remove section',
             ]);
             await userEvent.click(items[0]);

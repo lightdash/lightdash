@@ -21,6 +21,7 @@ import {
 import {
     getDashboardFilterField,
     interpolateUiString,
+    type DashboardControlSection,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
@@ -379,8 +380,9 @@ const OpenControlSidebar: FC = () => {
             : interpolateUiString(getUiString('filters.rail.unknownField'), {
                   field: rule.target.fieldId,
               });
-    // Local to this mount: nothing saved
-    const [collapsedIds, setCollapsedIds] = useState<string[]>([]);
+    // Local to this mount: the sections whose fold differs from their saved
+    // default (`section.collapsed`), which can arrive after mount
+    const [flippedIds, setFlippedIds] = useState<string[]>([]);
     // A new section lives only here until its name is committed
     const [nameEdit, setNameEdit] = useState<NameEdit | null>(null);
     // The row or header under the pointer, copied into the drag overlay
@@ -437,6 +439,17 @@ const OpenControlSidebar: FC = () => {
           ]
         : groupRulesBySection(dashboardFilters, sections);
     const sectionIds = new Set(controlSections.map((section) => section.id));
+    const isSectionCollapsed = (section: DashboardControlSection) =>
+        (section.collapsed === true) !== flippedIds.includes(section.id);
+    const setSectionCollapsed = (
+        section: DashboardControlSection,
+        collapsed: boolean,
+    ) =>
+        setFlippedIds((ids) =>
+            collapsed === (section.collapsed === true)
+                ? ids.filter((id) => id !== section.id)
+                : [...ids.filter((id) => id !== section.id), section.id],
+        );
     const sectionNames = new Map(
         sections.map((section) => [
             section.id,
@@ -479,9 +492,9 @@ const OpenControlSidebar: FC = () => {
     const handleDragOver = ({ active, over }: DragOverEvent) => {
         // A dragged header starts over itself
         if (!over || sectionIds.has(String(active.id))) return;
-        const overId = String(over.id);
-        if (!collapsedIds.includes(overId)) return;
-        setCollapsedIds((ids) => ids.filter((id) => id !== overId));
+        const overSection = sections.find(({ id }) => id === String(over.id));
+        if (!overSection || !isSectionCollapsed(overSection)) return;
+        setSectionCollapsed(overSection, false);
     };
     const handleDragEnd = ({ active, over, activatorEvent }: DragEndEvent) => {
         setDraggedId(null);
@@ -781,8 +794,7 @@ const OpenControlSidebar: FC = () => {
                 ];
     // What is on screen: the sortable ids must not name an unrendered row
     const listed = grouped.map(({ section, rules }) => {
-        const isCollapsed =
-            section !== null && collapsedIds.includes(section.id);
+        const isCollapsed = section !== null && isSectionCollapsed(section);
         return {
             section,
             rules,
@@ -903,12 +915,16 @@ const OpenControlSidebar: FC = () => {
                 onToggle={() => {
                     if (!isCollapsed && holdsEditor && !isPlaceholder)
                         collapse();
-                    setCollapsedIds((ids) =>
-                        ids.includes(section.id)
-                            ? ids.filter((id) => id !== section.id)
-                            : [...ids, section.id],
-                    );
+                    setSectionCollapsed(section, !isCollapsed);
                 }}
+                onToggleStartCollapsed={() =>
+                    dispatch(
+                        dashboardEditActions.setControlSectionCollapsed({
+                            id: section.id,
+                            collapsed: section.collapsed !== true,
+                        }),
+                    )
+                }
                 onRename={() =>
                     setNameEdit({ id: section.id, isNew: false, moveIds: [] })
                 }

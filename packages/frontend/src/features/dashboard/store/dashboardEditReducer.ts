@@ -172,6 +172,10 @@ export const dashboardEditActions = {
     moveControlSection: createAction<{ id: string; overId: string }>(
         'dashboardEdit/moveControlSection',
     ),
+    setControlSectionCollapsed: createAction<{
+        id: string;
+        collapsed: boolean;
+    }>('dashboardEdit/setControlSectionCollapsed'),
 };
 
 const withControlSections = (
@@ -327,6 +331,15 @@ export const dashboardEditReducer = (
             state,
             state.controlSections.filter(
                 (section) => section.id !== action.payload,
+            ),
+        );
+    }
+    if (dashboardEditActions.setControlSectionCollapsed.match(action)) {
+        const { id, collapsed } = action.payload;
+        return withControlSections(
+            state,
+            state.controlSections.map((section) =>
+                section.id === id ? { ...section, collapsed } : section,
             ),
         );
     }

@@ -4,6 +4,7 @@ import {
     DashboardTileTypes,
     FieldType,
     FilterOperator,
+    type DashboardControlSection,
     type DashboardFilterRule,
     type DashboardFilterableField,
     type DashboardFilters,
@@ -194,6 +195,11 @@ const onTabOne = {
 const renderSectioned = (
     dimensions: DashboardFilterRule[],
     activeTabUuid: string | undefined,
+    controlSections: DashboardControlSection[] = [
+        { id: 'a', name: 'Dates' },
+        { id: 'b', name: 'Regions' },
+        { id: 'c', name: 'Empty' },
+    ],
     trailing?: ReactNode,
 ) => {
     const store = createDashboardTestStore({
@@ -208,11 +214,7 @@ const renderSectioned = (
         dashboard: {
             config: {
                 isDateZoomDisabled: false,
-                controlSections: [
-                    { id: 'a', name: 'Dates' },
-                    { id: 'b', name: 'Regions' },
-                    { id: 'c', name: 'Empty' },
-                ],
+                controlSections,
             },
         },
         dashboardTiles: tiles,
@@ -278,7 +280,12 @@ describe('SectionedFilters', () => {
     });
 
     it('keeps Add, the capsules, the pills and what follows in one flow', () => {
-        renderSectioned([rule('one', 'a')], 'tab-1', <button>Required</button>);
+        renderSectioned(
+            [rule('one', 'a')],
+            'tab-1',
+            undefined,
+            <button>Required</button>,
+        );
         const required = screen.getByRole('button', { name: 'Required' });
         // In edit mode Add sits in its drop-target wrapper inside the flow
         const flow = screen
@@ -348,6 +355,32 @@ describe('SectionedFilters', () => {
         expect(screen.getByTestId('pills-b')).not.toHaveAttribute(
             'data-popover',
         );
+    });
+
+    it('starts as the saved choice says, over the member count', () => {
+        const members = (count: number) =>
+            Array.from({ length: count }, (_, i) => rule(`a-${i}`, 'a'));
+        const sectionA = (collapsed: boolean) => ({
+            id: 'a',
+            name: 'Dates',
+            collapsed,
+        });
+        const { unmount } = renderSectioned(members(2), 'tab-1', [
+            sectionA(true),
+        ]);
+        expect(screen.getByRole('button', { name: /^Dates/ })).toHaveAttribute(
+            'aria-expanded',
+            'false',
+        );
+        expect(screen.queryByTestId('pills-a')).not.toBeInTheDocument();
+        unmount();
+
+        renderSectioned(members(7), 'tab-1', [sectionA(false)]);
+        expect(screen.getByRole('button', { name: 'Dates' })).toHaveAttribute(
+            'aria-expanded',
+            'true',
+        );
+        expect(screen.getByTestId('pills-a')).toBeInTheDocument();
     });
 
     it('starts folded above six members on the tab and open at six', () => {
