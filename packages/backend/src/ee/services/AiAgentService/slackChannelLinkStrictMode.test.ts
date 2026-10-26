@@ -1,6 +1,5 @@
 import {
     defineUserAbility,
-    FeatureFlags,
     OrganizationMemberRole,
     type SessionUser,
 } from '@lightdash/common';
@@ -51,20 +50,18 @@ const agent = {
 
 const buildService = ({
     requireExplicitLinking,
-    systemAgentFallbackEnabled = false,
+    agents = [agent],
 }: {
     requireExplicitLinking: boolean;
-    systemAgentFallbackEnabled?: boolean;
+    agents?: (typeof agent)[];
 }) => {
     const aiAgentModel = {
         getAgent: vi.fn().mockResolvedValue(agent),
-        findAllAgents: vi.fn().mockResolvedValue([agent]),
+        findAllAgents: vi.fn().mockResolvedValue(agents),
         addSlackChannelIntegration: vi.fn().mockResolvedValue(undefined),
         findLastUsedProjectUuid: vi.fn().mockResolvedValue(null),
-        getOrCreateSystemAgent: vi.fn().mockResolvedValue(agent),
-        findThreadUuidBySlackChannelIdAndThreadTs: vi
-            .fn()
-            .mockResolvedValue(undefined),
+        filterExistingProjectUuids: vi.fn().mockResolvedValue([]),
+        createAgent: vi.fn(),
     };
     const service = new AiAgentService({
         aiAgentModel,
@@ -75,12 +72,7 @@ const buildService = ({
             getSummary: vi.fn().mockResolvedValue({ name: 'Jaffle Shop' }),
         },
         featureFlagService: {
-            get: vi.fn().mockImplementation(async ({ featureFlagId }) => ({
-                enabled:
-                    featureFlagId === FeatureFlags.AiSlackSystemAgentFallback
-                        ? systemAgentFallbackEnabled
-                        : true,
-            })),
+            get: vi.fn().mockResolvedValue({ enabled: true }),
         },
         aiOrganizationSettingsService: {
             isExplicitSlackChannelLinkingRequired: vi
@@ -108,13 +100,26 @@ const buildUnmappedChannelArgs = ({ threadTs }: { threadTs?: string } = {}) => {
             say,
             client,
             slackUserId: SLACK_USER_ID,
-            promptText: 'how many orders did we get last week?',
             visibleProjectUuids: undefined,
         },
         say,
         postEphemeral,
     };
 };
+
+type UnmappedChannelArgs = ReturnType<typeof buildUnmappedChannelArgs>['args'];
+
+const resolveUnmappedChannel = (
+    service: AiAgentService,
+    args: UnmappedChannelArgs,
+) =>
+    (
+        service as unknown as {
+            resolveAgentForUnmappedSlackChannel: (
+                a: UnmappedChannelArgs,
+            ) => Promise<{ uuid: string } | 'handled'>;
+        }
+    ).resolveAgentForUnmappedSlackChannel(args);
 
 describe('linkAgentToSlackChannel strict mode', () => {
     it('refuses to link when the org requires explicit channel linking', async () => {
@@ -153,23 +158,16 @@ describe('linkAgentToSlackChannel strict mode', () => {
     });
 });
 
-describe('resolveAgentForUnmappedSlackChannel strict mode', () => {
-    it('posts an ephemeral and skips the system-agent fallback when strict mode is on', async () => {
+describe('resolveAgentForUnmappedSlackChannel', () => {
+    it('posts an ephemeral and never creates an agent when strict mode is on', async () => {
         const { service, aiAgentModel } = buildService({
             requireExplicitLinking: true,
-            systemAgentFallbackEnabled: true,
         });
         const { args, say, postEphemeral } = buildUnmappedChannelArgs({
             threadTs: THREAD_TS,
         });
 
-        const result = await (
-            service as unknown as {
-                resolveAgentForUnmappedSlackChannel: (
-                    a: typeof args,
-                ) => Promise<unknown>;
-            }
-        ).resolveAgentForUnmappedSlackChannel(args);
+        const result = await resolveUnmappedChannel(service, args);
 
         expect(result).toBe('handled');
         expect(postEphemeral).toHaveBeenCalledWith(
@@ -180,7 +178,7 @@ describe('resolveAgentForUnmappedSlackChannel strict mode', () => {
                 text: expect.stringContaining(`${SITE_URL}/ai-agents`),
             }),
         );
-        expect(aiAgentModel.getOrCreateSystemAgent).not.toHaveBeenCalled();
+        expect(aiAgentModel.createAgent).not.toHaveBeenCalled();
         expect(aiAgentModel.addSlackChannelIntegration).not.toHaveBeenCalled();
         expect(aiAgentModel.findAllAgents).not.toHaveBeenCalled();
         expect(say).not.toHaveBeenCalled();
@@ -192,13 +190,7 @@ describe('resolveAgentForUnmappedSlackChannel strict mode', () => {
         const { service } = buildService({ requireExplicitLinking: true });
         const { args, postEphemeral } = buildUnmappedChannelArgs();
 
-        const result = await (
-            service as unknown as {
-                resolveAgentForUnmappedSlackChannel: (
-                    a: typeof args,
-                ) => Promise<unknown>;
-            }
-        ).resolveAgentForUnmappedSlackChannel(args);
+        const result = await resolveUnmappedChannel(service, args);
 
         expect(result).toBe('handled');
         expect(postEphemeral).toHaveBeenCalledTimes(1);
@@ -215,15 +207,9 @@ describe('resolveAgentForUnmappedSlackChannel strict mode', () => {
         });
         const { args, say, postEphemeral } = buildUnmappedChannelArgs();
 
-        const result = await (
-            service as unknown as {
-                resolveAgentForUnmappedSlackChannel: (
-                    a: typeof args,
-                ) => Promise<{ uuid: string }>;
-            }
-        ).resolveAgentForUnmappedSlackChannel(args);
+        const result = await resolveUnmappedChannel(service, args);
 
-        expect(result.uuid).toBe(AGENT_UUID);
+        expect(result).toMatchObject({ uuid: AGENT_UUID });
         expect(aiAgentModel.addSlackChannelIntegration).toHaveBeenCalledWith({
             organizationUuid: ORGANIZATION_UUID,
             agentUuid: AGENT_UUID,
@@ -235,5 +221,77 @@ describe('resolveAgentForUnmappedSlackChannel strict mode', () => {
                 text: expect.stringContaining('Linked'),
             }),
         );
+    });
+
+    it('points at the agents page instead of creating an agent when the org has none', async () => {
+        const { service, aiAgentModel } = buildService({
+            requireExplicitLinking: false,
+            agents: [],
+        });
+        const { args, say, postEphemeral } = buildUnmappedChannelArgs({
+            threadTs: THREAD_TS,
+        });
+
+        const result = await resolveUnmappedChannel(service, args);
+
+        expect(result).toBe('handled');
+        expect(say).toHaveBeenCalledTimes(1);
+        expect(say).toHaveBeenCalledWith({
+            text: expect.stringContaining(`${SITE_URL}/ai-agents`),
+            thread_ts: THREAD_TS,
+        });
+        expect(aiAgentModel.createAgent).not.toHaveBeenCalled();
+        expect(aiAgentModel.addSlackChannelIntegration).not.toHaveBeenCalled();
+        expect(postEphemeral).not.toHaveBeenCalled();
+    });
+});
+
+describe('selectAgentForSlack without configured agents', () => {
+    it('tells the user no agents are available and creates none', async () => {
+        const { service, aiAgentModel } = buildService({
+            requireExplicitLinking: false,
+            agents: [],
+        });
+        const say = vi.fn().mockResolvedValue(undefined);
+        const postMessage = vi.fn().mockResolvedValue(undefined);
+
+        const result = await (
+            service as unknown as {
+                selectAgentForSlack: (args: {
+                    availableAgents: never[];
+                    messageText: string;
+                    channelId: string;
+                    threadTs: string | undefined;
+                    promptSlackTs: string;
+                    say: typeof say;
+                    botUserId: string | undefined;
+                    client: { chat: { postMessage: typeof postMessage } };
+                    isMultiAgentChannel: boolean;
+                    organizationUuid: string;
+                    userUuid: string;
+                }) => Promise<unknown>;
+            }
+        ).selectAgentForSlack({
+            availableAgents: [],
+            messageText: 'how many orders did we get last week?',
+            channelId: CHANNEL_ID,
+            threadTs: THREAD_TS,
+            promptSlackTs: MESSAGE_TS,
+            say,
+            botUserId: 'B12345',
+            client: { chat: { postMessage } },
+            isMultiAgentChannel: true,
+            organizationUuid: ORGANIZATION_UUID,
+            userUuid: adminUser.userUuid,
+        });
+
+        expect(result).toBeUndefined();
+        expect(say).toHaveBeenCalledTimes(1);
+        expect(say).toHaveBeenCalledWith({
+            text: expect.stringContaining('No AI agents are available'),
+            thread_ts: THREAD_TS,
+        });
+        expect(aiAgentModel.createAgent).not.toHaveBeenCalled();
+        expect(postMessage).not.toHaveBeenCalled();
     });
 });

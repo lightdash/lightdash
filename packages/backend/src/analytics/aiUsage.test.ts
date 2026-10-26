@@ -403,7 +403,7 @@ describe('emitAiUsage', () => {
             {
                 telemetry: { functionId: 'routeProject' },
                 runtimeContext: {
-                    feature: 'project-router',
+                    feature: 'agent-selector',
                     organizationUuid: 'org-1',
                 },
             },
