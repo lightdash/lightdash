@@ -1478,6 +1478,10 @@ export class AsyncQueryService extends ProjectService {
 
         for await (const line of splitJsonlStream(cacheStream)) {
             if (line.trim()) {
+                if (nonEmptyLineCount >= endLine) {
+                    destroyS3Body(cacheStream);
+                    break;
+                }
                 if (
                     nonEmptyLineCount >= startLine &&
                     nonEmptyLineCount < endLine

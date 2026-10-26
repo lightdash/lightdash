@@ -28818,3 +28818,130 @@ describe('late query status writes', () => {
         }
     });
 });
+
+describe('S3 result pagination', () => {
+    const readPage = async (stream: Readable, page = 1, pageSize = 2) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(
+            service.resultsStorageClient.getDownloadStream,
+        ).mockResolvedValue(stream);
+        const formatter = vi.fn((row) => row);
+        const result = await service['getResultsPageFromS3'](
+            'query-uuid',
+            'results-file',
+            QueryExecutionContext.EXPLORE,
+            page,
+            pageSize,
+            formatter,
+        );
+        return { ...result, formatter };
+    };
+
+    test.each([1, 3])(
+        'stops reading after page %s instead of consuming the tail',
+        async (page) => {
+            let emittedRows = 0;
+            const stream = Readable.from(
+                (async function* generateRows() {
+                    for (let value = 1; value <= 1000; value += 1) {
+                        emittedRows += 1;
+                        yield `${JSON.stringify({ value })}\n`;
+                        // Delay each chunk so the fixture is not fully buffered.
+                        // eslint-disable-next-line no-await-in-loop
+                        await new Promise<void>((resolve) => {
+                            setImmediate(resolve);
+                        });
+                    }
+                })(),
+            );
+            const { rows, formatter } = await readPage(stream, page);
+            expect(rows).toEqual([
+                { value: (page - 1) * 2 + 1 },
+                { value: page * 2 },
+            ]);
+            expect(formatter).toHaveBeenCalledTimes(2);
+            expect(emittedRows).toBeLessThan(1000);
+            expect(stream.destroyed).toBe(true);
+        },
+    );
+
+    test('closes the HTTP source behind a checksum-wrapped S3 body', async () => {
+        const source = new PassThrough({ autoDestroy: false });
+        const body = new PassThrough() as PassThrough & { source: Readable };
+        body.source = source;
+        source.pipe(body);
+        source.end('{"value":1}\n{"value":2}\n{"value":3}\n');
+        const { rows } = await readPage(body);
+        expect(rows).toEqual([{ value: 1 }, { value: 2 }]);
+        expect(body.destroyed).toBe(true);
+        expect(source.destroyed).toBe(true);
+    });
+
+    test.each([
+        [1, [{ value: 1 }, { value: 2 }]],
+        [2, [{ value: 3 }]],
+        [3, []],
+    ])(
+        'preserves the rows of page %s including partial and missing pages',
+        async (page, expected) => {
+            const stream = Readable.from([
+                '{"value":1}\n{"value":2}\n{"value":3}',
+            ]);
+            const { rows } = await readPage(stream, page);
+            expect(rows).toEqual(expected);
+        },
+    );
+
+    test('skips blank lines and preserves CRLF and Unicode inside values', async () => {
+        const first = { value: 'before\u2028after' };
+        const second = { value: 'before\u2029after' };
+        const stream = Readable.from([
+            `\n \r\n${JSON.stringify(first)}\r\n\r\n${JSON.stringify(second)}`,
+        ]);
+        const { rows } = await readPage(stream);
+        expect(rows).toEqual([first, second]);
+    });
+
+    test('returns an empty page for an empty stream', async () => {
+        const { rows, formatter } = await readPage(Readable.from([]));
+        expect(rows).toEqual([]);
+        expect(formatter).not.toHaveBeenCalled();
+    });
+
+    test('preserves JSON errors in the requested page', async () => {
+        await expect(readPage(Readable.from(['not JSON\n']))).rejects.toThrow(
+            SyntaxError,
+        );
+    });
+
+    test.each([1, 2])(
+        'preserves a terminal download error on full final page %s',
+        async (page) => {
+            const stream = Readable.from(
+                (async function* generateRowsWithError() {
+                    yield Array.from(
+                        { length: page * 2 },
+                        (_, index) =>
+                            `${JSON.stringify({ value: index + 1 })}\n`,
+                    ).join('');
+                    await new Promise<void>((resolve) => {
+                        setImmediate(resolve);
+                    });
+                    throw new Error('download failed at EOF');
+                })(),
+            );
+            await expect(readPage(stream, page)).rejects.toThrow(
+                'download failed at EOF',
+            );
+        },
+    );
+
+    test('propagates source errors before the page is complete', async () => {
+        const stream = new Readable({
+            read() {
+                this.destroy(new Error('download failed'));
+            },
+        });
+        await expect(readPage(stream)).rejects.toThrow('download failed');
+    });
+});
