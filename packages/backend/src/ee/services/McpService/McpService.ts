@@ -5053,6 +5053,18 @@ export class McpService extends BaseService {
             agentUuid,
             projectUuid,
         );
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    projectUuid: agent.projectUuid,
+                    organizationUuid: agent.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError('You do not have access to this project');
+        }
         return {
             uuid: agent.uuid,
             name: agent.name,

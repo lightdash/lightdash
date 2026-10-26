@@ -1,6 +1,7 @@
 import {
     AgentActorSurface,
     ApiKeyAccount,
+    assertUnreachable,
     ForbiddenError,
     getErrorMessage,
     LightdashError,
@@ -57,6 +58,7 @@ const MCP_PROJECT_HEADER = 'X-Lightdash-Project';
  */
 export function extractMcpProjectUuid(
     req: Pick<express.Request, 'headers' | 'params'>,
+    invalidHeader: 'ignore' | 'reject',
 ): string | undefined {
     const routeProjectUuid = req.params.projectUuid;
     if (routeProjectUuid !== undefined) {
@@ -70,11 +72,23 @@ export function extractMcpProjectUuid(
     if (!headerValue || typeof headerValue !== 'string') {
         return undefined;
     }
-    if (!isValidUuid(headerValue)) {
-        Logger.warn(`Invalid ${MCP_PROJECT_HEADER} header: not a UUID`);
-        return undefined;
+    if (isValidUuid(headerValue)) {
+        return headerValue;
     }
-    return headerValue;
+    switch (invalidHeader) {
+        case 'ignore':
+            Logger.warn(`Invalid ${MCP_PROJECT_HEADER} header: not a UUID`);
+            return undefined;
+        case 'reject':
+            throw new ParameterError(
+                'Invalid X-Lightdash-Project header: expected a project UUID',
+            );
+        default:
+            return assertUnreachable(
+                invalidHeader,
+                'Unknown invalid header policy',
+            );
+    }
 }
 
 export function extractMcpAgentUuid(
@@ -351,8 +365,11 @@ mcpRouter.all(
                 // SDK 1.26.0 requires a new server+transport per request in stateless mode
                 // to prevent cross-client response data leaks (CVE-2026-25536)
                 // See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
-                const requestedProjectUuid = extractMcpProjectUuid(req);
                 const requestedAgentUuid = extractMcpAgentUuid(req);
+                const requestedProjectUuid = extractMcpProjectUuid(
+                    req,
+                    requestedAgentUuid ? 'reject' : 'ignore',
+                );
                 const pinnedAgent = requestedAgentUuid
                     ? await mcpService.getPinnedAgent(user, {
                           agentUuid: requestedAgentUuid,
