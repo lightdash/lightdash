@@ -1,3 +1,10 @@
+## [3.53.10](https://github.com/lightdash/lightdash/compare/3.53.9...3.53.10) (2026-10-26)
+
+
+### Bug Fixes
+
+* stop reading query results after the requested page ([#31546](https://github.com/lightdash/lightdash/issues/31546)) ([de261f2](https://github.com/lightdash/lightdash/commit/de261f25178277c1974587bb8bd7ae0c4244bdde))
+
 ## [3.53.9](https://github.com/lightdash/lightdash/compare/3.53.8...3.53.9) (2026-10-26)
 
 
