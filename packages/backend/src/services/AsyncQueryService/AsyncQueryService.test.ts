@@ -28925,6 +28925,28 @@ describe('S3 result pagination', () => {
         );
     });
 
+    test.each([1, 2])(
+        'preserves a terminal download error on full final page %s',
+        async (page) => {
+            const stream = Readable.from(
+                (async function* generateRowsWithError() {
+                    yield Array.from(
+                        { length: page * 2 },
+                        (_, index) =>
+                            `${JSON.stringify({ value: index + 1 })}\n`,
+                    ).join('');
+                    await new Promise<void>((resolve) => {
+                        setImmediate(resolve);
+                    });
+                    throw new Error('download failed at EOF');
+                })(),
+            );
+            await expect(readPage(stream, page)).rejects.toThrow(
+                'download failed at EOF',
+            );
+        },
+    );
+
     test('propagates source errors before the page is complete', async () => {
         const stream = new Readable({
             read() {
