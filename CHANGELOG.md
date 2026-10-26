@@ -1,3 +1,10 @@
+# [3.55.0](https://github.com/lightdash/lightdash/compare/3.54.0...3.55.0) (2026-10-26)
+
+
+### Features
+
+* **ai:** show filters, sort, limit and parameters on composer semantic node cards ([#31557](https://github.com/lightdash/lightdash/issues/31557)) ([a783ab4](https://github.com/lightdash/lightdash/commit/a783ab413544fc35148caf400202ac4cf23bf0b6))
+
 # [3.54.0](https://github.com/lightdash/lightdash/compare/3.53.11...3.54.0) (2026-10-26)
 
 
