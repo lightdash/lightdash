@@ -1,13 +1,22 @@
-import { DimensionType } from '../../types/field';
+import { type Explore } from '../../types/explore';
+import { DimensionType, MetricType } from '../../types/field';
 import {
     FilterOperator,
     FilterType,
     isFilterRule,
     type FilterGroup,
     type Filters,
+    type MetricFilterRule,
 } from '../../types/filter';
+import {
+    isPeriodOverPeriodAdditionalMetric,
+    type AdditionalMetric,
+} from '../../types/metricQuery';
 import { type SemanticLayerSourceQuery } from '../../types/querySources';
 import assertUnreachable from '../../utils/assertUnreachable';
+import { getDimensions } from '../../utils/fields';
+import { getFilterTypeFromItemType } from '../../utils/filters';
+import { getItemId } from '../../utils/item';
 import type {
     AiCustomChartTypeChartArtifactConfig,
     AiSemanticChartArtifactConfig,
@@ -148,10 +157,87 @@ const toRunQueryChartConfig = (
     };
 };
 
+const runQueryAggregations: MetricType[] = [
+    MetricType.AVERAGE,
+    MetricType.COUNT,
+    MetricType.COUNT_DISTINCT,
+    MetricType.MAX,
+    MetricType.MIN,
+    MetricType.SUM,
+    MetricType.MEDIAN,
+];
+
+/** A metric filter as runQuery persists it; undefined when its field is unknown. */
+const toRunQueryMetricFilter = (rule: MetricFilterRule, explore: Explore) => {
+    const dimension = getDimensions(explore).find(
+        (field) => `${field.table}.${field.name}` === rule.target.fieldRef,
+    );
+    if (!dimension) return undefined;
+    const fieldFilterType = getFilterTypeFromItemType(dimension.type);
+    const settings: unknown = rule.settings;
+    const hasValues =
+        rule.operator !== FilterOperator.NULL &&
+        rule.operator !== FilterOperator.NOT_NULL;
+    return {
+        table: dimension.table,
+        filter: {
+            fieldId: getItemId(dimension),
+            fieldType: dimension.type,
+            fieldFilterType,
+            operator: rule.operator,
+            ...(hasValues ? { values: rule.values ?? [] } : {}),
+            ...(settings !== undefined ? { settings } : {}),
+        },
+    };
+};
+
+/** runQuery's custom metrics for a node's additional metrics; undefined when one cannot be carried. */
+const toRunQueryCustomMetrics = (
+    additionalMetrics: AdditionalMetric[],
+    explore: Explore | null,
+) => {
+    const customMetrics = additionalMetrics.map((metric) => {
+        if (isPeriodOverPeriodAdditionalMetric(metric)) {
+            return {
+                kind: 'periodComparison' as const,
+                baseMetricId: metric.baseMetricId,
+                timeDimensionId: metric.timeDimensionId,
+                granularity: metric.granularity,
+                periodOffset: metric.periodOffset,
+            };
+        }
+        if (
+            !metric.baseDimensionName ||
+            !runQueryAggregations.includes(metric.type)
+        ) {
+            return undefined;
+        }
+        const filters = (metric.filters ?? []).map((rule) =>
+            explore ? toRunQueryMetricFilter(rule, explore) : undefined,
+        );
+        if (filters.some((filter) => filter === undefined)) return undefined;
+        return {
+            kind: 'aggregation' as const,
+            name: metric.name,
+            label: metric.label ?? metric.name,
+            description: metric.description ?? '',
+            baseDimensionName: getItemId({
+                table: metric.table,
+                name: metric.baseDimensionName,
+            }),
+            table: metric.table,
+            type: metric.type,
+            filters: filters.length > 0 ? filters : null,
+        };
+    });
+    return customMetrics.every((metric) => metric !== undefined)
+        ? customMetrics
+        : undefined;
+};
+
 // Fields the runQuery payload has no place for.
 const hasClassicQueryShape = (node: SemanticLayerSourceQuery): boolean =>
     !node.tableCalculations?.length &&
-    !node.additionalMetrics?.length &&
     !node.customDimensions?.length &&
     !node.metricOverrides &&
     !node.dimensionOverrides &&
@@ -169,6 +255,7 @@ export const toComposerSemanticArtifactVersion = ({
     node,
     vizConfig,
     maxQueryLimit,
+    explore,
 }: {
     title: string;
     description: string | null;
@@ -176,12 +263,28 @@ export const toComposerSemanticArtifactVersion = ({
     vizConfig: ComposerStoredChartVizConfig;
     /** The classic artifact clamps its limit to this. */
     maxQueryLimit: number;
+    /** Types custom metric filters; null when the explore is unavailable. */
+    explore: Explore | null;
 }): AiComposerSemanticArtifactVersion | null => {
     if (!hasClassicQueryShape(node)) return null;
     if (node.limit !== undefined && node.limit > maxQueryLimit) return null;
     const filters = toResolvedFilters(node.filters);
     const chartConfig = toRunQueryChartConfig(vizConfig);
-    if (filters === undefined || chartConfig === undefined) return null;
+    const additionalMetrics = node.additionalMetrics ?? [];
+    const customMetrics = toRunQueryCustomMetrics(additionalMetrics, explore);
+    if (
+        filters === undefined ||
+        chartConfig === undefined ||
+        customMetrics === undefined
+    ) {
+        return null;
+    }
+    // runQuery derives period comparison columns from customMetrics itself.
+    const generatedMetricIds = new Set(
+        additionalMetrics
+            .filter(isPeriodOverPeriodAdditionalMetric)
+            .map(getItemId),
+    );
 
     const parsed = toolRunQueryExpressionResolvedArgsSchema.safeParse({
         title,
@@ -189,12 +292,14 @@ export const toComposerSemanticArtifactVersion = ({
         queryConfig: {
             exploreName: node.exploreName,
             dimensions: node.dimensions,
-            metrics: node.metrics,
+            metrics: node.metrics.filter(
+                (metricId) => !generatedMetricIds.has(metricId),
+            ),
             filters,
             sorts: node.sorts ?? [],
             limit: node.limit ?? null,
             parameters: node.parameters ?? null,
-            customMetrics: null,
+            customMetrics: customMetrics.length > 0 ? customMetrics : null,
             tableCalculations: null,
         },
         chartConfig,
