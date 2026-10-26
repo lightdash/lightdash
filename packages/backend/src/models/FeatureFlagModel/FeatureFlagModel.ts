@@ -63,12 +63,6 @@ export class FeatureFlagModel {
                     this.lightdashConfig.results.cacheEnabled,
                     options,
                 ),
-            [FeatureFlags.AgentIdentitySilentRefresh]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.AgentSqlScopeHyphenatedIdentifiers]: (
-                flagArgs,
-                options,
-            ) => this.getWithEnvFallback(flagArgs, true, options),
         };
     }
 

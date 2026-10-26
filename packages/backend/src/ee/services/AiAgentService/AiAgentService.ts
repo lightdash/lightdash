@@ -652,7 +652,6 @@ import {
     parseSlackVisualizationSelection,
     stripSlackVisualizationSelection,
 } from '../ai/utils/slackVisualizationSelection';
-import { isSqlScopeConfigured } from '../ai/utils/sqlScope';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import {
@@ -16803,17 +16802,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                           prompt.projectUuid,
                       )
                     : null;
-                const hyphenatedIdentifiers = isSqlScopeConfigured(
-                    agentSqlScope,
-                )
-                    ? (
-                          await this.featureFlagService.get({
-                              user,
-                              featureFlagId:
-                                  FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
-                          })
-                      ).enabled
-                    : false;
 
                 const [knowledgeDocuments, threadDeepResearchRuns, mcpServers] =
                     await Promise.all([
@@ -17425,7 +17413,6 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     warehouseSchema,
                     warehouseConnections,
                     sqlScope: agentSqlScope,
-                    hyphenatedIdentifiers,
                     builtInSkills,
                     customSkills,
                     modelReasoningEnabled:

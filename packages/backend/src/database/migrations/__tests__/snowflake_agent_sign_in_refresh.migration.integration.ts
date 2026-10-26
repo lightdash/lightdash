@@ -73,7 +73,7 @@ describe('Snowflake agent sign-in refresh on the migrated schema', () => {
     });
     afterEach(() => vi.restoreAllMocks());
 
-    const setup = async (silentRefresh: boolean) => {
+    const setup = async () => {
         const userUuid = randomUUID();
         await database('users').insert({
             user_uuid: userUuid,
@@ -121,59 +121,55 @@ describe('Snowflake agent sign-in refresh on the migrated schema', () => {
                 organizationUuid,
                 email: 'stub@example.test',
             },
-            silentRefresh,
         };
         return { uuid, userUuid, deps, harness, args };
     };
 
-    test.each([true, false])(
-        'shares one exchange and commits the AI row with silent refresh %s',
-        async (silentRefresh) => {
-            const f = await setup(silentRefresh);
-            const pending = deferred<refresh.SnowflakeRefreshResult>();
-            const exchange = vi
-                .spyOn(refresh, 'exchangeSnowflakeRefreshToken')
-                .mockReturnValue(pending.promise);
-            const first = f.harness.mint(f.args);
-            await vi.waitFor(() => expect(exchange).toHaveBeenCalledOnce());
-            const run = vi.spyOn(f.deps.refreshTokenRotation, 'run');
-            const second = new AgentSignInResolverHarness(f.deps).mint(f.args);
-            await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
-            const expiresAt = new Date('2099-01-01');
-            pending.resolve({
-                accessToken: 'A2',
-                refreshToken: 'T2',
-                accessTokenExpiresAt: expiresAt,
-                refreshTokenExpiresAt: expiresAt,
-            });
-            const results = await Promise.all([first, second]);
-            expect(exchange).toHaveBeenCalledOnce();
-            expect(results.map((result) => result.credentials.token)).toEqual([
-                'A2',
-                'A2',
-            ]);
-            expect(
-                await model.findAiCredentialWithSecrets(
-                    {
-                        userUuid: f.userUuid,
-                        warehouseType: WarehouseTypes.SNOWFLAKE,
-                    },
-                    { strictPersonalOverlay: false },
-                ),
-            ).toMatchObject({
-                uuid: f.uuid,
-                credentials: { refreshToken: 'T2' },
-                expiresAt: silentRefresh ? expiresAt : null,
-            });
-            expect(run.mock.calls[0][0].key).toMatchObject({
-                purpose: UserWarehouseCredentialPurpose.AI,
-                uuid: f.uuid,
-            });
-        },
-    );
+    test('shares one exchange and commits the AI row', async () => {
+        const f = await setup();
+        const pending = deferred<refresh.SnowflakeRefreshResult>();
+        const exchange = vi
+            .spyOn(refresh, 'exchangeSnowflakeRefreshToken')
+            .mockReturnValue(pending.promise);
+        const first = f.harness.mint(f.args);
+        await vi.waitFor(() => expect(exchange).toHaveBeenCalledOnce());
+        const run = vi.spyOn(f.deps.refreshTokenRotation, 'run');
+        const second = new AgentSignInResolverHarness(f.deps).mint(f.args);
+        await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+        const expiresAt = new Date('2099-01-01');
+        pending.resolve({
+            accessToken: 'A2',
+            refreshToken: 'T2',
+            accessTokenExpiresAt: expiresAt,
+            refreshTokenExpiresAt: expiresAt,
+        });
+        const results = await Promise.all([first, second]);
+        expect(exchange).toHaveBeenCalledOnce();
+        expect(results.map((result) => result.credentials.token)).toEqual([
+            'A2',
+            'A2',
+        ]);
+        expect(
+            await model.findAiCredentialWithSecrets(
+                {
+                    userUuid: f.userUuid,
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                },
+                { strictPersonalOverlay: false },
+            ),
+        ).toMatchObject({
+            uuid: f.uuid,
+            credentials: { refreshToken: 'T2' },
+            expiresAt,
+        });
+        expect(run.mock.calls[0][0].key).toMatchObject({
+            purpose: UserWarehouseCredentialPurpose.AI,
+            uuid: f.uuid,
+        });
+    });
 
-    test('writes an unchanged-token expiry with silent refresh enabled', async () => {
-        const f = await setup(true);
+    test('writes an unchanged-token expiry', async () => {
+        const f = await setup();
         const expiresAt = new Date('2099-02-01');
         vi.spyOn(refresh, 'exchangeSnowflakeRefreshToken').mockResolvedValue({
             accessToken: 'A2',
@@ -211,7 +207,7 @@ describe('Snowflake agent sign-in refresh on the migrated schema', () => {
         ).toMatchObject({ expiresAt });
     });
     test('attributes unchanged-token expiry to the token read after acquiring the lock', async () => {
-        const f = await setup(true);
+        const f = await setup();
         const holder = await database.transaction();
         await holder.raw(
             'select pg_advisory_xact_lock(hashtextextended(?, 0))',

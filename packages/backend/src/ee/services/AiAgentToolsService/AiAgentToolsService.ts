@@ -207,7 +207,6 @@ import {
     findWarehouseTableScopeViolation,
     formatSqlScopeError,
     formatWarehouseTableScopeError,
-    isSqlScopeConfigured,
 } from '../ai/utils/sqlScope';
 import { truncateMiddle } from '../ai/utils/truncation';
 import { findAiDeepResearchRunDocuments } from '../AiDeepResearchService/runDocument';
@@ -4504,18 +4503,7 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         sql: string,
     ): Promise<void> {
-        const hyphenatedIdentifiers = isSqlScopeConfigured(context.sqlScope)
-            ? (
-                  await this.featureFlagService.get({
-                      user: context.user,
-                      featureFlagId:
-                          FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
-                  })
-              ).enabled
-            : false;
-        const violations = findSqlScopeViolations(sql, context.sqlScope, {
-            hyphenatedIdentifiers,
-        });
+        const violations = findSqlScopeViolations(sql, context.sqlScope);
         if (violations.length > 0 && context.sqlScope) {
             this.logger.warn(
                 `Blocked out-of-scope agent SQL for project ${

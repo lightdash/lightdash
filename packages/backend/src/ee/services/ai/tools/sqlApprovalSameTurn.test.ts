@@ -177,7 +177,6 @@ const makeTurns = ({
             createOrUpdateArtifact: vi.fn().mockResolvedValue(undefined),
             maxQueryLimit: 5000,
             enableDataAccess: false,
-            hyphenatedIdentifiers: true,
         }),
         runContentQuery: getRunContentQuery({
             updateProgress: approval.updateProgress,
@@ -195,7 +194,6 @@ const makeTurns = ({
                 approval,
                 maxLimit: 5000,
                 sqlScope: null,
-                hyphenatedIdentifiers: true,
             },
         }),
         createContent: getCreateContent({ createContent, sqlChartSaving }),
