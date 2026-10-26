@@ -227,7 +227,10 @@ export const EditorShell: FC<Props> = ({
                             {viewerAdd && (
                                 <Switch
                                     size="xs"
-                                    label="Viewers can add their own filters"
+                                    label="Viewers can add filters"
+                                    classNames={{
+                                        label: classes.footerSwitchLabel,
+                                    }}
                                     checked={viewerAdd.isEnabled}
                                     onChange={(event) =>
                                         viewerAdd.onChange(

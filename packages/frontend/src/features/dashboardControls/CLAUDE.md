@@ -123,13 +123,16 @@ In `FilterConfiguration/`:
   the grid, in the flow. Opening the rail only narrows the grid, as the page
   sidebar did.
 - The rail is sticky under the dashboard's tabs and filter bar, which stick
-  under the header. `useRailTop` measures where that bar ends once stuck (its
-  computed `top`, which carries the header and banner, plus its height,
-  watched with a `ResizeObserver` since the bar wraps) and writes
-  `--controls-rail-top` on the rail; the stylesheet falls back to
-  `--dashboard-header-height`. The bar is found by its
-  `[data-has-header-above][data-is-stuck]`. The rail's `max-height` keeps
-  "Done" in view: its body scrolls. Fullscreen is not handled: its toggle
+  under the header. `useRailTop` measures where the rail itself sits in the
+  page (its rect top plus `scrollY`, read with `position: static` for a
+  moment so an already scrolled page gives the same answer; again on window
+  resize and, through a `ResizeObserver`, as the bar
+  `[data-has-header-above][data-is-stuck]` wraps) and writes
+  `--controls-rail-offset` on the rail, which is both its sticky `top` and
+  what `max-height: calc(100dvh - offset - md)` subtracts, so the rail fits
+  the viewport before the page scrolls and is pinned where it already was
+  once it does; the stylesheet falls back to `--dashboard-header-height`
+  plus `xs`. The `max-height` keeps "Done" in view: its body scrolls. Fullscreen is not handled: its toggle
   only exists in view mode, and the editor only opens in edit mode.
 - `ControlsBar` is the shipped `DashboardFiltersBar` with its openings,
   `filterArea`: the slot that replaces `DashboardFilters` and the requirements
@@ -487,7 +490,7 @@ In `FilterConfiguration/`:
   (`filters.addFilter`, `openNew`; gone when `!canAddFilters` and for a
   viewer hidden by the editor's eye) and "New section" (editors only); with
   neither the button is not rendered. The footer has, for an editor, the
-  `xs` `Switch` "Viewers can add their own filters" at the left (checked
+  `xs` `Switch` "Viewers can add filters" (`xs` dimmed label) at the left (checked
   while `isAddFilterDisabled` is false; it writes `setIsAddFilterDisabled`,
   the saved `config.isAddFilterDisabled` keeps its polarity) and "Done"
   (`close`) at the right; while the edited filter has no field it has only a

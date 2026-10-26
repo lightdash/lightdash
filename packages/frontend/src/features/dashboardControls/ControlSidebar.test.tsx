@@ -439,7 +439,7 @@ describe('ControlSidebar', () => {
         const { rerender } = renderWithProviders(<ControlSidebar />);
         const toggle = () =>
             screen.getByRole('switch', {
-                name: 'Viewers can add their own filters',
+                name: 'Viewers can add filters',
             });
         expect(toggle()).toBeChecked();
         fireEvent.click(toggle());

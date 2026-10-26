@@ -1,6 +1,6 @@
-/* A card next to the grid, stuck under the tabs and filter bar
-   (`--controls-rail-top`, from `useRailTop`). Paper gives the surface,
-   border and radius */
+/* A card next to the grid, pinned where it sits under the tabs and filter
+   bar (`--controls-rail-offset`, measured by `useRailTop`; until then the
+   header's height). Paper gives the surface, border and radius */
 .root {
     --controls-ease: ease-in-out;
     --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
@@ -9,8 +9,7 @@
     /* ActionIcon sm: row actions sit in one column, flush with the inputs */
     --controls-action-size: rem(24px);
     --controls-rail-offset: calc(
-        var(--controls-rail-top, var(--dashboard-header-height)) +
-            var(--mantine-spacing-xs)
+        var(--dashboard-header-height) + var(--mantine-spacing-xs)
     );
 
     position: sticky;
@@ -337,6 +336,11 @@
 /* On the expanded editor the grip sits by the head, not the card's centre */
 .sortableRow[data-expanded] .grip {
     top: calc(var(--mantine-spacing-xs) + 15px);
+}
+
+.footerSwitchLabel {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
 }
 
 .footer {
