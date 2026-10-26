@@ -176,7 +176,7 @@ describe('PythonSandboxRunner provider selection', () => {
                 logger,
                 metrics: null,
             }).version;
-        expect(version('v1')).toContain('lightdash-python-runner-warm:v1:');
+        expect(version('v1')).toContain('lightdash-python-runner:v1:');
         expect(version('v1')).not.toEqual(version('v2'));
     });
 
@@ -246,7 +246,7 @@ describe('PythonSandboxRunner stage instrumentation', () => {
     it.each([
         {
             sandboxProvider: 'e2b' as const,
-            templateRef: 'warm-template:warm-tag',
+            templateRef: 'custom-template:custom-tag',
             stages: ['create', 'write_inputs', 'compile'],
             inputSpans: [],
         },
@@ -288,8 +288,8 @@ describe('PythonSandboxRunner stage instrumentation', () => {
                     appRuntime: {
                         ...lightdashConfigMock.appRuntime,
                         sandboxProvider,
-                        e2bPythonTemplateName: 'warm-template',
-                        e2bPythonTemplateTag: 'warm-tag',
+                        e2bPythonTemplateName: 'custom-template',
+                        e2bPythonTemplateTag: 'custom-tag',
                     },
                 },
                 logger: silentLogger,

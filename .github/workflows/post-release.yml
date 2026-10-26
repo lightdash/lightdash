@@ -760,16 +760,6 @@ jobs:
             source_tag_env: E2B_PYTHON_TEMPLATE_SOURCE_TAG
             additional_watch_paths: ''
             install_root_deps: false
-          - display_name: warm python runner E2B template
-            directory: sandboxes/python-runner
-            name: lightdash-python-runner-warm
-            name_env: E2B_PYTHON_WARM_TEMPLATE_NAME
-            tag_env: E2B_PYTHON_WARM_TEMPLATE_TAG
-            extra_tags_env: E2B_PYTHON_WARM_TEMPLATE_EXTRA_TAGS
-            source_tag_env: E2B_PYTHON_WARM_TEMPLATE_SOURCE_TAG
-            args: '--warm'
-            additional_watch_paths: ''
-            install_root_deps: false
           - display_name: agent onboarding E2B template
             directory: sandboxes/agent-onboarding
             name: lightdash-agent-onboarding
@@ -787,7 +777,6 @@ jobs:
     with:
       release_tag: ${{ github.event.release.tag_name }}
       template_directory: ${{ matrix.template.directory }}
-      template_args: ${{ matrix.template.args || '' }}
       template_name: ${{ matrix.template.name }}
       template_name_env: ${{ matrix.template.name_env }}
       template_tag_env: ${{ matrix.template.tag_env }}
