@@ -242,6 +242,29 @@
     background-color: var(--mantine-color-default-hover);
 }
 
+/* The add row opened in place: the label, two choices and an X */
+.addRowOpen {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    min-height: 36px;
+    padding: 4px var(--mantine-spacing-sm) 4px var(--mantine-spacing-md);
+}
+
+.addRowChoice {
+    animation: addRowChoiceEnter var(--controls-duration-hover)
+        var(--controls-ease);
+}
+
+@keyframes addRowChoiceEnter {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
 .rows > .sectionHeader:first-child {
     border-top: 0;
 }
@@ -442,7 +465,8 @@
 
 @media (prefers-reduced-motion: reduce) {
     .root > *,
-    .footerStatus {
+    .footerStatus,
+    .addRowChoice {
         animation: none;
     }
 

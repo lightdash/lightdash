@@ -431,6 +431,8 @@ export const DEFAULT_UI_STRINGS = {
     'filters.rail.savedFilterReadOnly': 'Set this filter from the bar',
     'filters.rail.add': 'Add',
     'filters.rail.addFilterOrSection': 'Add filter or section',
+    'filters.rail.filterNoun': 'Filter',
+    'filters.rail.sectionNoun': 'Section',
     'filters.rail.more': 'More',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':

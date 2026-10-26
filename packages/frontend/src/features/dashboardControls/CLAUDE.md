@@ -496,11 +496,19 @@ In `FilterConfiguration/`:
   a new section is being named, back once either settles, so the
   `focusAfter` fallbacks that name it run after it has rendered again),
   a plain tab stop after the roving list, never one of its stops): for an
-  editor "Add filter or section" (`filters.rail.addFilterOrSection`), a
-  bottom-start menu with "Add filter" (`filters.addFilter`, `openNew`; gone
-  when `!canAddFilters`) and "New section"; for a viewer who may add, a
-  direct "Add filter" button (gone when the editor hid it); with neither,
-  no row. `filters.rail.add` stays in the registry unused. The footer has, for an editor, the
+  editor it reads "+ Add" (`filters.rail.add`, `aria-expanded` false) and a
+  click, Enter or Space opens it in place (`.addRowOpen`, same height and
+  padding) into the label "Add", a "Filter" button (`IconFilter`,
+  `filters.rail.filterNoun`, `openNew`; gone when `!canAddFilters`), a
+  "Section" button (`IconSection`, `filters.rail.sectionNoun`, the
+  new-section handler), both `xs` `default` with a 0.12s opacity arrival,
+  and an `xs` X named by `filters.actions.cancel` ("Close" is the rail's
+  X); focus goes to "Filter"; Escape (the
+  box carries `data-own-escape`) and the X fold it with focus back on the
+  row, focus or a pointer leaving it fold it quietly; the folded row alone
+  carries `data-controls-new-section`. For a viewer who may add, a direct
+  "Add filter" button (gone when the editor hid it); with neither, no row.
+  `filters.rail.addFilterOrSection` stays in the registry unused. The footer has, for an editor, the
   `xs` `Switch` "Viewers can add filters" (`xs` dimmed label) at the left (checked
   while `isAddFilterDisabled` is false; it writes `setIsAddFilterDisabled`,
   the saved `config.isAddFilterDisabled` keeps its polarity) and "Done"
