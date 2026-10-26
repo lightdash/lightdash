@@ -159,6 +159,7 @@ import {
     type ViewStatistics,
 } from './analytics';
 import {
+    type AnalyticsHistoryBackfillStatus,
     type AnalyticsProjectStatus,
     type EnsureAnalyticsProjectResult,
 } from './analyticsProject';
@@ -1429,6 +1430,7 @@ type ApiResults =
     | ApiScimRequestLogListResponse['results']
     | EnsurePlaygroundProjectResults
     | AnalyticsProjectStatus
+    | AnalyticsHistoryBackfillStatus
     | EnsureAnalyticsProjectResult
     | CreateTrainingPreviewResults
     | ApiWarehouseConnectCodeResponse['results']

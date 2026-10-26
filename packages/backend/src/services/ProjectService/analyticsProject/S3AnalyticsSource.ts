@@ -1,6 +1,10 @@
 import { ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { ParameterError } from '@lightdash/common';
 import { type DuckdbParquetSource } from '@lightdash/warehouses';
+import {
+    QUERY_HISTORY_BACKFILL_EVENT,
+    queryHistoryBackfillKey,
+} from '../../../analytics/eventStream/queryHistoryBackfill';
 import { compactedStreamSchemas } from '../../../analytics/eventStream/registry';
 import {
     usageDimensionKey,
@@ -82,6 +86,7 @@ export const createS3AnalyticsSourceResolver = ({
         const fileBuffers = new Map<string, Buffer>();
         let bufferedBytes = 0;
         let hasEvents = false;
+        let hasQueryHistory = false;
         try {
             let continuationToken: string | undefined;
             let pages = 0;
@@ -116,6 +121,9 @@ export const createS3AnalyticsSourceResolver = ({
                         /^stream=(query_events|ai_usage|data_app_events|export_events|agent_steps|mcp_tool_calls|content_views|agent_request_events)\/dt=(\d{4}-\d{2}-\d{2})\/[a-zA-Z0-9_-]+\.parquet$/.exec(
                             key.slice(prefix.length),
                         );
+                    const queryHistory =
+                        key === queryHistoryBackfillKey(organizationUuid);
+                    if (queryHistory) hasQueryHistory = true;
                     const userActivity =
                         /^model=user_activity\/stream=(query_events|ai_usage|data_app_events|export_events|agent_steps|mcp_tool_calls|content_views)\/dt=(\d{4}-\d{2}-\d{2})\/activity\.parquet$/.test(
                             key.slice(prefix.length),
@@ -124,14 +132,17 @@ export const createS3AnalyticsSourceResolver = ({
                         (name) =>
                             key === usageDimensionKey(organizationUuid, name),
                     );
-                    const tableName =
-                        (userActivity ? 'user_activity' : match?.[1]) ??
-                        (dimension ? usageDimensionTable(dimension) : null);
+                    let tableName = dimension
+                        ? usageDimensionTable(dimension)
+                        : (match?.[1] ?? null);
+                    if (userActivity) tableName = 'user_activity';
+                    if (queryHistory) tableName = 'query_events';
                     // Expose all retained partitions. Date filters belong to
                     // the Explore query, not a fixed source-level window.
                     if (tableName) {
                         if (
                             match ||
+                            queryHistory ||
                             userActivity ||
                             dimension === 'content' ||
                             dimension === 'people'
@@ -240,6 +251,16 @@ export const createS3AnalyticsSourceResolver = ({
                 urls: urls.sort(),
                 columns: schemas.find((schema) => schema.name === name)
                     ?.columns,
+                ...(name === 'query_events' && hasQueryHistory
+                    ? {
+                          hivePartitioning: false,
+                          fallbackRows: {
+                              keyColumns: ['org_id', 'project_id', 'query_id'],
+                              markerColumn: 'event_name',
+                              markerValue: QUERY_HISTORY_BACKFILL_EVENT,
+                          },
+                      }
+                    : {}),
             })),
         };
     };

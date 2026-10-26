@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     GenerateDailySchedulerJobError,
     getErrorMessage,
     getSchedulerUuid,
@@ -25,11 +26,13 @@ import { EventEmitter } from 'node:events';
 import pLimit from 'p-limit';
 import type { PoolClient } from 'pg';
 import { UsageEventsCompactor } from '../analytics/eventStream/UsageEventsCompactor';
+import { UsageQueryHistoryBackfill } from '../analytics/eventStream/UsageQueryHistoryBackfill';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
 import { type AgentActionLogModel } from '../models/AgentActionLogModel';
 import { type RetentionCleanupOptions } from '../models/retentionCleanup';
 import type { UsageDimensionsModel } from '../models/UsageDimensionsModel';
+import { UsageQueryHistoryModel } from '../models/UsageQueryHistoryModel';
 import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { LEARN_SANDBOX_COMMAND_TIMEOUT_MS } from '../services/LearnSandboxService/runtime';
@@ -2357,6 +2360,29 @@ export class SchedulerWorker extends SchedulerTask {
                     'lightdash.usage_events.raw_objects_deleted':
                         summary.rawObjectsDeleted,
                 });
+            },
+            [SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY]: async (payload) => {
+                const { usageEvents } = this.lightdashConfig;
+                if (
+                    !usageEvents.enabled ||
+                    !usageEvents.s3 ||
+                    !payload.organizationUuid
+                ) {
+                    throw new Error('Usage history backfill is not configured');
+                }
+                const flag = await this.featureFlagModel.get({
+                    featureFlagId: FeatureFlags.AnalyticsProject,
+                    user: {
+                        organizationUuid: payload.organizationUuid,
+                    },
+                });
+                if (!flag.enabled) throw new Error('Analytics is not enabled');
+                await new UsageQueryHistoryBackfill(
+                    usageEvents.s3,
+                    new UsageQueryHistoryModel(
+                        this.asyncQueryService.queryHistoryModel.database,
+                    ),
+                ).run(payload.organizationUuid, this.usageDimensionsModel);
             },
             [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {
                 // EE-only: implemented in CommercialSchedulerWorker

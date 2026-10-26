@@ -15,3 +15,13 @@ export type EnsureAnalyticsProjectResult = {
     url: string;
     created: boolean;
 };
+
+export type AnalyticsHistoryBackfillStatus = {
+    running: boolean;
+    missingQueries: number;
+    existingQueries: number;
+    pendingQueries: number;
+    from: string | null;
+    to: string | null;
+    error?: string;
+};

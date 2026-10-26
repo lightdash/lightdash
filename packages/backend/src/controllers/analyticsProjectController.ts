@@ -1,4 +1,5 @@
 import {
+    AnalyticsHistoryBackfillStatus,
     AnalyticsProjectStatus,
     ApiErrorPayload,
     ApiSuccess,
@@ -28,6 +29,34 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Analytics project')
 export class AnalyticsProjectController extends BaseController {
+    /** @summary Check retained query history missing from Analytics */
+    @Get('/backfill')
+    @Middlewares([isAuthenticated])
+    @OperationId('GetAnalyticsHistoryBackfillStatus')
+    async getBackfillStatus(
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<AnalyticsHistoryBackfillStatus>> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getAnalyticsProjectService()
+                .getBackfillStatus(toSessionUser(req.account)),
+        };
+    }
+
+    /** @summary Backfill retained query history */
+    @Post('/backfill')
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @OperationId('BackfillAnalyticsHistory')
+    async backfill(@Request() req: express.Request): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getAnalyticsProjectService()
+            .backfill(toSessionUser(req.account));
+        return { status: 'ok', results: undefined };
+    }
+
     /** @summary Get internal analytics project status */
     @Get()
     @Middlewares([isAuthenticated])

@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     NotFoundError,
 } from '@lightdash/common';
+import { UsageQueryHistoryBackfill } from '../../analytics/eventStream/UsageQueryHistoryBackfill';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
@@ -60,7 +61,23 @@ describe('AnalyticsProjectService', () => {
     const getSpace = vi.fn();
     const findSpaces = vi.fn();
     const getVerifications = vi.fn();
+    const getUsageHistoryBackfillJob = vi.fn();
+    const scheduleUsageHistoryBackfill = vi.fn();
     const service = new AnalyticsProjectService({
+        lightdashConfig: {
+            usageEvents: {
+                enabled: false,
+                s3: null,
+                flushIntervalMs: 1000,
+                flushBatchSize: 1000,
+                bufferMaxSize: 1000,
+            },
+        },
+        queryHistoryModel: { database: vi.fn() as never },
+        schedulerClient: {
+            getUsageHistoryBackfillJob,
+            scheduleUsageHistoryBackfill,
+        },
         coderService: { upsertChart, upsertDashboard },
         contentVerificationModel: { getByContentUuids: getVerifications },
         dashboardModel: { find: findDashboard, getByIdOrSlug: getDashboard },
@@ -114,6 +131,204 @@ describe('AnalyticsProjectService', () => {
             defaultProject,
             analyticsProject,
         ]);
+    });
+
+    describe('history backfill administration', () => {
+        const storage = {
+            endpoint: 'http://localhost:9000',
+            bucket: 'backfill-test',
+            region: 'us-east-1',
+            accessKey: 'test',
+            secretKey: 'test',
+        };
+        const configuredService = () =>
+            new AnalyticsProjectService({
+                ...service['dependencies'],
+                lightdashConfig: {
+                    usageEvents: {
+                        ...service['dependencies'].lightdashConfig.usageEvents,
+                        enabled: true,
+                        s3: storage,
+                    },
+                },
+            });
+        const coverage = {
+            running: false,
+            missingQueries: 3,
+            existingQueries: 1,
+            pendingQueries: 1,
+            from: '2026-10-01',
+            to: '2026-10-02',
+        };
+
+        it('uses current org administration authorization for reads and writes', async () => {
+            assertAnalyticsProjectAdministration.mockRejectedValue(
+                new ForbiddenError('denied'),
+            );
+            await expect(
+                configuredService().getBackfillStatus(user),
+            ).rejects.toThrow('denied');
+            await expect(configuredService().backfill(user)).rejects.toThrow(
+                'denied',
+            );
+            expect(getUsageHistoryBackfillJob).not.toHaveBeenCalled();
+            expect(scheduleUsageHistoryBackfill).not.toHaveBeenCalled();
+        });
+
+        it('requires an org-owned Analytics project and configured event storage', async () => {
+            await expect(service.backfill(user)).rejects.toThrow(ConflictError);
+            getAllByOrganizationUuid.mockResolvedValue([defaultProject]);
+            await expect(configuredService().backfill(user)).rejects.toThrow(
+                NotFoundError,
+            );
+            expect(scheduleUsageHistoryBackfill).not.toHaveBeenCalled();
+        });
+
+        it('shows a running job without performing another coverage scan', async () => {
+            getUsageHistoryBackfillJob.mockResolvedValue({
+                running: true,
+                failed: false,
+            });
+            const inspect = vi.spyOn(
+                UsageQueryHistoryBackfill.prototype,
+                'inspect',
+            );
+            await expect(
+                configuredService().getBackfillStatus(user),
+            ).resolves.toMatchObject({ running: true });
+            expect(inspect).not.toHaveBeenCalled();
+            expect(getUsageHistoryBackfillJob).toHaveBeenCalledWith(
+                user.organizationUuid,
+            );
+        });
+
+        it('derives eligibility from current data and sanitizes failed job errors', async () => {
+            getUsageHistoryBackfillJob.mockResolvedValue({
+                running: false,
+                failed: true,
+            });
+            const inspect = vi
+                .spyOn(UsageQueryHistoryBackfill.prototype, 'inspect')
+                .mockResolvedValue(coverage);
+            await expect(
+                configuredService().getBackfillStatus(user),
+            ).resolves.toEqual({
+                ...coverage,
+                error: 'The previous backfill failed. You can retry safely.',
+            });
+            expect(inspect).toHaveBeenCalledWith(user.organizationUuid);
+            inspect.mockResolvedValue({
+                ...coverage,
+                missingQueries: 0,
+                from: null,
+                to: null,
+            });
+            await expect(
+                configuredService().getBackfillStatus(user),
+            ).resolves.not.toHaveProperty('error');
+        });
+
+        it('enqueues only the authenticated org and allows safe direct reruns', async () => {
+            await configuredService().backfill(user);
+            await configuredService().backfill(user);
+            expect(scheduleUsageHistoryBackfill).toHaveBeenCalledTimes(2);
+            expect(scheduleUsageHistoryBackfill).toHaveBeenLastCalledWith({
+                organizationUuid: user.organizationUuid,
+                userUuid: user.userUuid,
+                projectUuid: '',
+                schedulerUuid: undefined,
+            });
+        });
+
+        it('shares simultaneous settings checks for one organization and checks fresh data afterward', async () => {
+            getUsageHistoryBackfillJob.mockResolvedValue({
+                running: false,
+                failed: false,
+            });
+            let release!: () => void;
+            const gate = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            const inspect = vi
+                .spyOn(UsageQueryHistoryBackfill.prototype, 'inspect')
+                .mockImplementation(async () => {
+                    await gate;
+                    return coverage;
+                });
+            const configured = configuredService();
+            const first = configured.getBackfillStatus(user);
+            const second = configured.getBackfillStatus(user);
+            await vi.waitFor(() => expect(inspect).toHaveBeenCalledOnce());
+            release();
+            await expect(Promise.all([first, second])).resolves.toEqual([
+                coverage,
+                coverage,
+            ]);
+            expect(inspect).toHaveBeenCalledOnce();
+            inspect.mockResolvedValue({ ...coverage, missingQueries: 0 });
+            await expect(
+                configured.getBackfillStatus(user),
+            ).resolves.toMatchObject({ missingQueries: 0 });
+            expect(inspect).toHaveBeenCalledTimes(2);
+        });
+
+        it('bounds concurrent engines across organizations without sharing their coverage', async () => {
+            getUsageHistoryBackfillJob.mockResolvedValue({
+                running: false,
+                failed: false,
+            });
+            let release!: () => void;
+            const gate = new Promise<void>((resolve) => {
+                release = resolve;
+            });
+            let active = 0;
+            let peak = 0;
+            const otherCoverage = { ...coverage, missingQueries: 8 };
+            const inspect = vi
+                .spyOn(UsageQueryHistoryBackfill.prototype, 'inspect')
+                .mockImplementation(async (org) => {
+                    active += 1;
+                    peak = Math.max(peak, active);
+                    if (org === user.organizationUuid) await gate;
+                    active -= 1;
+                    return org === user.organizationUuid
+                        ? coverage
+                        : otherCoverage;
+                });
+            const configured = configuredService();
+            const first = configured.getBackfillStatus(user);
+            const second = configured.getBackfillStatus({
+                ...user,
+                organizationUuid: 'another-org',
+            });
+            await vi.waitFor(() => expect(inspect).toHaveBeenCalledOnce());
+            release();
+            await expect(Promise.all([first, second])).resolves.toEqual([
+                coverage,
+                otherCoverage,
+            ]);
+            expect(peak).toBe(1);
+            expect(inspect).toHaveBeenCalledWith('another-org');
+        });
+
+        it('releases failed coverage checks so a later request can retry', async () => {
+            getUsageHistoryBackfillJob.mockResolvedValue({
+                running: false,
+                failed: false,
+            });
+            const inspect = vi
+                .spyOn(UsageQueryHistoryBackfill.prototype, 'inspect')
+                .mockRejectedValueOnce(new Error('storage unavailable'))
+                .mockResolvedValue(coverage);
+            const configured = configuredService();
+            await expect(configured.getBackfillStatus(user)).rejects.toThrow(
+                'storage unavailable',
+            );
+            await expect(configured.getBackfillStatus(user)).resolves.toEqual(
+                coverage,
+            );
+            expect(inspect).toHaveBeenCalledTimes(2);
+        });
     });
 
     it('returns only safe metadata for the org-owned analytics project, including its actual slug', async () => {

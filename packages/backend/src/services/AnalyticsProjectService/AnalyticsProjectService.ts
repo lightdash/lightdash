@@ -1,4 +1,5 @@
 import {
+    AnalyticsHistoryBackfillStatus,
     AnalyticsProjectStatus,
     ConflictError,
     ContentType,
@@ -11,16 +12,22 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import memoize from 'lodash/memoize';
+import pLimit from 'p-limit';
+import { UsageQueryHistoryBackfill } from '../../analytics/eventStream/UsageQueryHistoryBackfill';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
 } from '../../analytics/systemExplores/sampleContent';
+import type { LightdashConfig } from '../../config/parseConfig';
 import { type ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import type { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { type SavedChartModel } from '../../models/SavedChartModel';
 import { type SpaceModel } from '../../models/SpaceModel';
+import { UsageQueryHistoryModel } from '../../models/UsageQueryHistoryModel';
 import { UserModel } from '../../models/UserModel';
+import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { type CoderService } from '../CoderService/CoderService';
 import {
@@ -30,6 +37,12 @@ import {
 import { ProjectService } from '../ProjectService/ProjectService';
 
 type Dependencies = {
+    lightdashConfig: Pick<LightdashConfig, 'usageEvents'>;
+    queryHistoryModel: Pick<QueryHistoryModel, 'database'>;
+    schedulerClient: Pick<
+        SchedulerClient,
+        'getUsageHistoryBackfillJob' | 'scheduleUsageHistoryBackfill'
+    >;
     coderService: Pick<CoderService, 'upsertChart' | 'upsertDashboard'>;
     contentVerificationModel: Pick<
         ContentVerificationModel,
@@ -70,6 +83,15 @@ const expectedModelCounts = memoize(() =>
 );
 
 export class AnalyticsProjectService extends BaseService {
+    // Settings checks share one bounded engine per API process; concurrent tabs
+    // for the same org share the check rather than starting another export.
+    private readonly historyCheckQueue = pLimit(1);
+
+    private readonly historyChecks = new Map<
+        string,
+        Promise<AnalyticsHistoryBackfillStatus>
+    >();
+
     constructor(private readonly dependencies: Dependencies) {
         super();
     }
@@ -82,6 +104,75 @@ export class AnalyticsProjectService extends BaseService {
             user,
         );
         return user.organizationUuid;
+    }
+
+    private async assertBackfill(user: SessionUser): Promise<string> {
+        const org = await this.authorize(user);
+        const projects =
+            await this.dependencies.projectModel.getAllByOrganizationUuid(org);
+        if (
+            !projects.some(
+                (project) => project.provisioningSource === 'analytics',
+            )
+        )
+            throw new NotFoundError('Analytics project not found');
+        if (
+            !this.dependencies.lightdashConfig.usageEvents.enabled ||
+            !this.dependencies.lightdashConfig.usageEvents.s3
+        )
+            throw new ConflictError('Usage history storage is not configured');
+        return org;
+    }
+
+    async getBackfillStatus(
+        user: SessionUser,
+    ): Promise<AnalyticsHistoryBackfillStatus> {
+        const org = await this.assertBackfill(user);
+        const job =
+            await this.dependencies.schedulerClient.getUsageHistoryBackfillJob(
+                org,
+            );
+        if (job.running)
+            return {
+                running: true,
+                missingQueries: 0,
+                existingQueries: 0,
+                pendingQueries: 0,
+                from: null,
+                to: null,
+            };
+        let check = this.historyChecks.get(org);
+        if (!check) {
+            check = this.historyCheckQueue(() =>
+                new UsageQueryHistoryBackfill(
+                    this.dependencies.lightdashConfig.usageEvents.s3!,
+                    new UsageQueryHistoryModel(
+                        this.dependencies.queryHistoryModel.database,
+                    ),
+                ).inspect(org),
+            ).finally(() => this.historyChecks.delete(org));
+            this.historyChecks.set(org, check);
+        }
+        const status = await check;
+        return {
+            ...status,
+            ...(job.failed && status.missingQueries > 0
+                ? {
+                      error: 'The previous backfill failed. You can retry safely.',
+                  }
+                : {}),
+        };
+    }
+
+    async backfill(user: SessionUser): Promise<void> {
+        const org = await this.assertBackfill(user);
+        // Eligibility is rechecked in the worker. A direct rerun is always safe.
+        await this.dependencies.schedulerClient.scheduleUsageHistoryBackfill({
+            organizationUuid: org,
+            userUuid: user.userUuid,
+            projectUuid: '',
+            schedulerUuid: undefined,
+        });
     }
 
     async getStatus(user: SessionUser): Promise<AnalyticsProjectStatus> {
