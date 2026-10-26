@@ -945,7 +945,7 @@ describe('ControlSidebar', () => {
             (await screen.findAllByRole('menuitem')).map(
                 (item) => item.textContent,
             ),
-        ).toEqual(['Add filter', 'New section']);
+        ).toEqual(['Add filter', 'New section', 'Select filters']);
     });
 
     it('has no header menu while nothing can be added', () => {
@@ -2286,6 +2286,204 @@ describe('ControlSidebar', () => {
             // The same call the pill's X makes
             expect(removeFilterById).toHaveBeenCalledWith('filter-1');
             expect(removeFilterById).toHaveBeenCalledTimes(1);
+        });
+
+        describe('select mode', () => {
+            const selectFromMenu = async () => {
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Add' }),
+                );
+                await userEvent.click(
+                    await screen.findByRole('menuitem', {
+                        name: 'Select filters',
+                    }),
+                );
+            };
+            const row = (name: string) =>
+                screen.getByRole('button', { name: new RegExp(`^${name}`) });
+            const selectThree = () => {
+                fireEvent.click(
+                    screen.getByRole('checkbox', { name: 'Order status' }),
+                );
+                fireEvent.click(row('Created'), { shiftKey: true });
+                expect(screen.getAllByText('3 selected')).toHaveLength(2);
+            };
+
+            it('enters from the menu: checkboxes, no grips or removes, actions disabled', async () => {
+                closedRail();
+                renderWithProviders(<ControlSidebar />, sectioned());
+                expect(grips()).toHaveLength(4);
+
+                await selectFromMenu();
+                expect(screen.getAllByText('0 selected')).toHaveLength(2);
+                expect(screen.getAllByRole('checkbox')).toHaveLength(4);
+                expect(
+                    screen.queryByRole('button', { name: 'Drag to reorder' }),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.queryByRole('button', { name: 'Remove filter' }),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.getByRole('button', { name: 'Move to' }),
+                ).toBeDisabled();
+                expect(
+                    screen.getByRole('button', { name: 'Remove' }),
+                ).toBeDisabled();
+                expect(
+                    screen.queryByRole('button', { name: 'Done' }),
+                ).not.toBeInTheDocument();
+            });
+
+            it("enters from a row's checkbox with that row selected", () => {
+                closedRail();
+                renderWithProviders(<ControlSidebar />, sectioned());
+                const checkbox = screen.getByRole('checkbox', {
+                    name: 'Order status',
+                });
+                fireEvent.click(checkbox);
+                expect(checkbox).toBeChecked();
+                expect(screen.getAllByText('1 selected')).toHaveLength(2);
+            });
+
+            it('is disabled while a new filter has no field, with no row checkboxes', async () => {
+                setSidebar({ isPlaceholder: true });
+                renderWithProviders(<ControlSidebar />, sectioned());
+                expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Add' }),
+                );
+                expect(
+                    await screen.findByRole('menuitem', {
+                        name: 'Select filters',
+                    }),
+                ).toBeDisabled();
+            });
+
+            it('folds the expanded filter when the mode starts', async () => {
+                const { collapse } = setSidebar({ isNew: false });
+                renderWithProviders(<ControlSidebar />, sectioned());
+                await selectFromMenu();
+                expect(collapse).toHaveBeenCalledTimes(1);
+            });
+
+            it('selects a range with shift-click and extends it with shift and an arrow', () => {
+                closedRail();
+                renderWithProviders(<ControlSidebar />, sectioned());
+                selectThree();
+                expect(
+                    screen.getByRole('checkbox', { name: 'Lost' }),
+                ).toBeChecked();
+                // A plain click toggles, then shift and an arrow select the next
+                fireEvent.click(row('Lost'));
+                expect(screen.getAllByText('2 selected')).toHaveLength(2);
+                row('Created').focus();
+                fireEvent.keyDown(row('Created'), {
+                    key: 'ArrowDown',
+                    shiftKey: true,
+                });
+                expect(screen.getAllByText('3 selected')).toHaveLength(2);
+                expect(row('Region')).toHaveFocus();
+            });
+
+            it('moves the selection to a section, appended in display order, and leaves the mode', async () => {
+                closedRail();
+                renderWithProviders(<ControlSidebar />, sectioned());
+                selectThree();
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Move to' }),
+                );
+                const items = await screen.findAllByRole('menuitem');
+                expect(items.map((item) => item.textContent)).toEqual([
+                    'Dates',
+                    'Regions',
+                    'No section',
+                ]);
+                await userEvent.click(items[1]);
+
+                const setDashboardFilters = mockDashboardContext.current
+                    .setDashboardFilters as ReturnType<typeof vi.fn>;
+                expect(setDashboardFilters).toHaveBeenCalledTimes(1);
+                const written = setDashboardFilters.mock
+                    .calls[0][0] as DashboardFilters;
+                expect(
+                    written.dimensions.map((rule) => [rule.id, rule.sectionId]),
+                ).toEqual([
+                    ['filter-2', 'section-b'],
+                    ['filter-1', 'section-b'],
+                    ['filter-4', 'section-b'],
+                    ['filter-3', 'section-b'],
+                ]);
+                expect(
+                    mockDashboardContext.current.setHaveFiltersChanged,
+                ).toHaveBeenCalledWith(true);
+                expect(
+                    screen.queryByText('3 selected'),
+                ).not.toBeInTheDocument();
+            });
+
+            it('removes the selection on the second click only, in one write', () => {
+                closedRail();
+                renderWithProviders(<ControlSidebar />, sectioned());
+                selectThree();
+                const remove = screen.getByRole('button', { name: 'Remove' });
+                fireEvent.click(remove);
+                const setDashboardFilters = mockDashboardContext.current
+                    .setDashboardFilters as ReturnType<typeof vi.fn>;
+                expect(setDashboardFilters).not.toHaveBeenCalled();
+                fireEvent.click(remove);
+                expect(setDashboardFilters).toHaveBeenCalledTimes(1);
+                const write = setDashboardFilters.mock.calls[0][0] as (
+                    filters: DashboardFilters,
+                ) => DashboardFilters;
+                expect(
+                    write(sectioned()).dimensions.map((rule) => rule.id),
+                ).toEqual(['filter-2']);
+                expect(
+                    screen.queryByText('3 selected'),
+                ).not.toBeInTheDocument();
+            });
+
+            it('leaves the mode on Escape and on the X without closing the rail', async () => {
+                const { close } = closedRail();
+                renderWithProviders(<ControlSidebar />, sectioned());
+                await selectFromMenu();
+                fireEvent.keyDown(row('Created'), { key: 'Escape' });
+                expect(
+                    screen.queryByText('0 selected'),
+                ).not.toBeInTheDocument();
+
+                await selectFromMenu();
+                fireEvent.click(
+                    screen.getByRole('button', { name: 'Stop selecting' }),
+                );
+                expect(
+                    screen.queryByText('0 selected'),
+                ).not.toBeInTheDocument();
+                expect(close).not.toHaveBeenCalled();
+                expect(grips()).toHaveLength(4);
+            });
+
+            it('offers a viewer neither the entry nor the checkboxes', async () => {
+                setSidebar({
+                    isViewer: true,
+                    editing: null,
+                    editingRule: null,
+                });
+                renderWithProviders(
+                    <ControlSidebar />,
+                    filters([]),
+                    filters([makeRule({ label: 'Mine' })]),
+                );
+                expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Add' }),
+                );
+                expect(
+                    (await screen.findAllByRole('menuitem')).map(
+                        (item) => item.textContent,
+                    ),
+                ).toEqual(['Add filter']);
+            });
         });
     });
 });

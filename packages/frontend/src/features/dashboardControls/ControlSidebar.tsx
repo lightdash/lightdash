@@ -78,6 +78,7 @@ import {
     railRowSelector,
     sectionMenuSelector,
 } from './railSelectors';
+import { SortableRow, type RowSelection } from './SortableRow';
 
 // The target is what is under the pointer; the keyboard sensor has none,
 // so it falls back to the nearest centre
@@ -100,9 +101,9 @@ import {
 import {
     isDefaultValueIncomplete,
     isPlaceholderRule,
+    removeFilterRule,
     withFilterRuleLabel,
 } from './sidebarState';
-import { SortableRow } from './SortableRow';
 import { useAppliedTileCount } from './useAppliedTileCount';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useFilterRuleField } from './useFilterRuleField';
@@ -385,6 +386,10 @@ const OpenControlSidebar: FC = () => {
     const [draggedId, setDraggedId] = useState<string | null>(null);
     // One tab stop for the whole list: the row or header chevron focused last
     const [activeStop, setActiveStop] = useState<string | null>(null);
+    // Select mode: null outside it, else the selected rule ids
+    const [selectedIds, setSelectedIds] = useState<string[] | null>(null);
+    // The row toggled last: a shift-click selects from it
+    const lastToggledId = useRef<string | null>(null);
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
         useSensor(KeyboardSensor, {
@@ -558,8 +563,101 @@ const OpenControlSidebar: FC = () => {
         filterId === null || editingRule === null ? null : (
             <FilterEditor key={filterId} rule={editingRule} />
         );
-    // Drag is off only while a section is being named
-    const isDragDisabled = nameEdit !== null;
+    // Drag is off while a section is being named and in select mode
+    const isSelecting = selectedIds !== null;
+    const isDragDisabled = nameEdit !== null || isSelecting;
+    const leaveSelectMode = () => setSelectedIds(null);
+    // Rows on screen, in display order; a collapsed section's are left out
+    const shownRowIds = () =>
+        listed.flatMap(({ shown }) => shown.map(({ rule }) => rule.id));
+    const selectRows = (ids: string[]) =>
+        setSelectedIds((current) => [
+            ...(current ?? []),
+            ...ids.filter((id) => !current?.includes(id)),
+        ]);
+    // A click enters the mode with that row; in it, a click toggles and a
+    // shift-click selects from the row toggled last
+    const toggleRow = (ruleId: string, isRange: boolean) => {
+        const rowIds = shownRowIds();
+        const from = lastToggledId.current;
+        lastToggledId.current = ruleId;
+        if (!isSelecting) {
+            if (editor !== null) collapse();
+            setSelectedIds([ruleId]);
+            return;
+        }
+        if (isRange && from !== null && rowIds.includes(from)) {
+            const [start, end] = [
+                rowIds.indexOf(from),
+                rowIds.indexOf(ruleId),
+            ].sort((a, b) => a - b);
+            selectRows(rowIds.slice(start, end + 1));
+            return;
+        }
+        setSelectedIds((current) =>
+            current?.includes(ruleId)
+                ? current.filter((id) => id !== ruleId)
+                : [...(current ?? []), ruleId],
+        );
+    };
+    // Shift with an arrow extends the selection to the next row and moves there
+    const extendSelection = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (
+            !event.shiftKey ||
+            (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') ||
+            !(event.target instanceof HTMLElement)
+        )
+            return;
+        const rowId = event.target
+            .closest('[data-controls-row]')
+            ?.getAttribute('data-controls-row');
+        if (!rowId) return;
+        const rowIds = shownRowIds();
+        const nextId =
+            rowIds[
+                rowIds.indexOf(rowId) + (event.key === 'ArrowDown' ? 1 : -1)
+            ];
+        if (nextId === undefined) return;
+        event.preventDefault();
+        lastToggledId.current = nextId;
+        selectRows([rowId, nextId]);
+        document.querySelector<HTMLElement>(railRowSelector(nextId))?.focus();
+    };
+    // In display order, and only what is still a filter
+    const selected =
+        selectedIds === null
+            ? []
+            : grouped
+                  .flatMap(({ rules }) => rules.map(({ rule }) => rule.id))
+                  .filter((id) => selectedIds.includes(id));
+    const selectionOf = (ruleId: string): RowSelection | null =>
+        isViewer || (editor !== null && isPlaceholder)
+            ? null
+            : {
+                  label: ruleNames.get(ruleId) ?? 'Filter',
+                  isChecked: selected.includes(ruleId),
+                  isSelecting,
+                  onToggle: (isRange) => toggleRow(ruleId, isRange),
+              };
+    const moveSelected = (sectionId: string | null) => {
+        const moved = selected.reduce(
+            (filters, id) => moveRuleToSection(filters, id, { sectionId }),
+            dashboardFilters,
+        );
+        if (moved !== dashboardFilters) {
+            setDashboardFilters(moved);
+            setHaveFiltersChanged(true);
+        }
+        leaveSelectMode();
+    };
+    const removeSelected = () => {
+        focusAfter.current = RAIL_ADD_SELECTOR;
+        setDashboardFilters((filters) =>
+            selected.reduce(removeFilterRule, filters),
+        );
+        setHaveFiltersChanged(true);
+        leaveSelectMode();
+    };
     // The pill's X and the rail's row remove take the same path. Focus goes
     // to the next row on screen, else the one before, else the header's
     // "Add"; the expanded filter takes it on its label
@@ -595,6 +693,7 @@ const OpenControlSidebar: FC = () => {
                     isInSection={isInSection}
                     isExpanded
                     onRemove={null}
+                    selection={null}
                 >
                     {editor}
                 </SortableRow>
@@ -622,7 +721,7 @@ const OpenControlSidebar: FC = () => {
                           : null
                 }
                 isDisabled={!areFieldsLoaded && !rule.target.isSqlColumn}
-                onOpen={open}
+                onOpen={isSelecting ? toggleRow : (id) => open(id)}
                 isTabStop={rule.id === tabStopId}
                 onHover={setHoveredFilterId}
                 onUnhover={clearHoveredFilterId}
@@ -642,7 +741,10 @@ const OpenControlSidebar: FC = () => {
                 isDisabled={isDragDisabled || isViewer}
                 isInSection={isInSection}
                 isExpanded={false}
-                onRemove={isViewer ? null : () => removeRow(rule.id)}
+                onRemove={
+                    isViewer || isSelecting ? null : () => removeRow(rule.id)
+                }
+                selection={selectionOf(rule.id)}
             >
                 {row}
             </SortableRow>
@@ -701,12 +803,21 @@ const OpenControlSidebar: FC = () => {
             : (stopIds[0] ?? null);
     // Arrows walk the stops; Space hands the row to its grip (a keyboard
     // drag); Delete is the row's remove, twice; Left and Right fold and
-    // unfold a section. dnd-kit owns the keys while a drag is on
+    // unfold a section. dnd-kit owns the keys while a drag is on. In select
+    // mode Shift with an arrow extends the selection, Space is the row's
+    // own click (a toggle) and Delete does nothing, the remove being hidden
     const handleListKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
         if (draggedId !== null) return;
         const stop = event.target as HTMLElement;
         const stopId = stop.getAttribute('data-controls-stop');
         if (stopId === null) return;
+        if (isSelecting) {
+            if (event.shiftKey && !stopId.startsWith('section:')) {
+                extendSelection(event);
+                return;
+            }
+            if (event.key === ' ' || event.key === 'Delete') return;
+        }
         const stops = [
             ...event.currentTarget.querySelectorAll<HTMLElement>(
                 '[data-controls-stop]',
@@ -791,7 +902,10 @@ const OpenControlSidebar: FC = () => {
                     );
                 }}
                 onRename={() => setNameEdit({ id: section.id, isNew: false })}
-                onAddFilter={() => openNew(section.id)}
+                onAddFilter={() => {
+                    leaveSelectMode();
+                    openNew(section.id);
+                }}
                 onCommitName={commitName}
                 onCancelName={cancelName}
                 onRemove={() =>
@@ -859,7 +973,10 @@ const OpenControlSidebar: FC = () => {
                 onCancel={editor !== null && isPlaceholder ? discard : null}
                 onAddFilter={
                     canAddFilters && !(isViewer && isAddFilterDisabled)
-                        ? () => openNew()
+                        ? () => {
+                              leaveSelectMode();
+                              openNew();
+                          }
                         : null
                 }
                 onNewSection={
@@ -867,11 +984,37 @@ const OpenControlSidebar: FC = () => {
                         ? null
                         : () => {
                               if (nameEdit?.isNew) return;
+                              leaveSelectMode();
                               // As `openNew`: the expanded filter folds first,
                               // but a new one with no field yet stays as it is
                               if (!isPlaceholder) collapse();
                               setNameEdit({ id: uuidv4(), isNew: true });
                           }
+                }
+                selectFilters={
+                    isViewer || isSelecting
+                        ? null
+                        : {
+                              onSelect: () => {
+                                  if (editor !== null) collapse();
+                                  setSelectedIds([]);
+                              },
+                              disabledReason:
+                                  editor !== null && isPlaceholder
+                                      ? 'Finish the new filter first'
+                                      : null,
+                          }
+                }
+                selectMode={
+                    isSelecting
+                        ? {
+                              count: selected.length,
+                              sections: controlSections,
+                              onExit: leaveSelectMode,
+                              onMove: moveSelected,
+                              onRemove: removeSelected,
+                          }
+                        : null
                 }
                 footerStatus={footerStatus}
                 // The saved flag stays "disabled"; the switch reads positively

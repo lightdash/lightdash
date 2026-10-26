@@ -343,6 +343,35 @@
     opacity: 1;
 }
 
+/* A selectable row shows its checkbox in the grip's slot instead; the grip
+   stays for the keyboard, over the checkbox while it has focus */
+.sortableRow[data-selectable]:hover .grip {
+    opacity: 0;
+}
+
+.sortableRow[data-selectable] .grip:focus-visible {
+    z-index: 1;
+    opacity: 1;
+    background-color: var(--mantine-color-body);
+}
+
+.rowCheck {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    display: flex;
+    opacity: 0;
+    transform: translateY(-50%);
+    touch-action: none;
+    transition: opacity var(--controls-duration-hover) var(--controls-ease);
+}
+
+.sortableRow:hover .rowCheck,
+.sortableRow:focus-within .rowCheck,
+.sortableRow[data-selecting] .rowCheck {
+    opacity: 1;
+}
+
 /* On the expanded editor the grip sits by the head, not the card's centre */
 .sortableRow[data-expanded] .grip {
     top: calc(var(--mantine-spacing-xs) + 15px);
@@ -405,6 +434,7 @@
     .disclosure,
     .chevron,
     .grip,
+    .rowCheck,
     .rowRemove,
     .sectionMenu,
     .header,

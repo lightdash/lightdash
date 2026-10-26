@@ -48,7 +48,8 @@ type Props = {
     readOnlyTooltip: string | null;
     /** Its field cannot be resolved, or the fields are not loaded yet. */
     isDisabled: boolean;
-    onOpen: (filterId: string) => void;
+    /** A click on the row; `isRange` is a shift-click, read in select mode. */
+    onOpen: (filterId: string, isRange: boolean) => void;
     /** The roving tab stop of the list: Tab lands on this row only. */
     isTabStop: boolean;
     /** The row's filter under the pointer or focus. */
@@ -198,7 +199,7 @@ export const FilterRow: FC<Props> = ({
             data-controls-stop={rule.id}
             tabIndex={isTabStop ? 0 : -1}
             aria-expanded={false}
-            onClick={() => onOpen(rule.id)}
+            onClick={(event) => onOpen(rule.id, event.shiftKey)}
             onMouseEnter={() => onHover(rule.id)}
             onMouseLeave={() => onUnhover(rule.id)}
             // Keyboard focus only: focus handed back after a click lights nothing

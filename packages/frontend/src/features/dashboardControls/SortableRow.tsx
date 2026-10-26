@@ -1,13 +1,22 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Box } from '@mantine/core';
+import { Box, Checkbox } from '@mantine/core';
 import { IconTrash } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { type FC, type PointerEventHandler, type ReactNode } from 'react';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import classes from './ControlSidebar.module.css';
 import { DragGrip } from './SectionHeader';
+
+export type RowSelection = {
+    /** The filter's name, for the checkbox. */
+    label: string;
+    isChecked: boolean;
+    /** Select mode is on: the checkbox is always shown, in place of the grip. */
+    isSelecting: boolean;
+    onToggle: (isRange: boolean) => void;
+};
 
 type Props = {
     id: string;
@@ -20,6 +29,8 @@ type Props = {
     isExpanded: boolean;
     /** A closed row's remove, shown on hover and focus; null for a viewer. */
     onRemove: (() => void) | null;
+    /** A checkbox in the grip's slot; null for a viewer and the expanded row. */
+    selection: RowSelection | null;
     children: ReactNode;
 };
 
@@ -31,6 +42,7 @@ export const SortableRow: FC<Props> = ({
     isInSection,
     isExpanded,
     onRemove,
+    selection,
     children,
 }) => {
     const getUiString = useUiStrings();
@@ -56,6 +68,8 @@ export const SortableRow: FC<Props> = ({
             data-expanded={isExpanded || undefined}
             data-removable={onRemove !== null || undefined}
             data-controls-sortable
+            data-selectable={selection !== null || undefined}
+            data-selecting={selection?.isSelecting || undefined}
             style={{ transform: CSS.Translate.toString(transform), transition }}
         >
             {!isDisabled && (
@@ -64,6 +78,30 @@ export const SortableRow: FC<Props> = ({
                     attributes={attributes}
                     listeners={listeners}
                 />
+            )}
+            {selection && (
+                // The pointer drags from the slot as it did from the grip; the
+                // keyboard sensor stays on the grip, so Space toggles here
+                <Box
+                    className={classes.rowCheck}
+                    onPointerDown={
+                        isDisabled
+                            ? undefined
+                            : (listeners?.onPointerDown as
+                                  | PointerEventHandler<HTMLDivElement>
+                                  | undefined)
+                    }
+                >
+                    <Checkbox
+                        size="xs"
+                        // The row is the list's tab stop; Space toggles it
+                        tabIndex={-1}
+                        aria-label={selection.label}
+                        checked={selection.isChecked}
+                        readOnly
+                        onClick={(event) => selection.onToggle(event.shiftKey)}
+                    />
+                </Box>
             )}
             {children}
             {onRemove && (

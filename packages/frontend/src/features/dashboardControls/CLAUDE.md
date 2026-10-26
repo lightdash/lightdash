@@ -1186,6 +1186,29 @@ the language map, as tab names are.
   head, `data-expanded`) and stays expanded after the drop, since the
   editor is keyed by filter id. Drag is off only while a section is being
   named.
+- Select mode, editors only, local to `OpenControlSidebar` (`selectedIds`,
+  null outside the mode): entered from "Select filters" in the header's
+  "Add" menu (`IconListCheck`, under a divider; disabled with the tooltip
+  "Finish the new filter first" while a new filter has no field) or from
+  the checkbox a hovered or focused row shows in the grip's slot
+  (`.rowCheck`, `data-selectable`; the pointer still drags from the slot,
+  the grip stays for the keyboard on `:focus-visible`). Entering folds the
+  expanded filter (`collapse()`). In it (`data-selecting`) every editor row
+  has an `xs` `Checkbox` named by the filter, no grip, no remove, drag off;
+  a click on the row toggles it, a shift-click selects from the row toggled
+  last in display order (`shownRowIds`, collapsed sections left out),
+  Shift with an arrow extends to the next row and focuses it. The header
+  badge and the footer read "n selected"; the X ("Stop selecting") and
+  Escape (`data-own-escape` on the rail root, handled on it; a menu keeps
+  its own) leave the mode, not the rail. The footer is "Move to" (a menu of
+  every section, then "No section" under a divider: `moveRuleToSection`
+  for each selected id in display order, one `setDashboardFilters` write
+  and `setHaveFiltersChanged(true)`) and "Remove" (`ConfirmDeleteButton`,
+  "Click again to remove n filters", one write over `removeFilterRule`),
+  both disabled at 0; each leaves the mode. "Add filter" (header and
+  section menus) and "New section" leave it first. Section chevrons and
+  menus work as before; the selection keeps a collapsed section's ids.
+  Closing the rail unmounts the state.
 - Bar, in both modes: with `selectControlSections` non-empty and the rail
   closed, `ControlsBar` renders `SectionedFilters` in place of `AddControl`
   + `FilterPills` (in edit mode `FilterRequirementsButton` follows it, as
