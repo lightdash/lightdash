@@ -6,12 +6,12 @@ import {
     type CompiledDimension,
     type ItemsMap,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import { renderWithProviders } from '../../../../../testing/testUtils';
-import { SemanticQueryDetails } from './SemanticQueryDetails';
-import { type SemanticQueryDetailsQuery } from './useSemanticQuerySummary';
+import { renderWithProviders } from '../../../../../../testing/testUtils';
+import { SemanticNodeDetails } from './SemanticNodeDetails';
+import { type SemanticNodeQuery } from './useSemanticNodeSummary';
 
 const dimension = (
     name: string,
@@ -48,7 +48,7 @@ const fieldsMap: ItemsMap = {
     users_last_active_at_day: lastActiveAtDay,
 };
 
-const metricQuery: SemanticQueryDetailsQuery = {
+const metricQuery: SemanticNodeQuery = {
     dimensions: ['users_last_active_at_day'],
     metrics: [],
     filters: {
@@ -70,34 +70,25 @@ const metricQuery: SemanticQueryDetailsQuery = {
 
 const renderDetails = (
     fields: ItemsMap = fieldsMap,
-    query: SemanticQueryDetailsQuery = metricQuery,
+    query: SemanticNodeQuery = metricQuery,
 ) =>
     renderWithProviders(
         <MemoryRouter>
-            <SemanticQueryDetails
+            <SemanticNodeDetails
                 metricQuery={query}
                 fieldsMap={fields}
                 parameters={{ region: 'EMEA' }}
-                showFields
-                showFilters
-                showSortAndLimit
             />
         </MemoryRouter>,
     );
 
-describe('SemanticQueryDetails', () => {
-    it('summarises counts and limit, and shows filters, sort and parameters when expanded', () => {
+describe('SemanticNodeDetails', () => {
+    it('shows fields, filters, parameters and sorts', () => {
         renderDetails();
-        const toggle = screen.getByRole('button', {
-            name: 'Fields 1 · Filters 1 · Sort 1 · Parameters 1 · 500 rows',
-        });
-        expect(toggle).toHaveAttribute('aria-expanded', 'false');
-
-        fireEvent.click(toggle);
 
         expect(screen.getByText('Is deleted')).toBeInTheDocument();
         expect(screen.getByText('False')).toBeInTheDocument();
-        expect(screen.getByTestId('semantic-query-sort')).toHaveTextContent(
+        expect(screen.getByTestId('semantic-node-sort')).toHaveTextContent(
             'Last active at day',
         );
         expect(screen.getByLabelText('descending')).toBeInTheDocument();
@@ -107,7 +98,6 @@ describe('SemanticQueryDetails', () => {
 
     it('labels fields from their ids while the explore is unavailable', () => {
         renderDetails({}, { ...metricQuery, filters: {}, sorts: [] });
-        fireEvent.click(screen.getByRole('button', { name: /^Fields 1/ }));
 
         expect(
             screen.getByText('Users last active at day'),
@@ -122,11 +112,10 @@ describe('SemanticQueryDetails', () => {
                 { fieldId: 'users_is_deleted', descending: false },
             ],
         });
-        fireEvent.click(screen.getByRole('button', { name: /Sort 2/ }));
 
         expect(
             screen
-                .getAllByTestId('semantic-query-sort')
+                .getAllByTestId('semantic-node-sort')
                 .map((badge) => badge.textContent),
         ).toEqual(['Last active at day', 'Is deleted']);
         expect(screen.getByLabelText('ascending')).toBeInTheDocument();
@@ -149,7 +138,6 @@ describe('SemanticQueryDetails', () => {
                 },
             },
         });
-        fireEvent.click(screen.getByRole('button', { name: /Filters 1/ }));
 
         expect(
             screen.getByText('2025-01-01 and 2025-12-31'),

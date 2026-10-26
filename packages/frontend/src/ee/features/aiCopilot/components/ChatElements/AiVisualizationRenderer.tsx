@@ -13,13 +13,20 @@ import {
 } from '@lightdash/common';
 import {
     Box,
+    Button,
     Center,
+    Collapse,
+    Flex,
     Group,
     Stack,
     Text,
     useMantineColorScheme,
 } from '@mantine/core';
-import { IconExclamationCircle } from '@tabler/icons-react';
+import {
+    IconChevronDown,
+    IconChevronUp,
+    IconExclamationCircle,
+} from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -30,6 +37,7 @@ import { DrillDownModal } from '../../../../../components/MetricQueryData/DrillD
 import MetricQueryDataProvider from '../../../../../components/MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../../../../../components/MetricQueryData/UnderlyingDataModal';
 import { type EchartsSeriesClickEvent } from '../../../../../components/SimpleChart';
+import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useExplore } from '../../../../../hooks/useExplore';
@@ -38,9 +46,16 @@ import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults'
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import { getAgentVisualizationChartTypes } from './AgentVisualizationChartTypeSwitcher.utils';
+import AgentVisualizationFilters from './AgentVisualizationFilters';
+import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
+import AgentVisualizationParameters from './AgentVisualizationParameters';
 import styles from './AiVisualizationRenderer.module.css';
-import { shouldDisplayMetricsAndDimensions } from './AiVisualizationRenderer.utils';
-import { SemanticQueryDetails } from './SemanticQueryDetails';
+import {
+    getVisualizationFieldsCount,
+    getVisualizationFiltersCount,
+    shouldDisplayMetricsAndDimensions,
+    shouldDisplayVisualizationFilters,
+} from './AiVisualizationRenderer.utils';
 
 type Props = {
     vizQueryData: ApiAiAgentThreadMessageVizQuery;
@@ -124,6 +139,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsSeriesClickEvent | null>(null);
     const [echartsSeries, setEchartsSeries] = useState<EChartsSeries[]>([]);
+    const [detailsExpanded, setDetailsExpanded] = useState(false);
 
     // Tag the cached expanded config with the chart type it was computed
     // for. Switching types makes the cached entry "for the wrong type" and
@@ -179,6 +195,15 @@ export const AiVisualizationRenderer: FC<Props> = ({
 
     const displayMetricsAndDimensions =
         displayFields && shouldDisplayMetricsAndDimensions(vizQueryData.type);
+    const displayFilters =
+        displayFiltersProp &&
+        shouldDisplayVisualizationFilters(metricQuery.filters);
+    const fieldsCount = displayMetricsAndDimensions
+        ? getVisualizationFieldsCount(metricQuery)
+        : 0;
+    const filtersCount = displayFilters
+        ? getVisualizationFiltersCount(metricQuery.filters)
+        : 0;
     // Only parameters the query actually references — usedParametersValues
     // also carries unrelated project-wide defaults.
     const usedParameters = useMemo(() => {
@@ -193,6 +218,9 @@ export const AiVisualizationRenderer: FC<Props> = ({
         vizQueryData.query.parameterReferences,
         vizQueryData.query.usedParametersValues,
     ]);
+    const parametersCount = Object.keys(usedParameters).length;
+    const displayDetails =
+        fieldsCount > 0 || filtersCount > 0 || parametersCount > 0;
 
     const isCustomChartTypeAnswer = customChartType !== null;
 
@@ -344,20 +372,82 @@ export const AiVisualizationRenderer: FC<Props> = ({
                         ) : null}
                     </Box>
 
-                    <Box
-                        flex="0 0 auto"
-                        px={flush ? 'md' : 0}
-                        pb={flush ? 'md' : 0}
-                    >
-                        <SemanticQueryDetails
-                            metricQuery={metricQuery}
-                            fieldsMap={fields}
-                            parameters={usedParameters}
-                            showFields={displayMetricsAndDimensions}
-                            showFilters={displayFiltersProp}
-                            showSortAndLimit={displayFields}
-                        />
-                    </Box>
+                    {displayDetails ? (
+                        <Stack
+                            gap="xs"
+                            flex="0 0 auto"
+                            px={flush ? 'md' : 0}
+                            pb={flush ? 'md' : 0}
+                        >
+                            <Flex align="center" justify="flex-start">
+                                <Button
+                                    size="compact-xs"
+                                    variant="subtle"
+                                    color="ldGray"
+                                    c="dimmed"
+                                    aria-expanded={detailsExpanded}
+                                    rightSection={
+                                        <MantineIcon
+                                            icon={
+                                                detailsExpanded
+                                                    ? IconChevronUp
+                                                    : IconChevronDown
+                                            }
+                                            size={12}
+                                        />
+                                    }
+                                    onClick={() =>
+                                        setDetailsExpanded((value) => !value)
+                                    }
+                                    styles={{
+                                        root: {
+                                            flexShrink: 0,
+                                            border: 'none',
+                                        },
+                                    }}
+                                >
+                                    {[
+                                        fieldsCount > 0
+                                            ? `Fields ${fieldsCount}`
+                                            : null,
+                                        filtersCount > 0
+                                            ? `Filters ${filtersCount}`
+                                            : null,
+                                        parametersCount > 0
+                                            ? `Parameters ${parametersCount}`
+                                            : null,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' · ')}
+                                </Button>
+                            </Flex>
+                            <Collapse expanded={detailsExpanded}>
+                                <Stack gap="xs">
+                                    <ErrorBoundary>
+                                        {displayMetricsAndDimensions && (
+                                            <AgentVisualizationMetricsAndDimensions
+                                                metricQuery={metricQuery}
+                                                fieldsMap={fields}
+                                            />
+                                        )}
+
+                                        {displayFilters ? (
+                                            <AgentVisualizationFilters
+                                                filters={metricQuery.filters}
+                                                fieldsMap={fields}
+                                            />
+                                        ) : null}
+
+                                        {parametersCount > 0 ? (
+                                            <AgentVisualizationParameters
+                                                parameterValues={usedParameters}
+                                            />
+                                        ) : null}
+                                    </ErrorBoundary>
+                                </Stack>
+                            </Collapse>
+                        </Stack>
+                    ) : null}
                 </Stack>
             </VisualizationProvider>
         </MetricQueryDataProvider>

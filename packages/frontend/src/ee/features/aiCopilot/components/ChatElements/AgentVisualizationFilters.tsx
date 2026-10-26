@@ -35,9 +35,9 @@ const FilterRuleDisplay: FC<{
             : getItemLabelWithoutTableName(field)
         : friendlyName(rule.target.fieldId);
 
-    // Format values with the field when known; stored query filters carry no filter type.
+    // Stored query filters carry no filter type; format their values with the field.
     const ruleLabels =
-        field && isFilterableField(field)
+        !rule.target.fieldFilterType && field && isFilterableField(field)
             ? {
                   ...getConditionalRuleLabelFromItem(rule, field),
                   field: displayName,

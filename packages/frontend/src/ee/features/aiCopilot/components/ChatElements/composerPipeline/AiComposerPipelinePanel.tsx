@@ -56,15 +56,9 @@ import reactFlowStyles from '../../../../../../components/common/ReactFlow/react
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
 import { useExploreByProjectUuid } from '../../../../../../hooks/useExplore';
-import { LD_FIELD_COLORS } from '../../../../../../theme/fieldColors';
 import { useCanViewAiAgentSql } from '../../../hooks/useCanViewAiAgentSql';
 import { NodeStatusIndicator } from '../ComposerNodeStatusIndicator';
-import { SemanticQueryDetailsBody } from '../SemanticQueryDetails';
 import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
-import {
-    semanticItemLabel,
-    useSemanticQuerySummary,
-} from '../useSemanticQuerySummary';
 import styles from './AiComposerPipelinePanel.module.css';
 import {
     groupPipeline,
@@ -78,6 +72,8 @@ import {
     toPipelineFlow,
     type PipelineFlowNode,
 } from './pipelineGraph';
+import { SemanticNodeDetails } from './SemanticNodeDetails';
+import { useSemanticNodeSummary } from './useSemanticNodeSummary';
 
 const TRANSFORMATIONS_HELP =
     'Transformations run in DuckDB or Python on top of the source results. They never touch the warehouse.';
@@ -183,25 +179,8 @@ const SemanticNodeSummary: FC<{
         [query],
     );
     const parameters = query.parameters ?? {};
-    const summary = useSemanticQuerySummary({
-        metricQuery,
-        parameters,
-        showFields: true,
-        showFilters: true,
-        showSortAndLimit: true,
-    });
+    const summary = useSemanticNodeSummary(metricQuery, parameters);
     const exploreLabel = explore?.label ?? friendlyName(query.exploreName);
-    const fieldChip = (fieldId: string, type: 'dimension' | 'metric') => (
-        <Box
-            key={fieldId}
-            component="span"
-            className={styles.fieldChip}
-            bg={LD_FIELD_COLORS[type].bg}
-            c={LD_FIELD_COLORS[type].color}
-        >
-            {semanticItemLabel(fieldsMap, fieldId)}
-        </Box>
-    );
     return (
         <Box
             className={styles.details}
@@ -211,7 +190,7 @@ const SemanticNodeSummary: FC<{
                 <Box component="span" className={styles.exploreName}>
                     {exploreLabel}
                 </Box>
-                {summary.parts.map((part) => (
+                {summary.map((part) => (
                     <Fragment key={part}>
                         <Box component="span">·</Box>
                         {part}
@@ -220,21 +199,10 @@ const SemanticNodeSummary: FC<{
             </DisclosureToggle>
             <Collapse expanded={open} {...disclosureCollapse}>
                 <Box className={styles.summaryBody}>
-                    <SemanticQueryDetailsBody
+                    <SemanticNodeDetails
                         metricQuery={metricQuery}
                         fieldsMap={fieldsMap}
                         parameters={parameters}
-                        summary={summary}
-                        fields={
-                            <Group gap={4}>
-                                {query.dimensions.map((id) =>
-                                    fieldChip(id, 'dimension'),
-                                )}
-                                {query.metrics.map((id) =>
-                                    fieldChip(id, 'metric'),
-                                )}
-                            </Group>
-                        }
                     />
                 </Box>
             </Collapse>

@@ -262,9 +262,9 @@ describe('AiComposerPipelinePanel query details', () => {
 
         expect(toggle).toHaveAttribute('aria-expanded', 'true');
         expect(within(row).getByText('completed')).toBeInTheDocument();
-        expect(
-            within(row).getByTestId('semantic-query-sort'),
-        ).toHaveTextContent('Orders count');
+        expect(within(row).getByTestId('semantic-node-sort')).toHaveTextContent(
+            'Orders count',
+        );
         expect(onDisplayNode).not.toHaveBeenCalled();
     });
 

@@ -29,7 +29,6 @@ import { SingleItemModalContent } from '../../../../../components/Explorer/Write
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
-import { LD_FIELD_COLORS } from '../../../../../theme/fieldColors';
 import { EventName } from '../../../../../types/Events';
 import { getFieldColors } from '../../../../../utils/fieldColors';
 import classes from './AgentVisualizationMetricsAndDimensions.module.css';
@@ -59,20 +58,7 @@ const MetricDimensionItem: FC<{
     const isCustomMetric = !!customMetric;
 
     if (!field) {
-        return (
-            <Button
-                size="xs"
-                variant="default"
-                className={classes.itemButton}
-                bg={LD_FIELD_COLORS[type].bg}
-                c={LD_FIELD_COLORS[type].color}
-                bd="none"
-            >
-                <Text fz="xs" truncate className={classes.itemText}>
-                    {friendlyName(fieldId)}
-                </Text>
-            </Button>
-        );
+        return null;
     }
 
     if (!isCustomMetric && !isMetric(field) && !isDimension(field)) {
@@ -238,8 +224,7 @@ const MetricDimensionItem: FC<{
 };
 
 type Props = {
-    metricQuery: Pick<MetricQuery, 'dimensions' | 'metrics'> &
-        Partial<Pick<MetricQuery, 'additionalMetrics'>>;
+    metricQuery: MetricQuery;
     fieldsMap: ItemsMap;
 };
 
