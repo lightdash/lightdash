@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     convertReplaceableFieldMatchMapToReplaceFieldsMap,
     ExploreType,
-    FeatureFlags,
     findReplaceableCustomMetrics,
     getMetrics,
 } from '@lightdash/common';
@@ -46,14 +45,12 @@ import {
 } from '../../../features/mergeQuery/constants';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { isMergeSourceReady } from '../../../features/mergeQuery/utils/mergeWorkflow';
-import { useSourceCodeEditor } from '../../../features/sourceCodeEditor';
 import {
     DeleteVirtualViewModal,
     EditVirtualViewModal,
 } from '../../../features/virtualView';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -64,7 +61,6 @@ import ExploreTree from '../ExploreTree';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
 import WarningsHoverCardContent from '../WarningsHoverCardContent';
-import { useIsGitProject } from '../WriteBackModal/hooks';
 import classes from './index.module.css';
 
 interface ExplorePanelProps {
@@ -82,11 +78,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const [, startTransition] = useTransition();
 
     const projectUuid = useProjectUuid();
-    const isGitProject = useIsGitProject(projectUuid ?? '');
-    const { open: openSourceCodeEditor } = useSourceCodeEditor();
-    const { data: editYamlInUiFlag } = useServerFeatureFlag(
-        FeatureFlags.EditYamlInUi,
-    );
     const merge = useMergeSafe();
     const additionalSource = merge?.additionalSources[0];
     const [isChoosingMergeExplore, setIsChoosingMergeExplore] = useState(
@@ -177,11 +168,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         setIsDeleteVirtualViewOpen(true);
     }, []);
 
-    const handleViewSourceCode = useCallback(() => {
-        if (!activeTableName) return;
-        openSourceCodeEditor({ explore: activeTableName });
-    }, [openSourceCodeEditor, activeTableName]);
-
     const handleAddMergeSource = useCallback(() => {
         if (!merge) return;
         merge.addSource(DEFAULT_ADDITIONAL_SOURCE_ID, {
@@ -228,18 +214,6 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
             projectUuid,
         }),
     );
-    const canViewSourceCode =
-        explore.type !== ExploreType.VIRTUAL &&
-        isGitProject &&
-        !!explore.ymlPath &&
-        editYamlInUiFlag?.enabled === true &&
-        user.data?.ability.can(
-            'view',
-            subject('SourceCode', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            }),
-        ) === true;
     const canMergeAnotherQuery =
         explore.type !== ExploreType.VIRTUAL &&
         !!merge &&
@@ -406,7 +380,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             />
                         )}
                     {explore.type !== ExploreType.EXTERNAL_SOURCE &&
-                        (canViewSourceCode || canMergeAnotherQuery) && (
+                        canMergeAnotherQuery && (
                             <Menu withArrow offset={-2}>
                                 <Menu.Target>
                                     <ActionIcon
@@ -417,37 +391,17 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                     </ActionIcon>
                                 </Menu.Target>
                                 <Menu.Dropdown>
-                                    {canViewSourceCode && (
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon icon={IconCode} />
-                                            }
-                                            onClick={handleViewSourceCode}
-                                        >
-                                            <Text fz="xs" fw={500}>
-                                                View source code
-                                            </Text>
-                                        </Menu.Item>
-                                    )}
-                                    {canViewSourceCode &&
-                                        canMergeAnotherQuery && (
-                                            <Menu.Divider />
-                                        )}
-                                    {canMergeAnotherQuery && (
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconGitMerge}
-                                                />
-                                            }
-                                            rightSection={<BetaBadge />}
-                                            onClick={handleAddMergeSource}
-                                        >
-                                            <Text fz="xs" fw={500}>
-                                                Merge another query
-                                            </Text>
-                                        </Menu.Item>
-                                    )}
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconGitMerge} />
+                                        }
+                                        rightSection={<BetaBadge />}
+                                        onClick={handleAddMergeSource}
+                                    >
+                                        <Text fz="xs" fw={500}>
+                                            Merge another query
+                                        </Text>
+                                    </Menu.Item>
                                 </Menu.Dropdown>
                             </Menu>
                         )}

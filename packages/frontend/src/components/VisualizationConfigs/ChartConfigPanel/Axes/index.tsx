@@ -1,5 +1,4 @@
 import { CartesianSeriesType, type ItemsMap } from '@lightdash/common';
-import { isIncompletePeriodEligible } from '@lightdash/visualization/editor';
 import { Button, Checkbox, Group, Stack } from '@mantine/core';
 import { type FC } from 'react';
 import { NumberInput } from '../../../common/NumberInput';
@@ -27,7 +26,6 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setShowRightYAxis,
         setShowAxisTicks,
         setConnectNulls,
-        setShowIncompletePeriod,
         setAxisLabelFontSize,
         setAxisTitleFontSize,
         dirtyChartType,
@@ -163,28 +161,6 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     />
                 </Config.Section>
             </Config>
-            {isIncompletePeriodEligible(
-                dirtyLayout?.xField
-                    ? itemsMap?.[dirtyLayout.xField]
-                    : undefined,
-            ) && (
-                <Config>
-                    <Config.Section>
-                        <Config.Heading>Incomplete period</Config.Heading>
-                        <Checkbox
-                            size="xs"
-                            label="Highlight the current, unfinished period"
-                            description="Dashed lines and hatched bars"
-                            checked={!!dirtyLayout?.showIncompletePeriod}
-                            onChange={(e) => {
-                                setShowIncompletePeriod(
-                                    e.currentTarget.checked,
-                                );
-                            }}
-                        />
-                    </Config.Section>
-                </Config>
-            )}
             {(dirtyChartType === CartesianSeriesType.LINE ||
                 dirtyChartType === CartesianSeriesType.AREA) && (
                 <Config>

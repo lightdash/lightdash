@@ -1990,9 +1990,6 @@ export type LightdashConfig = {
     };
     analyticsEmbedSecret?: string;
 
-    editYamlInUi: {
-        enabled: boolean;
-    };
     funnelBuilder: {
         enabled: boolean;
     };
@@ -4175,9 +4172,6 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
         },
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
-        editYamlInUi: {
-            enabled: process.env.EDIT_YAML_IN_UI_ENABLED === 'true',
-        },
         funnelBuilder: {
             enabled:
                 process.env.FUNNEL_BUILDER_ENABLED === 'true' ||

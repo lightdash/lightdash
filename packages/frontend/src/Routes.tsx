@@ -348,20 +348,6 @@ const SQL_RUNNER_ROUTES: RouteObject[] = [
     },
 ];
 
-const SOURCE_CODE_ROUTES: RouteObject[] = [
-    {
-        // Redirect old source-code route to project home with editor drawer open
-        path: 'source-code',
-        lazy: async () => {
-            const SourceCodeEditorRedirect = await loadLazyRouteDefault(
-                './pages/SourceCodeEditorRedirect',
-                () => import('./pages/SourceCodeEditorRedirect'),
-            );
-            return { Component: SourceCodeEditorRedirect };
-        },
-    },
-];
-
 const TABLES_ROUTES: RouteObject[] = [
     {
         path: 'tables',
@@ -519,11 +505,10 @@ const METRICS_ROUTES: RouteObject[] = [
     },
 ];
 
-// Routes that use ProjectLayout (fixed NavBar + SourceCodeDrawer)
+// Routes that use ProjectLayout (fixed NavBar)
 const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     ...TABLES_ROUTES,
     ...SQL_RUNNER_ROUTES,
-    ...SOURCE_CODE_ROUTES,
     ...CHART_ROUTES,
     ...DASHBOARD_LIST_ROUTES,
     {
@@ -893,7 +878,7 @@ const APP_ROUTES: RouteObject[] = [
                             return { Component: LegacySqlRunner };
                         },
                     },
-                    // All project routes share ProjectLayout (NavBar + SourceCodeDrawer)
+                    // All project routes share ProjectLayout (NavBar)
                     {
                         element: <ProjectLayout />,
                         children: [

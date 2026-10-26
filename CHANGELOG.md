@@ -1,3 +1,17 @@
+## [3.53.6](https://github.com/lightdash/lightdash/compare/3.53.5...3.53.6) (2026-10-24)
+
+
+### Bug Fixes
+
+* **charts:** show the incomplete period setting in the series tab with a preview ([#31538](https://github.com/lightdash/lightdash/issues/31538)) ([fdd0154](https://github.com/lightdash/lightdash/commit/fdd0154198feae74d2edfcfcc3757da637250654))
+
+## [3.53.5](https://github.com/lightdash/lightdash/compare/3.53.4...3.53.5) (2026-10-24)
+
+
+### Bug Fixes
+
+* **sandboxes:** drop the distrusted emSign root from ai-writeback dbt CA bundles ([#31541](https://github.com/lightdash/lightdash/issues/31541)) ([3f264ea](https://github.com/lightdash/lightdash/commit/3f264ea4c4af927af53427cc77a3a522b4a5a475))
+
 ## [3.53.4](https://github.com/lightdash/lightdash/compare/3.53.3...3.53.4) (2026-10-24)
 
 

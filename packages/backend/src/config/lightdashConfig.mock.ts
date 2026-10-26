@@ -431,9 +431,6 @@ export const lightdashConfigMock: LightdashConfig = {
     customRoles: {
         enabled: false,
     },
-    editYamlInUi: {
-        enabled: false,
-    },
     funnelBuilder: {
         enabled: false,
     },
