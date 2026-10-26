@@ -108,6 +108,7 @@ const renderCartesianConfig = (initialParams: CartesianHookParams) => {
                 type: ChartType.CARTESIAN,
                 config: initialParams.initialChartConfig,
             },
+            { itemsMap: inputs.itemsMap, hasConfigOwner: false },
             {
                 stacking: initialParams.stacking,
                 cartesianType: initialParams.cartesianType,

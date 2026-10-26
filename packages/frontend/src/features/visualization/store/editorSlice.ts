@@ -1,4 +1,11 @@
+import { type ItemsMap } from '@lightdash/common';
 import { type PayloadAction } from '@reduxjs/toolkit';
+
+/** What the provider knows when it seeds a chart type's editor */
+export type EditorSeedContext = {
+    itemsMap: ItemsMap | undefined;
+    hasConfigOwner: boolean;
+};
 
 export type EditorFieldUpdate<S> = {
     [K in keyof S]: { key: K; value: S[K] };

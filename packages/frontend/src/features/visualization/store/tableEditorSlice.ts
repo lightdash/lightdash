@@ -4,8 +4,9 @@ import {
     type RowLimit,
     type TableChart,
 } from '@lightdash/common';
+import { shouldDefaultShowTableNames } from '@lightdash/visualization/editor';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import { editorCaseReducers } from './editorSlice';
+import { editorCaseReducers, type EditorSeedContext } from './editorSlice';
 
 export type TableEditorState = {
     showColumnCalculation: boolean;
@@ -23,13 +24,29 @@ export type TableEditorState = {
     columnProperties: Record<string, ColumnProperties>;
 };
 
+// Matches main: an unsaved flag took the items default when the items were
+// loaded at mount, and an owner's echo locked it off when they were not.
+const seedShowTableNames = (
+    saved: boolean | undefined,
+    seed: EditorSeedContext,
+): boolean | undefined => {
+    if (saved !== undefined) return saved;
+    if (seed.itemsMap !== undefined)
+        return shouldDefaultShowTableNames(seed.itemsMap);
+    return seed.hasConfigOwner ? false : undefined;
+};
+
 export const buildTableEditorState = (
     initialChartConfig: TableChart | undefined,
+    seed: EditorSeedContext = { itemsMap: undefined, hasConfigOwner: false },
 ): TableEditorState => ({
     showColumnCalculation: !!initialChartConfig?.showColumnCalculation,
     showRowCalculation: !!initialChartConfig?.showRowCalculation,
     conditionalFormattings: initialChartConfig?.conditionalFormattings ?? [],
-    showTableNames: initialChartConfig?.showTableNames,
+    showTableNames: seedShowTableNames(
+        initialChartConfig?.showTableNames,
+        seed,
+    ),
     showResultsTotal: initialChartConfig?.showResultsTotal ?? false,
     showSubtotals: initialChartConfig?.showSubtotals ?? false,
     showSubtotalsExpanded: initialChartConfig?.showSubtotalsExpanded ?? false,

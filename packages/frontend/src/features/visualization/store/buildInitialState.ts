@@ -9,6 +9,7 @@ import { buildCartesianEditorState } from './cartesianEditorSlice';
 import { type CartesianIntentState } from './cartesianIntentSlice';
 import { buildCustomEditorState } from './customEditorSlice';
 import { buildDataAppVizEditorState } from './dataAppVizEditorSlice';
+import { type EditorSeedContext } from './editorSlice';
 import { buildFunnelEditorState } from './funnelEditorSlice';
 import { buildGaugeEditorState } from './gaugeEditorSlice';
 import { buildMapEditorState } from './mapEditorSlice';
@@ -33,6 +34,7 @@ const emptyEditors = {
 
 const seedEditor = (
     chartConfig: ChartConfig,
+    seed: EditorSeedContext,
 ): Partial<Omit<VisualizationStoreState, 'cartesianIntent'>> => {
     switch (chartConfig.type) {
         case ChartType.CARTESIAN:
@@ -56,7 +58,9 @@ const seedEditor = (
         case ChartType.MAP:
             return { mapEditor: buildMapEditorState(chartConfig.config) };
         case ChartType.TABLE:
-            return { tableEditor: buildTableEditorState(chartConfig.config) };
+            return {
+                tableEditor: buildTableEditorState(chartConfig.config, seed),
+            };
         case ChartType.CUSTOM:
             return {
                 customEditor: buildCustomEditorState(chartConfig.config),
@@ -77,6 +81,7 @@ const seedEditor = (
 /** Seeds the mounted chart type's editor from its config; the others stay empty */
 export const buildInitialVisualizationState = (
     chartConfig: ChartConfig,
+    seed: EditorSeedContext,
     cartesianIntent: CartesianIntentState = {
         stacking: undefined,
         cartesianType: undefined,
@@ -84,5 +89,5 @@ export const buildInitialVisualizationState = (
 ): VisualizationStoreState => ({
     cartesianIntent,
     ...emptyEditors,
-    ...seedEditor(chartConfig),
+    ...seedEditor(chartConfig, seed),
 });

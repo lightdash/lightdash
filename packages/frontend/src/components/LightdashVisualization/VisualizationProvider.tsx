@@ -279,6 +279,10 @@ const VisualizationProvider: FC<
     const { colorMappings } = useChartColorMappings();
     const theme = useMantineTheme();
 
+    const seedContext = {
+        itemsMap,
+        hasConfigOwner: onChartConfigChange !== undefined,
+    };
     // Editor state for the mounted chart. A chart type switch starts a new
     // store seeded from the new type's config; the cartesian intent the
     // gallery set just before the switch carries over.
@@ -288,7 +292,7 @@ const VisualizationProvider: FC<
     }>(() => ({
         type: chartConfig.type,
         store: createVisualizationStore(
-            buildInitialVisualizationState(chartConfig),
+            buildInitialVisualizationState(chartConfig, seedContext),
         ),
     }));
     let { store } = stores;
@@ -296,6 +300,7 @@ const VisualizationProvider: FC<
         store = createVisualizationStore(
             buildInitialVisualizationState(
                 chartConfig,
+                seedContext,
                 stores.store.getState().cartesianIntent,
             ),
         );
