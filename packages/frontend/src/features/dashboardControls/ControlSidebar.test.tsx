@@ -1710,6 +1710,9 @@ describe('ControlSidebar', () => {
             await newSection();
             const input = screen.getByLabelText('Section name');
             expect(input).toHaveFocus();
+            expect(
+                screen.getByRole('button', { name: 'Cancel' }),
+            ).toBeVisible();
             // The add row waits for the name
             expect(
                 screen.queryByRole('button', { name: 'Add filter or section' }),
@@ -1750,6 +1753,41 @@ describe('ControlSidebar', () => {
             expect(
                 screen.getByRole('button', { name: 'Add filter or section' }),
             ).toHaveFocus();
+        });
+
+        it('drops a new section from its Cancel, even with a name typed, focus back on the add row', async () => {
+            closedRail();
+            const { store } = renderWithProviders(<ControlSidebar />);
+            expandAll();
+            await newSection();
+            const input = screen.getByLabelText('Section name');
+            fireEvent.change(input, { target: { value: 'Time' } });
+
+            // Tab reaches the Cancel without the blur committing the name
+            await userEvent.tab();
+            const cancel = screen.getByRole('button', { name: 'Cancel' });
+            expect(cancel).toHaveFocus();
+            expect(selectControlSections(store.getState())).toHaveLength(2);
+            await userEvent.click(cancel);
+            expect(selectControlSections(store.getState())).toHaveLength(2);
+            expect(
+                screen.queryByLabelText('Section name'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Add filter or section' }),
+            ).toHaveFocus();
+
+            // A rename keeps its own ways out: no Cancel there
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', { name: 'Rename' }),
+            );
+            expect(screen.getByLabelText('Section name')).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Cancel' }),
+            ).not.toBeInTheDocument();
         });
 
         it('offers no new section while a new filter has no field', () => {

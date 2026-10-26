@@ -1160,7 +1160,11 @@ the language map, as tab names are.
   (`collapse()`, as `openNew` does; a new filter with no field yet stays
   open, since collapsing it would drop it and the rail) and opens a section header with its name
   input, held only in the rail's `nameEdit` state until a name is committed
-  (Enter or blur with a name); Escape or an empty name drops it. The open
+  (Enter or blur with a name); Escape, an empty name or the "Cancel" beside
+  the input (the new filter editor's subtle `xs` button, a tab stop after
+  the input; the input's blur yields to it, so a typed name is not committed
+  on the way) drops it, focus back on the add row; a rename has no Cancel,
+  an empty rename keeps the old name. The open
   rail is its own component (`OpenControlSidebar`), so `nameEdit`,
   `collapsedIds` and the drag reset when the rail closes. That header
   (`isNew`) has no menu and a disabled chevron, since a click on either would
