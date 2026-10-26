@@ -41,7 +41,6 @@ const useUser = (isAuthenticated: boolean) => {
         queryKey: ['user'],
         queryFn: () => getUserState(lightdashApi),
         enabled: isAuthenticated && account?.isRegisteredUser(),
-        retry: false,
     });
 };
 

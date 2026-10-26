@@ -10,15 +10,14 @@ import {
 } from '@testing-library/react';
 import { type FC, type PropsWithChildren, type ReactElement } from 'react';
 import { vi } from 'vitest';
+import ReactQueryProvider from '../providers/__mocks__/ReactQueryProvider';
 import MantineBaseProvider from '../providers/MantineBaseProvider';
 import MantineProvider from '../providers/MantineProvider';
-import ReactQueryProvider from '../providers/ReactQuery/ReactQueryProvider';
 import TrackingProvider from '../providers/Tracking/TrackingProvider';
 import AppProviderMock, {
     type AppProviderMockProps,
 } from './__mocks__/providers/AppProvider.mock';
 
-vi.mock('src/providers/ReactQueryProvider');
 vi.mock('src/providers/TrackingProvider');
 
 const getMockedProviders = (appMocks?: AppProviderMockProps['mocks']) => {
