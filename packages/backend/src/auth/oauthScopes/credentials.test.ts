@@ -69,39 +69,29 @@ describe('OAuth credential minting', () => {
         describe.each([[], ['read'], ['write'], ['mcp:read'], ['mcp:write']])(
             'scopes %j',
             (...scopes) => {
-                it.each(operations)(
-                    'refuses %s',
-                    (operation, action, subjectType) => {
-                        const account = oauthAccount(scopes, defaultPolicy);
-                        expect(() =>
-                            assertOAuthCredentialOperationAllowed(
-                                account,
-                                operation,
-                            ),
-                        ).toThrow(ForbiddenError);
-                        expect(() =>
-                            assertOAuthCredentialOperationAllowed(
-                                account,
-                                operation,
-                            ),
-                        ).toThrow(ForbiddenError);
-                        expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
-                            'oauth_scope_refusal',
-                            {
-                                mode: 'enforce',
-                                clientId: 'client',
-                                scopes,
-                                method: defaultPolicy ? null : 'POST',
-                                routeTemplate: defaultPolicy
-                                    ? null
-                                    : '/credentials',
-                                toolName: null,
-                                action,
-                                subjectType,
-                            },
-                        );
-                    },
-                );
+                it.each(operations)('refuses %s', (operation) => {
+                    const account = oauthAccount(scopes, defaultPolicy);
+                    expect(() =>
+                        assertOAuthCredentialOperationAllowed(
+                            account,
+                            operation,
+                        ),
+                    ).toThrow(ForbiddenError);
+                    expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
+                        'oauth_credential_mint_refused',
+                        {
+                            operation,
+                            clientId: 'client',
+                            scopes,
+                            userAgent: null,
+                            cliVersion: null,
+                            organizationUuid: user.organizationUuid,
+                        },
+                    );
+                    expect(
+                        JSON.stringify(vi.mocked(Logger.warn).mock.calls),
+                    ).not.toContain('secret');
+                });
             },
         );
         it.each(operations)(
@@ -114,6 +104,15 @@ describe('OAuth credential minting', () => {
                         operation,
                     ),
                 ).toThrow(ForbiddenError);
+                expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
+                    'oauth_credential_mint_refused',
+                    expect.objectContaining({
+                        operation,
+                        clientId: 'client',
+                        scopes: ['write'],
+                        userAgent: null,
+                    }),
+                );
             },
         );
     });
@@ -126,9 +125,49 @@ describe('OAuth credential minting', () => {
             expect(() =>
                 assertOAuthCredentialOperationAllowed(account, operation),
             ).toThrow(ForbiddenError);
-            expect(Logger.warn).not.toHaveBeenCalled();
+            expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
+                'oauth_credential_mint_refused',
+                expect.objectContaining({
+                    operation,
+                    clientId: 'client',
+                    scopes: ['write'],
+                    userAgent: null,
+                }),
+            );
         },
     );
+
+    it('refuses the CLI client even with empty scopes', () => {
+        const account = fromOauth(user, {
+            accessToken: 'never-log-this-token',
+            client: { id: 'lightdash-cli' },
+            scope: [],
+        });
+        account.requestContext = {
+            userAgent: 'cli-agent',
+            cliVersion: '3.56.0',
+        };
+        expect(() =>
+            assertOAuthCredentialOperationAllowed(
+                account,
+                'createPersonalAccessToken',
+            ),
+        ).toThrow(ForbiddenError);
+        expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
+            'oauth_credential_mint_refused',
+            {
+                operation: 'createPersonalAccessToken',
+                clientId: 'lightdash-cli',
+                scopes: [],
+                userAgent: 'cli-agent',
+                cliVersion: '3.56.0',
+                organizationUuid: user.organizationUuid,
+            },
+        );
+        expect(JSON.stringify(vi.mocked(Logger.warn).mock.calls)).not.toContain(
+            'never-log-this-token',
+        );
+    });
 
     it.each(operations)('preserves session user %s', (operation) => {
         expect(() =>

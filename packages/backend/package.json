@@ -45,6 +45,7 @@
         "seed": "knex seed:run --knexfile src/knexfile.ts",
         "seed-production": "knex seed:run --knexfile dist/knexfile.js",
         "reseed-encrypted-credentials": "tsx --tsconfig tsconfig.scripts.json src/scripts/reseed-encrypted-credentials.ts",
+        "inventory-personal-access-tokens": "tsx --tsconfig tsconfig.scripts.json src/scripts/inventory-personal-access-tokens/index.ts",
         "rotate-lightdash-secret": "tsx --tsconfig tsconfig.scripts.json src/scripts/rotate-lightdash-secret/index.ts",
         "rescue-warehouse-connection": "tsx --tsconfig tsconfig.scripts.json src/scripts/rescue-warehouse-connection/index.ts",
         "rollback-last": "knex migrate:down --knexfile src/knexfile.ts",

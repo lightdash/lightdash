@@ -264,6 +264,7 @@ describe('MCP scoped tool catalogue', () => {
         const handler = vi.fn().mockResolvedValue({ content: [] });
         const record = vi.fn();
         vi.mocked(getOAuthScopeContext).mockReturnValue({
+            clientId: 'client',
             scopes: ['mcp:read'],
             record,
         });
@@ -326,7 +327,11 @@ describe('MCP scoped tool catalogue', () => {
     ])('lists tools with scopes=$scopes', async ({ scopes, filtered }) => {
         const baseline = await listTools();
         const record = vi.fn();
-        vi.mocked(getOAuthScopeContext).mockReturnValue({ scopes, record });
+        vi.mocked(getOAuthScopeContext).mockReturnValue({
+            clientId: 'client',
+            scopes,
+            record,
+        });
         const names = await listTools();
         expect(names).toEqual(
             filtered
@@ -345,6 +350,7 @@ describe('MCP scoped tool catalogue', () => {
         'shows create_content only with MCP write scope: $scopes',
         async ({ scopes, visible }) => {
             vi.mocked(getOAuthScopeContext).mockReturnValue({
+                clientId: 'client',
                 scopes,
                 record: vi.fn(),
             });

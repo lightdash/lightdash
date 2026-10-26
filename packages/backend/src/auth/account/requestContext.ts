@@ -1,4 +1,7 @@
-import type { AccountRequestContext } from '@lightdash/common';
+import {
+    LightdashCliVersionHeader,
+    type AccountRequestContext,
+} from '@lightdash/common';
 import type { Request } from 'express';
 
 const headerToString = (
@@ -11,6 +14,9 @@ const headerToString = (
 export const requestContextFromExpress = (
     req: Request,
 ): AccountRequestContext => ({
+    cliVersion:
+        headerToString(req.headers[LightdashCliVersionHeader.toLowerCase()]) ??
+        null,
     ip: req.ip,
     userAgent: headerToString(req.headers['user-agent']),
     requestId:
