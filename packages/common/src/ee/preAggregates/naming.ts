@@ -1,4 +1,5 @@
 import type { TimeFrames } from '../../types/timeFrames';
+import { boundExploreName } from '../../utils/exploreName';
 
 export const PRE_AGGREGATE_EXPLORE_PREFIX = '__preagg__';
 
@@ -9,7 +10,9 @@ export const getPreAggregateExploreName = (
     exploreName: string,
     preAggregateName: string,
 ): string =>
-    `${PRE_AGGREGATE_EXPLORE_PREFIX}${exploreName}__${preAggregateName}`;
+    boundExploreName(
+        `${PRE_AGGREGATE_EXPLORE_PREFIX}${exploreName}__${preAggregateName}`,
+    );
 
 export const getPreAggregateJoinedDimensionColumnName = (
     tableName: string,

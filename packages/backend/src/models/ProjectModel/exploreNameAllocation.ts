@@ -1,9 +1,13 @@
 import {
+    boundExploreName,
     ConflictError,
+    ExploreType,
     getDeferredExploreName,
+    getPreAggregateExploreName,
     InlineErrorType,
     isExploreError,
     isUserManagedExplore,
+    UnexpectedServerError,
     type DbtExploreIdentity,
     type Explore,
     type ExploreError,
@@ -229,12 +233,102 @@ export const allocateStagedExploreNames = async (
     const models = naming.models.filter(
         (identity) => selectedIdentity(identity).uniqueId === identity.uniqueId,
     );
-    const staged = stagedRows.filter(
-        ({ explore }: { explore: Explore | ExploreError }) =>
-            !explore.dbtModelIdentity ||
-            selectedIdentity(explore.dbtModelIdentity).uniqueId ===
-                explore.dbtModelIdentity.uniqueId,
+    const stagedByName = new Map<string, Explore | ExploreError>(
+        stagedRows.map(({ explore }) => [explore.name, explore]),
     );
+    const selectedStaged = stagedRows.filter(
+        ({ explore }: { explore: Explore | ExploreError }) => {
+            const parent =
+                explore.type === ExploreType.PRE_AGGREGATE &&
+                explore.preAggregateSource
+                    ? stagedByName.get(
+                          explore.preAggregateSource.sourceExploreName,
+                      )
+                    : undefined;
+            const identity =
+                parent?.dbtModelIdentity ?? explore.dbtModelIdentity;
+            return (
+                !identity ||
+                selectedIdentity(identity).uniqueId === identity.uniqueId
+            );
+        },
+    );
+    const generated = selectedStaged.filter(
+        ({ explore }) => explore.type === ExploreType.PRE_AGGREGATE,
+    );
+    const staged = selectedStaged.filter(
+        ({ explore }) => explore.type !== ExploreType.PRE_AGGREGATE,
+    );
+    const allocatedReferences = new Map<string, ReadonlyMap<string, string>>();
+    const withGeneratedExplores = (parents: (Explore | ExploreError)[]) => {
+        const results = new Map(
+            staged.map((row, index) => [row.name, parents[index]]),
+        );
+        for (const row of generated) {
+            const explore = row.explore as Explore;
+            const source = explore.preAggregateSource;
+            const parent = source && results.get(source.sourceExploreName);
+            const references =
+                source && allocatedReferences.get(source.sourceExploreName);
+            if (!source || !parent || !references)
+                throw new UnexpectedServerError(
+                    `Cannot allocate generated explore "${explore.label}" from source "${explore.dbtModelIdentity?.sourceName ?? explore.dbtModelIdentity?.sourceUuid ?? 'primary'}": its parent explore is missing.`,
+                );
+            const name = getPreAggregateExploreName(
+                parent.name,
+                source.preAggregateName,
+            );
+            if ([...results.values()].some((result) => result.name === name))
+                throw new ConflictError(
+                    `Generated explore "${name}" conflicts with another explore from source "${explore.dbtModelIdentity?.sourceName ?? 'primary'}".`,
+                );
+            const names = new Map(references);
+            names.set(explore.name, name);
+            Object.entries(explore.tables).forEach(([tableName, table]) => {
+                const allocatedTable = references.get(tableName) ?? tableName;
+                Object.keys({ ...table.dimensions, ...table.metrics }).forEach(
+                    (fieldName) => {
+                        for (const suffix of ['', '__sum', '__count']) {
+                            names.set(
+                                `${tableName}_${fieldName}${suffix}`,
+                                `${allocatedTable}_${fieldName}${suffix}`,
+                            );
+                        }
+                    },
+                );
+            });
+            const identity = parent.dbtModelIdentity && {
+                ...parent.dbtModelIdentity,
+                modelName: getPreAggregateExploreName(
+                    parent.dbtModelIdentity.modelName,
+                    source.preAggregateName,
+                ),
+            };
+            const result: Explore | ExploreError = isExploreError(parent)
+                ? {
+                      name,
+                      label: explore.label,
+                      type: ExploreType.PRE_AGGREGATE,
+                      preAggregateSource: {
+                          ...source,
+                          sourceExploreName: parent.name,
+                      },
+                      dbtModelIdentity: identity,
+                      errors: parent.errors,
+                  }
+                : {
+                      ...rewriteAllocatedExplore(
+                          explore,
+                          names,
+                          new Set(names.keys()),
+                      ),
+                      label: explore.label,
+                      dbtModelIdentity: identity,
+                  };
+            results.set(row.name, result);
+        }
+        return selectedStaged.map((row) => results.get(row.name)!);
+    };
     const versionUpdates = existingOwners.flatMap((allocation) => {
         const identity = allocationIdentity(allocation);
         const selected = selectedIdentity(identity);
@@ -351,7 +445,10 @@ export const allocateStagedExploreNames = async (
         addProvider(allocationIdentity(allocation), allocation.name),
     );
     cached.forEach(({ name, explore }) => {
-        if (!isUserManagedExplore(explore))
+        if (
+            !isUserManagedExplore(explore) &&
+            explore.type !== ExploreType.PRE_AGGREGATE
+        )
             addProvider(identityOf(explore), name);
     });
     staged.forEach(({ explore }: { explore: Explore | ExploreError }) => {
@@ -385,7 +482,10 @@ export const allocateStagedExploreNames = async (
         table: Explore['tables'][string],
     ): DbtExploreIdentity => {
         const root = identityOf(explore);
-        if (name === explore.baseTable) return root;
+        if (name === explore.baseTable)
+            return explore.name === name
+                ? root
+                : identityOf({ ...explore, name, dbtModelIdentity: undefined });
         const fallback = {
             sourceUuid: table.dbtSourceUuid ?? root.sourceUuid,
             sourceName: table.dbtSourceName ?? root.sourceName,
@@ -463,7 +563,7 @@ export const allocateStagedExploreNames = async (
         add(identity, explore.name);
         Object.entries(explore.tables ?? {}).forEach(([name, table]) => {
             if (name === explore.baseTable) {
-                add(identity, name);
+                add(identityOfTable(explore, name, table), name);
                 return;
             }
             const tableIdentity = identityOfTable(explore, name, table);
@@ -478,7 +578,7 @@ export const allocateStagedExploreNames = async (
         });
     });
     const writeStaged = async (explores: (Explore | ExploreError)[]) => {
-        const rows = staged.map((row, index) => ({
+        const rows = selectedStaged.map((row, index) => ({
             ...row,
             name: explores[index].name,
             table_names: Object.keys(explores[index].tables ?? {}),
@@ -509,12 +609,14 @@ export const allocateStagedExploreNames = async (
                     );
                 else names.set(name, table.originalName ?? name);
             });
+            allocatedReferences.set(explore.name, names);
             return rewriteAllocatedExplore(explore, names);
         });
-        await writeStaged(explores);
+        const published = withGeneratedExplores(explores);
+        await writeStaged(published);
         return {
-            names: explores.map((explore) => explore.name),
-            explores,
+            names: published.map((explore) => explore.name),
+            explores: published,
             warnings: [],
             activeSourceUuids: [...sourceNames.keys()],
         };
@@ -560,7 +662,11 @@ export const allocateStagedExploreNames = async (
             name: string;
             explore: Explore | ExploreError;
         }) => {
-            if (isUserManagedExplore(explore)) return;
+            if (
+                isUserManagedExplore(explore) ||
+                explore.type === ExploreType.PRE_AGGREGATE
+            )
+                return;
             if (
                 isExploreError(explore) &&
                 explore.errors.some(
@@ -643,7 +749,7 @@ export const allocateStagedExploreNames = async (
     const savedModels = [...byOwner].map(([key, allocation]) => ({
         ownerKey: key,
         sourceKey: allocation.source_key,
-        modelName: allocation.model_name,
+        modelName: boundExploreName(allocation.model_name),
     }));
     const blocked = new Map<string, string>();
     const warnings: string[] = [];
@@ -652,7 +758,7 @@ export const allocateStagedExploreNames = async (
         candidates: [...candidates].map(([key, { identity }]) => ({
             ownerKey: key,
             sourceKey: sourceKey(identity),
-            modelName: identity.modelName,
+            modelName: boundExploreName(identity.modelName),
         })),
         savedModels,
         allocations: [...byName.values()].map((allocation) => ({
@@ -684,7 +790,9 @@ export const allocateStagedExploreNames = async (
     for (const [key, { identity }] of candidates) {
         if (!byOwner.has(key)) {
             const namespace = identity.sourceName ?? identity.packageName;
-            const qualified = `${namespace}__${identity.modelName}`;
+            const qualified = boundExploreName(
+                `${namespace}__${identity.modelName}`,
+            );
             const qualifiedOwner = byName.get(qualified);
             if (qualifiedOwner) {
                 const reason = isOwnedExploreNameAllocation(qualifiedOwner)
@@ -754,10 +862,10 @@ export const allocateStagedExploreNames = async (
     for (const [key] of blocked) {
         const { identity } = candidates.get(key)!;
         const base = `${identity.sourceName ?? identity.packageName}__${identity.modelName}__conflict`;
-        let name = base;
+        let name = boundExploreName(base);
         let suffix = 1;
         while (byName.has(name) || [...errorNames.values()].includes(name)) {
-            name = `${base}_${suffix}`;
+            name = boundExploreName(`${base}_${suffix}`);
             suffix += 1;
         }
         errorNames.set(key, name);
@@ -806,6 +914,7 @@ export const allocateStagedExploreNames = async (
             if (table.canonicalName && allocation)
                 names.set(table.canonicalName, allocation.name);
         });
+        allocatedReferences.set(explore.name, names);
         let result: Explore | ExploreError = conflict
             ? {
                   name: assigned,
@@ -833,10 +942,11 @@ export const allocateStagedExploreNames = async (
             };
         return result;
     });
-    await writeStaged(rewritten);
+    const published = withGeneratedExplores(rewritten);
+    await writeStaged(published);
     return {
-        names: rewritten.map((explore) => explore.name),
-        explores: rewritten,
+        names: published.map((explore) => explore.name),
+        explores: published,
         warnings,
         activeSourceUuids: [...sourceNames.keys()],
     };
