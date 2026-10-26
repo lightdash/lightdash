@@ -52,11 +52,6 @@ export enum FeatureFlags {
     UserImpersonation = 'user-impersonation',
 
     /**
-     * Enable custom group bins for string dimensions
-     */
-    CustomGroupBins = 'custom-group-bins',
-
-    /**
      * Keep visited dashboard tabs mounted in the DOM (hidden) for instant
      * re-switching. Enabled by default; disabled per-org for orgs where
      * large dashboards spiked browser memory to 3 GB+ from accumulated
