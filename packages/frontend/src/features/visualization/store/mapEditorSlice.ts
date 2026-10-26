@@ -12,7 +12,7 @@ import { editorCaseReducers } from './editorSlice';
 export const DEFAULT_MAP_COLORS = ['#228be6', '#fa5252']; // blue to red
 
 // Default colors for heatmap (classic heatmap gradient)
-export const DEFAULT_HEATMAP_COLORS = [
+const DEFAULT_HEATMAP_COLORS = [
     '#3b4cc0', // blue
     '#7092e5', // light blue
     '#aac7fd', // very light blue
@@ -150,7 +150,9 @@ const mapEditorSlice = createSlice({
         },
         hexbinConfigChange: (
             state,
-            action: PayloadAction<NonNullable<MapChart['hexbinConfig']> | undefined>,
+            action: PayloadAction<
+                NonNullable<MapChart['hexbinConfig']> | undefined
+            >,
         ) => {
             if (!state) return;
             state.hexbinConfig =
