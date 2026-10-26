@@ -1,14 +1,27 @@
 {
   "schemaVersion": "2",
-  "version": "3.56.1",
-  "previousVersion": "3.56.0",
-  "releaseDate": "2026-10-26T14:03:45.584Z",
+  "version": "3.57.0",
+  "previousVersion": "3.56.1",
+  "releaseDate": "2026-10-26T14:18:30.868Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261026094753_add_add_analysis_dismissed_at_to_apps.ts",
+        "edition": "core",
+        "tables": [
+          "apps"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": false
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

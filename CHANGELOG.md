@@ -1,3 +1,10 @@
+# [3.57.0](https://github.com/lightdash/lightdash/compare/3.56.1...3.57.0) (2026-10-26)
+
+
+### Features
+
+* **apps:** persist AI analysis offer dismissal server-side ([#31553](https://github.com/lightdash/lightdash/issues/31553)) ([a854202](https://github.com/lightdash/lightdash/commit/a85420230d1eb71f46e12b4850ec30f92a87ccd1))
+
 ## [3.56.1](https://github.com/lightdash/lightdash/compare/3.56.0...3.56.1) (2026-10-26)
 
 
