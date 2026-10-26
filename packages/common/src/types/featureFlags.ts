@@ -5,8 +5,6 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
-    /** Organization-scoped, off by default. Allow bounded composer status waits. */
-    ComposerOptimizationQueryPushReadiness = 'composer-optimization-query-push-readiness',
     /** Organization-scoped, off by default. Retry missing cross-project refs with sibling models injected through a generated dbt plugin. */
     CrossSourceDbtRefs = 'cross-source-dbt-refs',
     DbtExplicitCredentials = 'dbt-explicit-credentials',
