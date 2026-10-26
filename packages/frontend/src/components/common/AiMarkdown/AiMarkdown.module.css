@@ -16,7 +16,9 @@
     letter-spacing: -0.005em;
 }
 
-.aiMarkdown > * + * {
+/* Streamdown renders into one wrapper div styled with Tailwind utilities
+ * (not loaded here), so block spacing is applied to its children. */
+.aiMarkdown > * > * + * {
     margin-top: 12px;
 }
 
@@ -51,16 +53,17 @@
     font-size: 12px;
 }
 
-.aiMarkdown > h1:first-child,
-.aiMarkdown > h2:first-child,
-.aiMarkdown > h3:first-child,
-.aiMarkdown > h4:first-child,
-.aiMarkdown > h5:first-child,
-.aiMarkdown > h6:first-child {
+.aiMarkdown > * > h1:first-child,
+.aiMarkdown > * > h2:first-child,
+.aiMarkdown > * > h3:first-child,
+.aiMarkdown > * > h4:first-child,
+.aiMarkdown > * > h5:first-child,
+.aiMarkdown > * > h6:first-child {
     margin-top: 0;
 }
 
-.aiMarkdown p {
+/* Zero specificity so the sibling spacing rule above wins. */
+:where(.aiMarkdown p) {
     margin: 0;
     font-size: inherit;
 }
@@ -192,12 +195,12 @@
     margin: 8px 0;
 }
 
-.aiMarkdown > hr,
-.aiMarkdown > * + hr {
+.aiMarkdown > * > hr,
+.aiMarkdown > * > * + hr {
     margin-top: 8px;
 }
 
-.aiMarkdown > hr + * {
+.aiMarkdown > * > hr + * {
     margin-top: 8px;
 }
 
@@ -225,8 +228,8 @@
 /* Give tables extra vertical breathing room beyond the default 12px sibling
  * gap — the rounded outline makes tables read as a distinct card, so they
  * need more space from surrounding paragraphs to avoid feeling cramped. */
-.aiMarkdown > * + [data-streamdown='table-wrapper'],
-.aiMarkdown > [data-streamdown='table-wrapper'] + * {
+.aiMarkdown > * > * + [data-streamdown='table-wrapper'],
+.aiMarkdown > * > [data-streamdown='table-wrapper'] + * {
     margin-top: 20px;
 }
 
