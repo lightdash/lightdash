@@ -391,6 +391,9 @@ const visualSpec = (
     };
     const rankText = { type: 'text', dy: -11, fontSize: 12 };
     if (daily) {
+        const reportedAxisOpacity = {
+            expr: "length(domain('color')) ? 1 : 0",
+        };
         return {
             ...base,
             padding: { left: 8, right: 12, top: 8, bottom: 10 },
@@ -421,7 +424,21 @@ const visualSpec = (
                             field: 'tokens',
                             type: 'quantitative',
                             stack: 'zero',
-                            axis: { title: 'Reported tokens', format: '.2~s' },
+                            axis: {
+                                title: 'Reported tokens',
+                                format: '.2~s',
+                                // Unknown totals must not look like a zero
+                                // observation behind the missing-usage message.
+                                labelOpacity: reportedAxisOpacity,
+                                labelExpr:
+                                    "length(domain('color')) ? datum.label : ''",
+                                titleOpacity: reportedAxisOpacity,
+                                tickOpacity: reportedAxisOpacity,
+                                domainOpacity: reportedAxisOpacity,
+                                gridOpacity: {
+                                    expr: "length(domain('color')) ? 0.18 : 0",
+                                },
+                            },
                         },
                         color: {
                             ...color,

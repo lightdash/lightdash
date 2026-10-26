@@ -15,6 +15,7 @@ type TokenSpec = {
             text?: { value?: string };
             tooltip?: unknown[];
             color?: { legend?: Record<string, unknown> };
+            y?: { axis?: Record<string, unknown> };
         };
     }[];
 };
@@ -156,6 +157,12 @@ describe('analytics chart presentation', () => {
             },
             symbolOpacity: { expr: "length(domain('color')) ? 1 : 0" },
             aria: false,
+        });
+        expect(spec.layer[0].encoding.y?.axis).toMatchObject({
+            labelOpacity: { expr: "length(domain('color')) ? 1 : 0" },
+            labelExpr: "length(domain('color')) ? datum.label : ''",
+            titleOpacity: { expr: "length(domain('color')) ? 1 : 0" },
+            gridOpacity: { expr: "length(domain('color')) ? 0.18 : 0" },
         });
     });
 
