@@ -338,39 +338,6 @@ describe('Slack AI agent blocks', () => {
         ]);
     });
 
-    it('builds modern pull request cards for preview deploy setup', () => {
-        const blocks = getModernPullRequestCardBlocks([
-            {
-                uuid: 'result-1',
-                promptUuid: 'prompt-1',
-                toolCallId: 'call-1',
-                toolType: 'built-in',
-                toolName: 'setupPreviewDeploy',
-                result: 'Opened a pull request',
-                createdAt: new Date(),
-                metadata: {
-                    status: 'success',
-                    prUrl: 'https://github.com/lightdash/lightdash/pull/124',
-                },
-            },
-        ]);
-
-        expect(blocks).toMatchObject([
-            {
-                type: 'card',
-                title: {
-                    text: 'Opened preview deploy PR #124',
-                },
-                actions: [
-                    {
-                        text: { text: 'PR' },
-                        url: 'https://github.com/lightdash/lightdash/pull/124',
-                    },
-                ],
-            },
-        ]);
-    });
-
     it('renders filter expression artifacts with independent category connectors', async () => {
         let sharedParams: string | undefined;
         const queryConfig = {

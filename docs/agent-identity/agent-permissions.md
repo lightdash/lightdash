@@ -84,7 +84,6 @@ allowed. Missing any one refuses it.
 | Edit a saved SQL chart, any field, on every surface | Create and edit content + Raw SQL |
 | Delete a file in the Git repository, through REST or a repo-edit agent tool | Delete content + Git repository changes (dbt) |
 | Pull content from Git | Git repository changes (dbt) + Create and edit content |
-| Set up a preview deploy | Deploy and upload + Git repository changes (dbt) |
 | Create a project, upload metadata or precompiled files | Deploy and upload + Administration |
 | Embed settings and access grants | Publish and share + Administration, and often only a person |
 

@@ -87,7 +87,6 @@ const buildService = (overrides: {
     run?: ReturnType<typeof vi.fn>;
     getRunStatus?: ReturnType<typeof vi.fn>;
     reviewRemediation?: unknown;
-    ciStatus?: { hasPreviewDeployWorkflow: boolean } | null;
     previewUrl?: string | null;
 }) => {
     const prompt = {
@@ -177,11 +176,6 @@ const buildService = (overrides: {
         createRemediationEvent,
     };
     const slackClient = { addReaction, postMessage };
-    const previewDeploySetupService = {
-        getOrScanProjectCiStatus: vi
-            .fn()
-            .mockResolvedValue(overrides.ciStatus ?? null),
-    };
     const writebackPreviewService = { createPreviewForPullRequest };
 
     const loadRequest = vi.fn().mockResolvedValue({});
@@ -194,7 +188,6 @@ const buildService = (overrides: {
         aiWritebackService,
         aiAgentReviewClassifierModel,
         slackClient,
-        previewDeploySetupService,
         writebackPreviewService,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
@@ -213,7 +206,6 @@ const buildService = (overrides: {
         hasToolResult,
         createRemediationEvent,
         createPreviewForPullRequest,
-        previewDeploySetupService,
     };
 };
 
@@ -231,9 +223,6 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
             });
             expect(
                 h.userModel.findSessionUserAndOrgByUuid,
-            ).toHaveBeenCalledTimes(1);
-            expect(
-                h.previewDeploySetupService.getOrScanProjectCiStatus,
             ).toHaveBeenCalledTimes(1);
             expect(h.loadRequest).not.toHaveBeenCalled();
             expect(h.assertOperationWithRequest).not.toHaveBeenCalled();
@@ -408,50 +397,16 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         );
     });
 
-    it.each([false, true])(
-        'offers preview deployment setup only when the workflow is missing (configured=%s)',
-        async (hasPreviewDeployWorkflow) => {
-            const { service, updateToolResult } = buildService({
-                ciStatus: { hasPreviewDeployWorkflow },
-            });
-
-            await service.runEditDbtProjectPipeline(PAYLOAD);
-
-            const setupOffer = expect.stringContaining(
-                'Offer to set it up by opening a pull request',
-            );
-            expect(updateToolResult).toHaveBeenCalledWith(
-                'prompt-1',
-                'tool-call-1',
-                expect.objectContaining({
-                    result: hasPreviewDeployWorkflow
-                        ? expect.not.stringContaining(
-                              'Offer to set it up by opening a pull request',
-                          )
-                        : setupOffer,
+    it('does not create a preview deployment for a Bitbucket pull request', async () => {
+        const { service, updateToolResult, createPreviewForPullRequest } =
+            buildService({
+                run: vi.fn().mockResolvedValue({
+                    ...WRITEBACK_RESULT,
+                    prUrl: 'https://bitbucket.org/workspace/dbt/pull-requests/7',
                 }),
-            );
-        },
-    );
-
-    it('does not offer or create preview deployment for a Bitbucket pull request', async () => {
-        const {
-            service,
-            updateToolResult,
-            createPreviewForPullRequest,
-            previewDeploySetupService,
-        } = buildService({
-            ciStatus: { hasPreviewDeployWorkflow: false },
-            run: vi.fn().mockResolvedValue({
-                ...WRITEBACK_RESULT,
-                prUrl: 'https://bitbucket.org/workspace/dbt/pull-requests/7',
-            }),
-        });
+            });
         await service.runEditDbtProjectPipeline(PAYLOAD);
         expect(createPreviewForPullRequest).not.toHaveBeenCalled();
-        expect(
-            previewDeploySetupService.getOrScanProjectCiStatus,
-        ).not.toHaveBeenCalled();
         expect(updateToolResult).toHaveBeenCalledWith(
             'prompt-1',
             'tool-call-1',

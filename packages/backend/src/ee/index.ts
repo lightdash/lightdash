@@ -1,15 +1,9 @@
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
 import {
-    createBranch,
-    createPullRequest,
     createPullRequestComment,
-    createSignedCommitOnBranch,
-    getBranchHeadSha,
     getInstallationToken,
     getPullRequest,
-    getRepoDefaultBranch,
-    getRepoWorkflowFiles,
 } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
@@ -69,7 +63,6 @@ import { HomepageRecommendedActionSkipsModel } from './models/HomepageRecommende
 import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { McpToolCallModel } from './models/McpToolCallModel';
 import { MobilePushNotificationModel } from './models/MobilePushNotificationModel';
-import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
 import { ProjectHomepageModel } from './models/ProjectHomepageModel';
 import { ReleaseHighlightsModel } from './models/ReleaseHighlightsModel';
@@ -133,7 +126,6 @@ import { MobilePushNotificationService } from './services/MobilePushNotification
 import { OnboardingAgentService } from './services/OnboardingAgentService/OnboardingAgentService';
 import { provisionOnboardingOrgFlags } from './services/OrganizationService/provisionOnboardingOrgFlags';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
-import { PreviewDeploySetupService } from './services/PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { createPlaygroundAppFileStore } from './services/ProjectService/playgroundAppFiles';
@@ -512,25 +504,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                 }),
-            previewDeploySetupService: ({ context, models }) =>
-                new PreviewDeploySetupService({
-                    agentActionLogModel: models.getAgentActionLogModel(),
-                    lightdashConfig: context.lightdashConfig,
-                    projectModel: models.getProjectModel(),
-                    githubAppInstallationsModel:
-                        models.getGithubAppInstallationsModel(),
-                    pullRequestsModel: models.getPullRequestsModel(),
-                    projectCiStatusModel:
-                        models.getProjectCiStatusModel<ProjectCiStatusModel>(),
-                    githubClient: {
-                        createBranch,
-                        createPullRequest,
-                        createSignedCommitOnBranch,
-                        getBranchHeadSha,
-                        getRepoDefaultBranch,
-                        getRepoWorkflowFiles,
-                    },
-                }),
             writebackPreviewService: ({ context, models, repository }) =>
                 new WritebackPreviewService({
                     lightdashConfig: context.lightdashConfig,
@@ -751,8 +724,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     featureFlagService: repository.getFeatureFlagService(),
-                    previewDeploySetupService:
-                        repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
                     shareService: repository.getShareService(),
                     userService: repository.getUserService(),
                     getSchedulerAiAugmentationService: () =>
@@ -849,8 +820,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getProjectContextService<ProjectContextService>(),
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),
-                    previewDeploySetupService:
-                        repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
                     githubAppService: repository.getGithubAppService(),
@@ -1722,8 +1691,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AgentOnboardingRunModel({ database }),
             sandboxRegistryModel: ({ database }) =>
                 new SandboxRegistryModel({ database }),
-            projectCiStatusModel: ({ database }) =>
-                new ProjectCiStatusModel({ database }),
             aiAgentReviewClassifierModel: ({ database }) =>
                 new AiAgentReviewClassifierModel({ database }),
             aiAgentReviewNotificationModel: ({ database }) =>

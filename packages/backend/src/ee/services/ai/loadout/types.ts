@@ -16,7 +16,6 @@ export type AddOnName =
     | 'codingAgent'
     | 'pullRequests'
     | 'repoDiscovery'
-    | 'previewDeploySetup'
     | 'editProjectContext'
     | 'readAttachments'
     | 'intentRouting'
@@ -64,7 +63,6 @@ export const AGENT_TOOL_NAMES = [
     'editProjectContext',
     'editRepo',
     'syncDbtProject',
-    'setupPreviewDeploy',
     'exploreRepo',
     'readAttachments',
     'discoverRepos',
@@ -139,7 +137,6 @@ export type LoadoutInput = Pick<
     | 'enableAiWriteback'
     | 'enableCodingAgent'
     | 'enableRepoDiscovery'
-    | 'enablePreviewDeploySetup'
     | 'enableEditProjectContext'
     | 'enableReadAttachments'
     | 'customSkills'

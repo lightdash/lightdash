@@ -2203,14 +2203,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 assertOperationWithRequest: vi.fn(),
             };
             const featureFlagModel = { get: vi.fn() };
-            const featureFlagService = {
-                get: vi.fn(),
-            };
-            const previewDeploySetupService = {
-                getOrScanProjectCiStatus: vi.fn().mockResolvedValue({
-                    hasPreviewDeployWorkflow: false,
-                }),
-            };
             const agentActionLogModel = { insert: vi.fn() };
             const runRow = {
                 status: 'pending',
@@ -2249,8 +2241,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 userModel,
                 agentPermissionService,
                 agentActionLogModel,
-                featureFlagService,
-                previewDeploySetupService,
                 aiWritebackService,
                 aiAgentModel: {
                     findWebAppPrompt: vi.fn().mockResolvedValue({
@@ -2296,9 +2286,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 'prompt-1',
                 'tool-1',
                 expect.objectContaining({
-                    result: expect.stringContaining(
-                        'Offer to set it up by opening a pull request',
-                    ),
+                    result: expect.not.stringContaining('setupPreviewDeploy'),
                     metadata: expect.objectContaining({
                         status: 'success',
                         prUrl: PR_7,
@@ -2312,10 +2300,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 userModel.findServiceAccountByUserUuid,
             ).not.toHaveBeenCalled();
             expect(featureFlagModel.get).not.toHaveBeenCalled();
-            expect(featureFlagService.get).not.toHaveBeenCalled();
-            expect(
-                previewDeploySetupService.getOrScanProjectCiStatus,
-            ).toHaveBeenCalledExactlyOnceWith(user, 'p1');
             expect(agentPermissionService.isManaged).toHaveBeenCalledTimes(1);
             expect(agentPermissionService.loadRequest).toHaveBeenCalledTimes(
                 marked ? 5 : 0,

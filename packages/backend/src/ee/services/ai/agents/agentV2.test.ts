@@ -117,7 +117,6 @@ const buildAgentArgs = (
         enableDataAccess: false,
         enableDataAnswerFastResponse: false,
         enableEditProjectContext: false,
-        enablePreviewDeploySetup: false,
         enableRepoDiscovery: false,
         execution,
         forceToolHints: false,
@@ -1908,7 +1907,6 @@ describe('buildDeepResearchExecutionContextSnapshot', () => {
                 projectContextEnabled: true,
                 enableAiWriteback: false,
                 enableCodingAgent: false,
-                enablePreviewDeploySetup: false,
                 enableRepoDiscovery: true,
                 execution: {
                     mode: 'deep_research',
@@ -2131,7 +2129,6 @@ describe('getAgentTools workstream tool gate', () => {
             enableDataAccess: false,
             enableEditProjectContext: false,
             enableGenerateDataApp: false,
-            enablePreviewDeploySetup: false,
             enableRepoDiscovery: false,
             enableFilterExpressions: false,
             execution: {

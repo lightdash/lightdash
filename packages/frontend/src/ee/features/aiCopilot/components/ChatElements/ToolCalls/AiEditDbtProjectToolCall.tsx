@@ -49,13 +49,6 @@ type Props = {
     metadata: ToolEditDbtProjectOutput['metadata'];
     projectUuid: string;
     /**
-     * True when this card belongs to a `setupPreviewDeploy` PR (one that adds
-     * the preview-deploy workflow) rather than a data-change `editDbtProject`
-     * PR. A setup PR never produces a preview of itself, so the preview
-     * affordance is suppressed for it.
-     */
-    isPreviewDeploySetup: boolean;
-    /**
      * The agent + thread this card belongs to. When present, merging the PR
      * also injects the (hidden) post-merge migration prompt so the agent
      * proactively assesses and repoints affected saved content. Absent in
@@ -320,7 +313,6 @@ export const PullRequestActionButtons: FC<{
 export const AiEditDbtProjectToolCall: FC<Props> = ({
     metadata,
     projectUuid,
-    isPreviewDeploySetup,
     agentUuid,
     threadUuid,
 }) => {
@@ -669,7 +661,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             projectUuid={projectUuid}
                             prUrl={metadata.prUrl}
                             previewUrl={
-                                isPreviewDeploySetup || isBitbucket
+                                isBitbucket
                                     ? null
                                     : (metadata.previewUrl ?? null)
                             }

@@ -185,7 +185,6 @@ import {
     RunSqlJobFn,
     SearchFieldValuesFn,
     SearchSemanticLayerFn,
-    SetupPreviewDeployFn,
     SqlChartSummary,
     SqlQueryRows,
     SyncDbtProjectFn,
@@ -216,7 +215,6 @@ import type {
     AppGenerateService,
     DataAppReadSource,
 } from '../AppGenerateService/AppGenerateService';
-import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import type { SchedulerAiAugmentationService } from '../SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import {
     findUnlinkedConnectionMentions,
@@ -367,7 +365,6 @@ export type AiAgentToolsRuntime = {
     >;
     getSavedChart: GetSavedChartFn;
     getSqlChart: GetSqlChartFn;
-    setupPreviewDeploy: SetupPreviewDeployFn;
     listProjects: ListProjectsFn;
     getProjectInfo: GetProjectInfoFn;
     loadSkill: LoadAgentSkillFn;
@@ -413,7 +410,6 @@ const AGENT_RUNTIME_TOOL_NAMES = {
     getKnowledgeDocumentContent: 'getKnowledgeDocumentContent',
     getSavedChart: 'readContent',
     getSqlChart: 'readContent',
-    setupPreviewDeploy: 'setupPreviewDeploy',
     listProjects: 'listProjects',
     getProjectInfo: 'getProjectInfo',
     loadSkill: 'loadSkill',
@@ -523,7 +519,6 @@ type AiAgentToolsServiceDependencies = {
     aiDeepResearchRunModel: AiDeepResearchRunModel;
     aiAgentModel: Pick<AiAgentModel, 'findToolResultsByToolCallIds'>;
     featureFlagService: FeatureFlagService;
-    previewDeploySetupService: PreviewDeploySetupService;
     shareService: ShareService;
     userService: UserService;
     // Lazy to break the construction cycle: schedulerAiAugmentationService →
@@ -603,8 +598,6 @@ export class AiAgentToolsService extends BaseService {
     private readonly aiAgentModel: AiAgentToolsServiceDependencies['aiAgentModel'];
 
     private readonly featureFlagService: FeatureFlagService;
-
-    private readonly previewDeploySetupService: PreviewDeploySetupService;
 
     private getRuntimeCached<T>(
         context: AiAgentToolsRuntimeContext,
@@ -702,7 +695,6 @@ export class AiAgentToolsService extends BaseService {
         aiDeepResearchRunModel,
         aiAgentModel,
         featureFlagService,
-        previewDeploySetupService,
         shareService,
         userService,
         getSchedulerAiAugmentationService,
@@ -741,7 +733,6 @@ export class AiAgentToolsService extends BaseService {
         this.aiDeepResearchRunModel = aiDeepResearchRunModel;
         this.aiAgentModel = aiAgentModel;
         this.featureFlagService = featureFlagService;
-        this.previewDeploySetupService = previewDeploySetupService;
         this.shareService = shareService;
         this.userService = userService;
         this.getSchedulerAiAugmentationService =
@@ -1023,10 +1014,6 @@ export class AiAgentToolsService extends BaseService {
             getSavedChart: (chartUuid) =>
                 this.getSavedChartForRuntime(context, chartUuid),
             getSqlChart: (slug) => this.getSqlChartForRuntime(context, slug),
-            setupPreviewDeploy: () =>
-                this.withWriteRefusal(context, 'preview_deploy', 'create', () =>
-                    this.setupPreviewDeploy(context),
-                ),
             listProjects: () => this.listProjects(context),
             getProjectInfo: () => this.getProjectInfo(context),
             loadSkill: (name) => this.loadAgentSkill(name),
@@ -5503,20 +5490,6 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    private setupPreviewDeploy(
-        context: AiAgentToolsRuntimeContext,
-    ): ReturnType<SetupPreviewDeployFn> {
-        return wrapSentryTransaction(
-            `${AiAgentToolsService.transactionPrefix(context)}.setupPreviewDeploy`,
-            {},
-            () =>
-                this.previewDeploySetupService.setupPreviewDeploy({
-                    user: context.user,
-                    projectUuid: context.projectUuid,
-                }),
-        );
-    }
-
     private listProjects(
         context: AiAgentToolsRuntimeContext,
     ): ReturnType<ListProjectsFn> {
@@ -5561,41 +5534,6 @@ export class AiAgentToolsService extends BaseService {
                     context.projectUuid,
                 );
                 const { dbtConnection } = project;
-                let previewDeployCi: Awaited<
-                    ReturnType<GetProjectInfoFn>
-                >['previewDeployCi'] = null;
-
-                const canViewSourceCode = this.createAuditedAbility(
-                    context.user,
-                ).can(
-                    'view',
-                    subject('SourceCode', {
-                        organizationUuid: context.organizationUuid,
-                        projectUuid: context.projectUuid,
-                    }),
-                );
-                if (isGitProjectType(dbtConnection) && canViewSourceCode) {
-                    try {
-                        const ciStatus =
-                            await this.previewDeploySetupService.getOrScanProjectCiStatus(
-                                context.user,
-                                context.projectUuid,
-                            );
-                        previewDeployCi = ciStatus
-                            ? {
-                                  hasPreviewDeployWorkflow:
-                                      ciStatus.hasPreviewDeployWorkflow,
-                                  workflowPath: ciStatus.workflowPath,
-                              }
-                            : null;
-                    } catch (err) {
-                        Logger.warn(
-                            'getProjectInfo: preview-deploy CI lookup failed',
-                            err,
-                        );
-                    }
-                }
-
                 return {
                     projectName: project.name,
                     projectType: project.type,
@@ -5614,7 +5552,6 @@ export class AiAgentToolsService extends BaseService {
                               hostDomain: dbtConnection.host_domain ?? null,
                           }
                         : null,
-                    previewDeployCi,
                 };
             },
         );

@@ -85,7 +85,6 @@ const REPOSITORY_CHANGE_TOOLS = new Set([
     'editProjectContext',
     'editRepo',
     'syncDbtProject',
-    'setupPreviewDeploy',
     'exploreRepo',
     'discoverRepos',
     'listWorkstreams',
