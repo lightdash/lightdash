@@ -111,12 +111,18 @@ EMAIL_SMTP_SENDER_EMAIL = "noreply@lightdash.local"
 # later mode change cannot silently drop the flag-management API.
 LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED = "true"
 # No product analytics from previews. The backend's config bakes in a default
-# RudderStack write key and data plane, so without this every environment
+# RudderStack write key and data plane, so without these every environment
 # tracks into production analytics — and the migrate rung's node process
 # stays alive until the client gives up on that request. With the data plane
-# outside the egress list that was four TCP timeouts, 8m47s, on every fork;
-# with this set the same command takes 2.5s.
-RUDDERSTACK_ANALYTICS_DISABLED = "true"
+# outside the egress list that was four TCP timeouts, 8m47s, on every fork.
+# RUDDERSTACK_ANALYTICS_DISABLED would be the obvious switch, but it also
+# empties health.rudder.writeKey, and the frontend hides the new-user
+# onboarding modal when that is undefined (UserCompletionModal.tsx) — the
+# Okteto preview carried a key, and space.cy.ts expects the modal. So: a key
+# that is not the production one, and a data plane on a local port nothing
+# listens on (refused at once, no timeout; the SDK drops the batch).
+RUDDERSTACK_WRITE_KEY = "preview-notrack"
+RUDDERSTACK_DATA_PLANE_URL = "http://localhost:9"
 
 # Parity with the Okteto previews (docker/docker-compose.preview.yml): the
 # settings that switch on the surfaces e2e and QA exercise. Values that name
