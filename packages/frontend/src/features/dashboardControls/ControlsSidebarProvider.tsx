@@ -119,6 +119,8 @@ const FocusReturn: FC<{ target: RefObject<FocusTarget | null> }> = ({
         if (current === null) return;
         if (current.inRail ? isSidebarOpen : isRailOpen) return;
         target.current = null;
+        // An input that took focus meanwhile (a new section's name) keeps it
+        if (document.activeElement?.matches('input, textarea')) return;
         const attribute = current.inRail ? ROW_ATTRIBUTE : PILL_ATTRIBUTE;
         // A pill or row disabled by a refetch cannot take it. "Add" is the
         // rail's while it is open, since the bar's is hidden then
