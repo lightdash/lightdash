@@ -172,6 +172,11 @@ export const dashboardEditActions = {
     moveControlSection: createAction<{ id: string; overId: string }>(
         'dashboardEdit/moveControlSection',
     ),
+    /** `undefined` removes the key: the section follows the default again */
+    setControlSectionCollapsed: createAction<{
+        id: string;
+        collapsed: boolean | undefined;
+    }>('dashboardEdit/setControlSectionCollapsed'),
 };
 
 const withControlSections = (
@@ -328,6 +333,17 @@ export const dashboardEditReducer = (
             state.controlSections.filter(
                 (section) => section.id !== action.payload,
             ),
+        );
+    }
+    if (dashboardEditActions.setControlSectionCollapsed.match(action)) {
+        const { id, collapsed } = action.payload;
+        return withControlSections(
+            state,
+            state.controlSections.map((section) => {
+                if (section.id !== id) return section;
+                const { collapsed: previous, ...rest } = section;
+                return collapsed === undefined ? rest : { ...rest, collapsed };
+            }),
         );
     }
     if (dashboardEditActions.moveControlSection.match(action)) {

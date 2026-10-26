@@ -97,6 +97,7 @@ export const moveRuleToSection = (
     filters: DashboardFilters,
     activeId: string,
     over: { ruleId: string } | { sectionId: string | null },
+    sections: DashboardControlSection[],
 ): DashboardFilters => {
     const active = findRule(filters, activeId);
     if (active === null) return filters;
@@ -108,8 +109,14 @@ export const moveRuleToSection = (
               )
             : undefined;
     if ('ruleId' in over && overRule === undefined) return filters;
+    // A rule whose section is gone sits with the unsectioned ones
     const sectionId =
-        'sectionId' in over ? over.sectionId : (overRule?.sectionId ?? null);
+        'sectionId' in over
+            ? over.sectionId
+            : overRule === undefined ||
+                isRuleInSection(overRule, null, sections)
+              ? null
+              : (overRule.sectionId ?? null);
     const moved = withSection(filters[group][active.index], sectionId);
     const list = filters[group].map((rule, index) =>
         index === active.index ? moved : rule,
@@ -162,6 +169,15 @@ export const removeSectionFromRules = (
         ),
     };
 };
+
+/** With no saved choice, a section with more members than this starts collapsed */
+const COLLAPSED_BY_DEFAULT_ABOVE = 6;
+
+/** Whether a section starts collapsed: its saved choice, else its size */
+export const isCollapsedByDefault = (
+    section: DashboardControlSection,
+    memberCount: number,
+): boolean => section.collapsed ?? memberCount > COLLAPSED_BY_DEFAULT_ABOVE;
 
 /** The droppable id of the rail's header, which takes a filter out of its section */
 export const UNSECTIONED_TARGET_ID = 'unsectioned-target';

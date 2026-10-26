@@ -21,6 +21,7 @@ import {
 import {
     getDashboardFilterField,
     interpolateUiString,
+    type DashboardControlSection,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
@@ -77,6 +78,7 @@ import {
     RAIL_LABEL_SELECTOR,
     railRowSelector,
     sectionMenuSelector,
+    sectionStopSelector,
 } from './railSelectors';
 import { SortableRow, type RowSelection } from './SortableRow';
 
@@ -97,6 +99,7 @@ import {
     getDragAnnouncements,
     UNSECTIONED_TARGET_ID,
     type SectionRule,
+    isCollapsedByDefault,
 } from './sections';
 import {
     isDefaultValueIncomplete,
@@ -379,8 +382,17 @@ const OpenControlSidebar: FC = () => {
             : interpolateUiString(getUiString('filters.rail.unknownField'), {
                   field: rule.target.fieldId,
               });
-    // Local to this mount: nothing saved
-    const [collapsedIds, setCollapsedIds] = useState<string[]>([]);
+    // Local to this mount, seeded from each section's default as the rail
+    // opens; a saved choice changed meanwhile moves nothing here, and a
+    // section made while it is open starts expanded
+    const [collapsedIds, setCollapsedIds] = useState<string[]>(() =>
+        groupRulesBySection(dashboardFilters, controlSections).flatMap(
+            ({ section, rules }) =>
+                section !== null && isCollapsedByDefault(section, rules.length)
+                    ? [section.id]
+                    : [],
+        ),
+    );
     // A new section lives only here until its name is committed
     const [nameEdit, setNameEdit] = useState<NameEdit | null>(null);
     // The row or header under the pointer, copied into the drag overlay
@@ -437,6 +449,17 @@ const OpenControlSidebar: FC = () => {
           ]
         : groupRulesBySection(dashboardFilters, sections);
     const sectionIds = new Set(controlSections.map((section) => section.id));
+    const isSectionCollapsed = (section: DashboardControlSection) =>
+        collapsedIds.includes(section.id);
+    const setSectionCollapsed = (
+        section: DashboardControlSection,
+        collapsed: boolean,
+    ) =>
+        setCollapsedIds((ids) =>
+            collapsed
+                ? [...ids.filter((id) => id !== section.id), section.id]
+                : ids.filter((id) => id !== section.id),
+        );
     const sectionNames = new Map(
         sections.map((section) => [
             section.id,
@@ -479,9 +502,9 @@ const OpenControlSidebar: FC = () => {
     const handleDragOver = ({ active, over }: DragOverEvent) => {
         // A dragged header starts over itself
         if (!over || sectionIds.has(String(active.id))) return;
-        const overId = String(over.id);
-        if (!collapsedIds.includes(overId)) return;
-        setCollapsedIds((ids) => ids.filter((id) => id !== overId));
+        const overSection = sections.find(({ id }) => id === String(over.id));
+        if (!overSection || !isSectionCollapsed(overSection)) return;
+        setSectionCollapsed(overSection, false);
     };
     const handleDragEnd = ({ active, over, activatorEvent }: DragEndEvent) => {
         setDraggedId(null);
@@ -508,7 +531,12 @@ const OpenControlSidebar: FC = () => {
                 : sectionIds.has(overId)
                   ? { sectionId: overId }
                   : { ruleId: overId };
-        const moved = moveRuleToSection(dashboardFilters, activeId, target);
+        const moved = moveRuleToSection(
+            dashboardFilters,
+            activeId,
+            target,
+            controlSections,
+        );
         if (moved === dashboardFilters) return;
         // Dropped from the keyboard, the row takes focus back from its grip
         if (activatorEvent instanceof KeyboardEvent)
@@ -557,17 +585,23 @@ const OpenControlSidebar: FC = () => {
     // moved row takes focus once the footer's menu is gone with the mode
     const moveRules = (ids: string[], sectionId: string | null) => {
         const moved = ids.reduce(
-            (filters, id) => moveRuleToSection(filters, id, { sectionId }),
+            (filters, id) =>
+                moveRuleToSection(filters, id, { sectionId }, controlSections),
             dashboardFilters,
         );
         if (moved !== dashboardFilters) {
             setDashboardFilters(moved);
             setHaveFiltersChanged(true);
         }
-        focusAfter.current = ids[0]
-            ? railRowSelector(ids[0])
-            : RAIL_ADD_SELECTOR;
-        setSelectedIds(null);
+        // A collapsed target hides its rows: its header's stop takes focus
+        const target = controlSections.find(({ id }) => id === sectionId);
+        focusAfter.current =
+            target !== undefined && isSectionCollapsed(target)
+                ? sectionStopSelector(target.id)
+                : ids[0]
+                  ? railRowSelector(ids[0])
+                  : RAIL_ADD_SELECTOR;
+        leaveSelectMode();
     };
     const cancelName = () => {
         if (nameEdit === null) return;
@@ -585,7 +619,11 @@ const OpenControlSidebar: FC = () => {
     // Drag is off while a section is being named and in select mode
     const isSelecting = selectedIds !== null;
     const isDragDisabled = nameEdit !== null || isSelecting;
-    const leaveSelectMode = () => setSelectedIds(null);
+    // The shift anchor goes with the session, both ways
+    const leaveSelectMode = () => {
+        lastToggledId.current = null;
+        setSelectedIds(null);
+    };
     // Rows on screen, in display order; a collapsed section's are left out
     const shownRowIds = () =>
         listed.flatMap(({ shown }) => shown.map(({ rule }) => rule.id));
@@ -781,8 +819,7 @@ const OpenControlSidebar: FC = () => {
                 ];
     // What is on screen: the sortable ids must not name an unrendered row
     const listed = grouped.map(({ section, rules }) => {
-        const isCollapsed =
-            section !== null && collapsedIds.includes(section.id);
+        const isCollapsed = section !== null && isSectionCollapsed(section);
         return {
             section,
             rules,
@@ -903,12 +940,20 @@ const OpenControlSidebar: FC = () => {
                 onToggle={() => {
                     if (!isCollapsed && holdsEditor && !isPlaceholder)
                         collapse();
-                    setCollapsedIds((ids) =>
-                        ids.includes(section.id)
-                            ? ids.filter((id) => id !== section.id)
-                            : [...ids, section.id],
-                    );
+                    setSectionCollapsed(section, !isCollapsed);
                 }}
+                onToggleCollapsedByDefault={() =>
+                    // The saved default only: this rail keeps its own fold.
+                    // Unticked, the key goes so the dense-section default
+                    // applies again
+                    dispatch(
+                        dashboardEditActions.setControlSectionCollapsed({
+                            id: section.id,
+                            collapsed:
+                                section.collapsed !== true ? true : undefined,
+                        }),
+                    )
+                }
                 onRename={() =>
                     setNameEdit({ id: section.id, isNew: false, moveIds: [] })
                 }
@@ -1011,6 +1056,7 @@ const OpenControlSidebar: FC = () => {
                         : {
                               onSelect: () => {
                                   if (editor !== null) collapse();
+                                  lastToggledId.current = null;
                                   setSelectedIds([]);
                               },
                               disabledReason:

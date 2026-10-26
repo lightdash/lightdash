@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Text, TextInput } from '@mantine/core';
 import {
+    IconCheck,
     IconChevronRight,
     IconDots,
     IconFilterPlus,
@@ -103,6 +104,8 @@ type Props = {
     onCancelName: () => void;
     /** A new filter in this section. */
     onAddFilter: () => void;
+    /** Flips the saved default, `section.collapsed`; this rail's fold stays. */
+    onToggleCollapsedByDefault: () => void;
     onRemove: () => void;
 };
 
@@ -122,6 +125,7 @@ export const SectionHeader: FC<Props> = ({
     onCommitName,
     onCancelName,
     onAddFilter,
+    onToggleCollapsedByDefault,
     onRemove,
 }) => {
     const {
@@ -245,6 +249,23 @@ export const SectionHeader: FC<Props> = ({
                                 onClick={onRename}
                             >
                                 Rename
+                            </Menu.Item>
+                            {/* The check in the left slot says it is on */}
+                            <Menu.Item
+                                fz="xs"
+                                leftSection={
+                                    section.collapsed ? (
+                                        <MantineIcon
+                                            icon={IconCheck}
+                                            size={14}
+                                        />
+                                    ) : (
+                                        <Box w={14} h={14} />
+                                    )
+                                }
+                                onClick={onToggleCollapsedByDefault}
+                            >
+                                Collapsed by default
                             </Menu.Item>
                             <Menu.Item
                                 fz="xs"

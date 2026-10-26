@@ -143,6 +143,10 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
         setHaveFiltersChanged(true);
     };
 
+    // Each list's order, once per render, for every pill's drop area
+    const dimensionKeys = dashboardFilters.dimensions.map((rule) => rule.id);
+    const metricKeys = dashboardFilters.metrics.map((rule) => rule.id);
+
     return (
         <>
             <DndContext
@@ -151,9 +155,6 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 onDragEnd={handleDragEnd}
             >
                 {dashboardFilters.dimensions.map((item, index) => {
-                    const orderedKeys = dashboardFilters.dimensions.map(
-                        (rule) => rule.id,
-                    );
                     const field = getDashboardFilterField(
                         allFilterableFieldsMap,
                         item,
@@ -169,7 +170,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         <DroppableArea
                             key={item.id}
                             id={item.id}
-                            orderedKeys={orderedKeys}
+                            orderedKeys={dimensionKeys}
                         >
                             <DraggableItem
                                 key={item.id}
@@ -232,9 +233,6 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 onDragEnd={handleMetricDragEnd}
             >
                 {dashboardFilters.metrics.map((item, index) => {
-                    const orderedKeys = dashboardFilters.metrics.map(
-                        (rule) => rule.id,
-                    );
                     const metricField = getDashboardFilterField(
                         allFilterableMetricsMap,
                         item,
@@ -250,7 +248,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         <DroppableArea
                             key={item.id}
                             id={item.id}
-                            orderedKeys={orderedKeys}
+                            orderedKeys={metricKeys}
                         >
                             <DraggableItem
                                 id={item.id}

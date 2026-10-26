@@ -1074,8 +1074,9 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 
 A section is a named, ordered set of controls; never "group" (that is
 `requiredGroupId`). Saved on `DashboardConfig`: `controlSections` (`{ id,
-name }[]`, display order) and `parameterSections` (parameter name to section
-id). Membership on the control: `DashboardFilterRule.sectionId` and
+name, collapsed? }[]`, display order; `collapsed` is the editor's choice that
+the section starts folded, absent for today's behaviour) and
+`parameterSections` (parameter name to section id). Membership on the control: `DashboardFilterRule.sectionId` and
 `DateZoomControl.sectionId`. Controls with no section, or a `sectionId` with
 no matching section, render first, unsectioned. The keys are pinned in
 `applyDimensionOverrides` / `applyMetricOverrides` (an override cannot move a
@@ -1089,7 +1090,10 @@ the language map, as tab names are.
 - State: `controlSections` and `haveControlSectionsChanged` in the store's
   `edit` slice (`syncControlSections` seeds from the saved config unless
   edits are staged, from `DashboardProvider` and the page's Cancel; `add`,
-  `rename`, `remove` and `moveControlSection` mark the change). The rail
+  `rename`, `remove`, `moveControlSection` and `setControlSectionCollapsed`
+  mark the change; every reducer spreads the section, so `collapsed`
+  survives a rename, and the language map's `mergeExisting` overlays only
+  `name`). The rail
   dispatches them with `useDashboardDispatch`; membership is written with the
   context's `setDashboardFilters`, as the bar's drag is. Pure helpers in
   `sections.ts`: `groupRulesBySection` (unsectioned first, a dangling id
@@ -1098,8 +1102,11 @@ the language map, as tab names are.
 - Rail: unsectioned rows first with no header, then each section as a
   `SectionHeader` label row on the card surface, no fill (grip, chevron,
   the name in normal case, "· N filters" in `xs` dimmed right after it, the
-  menu with "Add filter" (`openNew(section.id)`), "Rename" and "Remove
-  section" at the far right on hover) with a
+  menu with "Add filter" (`openNew(section.id)`), "Rename", "Collapsed by
+  default" (a check in its left slot while `section.collapsed`;
+  `setControlSectionCollapsed` writes `true`, or removes the key when
+  unticked so the dense-section default applies again; it changes nothing
+  in the open rail) and "Remove section" at the far right on hover) with a
   hairline above it, none above the first thing in the list
   (`.body > .sectionHeader:first-child`); its rows are indented one `md`
   further than the unsectioned ones (`.sectionRow`, also on a viewer's
@@ -1115,7 +1122,12 @@ the language map, as tab names are.
   compact (32px, `xs` dimmed, name `fw` 500, 12px chevron), inset to the
   editor's padding with one hairline above the pair. No uppercase or
   letter-spaced labels anywhere. There are no drop zones: nothing mounts during
-  a drag. Collapsing is local state keyed by section id; collapsing the
+  a drag. The fold is `collapsedIds`, local to the open rail and seeded as
+  it mounts from each section's default (`isCollapsedByDefault` in
+  `sections.ts`: `section.collapsed`, else more than six members; the
+  rail remounts on every open, so a saved choice applies on the next open,
+  a viewer's rail included, and a section made while it is open starts
+  expanded); collapsing the
   section that holds the expanded filter calls `collapse()` first, so
   nothing expanded is inside a collapsed section, with one exception: a
   new filter with no field yet (the same `isPlaceholder` guard as "New
@@ -1246,9 +1258,11 @@ the language map, as tab names are.
   visible member has a saved-filter override written by Apply
   (`selectSavedFilterOverrides`), else, and always for an editor (their
   values are the defaults), `formatSectionCount` ("N filters");
-  `filters.sectionSummary` stays in the registry unused. The bar's own gap separates capsules. A section with
-  more than `COLLAPSED_BY_DEFAULT_ABOVE` (6) members in all, on any tab,
-  starts collapsed, the rest open; the state is local, keyed by section id
+  `filters.sectionSummary` stays in the registry unused. The bar's own gap
+  separates capsules. A section starts as `section.collapsed` says; with no
+  saved choice, one with more than `COLLAPSED_BY_DEFAULT_ABOVE` (6) members
+  in all, on any tab, starts collapsed, the rest open; the state is local,
+  keyed by section id
   (`flippedIds`: the ids whose state differs from that default), nothing
   saved and nothing in the URL. The shared popover id is dropped while its
   pill's section is collapsed or off the tab. `FilterPills` threads `sectionId` (`undefined`: every

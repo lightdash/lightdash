@@ -1646,6 +1646,79 @@ describe('ControlSidebar', () => {
             ).not.toBeInTheDocument();
         });
 
+        it('sets the saved default from the menu without folding this rail', async () => {
+            closedRail();
+            const { store } = renderWithProviders(
+                <ControlSidebar />,
+                sectioned(),
+            );
+            expect(
+                screen.getByRole('button', { name: /^Created/ }),
+            ).toBeVisible();
+
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            const item = await screen.findByRole('menuitem', {
+                name: 'Collapsed by default',
+            });
+            expect(item.querySelector('.tabler-icon-check')).toBeNull();
+            await userEvent.click(item);
+            expect(selectControlSections(store.getState())[0]).toEqual({
+                ...sections[0],
+                collapsed: true,
+            });
+            // The rail keeps the fold it opened with
+            expect(
+                screen.getByRole('button', { name: /^Created/ }),
+            ).toBeVisible();
+            expect(
+                screen.getByRole('button', { name: 'Collapse section Dates' }),
+            ).toBeInTheDocument();
+
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            const checked = await screen.findByRole('menuitem', {
+                name: 'Collapsed by default',
+            });
+            expect(checked.querySelector('.tabler-icon-check')).not.toBeNull();
+            await userEvent.click(checked);
+            // Unticked, the key goes rather than turning false
+            expect(selectControlSections(store.getState())[0]).toEqual(
+                sections[0],
+            );
+            expect(
+                screen.getByRole('button', { name: /^Created/ }),
+            ).toBeVisible();
+        });
+
+        it('starts a saved collapsed section folded, and a drag over its header opens it', async () => {
+            mockDashboardContext.current.dashboard = {
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: [
+                        { ...sections[0], collapsed: true },
+                        sections[1],
+                    ],
+                },
+            };
+            closedRail();
+            renderWithProviders(<ControlSidebar />, sectioned());
+            expect(
+                screen.queryByRole('button', { name: /^Created/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: /^Region/ }),
+            ).toBeVisible();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Expand section Dates' }),
+            );
+            expect(
+                screen.getByRole('button', { name: /^Created/ }),
+            ).toBeVisible();
+        });
+
         it('renames a section from its menu, keeping the name when emptied', async () => {
             closedRail();
             const { store } = renderWithProviders(<ControlSidebar />);
@@ -1738,6 +1811,7 @@ describe('ControlSidebar', () => {
             expect(items.map((item) => item.textContent)).toEqual([
                 'Add filter',
                 'Rename',
+                'Collapsed by default',
                 'Remove section',
             ]);
             await userEvent.click(items[0]);
@@ -1852,6 +1926,51 @@ describe('ControlSidebar', () => {
                         ) as Element,
                     ) & Node.DOCUMENT_POSITION_PRECEDING,
             ).toBeTruthy();
+        });
+
+        it('leaves the expanded filter and its open section as they are when the default changes', async () => {
+            const { collapse } = setSidebar({
+                isNew: false,
+                editing: { filterId: 'filter-3' },
+                editingRule: makeRule({
+                    id: 'filter-3',
+                    label: 'Created',
+                    sectionId: 'section-a',
+                }),
+            });
+            const { store } = renderWithProviders(
+                <ControlSidebar />,
+                sectioned(),
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Collapsed by default',
+                }),
+            );
+            expect(collapse).not.toHaveBeenCalled();
+            expect(selectControlSections(store.getState())[0].collapsed).toBe(
+                true,
+            );
+            expect(screen.getByLabelText('Filter label')).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Collapse section Dates' }),
+            ).toBeInTheDocument();
+
+            // Unticked, the saved key goes rather than turning false
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Collapsed by default',
+                }),
+            );
+            expect(selectControlSections(store.getState())[0]).toEqual(
+                sections[0],
+            );
         });
 
         it('folds the expanded filter before collapsing its section', () => {
@@ -2366,6 +2485,24 @@ describe('ControlSidebar', () => {
                 expect(collapse).toHaveBeenCalledTimes(1);
             });
 
+            it('forgets the shift anchor between select sessions', async () => {
+                closedRail();
+                renderWithProviders(<ControlSidebar />, sectioned());
+                await selectThree();
+                fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+                expect(badge('3 selected')).not.toBeInTheDocument();
+
+                await selectFromMenu();
+                fireEvent.click(row('Created'), { shiftKey: true });
+                expect(badge('1 selected')).toBeInTheDocument();
+                expect(
+                    screen
+                        .getAllByRole('checkbox')
+                        .filter((box) => (box as HTMLInputElement).checked)
+                        .map((box) => box.getAttribute('aria-label')),
+                ).toEqual(['Created']);
+            });
+
             it('selects a range with shift-click and extends it with shift and an arrow', async () => {
                 closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
@@ -2383,6 +2520,30 @@ describe('ControlSidebar', () => {
                 });
                 expect(badge('3 selected')).toBeInTheDocument();
                 expect(row('Region')).toHaveFocus();
+            });
+
+            it("focuses the collapsed target section's header after a move, its rows being hidden", async () => {
+                closedRail();
+                renderWithProviders(<ControlSidebar />, sectioned());
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Collapse section Regions',
+                    }),
+                );
+                await selectThree();
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Move to' }),
+                );
+                await userEvent.click(
+                    await screen.findByRole('menuitem', {
+                        name: 'Regions · 1',
+                    }),
+                );
+                expect(
+                    screen.getByRole('button', {
+                        name: 'Expand section Regions',
+                    }),
+                ).toHaveFocus();
             });
 
             it('moves the selection to a section, appended in display order, and leaves the mode', async () => {

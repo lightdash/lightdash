@@ -475,6 +475,10 @@
         },
         "DashboardControlSection": {
             "properties": {
+                "collapsed": {
+                    "description": "Starts folded in the rail and on the bar; absent, the bar folds only a dense section",
+                    "type": "boolean"
+                },
                 "id": {
                     "description": "uuid, stable across dashboard versions",
                     "type": "string"

@@ -117,7 +117,7 @@ describe('buildDashboardConfig', () => {
     it('carries control sections and parameter sections through a save', () => {
         const existingConfig: DashboardConfig = {
             isDateZoomDisabled: false,
-            controlSections: [{ id: 's1', name: 'Dates' }],
+            controlSections: [{ id: 's1', name: 'Dates', collapsed: true }],
             parameterSections: { region: 's1' },
         };
         const result = buildDashboardConfig({
