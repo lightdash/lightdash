@@ -3,14 +3,19 @@
 # kernel, network, guest access, paint/warm harnesses and per-env origin and
 # secret values are the platform's, not this file's.
 
-# One process: `pnpm dev` runs the common and warehouses tsc watchers, the
-# backend (tsx watch, :8080) and the Vite frontend (:3000, which proxies /api
-# to :8080). The browser hits 3000.
+# One process: `pnpm dev` runs the common, visualization and warehouses tsc
+# watchers, the backend (tsx watch, :8080) and the Vite dev server (:3000).
+# The browser hits 8080: the backend serves the production bundle the
+# `frontend-build` tier writes to packages/frontend/build, as the Okteto
+# preview image did. The dev server stays up but nothing routes to it — the
+# bundle is ~180 requests per page against the dev server's ~1,200, and
+# that gap is what put the Cypress suites over their ten-second waits
+# (SRE-100).
 [[app.service]]
 name = "dev"
 command = "pnpm dev"
 ports = [8080, 3000]
-serve_port = 3000
+serve_port = 8080
 restart_on_inject = true           # re-exec on fork to read the injected SITE_URL (see [origin])
 
 # The Snowflake AI OAuth/SDK stub the API tests drive (snowflake-ai-stub in
@@ -32,17 +37,17 @@ memory = "8gb"
 max_memory = "16gb"                # headroom the migrate rung and the pnpm install borrow
 
 # node comes from .nvmrc and pnpm from package.json's packageManager. The first
-# build step bakes formula/common/warehouses dist into the image so the backend
-# and the migrate rung can import them; from then on the `pnpm dev` watchers
-# keep common and warehouses current (no common-build rung below; formula has
-# no watcher, so it is a run rung). The second is the dbt venv the seed's
-# project compile shells out to (`dbt1.12`). Its adapters and pins are
+# build step bakes warehouses dist into the image so the backend can import it
+# (the `frontend-build` rung below bakes formula, common and visualization the
+# same way, through turbo, before the migrate rung imports them); from then on
+# the `pnpm dev` watchers keep them current. The second is the dbt venv the
+# seed's project compile shells out to (`dbt1.12`). Its adapters and pins are
 # dockerfile-prs's: the API and app tests compile Snowflake, BigQuery,
 # Databricks and Trino projects with dbt1.12 too.
 [runtime]
 system = ["postgresql-18-pgvector", "python3-venv"]  # Postgres 18 as the product databases (pgvector/pgvector:pg18); catalog migrations CREATE EXTENSION vector; the dbt venv
 build = [
-  "pnpm formula:build && pnpm common-build && pnpm warehouses-build",
+  "pnpm warehouses-build",
   "python3 -m venv /usr/local/dbt1.12 && /usr/local/dbt1.12/bin/pip install -q 'dbt-core==1.12.0' 'dbt-postgres~=1.10.0' 'dbt-snowflake~=1.12.0' 'dbt-bigquery~=1.12.0' 'dbt-databricks~=1.12.3' 'dbt-trino~=1.10.0' && ln -sf /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12",
   # The demo dbt project where the Okteto image and the test suites expect it
   # (the backend's default project_dir is /usr/app/dbt).
@@ -165,12 +170,12 @@ env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }  # loaded by the config; ena
 # headless Chrome at the snapshot gate and records first_paint_ms.
 [ready]
 http = "http://localhost:8080/api/v1/health"
-paints = { url = "http://localhost:3000/login", within = "10s", selector = "#root > *" }
+paints = { url = "http://localhost:8080/login", within = "10s", selector = "#root > *" }
 
 [warm]
-# The pages the E2E suites open first, so a fork's dev server has their
-# chunks compiled before Cypress's ten-second expectations (the seed
-# project's uuid is fixed by the seed).
+# The pages the E2E suites open first (the seed project's uuid is fixed by
+# the seed). The bundle is prebuilt, so this warms the backend's caches
+# rather than a dev server's module graph.
 routes = [
   "/", "/login",
   "/projects/3675b69e-8324-4110-bdca-059031aa8da3/home",
@@ -188,24 +193,26 @@ routes = [
 [[tier]]
 preset = "pnpm"                    # lockfile globs; egress and memory headroom for the install
 
+# The production bundle the backend serves (dockerfile-prs's build-frontend
+# stage). turbo builds formula, common and visualization first — vite
+# resolves them from `dist` outside development mode — and skips whatever
+# its local cache (.turbo, gitignored, so a fork inherits the parent's)
+# already holds, so a frontend-only push rebuilds only the bundle. The
+# same rung bakes the dist that `migrate` and `tsoa` import, which the
+# old formula-build and common-build rungs did by hand (2026-09-08: both
+# died reading a watcher's half-written barrel; a run rung executes with
+# the app's units stopped, before any watcher has caught up). Fires on any
+# package the bundle contains.
 [[tier]]
-name = "formula-build"
-files = ["packages/formula/**"]
-run = "pnpm formula:build"         # the backend imports formula's dist and nothing watches it
+name = "frontend-build"
+files = ["packages/frontend/**", "packages/common/**", "packages/visualization/**", "packages/formula/**"]
+run = "pnpm turbo run build --filter=@lightdash/frontend"
+env = { NODE_ENV = "production", TURBO_TELEMETRY_DISABLED = "1", TURBO_NO_UPDATE_NOTIFIER = "1" }
+memory = "12gb"                    # the common barrel is large; the same headroom migrate takes
 
-# `pnpm dev` runs tsc watchers over common and warehouses, so a change to
-# either is a hot reload for a serving environment. The rungs below are the
-# exception: they import those packages' `dist` and they run seconds after
-# the fork, with the app's units stopped, before any watcher has caught up.
-# Without these two they read the parent's build — `migrate` died on a
-# half-written barrel, and `tsoa` could not resolve types the branch had
-# just added (2026-09-08). Each fires only when its own package changes.
-[[tier]]
-name = "common-build"
-files = ["packages/common/**"]
-run = "pnpm common-build"
-memory = "12gb"                    # the barrel is large; the same headroom migrate takes
-
+# `pnpm dev` runs a tsc watcher over warehouses, so a change to it is a hot
+# reload for a serving environment; the backend imports its `dist`, and the
+# rungs below run before the watcher has caught up (see frontend-build).
 [[tier]]
 name = "warehouses-build"
 files = ["packages/warehouses/**"]
@@ -226,7 +233,7 @@ env = { NODE_OPTIONS = "--max-old-space-size=8192" }  # tsoa exceeds the default
 
 [[tier]]
 name = "app"
-watch = ["**"]                     # Vite HMR, tsx watch and the tsc watchers notice the write
+watch = ["**"]                     # tsx watch and the tsc watchers notice the write
 
 # Outbound access, exactly these flows and nothing else (the platform builds
 # the uplink and a default-deny policy around them). The backend validates its
