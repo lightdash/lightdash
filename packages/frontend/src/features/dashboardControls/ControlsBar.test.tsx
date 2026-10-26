@@ -1,7 +1,10 @@
 import { screen } from '@testing-library/react';
 import { type ComponentProps, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDashboardTestStore } from '../../testing/dashboardStore';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+} from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
@@ -61,6 +64,9 @@ vi.mock('./EditingStrip', () => ({
 vi.mock('./FilterPills', () => ({
     FilterPills: () => <div data-testid="filter-pills" />,
 }));
+vi.mock('./SectionedFilters', () => ({
+    SectionedFilters: () => <div data-testid="sectioned-filters" />,
+}));
 
 vi.mock('../dateZoom', () => ({
     DateZoom: () => <div data-testid="date-zoom" />,
@@ -112,6 +118,55 @@ describe('ControlsBar', () => {
             screen.queryByRole('button', { name: 'Required' }),
         ).not.toBeInTheDocument();
         expect(screen.queryByTestId('parameters')).not.toBeInTheDocument();
+        expect(
+            screen.queryByTestId('sectioned-filters'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('renders the sectioned filters in view mode once the dashboard has sections', () => {
+        const store = createDashboardTestStore();
+        seedDashboardEditState(store, {
+            dashboard: {
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: [{ id: 'a', name: 'Dates' }],
+                },
+            },
+        });
+        renderWithAppProviders(
+            <DashboardStoreTestProvider store={store}>
+                <ControlsBar {...baseProps} />
+            </DashboardStoreTestProvider>,
+        );
+
+        expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
+        expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Add filter' }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
+    });
+
+    it('keeps the flat pills in edit mode when the dashboard has sections', () => {
+        const store = createDashboardTestStore();
+        seedDashboardEditState(store, {
+            dashboard: {
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: [{ id: 'a', name: 'Dates' }],
+                },
+            },
+        });
+        renderWithAppProviders(
+            <DashboardStoreTestProvider store={store}>
+                <ControlsBar {...baseProps} isEditMode />
+            </DashboardStoreTestProvider>,
+        );
+
+        expect(screen.getByTestId('filter-pills')).toBeInTheDocument();
+        expect(
+            screen.queryByTestId('sectioned-filters'),
+        ).not.toBeInTheDocument();
     });
 
     it('shows the editing strip in view mode while the rail is open', () => {

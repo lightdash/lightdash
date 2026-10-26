@@ -1,9 +1,14 @@
 import { type ComponentProps, type FC } from 'react';
+import {
+    selectControlSections,
+    useDashboardSelector,
+} from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import FilterRequirementsButton from '../dashboardFilters/FilterRequirements/FilterRequirementsButton';
 import { AddControl } from './AddControl';
 import { EditingStrip } from './EditingStrip';
 import { FilterPills } from './FilterPills';
+import { SectionedFilters } from './SectionedFilters';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
 type Props = Omit<
@@ -14,6 +19,9 @@ type Props = Omit<
 // The shipped bar with its filter area swapped, in edit and view mode alike
 export const ControlsBar: FC<Props> = (props) => {
     const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
+    const hasSections = useDashboardSelector(
+        (state) => selectControlSections(state).length > 0,
+    );
     return (
         <DashboardFiltersBar
             {...props}
@@ -24,6 +32,9 @@ export const ControlsBar: FC<Props> = (props) => {
                 // says what is being edited
                 isRailOpen ? (
                     <EditingStrip />
+                ) : !props.isEditMode && hasSections ? (
+                    // A viewer's bar with sections; edit mode stays flat
+                    <SectionedFilters activeTabUuid={props.activeTabUuid} />
                 ) : (
                     <>
                         <AddControl placement="bar" />
