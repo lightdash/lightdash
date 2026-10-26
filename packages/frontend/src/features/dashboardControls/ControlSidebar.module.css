@@ -250,6 +250,21 @@
     position: relative;
 }
 
+/* A section's rows sit one step in; the grip keeps the first step */
+.sectionRow .row.row {
+    padding-left: calc(2 * var(--mantine-spacing-md));
+}
+
+/* The copy under the pointer while a row or header is dragged */
+.dragPreview {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    background-color: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    box-shadow: var(--mantine-shadow-sm);
+    cursor: grabbing;
+}
+
 .sortableRow[data-dragging],
 .sectionHeader[data-dragging] {
     position: relative;

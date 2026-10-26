@@ -85,6 +85,8 @@ type Props = {
     countLabel: string;
     isCollapsed: boolean;
     isEditingName: boolean;
+    /** Not saved yet: a blur cancels it, so nothing else here takes a click. */
+    isNew: boolean;
     isDragDisabled: boolean;
     /** A viewer's saved section: chevron, name and count only. */
     isReadOnly: boolean;
@@ -101,6 +103,7 @@ export const SectionHeader: FC<Props> = ({
     countLabel,
     isCollapsed,
     isEditingName,
+    isNew,
     isDragDisabled,
     isReadOnly,
     onToggle,
@@ -147,6 +150,7 @@ export const SectionHeader: FC<Props> = ({
                         { section: name },
                     )}
                     aria-expanded={!isCollapsed}
+                    disabled={isNew}
                     onClick={onToggle}
                 >
                     <MantineIcon
@@ -170,7 +174,7 @@ export const SectionHeader: FC<Props> = ({
                     {countLabel}
                 </Text>
                 {/* Focus must stay on the name input Rename opens */}
-                {!isReadOnly && (
+                {!isReadOnly && !isNew && (
                     <Menu position="bottom-end" returnFocus={false}>
                         <Menu.Target>
                             <ActionIcon

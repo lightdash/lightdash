@@ -8,11 +8,18 @@ import { DragGrip } from './SectionHeader';
 type Props = {
     id: string;
     isDisabled: boolean;
+    /** A section's member: indented under its header. */
+    isInSection: boolean;
     children: ReactNode;
 };
 
 // A closed row with its grip at the left, dragged within and between sections
-export const SortableRow: FC<Props> = ({ id, isDisabled, children }) => {
+export const SortableRow: FC<Props> = ({
+    id,
+    isDisabled,
+    isInSection,
+    children,
+}) => {
     const {
         attributes,
         listeners,
@@ -24,7 +31,11 @@ export const SortableRow: FC<Props> = ({ id, isDisabled, children }) => {
     return (
         <Box
             ref={setNodeRef}
-            className={classes.sortableRow}
+            className={
+                isInSection
+                    ? `${classes.sortableRow} ${classes.sectionRow}`
+                    : classes.sortableRow
+            }
             data-dragging={isDragging || undefined}
             style={{ transform: CSS.Translate.toString(transform), transition }}
         >

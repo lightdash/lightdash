@@ -4,6 +4,7 @@ import {
     Box,
     Button,
     Group,
+    Menu,
     Paper,
     Stack,
     Text,
@@ -11,11 +12,15 @@ import {
     Tooltip,
     VisuallyHidden,
 } from '@mantine/core';
-import { IconX } from '@tabler/icons-react';
+import {
+    IconFilterPlus,
+    IconFolderPlus,
+    IconPlus,
+    IconX,
+} from '@tabler/icons-react';
 import { useRef, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import { AddControl } from './AddControl';
 import classes from './ControlSidebar.module.css';
 import { useRailContractClasses } from './railContractClasses';
 import { useRailTop } from './useRailTop';
@@ -24,8 +29,12 @@ type Props = {
     /** The dashboard's filters, listed in the rail. */
     filterCount: number;
     onClose: () => void;
+    /** The footer's Done: folds the expanded filter, else closes the rail. */
+    onDone: () => void;
     /** Set while the filter cannot be kept: the footer offers only this. */
     onCancel: (() => void) | null;
+    /** Null while no filter can be added. */
+    onAddFilter: (() => void) | null;
     /** Null for a viewer, whose rail has no sections. */
     onNewSection: (() => void) | null;
     footerStatus: string | null;
@@ -36,7 +45,9 @@ type Props = {
 export const EditorShell: FC<Props> = ({
     filterCount,
     onClose,
+    onDone,
     onCancel,
+    onAddFilter,
     onNewSection,
     footerStatus,
     children,
@@ -77,17 +88,70 @@ export const EditorShell: FC<Props> = ({
                         </Badge>
                     )}
                 </Group>
-                <Tooltip label={getUiString('filters.rail.close')}>
-                    <ActionIcon
-                        size="sm"
-                        variant="subtle"
-                        color="gray"
-                        aria-label={getUiString('filters.rail.close')}
-                        onClick={onClose}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                </Tooltip>
+                <Group gap={4} wrap="nowrap">
+                    {(onAddFilter || onNewSection) && (
+                        <Menu position="bottom-end">
+                            <Menu.Target>
+                                <Tooltip
+                                    label={getUiString('filters.rail.add')}
+                                >
+                                    <ActionIcon
+                                        size="sm"
+                                        variant="subtle"
+                                        color="gray"
+                                        aria-label={getUiString(
+                                            'filters.rail.add',
+                                        )}
+                                        data-controls-new-section
+                                    >
+                                        <MantineIcon icon={IconPlus} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                {onAddFilter && (
+                                    <Menu.Item
+                                        fz="xs"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconFilterPlus}
+                                                size={14}
+                                            />
+                                        }
+                                        onClick={onAddFilter}
+                                    >
+                                        {getUiString('filters.addFilter')}
+                                    </Menu.Item>
+                                )}
+                                {onNewSection && (
+                                    <Menu.Item
+                                        fz="xs"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconFolderPlus}
+                                                size={14}
+                                            />
+                                        }
+                                        onClick={onNewSection}
+                                    >
+                                        New section
+                                    </Menu.Item>
+                                )}
+                            </Menu.Dropdown>
+                        </Menu>
+                    )}
+                    <Tooltip label={getUiString('filters.rail.close')}>
+                        <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="gray"
+                            aria-label={getUiString('filters.rail.close')}
+                            onClick={onClose}
+                        >
+                            <MantineIcon icon={IconX} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
             </Group>
 
             <Box className={classes.body}>{children}</Box>
@@ -125,29 +189,14 @@ export const EditorShell: FC<Props> = ({
                             </Button>
                         </>
                     ) : (
-                        <>
-                            <Group gap="xs" wrap="nowrap">
-                                <AddControl placement="rail" />
-                                {onNewSection && (
-                                    <Button
-                                        variant="subtle"
-                                        color="gray"
-                                        size="xs"
-                                        data-controls-new-section
-                                        onClick={onNewSection}
-                                    >
-                                        New section
-                                    </Button>
-                                )}
-                            </Group>
-                            <Button
-                                size="xs"
-                                className={classes.done}
-                                onClick={onClose}
-                            >
-                                {getUiString('filters.rail.done')}
-                            </Button>
-                        </>
+                        <Button
+                            size="xs"
+                            ml="auto"
+                            className={classes.done}
+                            onClick={onDone}
+                        >
+                            {getUiString('filters.rail.done')}
+                        </Button>
                     )}
                 </Group>
             </Stack>

@@ -139,7 +139,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
 
     return (
         <>
-            <AddControl placement="bar" />
+            <AddControl />
             <FilterPills
                 activeTabUuid={activeTabUuid}
                 sectionId={null}

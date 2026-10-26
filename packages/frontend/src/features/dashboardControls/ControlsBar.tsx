@@ -37,7 +37,7 @@ export const ControlsBar: FC<Props> = (props) => {
                     <SectionedFilters activeTabUuid={props.activeTabUuid} />
                 ) : (
                     <>
-                        <AddControl placement="bar" />
+                        <AddControl />
                         <FilterPills activeTabUuid={props.activeTabUuid} />
                         {props.isEditMode && <FilterRequirementsButton />}
                     </>

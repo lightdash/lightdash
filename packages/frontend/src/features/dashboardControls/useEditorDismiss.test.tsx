@@ -65,7 +65,7 @@ const Page: FC = () => {
     sidebar.current = value;
     const { isSidebarOpen, isRailOpen, editing, openNew, open, close } = value;
     const filters = useDashboardSelector(selectDashboardFilters);
-    // The bar's and, while the rail is open, the rail footer's
+    // The bar's and, while the rail is open, the rail header's
     const add = (
         <div data-filter-actions>
             <button

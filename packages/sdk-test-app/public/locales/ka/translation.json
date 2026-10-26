@@ -479,6 +479,7 @@
         "filters.rail.collapseSection": "სექციის ჩაკეცვა: {section}",
         "filters.rail.expandSection": "სექციის გაშლა: {section}",
         "filters.rail.savedFilterReadOnly": "ეს ფილტრი ზოლიდან დააყენეთ",
+        "filters.rail.add": "დამატება",
         "filters.tileCard.locked": "ფილები დაბლოკილია ფილტრის რედაქტირებისას",
         "filters.tileCard.unreachable": "ამ ფილას არ აქვს ველი, რომელსაც ეს ფილტრი გამოიყენებს",
         "filters.tileCard.filtered": "ეს ფილა გაფილტრულია",
