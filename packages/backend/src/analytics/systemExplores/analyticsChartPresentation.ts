@@ -34,6 +34,10 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
     for (const field of chart.metricQuery.metrics) {
         columns[field] = { ...columns[field], width: 180 };
     }
+    for (const field of chart.metricQuery.dimensions) {
+        if (field.endsWith('_name'))
+            columns[field] = { ...columns[field], width: 240 };
+    }
     const primaryMetric = chart.metricQuery.metrics.find(
         (field) =>
             !/_(at|rate|coverage|share|origin)$/.test(field) &&
@@ -60,12 +64,15 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
                 /_(name|label)$/.test(field),
         ) ?? visibleFields?.[0];
     if (firstLabel) {
+        let width = 240;
+        if (firstLabel.endsWith('_app_name')) width = 320;
+        if (firstLabel.endsWith('_content_name')) width = 420;
         columns[firstLabel] = {
             ...columns[firstLabel],
             // A wide content label must scroll on small screens instead of
             // freezing across the entire viewport.
-            frozen: !firstLabel.endsWith('_content_name'),
-            width: firstLabel.endsWith('_content_name') ? 420 : 240,
+            frozen: width === 240,
+            width,
         };
     }
     const rules: ConditionalFormattingConfig[] = [
