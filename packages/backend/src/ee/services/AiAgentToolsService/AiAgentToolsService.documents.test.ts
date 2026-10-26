@@ -135,6 +135,7 @@ const setup = (
             .mockResolvedValue({ projectUuid, slug: projectSlug }),
     };
     const service = new AiAgentToolsService({
+        aiOrganizationSettingsService: { getMaxQueryLimit: async () => 500 },
         agentPermissionService: {
             loadRequest: vi.fn().mockResolvedValue({
                 enforcementMode: 'off',

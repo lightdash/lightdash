@@ -391,6 +391,8 @@ export type ComputedAiOrganizationSettings = {
     configurableModelOptions?: AiModelOption[] | null;
     // True when a BYO key is set that can't serve the review model, so reviews are paused.
     aiAgentReviewsPausedByByok?: boolean;
+    // Instance-wide row cap that applies when the org has not set maxQueryLimit.
+    instanceMaxQueryLimit?: number;
 };
 
 // AI Organization Settings Types
@@ -650,6 +652,8 @@ export type AiOrganizationSettings = {
     bedrockConfig: OrgBedrockConfig | null;
     providerBaseUrls: AiProviderBaseUrls;
     threadRetentionHours?: number | null;
+    // Max rows a single agent query may return. Null uses the instance default.
+    maxQueryLimit?: number | null;
 };
 
 export type CreateAiOrganizationSettings = Omit<
@@ -682,6 +686,7 @@ export type UpdateAiOrganizationSettings = {
     dataAppModelVisibility?: DataAppModelVisibility | null;
     providerApiKeys?: UpdateAiProviderApiKeys;
     threadRetentionHours?: number | null;
+    maxQueryLimit?: number | null;
 };
 
 export type ApiAiOrganizationSettingsResponse = ApiSuccess<

@@ -210,6 +210,7 @@ import {
 } from '../ai/utils/sqlScope';
 import { truncateMiddle } from '../ai/utils/truncation';
 import { findAiDeepResearchRunDocuments } from '../AiDeepResearchService/runDocument';
+import type { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import type {
     AppGenerateService,
     DataAppReadSource,
@@ -527,6 +528,10 @@ type AiAgentToolsServiceDependencies = {
         siteUrl: string;
         ai: { copilot: { maxQueryLimit: number } };
     };
+    aiOrganizationSettingsService: Pick<
+        AiOrganizationSettingsService,
+        'getMaxQueryLimit'
+    >;
 };
 
 export class AiAgentToolsService extends BaseService {
@@ -539,6 +544,8 @@ export class AiAgentToolsService extends BaseService {
     >();
 
     private readonly appModel: AppModel;
+
+    private readonly aiOrganizationSettingsService: AiAgentToolsServiceDependencies['aiOrganizationSettingsService'];
 
     private readonly projectModel: ProjectModel;
 
@@ -662,6 +669,7 @@ export class AiAgentToolsService extends BaseService {
     }
 
     constructor({
+        aiOrganizationSettingsService,
         agentPermissionService,
         agentActionLogModel,
         builtInSkills,
@@ -737,6 +745,7 @@ export class AiAgentToolsService extends BaseService {
         this.getSchedulerAiAugmentationService =
             getSchedulerAiAugmentationService;
         this.lightdashConfig = lightdashConfig;
+        this.aiOrganizationSettingsService = aiOrganizationSettingsService;
     }
 
     async getAvailableExplores({
@@ -4239,7 +4248,9 @@ export class AiAgentToolsService extends BaseService {
             async () => {
                 const limit = getValidAiQueryLimit(
                     args.limit,
-                    this.lightdashConfig.ai.copilot.maxQueryLimit,
+                    await this.aiOrganizationSettingsService.getMaxQueryLimit(
+                        context.organizationUuid,
+                    ),
                 );
 
                 if (!args.dashboardSlug) {
@@ -4393,7 +4404,9 @@ export class AiAgentToolsService extends BaseService {
 
                 const effectiveLimit = getValidAiQueryLimit(
                     limit,
-                    this.lightdashConfig.ai.copilot.maxQueryLimit,
+                    await this.aiOrganizationSettingsService.getMaxQueryLimit(
+                        context.organizationUuid,
+                    ),
                 );
                 const sqlChartQueryArgs = {
                     account: context.account,
@@ -4734,10 +4747,13 @@ export class AiAgentToolsService extends BaseService {
                 const terminalQuery = queries.find(
                     (query) => query.nodeId === terminalNodeId,
                 );
+                const maxQueryLimit =
+                    await this.aiOrganizationSettingsService.getMaxQueryLimit(
+                        context.organizationUuid,
+                    );
                 const pageSize = Math.min(
-                    terminalQuery?.limit ??
-                        this.lightdashConfig.ai.copilot.maxQueryLimit,
-                    this.lightdashConfig.ai.copilot.maxQueryLimit,
+                    terminalQuery?.limit ?? maxQueryLimit,
+                    maxQueryLimit,
                 );
 
                 // Polling only the terminal node is sufficient: its execution

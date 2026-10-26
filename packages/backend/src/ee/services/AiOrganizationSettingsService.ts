@@ -13,8 +13,11 @@ import {
     ForbiddenError,
     getErrorMessage,
     getVisibleDataAppClaudeModels,
+    isValidAiMaxQueryLimit,
     isValidRetentionWindowHours,
     LightdashUser,
+    MAX_AI_MAX_QUERY_LIMIT,
+    MIN_AI_MAX_QUERY_LIMIT,
     ParameterError,
     RETENTION_WINDOW_HOURS_ERROR,
     UpdateAiOrganizationSettings,
@@ -529,11 +532,14 @@ export class AiOrganizationSettingsService extends BaseService {
                     openai: null,
                 },
                 threadRetentionHours: null,
+                maxQueryLimit: null,
                 defaultAiAgentModelOptions: effectiveOptions,
                 configurableModelOptions: configurableOptions,
                 bedrockModelOptions,
                 aiAgentReviewsPausedByByok,
                 isTrial,
+                instanceMaxQueryLimit:
+                    this.lightdashConfig.ai.copilot.maxQueryLimit,
             };
         }
 
@@ -552,6 +558,8 @@ export class AiOrganizationSettingsService extends BaseService {
             configurableModelOptions: configurableOptions,
             bedrockModelOptions,
             aiAgentReviewsPausedByByok,
+            instanceMaxQueryLimit:
+                this.lightdashConfig.ai.copilot.maxQueryLimit,
         };
     }
 
@@ -733,6 +741,29 @@ export class AiOrganizationSettingsService extends BaseService {
         }
     }
 
+    // Org override of the instance-wide row cap for agent and MCP queries.
+    async getMaxQueryLimit(organizationUuid: string): Promise<number> {
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return (
+            settings?.maxQueryLimit ??
+            this.lightdashConfig.ai.copilot.maxQueryLimit
+        );
+    }
+
+    async getRunSqlMaxLimit(organizationUuid: string): Promise<number> {
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return (
+            settings?.maxQueryLimit ??
+            this.lightdashConfig.ai.copilot.runSqlMaxLimit
+        );
+    }
+
     async getThreadRetentionCeiling(
         organizationUuid: string,
     ): Promise<number | null> {
@@ -800,6 +831,15 @@ export class AiOrganizationSettingsService extends BaseService {
                 : normalizeAnalysisDefaultInstructions(
                       aiSettingsUpdate.dataAppAnalysisDefaultInstructions,
                   );
+
+        if (
+            aiSettingsUpdate.maxQueryLimit !== undefined &&
+            !isValidAiMaxQueryLimit(aiSettingsUpdate.maxQueryLimit)
+        ) {
+            throw new ParameterError(
+                `maxQueryLimit must be an integer between ${MIN_AI_MAX_QUERY_LIMIT} and ${MAX_AI_MAX_QUERY_LIMIT}, or null`,
+            );
+        }
 
         if (aiSettingsUpdate.threadRetentionHours !== undefined) {
             // No-op writes stay allowed: clients that round-trip the settings

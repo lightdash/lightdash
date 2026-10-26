@@ -143,6 +143,7 @@ const setup = (
         registry,
     } as unknown as ConstructorParameters<typeof QuerySourceService>[0]);
     const tools = new AiAgentToolsService({
+        aiOrganizationSettingsService: { getMaxQueryLimit: async () => 100 },
         querySourceService: service,
         agentPermissionService: permissions,
         asyncQueryService,
