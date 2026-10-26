@@ -10,37 +10,29 @@ import {
 } from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
 import { useCallback, type FC } from 'react';
-import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import usePieChartConfig from '../../../hooks/usePieChartConfig';
+import { useVisualizationInputs } from '../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { Config } from '../common/Config';
 import { GroupItem } from './GroupItem';
 import { ValueOptions } from './ValueOptions';
 
 export const Series: FC = () => {
-    const { visualizationConfig, colorPalette, getGroupColor, itemsMap } =
-        useVisualizationState();
-
-    const isPieChartConfig = isPieVisualizationConfig(visualizationConfig);
+    const { colorPalette, getGroupColor, itemsMap } = useVisualizationInputs();
+    const pieChartConfig = usePieChartConfig();
+    const { groupSortChange } = pieChartConfig;
 
     const granularityFields = Object.keys(getGranularityMapFromItems(itemsMap));
 
     const handleDragEnd = useCallback(
         (result: DropResult) => {
-            if (!isPieChartConfig) return;
-
             if (!result.destination) return;
             if (result.source.index === result.destination.index) return;
 
-            visualizationConfig.chartConfig.groupSortChange(
-                result.source.index,
-                result.destination.index,
-            );
+            groupSortChange(result.source.index, result.destination.index);
         },
-        [visualizationConfig, isPieChartConfig],
+        [groupSortChange],
     );
-
-    if (!isPieChartConfig) return null;
 
     const {
         groupFieldIds,
@@ -63,7 +55,7 @@ export const Series: FC = () => {
         groupColorChange,
         groupValueOptionOverrides,
         groupValueOptionChange,
-    } = visualizationConfig.chartConfig;
+    } = pieChartConfig;
 
     const firstGroupLabel = sortedGroupLabels[0];
     const firstGroupColor = firstGroupLabel

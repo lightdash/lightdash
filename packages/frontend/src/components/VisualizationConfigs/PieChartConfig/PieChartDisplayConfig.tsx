@@ -12,23 +12,28 @@ import {
     TextInput,
 } from '@mantine/core';
 import React from 'react';
-import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    selectPieEditor,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { usePieEditorActions } from '../../../hooks/usePieChartConfig';
 import { Config } from '../common/Config';
 
 export const Display: React.FC = () => {
-    const { visualizationConfig } = useVisualizationState();
-
-    if (!isPieVisualizationConfig(visualizationConfig)) return null;
-
+    const showLegend = useVisualizationSelector(
+        (state) => selectPieEditor(state).showLegend,
+    );
+    const legendPosition = useVisualizationSelector(
+        (state) => selectPieEditor(state).legendPosition,
+    );
+    const legendMaxItemLength = useVisualizationSelector(
+        (state) => selectPieEditor(state).legendMaxItemLength,
+    );
     const {
-        showLegend,
         toggleShowLegend,
-        legendPosition,
         legendPositionChange,
-        legendMaxItemLength,
         legendMaxItemLengthChange,
-    } = visualizationConfig.chartConfig;
+    } = usePieEditorActions();
 
     return (
         <Stack>

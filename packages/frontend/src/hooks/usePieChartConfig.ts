@@ -1,421 +1,211 @@
 import {
-    type CustomDimension,
-    type Dimension,
-    type ItemsMap,
     type Metric,
-    type MetricQuery,
-    type ParametersValuesMap,
     type PieChart,
     type PieChartLegendPosition,
     type PieChartValueOptions,
     type TableCalculation,
-    type TableCalculationMetadata,
 } from '@lightdash/common';
+import { type PieChartDataPoint } from '@lightdash/visualization/editor';
+import { useMemo } from 'react';
 import {
-    buildValidPieConfig,
-    getPieChartData,
-    getPieGroupColorDefaults,
-    getPieSelectedMetric,
-    getSortedPieGroupLabels,
-    isPieValueOptionOverridden,
-    repairPieGroupFieldIds,
-    repairPieMetricId,
-    type PieChartDataPoint,
-} from '@lightdash/visualization/editor';
-import { useDebouncedValue } from '@mantine/hooks';
-import isEqual from 'lodash/isEqual';
-import { useCallback, useEffect, useMemo } from 'react';
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../components/LightdashVisualization/useVisualizationContext';
 import {
-    buildPieEditorState,
     pieEditorActions,
+    selectPieData,
     selectPieEditor,
+    selectPieFieldPools,
+    selectPieGroupColorDefaults,
+    selectPieGroupFieldIds,
+    selectPieGroupLabels,
+    selectPieMetricId,
+    selectPieSelectedMetric,
+    selectPieSortedGroupLabels,
+    selectPieValidConfig,
+    selectPieValueOptionOverrideFlags,
     useEditorFieldSetter,
     useVisualizationDispatch,
+    useVisualizationStore,
     type PieEditorState,
-    useVisualizationSelector,
 } from '../features/visualization/store';
-import { type InfiniteQueryResults } from './useQueryResults';
 
-type PieChartConfig = {
-    validConfig: PieChart;
-
-    groupFieldIds: (string | null)[];
+export type PieEditorActions = {
     groupAdd: (dimensionId?: string) => void;
     groupChange: (prevDimensionId: string, newDimensionId: string) => void;
     groupRemove: (dimensionId: string) => void;
-
-    metricId: string | null;
-    selectedMetric: Metric | TableCalculation | undefined;
     metricChange: (metricId: string | null) => void;
-
-    isDonut: boolean;
     toggleDonut: () => void;
-
-    valueLabel: PieChartValueOptions['valueLabel'];
     valueLabelChange: (valueLabel: PieChartValueOptions['valueLabel']) => void;
-    valueLabelColor: PieChartValueOptions['valueLabelColor'];
     valueLabelColorChange: (color: string | undefined) => void;
-    showValue: PieChartValueOptions['showValue'];
     toggleShowValue: () => void;
-    showPercentage: PieChartValueOptions['showPercentage'];
     toggleShowPercentage: () => void;
-
-    isValueLabelOverriden: boolean;
-    isShowValueOverriden: boolean;
-    isShowPercentageOverriden: boolean;
-
-    sortedGroupLabels: string[];
-    groupLabelOverrides: Record<string, string>;
-    groupLabelChange: (prevValue: any, newValue: any) => void;
-    groupColorOverrides: Record<string, string>;
-    groupColorDefaults: Record<string, string>;
-    groupColorChange: (prevValue: any, newValue: any) => void;
-    groupValueOptionOverrides: Record<string, Partial<PieChartValueOptions>>;
+    groupLabelChange: (label: string, value: string) => void;
+    groupColorChange: (label: string, value: string) => void;
     groupValueOptionChange: (
         label: string,
         value: Partial<PieChartValueOptions>,
     ) => void;
-    groupSortOverrides: string[];
     groupSortChange: (oldIndex: number, newIndex: number) => void;
-
-    showLegend: boolean;
     toggleShowLegend: () => void;
-    legendPosition: PieChartLegendPosition;
     legendPositionChange: (position: PieChartLegendPosition) => void;
-    legendMaxItemLength: number | undefined;
     legendMaxItemLengthChange: (length: number | undefined) => void;
-    data: PieChartDataPoint[];
 };
 
-export type PieChartConfigFn = (
-    resultsData:
-        | (InfiniteQueryResults & { resolvedTimezone?: string })
-        | undefined,
-    pieChartConfig: PieChart | undefined,
-    itemsMap: ItemsMap | undefined,
-    dimensions: Record<string, CustomDimension | Dimension>,
-    numericMetrics: Record<string, Metric | TableCalculation>,
-    colorPalette: string[],
-    tableCalculationsMetadata?: TableCalculationMetadata[],
-    parameters?: ParametersValuesMap,
-    /** The not-yet-run metric query; its fields count as valid group/metric
-     *  references so a just-added field survives until results land. */
-    unsavedMetricQuery?: MetricQuery,
-) => PieChartConfig;
-
-const usePieChartConfig: PieChartConfigFn = (
-    resultsData,
-    pieChartConfig,
-    itemsMap,
-    dimensions,
-    numericMetrics,
-    colorPalette,
-    tableCalculationsMetadata,
-    parameters,
-    unsavedMetricQuery,
-) => {
-    const {
-        groupFieldIds,
-        metricId,
-        isDonut,
-        valueLabel,
-        showValue,
-        showPercentage,
-        valueLabelColor,
-        groupLabelOverrides,
-        groupColorOverrides,
-        groupValueOptionOverrides,
-        groupSortOverrides,
-        showLegend,
-        legendPosition,
-        legendMaxItemLength,
-    } = useVisualizationSelector(selectPieEditor);
+/** Stable pie editor actions; what they need from the results is read at call time. */
+export const usePieEditorActions = (): PieEditorActions => {
     const dispatch = useVisualizationDispatch();
+    const store = useVisualizationStore();
+    const inputs = useVisualizationInputs();
     const set = useEditorFieldSetter<PieEditorState>(
         selectPieEditor,
         pieEditorActions.set,
     );
-
-    const [debouncedGroupLabelOverrides] = useDebouncedValue(
-        groupLabelOverrides,
-        500,
-    );
-
-    const [debouncedGroupColorOverrides] = useDebouncedValue(
-        groupColorOverrides,
-        500,
-    );
-
-    const dimensionIds = useMemo(() => Object.keys(dimensions), [dimensions]);
-
-    const allNumericMetricIds = useMemo(
-        () => Object.keys(numericMetrics),
-        [numericMetrics],
-    );
-
-    const selectedMetric = useMemo(
-        () => getPieSelectedMetric(itemsMap, metricId),
-        [itemsMap, metricId],
-    );
-
-    const isLoading = !resultsData;
-
-    // The pools above only know the last run; a field just added from the
-    // config picker must not be dropped before its results land.
-    const pendingDimensionIds = useMemo(
-        () => new Set(unsavedMetricQuery?.dimensions),
-        [unsavedMetricQuery?.dimensions],
-    );
-    const pendingMetricIds = useMemo(
-        () => new Set(unsavedMetricQuery?.metrics),
-        [unsavedMetricQuery?.metrics],
-    );
-
-    useEffect(() => {
-        if (isLoading || dimensionIds.length === 0) return;
-
-        const newGroupFieldIds = repairPieGroupFieldIds({
-            groupFieldIds,
-            dimensionIds,
-            pendingDimensionIds,
-        });
-
-        if (isEqual(newGroupFieldIds, groupFieldIds)) return;
-
-        set('groupFieldIds', newGroupFieldIds);
-    }, [isLoading, dimensionIds, groupFieldIds, pendingDimensionIds, set]);
-
-    useEffect(() => {
-        if (isLoading || allNumericMetricIds.length === 0) return;
-
-        const nextMetricId = repairPieMetricId({
-            metricId,
-            allNumericMetricIds,
-            pendingMetricIds,
-            tableCalculationsMetadata,
-        });
-        if (nextMetricId === metricId) return;
-
-        set('metricId', nextMetricId);
-    }, [
-        allNumericMetricIds,
-        isLoading,
-        metricId,
-        pendingMetricIds,
-        tableCalculationsMetadata,
-        set,
-    ]);
-
-    const isValueLabelOverriden = useMemo(
-        () =>
-            isPieValueOptionOverridden(groupValueOptionOverrides, 'valueLabel'),
-        [groupValueOptionOverrides],
-    );
-
-    const isShowValueOverriden = useMemo(
-        () =>
-            isPieValueOptionOverridden(groupValueOptionOverrides, 'showValue'),
-        [groupValueOptionOverrides],
-    );
-
-    const isShowPercentageOverriden = useMemo(
-        () =>
-            isPieValueOptionOverridden(
-                groupValueOptionOverrides,
-                'showPercentage',
-            ),
-        [groupValueOptionOverrides],
-    );
-
-    const data = useMemo(
-        () =>
-            getPieChartData({
-                resultsData,
-                groupFieldIds,
-                metricId,
-                selectedMetric,
-                parameters,
-            }),
-        [resultsData, groupFieldIds, selectedMetric, metricId, parameters],
-    );
-
-    const groupLabels = useMemo(() => {
-        return data.map(({ name }) => name);
-    }, [data]);
-
-    const sortedGroupLabels = useMemo(
-        () => getSortedPieGroupLabels(groupSortOverrides, groupLabels),
-        [groupSortOverrides, groupLabels],
-    );
-
-    const groupColorDefaults = useMemo(
-        () => getPieGroupColorDefaults(groupLabels, colorPalette),
-        [groupLabels, colorPalette],
-    );
-
-    const handleGroupAdd = useCallback(
-        (dimensionId?: string) =>
-            dispatch(pieEditorActions.groupAdd({ dimensionId, dimensionIds })),
-        [dispatch, dimensionIds],
-    );
-
-    const handleGroupSortChange = useCallback(
-        (oldIndex: number, newIndex: number) =>
-            dispatch(
-                pieEditorActions.groupSortChange({
-                    oldIndex,
-                    newIndex,
-                    groupLabels,
-                }),
-            ),
-        [dispatch, groupLabels],
-    );
-
-    const handlers = useMemo(
+    return useMemo(
         () => ({
-            groupChange: (prevDimensionId: string, newDimensionId: string) =>
+            groupAdd: (dimensionId) =>
+                dispatch(
+                    pieEditorActions.groupAdd({
+                        dimensionId,
+                        dimensionIds: Object.keys(
+                            selectPieFieldPools(store.getState(), inputs)
+                                .dimensions,
+                        ),
+                    }),
+                ),
+            groupChange: (prevDimensionId, newDimensionId) =>
                 dispatch(
                     pieEditorActions.groupChange({
                         prevDimensionId,
                         newDimensionId,
                     }),
                 ),
-            groupRemove: (dimensionId: string) =>
+            groupRemove: (dimensionId) =>
                 dispatch(pieEditorActions.groupRemove(dimensionId)),
-            metricChange: (value: string | null) => set('metricId', value),
+            metricChange: (metricId) => set('metricId', metricId),
             toggleDonut: () => dispatch(pieEditorActions.toggleDonut()),
-            valueLabelChange: (value: PieChartValueOptions['valueLabel']) =>
-                dispatch(pieEditorActions.valueLabelChange(value)),
-            valueLabelColorChange: (color: string | undefined) =>
+            valueLabelChange: (valueLabel) =>
+                dispatch(pieEditorActions.valueLabelChange(valueLabel)),
+            valueLabelColorChange: (color) =>
                 dispatch(pieEditorActions.valueLabelColorChange(color)),
-            toggleShowValue: () => dispatch(pieEditorActions.toggleShowValue()),
+            toggleShowValue: () =>
+                dispatch(pieEditorActions.toggleShowValue()),
             toggleShowPercentage: () =>
                 dispatch(pieEditorActions.toggleShowPercentage()),
-            groupLabelChange: (key: string, value: string) =>
+            groupLabelChange: (key, value) =>
                 dispatch(pieEditorActions.groupLabelChange({ key, value })),
-            groupColorChange: (key: string, value: string) =>
+            groupColorChange: (key, value) =>
                 dispatch(pieEditorActions.groupColorChange({ key, value })),
-            groupValueOptionChange: (
-                label: string,
-                value: Partial<PieChartValueOptions>,
-            ) =>
+            groupValueOptionChange: (label, value) =>
                 dispatch(
                     pieEditorActions.groupValueOptionChange({ label, value }),
                 ),
+            groupSortChange: (oldIndex, newIndex) =>
+                dispatch(
+                    pieEditorActions.groupSortChange({
+                        oldIndex,
+                        newIndex,
+                        groupLabels: selectPieGroupLabels(
+                            store.getState(),
+                            inputs,
+                        ),
+                    }),
+                ),
             toggleShowLegend: () =>
                 dispatch(pieEditorActions.toggleShowLegend()),
-            legendPositionChange: (position: PieChartLegendPosition) =>
+            legendPositionChange: (position) =>
                 set('legendPosition', position),
-            legendMaxItemLengthChange: (length: number | undefined) =>
+            legendMaxItemLengthChange: (length) =>
                 set('legendMaxItemLength', length),
         }),
-        [dispatch, set],
+        [dispatch, store, inputs, set],
     );
+};
 
-    const groupFieldIdsCopy = useMemo(
-        () => Array.from(groupFieldIds),
-        [groupFieldIds],
-    );
+export type PieChartConfig = PieEditorActions & {
+    validConfig: PieChart;
+    groupFieldIds: string[];
+    metricId: string | null;
+    selectedMetric: Metric | TableCalculation | undefined;
+    isDonut: boolean;
+    valueLabel: PieChartValueOptions['valueLabel'];
+    valueLabelColor: PieChartValueOptions['valueLabelColor'];
+    showValue: PieChartValueOptions['showValue'];
+    showPercentage: PieChartValueOptions['showPercentage'];
+    isValueLabelOverriden: boolean;
+    isShowValueOverriden: boolean;
+    isShowPercentageOverriden: boolean;
+    sortedGroupLabels: string[];
+    groupLabelOverrides: Record<string, string>;
+    groupColorOverrides: Record<string, string>;
+    groupColorDefaults: Record<string, string>;
+    groupValueOptionOverrides: Record<string, Partial<PieChartValueOptions>>;
+    groupSortOverrides: string[];
+    showLegend: boolean;
+    legendPosition: PieChartLegendPosition;
+    legendMaxItemLength: number | undefined;
+    data: PieChartDataPoint[];
+};
 
-    const validConfig: PieChart = useMemo(
-        () =>
-            buildValidPieConfig({
-                groupFieldIds,
-                metricId,
-                isDonut,
-                valueLabel,
-                showValue,
-                showPercentage,
-                valueLabelColor,
-                groupLabels,
-                groupLabelOverrides: debouncedGroupLabelOverrides,
-                groupColorOverrides: debouncedGroupColorOverrides,
-                groupValueOptionOverrides,
-                groupSortOverrides,
-                showLegend,
-                legendPosition,
-                legendMaxItemLength,
-            }),
-        [
-            groupFieldIds,
-            metricId,
-            isDonut,
-            valueLabel,
-            showValue,
-            showPercentage,
-            valueLabelColor,
-            groupLabels,
-            debouncedGroupLabelOverrides,
-            debouncedGroupColorOverrides,
-            groupValueOptionOverrides,
-            groupSortOverrides,
-            showLegend,
-            legendPosition,
-            legendMaxItemLength,
-        ],
+/**
+ * Everything the pie chart body and context menu read, re-rendering on
+ * every edit. Config panels select the fields they show instead.
+ */
+const usePieChartConfig = (): PieChartConfig => {
+    const editor = useVisualizationInputSelector(selectPieEditor);
+    const groupFieldIds = useVisualizationInputSelector(selectPieGroupFieldIds);
+    const metricId = useVisualizationInputSelector(selectPieMetricId);
+    const selectedMetric = useVisualizationInputSelector(
+        selectPieSelectedMetric,
     );
+    const data = useVisualizationInputSelector(selectPieData);
+    const sortedGroupLabels = useVisualizationInputSelector(
+        selectPieSortedGroupLabels,
+    );
+    const groupColorDefaults = useVisualizationInputSelector(
+        selectPieGroupColorDefaults,
+    );
+    const overrideFlags = useVisualizationInputSelector(
+        selectPieValueOptionOverrideFlags,
+    );
+    const validConfig = useVisualizationInputSelector(selectPieValidConfig);
+    const actions = usePieEditorActions();
 
     return useMemo(
         () => ({
+            ...actions,
+            ...overrideFlags,
             validConfig,
-
-            groupFieldIds: groupFieldIdsCopy,
-            groupAdd: handleGroupAdd,
-
-            selectedMetric,
+            groupFieldIds,
             metricId,
-
-            isDonut,
-
-            valueLabel,
-            valueLabelColor,
-            showValue,
-            showPercentage,
-
-            isValueLabelOverriden,
-            isShowValueOverriden,
-            isShowPercentageOverriden,
-
+            selectedMetric,
+            isDonut: editor.isDonut,
+            valueLabel: editor.valueLabel,
+            valueLabelColor: editor.valueLabelColor,
+            showValue: editor.showValue,
+            showPercentage: editor.showPercentage,
             sortedGroupLabels,
-            groupLabelOverrides,
-            groupColorOverrides,
+            groupLabelOverrides: editor.groupLabelOverrides,
+            groupColorOverrides: editor.groupColorOverrides,
             groupColorDefaults,
-            groupValueOptionOverrides,
-            groupSortOverrides,
-            groupSortChange: handleGroupSortChange,
-
-            showLegend,
-            legendPosition,
-            legendMaxItemLength,
+            groupValueOptionOverrides: editor.groupValueOptionOverrides,
+            groupSortOverrides: editor.groupSortOverrides,
+            showLegend: editor.showLegend,
+            legendPosition: editor.legendPosition,
+            legendMaxItemLength: editor.legendMaxItemLength,
             data,
-            ...handlers,
         }),
         [
+            actions,
+            overrideFlags,
             validConfig,
-            groupFieldIdsCopy,
-            handleGroupAdd,
-            selectedMetric,
+            groupFieldIds,
             metricId,
-            isDonut,
-            valueLabel,
-            valueLabelColor,
-            showValue,
-            showPercentage,
-            isValueLabelOverriden,
-            isShowValueOverriden,
-            isShowPercentageOverriden,
+            selectedMetric,
+            editor,
             sortedGroupLabels,
-            groupLabelOverrides,
-            groupColorOverrides,
             groupColorDefaults,
-            groupValueOptionOverrides,
-            groupSortOverrides,
-            handleGroupSortChange,
-            showLegend,
-            legendPosition,
-            legendMaxItemLength,
             data,
-            handlers,
         ],
     );
 };

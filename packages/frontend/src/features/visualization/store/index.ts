@@ -124,5 +124,7 @@ export {
     buildTreemapEditorState,
 } from './treemapEditorSlice';
 export type { TreemapEditorState } from './treemapEditorSlice';
+export type { VisualizationInputs } from './inputs';
 export * from './hooks';
+export * from './pieSelectors';
 export * from './selectors';

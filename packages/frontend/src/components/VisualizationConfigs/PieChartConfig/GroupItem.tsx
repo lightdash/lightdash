@@ -15,9 +15,9 @@ import {
     ActionIcon,
     Tooltip,
 } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../ColorSelector';
 import { EditableText } from '../common/EditableText';
@@ -88,6 +88,18 @@ export const GroupItem = forwardRef<
         ref,
     ) => {
         const [opened, { toggle }] = useDisclosure();
+        // Typing and colour picking are debounced before they reach the store;
+        // the draft keeps the control responsive meanwhile.
+        const [draftLabel, setDraftLabel] = useState(label ?? '');
+        const [draftColor, setDraftColor] = useState<string | undefined>();
+        const commitLabel = useDebouncedCallback(
+            (value: string) => onLabelChange(defaultLabel, value),
+            500,
+        );
+        const commitColor = useDebouncedCallback((value: string) => {
+            onColorChange(defaultLabel, value);
+            setDraftColor(undefined);
+        }, 500);
 
         return (
             <Stack ref={ref} gap="xs" {...rest}>
@@ -97,23 +109,22 @@ export const GroupItem = forwardRef<
                     )}
 
                     <ColorSelector
-                        color={color}
+                        color={draftColor ?? color}
                         defaultColor={defaultColor}
                         swatches={swatches}
-                        onColorChange={(newColor: string) =>
-                            onColorChange(defaultLabel, newColor)
-                        }
+                        onColorChange={(newColor: string) => {
+                            setDraftColor(newColor);
+                            commitColor(newColor);
+                        }}
                     />
                     <Box flex={1}>
                         <EditableText
                             placeholder={defaultLabel}
-                            value={label}
+                            value={draftLabel}
                             granularityFields={granularityFields}
                             onChange={(event) => {
-                                onLabelChange(
-                                    defaultLabel,
-                                    event.currentTarget.value,
-                                );
+                                setDraftLabel(event.currentTarget.value);
+                                commitLabel(event.currentTarget.value);
                             }}
                         />
                     </Box>

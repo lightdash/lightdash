@@ -5,8 +5,9 @@ import {
 import { useMemo } from 'react';
 import { isPieVisualizationConfig } from '../../components/LightdashVisualization/types';
 import {
+    useVisualizationConfig,
+    useVisualizationInputs,
     useVisualizationServices,
-    useVisualizationState,
 } from '../../components/LightdashVisualization/useVisualizationContext';
 import { useVisualizationTheme } from '../useVisualizationTheme';
 
@@ -21,15 +22,15 @@ const useEchartsPieConfig = (
     isInDashboard?: boolean,
 ) => {
     const { isTouchDevice } = useVisualizationServices();
+    const visualizationConfig = useVisualizationConfig();
     const {
-        visualizationConfig,
         resultsData,
         itemsMap,
         getGroupColor,
         minimal,
         parameters,
         resolvedTimezone,
-    } = useVisualizationState();
+    } = useVisualizationInputs();
 
     const theme = useVisualizationTheme();
 

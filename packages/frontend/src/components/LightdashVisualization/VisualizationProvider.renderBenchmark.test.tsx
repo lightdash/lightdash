@@ -28,6 +28,12 @@ import {
     createExplorerStore,
     explorerActions,
 } from '../../features/explorer/store';
+import {
+    selectPieEditor,
+    selectPieGroupFieldIds,
+    selectPieMetricId,
+    useVisualizationSelector,
+} from '../../features/visualization/store';
 import useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
 import useEchartsPieConfig from '../../hooks/echarts/useEchartsPieConfig';
@@ -46,6 +52,7 @@ import {
     useVisualizationConfig,
     useVisualizationContext,
     useVisualizationInputs,
+    useVisualizationInputSelector,
     useVisualizationServices,
 } from './useVisualizationContext';
 import VisualizationProvider, {
@@ -287,24 +294,23 @@ const PieBodyProbe = memo(() => {
     bump('chartBody');
     return null;
 });
+// Pie panels select the fields they show, like the real panels do
 const PieLayoutPanelProbe = memo(() => {
-    const config = usePie();
-    pie = config;
-    void config?.groupFieldIds;
-    void config?.metricId;
+    useVisualizationInputSelector(selectPieGroupFieldIds);
+    useVisualizationInputSelector(selectPieMetricId);
+    useVisualizationSelector((state) => selectPieEditor(state).isDonut);
     bump('layoutPanel');
     return null;
 });
 const PieDisplayPanelProbe = memo(() => {
-    const config = usePie();
-    void config?.isDonut;
-    void config?.showLegend;
-    void config?.valueLabel;
+    useVisualizationSelector((state) => selectPieEditor(state).showLegend);
+    useVisualizationSelector((state) => selectPieEditor(state).legendPosition);
     bump('displayPanel');
     return null;
 });
 const PieSeriesPanelProbe = memo(() => {
     const config = usePie();
+    pie = config;
     void config?.sortedGroupLabels;
     void config?.groupLabelOverrides;
     void config?.groupColorOverrides;
@@ -562,7 +568,9 @@ describe('VisualizationProvider render benchmark', () => {
         const beforeLabels = snapshotCounts();
         const labelDispatches = dispatches();
         for (let i = 1; i <= 10; i += 1) {
-            act(() => pie?.groupLabelChange('completed', 'Done'.slice(0, i)));
+            act(() =>
+                pie?.groupLabelChange('completed', 'Completed!'.slice(0, i)),
+            );
         }
         await settle();
         const keystrokes = diffCounts(beforeLabels);
@@ -582,7 +590,7 @@ describe('VisualizationProvider render benchmark', () => {
         expect({ donut, keystrokes, afterDebounce, legend }).toEqual({
             donut: {
                 chartBody: 2,
-                displayPanel: 1,
+                displayPanel: 0,
                 host: 1,
                 layoutPanel: 1,
                 resultsOnly: 0,
@@ -592,29 +600,29 @@ describe('VisualizationProvider render benchmark', () => {
             },
             keystrokes: {
                 chartBody: 10,
-                displayPanel: 10,
-                host: 0,
-                layoutPanel: 10,
+                displayPanel: 0,
+                host: 10,
+                layoutPanel: 0,
                 resultsOnly: 0,
                 seriesPanel: 10,
                 servicesOnly: 0,
                 wholeContext: 10,
             },
             afterDebounce: {
-                chartBody: 11,
-                displayPanel: 11,
-                host: 1,
-                layoutPanel: 11,
+                chartBody: 10,
+                displayPanel: 0,
+                host: 10,
+                layoutPanel: 0,
                 resultsOnly: 0,
-                seriesPanel: 11,
+                seriesPanel: 10,
                 servicesOnly: 0,
-                wholeContext: 11,
+                wholeContext: 10,
             },
             legend: {
                 chartBody: 1,
                 displayPanel: 1,
                 host: 1,
-                layoutPanel: 1,
+                layoutPanel: 0,
                 resultsOnly: 0,
                 seriesPanel: 1,
                 servicesOnly: 0,

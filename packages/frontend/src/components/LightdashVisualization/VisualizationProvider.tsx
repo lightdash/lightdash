@@ -413,6 +413,7 @@ const VisualizationProvider: FC<
         () => ({
             minimal,
             pivotDimensions: validPivotDimensions,
+            initialPivotRows,
             resultsData,
             isLoading,
             apiErrorDetail,
@@ -420,9 +421,13 @@ const VisualizationProvider: FC<
             itemsMap,
             colorPalette,
             getGroupColor,
+            parameters,
+            unsavedMetricQuery,
+            tableCalculationsMetadata,
+            dashboardFilters,
+            invalidateCache,
             savedChartUuid,
             savedChartReference,
-            parameters,
             isDashboard,
             isEditMode,
             embeddedDashboardInteractivity,
@@ -433,6 +438,7 @@ const VisualizationProvider: FC<
         [
             minimal,
             validPivotDimensions,
+            initialPivotRows,
             resultsData,
             isLoading,
             apiErrorDetail,
@@ -440,9 +446,13 @@ const VisualizationProvider: FC<
             itemsMap,
             colorPalette,
             getGroupColor,
+            parameters,
+            unsavedMetricQuery,
+            tableCalculationsMetadata,
+            dashboardFilters,
+            invalidateCache,
             savedChartUuid,
             savedChartReference,
-            parameters,
             isDashboard,
             isEditMode,
             embeddedDashboardInteractivity,
@@ -452,12 +462,9 @@ const VisualizationProvider: FC<
         ],
     );
 
-    const renderState = ({
-        visualizationConfig,
-    }: {
-        visualizationConfig: VisualizationConfig;
-    }) => (
-        <StateContext.Provider value={state}>
+    // Stable across resizes and echoes so memoised adapters skip them
+    const renderState = useCallback(
+        ({ visualizationConfig }: { visualizationConfig: VisualizationConfig }) => (
             <VisualizationConfigProvider
                 visualizationConfig={visualizationConfig}
                 propChartConfig={chartConfig}
@@ -470,7 +477,17 @@ const VisualizationProvider: FC<
             >
                 {children}
             </VisualizationConfigProvider>
-        </StateContext.Provider>
+        ),
+        [
+            chartConfig,
+            itemsMap,
+            colorPalette,
+            colorMappings,
+            nullColor,
+            computedSeries,
+            isCalculateSeriesColorEnabled,
+            children,
+        ],
     );
 
     const renderAdapter = () => {
@@ -496,14 +513,7 @@ const VisualizationProvider: FC<
             case ChartType.PIE:
                 return (
                     <VisualizationPieConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
-                        initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
-                        colorPalette={colorPalette}
-                        tableCalculationsMetadata={tableCalculationsMetadata}
-                        parameters={parameters}
-                        unsavedMetricQuery={unsavedMetricQuery}
                     >
                         {renderState}
                     </VisualizationPieConfig>
@@ -636,7 +646,9 @@ const VisualizationProvider: FC<
         <Provider store={store} context={VisualizationStoreContext}>
             <ServicesContext.Provider value={services}>
                 <LayoutContext.Provider value={layout}>
-                    {renderAdapter()}
+                    <StateContext.Provider value={state}>
+                        {renderAdapter()}
+                    </StateContext.Provider>
                 </LayoutContext.Provider>
             </ServicesContext.Provider>
         </Provider>

@@ -16,6 +16,7 @@ import { type SeriesLike } from '../../hooks/useChartColorConfig/types';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
+import { type VisualizationInputs } from '../../features/visualization/store/inputs';
 import { type VisualizationConfig } from './types';
 
 export type EmbeddedDashboardInteractivity = {
@@ -54,25 +55,13 @@ export type VisualizationLayout = {
 };
 
 // Inputs: results, fields, colours and flags. Stable while a chart is edited.
-export type VisualizationState = {
+export type VisualizationState = VisualizationInputs & {
     minimal: boolean;
-    pivotDimensions: string[] | undefined;
-    resultsData:
-        | (InfiniteQueryResults & {
-              metricQuery?: MetricQuery;
-              fields?: ItemsMap;
-              resolvedTimezone?: string;
-          })
-        | undefined;
     isLoading: boolean;
-    columnOrder: string[];
-    itemsMap: ItemsMap | undefined;
     getGroupColor: (groupPrefix: string, groupName: string) => string;
-    colorPalette: string[];
     savedChartUuid?: string;
     savedChartReference?: SavedChartReference;
     apiErrorDetail?: ApiErrorDetail | null;
-    parameters?: ParametersValuesMap;
     isDashboard?: boolean;
     isEditMode?: boolean;
     embeddedDashboardInteractivity?: EmbeddedDashboardInteractivity;

@@ -263,6 +263,11 @@ export const selectChartConfig = createSelector(
     (unsavedChartVersion) => unsavedChartVersion.chartConfig,
 );
 
+export const selectChartType = createSelector(
+    [selectChartConfig],
+    (chartConfig) => chartConfig.type,
+);
+
 // Pivot config selector
 export const selectPivotConfig = createSelector(
     [selectUnsavedChartVersion],

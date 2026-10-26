@@ -127,14 +127,10 @@ export const isPieVisualizationConfig = (
     return visualizationConfig?.chartType === ChartType.PIE;
 };
 
-export type VisualizationConfigPieProps =
-    VisualizationConfigCommon<VisualizationConfigPie> & {
-        // TODO: shared prop once all visualizations are converted
-        itemsMap: ItemsMap | undefined;
-        colorPalette: string[];
-        tableCalculationsMetadata?: TableCalculationMetadata[];
-        unsavedMetricQuery?: MetricQuery;
-    };
+export type VisualizationConfigPieProps = Pick<
+    VisualizationConfigCommon<VisualizationConfigPie>,
+    'onChartConfigChange' | 'children'
+>;
 
 // Table
 

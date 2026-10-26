@@ -1,57 +1,28 @@
-import {
-    ChartType,
-    getDimensionsFromItemsMap,
-    getMetricsFromItemsMap,
-    getTableCalculationsFromItemsMap,
-    isNumericItem,
-} from '@lightdash/common';
-import { useEffect, useMemo, type FC } from 'react';
+import { ChartType } from '@lightdash/common';
+import { memo, useEffect, useMemo, type FC } from 'react';
+import { selectPieFieldPools } from '../../features/visualization/store';
 import usePieChartConfig from '../../hooks/usePieChartConfig';
 import {
-    type VisualizationConfigPieProps,
     type VisualizationConfigPie,
+    type VisualizationConfigPieProps,
 } from './types';
+import { useVisualizationInputSelector } from './useVisualizationContext';
 
 const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
-    resultsData,
-    initialChartConfig,
     onChartConfigChange,
-    itemsMap,
-    colorPalette,
     children,
-    tableCalculationsMetadata,
-    parameters,
-    unsavedMetricQuery,
 }) => {
-    const { dimensions, numericMetrics } = useMemo(() => {
-        const metrics = getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem);
-        const tableCalculations = getTableCalculationsFromItemsMap(itemsMap);
-        return {
-            dimensions: getDimensionsFromItemsMap(itemsMap ?? {}),
-            numericMetrics: { ...metrics, ...tableCalculations },
-        };
-    }, [itemsMap]);
-
-    const pieChartConfig = usePieChartConfig(
-        resultsData,
-        initialChartConfig,
-        itemsMap,
-        dimensions,
-        numericMetrics,
-        colorPalette,
-        tableCalculationsMetadata,
-        parameters,
-        unsavedMetricQuery,
-    );
+    const { dimensions, numericMetrics } =
+        useVisualizationInputSelector(selectPieFieldPools);
+    const pieChartConfig = usePieChartConfig();
 
     useEffect(() => {
-        if (!onChartConfigChange || !pieChartConfig.validConfig) return;
-
+        if (!onChartConfigChange) return;
         onChartConfigChange({
             type: ChartType.PIE,
             config: pieChartConfig.validConfig,
         });
-    }, [pieChartConfig, onChartConfigChange]);
+    }, [pieChartConfig.validConfig, onChartConfigChange]);
 
     const visualizationConfig: VisualizationConfigPie = useMemo(
         () => ({
@@ -66,4 +37,5 @@ const VisualizationPieConfig: FC<VisualizationConfigPieProps> = ({
     return children({ visualizationConfig });
 };
 
-export default VisualizationPieConfig;
+// Memoised so a resize or an echoed config does not rebuild the aggregate
+export default memo(VisualizationPieConfig);

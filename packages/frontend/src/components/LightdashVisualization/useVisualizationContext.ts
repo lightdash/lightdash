@@ -1,4 +1,8 @@
-import { useContext, useMemo, type Context } from 'react';
+import { useCallback, useContext, useMemo, type Context } from 'react';
+import {
+    useVisualizationSelector,
+    type VisualizationStoreState,
+} from '../../features/visualization/store';
 import {
     ConfigContext,
     LayoutContext,
@@ -33,6 +37,19 @@ export const useVisualizationLayout = (): VisualizationLayout =>
 /** Results, fields, colours and flags; does not re-render on an edit. */
 export const useVisualizationInputs = (): VisualizationState =>
     useRequiredContext(StateContext);
+
+/** Selects from the store with the inputs as the selector's second argument. */
+export const useVisualizationInputSelector = <T>(
+    selector: (state: VisualizationStoreState, inputs: VisualizationState) => T,
+): T => {
+    const inputs = useVisualizationInputs();
+    return useVisualizationSelector(
+        useCallback(
+            (state: VisualizationStoreState) => selector(state, inputs),
+            [selector, inputs],
+        ),
+    );
+};
 
 /** The editor's config and what derives from it; re-renders on every edit. */
 export const useVisualizationConfig = (): VisualizationConfig =>
