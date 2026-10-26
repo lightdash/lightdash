@@ -25,6 +25,7 @@ import {
     getBigqueryKeyfileCredentials,
     getBigqueryUnnestSql,
     getErrorMessage,
+    getWarehouseSignInRejection,
     getWarehouseTableType,
     Metric,
     MetricType,
@@ -509,16 +510,21 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         if (tokenError?.error !== 'invalid_grant') {
             return undefined;
         }
+        const rejection = getWarehouseSignInRejection(
+            tokenError.error,
+            tokenError.errorSubtype,
+        );
         const details = [
             tokenError.errorDescription
-                ? `invalid_grant: ${tokenError.errorDescription}`
-                : 'invalid_grant',
+                ? `${tokenError.error}: ${tokenError.errorDescription}`
+                : tokenError.error,
             ...(tokenError.errorSubtype ? [tokenError.errorSubtype] : []),
         ].join('; ');
 
         if (this.usesUserRefreshToken()) {
             return new BigqueryTokenError(
                 `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER} (${details}). Reconnect your BigQuery account in personal settings.`,
+                { rejection },
             );
         }
         return new WarehouseConnectionError(

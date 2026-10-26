@@ -37,6 +37,7 @@ import { redactCredentialError } from '../../logging/redactCredentialError';
 import { withCause } from '../../logging/withCause';
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import type {
     ConnectionBinding,
     ConnectionRouteWithOriginal,
@@ -52,10 +53,18 @@ import {
     isSnowflakeServiceAccountAuthError,
     isTrinoServiceAccountAuthError,
 } from '../../utils/aiServiceAccountErrors';
+import {
+    capturePersonalSignIn,
+    markPersonalSignInRejection,
+    personalSignIn,
+    type PersonalSignIn,
+    type PersonalSignInCredentials,
+} from '../../utils/personalSignIn';
 import { getWarehouseIdentityFingerprint } from '../../utils/queryResultProducer';
 import {
     attributeClientErrors,
     isWarehouseTokenError,
+    withPersonalSignInExpiry,
     withSharedSignInExpiry,
 } from '../../utils/sharedSignInExpiry';
 import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
@@ -192,6 +201,10 @@ type WarehouseClientFactoryDependencies = {
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
+    userWarehouseCredentialsModel: Pick<
+        UserWarehouseCredentialsModel,
+        'getSignInSnapshot' | 'markNeedsSignIn'
+    >;
     aiAccessService: AiAccessService;
     credentialSource: WarehouseCredentialSource;
     credentialResolvers: CredentialResolverRegistry;
@@ -221,6 +234,11 @@ export class WarehouseClientFactory {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly userWarehouseCredentialsModel: Pick<
+        UserWarehouseCredentialsModel,
+        'getSignInSnapshot' | 'markNeedsSignIn'
+    >;
+
     private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly aiAccessService: AiAccessService;
@@ -242,6 +260,7 @@ export class WarehouseClientFactory {
         this.credentialResolvers = deps.credentialResolvers;
         this.projectModel = deps.projectModel;
         this.featureFlagModel = deps.featureFlagModel;
+        this.userWarehouseCredentialsModel = deps.userWarehouseCredentialsModel;
         this.aiAccessService = deps.aiAccessService;
         this.credentialSource = deps.credentialSource;
         this.logger = deps.logger;
@@ -335,11 +354,37 @@ export class WarehouseClientFactory {
                           context.purpose,
                       ),
         };
-        return copyWarehouseCredentialVersions(
+        const personalOwner =
+            selectionSource.owner?.kind === 'user' &&
+            selectionSource.owner.purpose ===
+                UserWarehouseCredentialPurpose.DEFAULT &&
+            aiPlan === null &&
+            getPersonSignIn(credentials) !== null;
+        const existing = credentials as PersonalSignInCredentials;
+        const signIn =
+            personalOwner && credentials.type === WarehouseTypes.BIGQUERY
+                ? (existing[personalSignIn] ??
+                  (await capturePersonalSignIn(
+                      {
+                          featureFlagModel: this.featureFlagModel,
+                          userWarehouseCredentialsModel:
+                              this.userWarehouseCredentialsModel,
+                          logger: this.logger,
+                      },
+                      selectionSource.owner,
+                      credentials,
+                      context.organizationUuid,
+                  )))
+                : null;
+        const materialized =
             await this.credentialResolvers.resolveCredentialSelection(
                 selection,
                 legacyResolve,
-            ),
+            );
+        return copyWarehouseCredentialVersions(
+            personalOwner
+                ? { ...materialized, [personalSignIn]: signIn }
+                : materialized,
             credentials,
         );
     }
@@ -925,7 +970,20 @@ export class WarehouseClientFactory {
                 return withExecutionTags(
                     this.withSharedSignInAttribution(
                         ref.projectUuid,
-                        credentials,
+                        personalSignIn in warehouseCredentials
+                            ? ({
+                                  ...credentials,
+                                  [personalSignIn]:
+                                      getPersonSignIn(credentials)
+                                          ?.refreshToken ===
+                                      getPersonSignIn(warehouseCredentials)
+                                          ?.refreshToken
+                                          ? (
+                                                warehouseCredentials as PersonalSignInCredentials
+                                            )[personalSignIn]
+                                          : null,
+                              } as PersonalSignInCredentials)
+                            : credentials,
                         this.buildClient(
                             { ...credentials },
                             clientOptions,
@@ -955,14 +1013,19 @@ export class WarehouseClientFactory {
         options: WarehouseClientOptions,
         compileGroup?: WarehouseCompileGroup,
     ): WarehouseClient {
+        const { [personalSignIn]: _personal, ...clientCredentials } =
+            credentials as PersonalSignInCredentials;
         return compileGroup && credentials.type === WarehouseTypes.POSTGRES
             ? new ListedDatabasesPostgresWarehouseClient(
-                  credentials,
+                  clientCredentials as Extract<
+                      CreateWarehouseCredentials,
+                      { type: WarehouseTypes.POSTGRES }
+                  >,
                   compileGroup.listedDatabases,
                   compileGroup.onSkippedDatabase,
               )
             : this.projectModel.getWarehouseClientFromCredentials(
-                  credentials,
+                  clientCredentials,
                   options,
               );
     }
@@ -1014,10 +1077,15 @@ export class WarehouseClientFactory {
         const {
             [credentialResolution]: _resolution,
             [preparedCredentials]: _prepared,
+            [personalSignIn]: _personal,
             ...clientCredentials
-        } = credentials as MaterializedCredentials & PreparedCredentials;
+        } = credentials as MaterializedCredentials &
+            PreparedCredentials &
+            PersonalSignInCredentials;
         const sshTunnel = new SshTunnel(
-            _resolution || _prepared ? clientCredentials : credentials,
+            _resolution || _prepared || personalSignIn in credentials
+                ? clientCredentials
+                : credentials,
             tunnelOptions,
         );
         let constructingClient = false;
@@ -1262,6 +1330,24 @@ export class WarehouseClientFactory {
             );
             return attributed;
         }
+        if (personalSignIn in credentials) {
+            if (credentials.type !== WarehouseTypes.BIGQUERY) return client;
+            const attributed = attributeClientErrors(client, (error) =>
+                this.attributeSharedSignInExpiry(
+                    projectUuid,
+                    credentials,
+                    error,
+                    (credentials as PersonalSignInCredentials)[
+                        personalSignIn
+                    ] ?? null,
+                ),
+            );
+            this.clientOptions.set(
+                attributed,
+                this.clientOptions.get(client) ?? {},
+            );
+            return attributed;
+        }
         if (projectUuid === null || !getPersonSignIn(credentials))
             return client;
         const attributed = attributeClientErrors(client, (error) =>
@@ -1389,7 +1475,36 @@ export class WarehouseClientFactory {
         projectUuid: string | null,
         credentials: CreateWarehouseCredentials,
         error: unknown,
+        personal?: PersonalSignIn | null,
     ): Promise<never> {
+        if (personal !== undefined) {
+            const signIn = getPersonSignIn(credentials);
+            const enabled = await markPersonalSignInRejection(
+                {
+                    featureFlagModel: this.featureFlagModel,
+                    userWarehouseCredentialsModel:
+                        this.userWarehouseCredentialsModel,
+                    logger: this.logger,
+                },
+                personal,
+                error,
+                signIn?.refreshToken,
+            );
+            if (
+                enabled &&
+                personal &&
+                signIn &&
+                projectUuid !== null &&
+                isWarehouseTokenError(error)
+            ) {
+                throw withPersonalSignInExpiry(error, {
+                    projectUuid,
+                    provider: signIn.provider,
+                    userWarehouseCredentialsUuid: personal.snapshot.uuid,
+                });
+            }
+            throw error;
+        }
         const signIn = getPersonSignIn(credentials);
         if (projectUuid === null || !isWarehouseTokenError(error) || !signIn)
             throw error;

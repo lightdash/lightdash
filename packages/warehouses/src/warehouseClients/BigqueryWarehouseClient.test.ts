@@ -13,6 +13,7 @@ import {
     setCatalogTimestampDomain,
     WarehouseConnectionError,
     WarehouseQueryError,
+    WarehouseSignInRejection,
     type BigqueryProject,
     type CreateBigqueryCredentials,
     type WarehouseNestedColumnShape,
@@ -853,6 +854,93 @@ describe('BigqueryWarehouseClient Google OAuth token errors', () => {
             'Google rejected the BigQuery refresh token (invalid_grant: Token has been expired or revoked.; invalid_rapt). Reconnect your BigQuery account in personal settings.',
         );
     });
+
+    test.each([
+        ['invalid_grant', undefined, WarehouseSignInRejection.INVALID_GRANT],
+        [
+            'invalid_grant',
+            'invalid_rapt',
+            WarehouseSignInRejection.INVALID_RAPT,
+        ],
+        [
+            'invalid_grant',
+            'rapt_required',
+            WarehouseSignInRejection.RAPT_REQUIRED,
+        ],
+    ])(
+        'classifies the structured rejection %s / %s',
+        async (error, subtype, rejection) => {
+            const warehouse = createWarehouseRejectingQueries(
+                userCredentials,
+                createGaxiosError({ error: error!, error_subtype: subtype }),
+            );
+            await expect(executeAsyncQuery(warehouse)).rejects.toMatchObject({
+                data: { rejection },
+            });
+        },
+    );
+
+    test.each(
+        ['invalid_rapt', 'rapt_required'].flatMap((error) =>
+            ['project', 'personal', 'service-account'].flatMap((owner) =>
+                ['stream', 'async'].map((method) => ({ error, owner, method })),
+            ),
+        ),
+    )(
+        'keeps bare $error raw for $owner $method queries',
+        async ({ error, owner, method }) => {
+            const original = createGaxiosError({ error });
+            const warehouse = createWarehouseRejectingQueries(
+                owner === 'service-account'
+                    ? serviceAccountCredentials
+                    : {
+                          ...userCredentials,
+                          ...(owner === 'personal' && {
+                              userWarehouseCredentialsUuid: 'credential_a',
+                          }),
+                      },
+                original,
+            );
+            const query =
+                method === 'stream'
+                    ? warehouse.streamQuery('SELECT 1', vi.fn(), { tags: {} })
+                    : executeAsyncQuery(warehouse);
+            await expect(query).rejects.toBe(original);
+        },
+    );
+
+    test.each([500, 503])(
+        'does not classify a provider %s response',
+        async (status) => {
+            const original = createGaxiosError(
+                { error: 'invalid_grant' },
+                'unavailable',
+                status,
+            );
+            const warehouse = createWarehouseRejectingQueries(
+                userCredentials,
+                original,
+            );
+            await expect(executeAsyncQuery(warehouse)).rejects.toBe(original);
+        },
+    );
+
+    test.each([null, 'invalid_grant', {}, { error: 400 }, []])(
+        'keeps a malformed provider body untranslated: %j',
+        async (data) => {
+            const original = Object.assign(new Error('invalid_grant'), {
+                response: { status: 400, data },
+            });
+            const warehouse = createWarehouseRejectingQueries(
+                userCredentials,
+                original,
+            );
+            await expect(executeAsyncQuery(warehouse)).rejects.toBe(original);
+            await expect(
+                warehouse.streamQuery('SELECT 1', vi.fn(), { tags: {} }),
+            ).rejects.toBe(original);
+        },
+    );
 
     it('translates an invalid_grant rejection of a service account keyfile into a connection error', async () => {
         const warehouse = createWarehouseRejectingQueries(

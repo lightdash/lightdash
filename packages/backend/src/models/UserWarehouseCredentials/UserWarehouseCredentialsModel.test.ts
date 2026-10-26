@@ -55,6 +55,8 @@ const makeRow = (
     expires_at: null,
     project_uuid: null,
     purpose: UserWarehouseCredentialPurpose.DEFAULT,
+    needs_sign_in_at: null,
+    needs_sign_in_reason: null,
     project_name: null,
     project_type: null,
 });

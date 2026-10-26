@@ -744,6 +744,13 @@ apiV1Router.get(
     '/login/bigquery',
     storeOIDCRedirect,
     storeOIDCLinkIntent,
+    (req, res, next) => {
+        if ('personalCredentialUuid' in req.query) {
+            res.redirect(getOidcRedirectURL(false)(req));
+            return;
+        }
+        next();
+    },
     passport.authenticate('google', {
         scope: ['profile', 'email', 'https://www.googleapis.com/auth/bigquery'],
         accessType: 'offline',
@@ -830,6 +837,10 @@ apiV1Router.get(
 );
 
 apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
+    if (req.session.oauth && 'googlePersonalReconnect' in req.session.oauth) {
+        res.redirect(getOidcRedirectURL(false)(req));
+        return;
+    }
     if (req.session.oauth?.intent === 'link') {
         passport.authenticate(
             'google',
