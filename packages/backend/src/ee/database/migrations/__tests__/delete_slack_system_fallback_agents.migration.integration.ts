@@ -1,9 +1,12 @@
 import { DefaultSupportedDbtVersion, ProjectType } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { lightdashConfigMock } from '../../../../config/lightdashConfig.mock';
 import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../../../testing/migratedDatabase';
+import { AiAgentModel } from '../../../models/AiAgentModel';
+import { unusedAgentsSql } from '../../../models/ManagedAgentModelSql';
 import {
     down,
     up,
@@ -251,6 +254,57 @@ describe('delete Slack system fallback agents migration', () => {
             expect.stringContaining('Deleting 0 built-in'),
             [],
         );
+    });
+
+    it('keeps a system row written by an old pod after the migration out of every listing', async () => {
+        const { projectUuid } = await createProject('Old writer project');
+        const configured = await createAgent(
+            projectUuid,
+            'Configured agent',
+            false,
+        );
+
+        await up(database);
+
+        const oldWriterRow = await createAgent(
+            projectUuid,
+            'Lightdash Assistant',
+            true,
+        );
+        await database('ai_agent')
+            .whereIn('ai_agent_uuid', [configured, oldWriterRow])
+            .update({ created_at: database.raw("now() - interval '60 days'") });
+        const aiAgentModel = new AiAgentModel({
+            database,
+            lightdashConfig: lightdashConfigMock,
+        } as ConstructorParameters<typeof AiAgentModel>[0]);
+
+        const listed = (await aiAgentModel.findAllAgents({ organizationUuid }))
+            .map((agent) => agent.uuid)
+            .sort();
+        const forCode = (
+            await aiAgentModel.findAgentsForCode({
+                organizationUuid,
+                projectUuid,
+            })
+        )
+            .map((agent) => agent.uuid)
+            .sort();
+        const unused = await database.raw<{
+            rows: Array<{ agent_uuid: string }>;
+        }>(unusedAgentsSql(), [
+            30,
+            5,
+            projectUuid,
+            organizationUuid,
+            projectUuid,
+            30,
+        ]);
+
+        expect(listed).toContain(configured);
+        expect(listed).not.toContain(oldWriterRow);
+        expect(forCode).toEqual([configured]);
+        expect(unused.rows.map((row) => row.agent_uuid)).toEqual([configured]);
     });
 
     it('changes nothing when no fallback agents exist and cannot be rolled back', async () => {

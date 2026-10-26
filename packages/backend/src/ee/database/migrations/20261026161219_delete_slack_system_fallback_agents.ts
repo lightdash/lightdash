@@ -16,7 +16,6 @@ const LOG_PREFIX = '[20261026161219_delete_slack_system_fallback_agents]';
 
 type SystemAgentRow = {
     ai_agent_uuid: string;
-    name: string;
     organization_uuid: string;
     project_uuid: string;
 };
@@ -39,7 +38,6 @@ const selectSystemAgents = (knex: Knex) =>
         .where('is_system', true)
         .select<SystemAgentRow[]>(
             'ai_agent_uuid',
-            'name',
             'organization_uuid',
             'project_uuid',
         );

@@ -161,6 +161,9 @@ LIMIT ?;
  *
  * Parameters: window_days, min_prompts, project_uuid, organization_uuid,
  * project_uuid, limit
+ *
+ * TODO: drop the is_system exclusion with the column once no release that
+ * writes system agents (<= 3.60) can still be running during an upgrade.
  */
 export const unusedAgentsSql = () => `
 WITH params AS (
@@ -172,6 +175,7 @@ agents AS (
   SELECT a.ai_agent_uuid, a.name, a.created_at, a.admin_only
   FROM ai_agent a, params
   WHERE a.project_uuid = ?
+    AND a.is_system = false
     AND a.created_at <= params.window_start
 ),
 router_enabled AS (

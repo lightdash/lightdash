@@ -1018,6 +1018,9 @@ export class AiAgentModel {
                 `),
             } satisfies Record<keyof AiAgentSummary, unknown>)
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
+            // TODO: drop with the is_system column once no release that writes
+            // system agents (<= 3.60) can still be running during an upgrade.
+            .where(`${AiAgentTableName}.is_system`, false)
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`);
 
         if (filter?.projectType) {
@@ -1118,6 +1121,7 @@ export class AiAgentModel {
             })
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
             .where(`${AiAgentTableName}.project_uuid`, projectUuid)
+            .where(`${AiAgentTableName}.is_system`, false)
             .orderBy(`${AiAgentTableName}.slug`, 'asc');
 
         if ((slugs?.length ?? 0) > 0 || (agentUuids?.length ?? 0) > 0) {
