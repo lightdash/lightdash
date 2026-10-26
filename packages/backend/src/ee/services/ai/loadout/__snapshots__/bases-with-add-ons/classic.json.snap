@@ -14,7 +14,6 @@
         "mcp",
         "mcpInventory",
         "memories",
-        "previewDeploySetup",
         "projectContext",
         "pullRequests",
         "readAttachments",
@@ -73,7 +72,6 @@
         "runSql",
         "searchFieldValues",
         "searchSemanticLayer",
-        "setupPreviewDeploy",
         "syncDbtProject",
         "updateUserName"
     ],

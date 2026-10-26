@@ -135,14 +135,6 @@
             "reading-source-code"
         ]
     },
-    "previewDeploySetup": {
-        "description": "Set up preview deploys for the dbt project",
-        "addsTools": [
-            "setupPreviewDeploy"
-        ],
-        "addsSections": [],
-        "addsSkills": []
-    },
     "editProjectContext": {
         "description": "Change the project context pull request in review threads",
         "addsTools": [

@@ -113,10 +113,6 @@ export const AGENT_TOOL_CAPABILITIES = {
     runSql: [AgentCapability.RawSql],
     searchFieldValues: [AgentCapability.Query],
     searchSemanticLayer: [AgentCapability.ReadDiscover],
-    setupPreviewDeploy: [
-        AgentCapability.DeployUpload,
-        AgentCapability.DbtWriteback,
-    ],
     submitResearchReport: [AgentCapability.ContentWrite],
     submitWorkerFindings: [AgentCapability.ReadDiscover],
     syncDbtProject: [AgentCapability.DeployUpload],
@@ -535,7 +531,6 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiWritebackController.getAiWritebackRunStatus': [
         AgentCapability.ReadDiscover,
     ],
-    'AiWritebackController.getProjectCiStatus': [AgentCapability.ReadDiscover],
     'AiWritebackController.getPullRequestCiChecks': [
         AgentCapability.ReadDiscover,
     ],

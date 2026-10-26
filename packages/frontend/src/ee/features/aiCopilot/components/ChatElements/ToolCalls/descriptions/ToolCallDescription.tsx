@@ -442,7 +442,6 @@ export const ToolCallDescription: FC<{
         case 'editRepo':
         case 'updateUserName':
         case 'syncDbtProject':
-        case 'setupPreviewDeploy':
         case 'runSavedChart':
         case 'readPinnedThread':
         case 'readAttachments':

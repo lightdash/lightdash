@@ -38,7 +38,6 @@ import {
     McpDocumentRead,
     ParameterDefinitions,
     ParametersValuesMap,
-    PreviewDeploySetupResult,
     ProjectType,
     QueryExecutionContext,
     ReadContentType,
@@ -940,8 +939,6 @@ export type EditRepoFn = (args: {
     progressId?: string;
 }) => Promise<AiWritebackRunResult>;
 
-export type SetupPreviewDeployFn = () => Promise<PreviewDeploySetupResult>;
-
 /**
  * Run one read-only shell command (ls/cat/find/grep/head/wc) against a repo
  * virtual filesystem and return combined stdout. With no `target` this reads the
@@ -1024,14 +1021,5 @@ export type GetProjectInfoFn = () => Promise<{
         branch: string;
         projectSubPath: string;
         hostDomain: string | null;
-    } | null;
-    /**
-     * Whether the git-backed repo deploys Lightdash preview projects via GitHub
-     * Actions. Null when it can't be determined (not a git project, GitHub App
-     * not installed, or the host has no preview-deploy support).
-     */
-    previewDeployCi: {
-        hasPreviewDeployWorkflow: boolean;
-        workflowPath: string | null;
     } | null;
 }>;

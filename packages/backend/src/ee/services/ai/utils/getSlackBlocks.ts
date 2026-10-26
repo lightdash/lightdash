@@ -16,7 +16,6 @@ import {
     isAiSqlChartArtifactConfig,
     isComposerSlackImageVizConfig,
     isToolEditDbtProjectResult,
-    isToolSetupPreviewDeployResult,
     NotFoundError,
     parseVizConfig,
     SlackPrompt,
@@ -280,7 +279,6 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     editContent: 'Updating content',
     editDbtProject: 'Opening dbt project PR',
     editRepo: 'Opening repository PR',
-    setupPreviewDeploy: 'Preparing preview deploy',
     listKnowledgeDocuments: 'Checking project knowledge',
     getKnowledgeDocumentContent: 'Reading project knowledge',
     readPinnedThread: 'Reading pinned conversation',
@@ -1283,37 +1281,6 @@ export function getModernPullRequestCardBlocks(
                 }),
             );
             return;
-        }
-
-        if (
-            isToolSetupPreviewDeployResult(result) &&
-            result.metadata.status === 'success' &&
-            result.metadata.prUrl
-        ) {
-            const pr = parseGithubPrUrl(result.metadata.prUrl);
-            cards.push(
-                buildSlackCardBlock({
-                    blockId: `ai_agent_preview_pr_card_${result.uuid}`,
-                    title: `Opened preview deploy PR${
-                        pr?.number ? ` #${pr.number}` : ''
-                    }`,
-                    subtitle: pr?.repository,
-                    body: 'Adds the Lightdash preview-project GitHub Actions workflow.',
-                    subtext: 'Add the required GitHub secrets before merging.',
-                    actions: [
-                        {
-                            type: 'button',
-                            url: result.metadata.prUrl,
-                            style: 'primary',
-                            action_id: `actions.view_preview_deploy_pr_card_button_click.${index}`,
-                            text: {
-                                type: 'plain_text',
-                                text: 'PR',
-                            },
-                        },
-                    ],
-                }),
-            );
         }
     });
 

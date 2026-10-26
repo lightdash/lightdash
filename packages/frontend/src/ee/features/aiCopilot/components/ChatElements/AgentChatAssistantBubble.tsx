@@ -8,7 +8,6 @@ import {
     isToolEditDbtProjectResult,
     isToolEditRepoResult,
     isToolDataAppBuildResult,
-    isToolSetupPreviewDeployResult,
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
     type ToolGenerateDataAppOutput,
@@ -467,42 +466,20 @@ const AssistantBubbleContent: FC<{
     //     We re-shape to the structured `metadata` the card expects.
     const editDbtProjectResult: {
         metadata: ToolEditDbtProjectOutput['metadata'];
-        // setupPreviewDeploy reuses this card but its PR only adds the preview
-        // workflow — it never previews itself, so the card hides the preview
-        // affordance when this is true.
-        isPreviewDeploySetup: boolean;
     } | null = (() => {
-        // setupPreviewDeploy shares editDbtProject's output shape and the
-        // same PR-button card, so resolve either tool's result here.
         const writebackResult = message.toolResults.find(
             isToolEditDbtProjectResult,
         );
-        if (writebackResult)
-            return {
-                metadata: writebackResult.metadata,
-                isPreviewDeploySetup: false,
-            };
-        const setupResult = message.toolResults.find(
-            isToolSetupPreviewDeployResult,
-        );
-        if (setupResult)
-            return {
-                metadata: setupResult.metadata,
-                isPreviewDeploySetup: true,
-            };
+        if (writebackResult) return { metadata: writebackResult.metadata };
 
         const livePart = findLiveToolPart(streamingState?.parts, [
             'editDbtProject',
-            'setupPreviewDeploy',
         ]);
         const liveOutput = livePart?.toolResult as
             | ToolEditDbtProjectOutput
             | undefined;
         if (!liveOutput?.metadata) return null;
-        return {
-            metadata: liveOutput.metadata,
-            isPreviewDeploySetup: livePart?.toolName === 'setupPreviewDeploy',
-        };
+        return { metadata: liveOutput.metadata };
     })();
 
     // General coding-agent (editRepo) PR card metadata — resolved the same way
@@ -901,9 +878,6 @@ const AssistantBubbleContent: FC<{
                 <AiEditDbtProjectToolCall
                     metadata={editDbtProjectResult.metadata}
                     projectUuid={projectUuid}
-                    isPreviewDeploySetup={
-                        editDbtProjectResult.isPreviewDeploySetup
-                    }
                     agentUuid={agentUuid}
                     threadUuid={message.threadUuid}
                 />

@@ -368,11 +368,6 @@ import {
     toolSearchSemanticLayerOutputSchema,
 } from './toolSearchSemanticLayerArgs';
 import {
-    TOOL_SETUP_PREVIEW_DEPLOY_DESCRIPTION,
-    toolSetupPreviewDeployArgsSchema,
-    toolSetupPreviewDeployOutputSchema,
-} from './toolSetupPreviewDeployArgs';
-import {
     TOOL_SYNC_DBT_PROJECT_DESCRIPTION,
     toolSyncDbtProjectArgsSchema,
     toolSyncDbtProjectOutputSchema,
@@ -1382,20 +1377,6 @@ export const getPullRequestDiffToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolGetPullRequestDiffOutputSchema },
 });
 
-export const setupPreviewDeployToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'setupPreviewDeploy',
-    typeof toolSetupPreviewDeployArgsSchema,
-    typeof toolSetupPreviewDeployArgsSchema,
-    typeof toolSetupPreviewDeployOutputSchema
-> = defineTool({
-    name: 'setupPreviewDeploy',
-    title: 'Set up preview deploys',
-    description: TOOL_SETUP_PREVIEW_DEPLOY_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolSetupPreviewDeployArgsSchema,
-    agent: { outputSchema: toolSetupPreviewDeployOutputSchema },
-});
-
 export const runSavedChartToolDefinition: ToolDefinitionWithoutMcpOutput<
     'runSavedChart',
     typeof toolRunSavedChartArgsSchema,
@@ -2003,7 +1984,6 @@ type AgentToolDefinitionsByName = {
     listWorkstreams: typeof listWorkstreamsToolDefinition;
     closePullRequest: typeof closePullRequestToolDefinition;
     getPullRequestDiff: typeof getPullRequestDiffToolDefinition;
-    setupPreviewDeploy: typeof setupPreviewDeployToolDefinition;
     runSavedChart: typeof runSavedChartToolDefinition;
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
     describeWarehouseTable: typeof describeWarehouseTableToolDefinition;
@@ -2065,7 +2045,6 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listWorkstreams: listWorkstreamsToolDefinition,
     closePullRequest: closePullRequestToolDefinition,
     getPullRequestDiff: getPullRequestDiffToolDefinition,
-    setupPreviewDeploy: setupPreviewDeployToolDefinition,
     runSavedChart: runSavedChartToolDefinition,
     listWarehouseTables: listWarehouseTablesToolDefinition,
     describeWarehouseTable: describeWarehouseTableToolDefinition,
@@ -2134,7 +2113,6 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listWorkstreamsToolDefinition,
     closePullRequestToolDefinition,
     getPullRequestDiffToolDefinition,
-    setupPreviewDeployToolDefinition,
     runSavedChartToolDefinition,
     listWarehouseTablesToolDefinition,
     describeWarehouseTableToolDefinition,

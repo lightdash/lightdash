@@ -265,7 +265,6 @@ const makeService = ({
         aiAgentModel,
         documentService,
         featureFlagService,
-        previewDeploySetupService: {},
         shareService: {},
         userService: {},
         asyncQueryService,
@@ -6714,7 +6713,6 @@ test('gates effectful runtime operations before their implementations run', asyn
     for (const key of [
         'createScheduledDelivery',
         'syncDbtProject',
-        'setupPreviewDeploy',
         'generateDataApp',
         'updateUserName',
     ]) {

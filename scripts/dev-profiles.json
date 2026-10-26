@@ -37,7 +37,6 @@
             "flags": [
                 "ai-writeback",
                 "github-mcp-one-click",
-                "ai-preview-deploy-setup",
                 "homepage-builder"
             ],
             "orgSettings": {

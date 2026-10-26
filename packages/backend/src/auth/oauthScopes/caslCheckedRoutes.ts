@@ -102,7 +102,6 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'AiServiceAccountController.upsert',
     'AiWritebackController.closeWritebackPullRequest',
     'AiWritebackController.getAiWritebackRunStatus',
-    'AiWritebackController.getProjectCiStatus',
     'AiWritebackController.getPullRequestCiChecks',
     'AiWritebackController.getPullRequestDiff',
     'AiWritebackController.listProjectFiles',

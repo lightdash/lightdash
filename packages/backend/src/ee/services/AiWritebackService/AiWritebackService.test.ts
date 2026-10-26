@@ -2191,10 +2191,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         async (marked) => {
             const sandbox = fakeSandbox(0, true);
             fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const user = permittedUser();
             const userModel = {
-                findSessionUserAndOrgByUuid: vi
-                    .fn()
-                    .mockResolvedValue(permittedUser()),
+                findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(user),
                 findServiceAccountByUserUuid: vi.fn(),
             };
             const agentPermissionService = {
@@ -2204,9 +2203,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 assertOperationWithRequest: vi.fn(),
             };
             const featureFlagModel = { get: vi.fn() };
-            const featureFlagService = {
-                get: vi.fn().mockResolvedValue({ enabled: false }),
-            };
             const agentActionLogModel = { insert: vi.fn() };
             const runRow = {
                 status: 'pending',
@@ -2245,7 +2241,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 userModel,
                 agentPermissionService,
                 agentActionLogModel,
-                featureFlagService,
                 aiWritebackService,
                 aiAgentModel: {
                     findWebAppPrompt: vi.fn().mockResolvedValue({
@@ -2291,6 +2286,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 'prompt-1',
                 'tool-1',
                 expect.objectContaining({
+                    result: expect.not.stringContaining('setupPreviewDeploy'),
                     metadata: expect.objectContaining({
                         status: 'success',
                         prUrl: PR_7,
@@ -2304,7 +2300,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 userModel.findServiceAccountByUserUuid,
             ).not.toHaveBeenCalled();
             expect(featureFlagModel.get).not.toHaveBeenCalled();
-            expect(featureFlagService.get).toHaveBeenCalledTimes(1);
             expect(agentPermissionService.isManaged).toHaveBeenCalledTimes(1);
             expect(agentPermissionService.loadRequest).toHaveBeenCalledTimes(
                 marked ? 5 : 0,

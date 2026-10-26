@@ -129,13 +129,6 @@ export const ADD_ONS: Record<AddOnName, AddOnDefinition> = {
         section: { id: 'repoFs', documents: ['exploreRepo', 'discoverRepos'] },
         skills: ['reading-source-code'],
     },
-    previewDeploySetup: {
-        description: 'Set up preview deploys for the dbt project',
-        when: (input) => input.enablePreviewDeploySetup,
-        tools: ['setupPreviewDeploy'],
-        section: null,
-        skills: [],
-    },
     editProjectContext: {
         description:
             'Change the project context pull request in review threads',

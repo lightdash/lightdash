@@ -145,7 +145,6 @@ import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
-import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
 import { type SqlApprovalDependencies } from '../tools/sqlApprovalGate';
 import {
     buildSqlApprovalDecidedEvent,
@@ -946,7 +945,7 @@ export const buildDeepResearchExecutionContextSnapshot = (
         projectContextEnabled: args.projectContextEnabled,
         aiWritebackEnabled: args.enableAiWriteback,
         codingAgentEnabled: args.enableCodingAgent,
-        previewDeploySetupEnabled: args.enablePreviewDeploySetup,
+        previewDeploySetupEnabled: null,
         repoDiscoveryEnabled: args.enableRepoDiscovery,
         repoFsRoot: args.repoFsRoot,
         repoFsSupportsCodeSearch: args.repoFsSupportsCodeSearch,
@@ -2122,10 +2121,6 @@ export const getAgentTools = (
             getSyncDbtProject({
                 syncDbtProject: dependencies.syncDbtProject,
                 updateProgress: dependencies.updateProgress,
-            }),
-        setupPreviewDeploy: () =>
-            getSetupPreviewDeploy({
-                setupPreviewDeploy: dependencies.setupPreviewDeploy,
             }),
         exploreRepo: () =>
             getExploreRepo({ exploreRepo: dependencies.exploreRepo }),

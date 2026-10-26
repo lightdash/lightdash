@@ -14,7 +14,6 @@
         "mcp",
         "mcpInventory",
         "memories",
-        "previewDeploySetup",
         "projectContext",
         "pullRequests",
         "readAttachments",
@@ -70,7 +69,6 @@
         "runSavedChart",
         "searchFieldValues",
         "searchSemanticLayer",
-        "setupPreviewDeploy",
         "syncDbtProject",
         "updateUserName",
         "visualize"
