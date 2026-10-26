@@ -1,10 +1,17 @@
+import { type CustomVis } from '@lightdash/common';
 import { createSlice } from '@reduxjs/toolkit';
 import { editorCaseReducers } from './editorSlice';
 
-// ponytail: placeholder until the custom editor hook moves onto the store
-export type CustomEditorState = Record<string, never>;
+export type CustomEditorState = {
+    visSpec: string | undefined;
+    visSpecObject: CustomVis['spec'];
+};
 
-export const buildCustomEditorState = (): CustomEditorState => ({});
+// The hook's effects fill both from the chart config once mounted
+export const buildCustomEditorState = (): CustomEditorState => ({
+    visSpec: undefined,
+    visSpecObject: undefined,
+});
 
 const customEditorSlice = createSlice({
     name: 'customEditor',

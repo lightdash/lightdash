@@ -4,7 +4,15 @@ import {
     parseCustomVisualizationSpec,
     serializeCustomVisualizationSpec,
 } from '@lightdash/visualization/editor';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
+import {
+    buildCustomEditorState,
+    customEditorActions,
+    selectCustomEditor,
+    useEditorFieldSetter,
+    useEditorState,
+    type CustomEditorState,
+} from '../features/visualization/store';
 import { type InfiniteQueryResults } from './useQueryResults';
 
 export interface CustomVisualizationConfigAndData {
@@ -22,8 +30,19 @@ const useCustomVisualizationConfig = (
     chartConfig: CustomVis | undefined,
     resultsData: InfiniteQueryResults | undefined,
 ): CustomVisualizationConfigAndData => {
-    const [visSpec, setVisSpec] = useState<string | undefined>();
-    const [visSpecObject, setVisSpecObject] = useState<CustomVis['spec']>();
+    const { visSpec, visSpecObject } = useEditorState(
+        selectCustomEditor,
+        customEditorActions,
+        buildCustomEditorState,
+    );
+    const set = useEditorFieldSetter<CustomEditorState>(
+        selectCustomEditor,
+        customEditorActions.set,
+    );
+    const setVisSpec = useCallback(
+        (spec: string) => set('visSpec', spec),
+        [set],
+    );
 
     // Set initial value
     useEffect(() => {
@@ -31,17 +50,17 @@ const useCustomVisualizationConfig = (
             const serialized = serializeCustomVisualizationSpec(
                 chartConfig?.spec,
             );
-            if (serialized !== undefined) setVisSpec(serialized);
+            if (serialized !== undefined) set('visSpec', serialized);
         }
-    }, [chartConfig?.spec, visSpec]);
+    }, [chartConfig?.spec, visSpec, set]);
 
     // Update object when spec changes
     useEffect(() => {
         if (visSpec) {
             const parsed = parseCustomVisualizationSpec(visSpec);
-            if (parsed !== undefined) setVisSpecObject(parsed);
+            if (parsed !== undefined) set('visSpecObject', parsed);
         }
-    }, [visSpec]);
+    }, [visSpec, set]);
 
     const rows = useMemo(() => resultsData?.rows, [resultsData]);
 
