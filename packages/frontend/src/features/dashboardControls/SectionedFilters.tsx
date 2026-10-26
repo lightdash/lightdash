@@ -47,6 +47,7 @@ import {
     type FC,
     type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { v4 as uuidv4 } from 'uuid';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -896,47 +897,57 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
                     {pills}
                     {children}
                 </Box>
-                <DragOverlay>
-                    {draggedSection ? (
-                        <Group
-                            gap="xs"
-                            wrap="nowrap"
-                            className={classes.dragPreview}
-                        >
-                            <Text fz="sm" fw={600} truncate>
-                                {draggedSection.name}
-                            </Text>
-                        </Group>
-                    ) : isSelectionDragged ? (
-                        <Group
-                            gap="xs"
-                            wrap="nowrap"
-                            className={classes.dragPreview}
-                        >
-                            <MantineIcon icon={IconFilter} size={14} />
-                            <Text fz="xs" fw={500}>
-                                {selected.length} filters
-                            </Text>
-                        </Group>
-                    ) : (
-                        dragged && (
+                {/* On the body, so the bar's overflow doesn't clip the copy */}
+                {createPortal(
+                    <DragOverlay>
+                        {draggedSection ? (
                             <Group
                                 gap="xs"
                                 wrap="nowrap"
                                 className={classes.dragPreview}
                             >
-                                {draggedField ? (
-                                    <FieldIcon item={draggedField} size={14} />
-                                ) : (
-                                    <MantineIcon icon={IconFilter} size={14} />
-                                )}
-                                <Text fz="xs" fw={500} truncate>
-                                    {nameOf(dragged.rule.id)}
+                                <Text fz="sm" fw={600} truncate>
+                                    {draggedSection.name}
                                 </Text>
                             </Group>
-                        )
-                    )}
-                </DragOverlay>
+                        ) : isSelectionDragged ? (
+                            <Group
+                                gap="xs"
+                                wrap="nowrap"
+                                className={classes.dragPreview}
+                            >
+                                <MantineIcon icon={IconFilter} size={14} />
+                                <Text fz="xs" fw={500}>
+                                    {selected.length} filters
+                                </Text>
+                            </Group>
+                        ) : (
+                            dragged && (
+                                <Group
+                                    gap="xs"
+                                    wrap="nowrap"
+                                    className={classes.dragPreview}
+                                >
+                                    {draggedField ? (
+                                        <FieldIcon
+                                            item={draggedField}
+                                            size={14}
+                                        />
+                                    ) : (
+                                        <MantineIcon
+                                            icon={IconFilter}
+                                            size={14}
+                                        />
+                                    )}
+                                    <Text fz="xs" fw={500} truncate>
+                                        {nameOf(dragged.rule.id)}
+                                    </Text>
+                                </Group>
+                            )
+                        )}
+                    </DragOverlay>,
+                    document.body,
+                )}
                 {selected.length > 0 && !isEditing && (
                     <SelectionBar
                         count={selected.length}
