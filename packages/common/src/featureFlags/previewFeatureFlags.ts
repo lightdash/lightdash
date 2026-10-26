@@ -14,6 +14,8 @@ const PREVIEW_EXCLUDED_FEATURE_FLAGS: ReadonlySet<string> = new Set<string>([
     FeatureFlags.CalculateSeriesColor,
     // Needs per-org worker queues that previews don't run.
     FeatureFlags.ScheduledDeliveryPerOrgQueue,
+    // Opt-in latency experiment holds API connections and increases DB reads.
+    FeatureFlags.ComposerOptimizationQueryPushReadiness,
     // Changes the signup flow and needs SMTP for the email OTP. The register
     // page evaluates it anonymously, so an override can't switch it back off.
     FeatureFlags.NewOnboarding,

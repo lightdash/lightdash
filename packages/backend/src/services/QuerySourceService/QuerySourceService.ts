@@ -579,6 +579,15 @@ export class QuerySourceService extends BaseService {
         let running = runningUuids(results.statuses);
         if (!wait || !(waitMs > 0) || running.length === 0) return results;
 
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.ComposerOptimizationQueryPushReadiness,
+        });
+        if (!enabled) return results;
+
+        const initiallyRunning = running.length;
         while (running.length > 0 && Date.now() < deadline) {
             // eslint-disable-next-line no-await-in-loop
             const slept = await delay(
@@ -588,17 +597,18 @@ export class QuerySourceService extends BaseService {
             ).catch(() => false);
             // Disconnected client: nobody reads the response
             if (!slept) return results;
-            // One status-only read per tick; the final full read repeats all checks
+            // Only re-read running rows; the final full read repeats all checks
             // eslint-disable-next-line no-await-in-loop
-            const statuses = await this.queryHistoryModel.getStatuses(
-                running,
-                projectUuid,
-                account,
+            const histories = await Promise.all(
+                running.map((queryUuid) =>
+                    this.queryHistoryModel.get(queryUuid, projectUuid, account),
+                ),
             );
-            running = runningUuids(statuses);
+            running = runningUuids(histories);
         }
-        // Re-read on timeout too: a pending query may be executing by now
-        return this.readSourceQueryStatuses(account, projectUuid, queryUuids);
+        return running.length < initiallyRunning
+            ? this.readSourceQueryStatuses(account, projectUuid, queryUuids)
+            : results;
     }
 
     private async readSourceQueryStatuses(
