@@ -56,7 +56,8 @@ export type ControlsSidebarContextValue = {
     /** Closes any other control first, as "Done" would; a no-op on the open one. */
     open: (filterId: string) => void;
     /** Opens a placeholder control; the first mapping decides what it is. */
-    openNew: () => void;
+    /** A new filter, in a section when one is given */
+    openNew: (sectionId?: string) => void;
     /** Turns the placeholder into a filter control on the given field. */
     addFirstField: (field: DashboardFilterableField) => void;
     /**

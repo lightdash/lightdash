@@ -252,6 +252,7 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule }) => {
                         size="sm"
                         aria-label={getUiString('filters.rail.removeFilter')}
                         tooltip={getUiString('filters.rail.confirmRemove')}
+                        data-own-escape
                         onConfirm={removeFilter}
                     >
                         <MantineIcon icon={IconTrash} />
@@ -295,13 +296,19 @@ export const CONTROLS_RAIL_LAYOUT = classes.layout;
 
 type NameEdit = { id: string; isNew: boolean };
 
+// Mounted only while the rail is open, so `nameEdit`, the fold state and the
+// drag reset with it
 export const ControlSidebar: FC = () => {
+    const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
+    return isRailOpen ? <OpenControlSidebar /> : null;
+};
+
+const OpenControlSidebar: FC = () => {
     const filterId = useControlsSidebarSelector(
         (c) => c.editing?.filterId ?? null,
     );
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const isRailOpen = useControlsSidebarSelector((c) => c.isRailOpen);
     const open = useControlsSidebarSelector((c) => c.open);
     const setHoveredFilterId = useControlsSidebarSelector(
         (c) => c.setHoveredFilterId,
@@ -381,7 +388,6 @@ export const ControlSidebar: FC = () => {
         document.querySelector<HTMLElement>(focusAfter.current)?.focus();
         focusAfter.current = null;
     });
-    if (!isRailOpen) return null;
     const sections = nameEdit?.isNew
         ? [...controlSections, { id: nameEdit.id, name: '' }]
         : controlSections;
@@ -480,8 +486,16 @@ export const ControlSidebar: FC = () => {
         setHaveFiltersChanged(true);
     };
 
-    const removeSection = (sectionId: string, hasMembers: boolean) => {
-        focusAfter.current = NEW_SECTION_BUTTON;
+    const removeSection = (
+        sectionId: string,
+        hasMembers: boolean,
+        holdsEditor: boolean,
+    ) => {
+        // The menu button is going away: focus goes to the expanded filter's
+        // label when the section held it, else to the header's "Add"
+        focusAfter.current = holdsEditor
+            ? '[data-controls-label]'
+            : NEW_SECTION_BUTTON;
         dispatch(dashboardEditActions.removeControlSection(sectionId));
         if (!hasMembers) return;
         setDashboardFilters((filters) =>
@@ -606,14 +620,32 @@ export const ControlSidebar: FC = () => {
             </SortableRow>
         );
     };
-    // A placeholder is not in the dashboard filters yet: it comes last among
-    // the unsectioned rows. One keyed list, so the editor keeps its state
-    // when its rule joins them
+    // A placeholder is not in the dashboard filters yet: it comes last in its
+    // section, or among the unsectioned rows
     const isListed =
         editor === null ||
         grouped.some(({ rules }) =>
             rules.some(({ rule }) => rule.id === filterId),
         );
+    const editorSectionId =
+        !isListed &&
+        editingRule?.sectionId !== undefined &&
+        sectionIds.has(editingRule.sectionId)
+            ? editingRule.sectionId
+            : null;
+    const unlistedEditor = (sectionId: string | null) =>
+        isListed || editorSectionId !== sectionId
+            ? []
+            : sectionId === null
+              ? [editor]
+              : [
+                    <Box
+                        key={`placeholder:${filterId}`}
+                        className={classes.sectionRow}
+                    >
+                        {editor}
+                    </Box>,
+                ];
     // What is on screen: the sortable ids must not name an unrendered row
     const listed = grouped.map(({ section, rules }) => {
         const isCollapsed =
@@ -622,10 +654,7 @@ export const ControlSidebar: FC = () => {
             section,
             rules,
             isCollapsed,
-            // A collapsed section still shows the filter being edited
-            shown: isCollapsed
-                ? rules.filter(({ rule }) => rule.id === filterId)
-                : rules,
+            shown: isCollapsed ? [] : rules,
         };
     });
     const sortableIds = listed.flatMap(({ section, shown }) => [
@@ -633,10 +662,15 @@ export const ControlSidebar: FC = () => {
         ...shown.map(({ rule }) => rule.id),
     ]);
     const body = listed.flatMap(({ section, rules, isCollapsed, shown }) => {
-        if (section === null) {
-            const rows = shown.map((rule) => renderRow(rule, false, false));
-            return isListed ? rows : [...rows, editor];
-        }
+        if (section === null)
+            return [
+                ...shown.map((rule) => renderRow(rule, false, false)),
+                ...unlistedEditor(null),
+            ];
+        // Folding a section folds the filter expanded in it first
+        const holdsEditor =
+            editorSectionId === section.id ||
+            rules.some(({ rule }) => rule.id === filterId);
         return [
             <SectionHeader
                 key={`section:${section.id}`}
@@ -647,19 +681,24 @@ export const ControlSidebar: FC = () => {
                 isNew={nameEdit?.id === section.id && nameEdit.isNew}
                 isDragDisabled={isDragDisabled}
                 isReadOnly={isViewer}
-                onToggle={() =>
+                onToggle={() => {
+                    if (!isCollapsed && holdsEditor) collapse();
                     setCollapsedIds((ids) =>
                         ids.includes(section.id)
                             ? ids.filter((id) => id !== section.id)
                             : [...ids, section.id],
-                    )
-                }
+                    );
+                }}
                 onRename={() => setNameEdit({ id: section.id, isNew: false })}
+                onAddFilter={() => openNew(section.id)}
                 onCommitName={commitName}
                 onCancelName={cancelName}
-                onRemove={() => removeSection(section.id, rules.length > 0)}
+                onRemove={() =>
+                    removeSection(section.id, rules.length > 0, holdsEditor)
+                }
             />,
             ...shown.map((rule) => renderRow(rule, isViewer, true)),
+            ...(isCollapsed ? [] : unlistedEditor(section.id)),
         ];
     });
     // A compact copy under the pointer; the source row stays in place, dimmed
@@ -715,6 +754,7 @@ export const ControlSidebar: FC = () => {
                 isUnsectionTargetDisabled={
                     draggedId !== null && sectionIds.has(draggedId)
                 }
+                isDragging={draggedId !== null}
                 onCancel={editor !== null && isPlaceholder ? discard : null}
                 onAddFilter={
                     canAddFilters && !(isViewer && isAddFilterDisabled)

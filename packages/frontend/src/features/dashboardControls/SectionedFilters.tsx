@@ -35,7 +35,7 @@ type CapsuleProps = {
     popover: PillPopoverState;
 };
 
-/** A section with more members than this on the tab starts folded */
+/** A section with more members than this (on any tab) starts folded */
 const FOLDED_BY_DEFAULT_ABOVE = 6;
 
 const SectionGroup: FC<CapsuleProps> = ({
@@ -52,7 +52,7 @@ const SectionGroup: FC<CapsuleProps> = ({
     return (
         <Box className={classes.capsule} data-folded={!isOpen || undefined}>
             <UnstyledButton
-                className={classes.toggle}
+                className={`${classes.toggle} mantine-focus-auto`}
                 aria-expanded={isOpen}
                 aria-describedby={isOpen ? undefined : summaryId}
                 onClick={onToggle}
@@ -102,11 +102,6 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
     const [openPopoverId, setOpenPopoverId] = useState<string>();
     const onPopoverClose = useCallback(() => setOpenPopoverId(undefined), []);
-    const popover: PillPopoverState = {
-        openPopoverId,
-        onPopoverOpen: setOpenPopoverId,
-        onPopoverClose,
-    };
     const sections = useDashboardSelector(selectControlSections);
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const isLoading = useDashboardContext(
@@ -139,9 +134,30 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                       );
                   return visibleRules.length === 0
                       ? []
-                      : [{ section, visibleRules }];
+                      : [{ section, rules, visibleRules }];
               },
           );
+    const isOpen = (section: DashboardControlSection, total: number) =>
+        !(total > FOLDED_BY_DEFAULT_ABOVE) !== flippedIds.has(section.id);
+    // A popover in a folded or hidden section is closed with it
+    const sectionOfOpenPopover = groupRulesBySection(
+        dashboardFilters,
+        sections,
+    ).find(({ rules }) => rules.some(({ rule }) => rule.id === openPopoverId));
+    const isPopoverShown =
+        openPopoverId === undefined ||
+        sectionOfOpenPopover === undefined ||
+        sectionOfOpenPopover.section === null ||
+        groups.some(
+            ({ section, rules }) =>
+                section.id === sectionOfOpenPopover.section?.id &&
+                isOpen(section, rules.length),
+        );
+    const popover: PillPopoverState = {
+        openPopoverId: isPopoverShown ? openPopoverId : undefined,
+        onPopoverOpen: setOpenPopoverId,
+        onPopoverClose,
+    };
 
     return (
         <>
@@ -151,15 +167,12 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                 sectionId={null}
                 popover={popover}
             />
-            {groups.map(({ section, visibleRules }) => (
+            {groups.map(({ section, rules, visibleRules }) => (
                 <SectionGroup
                     key={section.id}
                     section={section}
                     visibleRules={visibleRules}
-                    isOpen={
-                        visibleRules.length <= FOLDED_BY_DEFAULT_ABOVE !==
-                        flippedIds.has(section.id)
-                    }
+                    isOpen={isOpen(section, rules.length)}
                     onToggle={() => toggle(section.id)}
                     activeTabUuid={activeTabUuid}
                     popover={popover}

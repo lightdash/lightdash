@@ -475,6 +475,55 @@ describe('ControlsSidebarProvider', () => {
         expect(latest.changed).toBe(false);
     });
 
+    it('Add from a section opens the placeholder in it, kept once a field is picked', () => {
+        const { result } = setup();
+        act(() => {
+            currentStore.dispatch(
+                dashboardEditActions.syncControlSections([
+                    { id: 's', name: 'Dates' },
+                ]),
+            );
+        });
+        act(() => result.current.openNew('s'));
+        expect(result.current.editingRule?.sectionId).toBe('s');
+        // Asked for again from another section, the untouched one moves
+        act(() => result.current.openNew('t'));
+        expect(result.current.editingRule?.sectionId).toBe('t');
+        act(() => result.current.openNew('s'));
+
+        act(() => result.current.addFirstField(statusField));
+        expect(latest.filters.dimensions[2].sectionId).toBe('s');
+    });
+
+    it('drops a section that is gone by the time the first field is picked', () => {
+        const { result } = setup();
+        act(() => result.current.openNew('gone'));
+        act(() => result.current.addFirstField(statusField));
+        expect('sectionId' in latest.filters.dimensions[2]).toBe(false);
+    });
+
+    it('does not count a move between sections as an edit, and Discard keeps it', () => {
+        const { result } = setup();
+        act(() => result.current.open('a'));
+        writeOutsideTheEditor((filters) => ({
+            ...filters,
+            dimensions: filters.dimensions.map((r) =>
+                r.id === 'a' ? { ...r, sectionId: 's' } : r,
+            ),
+        }));
+        expect(result.current.isDirty).toBe(false);
+
+        const edited = result.current.editingRule;
+        if (!edited) throw new Error('expected a rule');
+        act(() => result.current.updateFilter({ ...edited, values: ['9'] }));
+        expect(result.current.isDirty).toBe(true);
+        act(() => result.current.discard());
+        expect(latest.filters.dimensions[0]).toEqual({
+            ...initialFilters.dimensions[0],
+            sectionId: 's',
+        });
+    });
+
     it('closing a placeholder discards it', () => {
         const { result } = setup();
         act(() => result.current.openNew());

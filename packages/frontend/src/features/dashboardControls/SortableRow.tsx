@@ -66,6 +66,7 @@ export const SortableRow: FC<Props> = ({
                 <Box className={classes.rowRemove}>
                     <ConfirmDeleteButton
                         size="sm"
+                        data-own-escape
                         aria-label={getUiString('filters.rail.removeFilter')}
                         tooltip={getUiString('filters.rail.confirmRemove')}
                         onConfirm={onRemove}

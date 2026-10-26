@@ -8,6 +8,7 @@ import { ActionIcon, Box, Menu, Text, TextInput } from '@mantine/core';
 import {
     IconChevronRight,
     IconDots,
+    IconFilterPlus,
     IconGripVertical,
     IconPencil,
     IconTrash,
@@ -93,6 +94,8 @@ type Props = {
     onRename: () => void;
     onCommitName: (name: string) => void;
     onCancelName: () => void;
+    /** A new filter in this section. */
+    onAddFilter: () => void;
     onRemove: () => void;
 };
 
@@ -109,6 +112,7 @@ export const SectionHeader: FC<Props> = ({
     onRename,
     onCommitName,
     onCancelName,
+    onAddFilter,
     onRemove,
 }) => {
     const {
@@ -160,7 +164,7 @@ export const SectionHeader: FC<Props> = ({
                         className={classes.chevron}
                     />
                 </ActionIcon>
-                {isEditingName ? (
+                {isEditingName && !isReadOnly ? (
                     <SectionNameInput
                         name={section.name}
                         onCommit={onCommitName}
@@ -194,6 +198,18 @@ export const SectionHeader: FC<Props> = ({
                             </ActionIcon>
                         </Menu.Target>
                         <Menu.Dropdown>
+                            <Menu.Item
+                                fz="xs"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconFilterPlus}
+                                        size={14}
+                                    />
+                                }
+                                onClick={onAddFilter}
+                            >
+                                Add filter
+                            </Menu.Item>
                             <Menu.Item
                                 fz="xs"
                                 leftSection={

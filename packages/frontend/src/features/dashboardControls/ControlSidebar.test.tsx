@@ -1558,6 +1558,212 @@ describe('ControlSidebar', () => {
             expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
         });
 
+        it('lists "Add filter" first in the section menu, opening a new filter in it', async () => {
+            const openNew = vi.fn();
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                isSidebarOpen: false,
+                openNew,
+            });
+            renderWithProviders(<ControlSidebar />, sectioned());
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            const items = await screen.findAllByRole('menuitem');
+            expect(items.map((item) => item.textContent)).toEqual([
+                'Add filter',
+                'Rename',
+                'Remove section',
+            ]);
+            await userEvent.click(items[0]);
+            expect(openNew).toHaveBeenCalledWith('section-a');
+        });
+
+        it('lists a new filter under its section, and an emptied one where it was', () => {
+            setSidebar({
+                isPlaceholder: true,
+                editingRule: makeRule({
+                    id: 'new',
+                    target: { fieldId: '', tableName: '' },
+                    sectionId: 'section-a',
+                }),
+                editing: { filterId: 'new' },
+            });
+            const { rerender } = renderWithProviders(
+                <ControlSidebar />,
+                sectioned(),
+            );
+            const order = () =>
+                [
+                    ...document.querySelectorAll(
+                        '[data-controls-row], [data-controls-section], [data-controls-start]',
+                    ),
+                ].map(
+                    (node) =>
+                        node.getAttribute('data-controls-row') ??
+                        node.getAttribute('data-controls-section') ??
+                        'editor',
+                );
+            expect(order()).toEqual([
+                'filter-1',
+                'filter-4',
+                'section-a',
+                'filter-3',
+                'editor',
+                'section-b',
+                'filter-2',
+            ]);
+            expect(
+                screen
+                    .getByTestId('fields-and-tiles')
+                    .closest('[class*="sectionRow"]'),
+            ).not.toBeNull();
+
+            // An existing filter that lost its field keeps its section too
+            setSidebar({
+                isNew: false,
+                isPlaceholder: true,
+                editingRule: makeRule({
+                    id: 'filter-3',
+                    target: { fieldId: '', tableName: '' },
+                    sectionId: 'section-a',
+                }),
+                editing: { filterId: 'filter-3' },
+            });
+            rerender(<ControlSidebar />);
+            expect(order()).toEqual([
+                'filter-1',
+                'filter-4',
+                'section-a',
+                'editor',
+                'section-b',
+                'filter-2',
+            ]);
+            // A placeholder whose section is gone lists with the unsectioned rows
+            setSidebar({
+                isPlaceholder: true,
+                editingRule: makeRule({
+                    id: 'new',
+                    target: { fieldId: '', tableName: '' },
+                    sectionId: 'gone',
+                }),
+                editing: { filterId: 'new' },
+            });
+            rerender(<ControlSidebar />);
+            expect(order().slice(0, 3)).toEqual([
+                'filter-1',
+                'filter-4',
+                'editor',
+            ]);
+        });
+
+        it('folds the expanded filter before collapsing its section', () => {
+            const { collapse } = setSidebar({
+                isNew: false,
+                editing: { filterId: 'filter-3' },
+                editingRule: makeRule({
+                    id: 'filter-3',
+                    label: 'Created',
+                    sectionId: 'section-a',
+                }),
+            });
+            const { rerender } = renderWithProviders(
+                <ControlSidebar />,
+                sectioned(),
+            );
+            fireEvent.click(
+                screen.getByRole('button', {
+                    name: 'Collapse section Regions',
+                }),
+            );
+            expect(collapse).not.toHaveBeenCalled();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Collapse section Dates' }),
+            );
+            expect(collapse).toHaveBeenCalledTimes(1);
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                isSidebarOpen: false,
+            });
+            rerender(<ControlSidebar />);
+            expect(
+                screen.queryByLabelText('Filter label'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: /^Created/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                document.querySelector('[data-controls-section="section-a"]'),
+            ).toHaveTextContent(/^Dates1 filter$/);
+        });
+
+        it('removing the section of the expanded filter leaves focus on its label', async () => {
+            setSidebar({
+                isNew: false,
+                editing: { filterId: 'filter-3' },
+                editingRule: makeRule({
+                    id: 'filter-3',
+                    label: 'Created',
+                    sectionId: 'section-a',
+                }),
+            });
+            renderWithProviders(<ControlSidebar />, sectioned());
+            const label = screen.getByLabelText('Filter label');
+            expect(label).toHaveFocus();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            fireEvent.click(
+                await screen.findByRole('menuitem', { name: 'Remove section' }),
+            );
+            expect(label).toBeInTheDocument();
+            expect(label).toHaveFocus();
+        });
+
+        it('forgets a half-named section and a fold once the rail has closed', async () => {
+            closedRail();
+            const { rerender } = renderWithProviders(
+                <ControlSidebar />,
+                sectioned(),
+            );
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Collapse section Dates' }),
+            );
+            await newSection();
+            expect(screen.getByLabelText('Section name')).toBeInTheDocument();
+
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                isSidebarOpen: false,
+                isRailOpen: false,
+            });
+            rerender(<ControlSidebar />);
+            closedRail();
+            rerender(<ControlSidebar />);
+            expect(
+                screen.queryByLabelText('Section name'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: /^Created/ }),
+            ).toBeVisible();
+        });
+
+        it('lets Escape disarm a row remove without reaching the rail', () => {
+            closedRail();
+            renderWithProviders(<ControlSidebar />, sectioned());
+            const remove = screen.getAllByRole('button', {
+                name: 'Remove filter',
+            })[0];
+            expect(remove).toHaveAttribute('data-own-escape');
+            fireEvent.click(remove);
+            expect(remove).toHaveAttribute('aria-pressed', 'true');
+            fireEvent.keyDown(remove, { key: 'Escape' });
+            expect(remove).toHaveAttribute('aria-pressed', 'false');
+        });
+
         it('offers no grip while a section is being named', async () => {
             closedRail();
             renderWithProviders(<ControlSidebar />, sectioned());

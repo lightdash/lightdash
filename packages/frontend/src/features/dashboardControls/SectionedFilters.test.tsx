@@ -6,7 +6,7 @@ import {
     type DashboardFilterableField,
     type DashboardTile,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -123,6 +123,11 @@ const renderSectioned = (
     const store = createDashboardTestStore({
         dashboardFilters: { dimensions, metrics: [], tableCalculations: [] },
     });
+    const onTab = (tab: string | undefined) => (
+        <DashboardStoreTestProvider store={store}>
+            <SectionedFilters activeTabUuid={tab} />
+        </DashboardStoreTestProvider>
+    );
     seedDashboardEditState(store, {
         dashboard: {
             config: {
@@ -139,11 +144,11 @@ const renderSectioned = (
             { uuid: 'tab-2', name: 'Tab 2', order: 1 },
         ],
     });
-    return renderWithProviders(
-        <DashboardStoreTestProvider store={store}>
-            <SectionedFilters activeTabUuid={activeTabUuid} />
-        </DashboardStoreTestProvider>,
-    );
+    const result = renderWithProviders(onTab(activeTabUuid));
+    return {
+        ...result,
+        switchTab: (tab: string | undefined) => result.rerender(onTab(tab)),
+    };
 };
 
 describe('SectionedFilters', () => {
@@ -190,6 +195,54 @@ describe('SectionedFilters', () => {
             'tab-2',
         );
         expect(document.querySelectorAll('[class*="capsule"]')).toHaveLength(1);
+    });
+
+    it('folds by its member count, not the tab, so a flip holds across tabs', () => {
+        const members = [
+            ...Array.from({ length: 5 }, (_, i) =>
+                rule(`only-one-${i}`, 'a', onTabOne),
+            ),
+            rule('both-1', 'a'),
+            rule('both-2', 'a'),
+        ];
+        const { switchTab } = renderSectioned(members, 'tab-1');
+        const toggle = () => screen.getByRole('button', { name: /^Dates/ });
+        expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.click(toggle());
+        expect(toggle()).toHaveAttribute('aria-expanded', 'true');
+
+        // Two visible here, still seven members: it stays as flipped
+        switchTab('tab-2');
+        expect(toggle()).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('closes a pill popover when its section folds or leaves the tab', async () => {
+        // The mock opens the popover of a pill named after its section
+        const { switchTab } = renderSectioned(
+            [rule('a', 'a', onTabOne), rule('b', 'b')],
+            'tab-1',
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'open a' }));
+        expect(screen.getByTestId('pills-unsectioned')).toHaveAttribute(
+            'data-popover',
+            'a',
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Dates' }));
+        expect(screen.getByTestId('pills-unsectioned')).not.toHaveAttribute(
+            'data-popover',
+        );
+
+        await userEvent.click(screen.getByRole('button', { name: 'Dates' }));
+        await userEvent.click(screen.getByRole('button', { name: 'open a' }));
+        expect(screen.getByTestId('pills-b')).toHaveAttribute(
+            'data-popover',
+            'a',
+        );
+        // Section a is not on this tab: its popover goes with it
+        switchTab('tab-2');
+        expect(screen.getByTestId('pills-b')).not.toHaveAttribute(
+            'data-popover',
+        );
     });
 
     it('starts folded above six members on the tab and open at six', () => {

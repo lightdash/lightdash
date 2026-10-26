@@ -411,7 +411,10 @@ In `FilterConfiguration/`:
   putting it back removed the rule's last tile entry (`setTileField` then
   drops the key).
   `isDirty`, which shows Discard, also counts the other rules the
-  editor wrote (`haveOtherFilterRulesChanged` over `touchedFilterIds`).
+  editor wrote (`haveOtherFilterRulesChanged` over `touchedFilterIds`). It
+  ignores `sectionId`: which section a rule sits in is the rail's doing,
+  never an edit, and `restoreFilterRule` keeps the section the rule is in
+  now (so Discard never writes a removed section back).
 - `isSidebarOpen` is derived: a control is being edited and its rule is
   still in the dashboard filters. A rule that something else removed ends
   the edit at once and the rail stays on its rows; the next `open` or
@@ -425,7 +428,9 @@ In `FilterConfiguration/`:
   control clear the waiting fields. `close()` sends focus back to the bar
   once the rail has left the page (so do Done, the X, Escape and the header's
   Save, which all go through it): to the control's pill when it is still
-  there and not disabled (a fields refetch disables it), else to "Add".
+  there and not disabled (a fields refetch disables it), else to "Add":
+  the bar's, or the rail header's `[data-controls-new-section]` while the
+  rail is open (the bar's is behind the strip then).
   `collapse()`, `discard()` and `removeFilter()` keep the rail (unless it
   would have no rows), so focus goes
   to the filter's row (`data-controls-row`, set by `FilterRow`) once the edit
@@ -456,8 +461,11 @@ In `FilterConfiguration/`:
   open (a filter expanded or not), so one press does one thing. In order: an open list, menu or popover
   (`aria-expanded="true"` on its target, or `data-expanded` on a Mantine
   combobox target) or a modal owns the press; an input
-  marked `data-own-escape` owns it (nothing carries it today); a clicked field
-  is unclicked;
+  (or anything inside one, `closest`) marked `data-own-escape` owns it: the
+  section name input, the grips, the row and head remove buttons, which
+  only disarm; a drag owns it too (`data-controls-dragging` on the rail
+  root while `draggedId` is set, dnd-kit cancels on its own listener); a
+  clicked field is unclicked;
   otherwise, with focus inside the editor (`data-controls-editor` on
   `EditorShell`), the focused input is blurred so its label commits and the
   rail closes as the X does. From the page, Escape never closes.
@@ -1066,7 +1074,8 @@ the language map, as tab names are.
 - Rail: unsectioned rows first with no header, then each section as a
   `SectionHeader` label row on the card surface, no fill (grip, chevron,
   the name in normal case, "· N filters" in `xs` dimmed right after it, the
-  menu with "Rename" and "Remove section" at the far right on hover) with a
+  menu with "Add filter" (`openNew(section.id)`), "Rename" and "Remove
+  section" at the far right on hover) with a
   hairline above it, none above the first thing in the list
   (`.body > .sectionHeader:first-child`); its rows are indented one `md`
   further than the unsectioned ones (`.sectionRow`, also on a viewer's
@@ -1082,9 +1091,13 @@ the language map, as tab names are.
   compact (32px, `xs` dimmed, name `fw` 500, 12px chevron), inset to the
   editor's padding with one hairline above the pair. No uppercase or
   letter-spaced labels anywhere. There are no drop zones: nothing mounts during
-  a drag. Collapsing is local state keyed by section id and still shows the
-  filter being edited. A placeholder
-  comes last among the unsectioned rows. The header's strings go through
+  a drag. Collapsing is local state keyed by section id; collapsing the
+  section that holds the expanded filter calls `collapse()` first, so
+  nothing expanded is ever inside a collapsed section. A placeholder (a new
+  filter, or an existing one that lost its field) comes last in its
+  section when it has a live `sectionId`, else last among the unsectioned
+  rows; `writeFirstRule` drops a `sectionId` whose section is gone before
+  the rule is written. The header's strings go through
   `useUiStrings` (`filters.rail.sectionCount.*` via `formatSectionCount`,
   `untitledSection`, `collapseSection`, `expandSection`), since a viewer
   sees it too.
@@ -1098,13 +1111,16 @@ the language map, as tab names are.
   (`collapse()`, as `openNew` does; a new filter with no field yet stays
   open, since folding it would drop it and the rail) and opens a section header with its name
   input, held only in the rail's `nameEdit` state until a name is committed
-  (Enter or blur with a name); Escape or an empty name drops it. That header
+  (Enter or blur with a name); Escape or an empty name drops it. The open
+  rail is its own component (`OpenControlSidebar`), so `nameEdit`, the
+  folds and the drag reset when the rail closes. That header
   (`isNew`) has no menu and a disabled chevron, since a click on either would
   blur the input and drop the section. Rename opens the same input; an
   empty rename keeps the old name. The input and the grips
   carry `data-own-escape`, so Escape does not close the rail. "Remove
   section" removes the section and strips `sectionId` from its members, in
-  one handler, with no confirm. Focus after the input or the menu unmounts
+  one handler, with no confirm; it leaves focus where it is when an input
+  in the rail has it (the expanded filter's label). Focus after the input or the menu unmounts
   (`focusAfter`, a selector read in a layout effect): the section's menu
   button (`data-controls-section-menu`) after a commit or a cancelled
   rename, the header's "Add" button after a remove or a dropped new
@@ -1159,10 +1175,12 @@ the language map, as tab names are.
   `translateX`, 20ms apart up to eight; folding animates nothing); folded,
   the dimmed `filters.sectionSummary` ("{set} of {total} set",
   `hasFilterValueSet` over the visible members, `aria-describedby`) inside
-  the same outline. The bar's own gap separates capsules. A section with more than `FOLDED_BY_DEFAULT_ABOVE` (6)
-  members on the tab starts folded, the rest open; the fold is local state
-  keyed by section id (the ids whose fold differs from that default), nothing
-  saved and nothing in the URL. `FilterPills` threads `sectionId` (`undefined`: every
+  the same outline. The bar's own gap separates capsules. A section with
+  more than `FOLDED_BY_DEFAULT_ABOVE` (6) members in all, on any tab, starts
+  folded, the rest open; the fold is local state keyed by section id (the
+  ids whose fold differs from that default), nothing saved and nothing in
+  the URL. The shared popover id is dropped while its pill's section is
+  folded or off the tab. `FilterPills` threads `sectionId` (`undefined`: every
   saved rule, the default; `null`; a string) and a shared `popover` state to
   `ViewerSavedPills`, which filters with `isRuleInSection` and keeps the
   saved index for remove and update (the editor's pills filter the same way,

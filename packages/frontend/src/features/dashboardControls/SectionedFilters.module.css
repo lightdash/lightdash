@@ -1,9 +1,6 @@
 /* A section on the bar: an outlined, pill-shaped capsule with no fill
    holding its toggle and, open, its pills with 4px of air around them */
 .capsule {
-    --controls-ease: ease-in-out;
-    --controls-duration-hover: 0.12s;
-
     display: inline-flex;
     align-items: center;
     flex-wrap: wrap;
@@ -27,13 +24,7 @@
     height: 28px;
     padding: 0 var(--mantine-spacing-xs) 0 6px;
     border-radius: var(--mantine-radius-xl);
-    transition: background-color var(--controls-duration-hover)
-        var(--controls-ease);
-
-    &:hover,
-    &:focus-visible {
-        background-color: var(--mantine-color-default-hover);
-    }
+    cursor: pointer;
 }
 
 /* Unfolded, the pills arrive one after the other, up to eight */
@@ -91,9 +82,5 @@
 @media (prefers-reduced-motion: reduce) {
     .pillsEnter > * {
         animation: none;
-    }
-
-    .toggle {
-        transition: none;
     }
 }

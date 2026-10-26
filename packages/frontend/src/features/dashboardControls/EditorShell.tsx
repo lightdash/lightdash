@@ -33,6 +33,8 @@ type Props = {
     onClose: () => void;
     /** While a section header is dragged: it cannot leave a section. */
     isUnsectionTargetDisabled: boolean;
+    /** A row or header is dragged: Escape cancels the drag, not the rail. */
+    isDragging: boolean;
     /** Set while the filter cannot be kept: the footer offers only this. */
     onCancel: (() => void) | null;
     /** Null while no filter can be added. */
@@ -48,6 +50,7 @@ export const EditorShell: FC<Props> = ({
     filterCount,
     onClose,
     isUnsectionTargetDisabled,
+    isDragging,
     onCancel,
     onAddFilter,
     onNewSection,
@@ -81,6 +84,7 @@ export const EditorShell: FC<Props> = ({
                     : classes.root
             }
             data-controls-editor
+            data-controls-dragging={isDragging || undefined}
         >
             <Group
                 ref={setDropRef}

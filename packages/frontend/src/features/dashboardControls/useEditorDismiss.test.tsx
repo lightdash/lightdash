@@ -72,7 +72,7 @@ const Page: FC = () => {
                 type="button"
                 data-dashboard-filter-control
                 aria-label="Add filter"
-                onClick={openNew}
+                onClick={() => openNew()}
             />
         </div>
     );
@@ -301,6 +301,16 @@ describe('dismissing in the controls editor', () => {
             escape(screen.getByLabelText('Search fields'));
             expect(value().highlightedFieldId).toBe('orders_a');
             expect(value().isSidebarOpen).toBe(true);
+        });
+
+        it('leaves a drag alone: dnd-kit cancels it', () => {
+            const editor = screen.getByTestId('editor');
+            editor.setAttribute('data-controls-dragging', '');
+            escape(label());
+            expect(value().isSidebarOpen).toBe(true);
+            editor.removeAttribute('data-controls-dragging');
+            escape(label());
+            expect(value().isSidebarOpen).toBe(false);
         });
 
         it('does nothing once another handler has taken it', () => {
