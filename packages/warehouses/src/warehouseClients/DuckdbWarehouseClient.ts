@@ -175,6 +175,8 @@ export type DuckdbParquetSource = {
         name: string;
         urls: string[];
         columns?: DuckdbParquetColumns;
+        /** Disable inferred path columns for tables with mixed partition layouts. */
+        hivePartitioning?: boolean;
         /** Suppress historical fallback rows when a captured row has the same identity. */
         fallbackRows?: {
             keyColumns: string[];
@@ -1305,8 +1307,18 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             validateColumns(columns);
             names.add(name);
         });
-        source.tables.forEach(({ name, urls, columns, fallbackRows }) => {
+        source.tables.forEach((table) => {
+            const { name, urls, columns, fallbackRows, hivePartitioning } =
+                table;
             if (columns) validateColumns(columns);
+            if (
+                hivePartitioning !== undefined &&
+                typeof hivePartitioning !== 'boolean'
+            ) {
+                throw new ParameterError(
+                    'Invalid Parquet Hive partitioning configuration',
+                );
+            }
             if (fallbackRows) {
                 const { keyColumns, markerColumn, markerValue } = fallbackRows;
                 const columnNames = new Set(
@@ -1450,13 +1462,19 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             );
         }
         // eslint-disable-next-line no-restricted-syntax
-        for (const { name, urls, columns, fallbackRows } of tables) {
+        for (const {
+            name,
+            urls,
+            columns,
+            fallbackRows,
+            hivePartitioning,
+        } of tables) {
             // Older retained files may all predate an additive column. A typed
             // zero-row branch supplies its schema without materializing rows.
             const missingColumns = columns
                 ? ` UNION ALL BY NAME SELECT ${columns.map((column) => `NULL::${column.type} AS "${column.name}"`).join(', ')} WHERE false`
                 : '';
-            const sourceQuery = `SELECT * FROM read_parquet([${urls.map(literal).join(',')}], hive_partitioning = true, union_by_name = true)${missingColumns}`;
+            const sourceQuery = `SELECT * FROM read_parquet([${urls.map(literal).join(',')}], hive_partitioning = ${hivePartitioning ?? true}, union_by_name = true)${missingColumns}`;
             const capturedRow = fallbackRows
                 ? `"${fallbackRows.markerColumn}" IS DISTINCT FROM ${literal(fallbackRows.markerValue)}`
                 : undefined;

@@ -160,6 +160,38 @@ describe('historical fallback rows in trusted Parquet sources', () => {
         );
     });
 
+    it('reads captured partitions alongside a canonical history file without inferred Hive columns', async () => {
+        const manifest = source(['history', 'captured']);
+        manifest.scope =
+            'https://storage.example/bucket/events/compacted/org_id%3Dorg-a/';
+        const urls = [
+            `${manifest.scope}history%3Dquery_events/history.parquet?X-Amz-Signature=test`,
+            `${manifest.scope}stream%3Dquery_events/dt%3D2026-10-02/captured.parquet?X-Amz-Signature=test`,
+        ];
+        manifest.tables[0].urls = urls;
+        manifest.tables[0].hivePartitioning = false;
+        manifest.fileBuffers = new Map([
+            [urls[0], files.get('history')!],
+            [urls[1], files.get('captured')!],
+        ]);
+        const { rows } = await reader(manifest).runQuery(allRows);
+        expect(rows).toHaveLength(8);
+        expect(rows.some((row) => row.org_id === 'org-b')).toBe(true);
+        for (const row of rows) {
+            expect(row).not.toHaveProperty('history');
+            expect(row).not.toHaveProperty('stream');
+            expect(row).not.toHaveProperty('dt');
+        }
+    });
+
+    it('rejects a non-boolean Hive partitioning option', async () => {
+        const manifest = source(['history']);
+        Object.assign(manifest.tables[0], { hivePartitioning: 'false' });
+        await expect(reader(manifest).runQuery(allRows)).rejects.toThrow(
+            'Invalid Parquet Hive partitioning configuration',
+        );
+    });
+
     it('supplies absent marker columns through the existing typed empty union', async () => {
         const { rows } = await reader(source(['legacy'])).runQuery(allRows);
         expect(rows).toEqual([
