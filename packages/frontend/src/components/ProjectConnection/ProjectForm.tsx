@@ -1,8 +1,6 @@
-import { ProjectType, DbtProjectType, FeatureFlags } from '@lightdash/common';
-import { TextInput, Flex, Stack, Text, Title, Avatar } from '@mantine/core';
+import { ProjectType, DbtProjectType } from '@lightdash/common';
+import { TextInput, Flex, Stack, Title, Avatar } from '@mantine/core';
 import { type FC } from 'react';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
-import useApp from '../../providers/App/useApp';
 import LightdashLogo from '../../svgs/logo-icon.svg';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import DocumentationHelpButton from '../DocumentationHelpButton';
@@ -23,22 +21,6 @@ interface Props {
     isProjectUpdate?: boolean;
     warehouseOnly?: boolean;
 }
-
-const WarehouseIpHint: FC = () => {
-    const { health } = useApp();
-    const egressIpNoticeFlag = useServerFeatureFlag(
-        FeatureFlags.EgressIpNotice,
-    );
-    if (egressIpNoticeFlag.data?.enabled !== false) return null;
-    if (!health.data?.staticIp) return null;
-
-    return (
-        <Text c="gray">
-            If you need to add our IP address to your database's allow-list, use{' '}
-            <b>{health.data.staticIp}</b>
-        </Text>
-    );
-};
 
 export const ProjectForm: FC<Props> = ({
     showGeneralSettings,
@@ -86,8 +68,6 @@ export const ProjectForm: FC<Props> = ({
                             top="2px"
                         />
                     </Flex>
-
-                    <WarehouseIpHint />
                 </div>
 
                 <div>

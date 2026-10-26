@@ -219,41 +219,40 @@ describe('FeatureFlagModel', () => {
             );
         },
     );
-    describe.each([
-        FeatureFlags.PreviewSsoCredentialSync,
-        FeatureFlags.AgentSqlScopeHyphenatedIdentifiers,
-        FeatureFlags.EgressIpNotice,
-    ])('%s kill switch', (featureFlagId) => {
-        it('is on by default', async () => {
-            const model = buildModel({}, buildFakeDatabase({}));
-            await expect(
-                model.get({ user: dbUser, featureFlagId }),
-            ).resolves.toEqual({ id: featureFlagId, enabled: true });
-        });
+    describe.each([FeatureFlags.AgentSqlScopeHyphenatedIdentifiers])(
+        '%s kill switch',
+        (featureFlagId) => {
+            it('is on by default', async () => {
+                const model = buildModel({}, buildFakeDatabase({}));
+                await expect(
+                    model.get({ user: dbUser, featureFlagId }),
+                ).resolves.toEqual({ id: featureFlagId, enabled: true });
+            });
 
-        it('turns off for one organization with an override', async () => {
-            const model = buildModel(
-                {},
-                buildFakeDatabase({
-                    flag: { default_enabled: null },
-                    orgOverride: { enabled: false },
-                }),
-            );
-            await expect(
-                model.get({ user: dbUser, featureFlagId }),
-            ).resolves.toEqual({ id: featureFlagId, enabled: false });
-        });
+            it('turns off for one organization with an override', async () => {
+                const model = buildModel(
+                    {},
+                    buildFakeDatabase({
+                        flag: { default_enabled: null },
+                        orgOverride: { enabled: false },
+                    }),
+                );
+                await expect(
+                    model.get({ user: dbUser, featureFlagId }),
+                ).resolves.toEqual({ id: featureFlagId, enabled: false });
+            });
 
-        it('is off when the kill switch lists it', async () => {
-            const model = buildModel(
-                { disabledFeatureFlags: new Set([featureFlagId]) },
-                buildFakeDatabase({}),
-            );
-            await expect(
-                model.get({ user: dbUser, featureFlagId }),
-            ).resolves.toEqual({ id: featureFlagId, enabled: false });
-        });
-    });
+            it('is off when the kill switch lists it', async () => {
+                const model = buildModel(
+                    { disabledFeatureFlags: new Set([featureFlagId]) },
+                    buildFakeDatabase({}),
+                );
+                await expect(
+                    model.get({ user: dbUser, featureFlagId }),
+                ).resolves.toEqual({ id: featureFlagId, enabled: false });
+            });
+        },
+    );
 
     describe('check telemetry', () => {
         beforeEach(() => {
@@ -925,52 +924,6 @@ describe('agent silent refresh default-on kill switch', () => {
                 await model.get({
                     user: dbUser,
                     featureFlagId: FeatureFlags.AgentIdentitySilentRefresh,
-                })
-            ).enabled,
-        ).toBe(false);
-    });
-});
-
-describe('warehouse OAuth refresh lock default-on kill switch', () => {
-    test.each([undefined, true, false])(
-        'honours Console override %s',
-        async (enabled) => {
-            const model = buildModel(
-                { previewFeatureFlags: { enabled: false } },
-                buildFakeDatabase({
-                    flag: { default_enabled: null },
-                    orgOverride:
-                        enabled === undefined ? undefined : { enabled },
-                }),
-            );
-            expect(
-                (
-                    await model.get({
-                        user: { organizationUuid: dbUser.organizationUuid },
-                        featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
-                    })
-                ).enabled,
-            ).toBe(enabled ?? true);
-        },
-    );
-    test('honours ENV disable over Console enable', async () => {
-        const model = buildModel(
-            {
-                disabledFeatureFlags: new Set([
-                    FeatureFlags.WarehouseOAuthRefreshLock,
-                ]),
-                previewFeatureFlags: { enabled: false },
-            },
-            buildFakeDatabase({
-                flag: { default_enabled: null },
-                orgOverride: { enabled: true },
-            }),
-        );
-        expect(
-            (
-                await model.get({
-                    user: { organizationUuid: dbUser.organizationUuid },
-                    featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
                 })
             ).enabled,
         ).toBe(false);

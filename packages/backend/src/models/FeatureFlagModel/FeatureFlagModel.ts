@@ -63,22 +63,12 @@ export class FeatureFlagModel {
                     this.lightdashConfig.results.cacheEnabled,
                     options,
                 ),
-            [FeatureFlags.WarehouseOAuthRefreshLock]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
             [FeatureFlags.AgentIdentitySilentRefresh]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.SharedSignInExpiryMessage]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.SharedSignInReconnect]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.PreviewSsoCredentialSync]: (flagArgs, options) =>
                 this.getWithEnvFallback(flagArgs, true, options),
             [FeatureFlags.AgentSqlScopeHyphenatedIdentifiers]: (
                 flagArgs,
                 options,
             ) => this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.EgressIpNotice]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
         };
     }
 

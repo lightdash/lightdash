@@ -6,7 +6,6 @@ import {
     DbtProjectType,
     DefaultSupportedDbtVersion,
     DuckdbConnectionType,
-    FeatureFlags,
     ForbiddenError,
     MissingWarehouseCredentialsError,
     NotFoundError,
@@ -612,7 +611,7 @@ describe('Extra connection credentials on the real schema', () => {
             ...callerArgs(userUuid, caller),
         });
 
-    const createService = (refreshLockEnabled = false) => {
+    const createService = () => {
         const organizationWarehouseCredentialsModel =
             new OrganizationWarehouseCredentialsModel({
                 database,
@@ -620,19 +619,11 @@ describe('Extra connection credentials on the real schema', () => {
             });
         return new ProjectService({
             lightdashConfig: lightdashConfigMock,
-            ...(refreshLockEnabled
-                ? {
-                      refreshTokenRotation:
-                          RefreshTokenRotation.forDatabase(database),
-                  }
-                : {}),
+            refreshTokenRotation: RefreshTokenRotation.forDatabase(database),
             featureFlagModel: {
                 get: async ({ featureFlagId }: { featureFlagId: string }) => ({
                     id: featureFlagId,
-                    enabled:
-                        refreshLockEnabled &&
-                        featureFlagId ===
-                            FeatureFlags.WarehouseOAuthRefreshLock,
+                    enabled: false,
                 }),
             },
             projectModel: new ProjectModel({
@@ -1428,52 +1419,31 @@ describe('Extra connection credentials on the real schema', () => {
     });
 
     describe('the warehouseConnection rotation sink', () => {
-        describe.each(
-            [false, true].flatMap((refreshLockEnabled) =>
-                [
-                    {
-                        name: 'Snowflake SSO',
-                        credentials: {
-                            ...snowflake,
-                            authenticationType: SnowflakeAuthenticationType.SSO,
-                        } as CreateWarehouseCredentials,
-                    },
-                    ...[
-                        DatabricksAuthenticationType.OAUTH_U2M,
-                        DatabricksAuthenticationType.OAUTH_M2M,
-                    ].map((authenticationType) => ({
-                        name: `Databricks ${authenticationType}`,
-                        credentials: {
-                            type: WarehouseTypes.DATABRICKS,
-                            authenticationType,
-                            serverHostName: 'workspace.example.com',
-                            httpPath: '/sql/warehouse',
-                            database: 'schema',
-                            oauthClientId: 'cli-client',
-                        } as CreateWarehouseCredentials,
-                    })),
-                ].map((provider) => ({ ...provider, refreshLockEnabled })),
-            ),
-        )(
-            '$name refresh lock enabled: $refreshLockEnabled',
-            ({ refreshLockEnabled, credentials: providerCredentials }) => {
-                let previousService: ProjectService;
-
-                beforeAll(() => {
-                    previousService = service;
-                    if (refreshLockEnabled) {
-                        service = createService(true);
-                        credentialsApi =
-                            service as unknown as ProjectServiceCredentials;
-                    }
-                });
-
-                afterAll(() => {
-                    service = previousService;
-                    credentialsApi =
-                        service as unknown as ProjectServiceCredentials;
-                });
-
+        describe.each([
+            {
+                name: 'Snowflake SSO',
+                credentials: {
+                    ...snowflake,
+                    authenticationType: SnowflakeAuthenticationType.SSO,
+                } as CreateWarehouseCredentials,
+            },
+            ...[
+                DatabricksAuthenticationType.OAUTH_U2M,
+                DatabricksAuthenticationType.OAUTH_M2M,
+            ].map((authenticationType) => ({
+                name: `Databricks ${authenticationType}`,
+                credentials: {
+                    type: WarehouseTypes.DATABRICKS,
+                    authenticationType,
+                    serverHostName: 'workspace.example.com',
+                    httpPath: '/sql/warehouse',
+                    database: 'schema',
+                    oauthClientId: 'cli-client',
+                } as CreateWarehouseCredentials,
+            })),
+        ])(
+            'refreshes the stored $name credential under the row lock',
+            ({ credentials: providerCredentials }) => {
                 test('a rotated refresh token is written to the extra connection, not to the original', async () => {
                     const organization = await createOrganization();
                     const original = {
