@@ -979,11 +979,14 @@ export class ServiceRepository
             () =>
                 new AnalyticsProjectService({
                     coderService: this.getCoderService(),
+                    contentVerificationModel:
+                        this.models.getContentVerificationModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     projectModel: this.models.getProjectModel(),
                     projectService: this.getProjectService(),
                     userModel: this.models.getUserModel(),
+                    spaceModel: this.models.getSpaceModel(),
                 }),
         );
     }
