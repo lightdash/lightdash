@@ -130,7 +130,6 @@ RUDDERSTACK_DATA_PLANE_URL = "http://localhost:9"
 IS_PULL_REQUEST = "true"
 CUSTOM_ROLES_ENABLED = "true"
 MCP_ENABLED = "true"
-SERVICE_ACCOUNT_ENABLED = "true"       # also lights the semantic-layer connection page
 EMBEDDING_ENABLED = "true"             # the embed specs need it
 PERSISTENT_DOWNLOAD_URLS_ENABLED = "true"
 GROUPS_ENABLED = "true"

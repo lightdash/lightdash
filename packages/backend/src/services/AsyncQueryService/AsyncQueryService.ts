@@ -193,6 +193,7 @@ import {
 } from '@lightdash/common';
 import {
     DuckdbWarehouseClient,
+    mapFieldTypeFromDuckdbTypeName,
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import { trace } from '@opentelemetry/api';
@@ -1477,6 +1478,10 @@ export class AsyncQueryService extends ProjectService {
 
         for await (const line of splitJsonlStream(cacheStream)) {
             if (line.trim()) {
+                if (nonEmptyLineCount >= endLine) {
+                    destroyS3Body(cacheStream);
+                    break;
+                }
                 if (
                     nonEmptyLineCount >= startLine &&
                     nonEmptyLineCount < endLine
@@ -10921,13 +10926,11 @@ export class AsyncQueryService extends ProjectService {
     }
 
     private getPythonSandboxRunner(): PythonSandboxRunner {
-        if (!this.pythonSandboxRunner) {
-            this.pythonSandboxRunner = new PythonSandboxRunner({
-                lightdashConfig: this.lightdashConfig,
-                logger: this.logger,
-                metrics: this.prometheusMetrics ?? null,
-            });
-        }
+        this.pythonSandboxRunner ??= new PythonSandboxRunner({
+            lightdashConfig: this.lightdashConfig,
+            logger: this.logger,
+            metrics: this.prometheusMetrics ?? null,
+        });
         return this.pythonSandboxRunner;
     }
 
@@ -12681,7 +12684,10 @@ export class AsyncQueryService extends ProjectService {
                     name: 'duckdb.query.resolve_columns',
                     attributes: {
                         'lightdash.queryUuid': queryUuid,
-                        'lightdash.columnsMode': columns.mode,
+                        'lightdash.columnsMode':
+                            columns.mode === 'discover'
+                                ? 'describe'
+                                : columns.mode,
                     },
                 },
                 () =>
@@ -13216,7 +13222,7 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
-    /** Column discovery (LIMIT 1) also validates the SQL, so parameters resolve first and a missing value refuses here. */
+    /** Resolve parameters before DESCRIBE validates the SQL. */
     private async probeDuckdbQueryColumns({
         sql,
         referenceCtes,
@@ -13245,25 +13251,25 @@ export class AsyncQueryService extends ProjectService {
         }
         const columns: SqlQueryColumn[] = [];
         const phaseTimings: WarehousePhaseTimings = {};
-        // The limit is applied to the user's statement alone: the reference
-        // CTEs name result files, and the limit strips what reads as a
-        // comment even inside a string literal
-        const columnDiscoverySql = AsyncQueryService.wrapSqlWithReferenceCtes(
-            applyLimitToSqlQuery({ sqlQuery: sqlWithParameters, limit: 1 }),
+        const columnDiscoverySql = `DESCRIBE ${AsyncQueryService.wrapSqlWithReferenceCtes(
+            applyLimitToSqlQuery({
+                sqlQuery: sqlWithParameters,
+                limit: undefined,
+            }),
             referenceCtes,
-        );
+        )}`;
         try {
             await warehouseClient.streamQuery(
                 columnDiscoverySql,
                 (chunk) => {
-                    if (columns.length === 0 && chunk.fields) {
-                        Object.keys(chunk.fields).forEach((key) => {
-                            columns.push({
-                                name: key,
-                                type: chunk.fields[key].type,
-                            });
+                    chunk.rows.forEach((row) => {
+                        columns.push({
+                            name: String(row.column_name),
+                            type: mapFieldTypeFromDuckdbTypeName(
+                                String(row.column_type),
+                            ),
                         });
-                    }
+                    });
                 },
                 {
                     tags: queryTags,
@@ -13279,7 +13285,9 @@ export class AsyncQueryService extends ProjectService {
             if (e instanceof LightdashError) throw e;
             throw new WarehouseQueryError(getErrorMessage(e));
         }
-        return columns;
+        return Object.values(
+            Object.fromEntries(columns.map((column) => [column.name, column])),
+        );
     }
 
     private async discoverDuckdbQueryColumns({

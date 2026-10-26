@@ -402,9 +402,6 @@ export const lightdashConfigMock: LightdashConfig = {
     microsoftTeams: {
         enabled: false,
     },
-    serviceAccount: {
-        enabled: false,
-    },
     organizationWarehouseCredentials: {
         enabled: false,
     },
@@ -432,9 +429,6 @@ export const lightdashConfigMock: LightdashConfig = {
         runSqlMaxLimit: 5000,
     },
     customRoles: {
-        enabled: false,
-    },
-    editYamlInUi: {
         enabled: false,
     },
     funnelBuilder: {

@@ -2854,7 +2854,17 @@ describe('AsyncQueryService', () => {
                                 status: { type: DimensionType.STRING },
                                 revenue: { type: DimensionType.NUMBER },
                             },
-                            rows: [],
+                            rows: [
+                                { column_name: 'month', column_type: 'DATE' },
+                                {
+                                    column_name: 'status',
+                                    column_type: 'VARCHAR',
+                                },
+                                {
+                                    column_name: 'revenue',
+                                    column_type: 'DOUBLE',
+                                },
+                            ],
                         });
                     },
                 );
@@ -2901,11 +2911,12 @@ describe('AsyncQueryService', () => {
                 });
 
             test('is accepted, recorded on the row and composed over the discovered columns', async () => {
-                const { service, runAsyncWarehouseSpy } =
+                const { service, streamQuery, runAsyncWarehouseSpy } =
                     buildService(lightdashConfigMock);
 
                 const result = await submit(service, pivotConfiguration);
 
+                expect(streamQuery.mock.calls[0][0]).toMatch(/^DESCRIBE /);
                 expect(result.queryUuid).toBe('pivoted-uuid');
                 expect(service.queryHistoryModel.create).toHaveBeenCalledWith(
                     sessionAccount,
@@ -15834,7 +15845,19 @@ describe('runDuckdbQuery', () => {
                     rows: Record<string, unknown>[];
                 }) => void,
             ) => {
-                callback({ fields, rows: [] });
+                callback({
+                    fields,
+                    rows: Object.entries(fields).map(([name, field]) => ({
+                        column_name: name,
+                        column_type: {
+                            [DimensionType.NUMBER]: 'DOUBLE',
+                            [DimensionType.BOOLEAN]: 'BOOLEAN',
+                            [DimensionType.DATE]: 'DATE',
+                            [DimensionType.TIMESTAMP]: 'TIMESTAMP',
+                            [DimensionType.STRING]: 'VARCHAR',
+                        }[field.type],
+                    })),
+                });
             },
         );
         return {
@@ -15928,7 +15951,7 @@ describe('runDuckdbQuery', () => {
 
     // A results file name may contain '--'; the limit's comment stripper
     // must never see the reference CTEs that name it
-    it('discover mode limits the user statement before wrapping it in the reference CTEs', async () => {
+    it('discover mode describes the user statement with intact reference CTEs', async () => {
         const { streamQuery, warehouseClient } = probingClient({
             one: { type: DimensionType.NUMBER },
         });
@@ -15945,15 +15968,15 @@ describe('runDuckdbQuery', () => {
 
         expect(streamQuery.mock.calls[0][0]).toBe(
             [
-                `WITH ${referenceCte}`,
+                `DESCRIBE WITH ${referenceCte}`,
                 'SELECT * FROM (',
-                'SELECT one FROM r LIMIT 1',
+                'SELECT one FROM r',
                 ') AS lightdash_user_query',
             ].join('\n'),
         );
     });
 
-    it('discover mode probes the SQL with one row and executes with the columns it found', async () => {
+    it('discover mode describes the SQL and executes with the columns it found', async () => {
         const { streamQuery, warehouseClient } = probingClient({
             one: { type: DimensionType.NUMBER },
         });
@@ -15962,7 +15985,7 @@ describe('runDuckdbQuery', () => {
         await run(baseArgs({ engine: { kind: 'client', warehouseClient } }));
 
         expect(streamQuery).toHaveBeenCalledTimes(1);
-        expect(streamQuery.mock.calls[0][0]).toMatch(/LIMIT 1$/);
+        expect(streamQuery.mock.calls[0][0]).toBe('DESCRIBE SELECT 1 AS one');
         expect(runWarehouseQuery).toHaveBeenCalledTimes(1);
         expect(streamQuery.mock.invocationCallOrder[0]).toBeLessThan(
             runWarehouseQuery.mock.invocationCallOrder[0],
@@ -28793,5 +28816,132 @@ describe('late query status writes', () => {
             tracker.reset();
             await database.destroy();
         }
+    });
+});
+
+describe('S3 result pagination', () => {
+    const readPage = async (stream: Readable, page = 1, pageSize = 2) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        vi.mocked(
+            service.resultsStorageClient.getDownloadStream,
+        ).mockResolvedValue(stream);
+        const formatter = vi.fn((row) => row);
+        const result = await service['getResultsPageFromS3'](
+            'query-uuid',
+            'results-file',
+            QueryExecutionContext.EXPLORE,
+            page,
+            pageSize,
+            formatter,
+        );
+        return { ...result, formatter };
+    };
+
+    test.each([1, 3])(
+        'stops reading after page %s instead of consuming the tail',
+        async (page) => {
+            let emittedRows = 0;
+            const stream = Readable.from(
+                (async function* generateRows() {
+                    for (let value = 1; value <= 1000; value += 1) {
+                        emittedRows += 1;
+                        yield `${JSON.stringify({ value })}\n`;
+                        // Delay each chunk so the fixture is not fully buffered.
+                        // eslint-disable-next-line no-await-in-loop
+                        await new Promise<void>((resolve) => {
+                            setImmediate(resolve);
+                        });
+                    }
+                })(),
+            );
+            const { rows, formatter } = await readPage(stream, page);
+            expect(rows).toEqual([
+                { value: (page - 1) * 2 + 1 },
+                { value: page * 2 },
+            ]);
+            expect(formatter).toHaveBeenCalledTimes(2);
+            expect(emittedRows).toBeLessThan(1000);
+            expect(stream.destroyed).toBe(true);
+        },
+    );
+
+    test('closes the HTTP source behind a checksum-wrapped S3 body', async () => {
+        const source = new PassThrough({ autoDestroy: false });
+        const body = new PassThrough() as PassThrough & { source: Readable };
+        body.source = source;
+        source.pipe(body);
+        source.end('{"value":1}\n{"value":2}\n{"value":3}\n');
+        const { rows } = await readPage(body);
+        expect(rows).toEqual([{ value: 1 }, { value: 2 }]);
+        expect(body.destroyed).toBe(true);
+        expect(source.destroyed).toBe(true);
+    });
+
+    test.each([
+        [1, [{ value: 1 }, { value: 2 }]],
+        [2, [{ value: 3 }]],
+        [3, []],
+    ])(
+        'preserves the rows of page %s including partial and missing pages',
+        async (page, expected) => {
+            const stream = Readable.from([
+                '{"value":1}\n{"value":2}\n{"value":3}',
+            ]);
+            const { rows } = await readPage(stream, page);
+            expect(rows).toEqual(expected);
+        },
+    );
+
+    test('skips blank lines and preserves CRLF and Unicode inside values', async () => {
+        const first = { value: 'before\u2028after' };
+        const second = { value: 'before\u2029after' };
+        const stream = Readable.from([
+            `\n \r\n${JSON.stringify(first)}\r\n\r\n${JSON.stringify(second)}`,
+        ]);
+        const { rows } = await readPage(stream);
+        expect(rows).toEqual([first, second]);
+    });
+
+    test('returns an empty page for an empty stream', async () => {
+        const { rows, formatter } = await readPage(Readable.from([]));
+        expect(rows).toEqual([]);
+        expect(formatter).not.toHaveBeenCalled();
+    });
+
+    test('preserves JSON errors in the requested page', async () => {
+        await expect(readPage(Readable.from(['not JSON\n']))).rejects.toThrow(
+            SyntaxError,
+        );
+    });
+
+    test.each([1, 2])(
+        'preserves a terminal download error on full final page %s',
+        async (page) => {
+            const stream = Readable.from(
+                (async function* generateRowsWithError() {
+                    yield Array.from(
+                        { length: page * 2 },
+                        (_, index) =>
+                            `${JSON.stringify({ value: index + 1 })}\n`,
+                    ).join('');
+                    await new Promise<void>((resolve) => {
+                        setImmediate(resolve);
+                    });
+                    throw new Error('download failed at EOF');
+                })(),
+            );
+            await expect(readPage(stream, page)).rejects.toThrow(
+                'download failed at EOF',
+            );
+        },
+    );
+
+    test('propagates source errors before the page is complete', async () => {
+        const stream = new Readable({
+            read() {
+                this.destroy(new Error('download failed'));
+            },
+        });
+        await expect(readPage(stream)).rejects.toThrow('download failed');
     });
 });

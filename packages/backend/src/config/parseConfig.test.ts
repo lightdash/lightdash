@@ -40,6 +40,32 @@ beforeEach(() => {
     };
 });
 
+describe('Python E2B template configuration', () => {
+    it('defaults to the python template at the running version', () => {
+        expect(parseConfig().appRuntime).toMatchObject({
+            e2bPythonTemplateName: 'lightdash-python-runner',
+            e2bPythonTemplateTag: VERSION,
+        });
+    });
+
+    it.each<[NodeJS.ProcessEnv, string, string]>([
+        [
+            { E2B_PYTHON_TEMPLATE_TAG: 'pinned' },
+            'lightdash-python-runner',
+            'pinned',
+        ],
+        [{ E2B_PYTHON_TEMPLATE_TAG: '' }, 'lightdash-python-runner', ''],
+        [{ E2B_PYTHON_TEMPLATE_NAME: 'custom' }, 'custom', VERSION],
+        [{ E2B_PYTHON_TEMPLATE_NAME: '' }, 'lightdash-python-runner', VERSION],
+    ])('uses configured settings: %o', (env, name, tag) => {
+        Object.assign(process.env, env);
+        expect(parseConfig().appRuntime).toMatchObject({
+            e2bPythonTemplateName: name,
+            e2bPythonTemplateTag: tag,
+        });
+    });
+});
+
 describe('agent result identity check configuration', () => {
     it.each([
         [undefined, true],
@@ -2853,7 +2879,6 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
         ['GROUPS_ENABLED', 'user-groups-enabled'],
         ['SHOW_EXECUTION_TIME', 'show-execution-time'],
         ['EMBEDDING_ENABLED', 'embedding'],
-        ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
         ['SCIM_ENABLED', 'scim-token-management'],
         [
             'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',

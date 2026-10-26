@@ -244,7 +244,9 @@ const buildHarness = ({
             assertCanReadResultsForQueries: vi.fn(async () => new Map()),
         },
     } as unknown as ConstructorParameters<typeof AsyncQueryService>[0]);
-    Object.assign(service, { pythonSandboxRunner: sandbox });
+    Object.assign(service, {
+        pythonSandboxRunner: sandbox,
+    });
     vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
         userAttributes: {},
         intrinsicUserAttributes: {},
@@ -271,7 +273,7 @@ const buildHarness = ({
         return rows.get(queryUuid)!;
     };
 
-    return { submit, sandbox, uploads, rows };
+    return { submit, sandbox, uploads, rows, service };
 };
 
 describe('python transformations and the results cache', () => {

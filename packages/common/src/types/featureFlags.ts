@@ -48,11 +48,6 @@ export enum FeatureFlags {
     AiCustomViz = 'ai-custom-viz',
 
     /**
-     * Enable viewing and editing YAML source files in the Explore UI
-     */
-    EditYamlInUi = 'edit-yaml-in-ui',
-
-    /**
      * On multi-org (shared-tenant) instances, route an organization's recurring
      * scheduled deliveries into a per-org graphile-worker named queue
      * (`delivery:<organizationUuid>`) so they run serially and a single org can't

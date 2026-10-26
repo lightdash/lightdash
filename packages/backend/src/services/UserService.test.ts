@@ -795,10 +795,13 @@ describe('UserService', () => {
         });
 
         test('should return a service account when the user backs a service account', async () => {
-            const service = createUserService({
-                ...lightdashConfigMock,
-                serviceAccount: {
-                    enabled: true,
+            // No env var or feature flag is needed: the licence is the gate.
+            const service = createUserService(lightdashConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    })),
                 },
             });
             (
@@ -838,12 +841,7 @@ describe('UserService', () => {
         });
 
         test('should preserve service-account authentication', async () => {
-            const service = createUserService({
-                ...lightdashConfigMock,
-                serviceAccount: {
-                    enabled: true,
-                },
-            });
+            const service = createUserService(lightdashConfigMock);
             (
                 userModel.findServiceAccountByUserUuid as import('vitest').Mock
             ).mockResolvedValueOnce({

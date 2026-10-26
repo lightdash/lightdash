@@ -259,11 +259,6 @@ export class UsageEventsCompactor extends S3BaseClient {
                             remaining: result.failed,
                         }),
                     );
-                    if (dimensions.failed > 0) {
-                        throw new Error(
-                            `Usage dimensions: ${dimensions.failed} refreshes failed; previous snapshots retained`,
-                        );
-                    }
                     const users = await this.monitorStage(
                         runId,
                         'users',
@@ -274,6 +269,14 @@ export class UsageEventsCompactor extends S3BaseClient {
                             ),
                         UsageEventsCompactor.usersOutcome,
                     );
+                    // User activity depends on compacted events, not dimension
+                    // snapshots. Finish this independent stage for every tenant
+                    // before reporting failures to the scheduler and monitoring.
+                    if (dimensions.failed > 0) {
+                        throw new Error(
+                            `Usage dimensions: ${dimensions.failed} refreshes failed; previous snapshots retained`,
+                        );
+                    }
                     if (users.failed > 0)
                         throw new Error(
                             `User activity: ${users.failed} partitions failed; previous output retained`,

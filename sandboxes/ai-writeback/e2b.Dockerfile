@@ -8,7 +8,7 @@ RUN apt-get update \
         build-essential \
         gnupg \
     && curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
+    && apt-get install -y --no-install-recommends nodejs=24.22.1-1nodesource1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install the supported dbt versions, each in its own venv at /usr/local/dbt<X.Y>.
@@ -42,6 +42,9 @@ RUN python3 -m venv /usr/local/dbt1.8 \
         "dbt-clickhouse~=1.9.0" \
         "dbt-athena~=1.9.0" \
         "dbt-duckdb~=1.9.0" \
+# dbt-snowflake below 1.12.4 caps certifi under 2025.4.26, which still trusts
+# the distrusted emSign ECC Root CA - G3. certifi is only a CA bundle.
+    && /usr/local/dbt1.9/bin/pip install --no-cache-dir --no-deps "certifi>=2026.10.19" \
     && python3 -m venv /usr/local/dbt1.10 \
     && /usr/local/dbt1.10/bin/pip install --no-cache-dir \
         "dbt-core~=1.10.0" \
@@ -54,6 +57,7 @@ RUN python3 -m venv /usr/local/dbt1.8 \
         "dbt-clickhouse~=1.9.0" \
         "dbt-athena~=1.10.0" \
         "dbt-duckdb~=1.10.0" \
+    && /usr/local/dbt1.10/bin/pip install --no-cache-dir --no-deps "certifi>=2026.10.19" \
     && python3 -m venv /usr/local/dbt1.11 \
     && /usr/local/dbt1.11/bin/pip install --no-cache-dir \
         "dbt-core~=1.11.0" \
@@ -66,6 +70,7 @@ RUN python3 -m venv /usr/local/dbt1.8 \
         "dbt-clickhouse~=1.9.0" \
         "dbt-athena~=1.10.0" \
         "dbt-duckdb~=1.10.0" \
+    && /usr/local/dbt1.11/bin/pip install --no-cache-dir --no-deps "certifi>=2026.10.19" \
     && python3 -m venv /usr/local/dbt1.12 \
 # dbt-databricks 1.12 requires dbt-core below 1.12.1.
     && /usr/local/dbt1.12/bin/pip install --no-cache-dir \
@@ -79,6 +84,7 @@ RUN python3 -m venv /usr/local/dbt1.8 \
         "dbt-clickhouse~=1.9.0" \
         "dbt-athena~=1.10.0" \
         "dbt-duckdb~=1.10.0" \
+    && /usr/local/dbt1.12/bin/pip install --no-cache-dir --no-deps "certifi>=2026.10.19" \
     && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt
 
 # Socket Firewall (sfw) blocks known-malicious packages at install time.

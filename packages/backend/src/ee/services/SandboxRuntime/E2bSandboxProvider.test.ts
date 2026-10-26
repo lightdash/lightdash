@@ -226,3 +226,34 @@ describe('bounded E2B transfers', () => {
         expect(read).toHaveBeenCalledWith('/app/file');
     });
 });
+
+describe('E2B single-use uploads', () => {
+    afterEach(() => vi.restoreAllMocks());
+    it('uses one SDK multi-file write and kills single-use sandboxes on timeout', async () => {
+        const write = vi.fn();
+        const create = vi
+            .spyOn(Sandbox, 'create')
+            .mockResolvedValue({ files: { write } } as unknown as Sandbox);
+        const handle = await new E2bSandboxProvider('key').create({
+            templateRef: 'python',
+            timeoutMs: 1000,
+            egress: { allow: [] },
+            onTimeout: 'kill',
+        });
+        await handle.files.writeMany!([
+            { path: '/work/main.py', contents: 'code' },
+            { path: '/work/in/a.jsonl', contents: Buffer.from('data') },
+        ]);
+        expect(write).toHaveBeenCalledExactlyOnceWith([
+            { path: '/work/main.py', data: 'code' },
+            {
+                path: '/work/in/a.jsonl',
+                data: Uint8Array.from(Buffer.from('data')).buffer,
+            },
+        ]);
+        expect(create).toHaveBeenCalledWith(
+            'python',
+            expect.objectContaining({ lifecycle: { onTimeout: 'kill' } }),
+        );
+    });
+});

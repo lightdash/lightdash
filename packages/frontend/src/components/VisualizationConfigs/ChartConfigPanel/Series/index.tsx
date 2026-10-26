@@ -33,6 +33,7 @@ import { Config } from '../../common/Config';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import { CustomColors } from './CustomColors';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
+import { IncompletePeriodSection } from './IncompletePeriodSection';
 import InvalidSeriesConfiguration from './InvalidSeriesConfiguration';
 import { SeriesDrawOrderBar } from './SeriesDrawOrder';
 
@@ -218,6 +219,7 @@ export const Series: FC<Props> = ({ items }) => {
     return (
         <Stack gap="md">
             <ColorPaletteSection />
+            <IncompletePeriodSection />
             <Divider />
             {hasMultipleSeries && (
                 <SeriesDrawOrderBar

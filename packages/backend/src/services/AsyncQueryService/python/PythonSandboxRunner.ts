@@ -203,7 +203,11 @@ export class PythonSandboxRunner {
     async run(args: PythonSandboxRunArgs): Promise<PythonSandboxRunResult> {
         const { queryUuid, code, inputs, inputMeta, timeoutMs } = args;
         const provider = this.getProvider();
-        const spec = this.buildSpec(timeoutMs);
+        const batch = this.lightdashConfig.appRuntime.sandboxProvider === 'e2b';
+        const spec = {
+            ...this.buildSpec(timeoutMs),
+            ...(batch ? { onTimeout: 'kill' as const } : {}),
+        };
         const attributes = {
             'lightdash.queryUuid': queryUuid,
             'lightdash.sandboxProvider':
@@ -222,12 +226,8 @@ export class PythonSandboxRunner {
             'lightdash.sandboxId': handle.sandboxId,
         };
 
-        try {
-            await this.traceStage('compile', sandboxAttributes, () =>
-                PythonSandboxRunner.compile(handle, code),
-            );
-
-            await this.traceStage(
+        const writeInputs = () =>
+            this.traceStage(
                 'write_inputs',
                 {
                     ...sandboxAttributes,
@@ -238,8 +238,25 @@ export class PythonSandboxRunner {
                     ),
                 },
                 () =>
-                    PythonSandboxRunner.writeInputs(handle, inputs, inputMeta),
+                    batch
+                        ? PythonSandboxRunner.writeBatch(
+                              handle,
+                              code,
+                              inputs,
+                              inputMeta,
+                          )
+                        : PythonSandboxRunner.writeInputs(
+                              handle,
+                              inputs,
+                              inputMeta,
+                          ),
             );
+        try {
+            if (batch) await writeInputs();
+            await this.traceStage('compile', sandboxAttributes, () =>
+                PythonSandboxRunner.compile(handle, code, batch),
+            );
+            if (!batch) await writeInputs();
 
             const stdout = await this.traceStage(
                 'run',
@@ -267,27 +284,73 @@ export class PythonSandboxRunner {
             }
             throw error;
         } finally {
-            await this.traceStage('destroy', sandboxAttributes, async () => {
-                try {
-                    await provider.destroy(handle.sandboxId);
-                } catch (e) {
+            const destruction = this.traceStage(
+                'destroy',
+                sandboxAttributes,
+                async () => {
+                    try {
+                        await provider.destroy(handle.sandboxId);
+                    } catch (e) {
+                        this.logger.warn(
+                            `Python query ${queryUuid}: failed to destroy sandbox ${
+                                handle.sandboxId
+                            }: ${getErrorMessage(e)}`,
+                        );
+                    }
+                },
+            );
+            if (batch) {
+                void destruction.catch((error: unknown) =>
                     this.logger.warn(
-                        `Python query ${queryUuid}: failed to destroy sandbox ${
-                            handle.sandboxId
-                        }: ${getErrorMessage(e)}`,
-                    );
-                }
-            });
+                        `Python query ${queryUuid}: sandbox cleanup failed: ${getErrorMessage(error)}`,
+                    ),
+                );
+            } else {
+                await destruction;
+            }
         }
     }
 
-    /** Syntax errors surface here, before any data enters the sandbox. */
+    private static async writeBatch(
+        handle: SandboxHandle,
+        code: string,
+        inputs: PythonSandboxInput[],
+        inputMeta: PythonInputMeta,
+    ): Promise<void> {
+        const files = [
+            { path: PYTHON_MAIN_PATH, contents: code },
+            { path: PYTHON_RUNNER_PATH, contents: PYTHON_RUNNER_SOURCE },
+            ...inputs.map((input) => ({
+                path: `${PYTHON_INPUT_DIR}/${input.name}.jsonl`,
+                contents: input.jsonl,
+            })),
+            {
+                path: PYTHON_INPUT_META_PATH,
+                contents: JSON.stringify(inputMeta),
+            },
+            { path: `${PYTHON_OUTPUT_DIR}/.keep`, contents: '' },
+        ];
+        if (handle.files.writeMany) {
+            await handle.files.writeMany(files);
+        } else {
+            await Promise.all(
+                files.map(({ path, contents }) =>
+                    handle.files.write(path, contents),
+                ),
+            );
+        }
+    }
+
+    /** Syntax errors surface here; unbatched runs check before data enters the sandbox. */
     private static async compile(
         handle: SandboxHandle,
         code: string,
+        alreadyWritten: boolean,
     ): Promise<void> {
-        await handle.files.write(PYTHON_MAIN_PATH, code);
-        await handle.files.write(PYTHON_RUNNER_PATH, PYTHON_RUNNER_SOURCE);
+        if (!alreadyWritten) {
+            await handle.files.write(PYTHON_MAIN_PATH, code);
+            await handle.files.write(PYTHON_RUNNER_PATH, PYTHON_RUNNER_SOURCE);
+        }
         try {
             await handle.commands.run(
                 `python3 -I -m py_compile ${PYTHON_MAIN_PATH}`,

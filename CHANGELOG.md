@@ -1,3 +1,81 @@
+## [3.53.10](https://github.com/lightdash/lightdash/compare/3.53.9...3.53.10) (2026-10-26)
+
+
+### Bug Fixes
+
+* stop reading query results after the requested page ([#31546](https://github.com/lightdash/lightdash/issues/31546)) ([de261f2](https://github.com/lightdash/lightdash/commit/de261f25178277c1974587bb8bd7ae0c4244bdde))
+
+## [3.53.9](https://github.com/lightdash/lightdash/compare/3.53.8...3.53.9) (2026-10-26)
+
+
+### Bug Fixes
+
+* isolate analytics snapshot failures and scope inventory scans ([#31545](https://github.com/lightdash/lightdash/issues/31545)) ([176628a](https://github.com/lightdash/lightdash/commit/176628a5b6bbe92911087314c0291770f76be79a))
+
+## [3.53.8](https://github.com/lightdash/lightdash/compare/3.53.7...3.53.8) (2026-10-26)
+
+
+### Performance Improvements
+
+* **composer-queries:** make composer latency optimizations default ([#31540](https://github.com/lightdash/lightdash/issues/31540)) ([5074091](https://github.com/lightdash/lightdash/commit/507409165fca1b9a76f7ac548bfb59599a438a24))
+
+## [3.53.7](https://github.com/lightdash/lightdash/compare/3.53.6...3.53.7) (2026-10-26)
+
+
+### Bug Fixes
+
+* bound successful API request history ([#31542](https://github.com/lightdash/lightdash/issues/31542)) ([c93c957](https://github.com/lightdash/lightdash/commit/c93c957487574dc7ac746be39d340e11a3566837))
+
+## [3.53.6](https://github.com/lightdash/lightdash/compare/3.53.5...3.53.6) (2026-10-24)
+
+
+### Bug Fixes
+
+* **charts:** show the incomplete period setting in the series tab with a preview ([#31538](https://github.com/lightdash/lightdash/issues/31538)) ([fdd0154](https://github.com/lightdash/lightdash/commit/fdd0154198feae74d2edfcfcc3757da637250654))
+
+## [3.53.5](https://github.com/lightdash/lightdash/compare/3.53.4...3.53.5) (2026-10-24)
+
+
+### Bug Fixes
+
+* **sandboxes:** drop the distrusted emSign root from ai-writeback dbt CA bundles ([#31541](https://github.com/lightdash/lightdash/issues/31541)) ([3f264ea](https://github.com/lightdash/lightdash/commit/3f264ea4c4af927af53427cc77a3a522b4a5a475))
+
+## [3.53.4](https://github.com/lightdash/lightdash/compare/3.53.3...3.53.4) (2026-10-24)
+
+
+### Bug Fixes
+
+* **docker:** drop the distrusted emSign root from dbt 1.9+ CA bundles ([#31535](https://github.com/lightdash/lightdash/issues/31535)) ([37e2c14](https://github.com/lightdash/lightdash/commit/37e2c14af41ff3f80427a5e24ab9400797c1af46))
+* **sandboxes:** pin sandbox templates to Node.js 24.22.1 ([#31536](https://github.com/lightdash/lightdash/issues/31536)) ([8d1c450](https://github.com/lightdash/lightdash/commit/8d1c4501c8969e8138d3e6cd6504e4fb41e13cf5))
+
+## [3.53.3](https://github.com/lightdash/lightdash/compare/3.53.2...3.53.3) (2026-10-24)
+
+
+### Bug Fixes
+
+* **cli:** bundle Node 24.22.1 in the Homebrew binary ([#31537](https://github.com/lightdash/lightdash/issues/31537)) ([cfd5b33](https://github.com/lightdash/lightdash/commit/cfd5b338bc6c5b0e4e61154fe62439e503f391f0))
+
+## [3.53.2](https://github.com/lightdash/lightdash/compare/3.53.1...3.53.2) (2026-10-24)
+
+
+### Bug Fixes
+
+* make service accounts licence-only, drop the service-accounts flag ([#31476](https://github.com/lightdash/lightdash/issues/31476)) ([08f9c98](https://github.com/lightdash/lightdash/commit/08f9c98c0c08afb0ef2e9a8651f95a6279eeda6b))
+
+## [3.53.1](https://github.com/lightdash/lightdash/compare/3.53.0...3.53.1) (2026-10-24)
+
+
+### Performance Improvements
+
+* flag-gated composer latency optimizations ([#31534](https://github.com/lightdash/lightdash/issues/31534)) ([305c28d](https://github.com/lightdash/lightdash/commit/305c28d2e93b574eec6a5ef557229e428aff985c))
+
+# [3.53.0](https://github.com/lightdash/lightdash/compare/3.52.0...3.53.0) (2026-10-24)
+
+
+### Features
+
+* **composer-queries:** DESCRIBE column probe for DuckDB nodes behind flag ([#31531](https://github.com/lightdash/lightdash/issues/31531)) ([cb67200](https://github.com/lightdash/lightdash/commit/cb67200b2fcfc540ab65ed60514828056bc14dd4))
+
 # [3.52.0](https://github.com/lightdash/lightdash/compare/3.51.0...3.52.0) (2026-10-23)
 
 

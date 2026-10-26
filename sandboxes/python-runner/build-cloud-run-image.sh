@@ -37,7 +37,7 @@ sed -e 's|^RUN chown -R user:user /work|RUN useradd -m -s /bin/bash user|' \
     e2b.Dockerfile > "$STAGE/Dockerfile"
 cat >> "$STAGE/Dockerfile" <<'DOCKERFILE'
 
-COPY --from=node:24-slim /usr/local/bin/node /usr/local/bin/node
+COPY --from=node:24.22.1-slim /usr/local/bin/node /usr/local/bin/node
 COPY gateway.mjs /gateway/gateway.mjs
 ENV NODE_ENV=production
 CMD ["node", "/gateway/gateway.mjs"]
