@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     SnowflakeAuthenticationType,
@@ -72,7 +71,7 @@ const selection = (): CredentialSelection<CreateSnowflakeCredentials> & {
     credentialKind: WarehouseCredentialKind.SHARED,
     aiPlan: null,
 });
-const setup = (enabled = true) => {
+const setup = () => {
     const { database, transaction, raw } = createDatabase();
     const coordinator = new RefreshTokenRotation({ database });
     const run = vi.spyOn(coordinator, 'run');
@@ -84,7 +83,9 @@ const setup = (enabled = true) => {
     };
     const deps = {
         refreshTokenRotation: coordinator,
-        featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled }) },
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         projectModel: {
             getSummary: vi.fn().mockResolvedValue(project),
             getOwnWarehouseCredentialsForProject: vi
@@ -171,10 +172,6 @@ describe('SnowflakeOAuthCredentialResolver', () => {
             null,
         ]);
         await expect(f.resolver.dispose()).resolves.toBeUndefined();
-        expect(f.deps.featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
-            user: { organizationUuid: 'org' },
-            featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
-        });
     });
 
     test('save loads the person grant, retains its original refresh token and never writes', async () => {
@@ -276,41 +273,33 @@ describe('SnowflakeOAuthCredentialResolver', () => {
         );
     });
 
-    test.each([true, false])(
-        'does not write an unchanged token with lock %s',
-        async (enabled) => {
-            const f = setup(enabled);
-            f.exchange.mockResolvedValue({
-                accessToken: 'fresh',
-                refreshToken: 'old-refresh',
-            });
-            await f.resolver.resolve(selection());
-            expect(
-                f.deps.projectModel.rotateRefreshToken,
-            ).not.toHaveBeenCalled();
-        },
-    );
+    test('does not write an unchanged token', async () => {
+        const f = setup();
+        f.exchange.mockResolvedValue({
+            accessToken: 'fresh',
+            refreshToken: 'old-refresh',
+        });
+        await f.resolver.resolve(selection());
+        expect(f.deps.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
+    });
 
-    test.each([true, false])(
-        'logs and swallows persistence errors with lock %s',
-        async (enabled) => {
-            const f = setup(enabled);
-            f.deps.projectModel.rotateRefreshToken.mockRejectedValue(
-                new Error('write failed'),
-            );
-            expect(
-                (await f.resolver.resolve(selection())).clientCredentials.token,
-            ).toBe('fresh-access');
-            expect(f.deps.logger.error).toHaveBeenCalledWith(
-                'Failed to persist rotated OAuth refresh token',
-                {
-                    sourceKind: 'project',
-                    sourceUuid: 'project',
-                    error: 'write failed',
-                },
-            );
-        },
-    );
+    test('logs and swallows persistence errors', async () => {
+        const f = setup();
+        f.deps.projectModel.rotateRefreshToken.mockRejectedValue(
+            new Error('write failed'),
+        );
+        expect(
+            (await f.resolver.resolve(selection())).clientCredentials.token,
+        ).toBe('fresh-access');
+        expect(f.deps.logger.error).toHaveBeenCalledWith(
+            'Failed to persist rotated OAuth refresh token',
+            {
+                sourceKind: 'project',
+                sourceUuid: 'project',
+                error: 'write failed',
+            },
+        );
+    });
 
     test.each(['OAuth refresh token expired', 'invalid_grant'])(
         'preserves parsed Snowflake error: %s',
@@ -326,39 +315,34 @@ describe('SnowflakeOAuthCredentialResolver', () => {
         },
     );
 
-    test.each([true, false])(
-        'attributes grant expiry to the sent token with lock %s',
-        async (enabled) => {
-            const f = setup(enabled);
-            const input = selection();
-            f.deps.projectModel.getOwnWarehouseCredentialsForProject.mockResolvedValue(
-                {
-                    ...credentials,
-                    refreshToken: 'rotated-refresh',
-                },
-            );
-            f.exchange.mockRejectedValue({
-                data: JSON.stringify({ message: 'invalid_grant' }),
-            });
-            const mapped = new SnowflakeTokenError(
-                'Error refreshing snowflake token: invalid_grant',
-            );
-            await expect(f.resolver.resolve(input)).rejects.toThrow(mapped);
-            expect(f.exchange).toHaveBeenCalledExactlyOnceWith(
-                enabled ? 'rotated-refresh' : input.connection.refreshToken,
-                ...(enabled ? [OAUTH_REQUEST_TIMEOUT_MS] : []),
-            );
-            expect(
-                f.deps.attributeSharedSignInExpiry,
-            ).toHaveBeenCalledExactlyOnceWith(
-                'project',
-                enabled
-                    ? { ...input.connection, refreshToken: 'rotated-refresh' }
-                    : input.connection,
-                mapped,
-            );
-        },
-    );
+    test('attributes grant expiry to the sent token', async () => {
+        const f = setup();
+        const input = selection();
+        f.deps.projectModel.getOwnWarehouseCredentialsForProject.mockResolvedValue(
+            {
+                ...credentials,
+                refreshToken: 'rotated-refresh',
+            },
+        );
+        f.exchange.mockRejectedValue({
+            data: JSON.stringify({ message: 'invalid_grant' }),
+        });
+        const mapped = new SnowflakeTokenError(
+            'Error refreshing snowflake token: invalid_grant',
+        );
+        await expect(f.resolver.resolve(input)).rejects.toThrow(mapped);
+        expect(f.exchange).toHaveBeenCalledExactlyOnceWith(
+            'rotated-refresh',
+            OAUTH_REQUEST_TIMEOUT_MS,
+        );
+        expect(
+            f.deps.attributeSharedSignInExpiry,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'project',
+            { ...input.connection, refreshToken: 'rotated-refresh' },
+            mapped,
+        );
+    });
 
     test('passes Lightdash errors through unchanged', async () => {
         const f = setup();
@@ -544,23 +528,6 @@ describe('SnowflakeOAuthCredentialResolver', () => {
         );
         expect(result).toMatchObject({ token: 'fresh-access' });
         expect(f.exchange).toHaveBeenCalledTimes(1);
-    });
-
-    test('lock off uses the submitted token and legacy CAS without a coordinator call', async () => {
-        const f = setup(false);
-        await f.resolver.resolve(selection());
-        expect(f.run).not.toHaveBeenCalled();
-        expect(
-            f.deps.projectModel.getOwnWarehouseCredentialsForProject,
-        ).not.toHaveBeenCalled();
-        expect(f.exchange).toHaveBeenCalledExactlyOnceWith('old-refresh');
-        expect(
-            f.deps.projectModel.rotateRefreshToken,
-        ).toHaveBeenCalledExactlyOnceWith(
-            'project',
-            'old-refresh',
-            'new-refresh',
-        );
     });
 
     test.each(['project', 'organization'] as const)(

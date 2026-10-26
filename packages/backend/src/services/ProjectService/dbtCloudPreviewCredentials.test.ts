@@ -24,6 +24,8 @@ import fetch, { Response } from 'node-fetch';
 import { lightdashConfigWithGoogleOAuthMock } from '../../config/lightdashConfig.mock';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
+import { createDatabase } from '../../models/RefreshTokenRotation/fakeKnex.mock';
+import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { UserService } from '../UserService';
@@ -99,6 +101,7 @@ const setup = (
         warehouseConnection: credentials,
         organizationWarehouseCredentialsUuid: organizationUuid,
     };
+    const { database } = createDatabase();
     const projectModel = {
         ...singleRouteProjectModelMethods,
         getWithSensitiveFields: vi.fn(async () => project),
@@ -120,6 +123,7 @@ const setup = (
             maxPreviewExpirationHours: null,
         })),
         getWarehouseCredentialsForProject: vi.fn(async () => credentials),
+        getOwnWarehouseCredentialsForProject: vi.fn(async () => credentials),
         getProjectWarehouseConfig: vi.fn(async () => ({
             organizationWarehouseCredentialsUuid: organizationUuid,
         })),
@@ -139,11 +143,16 @@ const setup = (
         ]),
     };
     const userWarehouseCredentialsModel = {
+        getByUuidWithSecrets: vi.fn(),
         findForProjectWithSecrets:
             vi.fn<UserWarehouseCredentialsModel['findForProjectWithSecrets']>(),
         rotateRefreshToken: vi.fn(async () => undefined),
     };
     const organizationWarehouseCredentialsModel = {
+        getByUuidWithSensitiveData: vi.fn(async () => ({
+            organizationUuid: project.organizationUuid,
+            credentials,
+        })),
         rotateRefreshToken: vi.fn(async () => undefined),
     };
     const userOAuthGrantsModel = { get: vi.fn() };
@@ -158,7 +167,7 @@ const setup = (
     };
     const userModel = { findSessionUserByUUID: vi.fn(async () => creator) };
     const service = new ProjectService({
-        refreshTokenRotation: { run: vi.fn() },
+        refreshTokenRotation: new RefreshTokenRotation({ database }),
         lightdashConfig: {
             ...lightdashConfigWithGoogleOAuthMock,
             warehouseClient: {
@@ -218,22 +227,24 @@ const setUserFallback = (
     fixture: ReturnType<typeof setup>,
     host = 'https://WORKSPACE.databricks.com/',
 ) => {
+    const credential = {
+        uuid: 'user-credential-uuid',
+        expiresAt: null,
+        credentials: {
+            ...databricks(DatabricksAuthenticationType.OAUTH_U2M),
+            serverHostName: host,
+            oauthClientId: 'user-client',
+            token: 'user-access',
+            refreshToken: 'user-refresh',
+        },
+    } as Awaited<
+        ReturnType<UserWarehouseCredentialsModel['findForProjectWithSecrets']>
+    >;
     fixture.userWarehouseCredentialsModel.findForProjectWithSecrets.mockResolvedValue(
-        {
-            uuid: 'user-credential-uuid',
-            expiresAt: null,
-            credentials: {
-                ...databricks(DatabricksAuthenticationType.OAUTH_U2M),
-                serverHostName: host,
-                oauthClientId: 'user-client',
-                token: 'user-access',
-                refreshToken: 'user-refresh',
-            },
-        } as Awaited<
-            ReturnType<
-                UserWarehouseCredentialsModel['findForProjectWithSecrets']
-            >
-        >,
+        credential,
+    );
+    fixture.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+        credential,
     );
 };
 
@@ -551,6 +562,8 @@ describe('dbt Cloud preview credential resolution', () => {
             'user-credential-uuid',
             'user-refresh',
             'rotated-refresh',
+            undefined,
+            expect.objectContaining({ raw: expect.any(Function) }),
         );
     });
 
@@ -605,6 +618,7 @@ describe('dbt Cloud preview credential resolution', () => {
                     organizationUuid,
                     'org-refresh',
                     rotated,
+                    expect.objectContaining({ raw: expect.any(Function) }),
                 );
                 expect(
                     f.projectModel.rotateRefreshToken,
@@ -616,6 +630,7 @@ describe('dbt Cloud preview credential resolution', () => {
                     f.project.projectUuid,
                     credentials.refreshToken,
                     rotated,
+                    expect.objectContaining({ raw: expect.any(Function) }),
                 );
                 expect(
                     f.organizationWarehouseCredentialsModel.rotateRefreshToken,
@@ -709,6 +724,9 @@ describe('dbt Cloud preview credential resolution', () => {
             'user-client',
             'user-refresh',
             undefined,
+            expect.objectContaining({
+                agent: expect.objectContaining({ timeoutMs: 30_000 }),
+            }),
         );
         expect(warehouseClientFromCredentials).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -725,6 +743,8 @@ describe('dbt Cloud preview credential resolution', () => {
             'user-credential-uuid',
             'user-refresh',
             'rotated-refresh',
+            undefined,
+            expect.objectContaining({ raw: expect.any(Function) }),
         );
         expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
     });

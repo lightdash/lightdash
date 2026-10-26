@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getExpiredSharedSignInMessage,
     SignInSubjectBasis,
     type ApiError,
@@ -18,7 +17,6 @@ import {
     getSharedSignInStatus,
     SHARED_SIGN_IN_QUERY_FAILED,
 } from '../../hooks/useReconnectSharedSignIn';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import {
@@ -41,9 +39,6 @@ export const SharedSignInExpiryListener: FC = () => {
     const { showToastWarning } = useToaster();
     const { activeProjectUuid } = useActiveProjectUuid();
     const userUuid = user.data?.userUuid ?? null;
-    const reconnectFlag = useServerFeatureFlag(
-        FeatureFlags.SharedSignInReconnect,
-    );
     const lastChecks = useRef(new Map<string, number>());
     const pendingProjects = useRef(new Set<string>());
     const openProjects = useRef(new Set<string>());
@@ -98,11 +93,6 @@ export const SharedSignInExpiryListener: FC = () => {
         };
         const notify = (error: unknown) => {
             if (!error || !activeProjectUuid) return;
-            if (reconnectFlag.isLoading) return;
-            if (!reconnectFlag.data?.enabled) {
-                showExpiryToast(error);
-                return;
-            }
             if (
                 !shouldCheckSharedSignInStatus({
                     projectUuid: activeProjectUuid,
@@ -230,8 +220,6 @@ export const SharedSignInExpiryListener: FC = () => {
         userUuid,
         showToastWarning,
         navigate,
-        reconnectFlag.data?.enabled,
-        reconnectFlag.isLoading,
         lightdashApi,
     ]);
 

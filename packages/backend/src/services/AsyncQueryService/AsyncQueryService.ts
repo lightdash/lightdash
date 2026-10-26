@@ -2511,7 +2511,6 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 error: queryHistory.error,
                 projectModel: this.projectModel,
-                featureFlagModel: this.featureFlagModel,
             });
             if (getAgentConnectionGrantRef(queryHistory.agentIdentity))
                 await this.assertCanReadStoredResults(
@@ -4874,13 +4873,11 @@ export class AsyncQueryService extends ProjectService {
     private async repairPreviewSignInAfterQueryError({
         error,
         projectUuid,
-        organizationUuid,
         isPreviewProject,
         rejectedCredentials,
     }: {
         error: unknown;
         projectUuid: string;
-        organizationUuid: string;
         isPreviewProject: boolean;
         rejectedCredentials: CreateWarehouseCredentials;
     }): Promise<boolean> {
@@ -4891,7 +4888,6 @@ export class AsyncQueryService extends ProjectService {
         try {
             return await this.repairPreviewSsoCredentialsAfterRejection({
                 projectUuid,
-                organizationUuid,
                 rejectedCredentials,
             });
         } catch (repairError) {
@@ -5534,7 +5530,6 @@ export class AsyncQueryService extends ProjectService {
                     (await this.repairPreviewSignInAfterQueryError({
                         error: e,
                         projectUuid,
-                        organizationUuid,
                         isPreviewProject,
                         rejectedCredentials: projectCredentials,
                     }));

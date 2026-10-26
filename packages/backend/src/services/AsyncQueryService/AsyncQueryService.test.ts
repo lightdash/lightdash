@@ -507,7 +507,11 @@ const inMemoryDuckdbHistory = ({
 
 const getMockedAsyncQueryService = (
     lightdashConfig: LightdashConfig,
-    overrides: Partial<AsyncQueryService> = {},
+    overrides: Partial<AsyncQueryService> & {
+        refreshTokenRotation?: ConstructorParameters<
+            typeof AsyncQueryService
+        >[0]['refreshTokenRotation'];
+    } = {},
     documentService?: Pick<DocumentService, 'get' | 'getVersion'>,
 ) => {
     // The registry is built over the service under test, so a merge's DAG
@@ -515,7 +519,9 @@ const getMockedAsyncQueryService = (
     let querySourceService: QuerySourceService | undefined;
     const service: AsyncQueryService = new AsyncQueryService({
         dbtSourceRefCatalogModel: {} as never,
-        refreshTokenRotation: { run: vi.fn() },
+        refreshTokenRotation: overrides.refreshTokenRotation ?? {
+            run: vi.fn(),
+        },
         aiAccessService: {
             resolvePlan: vi.fn(async () => null),
             assertCanReadResults: vi.fn(async () => null),
@@ -11506,14 +11512,12 @@ describe('AsyncQueryService', () => {
         const tunnelDisconnects: string[] = [];
 
         const setup = ({
-            syncEnabled = true,
             isPreviewProject = true,
             projectType = ProjectType.PREVIEW,
             userWarehouseCredentials,
             sharedSignIn = false,
             queryContext = QueryExecutionContext.EXPLORE,
         }: {
-            syncEnabled?: boolean;
             isPreviewProject?: boolean;
             projectType?: ProjectType;
             sharedSignIn?: boolean;
@@ -11569,28 +11573,15 @@ describe('AsyncQueryService', () => {
                     },
                 ),
             };
+            const refreshTokenRotation = { run: vi.fn() };
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                refreshTokenRotation,
                 projectModel: model as unknown as ProjectModel,
                 userWarehouseCredentialsModel: {
                     findForProjectWithSecrets: vi.fn(
                         async () => userWarehouseCredentials,
                     ),
                 } as unknown as UserWarehouseCredentialsModel,
-                featureFlagModel: {
-                    get: vi.fn(
-                        async ({
-                            featureFlagId,
-                        }: {
-                            featureFlagId: string;
-                        }) => ({
-                            id: featureFlagId,
-                            enabled:
-                                featureFlagId ===
-                                    FeatureFlags.PreviewSsoCredentialSync &&
-                                syncEnabled,
-                        }),
-                    ),
-                } as unknown as FeatureFlagModel,
             });
             Object.assign(service, {
                 checkGoogleRefreshToken: cachedCheck,
@@ -11647,7 +11638,7 @@ describe('AsyncQueryService', () => {
                     queryCreatedAt: new Date(),
                     displayTimezone: null,
                 });
-            return { service, model, run };
+            return { service, model, run, refreshTokenRotation };
         };
 
         const readyUpdates = (service: AsyncQueryService) =>
@@ -11699,27 +11690,17 @@ describe('AsyncQueryService', () => {
             'keeps a $type $authenticationType refresh lock timeout retryable without sign-in repair',
             async (credentials) => {
                 stored.set(projectUuid, credentials);
-                const { service, model, run } = setup();
+                const { service, model, run, refreshTokenRotation } = setup();
                 const error = new RefreshTokenLockTimeoutError();
                 const attributeExpiry = vi.spyOn(
                     service.warehouseClientFactory,
                     'attributeSharedSignInExpiry',
                 );
-                const exchange =
-                    credentials.type === WarehouseTypes.SNOWFLAKE
-                        ? vi
-                              .spyOn(
-                                  UserService,
-                                  'generateSnowflakeAccessToken',
-                              )
-                              .mockRejectedValue(error)
-                        : vi
-                              .spyOn(warehouses, 'refreshDatabricksOAuthToken')
-                              .mockRejectedValue(error);
+                refreshTokenRotation.run.mockRejectedValueOnce(error);
 
                 await run();
 
-                expect(exchange).toHaveBeenCalledTimes(1);
+                expect(refreshTokenRotation.run).toHaveBeenCalledTimes(1);
                 expect(
                     service.warehouseClientFactory.acquireUnscoped,
                 ).not.toHaveBeenCalled();
@@ -11742,7 +11723,6 @@ describe('AsyncQueryService', () => {
                 expect(recheck).not.toHaveBeenCalled();
                 expect(readyUpdates(service)).toHaveLength(0);
                 expect(stored.get(projectUuid)).toEqual(credentials);
-                exchange.mockRestore();
                 attributeExpiry.mockRestore();
             },
         );
@@ -11846,7 +11826,6 @@ describe('AsyncQueryService', () => {
                     },
                 },
             },
-            { name: 'the kill switch off', options: { syncEnabled: false } },
         ])('does not retry for $name', async ({ options }) => {
             const { service, model, run } = setup(options);
 
@@ -20508,7 +20487,6 @@ describe('fresh stored result read boundary', () => {
             updateWarehouseCredentialsIf: vi.fn(async () => true),
         });
         Object.assign(f.service, {
-            isPreviewSsoCredentialSyncEnabled: vi.fn(async () => true),
             checkGoogleRefreshToken: vi.fn(
                 async (keyfile: CreateBigqueryCredentials['keyfileContents']) =>
                     keyfile.refresh_token === 'stale' ? 'rejected' : 'valid',

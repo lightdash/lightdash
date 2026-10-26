@@ -15,7 +15,6 @@ export enum FeatureFlags {
     AgentIdentity = 'agent-identity',
     OAuthScopeEnforcement = 'oauth-scope-enforcement',
     AgentIdentitySilentRefresh = 'agent-identity-silent-refresh',
-    WarehouseOAuthRefreshLock = 'warehouse-oauth-refresh-lock',
 
     MultiConnectionProjects = 'multi-connection-projects',
     /** Extra warehouse connections of a different type to the project's original connection. */
@@ -94,23 +93,12 @@ export enum FeatureFlags {
      * sandbox provider, but still keeps installed chart types usable.
      */
     EnableDataApps = 'enable-data-apps',
-    /**
-     * Keeps a preview's copied BigQuery SSO credential in step with its
-     * upstream project. On by default; the flag is a kill switch only.
-     */
-    PreviewSsoCredentialSync = 'preview-sso-credential-sync',
 
     /**
      * Read hyphenated warehouse identifiers in agent SQL scope checks.
      * On by default; the flag is a kill switch only.
      */
     AgentSqlScopeHyphenatedIdentifiers = 'agent-sql-scope-hyphenated-identifiers',
-
-    /**
-     * Lists every Lightdash IP address with copy buttons on warehouse
-     * connection forms. On by default; the flag is a kill switch only.
-     */
-    EgressIpNotice = 'egress-ip-notice',
 
     /**
      * AI access (in-app agent, Slack agent, MCP) skips the results cache,
@@ -262,11 +250,6 @@ export enum FeatureFlags {
      * enable instance-wide (or for everyone in posthog) to turn on signup.
      */
     NewOnboarding = 'new-onboarding',
-
-    /** Kill switch for expired shared sign-in messages. On by default. */
-    SharedSignInExpiryMessage = 'shared-sign-in-expiry-message',
-    /** Kill switch for shared sign-in reconnection. On by default. */
-    SharedSignInReconnect = 'shared-sign-in-reconnect',
 
     /**
      * Cloud-only: let an organization send report/notification emails from

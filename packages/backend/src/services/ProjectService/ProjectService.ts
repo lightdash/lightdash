@@ -1896,16 +1896,6 @@ export class ProjectService
     protected recheckGoogleRefreshToken: CheckGoogleRefreshToken = (keyfile) =>
         recheckGoogleRefreshToken(keyfile, this.lightdashConfig.auth.google);
 
-    private async isPreviewSsoCredentialSyncEnabled(
-        organizationUuid: string,
-    ): Promise<boolean> {
-        const { enabled } = await this.featureFlagModel.get({
-            user: { organizationUuid },
-            featureFlagId: FeatureFlags.PreviewSsoCredentialSync,
-        });
-        return enabled;
-    }
-
     private async getSsoPushToPreviews({
         savedProject,
         updatedProject,
@@ -1921,21 +1911,6 @@ export class ProjectService
             updatedProject.organizationWarehouseCredentialsUuid ||
             !getBigquerySsoCredentials(updatedProject.warehouseConnection)
         ) {
-            return null;
-        }
-        try {
-            if (
-                !(await this.isPreviewSsoCredentialSyncEnabled(
-                    savedProject.organizationUuid,
-                ))
-            ) {
-                return null;
-            }
-        } catch (error) {
-            this.logger.error('Failed to push SSO credentials to previews', {
-                projectUuid: savedProject.projectUuid,
-                error: getErrorMessage(error),
-            });
             return null;
         }
         return ({ previewCredentials, previousUpstreamCredentials }) =>
@@ -2048,9 +2023,6 @@ export class ProjectService
         if (
             preview.type !== ProjectType.PREVIEW ||
             !preview.upstreamProjectUuid ||
-            !(await this.isPreviewSsoCredentialSyncEnabled(
-                preview.organizationUuid,
-            )) ||
             (await this.projectModel.getPreviewOwnsCredentials(projectUuid))
         ) {
             return credentials;
@@ -2127,19 +2099,14 @@ export class ProjectService
 
     protected async repairPreviewSsoCredentialsAfterRejection({
         projectUuid,
-        organizationUuid,
         rejectedCredentials,
     }: {
         projectUuid: string;
-        organizationUuid: string;
         rejectedCredentials: CreateWarehouseCredentials;
     }): Promise<boolean> {
         const rejectedRefreshToken =
             getBigquerySsoCredentials(rejectedCredentials)?.refreshToken;
-        if (
-            !rejectedRefreshToken ||
-            !(await this.isPreviewSsoCredentialSyncEnabled(organizationUuid))
-        ) {
+        if (!rejectedRefreshToken) {
             return false;
         }
         const { organizationWarehouseCredentialsUuid } =
@@ -3609,12 +3576,7 @@ export class ProjectService
             createdByUserUuid: project.createdByUserUuid,
         });
         if (ability.cannot('view', resource)) throw new ForbiddenError();
-        const flag = await this.featureFlagModel.get({
-            user: { organizationUuid: project.organizationUuid },
-            featureFlagId: FeatureFlags.SharedSignInReconnect,
-        });
-        if (!flag.enabled || project.organizationWarehouseCredentialsUuid)
-            return null;
+        if (project.organizationWarehouseCredentialsUuid) return null;
         const credentials = project.warehouseConnection;
         const signIn = credentials ? getPersonSignIn(credentials) : null;
         if (!signIn) return null;
@@ -3675,11 +3637,6 @@ export class ProjectService
         projectUuid: string,
     ): Promise<void> {
         assertIsAccountWithOrg(account);
-        const flag = await this.featureFlagModel.get({
-            user: { organizationUuid: account.organization.organizationUuid },
-            featureFlagId: FeatureFlags.SharedSignInReconnect,
-        });
-        if (!flag.enabled) throw new ForbiddenError();
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         const ability = this.createAuditedAbility(account);

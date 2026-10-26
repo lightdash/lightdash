@@ -1394,18 +1394,11 @@ export class WarehouseClientFactory {
         if (projectUuid === null || !isWarehouseTokenError(error) || !signIn)
             throw error;
         try {
-            const { organizationUuid } =
-                await this.projectModel.getSummary(projectUuid);
-            const { enabled } = await this.featureFlagModel.get({
-                user: { organizationUuid },
-                featureFlagId: FeatureFlags.SharedSignInExpiryMessage,
-            });
-            const stored = enabled
-                ? await this.projectModel.getSharedSignInSubjectForToken(
-                      projectUuid,
-                      signIn.refreshToken,
-                  )
-                : null;
+            const stored =
+                await this.projectModel.getSharedSignInSubjectForToken(
+                    projectUuid,
+                    signIn.refreshToken,
+                );
             if (!stored) throw error;
             throw withSharedSignInExpiry(
                 error,
