@@ -357,6 +357,66 @@ beforeEach(() => {
 });
 
 describe('WarehouseClientFactory', () => {
+    test('rechecks federated identity before reusing a cached client', async () => {
+        const { factory, projectModel } = buildFixture();
+        const federated: CreateWarehouseCredentials = {
+            type: WarehouseTypes.BIGQUERY,
+            project: 'project',
+            dataset: 'dataset',
+            keyfileContents: {},
+            authenticationType:
+                BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+            workloadIdentityProvider:
+                'projects/123/locations/global/workloadIdentityPools/pool-id/providers/provider-id',
+            timeoutSeconds: undefined,
+            priority: undefined,
+            retries: undefined,
+            location: undefined,
+            maximumBytesBilled: undefined,
+        };
+        projectModel.getWarehouseClientIdentityOptions.mockResolvedValue({
+            bigqueryExternalAccount: {
+                type: 'external_account',
+                audience: `//iam.googleapis.com/${federated.workloadIdentityProvider}`,
+                subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
+                token_url: 'https://sts.googleapis.com/v1/token',
+                subject_token_supplier: {
+                    getSubjectToken: async () => 'token',
+                },
+            },
+        });
+        const query = () =>
+            factory.withWarehouseClient(
+                {
+                    kind: 'resolved',
+                    projectUuid: null,
+                    credentials: federated,
+                    aiPlan: null,
+                    warehouseConnectionUuid: null,
+                    connectionRoute: null,
+                },
+                contextFor(),
+                async () => undefined,
+            );
+        await query();
+        await query();
+        expect(
+            projectModel.getWarehouseClientIdentityOptions,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            projectModel.getWarehouseClientIdentityOptions,
+        ).toHaveBeenCalledWith(federated, 'org-uuid');
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(1);
+        projectModel.getWarehouseClientIdentityOptions.mockRejectedValue(
+            new WarehouseConnectionError('Federation disabled'),
+        );
+        await expect(query()).rejects.toThrow('Federation disabled');
+        expect(
+            projectModel.getWarehouseClientFromCredentials,
+        ).toHaveBeenCalledTimes(1);
+    });
     const ducklakeCredentials: CreateDuckdbDucklakeCredentials = {
         type: WarehouseTypes.DUCKDB,
         connectionType: DuckdbConnectionType.DUCKLAKE,

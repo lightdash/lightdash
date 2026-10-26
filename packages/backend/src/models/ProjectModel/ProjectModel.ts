@@ -216,10 +216,6 @@ import { type StoredPreAggregateRefresh } from '../../services/ProjectService/pr
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { AwsWebIdentityResolver } from '../../utils/awsWebIdentity/AwsWebIdentityResolver';
 import {
-    defaultGoogleIdentityTokenSource,
-    type GoogleIdentityTokenSource,
-} from '../../utils/awsWebIdentity/googleIdentityTokenSource';
-import {
     chunkAsyncRowsByBytes,
     chunkRowsByBytes,
 } from '../../utils/chunkRowsByBytes';
@@ -232,6 +228,11 @@ import {
     hasSameWarehouseCredentialDestination,
 } from '../../utils/credentialDestination';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { BigqueryWorkloadIdentityResolver } from '../../utils/googleIdentity/BigqueryWorkloadIdentityResolver';
+import {
+    defaultGoogleIdentityTokenSource,
+    type GoogleIdentityTokenSource,
+} from '../../utils/googleIdentity/googleIdentityTokenSource';
 import {
     acquireProjectSlugLock,
     generateUniqueProjectSlug,
@@ -574,6 +575,7 @@ export class ProjectModel {
     private connectionRouter: WarehouseConnectionRouter;
 
     readonly awsWebIdentity: AwsWebIdentityResolver;
+    readonly bigqueryWorkloadIdentity: BigqueryWorkloadIdentityResolver;
 
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
@@ -586,14 +588,24 @@ export class ProjectModel {
             database: args.database,
             lightdashConfig: args.lightdashConfig,
         });
-        this.awsWebIdentity = new AwsWebIdentityResolver({
-            isEnabledFor: async (organizationUuid) =>
+        const isFlagEnabledFor =
+            (featureFlagId: FeatureFlags) => async (organizationUuid: string) =>
                 (
                     await featureFlagModel.get({
                         user: { organizationUuid },
-                        featureFlagId: FeatureFlags.AthenaWebIdentityAuth,
+                        featureFlagId,
                     })
-                ).enabled,
+                ).enabled;
+        this.bigqueryWorkloadIdentity = new BigqueryWorkloadIdentityResolver({
+            isEnabledFor: isFlagEnabledFor(
+                FeatureFlags.BigqueryWorkloadIdentityAuth,
+            ),
+            tokenSource:
+                args.googleIdentityTokenSource ??
+                defaultGoogleIdentityTokenSource,
+        });
+        this.awsWebIdentity = new AwsWebIdentityResolver({
+            isEnabledFor: isFlagEnabledFor(FeatureFlags.AthenaWebIdentityAuth),
             audienceModel: new AwsWebIdentityAudienceModel({
                 database: args.database,
             }),
@@ -687,9 +699,12 @@ export class ProjectModel {
                 completeConfig,
             ) ||
             // BigQuery ADC authentication does not require credentials to be set
+            // BigQuery workload identity federation must not inherit keyfiles either.
             (incompleteConfig.type === WarehouseTypes.BIGQUERY &&
-                incompleteConfig.authenticationType ===
-                    BigqueryAuthenticationType.ADC) ||
+                (incompleteConfig.authenticationType ===
+                    BigqueryAuthenticationType.ADC ||
+                    incompleteConfig.authenticationType ===
+                        BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION)) ||
             // Athena IAM role and web identity authentication should not merge old access keys
             (incompleteConfig.type === WarehouseTypes.ATHENA &&
                 (incompleteConfig.authenticationType ===
@@ -8563,11 +8578,23 @@ export class ProjectModel {
      * Identity options for warehouse clients that authenticate as this
      * instance. A web identity audience is only used for the organization it
      * was generated for, so a connection can't use another organization's.
+     * BigQuery workload identity federation requires the owning organization's flag.
      */
     async getWarehouseClientIdentityOptions(
         credentials: CreateWarehouseCredentials | undefined,
         organizationUuid: string | undefined,
-    ): Promise<Pick<WarehouseClientOptions, 'awsCredentials'>> {
+    ): Promise<
+        Pick<
+            WarehouseClientOptions,
+            'awsCredentials' | 'bigqueryExternalAccount'
+        >
+    > {
+        const bigqueryExternalAccount =
+            await this.bigqueryWorkloadIdentity.getExternalAccountCredentials(
+                credentials,
+                organizationUuid,
+            );
+        if (bigqueryExternalAccount) return { bigqueryExternalAccount };
         const awsCredentials = await this.awsWebIdentity.resolveCredentials(
             credentials,
             organizationUuid,

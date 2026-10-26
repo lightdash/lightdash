@@ -9,9 +9,25 @@ import {
 } from '@lightdash/common';
 import * as yaml from 'js-yaml';
 import { profileFromCredentials } from '../profiles';
+import { bigqueryTarget } from './bigquery';
 import { bigqueryAdc, targetCases } from './targets.mock';
 
 describe('legacy dbt target characterisation', () => {
+    it('blocks federation until dbt support is implemented', () => {
+        expect(
+            bigqueryTarget(
+                {
+                    ...bigqueryAdc,
+                    authenticationType:
+                        BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+                },
+                { explicitCredentials: false },
+            ),
+        ).toEqual({
+            kind: 'none',
+            reason: 'BigQuery workload identity federation is not yet supported for dbt targets.',
+        });
+    });
     it.each(targetCases)(
         '$name preserves the complete profile and environment',
         ({ credentials, target, environment }) => {

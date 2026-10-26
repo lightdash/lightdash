@@ -217,6 +217,7 @@ import type { DbtManifestFetchTimings, ProjectAdapter } from '../../types';
 import { buildCacheHash } from '../../utils/cacheUtils';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { BigqueryWorkloadIdentityResolver } from '../../utils/googleIdentity/BigqueryWorkloadIdentityResolver';
 import {
     METRIC_QUERY,
     warehouseClientMock,
@@ -381,6 +382,10 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
 }));
 
 const projectModel = {
+    bigqueryWorkloadIdentity: new BigqueryWorkloadIdentityResolver({
+        isEnabledFor: async () => false,
+        tokenSource: { getIdToken: vi.fn() },
+    }),
     countCachedExploresForDbtSource: vi.fn(async () => 2),
     hasExploreNameAllocations: vi.fn(async () => false),
     reconnectSharedSignIn: vi.fn<ProjectModel['reconnectSharedSignIn']>(
@@ -13700,6 +13705,176 @@ describe('ProjectService', () => {
         });
     });
 
+    describe.each([
+        {
+            keyfileContents: undefined,
+            workloadIdentityAudience: 'custom-audience',
+        },
+        { keyfileContents: '', workloadIdentityAudience: 'custom-audience' },
+        { keyfileContents: {}, workloadIdentityAudience: 'custom-audience' },
+        { keyfileContents: undefined, workloadIdentityAudience: '' },
+    ])(
+        'BigQuery workload identity writes: %j',
+        ({ keyfileContents, workloadIdentityAudience }) => {
+            const disabledResolver = projectModel.bigqueryWorkloadIdentity;
+            const isEnabledFor = vi.fn(async () => true);
+            const getIdToken = vi.fn();
+            const creationUser: SessionUser = {
+                ...user,
+                organizationUuid: projectWithSensitiveFields.organizationUuid,
+                organizationName: 'Organization',
+                organizationCreatedAt: new Date(),
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view', 'create'] },
+                ]),
+            };
+            const credentials: CreateBigqueryCredentials = {
+                type: WarehouseTypes.BIGQUERY,
+                project: 'test-gcp-project',
+                dataset: 'test-dataset',
+                authenticationType:
+                    BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+                workloadIdentityProvider:
+                    'projects/123456/locations/global/workloadIdentityPools/pool-id/providers/provider-id',
+                workloadIdentityAudience,
+                keyfileContents: {},
+                timeoutSeconds: undefined,
+                priority: undefined,
+                retries: undefined,
+                location: undefined,
+                maximumBytesBilled: undefined,
+            };
+            const expectedCredentials = {
+                ...credentials,
+                workloadIdentityAudience: workloadIdentityAudience || undefined,
+            };
+            const submittedProject = (): CreateProject => {
+                const warehouseConnection = { ...credentials };
+                // Legacy routes receive omitted or string keyfiles despite the credential type.
+                if (keyfileContents === undefined) {
+                    Reflect.deleteProperty(
+                        warehouseConnection,
+                        'keyfileContents',
+                    );
+                } else {
+                    Reflect.set(
+                        warehouseConnection,
+                        'keyfileContents',
+                        keyfileContents,
+                    );
+                }
+                return {
+                    name: 'Federated project',
+                    type: ProjectType.DEFAULT,
+                    dbtConnection: projectWithSensitiveFields.dbtConnection,
+                    dbtVersion: projectWithSensitiveFields.dbtVersion,
+                    warehouseConnection,
+                };
+            };
+
+            beforeEach(() => {
+                projectModel.bigqueryWorkloadIdentity =
+                    new BigqueryWorkloadIdentityResolver({
+                        isEnabledFor,
+                        tokenSource: { getIdToken },
+                    });
+            });
+            afterEach(() => {
+                projectModel.bigqueryWorkloadIdentity = disabledResolver;
+            });
+
+            test('persists the provider and audience on create without compile', async () => {
+                await service.createWithoutCompile(
+                    creationUser,
+                    submittedProject(),
+                    RequestMethod.WEB_APP,
+                );
+                expect(
+                    projectModel.createWithOptionalCredentials,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    creationUser.userUuid,
+                    creationUser.organizationUuid,
+                    expect.objectContaining({
+                        warehouseConnection: expectedCredentials,
+                    }),
+                    null,
+                    undefined,
+                );
+                expect(isEnabledFor).toHaveBeenCalledExactlyOnceWith(
+                    creationUser.organizationUuid,
+                );
+                expect(getIdToken).not.toHaveBeenCalled();
+            });
+
+            test('queues normalized credentials with the provider and audience on scheduled create', async () => {
+                const data = submittedProject();
+                jobModel.createProjectJobIfNoActive.mockResolvedValueOnce({
+                    isCreated: true,
+                    job,
+                });
+                await service.scheduleCreate(
+                    creationUser,
+                    data,
+                    RequestMethod.WEB_APP,
+                );
+                expect(
+                    service.encryptionUtil.encrypt,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    JSON.stringify({
+                        ...data,
+                        warehouseConnection: expectedCredentials,
+                    }),
+                );
+                expect(
+                    schedulerClient.createProjectWithCompile,
+                ).toHaveBeenCalledOnce();
+                expect(isEnabledFor).toHaveBeenCalledExactlyOnceWith(
+                    creationUser.organizationUuid,
+                );
+                expect(getIdToken).not.toHaveBeenCalled();
+            });
+
+            test.each([
+                'updateWarehouseCredentials',
+                'updateAndScheduleAsyncWork',
+            ] as const)(
+                'persists the provider and audience through %s without merging an old keyfile',
+                async (method) => {
+                    const savedCredentials: CreateBigqueryCredentials = {
+                        ...credentials,
+                        authenticationType:
+                            BigqueryAuthenticationType.PRIVATE_KEY,
+                        keyfileContents: {
+                            type: 'service_account',
+                            private_key: 'old-key',
+                        },
+                    };
+                    projectModel.getWithSensitiveFields.mockResolvedValueOnce({
+                        ...projectWithSensitiveFields,
+                        warehouseConnection: savedCredentials,
+                    });
+                    await service[method](
+                        projectUuid,
+                        developerAccount,
+                        submittedProject(),
+                        RequestMethod.WEB_APP,
+                    );
+                    expect(projectModel.update).toHaveBeenCalledExactlyOnceWith(
+                        projectUuid,
+                        expect.objectContaining({
+                            warehouseConnection: expectedCredentials,
+                        }),
+                        developerAccount.user.id,
+                    );
+                    expect(isEnabledFor).toHaveBeenCalledExactlyOnceWith(
+                        projectWithSensitiveFields.organizationUuid,
+                    );
+                    expect(getIdToken).not.toHaveBeenCalled();
+                },
+            );
+        },
+    );
+
     describe('validateConfigSecrets', () => {
         const projectWithSnowflakeAuth = (
             authenticationType: SnowflakeAuthenticationType,
@@ -13790,6 +13965,50 @@ describe('ProjectService', () => {
             client_email: 'sa@example.com',
             private_key: 'test-private-key',
         };
+        it.each([undefined, '', {}])(
+            'accepts %j as no keyfile for workload identity federation',
+            (keyfileContents) => {
+                const project = projectWithBigqueryKeyfile(
+                    {},
+                    BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+                );
+                if (!project.warehouseConnection)
+                    throw new Error('Missing test credentials');
+                Reflect.set(
+                    project.warehouseConnection,
+                    'keyfileContents',
+                    keyfileContents,
+                );
+                expect(() =>
+                    service.validateConfigSecrets(project),
+                ).not.toThrow();
+            },
+        );
+        it('rejects a federation update when the organization flag is off', async () => {
+            const project = projectWithBigqueryKeyfile(
+                {},
+                BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+            );
+            if (!project.warehouseConnection)
+                throw new Error('Missing test credentials');
+            await expect(
+                service.updateWarehouseCredentials(
+                    projectUuid,
+                    developerAccount,
+                    { warehouseConnection: project.warehouseConnection },
+                ),
+            ).rejects.toThrow('workload identity federation is not enabled');
+        });
+        it('rejects a keyfile for workload identity federation', () => {
+            expect(() =>
+                service.validateConfigSecrets(
+                    projectWithBigqueryKeyfile(
+                        serviceAccountKeyfile,
+                        BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+                    ),
+                ),
+            ).toThrow('does not accept a keyfile');
+        });
         // What the CLI sends for a dbt `method: oauth` gcloud user login
         const authorizedUserKeyfile = {
             type: 'authorized_user',

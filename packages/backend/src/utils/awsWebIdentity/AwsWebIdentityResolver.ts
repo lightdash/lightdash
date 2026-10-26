@@ -12,7 +12,7 @@ import { type AwsWebIdentityAudienceModel } from '../../models/AwsWebIdentityAud
 import {
     getIdTokenSubject,
     type GoogleIdentityTokenSource,
-} from './googleIdentityTokenSource';
+} from '../googleIdentity/googleIdentityTokenSource';
 import { AWS_WEB_IDENTITY_MESSAGES } from './messages';
 
 export type AwsCredentialProvider = ReturnType<typeof fromWebToken>;
