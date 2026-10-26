@@ -399,6 +399,13 @@
         },
         "DashboardConfig": {
             "properties": {
+                "controlSections": {
+                    "description": "Named sets of controls, in display order. Controls point at a section\nby id; controls with no section render first, unsectioned.",
+                    "items": {
+                        "$ref": "#/$defs/DashboardControlSection"
+                    },
+                    "type": "array"
+                },
                 "customMetrics": {
                     "description": "Custom metrics offered to charts built inside this dashboard. Interim\nstore — moves to a semantic-layer draft later; don't read it elsewhere.",
                     "items": {
@@ -444,6 +451,14 @@
                     },
                     "type": "array"
                 },
+                "parameterSections": {
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "Parameter name to section id. Parameters have no saved object of their own.",
+                    "properties": {},
+                    "type": "object"
+                },
                 "pinnedParameters": {
                     "items": {
                         "type": "string"
@@ -456,6 +471,19 @@
                 }
             },
             "required": ["isDateZoomDisabled"],
+            "type": "object"
+        },
+        "DashboardControlSection": {
+            "properties": {
+                "id": {
+                    "description": "uuid, stable across dashboard versions",
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            },
+            "required": ["name", "id"],
             "type": "object"
         },
         "DashboardDataAppTileAsCode": {
@@ -567,6 +595,10 @@
                         },
                         "requiredGroupId": {
                             "description": "Dashboard filters sharing a requiredGroupId form an \"any-one required\"\ngroup: the dashboard is locked until at least one member has a value.",
+                            "type": "string"
+                        },
+                        "sectionId": {
+                            "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling.",
                             "type": "string"
                         },
                         "singleValue": {
@@ -1055,6 +1087,10 @@
                 "name": {
                     "type": "string"
                 },
+                "sectionId": {
+                    "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling.",
+                    "type": "string"
+                },
                 "uuid": {
                     "type": "string"
                 }
@@ -1349,6 +1385,10 @@
                 },
                 "requiredGroupId": {
                     "description": "Dashboard filters sharing a requiredGroupId form an \"any-one required\"\ngroup: the dashboard is locked until at least one member has a value.",
+                    "type": "string"
+                },
+                "sectionId": {
+                    "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling.",
                     "type": "string"
                 },
                 "settings": {

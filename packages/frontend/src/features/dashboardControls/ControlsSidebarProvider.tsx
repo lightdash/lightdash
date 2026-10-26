@@ -252,6 +252,7 @@ const adoptPlaceholder = (
                 lockedTabUuids: placeholder.lockedTabUuids,
                 required: placeholder.required,
                 requiredGroupId: placeholder.requiredGroupId,
+                sectionId: placeholder.sectionId,
                 singleValue: placeholder.singleValue,
             },
             (value) => value === undefined,
@@ -861,6 +862,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 lockedTabUuids: rule.lockedTabUuids,
                 required: rule.required,
                 requiredGroupId: rule.requiredGroupId,
+                sectionId: rule.sectionId,
             });
             setActiveSection(null);
             current.highlightedFieldId = null;
