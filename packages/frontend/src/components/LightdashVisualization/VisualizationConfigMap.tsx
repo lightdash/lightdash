@@ -1,23 +1,19 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, useMemo, memo } from 'react';
+import { memo, useEffect, useMemo, type FC } from 'react';
 import useMapChartConfig from '../../hooks/useMapChartConfig';
 import {
     type VisualizationConfigMap,
     type VisualizationConfigMapProps,
 } from './types';
-import { useVisualizationInputs } from './useVisualizationContext';
 
-const VisualizationMapConfig: React.FC<VisualizationConfigMapProps> = ({
-    initialChartConfig,
+const VisualizationMapConfig: FC<VisualizationConfigMapProps> = ({
     onChartConfigChange,
     children,
 }) => {
-    const { itemsMap } = useVisualizationInputs();
-    const mapConfig = useMapChartConfig(initialChartConfig as any, itemsMap);
+    const mapConfig = useMapChartConfig();
 
     useEffect(() => {
-        if (!onChartConfigChange || !mapConfig.validConfig) return;
-
+        if (!onChartConfigChange) return;
         onChartConfigChange({
             type: ChartType.MAP,
             config: mapConfig.validConfig,

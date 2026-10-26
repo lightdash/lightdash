@@ -117,6 +117,18 @@ const mapEditorSlice = createSlice({
             state.valueFieldId = action.payload;
             state.colorOverrides = {};
         },
+        // The editor detected an area location field and its GeoJSON key
+        areaLocationAutoFill: (
+            state,
+            action: PayloadAction<{
+                locationFieldId: string;
+                geoJsonPropertyKey: string;
+            }>,
+        ) => {
+            if (!state) return;
+            state.locationFieldId = action.payload.locationFieldId;
+            state.geoJsonPropertyKey = action.payload.geoJsonPropertyKey;
+        },
         addColor: (state) => {
             if (!state || state.colorRange.length >= 5) return;
             state.colorRange.splice(state.colorRange.length - 1, 0, '#fab005');

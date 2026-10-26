@@ -1,75 +1,74 @@
-import { ChartType, type GaugeChart, type ItemsMap } from '@lightdash/common';
+import { ChartType, type GaugeSection } from '@lightdash/common';
+import { useCallback, useMemo } from 'react';
 import {
-    getAvailableGaugeFieldIds,
-    getEffectiveGaugeSelectedField,
-} from '@lightdash/visualization/editor';
-import { useCallback, useMemo, type SetStateAction } from 'react';
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../components/LightdashVisualization/useVisualizationContext';
 import {
-    buildGaugeEditorState,
     gaugeEditorActions,
     selectGaugeEditor,
+    selectGaugeSelectedField,
+    selectGaugeValidConfig,
     useEditorFieldSetter,
-    type GaugeEditorState,
+    useVisualizationDispatch,
     useVisualizationSelector,
+    type GaugeEditorState,
 } from '../features/visualization/store';
 
-/**
- * The explorer's editable gauge config. The derivations (available fields,
- * the effective selected field) come from `@lightdash/visualization`; the
- * editor state lives in the visualization store and this hook exposes its
- * mutators.
- */
-const useGaugeChartConfig = (
-    initialChartConfig: GaugeChart | undefined,
-    itemsMap: ItemsMap | undefined,
-) => {
-    const availableFieldsIds = useMemo(
-        () => getAvailableGaugeFieldIds(itemsMap),
-        [itemsMap],
-    );
+export type GaugeEditorActions = {
+    setSelectedField: (field: string | undefined) => void;
+    setMin: (value: number) => void;
+    setMax: (value: number) => void;
+    setMaxFieldId: (value: string | undefined) => void;
+    setShowAxisLabels: (value: boolean) => void;
+    setCustomLabel: (value: string | undefined) => void;
+    setShowPercentage: (value: boolean) => void;
+    setCustomPercentageLabel: (value: string | undefined) => void;
+    addSection: () => void;
+    removeSection: (index: number) => void;
+    updateSection: (index: number, section: Partial<GaugeSection>) => void;
+};
 
-    const {
-        selectedField,
-        min,
-        max,
-        maxFieldId,
-        showAxisLabels,
-        sections,
-        customLabel,
-        showPercentage,
-        customPercentageLabel,
-    } = useVisualizationSelector(selectGaugeEditor);
+/** Stable gauge editor actions */
+export const useGaugeEditorActions = (): GaugeEditorActions => {
+    const dispatch = useVisualizationDispatch();
     const set = useEditorFieldSetter<GaugeEditorState>(
         selectGaugeEditor,
         gaugeEditorActions.set,
     );
-
-    // Get the effective selected field - use state value or fallback to first available
-    const effectiveSelectedField = useMemo(
-        () => getEffectiveGaugeSelectedField(selectedField, availableFieldsIds),
-        [selectedField, availableFieldsIds],
-    );
-
-    const setters = useMemo(
+    return useMemo(
         () => ({
-            setSelectedField: (field: string | undefined) =>
-                set('selectedField', field),
-            setMin: (value: number) => set('min', value),
-            setMax: (value: number) => set('max', value),
-            setMaxFieldId: (value: string | undefined) =>
-                set('maxFieldId', value),
-            setShowAxisLabels: (value: boolean) => set('showAxisLabels', value),
-            setSections: (
-                value: SetStateAction<GaugeEditorState['sections']>,
-            ) => set('sections', value),
-            setCustomLabel: (value: string | undefined) =>
-                set('customLabel', value),
-            setShowPercentage: (value: boolean) => set('showPercentage', value),
-            setCustomPercentageLabel: (value: string | undefined) =>
+            setSelectedField: (field) => set('selectedField', field),
+            setMin: (value) => set('min', value),
+            setMax: (value) => set('max', value),
+            setMaxFieldId: (value) => set('maxFieldId', value),
+            setShowAxisLabels: (value) => set('showAxisLabels', value),
+            setCustomLabel: (value) => set('customLabel', value),
+            setShowPercentage: (value) => set('showPercentage', value),
+            setCustomPercentageLabel: (value) =>
                 set('customPercentageLabel', value),
+            addSection: () => dispatch(gaugeEditorActions.addSection()),
+            removeSection: (index) =>
+                dispatch(gaugeEditorActions.removeSection(index)),
+            updateSection: (index, section) =>
+                dispatch(gaugeEditorActions.updateSection({ index, section })),
         }),
-        [set],
+        [dispatch, set],
     );
+};
+
+/**
+ * Everything the gauge chart body reads, re-rendering on every edit.
+ * Config panels select the fields they show instead.
+ */
+const useGaugeChartConfig = () => {
+    const { itemsMap } = useVisualizationInputs();
+    const editor = useVisualizationSelector(selectGaugeEditor);
+    const selectedField = useVisualizationInputSelector(
+        selectGaugeSelectedField,
+    );
+    const validConfig = useVisualizationInputSelector(selectGaugeValidConfig);
+    const actions = useGaugeEditorActions();
 
     const getField = useCallback(
         (fieldNameOrId: string | undefined) => {
@@ -79,60 +78,16 @@ const useGaugeChartConfig = (
         [itemsMap],
     );
 
-    const validConfig: GaugeChart = useMemo(() => {
-        return {
-            selectedField: effectiveSelectedField,
-            min,
-            max,
-            maxFieldId,
-            showAxisLabels,
-            sections,
-            customLabel,
-            showPercentage,
-            customPercentageLabel,
-        };
-    }, [
-        effectiveSelectedField,
-        min,
-        max,
-        maxFieldId,
-        showAxisLabels,
-        sections,
-        customLabel,
-        showPercentage,
-        customPercentageLabel,
-    ]);
-
     return useMemo(
         () => ({
+            ...actions,
+            ...editor,
             chartType: ChartType.GAUGE as const,
             validConfig,
-            selectedField: effectiveSelectedField,
+            selectedField,
             getField,
-            min,
-            max,
-            maxFieldId,
-            showAxisLabels,
-            sections,
-            customLabel,
-            showPercentage,
-            customPercentageLabel,
-            ...setters,
         }),
-        [
-            validConfig,
-            effectiveSelectedField,
-            getField,
-            min,
-            max,
-            maxFieldId,
-            showAxisLabels,
-            sections,
-            customLabel,
-            showPercentage,
-            customPercentageLabel,
-            setters,
-        ],
+        [actions, editor, validConfig, selectedField, getField],
     );
 };
 

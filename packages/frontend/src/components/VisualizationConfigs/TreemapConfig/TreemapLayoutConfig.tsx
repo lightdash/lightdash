@@ -10,44 +10,84 @@ import {
 } from '@lightdash/common';
 import { Box, Grid, Group, Stack, Switch, Text, Tooltip } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
+import { useMemo } from 'react';
+import {
+    selectTreemapEditor,
+    selectTreemapFieldPools,
+    selectTreemapGroupFieldIds,
+    selectTreemapSelectedColorMetric,
+    selectTreemapSelectedSizeMetric,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { useTreemapEditorActions } from '../../../hooks/useTreemapChartConfig';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
-import { isTreemapVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 import { GrabIcon } from '../common/GrabIcon';
 import classes from './DndList.module.css';
 import { DraggablePortalHandler } from './DraggablePortalHandler';
+import { useDebouncedDraft } from './useDebouncedDraft';
 
 export const Layout: React.FC = () => {
-    const { visualizationConfig, itemsMap } = useVisualizationState();
-
-    if (!isTreemapVisualizationConfig(visualizationConfig)) return null;
-
-    const numericMetrics = Object.values(visualizationConfig.numericMetrics);
-
+    const { itemsMap } = useVisualizationInputs();
+    const pools = useVisualizationInputSelector(selectTreemapFieldPools);
+    const groupFieldIds = useVisualizationInputSelector(
+        selectTreemapGroupFieldIds,
+    );
+    const selectedSizeMetric = useVisualizationInputSelector(
+        selectTreemapSelectedSizeMetric,
+    );
+    const selectedColorMetric = useVisualizationInputSelector(
+        selectTreemapSelectedColorMetric,
+    );
+    const useDynamicColors = useVisualizationSelector(
+        (state) => selectTreemapEditor(state).useDynamicColors,
+    );
     const {
-        groupFieldIds,
         groupReorder,
-
-        selectedSizeMetric,
         sizeMetricChange,
-
-        useDynamicColors,
         toggleDynamicColors,
-        selectedColorMetric,
         colorMetricChange,
-        startColor,
-        endColor,
         onStartColorChange,
         onEndColorChange,
-        startColorThreshold,
         setStartColorThreshold,
-        endColorThreshold,
         setEndColorThreshold,
-    } = visualizationConfig.chartConfig;
+    } = useTreemapEditorActions();
+    const [startColor, onStartColorDraft] = useDebouncedDraft(
+        useVisualizationSelector(
+            (state) => selectTreemapEditor(state).startColor,
+        ),
+        onStartColorChange,
+    );
+    const [endColor, onEndColorDraft] = useDebouncedDraft(
+        useVisualizationSelector(
+            (state) => selectTreemapEditor(state).endColor,
+        ),
+        onEndColorChange,
+    );
+    const [startColorThreshold, onStartColorThresholdDraft] = useDebouncedDraft(
+        useVisualizationSelector(
+            (state) => selectTreemapEditor(state).startColorThreshold,
+        ),
+        setStartColorThreshold,
+    );
+    const [endColorThreshold, onEndColorThresholdDraft] = useDebouncedDraft(
+        useVisualizationSelector(
+            (state) => selectTreemapEditor(state).endColorThreshold,
+        ),
+        setEndColorThreshold,
+    );
+
+    const numericMetrics = useMemo(
+        () => Object.values(pools.numericMetrics),
+        [pools],
+    );
 
     const orderedDimensions = !itemsMap
         ? null
@@ -227,7 +267,7 @@ export const Layout: React.FC = () => {
                                         color={startColor}
                                         swatches={ECHARTS_DEFAULT_COLORS}
                                         withAlpha
-                                        onColorChange={onStartColorChange}
+                                        onColorChange={onStartColorDraft}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={8}>
@@ -237,7 +277,7 @@ export const Layout: React.FC = () => {
                                             size="xs"
                                             value={startColorThreshold}
                                             onNumberChange={
-                                                setStartColorThreshold
+                                                onStartColorThresholdDraft
                                             }
                                             hideControls={true}
                                             decimalScale={2}
@@ -254,7 +294,7 @@ export const Layout: React.FC = () => {
                                         color={endColor}
                                         swatches={ECHARTS_DEFAULT_COLORS}
                                         withAlpha
-                                        onColorChange={onEndColorChange}
+                                        onColorChange={onEndColorDraft}
                                     />
                                 </Grid.Col>
                                 <Grid.Col span={8}>
@@ -269,7 +309,7 @@ export const Layout: React.FC = () => {
                                             size="xs"
                                             value={endColorThreshold}
                                             onNumberChange={
-                                                setEndColorThreshold
+                                                onEndColorThresholdDraft
                                             }
                                             hideControls={true}
                                             decimalScale={2}

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import MantineProvider from '../../providers/MantineProvider';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import {
+    ConfigContext,
     LayoutContext,
     ServicesContext,
     StateContext,
@@ -42,6 +43,13 @@ const makeContext = () => {
         selectedColorMetric: undefined,
         colorMetricChange: vi.fn(),
         useDynamicColors: false,
+        toggleDynamicColors: vi.fn(),
+        startColor: '#000000',
+        endColor: '#ffffff',
+        onStartColorChange: vi.fn(),
+        onEndColorChange: vi.fn(),
+        startColorThreshold: undefined,
+        endColorThreshold: undefined,
         setStartColorThreshold: vi.fn(),
         setEndColorThreshold: vi.fn(),
         visibleMin: 0,
@@ -58,6 +66,12 @@ const makeContext = () => {
         chartRef: createRef<EChartsReact>(),
         leafletMapRef: createRef(),
         pivotDimensions: undefined,
+        initialPivotRows: undefined,
+        parameters: undefined,
+        unsavedMetricQuery: undefined,
+        tableCalculationsMetadata: undefined,
+        dashboardFilters: undefined,
+        invalidateCache: undefined,
         resultsData: { ...makeResultsData(), hasFetchedAllRows: true },
         isLoading: false,
         columnOrder: [],
@@ -92,12 +106,14 @@ const renderTreemap = (
         <ServicesContext.Provider value={context}>
             <LayoutContext.Provider value={context}>
                 <StateContext.Provider value={context}>
-                    <SimpleTreemap
-                        isInDashboard
-                        opts={{ renderer: 'svg', width: 800, height: 600 }}
-                        onScreenshotReady={onScreenshotReady}
-                        onScreenshotError={onScreenshotError}
-                    />
+                    <ConfigContext.Provider value={context}>
+                        <SimpleTreemap
+                            isInDashboard
+                            opts={{ renderer: 'svg', width: 800, height: 600 }}
+                            onScreenshotReady={onScreenshotReady}
+                            onScreenshotError={onScreenshotError}
+                        />
+                    </ConfigContext.Provider>
                 </StateContext.Provider>
             </LayoutContext.Provider>
         </ServicesContext.Provider>

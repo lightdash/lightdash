@@ -1,3 +1,10 @@
+import {
+    ChartType,
+    DimensionType,
+    FieldType,
+    type CompiledDimension,
+    type TableChart,
+} from '@lightdash/common';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { withVisualizationStore } from '../../testing/visualizationStore';
@@ -19,19 +26,29 @@ vi.mock('../useAsyncCalculateTotal', () => {
     };
 });
 
-const render = (initial?: Parameters<typeof useTableConfig>[0]) =>
-    renderHook(
-        () =>
-            useTableConfig(
-                initial,
-                undefined,
-                undefined,
-                [],
-                undefined,
-                undefined,
-            ),
-        { wrapper: withVisualizationStore() },
-    );
+const render = (
+    config?: TableChart,
+    inputs?: Parameters<typeof withVisualizationStore>[1],
+) =>
+    renderHook(() => useTableConfig(), {
+        wrapper: withVisualizationStore(
+            { type: ChartType.TABLE, config },
+            inputs,
+        ),
+    });
+
+const ordersStatus: CompiledDimension = {
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.STRING,
+    name: 'status',
+    label: 'Status',
+    table: 'orders',
+    tableLabel: 'Orders',
+    sql: '${TABLE}.status',
+    compiledSql: '"orders".status',
+    tablesReferences: ['orders'],
+    hidden: false,
+};
 
 describe('useTableConfig', () => {
     it('seeds defaults from an empty config', () => {
@@ -67,10 +84,10 @@ describe('useTableConfig', () => {
         });
     });
 
-    it('accepts values and updaters in setters', () => {
+    it('sets values and toggles flags', () => {
         const { result } = render(undefined);
         act(() => result.current.setShowColumnCalculation(true));
-        act(() => result.current.setShowResultsTotal((prev) => !prev));
+        act(() => result.current.toggle('showResultsTotal'));
         expect(result.current.showColumnCalculation).toBe(true);
         expect(result.current.showResultsTotal).toBe(true);
     });
@@ -86,5 +103,16 @@ describe('useTableConfig', () => {
             a: { visible: false, frozen: true },
             b: { width: 10 },
         });
+    });
+
+    it('defaults show table names from the items until one is saved', () => {
+        const itemsMap = { orders_status: ordersStatus };
+        expect(render({}, { itemsMap }).result.current.showTableNames).toBe(
+            true,
+        );
+        expect(
+            render({ showTableNames: false }, { itemsMap }).result.current
+                .validConfig.showTableNames,
+        ).toBe(false);
     });
 });

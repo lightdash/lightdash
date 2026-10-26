@@ -1,47 +1,25 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, useMemo, type FC, memo } from 'react';
+import { memo, useEffect, useMemo, type FC } from 'react';
 import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
 import {
-    type VisualizationTableConfigProps,
     type VisualizationConfigTable,
+    type VisualizationTableConfigProps,
 } from './types';
-import { useVisualizationInputs } from './useVisualizationContext';
 
 const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
-    initialChartConfig,
     onChartConfigChange,
     onPivotRowsChange,
     children,
 }) => {
-    const {
-        itemsMap,
-        resultsData,
-        columnOrder,
-        pivotDimensions: validPivotDimensions,
-        initialPivotRows,
-        invalidateCache,
-        parameters,
-    } = useVisualizationInputs();
-    const tableConfig = useTableConfig(
-        initialChartConfig,
-        resultsData,
-        itemsMap,
-        columnOrder,
-        validPivotDimensions,
-        initialPivotRows,
-        onPivotRowsChange,
-        invalidateCache,
-        parameters,
-    );
+    const tableConfig = useTableConfig(onPivotRowsChange);
 
     useEffect(() => {
-        if (!onChartConfigChange || !tableConfig.validConfig) return;
-
+        if (!onChartConfigChange) return;
         onChartConfigChange({
             type: ChartType.TABLE,
             config: tableConfig.validConfig,
         });
-    }, [tableConfig, onChartConfigChange]);
+    }, [tableConfig.validConfig, onChartConfigChange]);
 
     const visualizationConfig: VisualizationConfigTable = useMemo(
         () => ({

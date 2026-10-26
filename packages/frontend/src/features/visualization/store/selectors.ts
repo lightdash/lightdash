@@ -46,6 +46,6 @@ export const selectSankeyEditor = (state: VisualizationStoreState) =>
 const defaultTable = buildTableEditorState(undefined);
 export const selectTableEditor = (state: VisualizationStoreState) =>
     state.tableEditor ?? defaultTable;
-const defaultTreemap = buildTreemapEditorState(undefined, []);
+const defaultTreemap = buildTreemapEditorState(undefined);
 export const selectTreemapEditor = (state: VisualizationStoreState) =>
     state.treemapEditor ?? defaultTreemap;

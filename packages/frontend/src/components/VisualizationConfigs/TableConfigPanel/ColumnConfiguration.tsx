@@ -1,4 +1,9 @@
 import {
+    getTableFieldLabelDefault,
+    isTableColumnFrozen,
+    isTableColumnVisible,
+} from '@lightdash/visualization/editor';
+import {
     ActionIcon,
     Box,
     Group,
@@ -6,7 +11,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useDebouncedState } from '@mantine/hooks';
+import { useDebouncedCallback } from '@mantine/hooks';
 import {
     IconEye,
     IconEyeOff,
@@ -16,49 +21,58 @@ import {
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import {
+    selectTableColumnProperties,
+    selectTableShowSubtotals,
+    selectTableShowTableNames,
+} from '../../../features/visualization/store';
+import { useTableEditorActions } from '../../../hooks/tableVisualization/useTableConfig';
+import {
     getRowDims,
     isFieldSubtotalGroupingLevel,
 } from '../../../utils/pivotSubtotalGrouping';
 import MantineIcon from '../../common/MantineIcon';
 import {
-    isTableVisualizationConfig,
-    type VisualizationConfigTable,
-} from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../../LightdashVisualization/useVisualizationContext';
 import styles from './ColumnConfiguration.module.css';
 
-type ColumnConfigurationInputProps = Pick<
-    ColumnConfigurationProps,
-    'fieldId'
-> & {
-    chartConfig: VisualizationConfigTable['chartConfig'];
+type ColumnConfigurationInputProps = {
+    fieldId: string;
+    labelOverride: string | undefined;
+    isVisible: boolean;
 };
 
 const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
     fieldId,
-    chartConfig: {
-        updateColumnProperty,
-        isColumnVisible,
-        getFieldLabelOverride,
-        getFieldLabelDefault,
-    },
+    labelOverride,
+    isVisible,
 }) => {
-    const [value, setValue] = useDebouncedState(
-        getFieldLabelOverride(fieldId) ?? getFieldLabelDefault(fieldId),
-        500,
+    const { itemsMap } = useVisualizationInputs();
+    const showTableNames = useVisualizationInputSelector(
+        selectTableShowTableNames,
+    );
+    const { updateColumnProperty } = useTableEditorActions();
+    const labelDefault = getTableFieldLabelDefault(
+        itemsMap,
+        showTableNames,
+        fieldId,
+    );
+    const [draft, setDraft] = useState(labelOverride ?? labelDefault ?? '');
+    const commitLabel = useDebouncedCallback(
+        (name: string) => updateColumnProperty(fieldId, { name }),
+        { delay: 500, flushOnUnmount: true },
     );
 
     return (
         <TextInput
             size="xs"
-            disabled={!isColumnVisible(fieldId)}
-            placeholder={getFieldLabelDefault(fieldId)}
-            defaultValue={value}
+            disabled={!isVisible}
+            placeholder={labelDefault}
+            value={draft}
             onChange={(e) => {
-                setValue(e.currentTarget.value);
-                updateColumnProperty(fieldId, {
-                    name: e.currentTarget.value,
-                });
+                setDraft(e.currentTarget.value);
+                commitLabel(e.currentTarget.value);
             }}
         />
     );
@@ -84,29 +98,28 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
     syncFreezeWith,
     hideFreezeToggle = false,
 }) => {
-    const { pivotDimensions, visualizationConfig, resultsData } =
-        useVisualizationState();
+    const { pivotDimensions, resultsData } = useVisualizationInputs();
+    const columnProperties = useVisualizationInputSelector(
+        selectTableColumnProperties,
+    );
+    const showSubtotals = useVisualizationInputSelector(
+        selectTableShowSubtotals,
+    );
+    const { updateColumnProperty } = useTableEditorActions();
 
     const [isShowTooltipVisible, setShowTooltipVisible] = useState(false);
     const [isFreezeTooltipVisible, setFreezeTooltipVisible] = useState(false);
 
-    if (!isTableVisualizationConfig(visualizationConfig)) return null;
-
-    const {
-        updateColumnProperty,
-        isColumnVisible,
-        isColumnFrozen,
-        columnProperties,
-    } = visualizationConfig.chartConfig;
+    const isColumnVisible = (id: string) =>
+        isTableColumnVisible(columnProperties, id);
+    const isColumnFrozen = (id: string) =>
+        isTableColumnFrozen(columnProperties, id);
 
     const columnWidth = columnProperties[fieldId]?.width;
     const isPivotingDimension = pivotDimensions?.includes(fieldId);
 
     // Hiding is forbidden for non-leaf row-index dims when subtotals are
     // enabled (hiding them would corrupt the subtotal grouping).
-    const showSubtotals =
-        isTableVisualizationConfig(visualizationConfig) &&
-        (visualizationConfig.chartConfig.showSubtotals ?? false);
     const dimensions = resultsData?.metricQuery?.dimensions ?? [];
     const rowDims = getRowDims(dimensions, pivotDimensions);
     const isSubtotalGroupingLevel = isFieldSubtotalGroupingLevel(
@@ -140,7 +153,8 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
             <Box flex={1}>
                 <ColumnConfigurationInput
                     fieldId={fieldId}
-                    chartConfig={visualizationConfig.chartConfig}
+                    labelOverride={columnProperties[fieldId]?.name}
+                    isVisible={isColumnVisible(fieldId)}
                 />
             </Box>
 

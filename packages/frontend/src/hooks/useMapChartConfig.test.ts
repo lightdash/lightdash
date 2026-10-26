@@ -1,15 +1,64 @@
-import { MapChartLocation, MapChartType } from '@lightdash/common';
+import {
+    ChartType,
+    FieldType,
+    MapChartLocation,
+    MapChartType,
+    MetricType,
+    type CompiledMetric,
+    type MapChart,
+} from '@lightdash/common';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { withVisualizationStore } from '../testing/visualizationStore';
 import useMapChartConfig, { DEFAULT_MAP_COLORS } from './useMapChartConfig';
 
-const render = (initial?: Parameters<typeof useMapChartConfig>[0]) =>
-    renderHook(() => useMapChartConfig(initial, undefined), {
-        wrapper: withVisualizationStore(),
+const render = (config?: MapChart) =>
+    renderHook(() => useMapChartConfig(), {
+        wrapper: withVisualizationStore({ type: ChartType.MAP, config }),
+    });
+
+const field = (label: string): CompiledMetric => ({
+    compiledSql: '',
+    tablesReferences: [],
+    fieldType: FieldType.METRIC,
+    type: MetricType.MAX,
+    name: label,
+    label,
+    table: 'places',
+    tableLabel: 'Places',
+    sql: '',
+    hidden: false,
+});
+
+const renderWithCoordinates = (config?: MapChart) =>
+    renderHook(() => useMapChartConfig(), {
+        wrapper: withVisualizationStore(
+            { type: ChartType.MAP, config },
+            {
+                itemsMap: {
+                    places_lat: field('Latitude'),
+                    places_lon: field('lon'),
+                },
+            },
+        ),
     });
 
 describe('useMapChartConfig', () => {
+    it('auto-fills coordinates by name in point modes only', () => {
+        const { result } = renderWithCoordinates(undefined);
+        expect(result.current.validConfig).toMatchObject({
+            latitudeFieldId: 'places_lat',
+            longitudeFieldId: 'places_lon',
+        });
+        act(() => result.current.setLatitudeFieldId('other'));
+        expect(result.current.validConfig.latitudeFieldId).toBe('other');
+
+        const area = renderWithCoordinates({
+            locationType: MapChartType.AREA,
+        });
+        expect(area.result.current.validConfig.latitudeFieldId).toBe(undefined);
+    });
+
     it('seeds defaults from an empty config', () => {
         const { result } = render(undefined);
         expect(result.current.validConfig).toMatchObject({

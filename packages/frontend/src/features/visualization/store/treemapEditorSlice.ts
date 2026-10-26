@@ -24,11 +24,11 @@ export type TreemapEditorState = {
 
 export const buildTreemapEditorState = (
     initialChartConfig: TreemapChart | undefined,
-    validGroupFieldIds: string[],
 ): TreemapEditorState => ({
     visibleMin: initialChartConfig?.visibleMin ?? TREEMAP_DEFAULT_VISIBLE_MIN,
     leafDepth: initialChartConfig?.leafDepth ?? TREEMAP_DEFAULT_LEAF_DEPTH,
-    groupFieldIds: validGroupFieldIds,
+    // Validity against the loaded dimensions is derived by the selector
+    groupFieldIds: initialChartConfig?.groupFieldIds ?? [],
     sizeMetricId: initialChartConfig?.sizeMetricId ?? null,
     colorMetricId: initialChartConfig?.colorMetricId ?? null,
     startColor: initialChartConfig?.startColor ?? TREEMAP_DEFAULT_START_COLOR,
@@ -49,14 +49,20 @@ const treemapEditorSlice = createSlice({
             if (state.useDynamicColors) state.colorMetricId = null;
             state.useDynamicColors = !state.useDynamicColors;
         },
+        // Reorders the displayed (derived) list, which may differ from the stored one
         groupReorder: (
             state,
-            action: PayloadAction<{ from: number; to: number }>,
+            action: PayloadAction<{
+                from: number;
+                to: number;
+                groupFieldIds: string[];
+            }>,
         ) => {
             if (!state) return;
+            const { groupFieldIds, ...move } = action.payload;
             state.groupFieldIds = reorderTreemapGroupFieldIds(
-                state.groupFieldIds,
-                action.payload,
+                groupFieldIds,
+                move,
             );
         },
     },

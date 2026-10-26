@@ -1,11 +1,9 @@
 import {
     assertUnreachable,
     ChartType,
-    getDimensionsFromItemsMap,
     type ChartConfig,
     type ItemsMap,
 } from '@lightdash/common';
-import { getValidTreemapGroupFieldIds } from '@lightdash/visualization/editor';
 import { type VisualizationStoreState } from '.';
 import { buildBigNumberEditorState } from './bigNumberEditorSlice';
 import { buildCartesianEditorState } from './cartesianEditorSlice';
@@ -53,12 +51,7 @@ const seedEditor = (
             };
         case ChartType.TREEMAP:
             return {
-                treemapEditor: buildTreemapEditorState(
-                    chartConfig.config,
-                    getValidTreemapGroupFieldIds(
-                        chartConfig.config?.groupFieldIds,
-                        Object.keys(getDimensionsFromItemsMap(itemsMap ?? {})),
-                    ),
+                treemapEditor: buildTreemapEditorState(chartConfig.config),
                 ),
             };
         case ChartType.GAUGE:

@@ -93,13 +93,11 @@ export const GroupItem = forwardRef<
         const [draftLabel, setDraftLabel] = useState(label ?? '');
         const [draftColor, setDraftColor] = useState<string | undefined>();
         const commitLabel = useDebouncedCallback(
-            (value: string) => onLabelChange(defaultLabel, value),
-            500,
-        );
+            (value: string) => onLabelChange(defaultLabel, value), { delay: 500, flushOnUnmount: true });
         const commitColor = useDebouncedCallback((value: string) => {
             onColorChange(defaultLabel, value);
             setDraftColor(undefined);
-        }, 500);
+        }, { delay: 500, flushOnUnmount: true });
 
         return (
             <Stack ref={ref} gap="xs" {...rest}>

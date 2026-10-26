@@ -2,29 +2,29 @@ import {
     ChartType,
     MapChartLocation,
     MapChartType,
-    type ItemsMap,
-    type MapTileBackground,
     type MapChart,
     type MapFieldConfig,
+    type MapTileBackground,
 } from '@lightdash/common';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useVisualizationInputSelector } from '../components/LightdashVisualization/useVisualizationContext';
 import {
-    buildMapEditorState,
     mapEditorActions,
     selectMapEditor,
+    selectMapValidConfig,
     useEditorFieldSetter,
     useVisualizationDispatch,
-    type MapEditorState,
     useVisualizationSelector,
+    type MapEditorState,
 } from '../features/visualization/store';
-import { DEFAULT_MAP_COLORS } from '../features/visualization/store/mapEditorSlice';
+import {
+    DEFAULT_MAP_COLORS,
+    type MapHeatmapConfig,
+} from '../features/visualization/store/mapEditorSlice';
 
 export { DEFAULT_MAP_COLORS };
 
-type MapChartConfig = {
-    chartType: ChartType.MAP;
-    validConfig: MapChart & { saveMapExtent: boolean };
-    defaultConfig: MapChart;
+export type MapEditorActions = {
     setMapType: (mapType: MapChartLocation | undefined) => void;
     setCustomGeoJsonUrl: (url: string | undefined) => void;
     setLocationType: (locationType: MapChartType | undefined) => void;
@@ -32,6 +32,10 @@ type MapChartConfig = {
     setLongitudeFieldId: (fieldId: string | undefined) => void;
     setLocationFieldId: (fieldId: string | undefined) => void;
     setGeoJsonPropertyKey: (key: string | undefined) => void;
+    autoFillAreaLocation: (
+        locationFieldId: string,
+        geoJsonPropertyKey: string,
+    ) => void;
     setValueFieldId: (fieldId: string | undefined) => void;
     setColorRange: (colors: string[]) => void;
     addColor: () => void;
@@ -45,11 +49,7 @@ type MapChartConfig = {
     setMinBubbleSize: (size: number | undefined) => void;
     setMaxBubbleSize: (size: number | undefined) => void;
     setSizeFieldId: (fieldId: string | undefined) => void;
-    setHeatmapConfig: (
-        config:
-            | { radius?: number; blur?: number; opacity?: number }
-            | undefined,
-    ) => void;
+    setHeatmapConfig: (config: MapHeatmapConfig | undefined) => void;
     setHexbinConfig: (
         config: NonNullable<MapChart['hexbinConfig']> | undefined,
     ) => void;
@@ -60,167 +60,108 @@ type MapChartConfig = {
     setBackgroundColor: (color: string | undefined) => void;
     setNoDataColor: (color: string | undefined) => void;
     setDataLayerOpacity: (opacity: number | undefined) => void;
-    // Categorical color overrides (for string fields)
     setColorOverride: (value: string, color: string) => void;
     setColorOverrides: (overrides: Record<string, string>) => void;
-    // Field configuration methods
     updateFieldConfig: (
         fieldId: string,
         config: Partial<MapFieldConfig>,
     ) => void;
-    isFieldVisible: (fieldId: string) => boolean;
-    getFieldLabel: (fieldId: string) => string | undefined;
 };
 
-const getItemName = (item: ItemsMap[string]) =>
-    'label' in item
-        ? item.label
-        : 'displayName' in item
-          ? item.displayName
-          : 'name' in item
-            ? item.name
-            : '';
-
-const useMapChartConfig = (
-    initialConfig: MapChart | undefined,
-    itemsMap: ItemsMap | undefined,
-): MapChartConfig => {
-    const state = useVisualizationSelector(selectMapEditor);
-    const { locationType, latitudeFieldId, longitudeFieldId, fieldConfig } =
-        state;
+/** Stable map editor actions. */
+export const useMapEditorActions = (): MapEditorActions => {
     const dispatch = useVisualizationDispatch();
     const set = useEditorFieldSetter<MapEditorState>(
         selectMapEditor,
         mapEditorActions.set,
     );
-
-    // Auto-fill latitude/longitude fields when switching to scatter mode
-    useEffect(() => {
-        if (
-            locationType === MapChartType.SCATTER &&
-            itemsMap &&
-            (!latitudeFieldId || !longitudeFieldId)
-        ) {
-            const items = Object.entries(itemsMap);
-
-            if (!latitudeFieldId) {
-                const latField = items.find(([_, item]) => {
-                    const name = getItemName(item).toLowerCase();
-                    return name === 'latitude' || name === 'lat';
-                });
-                if (latField) {
-                    set('latitudeFieldId', latField[0]);
-                }
-            }
-
-            if (!longitudeFieldId) {
-                const lonField = items.find(([_, item]) => {
-                    const name = getItemName(item).toLowerCase();
-                    return (
-                        name === 'longitude' ||
-                        name === 'lon' ||
-                        name === 'long'
-                    );
-                });
-                if (lonField) {
-                    set('longitudeFieldId', lonField[0]);
-                }
-            }
-        }
-    }, [locationType, itemsMap, latitudeFieldId, longitudeFieldId, set]);
-
-    const validConfig: MapChart & { saveMapExtent: boolean } = useMemo(
-        () => ({ ...state }),
-        [state],
-    );
-
-    const defaultConfig: MapChart = useMemo(() => {
-        return {
-            mapType: MapChartLocation.WORLD,
-            locationType: MapChartType.SCATTER,
-            colorRange: DEFAULT_MAP_COLORS,
-        };
-    }, []);
-
-    const setters = useMemo(
+    return useMemo(
         () => ({
-            setMapType: (mapType: MapChartLocation | undefined) =>
-                set('mapType', mapType),
-            setCustomGeoJsonUrl: (url: string | undefined) =>
-                set('customGeoJsonUrl', url),
-            setLocationType: (value: MapChartType | undefined) =>
+            setMapType: (mapType) => set('mapType', mapType),
+            setCustomGeoJsonUrl: (url) => set('customGeoJsonUrl', url),
+            setLocationType: (value) =>
                 dispatch(mapEditorActions.locationTypeChange(value)),
-            setLatitudeFieldId: (fieldId: string | undefined) =>
-                set('latitudeFieldId', fieldId),
-            setLongitudeFieldId: (fieldId: string | undefined) =>
-                set('longitudeFieldId', fieldId),
-            setLocationFieldId: (fieldId: string | undefined) =>
-                set('locationFieldId', fieldId),
-            setGeoJsonPropertyKey: (key: string | undefined) =>
-                set('geoJsonPropertyKey', key),
-            setValueFieldId: (fieldId: string | undefined) =>
+            setLatitudeFieldId: (fieldId) => set('latitudeFieldId', fieldId),
+            setLongitudeFieldId: (fieldId) => set('longitudeFieldId', fieldId),
+            setLocationFieldId: (fieldId) => set('locationFieldId', fieldId),
+            setGeoJsonPropertyKey: (key) => set('geoJsonPropertyKey', key),
+            autoFillAreaLocation: (locationFieldId, geoJsonPropertyKey) =>
+                dispatch(
+                    mapEditorActions.areaLocationAutoFill({
+                        locationFieldId,
+                        geoJsonPropertyKey,
+                    }),
+                ),
+            setValueFieldId: (fieldId) =>
                 dispatch(mapEditorActions.valueFieldIdChange(fieldId)),
-            setColorRange: (colors: string[]) => set('colorRange', colors),
+            setColorRange: (colors) => set('colorRange', colors),
             addColor: () => dispatch(mapEditorActions.addColor()),
-            removeColor: (index: number) =>
+            removeColor: (index) =>
                 dispatch(mapEditorActions.removeColor(index)),
-            updateColor: (index: number, color: string) =>
+            updateColor: (index, color) =>
                 dispatch(mapEditorActions.updateColor({ index, color })),
-            setShowLegend: (show: boolean) => set('showLegend', show),
-            setSaveMapExtent: (save: boolean) => set('saveMapExtent', save),
-            setDefaultZoom: (zoom: number | undefined) =>
-                set('defaultZoom', zoom),
-            setDefaultCenterLat: (lat: number | undefined) =>
-                set('defaultCenterLat', lat),
-            setDefaultCenterLon: (lon: number | undefined) =>
-                set('defaultCenterLon', lon),
-            setMinBubbleSize: (size: number | undefined) =>
-                set('minBubbleSize', size),
-            setMaxBubbleSize: (size: number | undefined) =>
-                set('maxBubbleSize', size),
-            setSizeFieldId: (fieldId: string | undefined) =>
-                set('sizeFieldId', fieldId),
-            setHeatmapConfig: (
-                config:
-                    | { radius?: number; blur?: number; opacity?: number }
-                    | undefined,
-            ) => dispatch(mapEditorActions.heatmapConfigChange(config)),
-            setHexbinConfig: (
-                config: NonNullable<MapChart['hexbinConfig']> | undefined,
-            ) => dispatch(mapEditorActions.hexbinConfigChange(config)),
-            setTileBackground: (background: MapTileBackground | undefined) =>
+            setShowLegend: (show) => set('showLegend', show),
+            setSaveMapExtent: (save) => set('saveMapExtent', save),
+            setDefaultZoom: (zoom) => set('defaultZoom', zoom),
+            setDefaultCenterLat: (lat) => set('defaultCenterLat', lat),
+            setDefaultCenterLon: (lon) => set('defaultCenterLon', lon),
+            setMinBubbleSize: (size) => set('minBubbleSize', size),
+            setMaxBubbleSize: (size) => set('maxBubbleSize', size),
+            setSizeFieldId: (fieldId) => set('sizeFieldId', fieldId),
+            setHeatmapConfig: (config) =>
+                dispatch(mapEditorActions.heatmapConfigChange(config)),
+            setHexbinConfig: (config) =>
+                dispatch(mapEditorActions.hexbinConfigChange(config)),
+            setTileBackground: (background) =>
                 set('tileBackground', background),
-            setDarkModeTileBackground: (
-                background: MapTileBackground | undefined,
-            ) => set('darkModeTileBackground', background),
-            setBackgroundColor: (color: string | undefined) =>
-                set('backgroundColor', color),
-            setNoDataColor: (color: string | undefined) =>
-                set('noDataColor', color),
-            setDataLayerOpacity: (opacity: number | undefined) =>
-                set('dataLayerOpacity', opacity),
-            setColorOverride: (value: string, color: string) =>
+            setDarkModeTileBackground: (background) =>
+                set('darkModeTileBackground', background),
+            setBackgroundColor: (color) => set('backgroundColor', color),
+            setNoDataColor: (color) => set('noDataColor', color),
+            setDataLayerOpacity: (opacity) => set('dataLayerOpacity', opacity),
+            setColorOverride: (value, color) =>
                 dispatch(
                     mapEditorActions.colorOverrideChange({ value, color }),
                 ),
-            setColorOverrides: (overrides: Record<string, string>) =>
-                set('colorOverrides', overrides),
-            updateFieldConfig: (
-                fieldId: string,
-                config: Partial<MapFieldConfig>,
-            ) =>
+            setColorOverrides: (overrides) => set('colorOverrides', overrides),
+            updateFieldConfig: (fieldId, config) =>
                 dispatch(
                     mapEditorActions.fieldConfigUpdate({ fieldId, config }),
                 ),
         }),
         [dispatch, set],
     );
+};
+
+type MapChartConfig = MapEditorActions & {
+    chartType: ChartType.MAP;
+    validConfig: MapChart & { saveMapExtent: boolean };
+    defaultConfig: MapChart;
+    isFieldVisible: (fieldId: string) => boolean;
+    getFieldLabel: (fieldId: string) => string | undefined;
+};
+
+const defaultConfig: MapChart = {
+    mapType: MapChartLocation.WORLD,
+    locationType: MapChartType.SCATTER,
+    colorRange: DEFAULT_MAP_COLORS,
+};
+
+/**
+ * Everything the map body reads, re-rendering on every edit. Config panels
+ * select the fields they show instead.
+ */
+const useMapChartConfig = (): MapChartConfig => {
+    const validConfig = useVisualizationInputSelector(selectMapValidConfig);
+    const fieldConfig = useVisualizationSelector(
+        (state) => selectMapEditor(state).fieldConfig,
+    );
+    const actions = useMapEditorActions();
 
     const isFieldVisible = useCallback(
         (fieldId: string) => fieldConfig[fieldId]?.visible !== false,
         [fieldConfig],
     );
-
     const getFieldLabel = useCallback(
         (fieldId: string) => fieldConfig[fieldId]?.label,
         [fieldConfig],
@@ -231,11 +172,11 @@ const useMapChartConfig = (
             chartType: ChartType.MAP,
             validConfig,
             defaultConfig,
-            ...setters,
+            ...actions,
             isFieldVisible,
             getFieldLabel,
         }),
-        [validConfig, defaultConfig, setters, isFieldVisible, getFieldLabel],
+        [validConfig, actions, isFieldVisible, getFieldLabel],
     );
 };
 

@@ -1,43 +1,29 @@
 import { ChartType } from '@lightdash/common';
-import { getSankeyFields } from '@lightdash/visualization/editor';
-import { useEffect, useMemo, type FC, memo } from 'react';
+import { memo, useEffect, useMemo, type FC } from 'react';
+import { selectSankeyFieldPools } from '../../features/visualization/store';
 import useSankeyChartConfig from '../../hooks/useSankeyChartConfig';
 import {
     type VisualizationConfigSankeyProps,
     type VisualizationConfigSankeyType,
 } from './types';
-import { useVisualizationInputs } from './useVisualizationContext';
+import { useVisualizationInputSelector } from './useVisualizationContext';
 
 const VisualizationConfigSankey: FC<VisualizationConfigSankeyProps> = ({
-    initialChartConfig,
     onChartConfigChange,
     children,
 }) => {
-    const { resultsData, itemsMap, colorPalette, tableCalculationsMetadata } =
-        useVisualizationInputs();
-    const { dimensions, numericFields } = useMemo(
-        () => getSankeyFields(itemsMap),
-        [itemsMap],
+    const { dimensions, numericFields } = useVisualizationInputSelector(
+        selectSankeyFieldPools,
     );
-
-    const sankeyChartConfig = useSankeyChartConfig(
-        resultsData,
-        initialChartConfig,
-        itemsMap,
-        dimensions,
-        numericFields,
-        colorPalette,
-        tableCalculationsMetadata,
-    );
+    const sankeyChartConfig = useSankeyChartConfig();
 
     useEffect(() => {
-        if (!onChartConfigChange || !sankeyChartConfig.validConfig) return;
-
+        if (!onChartConfigChange) return;
         onChartConfigChange({
             type: ChartType.SANKEY,
             config: sankeyChartConfig.validConfig,
         });
-    }, [sankeyChartConfig, onChartConfigChange]);
+    }, [sankeyChartConfig.validConfig, onChartConfigChange]);
 
     const visualizationConfig: VisualizationConfigSankeyType = useMemo(
         () => ({

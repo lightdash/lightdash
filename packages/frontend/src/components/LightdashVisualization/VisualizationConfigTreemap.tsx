@@ -1,51 +1,29 @@
-import {
-    ChartType,
-    getDimensionsFromItemsMap,
-    getMetricsFromItemsMap,
-    getTableCalculationsFromItemsMap,
-    isNumericItem,
-} from '@lightdash/common';
-import { useEffect, useMemo, type FC, memo } from 'react';
+import { ChartType } from '@lightdash/common';
+import { memo, useEffect, useMemo, type FC } from 'react';
+import { selectTreemapFieldPools } from '../../features/visualization/store';
 import useTreemapChartConfig from '../../hooks/useTreemapChartConfig';
 import {
-    type VisualizationConfigTreemapProps,
     type VisualizationConfigTreemap,
+    type VisualizationConfigTreemapProps,
 } from './types';
-import { useVisualizationInputs } from './useVisualizationContext';
+import { useVisualizationInputSelector } from './useVisualizationContext';
 
 const VisualizationConfigTreemap: FC<VisualizationConfigTreemapProps> = ({
-    initialChartConfig,
     onChartConfigChange,
     children,
 }) => {
-    const { itemsMap, resultsData, tableCalculationsMetadata } =
-        useVisualizationInputs();
-    const { dimensions, numericMetrics } = useMemo(() => {
-        const metrics = getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem);
-        const tableCalculations = getTableCalculationsFromItemsMap(itemsMap);
-        return {
-            dimensions: getDimensionsFromItemsMap(itemsMap ?? {}),
-            numericMetrics: { ...metrics, ...tableCalculations },
-        };
-    }, [itemsMap]);
-
-    const treemapConfig = useTreemapChartConfig(
-        initialChartConfig,
-        resultsData,
-        itemsMap,
-        dimensions,
-        numericMetrics,
-        tableCalculationsMetadata,
+    const { dimensions, numericMetrics } = useVisualizationInputSelector(
+        selectTreemapFieldPools,
     );
+    const treemapConfig = useTreemapChartConfig();
 
     useEffect(() => {
-        if (!onChartConfigChange || !treemapConfig.validConfig) return;
-
+        if (!onChartConfigChange) return;
         onChartConfigChange({
             type: ChartType.TREEMAP,
             config: treemapConfig.validConfig,
         });
-    }, [treemapConfig, onChartConfigChange]);
+    }, [treemapConfig.validConfig, onChartConfigChange]);
 
     const visualizationConfig: VisualizationConfigTreemap = useMemo(
         () => ({

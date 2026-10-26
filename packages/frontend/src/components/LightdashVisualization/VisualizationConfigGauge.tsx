@@ -1,57 +1,33 @@
-import {
-    ChartType,
-    getMetricsFromItemsMap,
-    getTableCalculationsFromItemsMap,
-    isNumericItem,
-    type TableCalculation,
-} from '@lightdash/common';
-import { useEffect, useMemo, memo } from 'react';
+import { ChartType } from '@lightdash/common';
+import { memo, useEffect, useMemo, type FC } from 'react';
+import { selectGaugeNumericMetrics } from '../../features/visualization/store';
 import useGaugeChartConfig from '../../hooks/useGaugeChartConfig';
 import {
     type VisualizationConfigGauge,
     type VisualizationConfigGaugeProps,
 } from './types';
-import { useVisualizationInputs } from './useVisualizationContext';
+import { useVisualizationInputSelector } from './useVisualizationContext';
 
-const VisualizationGaugeConfig: React.FC<VisualizationConfigGaugeProps> = ({
-    initialChartConfig,
+const VisualizationGaugeConfig: FC<VisualizationConfigGaugeProps> = ({
     onChartConfigChange,
     children,
 }) => {
-    const { itemsMap } = useVisualizationInputs();
-    const numericMetrics = useMemo(() => {
-        const metrics = getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem);
-        const tableCalculations = getTableCalculationsFromItemsMap(itemsMap);
-
-        const numericTableCalculations = Object.keys(tableCalculations).reduce<
-            Record<string, TableCalculation>
-        >((acc, key) => {
-            const tableCalculation = tableCalculations[key];
-            if (isNumericItem(tableCalculation)) {
-                acc[key] = tableCalculation;
-            }
-            return acc;
-        }, {});
-        return { ...metrics, ...numericTableCalculations };
-    }, [itemsMap]);
-
-    const gaugeConfig = useGaugeChartConfig(
-        initialChartConfig as any,
-        itemsMap,
+    const numericMetrics = useVisualizationInputSelector(
+        selectGaugeNumericMetrics,
     );
+    const gaugeConfig = useGaugeChartConfig();
 
     useEffect(() => {
-        if (!onChartConfigChange || !gaugeConfig.validConfig) return;
-
+        if (!onChartConfigChange) return;
         onChartConfigChange({
             type: ChartType.GAUGE,
             config: gaugeConfig.validConfig,
         });
-    }, [gaugeConfig, onChartConfigChange]);
+    }, [gaugeConfig.validConfig, onChartConfigChange]);
 
     const visualizationConfig: VisualizationConfigGauge = useMemo(
         () => ({
-            chartType: gaugeConfig.chartType,
+            chartType: ChartType.GAUGE,
             chartConfig: gaugeConfig,
             numericMetrics,
         }),

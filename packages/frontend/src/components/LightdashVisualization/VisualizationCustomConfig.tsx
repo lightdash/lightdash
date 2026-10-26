@@ -1,32 +1,24 @@
 import { ChartType } from '@lightdash/common';
-import { useEffect, useMemo, type FC, memo } from 'react';
+import { memo, useEffect, useMemo, type FC } from 'react';
 import useCustomVisualizationConfig from '../../hooks/useCustomVisualizationConfig';
 import {
     type VisualizationCustomConfigProps,
     type VisualizationCustomConfigType,
 } from './types';
-import { useVisualizationInputs } from './useVisualizationContext';
 
 const VisualizationCustomConfig: FC<VisualizationCustomConfigProps> = ({
-    initialChartConfig,
     onChartConfigChange,
     children,
 }) => {
-    const { resultsData } = useVisualizationInputs();
-    const customVisConfig = useCustomVisualizationConfig(
-        initialChartConfig,
-        resultsData,
-    );
+    const customVisConfig = useCustomVisualizationConfig();
 
     useEffect(() => {
-        if (!onChartConfigChange || !customVisConfig) return;
+        if (!onChartConfigChange) return;
         onChartConfigChange({
             type: ChartType.CUSTOM,
-            config: {
-                spec: customVisConfig.validConfig.spec,
-            },
+            config: customVisConfig.validConfig,
         });
-    }, [customVisConfig, onChartConfigChange]);
+    }, [customVisConfig.validConfig, onChartConfigChange]);
 
     const visualizationConfig: VisualizationCustomConfigType = useMemo(
         () => ({

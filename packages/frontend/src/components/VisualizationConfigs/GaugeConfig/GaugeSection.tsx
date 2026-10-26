@@ -12,12 +12,15 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { memo, type FC } from 'react';
+import { selectGaugeNumericMetrics } from '../../../features/visualization/store';
 import FieldSelect from '../../common/FieldSelect';
-import { NumberInput } from '../../common/NumberInput';
-import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
+import { DebouncedNumberInput } from './DebouncedNumberInput';
 import { GaugeValueMode } from './types';
 
 export type Props = {
@@ -30,16 +33,12 @@ export type Props = {
 
 const GaugeSectionComponent: FC<Props> = memo(
     ({ index, onClick, section, onUpdate, onRemove }) => {
-        const { colorPalette, visualizationConfig } = useVisualizationState();
-
-        if (!isGaugeVisualizationConfig(visualizationConfig)) {
-            return null;
-        }
-
-        const {
-            chartConfig: { getField },
-            numericMetrics,
-        } = visualizationConfig;
+        const { colorPalette, itemsMap } = useVisualizationInputs();
+        const numericMetrics = useVisualizationInputSelector(
+            selectGaugeNumericMetrics,
+        );
+        const getField = (fieldId: string | undefined) =>
+            fieldId ? itemsMap?.[fieldId] : undefined;
 
         const minValueMode = section.minFieldId
             ? GaugeValueMode.FIELD
@@ -49,7 +48,7 @@ const GaugeSectionComponent: FC<Props> = memo(
             : GaugeValueMode.FIXED;
         const minField = getField(section.minFieldId);
         const maxField = getField(section.maxFieldId);
-        const numericMetricsList = Object.values(numericMetrics ?? {});
+        const numericMetricsList = Object.values(numericMetrics);
 
         const minLabel = minField
             ? getItemLabelWithoutTableName(minField)
@@ -87,13 +86,13 @@ const GaugeSectionComponent: FC<Props> = memo(
                     <Stack gap="md">
                         <Group gap="xs" align="flex-end">
                             {minValueMode === GaugeValueMode.FIXED ? (
-                                <NumberInput
+                                <DebouncedNumberInput
                                     size="xs"
                                     label="Min value"
                                     description="Set the minimum value for the section"
                                     value={section.min}
-                                    onChange={(value) =>
-                                        onUpdate(index, { min: Number(value) })
+                                    onCommit={(value) =>
+                                        onUpdate(index, { min: value ?? 0 })
                                     }
                                     flex={1}
                                     decimalScale={2}
@@ -155,13 +154,13 @@ const GaugeSectionComponent: FC<Props> = memo(
 
                         <Group gap="xs" align="flex-end">
                             {maxValueMode === GaugeValueMode.FIXED ? (
-                                <NumberInput
+                                <DebouncedNumberInput
                                     size="xs"
                                     label="Max value"
                                     description="Set the maximum value for the section"
                                     value={section.max}
-                                    onChange={(value) =>
-                                        onUpdate(index, { max: Number(value) })
+                                    onCommit={(value) =>
+                                        onUpdate(index, { max: value ?? 0 })
                                     }
                                     decimalScale={2}
                                     flex={1}

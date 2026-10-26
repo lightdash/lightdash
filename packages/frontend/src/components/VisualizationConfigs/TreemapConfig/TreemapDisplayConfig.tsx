@@ -1,19 +1,30 @@
 import { Group, Stack, Tooltip } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import React from 'react';
+import {
+    selectTreemapEditor,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { useTreemapEditorActions } from '../../../hooks/useTreemapChartConfig';
 import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
-import { isTreemapVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
+import { useDebouncedDraft } from './useDebouncedDraft';
 
 export const Display: React.FC = () => {
-    const { visualizationConfig } = useVisualizationState();
-
-    if (!isTreemapVisualizationConfig(visualizationConfig)) return null;
-
-    const { visibleMin, setVisibleMin, leafDepth, setLeafDepth } =
-        visualizationConfig.chartConfig;
+    const { setVisibleMin, setLeafDepth } = useTreemapEditorActions();
+    const [visibleMin, onVisibleMinChange] = useDebouncedDraft(
+        useVisualizationSelector(
+            (state) => selectTreemapEditor(state).visibleMin,
+        ),
+        setVisibleMin,
+    );
+    const [leafDepth, onLeafDepthChange] = useDebouncedDraft(
+        useVisualizationSelector(
+            (state) => selectTreemapEditor(state).leafDepth,
+        ),
+        setLeafDepth,
+    );
 
     return (
         <Stack>
@@ -37,7 +48,7 @@ export const Display: React.FC = () => {
                             value={visibleMin}
                             onChange={(value) => {
                                 if (typeof value === 'number')
-                                    setVisibleMin(value);
+                                    onVisibleMinChange(value);
                             }}
                             min={0}
                             step={500}
@@ -62,7 +73,7 @@ export const Display: React.FC = () => {
                             value={leafDepth}
                             onChange={(value) => {
                                 if (typeof value === 'number')
-                                    setLeafDepth(value);
+                                    onLeafDepthChange(value);
                             }}
                             min={1}
                             placeholder="No limit"

@@ -1,22 +1,43 @@
 import { type CustomVis } from '@lightdash/common';
-import { createSlice } from '@reduxjs/toolkit';
+import {
+    parseCustomVisualizationSpec,
+    serializeCustomVisualizationSpec,
+} from '@lightdash/visualization/editor';
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { editorCaseReducers } from './editorSlice';
 
 export type CustomEditorState = {
     visSpec: string | undefined;
+    // The last spec text that parsed, so invalid JSON keeps the chart drawn
     visSpecObject: CustomVis['spec'];
 };
 
-// The hook's effects fill both from the chart config once mounted
-export const buildCustomEditorState = (): CustomEditorState => ({
-    visSpec: undefined,
-    visSpecObject: undefined,
-});
+export const buildCustomEditorState = (
+    initialChartConfig?: CustomVis,
+): CustomEditorState => {
+    const visSpec = initialChartConfig?.spec
+        ? serializeCustomVisualizationSpec(initialChartConfig.spec)
+        : undefined;
+    return {
+        visSpec,
+        visSpecObject: visSpec
+            ? parseCustomVisualizationSpec(visSpec)
+            : undefined,
+    };
+};
 
 const customEditorSlice = createSlice({
     name: 'customEditor',
     initialState: null as CustomEditorState | null,
-    reducers: editorCaseReducers<CustomEditorState>(),
+    reducers: {
+        ...editorCaseReducers<CustomEditorState>(),
+        specChanged: (state, action: PayloadAction<string>) => {
+            if (!state) return;
+            state.visSpec = action.payload;
+            const parsed = parseCustomVisualizationSpec(action.payload);
+            if (parsed !== undefined) state.visSpecObject = parsed;
+        },
+    },
 });
 
 export const customEditorActions = customEditorSlice.actions;

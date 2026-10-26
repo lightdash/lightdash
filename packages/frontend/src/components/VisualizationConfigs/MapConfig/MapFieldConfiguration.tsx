@@ -1,11 +1,15 @@
 import { getItemLabelWithoutTableName } from '@lightdash/common';
 import { TextInput, Box, Group, ActionIcon, Tooltip } from '@mantine/core';
-import { useDebouncedState } from '@mantine/hooks';
+import { useDebouncedCallback } from '@mantine/hooks';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
+import {
+    selectMapEditor,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { useMapEditorActions } from '../../../hooks/useMapChartConfig';
 import MantineIcon from '../../common/MantineIcon';
-import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../../LightdashVisualization/useVisualizationContext';
 
 type MapFieldConfigurationInputProps = {
     fieldId: string;
@@ -26,23 +30,12 @@ const MapFieldConfigurationInput: FC<MapFieldConfigurationInputProps> = ({
     updateFieldConfig,
 }) => {
     const initialValue = labelOverride ?? defaultLabel;
-    const [debouncedValue, setValue] = useDebouncedState(initialValue, 300);
-
-    useEffect(() => {
-        // Only update if the debounced value differs from the current override
-        // This prevents unnecessary updates on initial render
-        const newLabel =
-            debouncedValue === defaultLabel ? undefined : debouncedValue;
+    const commitLabel = useDebouncedCallback((value: string) => {
+        const newLabel = value === defaultLabel ? undefined : value;
         if (newLabel !== labelOverride) {
             updateFieldConfig(fieldId, { label: newLabel || undefined });
         }
-    }, [
-        debouncedValue,
-        defaultLabel,
-        fieldId,
-        labelOverride,
-        updateFieldConfig,
-    ]);
+    }, { delay: 300, flushOnUnmount: true });
 
     return (
         <TextInput
@@ -50,7 +43,7 @@ const MapFieldConfigurationInput: FC<MapFieldConfigurationInputProps> = ({
             disabled={!isVisible}
             placeholder={defaultLabel}
             defaultValue={initialValue}
-            onChange={(e) => setValue(e.currentTarget.value)}
+            onChange={(e) => commitLabel(e.currentTarget.value)}
         />
     );
 };
@@ -60,22 +53,21 @@ type MapFieldConfigurationProps = {
 };
 
 const MapFieldConfiguration: FC<MapFieldConfigurationProps> = ({ fieldId }) => {
-    const { visualizationConfig, itemsMap } = useVisualizationState();
+    const { itemsMap } = useVisualizationInputs();
+    const fieldConfig = useVisualizationSelector(
+        (state) => selectMapEditor(state).fieldConfig[fieldId],
+    );
+    const { updateFieldConfig } = useMapEditorActions();
     const [isTooltipVisible, setTooltipVisible] = useState(false);
 
-    if (!isMapVisualizationConfig(visualizationConfig) || !itemsMap) {
-        return null;
-    }
-
-    const { updateFieldConfig, isFieldVisible, getFieldLabel } =
-        visualizationConfig.chartConfig;
+    if (!itemsMap) return null;
 
     const item = itemsMap[fieldId];
     if (!item) return null;
 
     const defaultLabel = getItemLabelWithoutTableName(item);
-    const labelOverride = getFieldLabel(fieldId);
-    const isVisible = isFieldVisible(fieldId);
+    const labelOverride = fieldConfig?.label;
+    const isVisible = fieldConfig?.visible !== false;
 
     return (
         <Group gap="xs" wrap="nowrap" flex={1}>

@@ -7,8 +7,9 @@ import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import { isTreemapVisualizationConfig } from '../LightdashVisualization/types';
 import {
+    useVisualizationConfig,
+    useVisualizationInputs,
     useVisualizationServices,
-    useVisualizationState,
 } from '../LightdashVisualization/useVisualizationContext';
 
 const EmptyChart = () => (
@@ -40,8 +41,8 @@ const SimpleTreemap: FC<SimpleTreemapProps> = memo(
         ...props
     }) => {
         const { chartRef } = useVisualizationServices();
-        const { isLoading, resultsData, visualizationConfig } =
-            useVisualizationState();
+        const { isLoading, resultsData } = useVisualizationInputs();
+        const visualizationConfig = useVisualizationConfig();
         const treemapConfig = isTreemapVisualizationConfig(visualizationConfig)
             ? visualizationConfig.chartConfig
             : undefined;

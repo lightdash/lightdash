@@ -7,11 +7,10 @@ import {
 import { type UnknownAction } from '@reduxjs/toolkit';
 import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import {
-    buildDataAppVizEditorState,
     dataAppVizEditorActions,
-    selectDataAppVizEditor,
-    useVisualizationStore,
+    selectDataAppVizValidConfig,
     useVisualizationSelector,
+    useVisualizationStore,
 } from '../features/visualization/store';
 import {
     readDataAppVizUuid,
@@ -55,22 +54,21 @@ export interface DataAppVizVisualizationConfigAndData {
     ) => void;
 }
 
-// Local state for a data-app-viz chart (selected viz + field mapping + config
-// option values); setters push each change up via `onConfigChange`. Mirrors
-// useCustomVisualizationConfig. Only options the user explicitly changed are
-// stored — declared defaults are resolved at render time.
+// The selected viz, its field mapping and the options the user changed;
+// each applied edit is pushed up through `onConfigChange` as it happens.
+// Only options the user changed are stored; declared defaults resolve at render time.
 const useDataAppVizVisualizationConfig = (
     initialChartConfig: DataAppVizChart | undefined,
     onConfigChange?: (config: SelectedDataAppViz | null) => void,
 ): DataAppVizVisualizationConfigAndData => {
-    const { config } = useVisualizationSelector(selectDataAppVizEditor);
+    const config = useVisualizationSelector(selectDataAppVizValidConfig);
 
     // Read the committed config from the store so setters called within a
     // single commit (debounced controls all flushing as the panel closes)
     // build on each other instead of on a stale render closure.
     const store = useVisualizationStore();
     const readConfig = useCallback(
-        () => selectDataAppVizEditor(store.getState())?.config ?? null,
+        () => selectDataAppVizValidConfig(store.getState()),
         [store],
     );
     const onConfigChangeRef = useRef(onConfigChange);

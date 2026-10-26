@@ -1,27 +1,30 @@
 import { getItemId } from '@lightdash/common';
 import { memo, type FC } from 'react';
+import {
+    selectGaugeNumericMetrics,
+    selectGaugeSelectedField,
+} from '../../../features/visualization/store';
+import { useGaugeEditorActions } from '../../../hooks/useGaugeChartConfig';
 import FieldSelect from '../../common/FieldSelect';
-import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 
 export const GaugeFieldsConfig: FC = memo(() => {
-    const { visualizationConfig } = useVisualizationState();
+    const { itemsMap } = useVisualizationInputs();
+    const numericMetrics = useVisualizationInputSelector(
+        selectGaugeNumericMetrics,
+    );
+    const selectedFieldId = useVisualizationInputSelector(
+        selectGaugeSelectedField,
+    );
+    const { setSelectedField } = useGaugeEditorActions();
 
-    if (!isGaugeVisualizationConfig(visualizationConfig)) {
-        return null;
-    }
-
-    const {
-        chartConfig: {
-            selectedField: selectedFieldId,
-            setSelectedField,
-            getField,
-        },
-        numericMetrics,
-    } = visualizationConfig;
-
-    const selectedField = getField(selectedFieldId);
+    const selectedField = selectedFieldId
+        ? itemsMap?.[selectedFieldId]
+        : undefined;
 
     return (
         <Config>
@@ -31,7 +34,7 @@ export const GaugeFieldsConfig: FC = memo(() => {
                     label="Selected field"
                     description="Select a metric to display on the gauge"
                     item={selectedField}
-                    items={Object.values(numericMetrics ?? {})}
+                    items={Object.values(numericMetrics)}
                     onChange={(newValue) => {
                         setSelectedField(
                             newValue ? getItemId(newValue) : undefined,
