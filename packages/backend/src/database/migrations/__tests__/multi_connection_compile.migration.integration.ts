@@ -8,10 +8,12 @@ import {
     DeploySessionStatus,
     DimensionType,
     ExploreType,
+    FieldType,
     getCatalogMissingEntries,
     getDeferredExploreName,
     getModelsFromManifest,
     getPreAggregateExploreName,
+    InlineErrorType,
     isExploreError,
     JobStatusType,
     JobStepStatusType,
@@ -48,6 +50,7 @@ import { fromSession } from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
+import { buildPreAggregateExplore } from '../../../ee/preAggregates/buildPreAggregateExplore';
 import Logger from '../../../logging/logger';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { DbtSourceRefCatalogModel } from '../../../models/DbtSourceRefCatalogModel';
@@ -6402,7 +6405,7 @@ Sources in this project: Core models, marketing, finance.`;
         const sourceDeploy = async (
             fixture: Fixture,
             source: string | null,
-            models: Explore[],
+            models: (Explore | ExploreError)[],
         ) => {
             const prepared = await compiler.prepareSourceDeploy({
                 projectUuid: fixture.projectUuid,
@@ -6413,6 +6416,189 @@ Sources in this project: Core models, marketing, finance.`;
             await compiler.save(fixture.projectUuid, prepared);
             return prepared;
         };
+
+        test.each([
+            'x__model_202410',
+            'scores__model_202410',
+            'customer__model_facade',
+        ])('review regression: publishes legitimate model %s', async (name) => {
+            const fixture = await createProject();
+            await sourceDeploy(fixture, 'finance', [
+                deployedModel('finance', name),
+            ]);
+            const rows = await cachedExplores(fixture.projectUuid);
+            expect(rows).toHaveLength(1);
+            expect(rows[0].name).toBe(name);
+            expect(isExploreError(rows[0].explore)).toBe(false);
+        });
+
+        test.each(['staged error', 'missing parent', 'name clash'])(
+            'review regression: isolates a generated explore with %s',
+            async (failure) => {
+                const fixture = await createProject();
+                const parent = deployedModel('finance', 'orders');
+                const name = getPreAggregateExploreName(parent.name, 'rollup');
+                const generated: Explore | ExploreError = {
+                    ...(failure === 'staged error'
+                        ? {
+                              errors: [
+                                  {
+                                      type: InlineErrorType.FIELD_ERROR,
+                                      message: 'Invalid rollup dimension',
+                                  },
+                              ],
+                          }
+                        : parent),
+                    name,
+                    label: 'Orders rollup',
+                    type: ExploreType.PRE_AGGREGATE,
+                    preAggregateSource: {
+                        sourceExploreName:
+                            failure === 'missing parent'
+                                ? getDeferredExploreName({
+                                      unique_id: 'model.finance.missing',
+                                  })
+                                : parent.name,
+                        preAggregateName: 'rollup',
+                    },
+                    dbtModelIdentity: {
+                        ...parent.dbtModelIdentity!,
+                        modelName: name,
+                    },
+                };
+                const conflictingName = getPreAggregateExploreName(
+                    'finance__orders',
+                    'rollup',
+                );
+                if (failure === 'name clash')
+                    await sourceDeploy(fixture, null, [
+                        deployedModel('primary', 'orders'),
+                    ]);
+                const models = [
+                    parent,
+                    generated,
+                    ...(failure === 'name clash'
+                        ? [deployedModel('finance', conflictingName)]
+                        : []),
+                ];
+                await sourceDeploy(fixture, 'finance', models);
+                const rows = await cachedExplores(fixture.projectUuid);
+                expect(rows).toHaveLength(
+                    models.length + (failure === 'name clash' ? 1 : 0),
+                );
+                expect(
+                    rows.find((row) => row.name === 'orders')!.explore,
+                ).not.toHaveProperty('errors');
+                const error = rows.find(
+                    (row) => row.explore.type === ExploreType.PRE_AGGREGATE,
+                )!.explore;
+                expect(isExploreError(error)).toBe(true);
+                expect(error.label).toBe('Orders rollup');
+                expect(
+                    isExploreError(error) && error.errors[0].message,
+                ).toContain(
+                    failure === 'staged error'
+                        ? 'Invalid rollup dimension'
+                        : 'source "finance"',
+                );
+                expect(JSON.stringify({ ...error, errors: [] })).not.toContain(
+                    '__model_',
+                );
+                if (failure === 'name clash')
+                    expect(
+                        rows.find((row) => row.name === conflictingName)!
+                            .explore,
+                    ).not.toHaveProperty('errors');
+                await sourceDeploy(fixture, 'finance', models);
+                expect(
+                    (await cachedExplores(fixture.projectUuid)).map(
+                        (row) => row.name,
+                    ),
+                ).toEqual(rows.map((row) => row.name));
+            },
+        );
+
+        test.each([SupportedDbtAdapter.POSTGRES, SupportedDbtAdapter.BIGQUERY])(
+            'review regression: source deploy qualifies parent and joined columns with %s external quoting',
+            async (adapter) => {
+                const fixture = await createProject();
+                await sourceDeploy(fixture, null, [
+                    deployedModel('primary', 'orders'),
+                    deployedModel('primary', 'customers'),
+                ]);
+                const parent = deployedModel('finance', 'orders');
+                const customer = deployedModel('finance', 'customers');
+                parent.targetDatabase = adapter;
+                parent.tables.customers = customer.tables.customers;
+                for (const name of ['orders', 'customers']) {
+                    parent.tables[name].dimensions.id = {
+                        name: 'id',
+                        label: 'ID',
+                        table: name,
+                        tableLabel: name,
+                        type: DimensionType.NUMBER,
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.id',
+                        compiledSql: `"${name}"."id"`,
+                        tablesReferences: [name],
+                        hidden: false,
+                        index: 0,
+                    };
+                }
+                const externalTable =
+                    adapter === SupportedDbtAdapter.BIGQUERY
+                        ? '`warehouse.dataset.rollup`'
+                        : '"warehouse"."public"."rollup"';
+                const generated = buildPreAggregateExplore(
+                    parent,
+                    {
+                        name: 'rollup',
+                        dimensions: ['id', 'customers.id'],
+                        metrics: [],
+                        table: externalTable,
+                    },
+                    null,
+                );
+                await sourceDeploy(fixture, 'finance', [
+                    parent,
+                    customer,
+                    generated,
+                ]);
+                const rows = await cachedExplores(fixture.projectUuid);
+                const published = rows.find(
+                    (row) => row.explore.type === ExploreType.PRE_AGGREGATE,
+                )!.explore as Explore;
+                const quote =
+                    adapter === SupportedDbtAdapter.BIGQUERY ? '`' : '"';
+                expect(published).toMatchObject({
+                    name: '__preagg__finance__orders__rollup',
+                    label: generated.label,
+                    baseTable: 'finance__orders',
+                    preAggregateSource: {
+                        sourceExploreName: 'finance__orders',
+                        externalTable,
+                    },
+                });
+                for (const table of ['orders', 'customers']) {
+                    const allocated = `finance__${table}`;
+                    expect(published.tables[allocated].sqlTable).toBe(
+                        externalTable,
+                    );
+                    expect(
+                        published.tables[allocated].dimensions.id.compiledSql,
+                    ).toBe(
+                        `${quote}finance__orders${quote}.${quote}${allocated}_id${quote}`,
+                    );
+                }
+                expect(
+                    rows.find((row) => row.name === 'orders')!.explore,
+                ).not.toHaveProperty('errors');
+                expect(
+                    rows.find((row) => row.name === 'customers')!.explore,
+                ).not.toHaveProperty('errors');
+            },
+        );
+
         test.each([6, 250])(
             'bounded publication with colliding model length %s',
             async (length) => {

@@ -58,3 +58,24 @@ it('keeps a broken generated explore hidden and names its source in the error', 
     });
     expect(result).not.toHaveProperty('baseTable');
 });
+
+it.each(['x__model_202410', 'scores__model_202410', 'customer__model_facade'])(
+    'publishes the legitimate model name %s unchanged',
+    (name) => {
+        const explore = {
+            ...valid,
+            name,
+            baseTable: name,
+            tables: {
+                [name]: {
+                    name,
+                    sqlTable: `"public"."${name}"`,
+                    dimensions: {
+                        id: { sql: `"${name}"."id"` },
+                    },
+                },
+            },
+        } as unknown as Explore;
+        expect(validateExplorePublication(explore)).toBe(explore);
+    },
+);

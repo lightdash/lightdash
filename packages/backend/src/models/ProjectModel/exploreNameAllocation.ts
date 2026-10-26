@@ -7,13 +7,13 @@ import {
     InlineErrorType,
     isExploreError,
     isUserManagedExplore,
-    UnexpectedServerError,
     type DbtExploreIdentity,
     type Explore,
     type ExploreError,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { chunk } from 'lodash';
+import { createHash } from 'node:crypto';
 import {
     ExploreNameAllocationsTableName,
     isOwnedExploreNameAllocation,
@@ -264,39 +264,126 @@ export const allocateStagedExploreNames = async (
         const results = new Map(
             staged.map((row, index) => [row.name, parents[index]]),
         );
-        for (const row of generated) {
-            const explore = row.explore as Explore;
+        const reservedNames = new Set([
+            ...parents.map(({ name }) => name),
+            ...existing.map(({ name }) => name),
+            ...cached
+                .filter(
+                    ({ explore }) => explore.type !== ExploreType.PRE_AGGREGATE,
+                )
+                .map(({ name }) => name),
+            ...generated.flatMap(({ explore }) => {
+                const source = explore.preAggregateSource;
+                const parent = source && results.get(source.sourceExploreName);
+                return source && parent
+                    ? [
+                          getPreAggregateExploreName(
+                              parent.name,
+                              source.preAggregateName,
+                          ),
+                      ]
+                    : [];
+            }),
+        ]);
+        const generatedError = (
+            explore: Explore | ExploreError,
+            detail: string,
+            parent?: Explore | ExploreError,
+        ): ExploreError => {
+            const identity =
+                parent?.dbtModelIdentity ?? explore.dbtModelIdentity;
+            const source = explore.preAggregateSource;
+            const sourceName =
+                identity?.sourceName ?? identity?.sourceUuid ?? 'primary';
+            const errorKey = JSON.stringify([
+                identity?.sourceUuid,
+                identity?.uniqueId,
+                source?.preAggregateName,
+                explore.label,
+            ]);
+            const errorName = (attempt: number) =>
+                `__preagg__error__${createHash('sha256').update(`${errorKey}:${attempt}`).digest('hex').slice(0, 8)}`;
+            let attempt = 0;
+            let name =
+                isExploreError(explore) &&
+                /^__preagg__error__[0-9a-f]{8}$/.test(explore.name)
+                    ? explore.name
+                    : errorName(attempt);
+            while (reservedNames.has(name)) {
+                attempt += 1;
+                name = errorName(attempt);
+            }
+            reservedNames.add(name);
+            return {
+                name,
+                label: explore.label,
+                type: ExploreType.PRE_AGGREGATE,
+                ...(source && parent
+                    ? {
+                          preAggregateSource: {
+                              ...source,
+                              sourceExploreName: parent.name,
+                          },
+                      }
+                    : {}),
+                ...(identity
+                    ? { dbtModelIdentity: { ...identity, modelName: name } }
+                    : {}),
+                errors: [
+                    {
+                        type: InlineErrorType.FIELD_ERROR,
+                        message: `Cannot allocate generated explore "${explore.label}" from source "${sourceName}": ${detail}`,
+                    },
+                ],
+            };
+        };
+        generated.forEach((row) => {
+            const { explore }: { explore: Explore | ExploreError } = row;
             const source = explore.preAggregateSource;
             const parent = source && results.get(source.sourceExploreName);
             const references =
                 source && allocatedReferences.get(source.sourceExploreName);
-            if (!source || !parent || !references)
-                throw new UnexpectedServerError(
-                    `Cannot allocate generated explore "${explore.label}" from source "${explore.dbtModelIdentity?.sourceName ?? explore.dbtModelIdentity?.sourceUuid ?? 'primary'}": its parent explore is missing.`,
+            if (!source || !parent || !references) {
+                results.set(
+                    row.name,
+                    generatedError(explore, 'its parent explore is missing.'),
                 );
+                return;
+            }
             const name = getPreAggregateExploreName(
                 parent.name,
                 source.preAggregateName,
             );
-            if ([...results.values()].some((result) => result.name === name))
-                throw new ConflictError(
-                    `Generated explore "${name}" conflicts with another explore from source "${explore.dbtModelIdentity?.sourceName ?? 'primary'}".`,
+            if ([...results.values()].some((result) => result.name === name)) {
+                results.set(
+                    row.name,
+                    generatedError(
+                        explore,
+                        `the name "${name}" conflicts with another explore.`,
+                        parent,
+                    ),
                 );
+                return;
+            }
             const names = new Map(references);
             names.set(explore.name, name);
-            Object.entries(explore.tables).forEach(([tableName, table]) => {
-                const allocatedTable = references.get(tableName) ?? tableName;
-                Object.keys({ ...table.dimensions, ...table.metrics }).forEach(
-                    (fieldName) => {
+            Object.entries(explore.tables ?? {}).forEach(
+                ([tableName, table]) => {
+                    const allocatedTable =
+                        references.get(tableName) ?? tableName;
+                    Object.keys({
+                        ...table.dimensions,
+                        ...table.metrics,
+                    }).forEach((fieldName) => {
                         for (const suffix of ['', '__sum', '__count']) {
                             names.set(
                                 `${tableName}_${fieldName}${suffix}`,
                                 `${allocatedTable}_${fieldName}${suffix}`,
                             );
                         }
-                    },
-                );
-            });
+                    });
+                },
+            );
             const identity = parent.dbtModelIdentity && {
                 ...parent.dbtModelIdentity,
                 modelName: getPreAggregateExploreName(
@@ -304,29 +391,33 @@ export const allocateStagedExploreNames = async (
                     source.preAggregateName,
                 ),
             };
-            const result: Explore | ExploreError = isExploreError(parent)
-                ? {
-                      name,
-                      label: explore.label,
-                      type: ExploreType.PRE_AGGREGATE,
-                      preAggregateSource: {
-                          ...source,
-                          sourceExploreName: parent.name,
-                      },
-                      dbtModelIdentity: identity,
-                      errors: parent.errors,
-                  }
-                : {
-                      ...rewriteAllocatedExplore(
-                          explore,
-                          names,
-                          new Set(names.keys()),
-                      ),
-                      label: explore.label,
-                      dbtModelIdentity: identity,
-                  };
+            let result: Explore | ExploreError;
+            const errorExplore = [explore, parent].find(isExploreError);
+            if (errorExplore) {
+                result = {
+                    name,
+                    label: explore.label,
+                    type: ExploreType.PRE_AGGREGATE,
+                    preAggregateSource: {
+                        ...source,
+                        sourceExploreName: parent.name,
+                    },
+                    dbtModelIdentity: identity,
+                    errors: errorExplore.errors,
+                };
+            } else {
+                result = {
+                    ...rewriteAllocatedExplore(
+                        explore,
+                        names,
+                        new Set(names.keys()),
+                    ),
+                    label: explore.label,
+                    dbtModelIdentity: identity,
+                };
+            }
             results.set(row.name, result);
-        }
+        });
         return selectedStaged.map((row) => results.get(row.name)!);
     };
     const versionUpdates = existingOwners.flatMap((allocation) => {

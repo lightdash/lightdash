@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { rewriteAllocatedSql } from './allocatedExploreReferences';
 
-const deferredName = /__model_(?:[0-9a-f]{6})+/;
+const deferredName = /__model_(?:0000[0-9a-f]{2}){8,}/;
 
 export const validateExplorePublication = (
     explore: Explore | ExploreError,
