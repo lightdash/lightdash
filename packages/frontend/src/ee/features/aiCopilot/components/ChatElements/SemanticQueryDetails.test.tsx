@@ -94,10 +94,11 @@ describe('SemanticQueryDetails', () => {
         expect(screen.getByText('Is deleted')).toBeInTheDocument();
         expect(screen.getByText('False')).toBeInTheDocument();
         expect(screen.getByTestId('semantic-query-sort')).toHaveTextContent(
-            /Sorted by\s*Last active at day/,
+            'Sorted by Last active at day',
         );
+        expect(screen.getByLabelText('descending')).toBeInTheDocument();
         expect(screen.getByTestId('semantic-query-limit')).toHaveTextContent(
-            /Limit\s*500 rows/,
+            'Limit 500 rows',
         );
         expect(screen.getByText('Region')).toBeInTheDocument();
         expect(screen.getByText('EMEA')).toBeInTheDocument();
@@ -110,5 +111,23 @@ describe('SemanticQueryDetails', () => {
         expect(
             screen.getByText('Users last active at day'),
         ).toBeInTheDocument();
+    });
+
+    it('shows one sort badge per sort field, in order', () => {
+        renderDetails(fieldsMap, {
+            ...metricQuery,
+            sorts: [
+                { fieldId: 'users_last_active_at_day', descending: true },
+                { fieldId: 'users_is_deleted', descending: false },
+            ],
+        });
+        fireEvent.click(screen.getByRole('button', { name: /Sort 2/ }));
+
+        expect(
+            screen
+                .getAllByTestId('semantic-query-sort')
+                .map((badge) => badge.textContent),
+        ).toEqual(['Sorted by Last active at day', 'Sorted by Is deleted']);
+        expect(screen.getByLabelText('ascending')).toBeInTheDocument();
     });
 });

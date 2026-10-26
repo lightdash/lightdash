@@ -1,6 +1,7 @@
 import {
     friendlyName,
     getItemLabelWithoutTableName,
+    interpolateUiString,
     type ItemsMap,
     type MetricQuery,
     type ParametersValuesMap,
@@ -12,9 +13,10 @@ import {
     IconChevronDown,
     IconChevronUp,
 } from '@tabler/icons-react';
-import { Fragment, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
 import AgentVisualizationParameters from './AgentVisualizationParameters';
@@ -38,51 +40,58 @@ const itemLabel = (fieldsMap: ItemsMap, fieldId: string) => {
 const SortAndLimit: FC<{
     query: SemanticQueryDetailsQuery;
     fieldsMap: ItemsMap;
-}> = ({ query, fieldsMap }) => (
-    <Group gap={4} wrap="wrap">
-        {query.sorts.length > 0 && (
+}> = ({ query, fieldsMap }) => {
+    const getUiString = useUiStrings();
+    const rowsKey =
+        query.limit === 1
+            ? 'aiAgent.queryDetails.rows.singular'
+            : 'aiAgent.queryDetails.rows.plural';
+    return (
+        <Group gap="xs" wrap="wrap">
+            {query.sorts.map((sort) => (
+                <Badge
+                    key={sort.fieldId}
+                    color="blue"
+                    className={styles.badge}
+                    data-testid="semantic-query-sort"
+                    leftSection={
+                        <MantineIcon
+                            icon={sort.descending ? IconArrowDown : IconArrowUp}
+                            aria-label={getUiString(
+                                sort.descending
+                                    ? 'aiAgent.queryDetails.descending'
+                                    : 'aiAgent.queryDetails.ascending',
+                            )}
+                            strokeWidth={3}
+                            size="sm"
+                        />
+                    }
+                >
+                    <Text span fw={400} fz="xs">
+                        {getUiString('aiAgent.queryDetails.sortedBy')}
+                    </Text>{' '}
+                    <Text span fw={600} fz="xs">
+                        {itemLabel(fieldsMap, sort.fieldId)}
+                    </Text>
+                </Badge>
+            ))}
             <Badge
                 color="blue"
                 className={styles.badge}
-                data-testid="semantic-query-sort"
+                data-testid="semantic-query-limit"
             >
-                <Group gap={4} wrap="nowrap" className={styles.badgeContent}>
-                    <Text span fw={400} fz="xs">
-                        Sorted by
-                    </Text>
-                    {query.sorts.map((sort, index) => (
-                        <Fragment key={sort.fieldId}>
-                            <Text span fw={600} fz="xs" truncate>
-                                {itemLabel(fieldsMap, sort.fieldId)}
-                            </Text>
-                            <MantineIcon
-                                icon={
-                                    sort.descending
-                                        ? IconArrowDown
-                                        : IconArrowUp
-                                }
-                                aria-label={
-                                    sort.descending ? 'descending' : 'ascending'
-                                }
-                                strokeWidth={3}
-                                size="sm"
-                            />
-                            {index < query.sorts.length - 1 && ','}
-                        </Fragment>
-                    ))}
-                </Group>
+                <Text span fw={400} fz="xs">
+                    {getUiString('aiAgent.queryDetails.limit')}
+                </Text>{' '}
+                <Text span fw={600} fz="xs">
+                    {interpolateUiString(getUiString(rowsKey), {
+                        count: query.limit,
+                    })}
+                </Text>
             </Badge>
-        )}
-        <Badge className={styles.badge} data-testid="semantic-query-limit">
-            <Text span fw={400} fz="xs">
-                Limit
-            </Text>{' '}
-            <Text span fw={600} fz="xs">
-                {query.limit} rows
-            </Text>
-        </Badge>
-    </Group>
-);
+        </Group>
+    );
+};
 
 type Props = {
     metricQuery: SemanticQueryDetailsQuery;
@@ -102,6 +111,7 @@ export const SemanticQueryDetails: FC<Props> = ({
     showFilters,
     showSortAndLimit,
 }) => {
+    const getUiString = useUiStrings();
     const [expanded, setExpanded] = useState(false);
     const fieldsCount = showFields
         ? getVisualizationFieldsCount(metricQuery)
@@ -114,7 +124,14 @@ export const SemanticQueryDetails: FC<Props> = ({
     const counts = [
         fieldsCount > 0 ? `Fields ${fieldsCount}` : null,
         filtersCount > 0 ? `Filters ${filtersCount}` : null,
-        sortsCount > 0 ? `Sort ${sortsCount}` : null,
+        sortsCount > 0
+            ? interpolateUiString(
+                  getUiString('aiAgent.queryDetails.sortCount'),
+                  {
+                      count: sortsCount,
+                  },
+              )
+            : null,
         parametersCount > 0 ? `Parameters ${parametersCount}` : null,
     ].filter((count) => count !== null);
     if (counts.length === 0) return null;
@@ -127,7 +144,8 @@ export const SemanticQueryDetails: FC<Props> = ({
                     variant="subtle"
                     color="ldGray"
                     c="dimmed"
-                    className={styles.toggle}
+                    flex="0 0 auto"
+                    bd="none"
                     aria-expanded={expanded}
                     rightSection={
                         <MantineIcon
