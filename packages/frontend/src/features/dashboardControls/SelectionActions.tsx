@@ -78,7 +78,7 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
                 flex="0 0 auto"
                 disabled={count === 0}
                 aria-pressed={isRemoveArmed}
-                data-own-escape
+                data-own-escape={isRemoveArmed || undefined}
                 onBlur={() => setIsRemoveArmed(false)}
                 onMouseLeave={() => setIsRemoveArmed(false)}
                 onKeyDown={(event) => {

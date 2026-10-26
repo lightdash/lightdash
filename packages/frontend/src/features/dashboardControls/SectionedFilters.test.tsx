@@ -853,6 +853,23 @@ describe('SectionedFilters', () => {
             expect(bar()).not.toBeInTheDocument();
         });
 
+        it('clears on Escape from Remove until it is armed', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            const remove = await screen.findByRole('button', {
+                name: 'Remove',
+            });
+            remove.focus();
+            await user.click(remove);
+            await user.keyboard('{Escape}');
+            expect(remove).toHaveTextContent('Remove');
+            expect(pickedIds()).toEqual(['one']);
+
+            await user.keyboard('{Escape}');
+            expect(pickedIds()).toEqual([]);
+        });
+
         it('moves the selection to a section or out of its section, then clears', async () => {
             const user = userEvent.setup();
             renderSectioned(rules(), 'tab-1');
