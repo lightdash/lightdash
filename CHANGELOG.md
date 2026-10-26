@@ -1,3 +1,15 @@
+# [3.59.0](https://github.com/lightdash/lightdash/compare/3.58.0...3.59.0) (2026-10-26)
+
+
+### Bug Fixes
+
+* **dbt:** resolve generated explore names before cache publication ([#31586](https://github.com/lightdash/lightdash/issues/31586)) ([49f811c](https://github.com/lightdash/lightdash/commit/49f811ca5723f501f608e3ad946836ac3e79d7f0))
+
+
+### Features
+
+* **ai:** raise default AI query row limit to 5000 ([#31572](https://github.com/lightdash/lightdash/issues/31572)) ([56e5195](https://github.com/lightdash/lightdash/commit/56e519593900d321ae92039b77bd45f93ef94a5c))
+
 # [3.58.0](https://github.com/lightdash/lightdash/compare/3.57.1...3.58.0) (2026-10-26)
 
 
