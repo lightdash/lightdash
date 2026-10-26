@@ -192,7 +192,9 @@ vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
         useVisualizationContext,
         useVisualizationServices: useVisualizationContext,
         useVisualizationLayout: useVisualizationContext,
-        useVisualizationState: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
+        useVisualizationConfig: () =>
+            useVisualizationContext().visualizationConfig,
     };
 });
 // Self-wiring against the Explorer store, which this panel test doesn't mount.

@@ -1,12 +1,30 @@
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
-import { isPivotRowValue } from '@lightdash/visualization/editor';
+import {
+    isPivotRowValue,
+    isTableColumnVisible,
+} from '@lightdash/visualization/editor';
 import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import useToaster from '../../../hooks/toaster/useToaster';
-import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import {
+    selectTableColumnProperties,
+    selectTableEditor,
+    selectTableIsPivotTableEnabled,
+    selectTableMetricsAsRows,
+    selectTableRowFieldIds,
+    selectTableSelectedItemIds,
+    selectTableShowSubtotals,
+    selectTableShowTableNames,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import {
+    useTableCanUseSubtotals,
+    useTableEditorActions,
+} from '../../../hooks/tableVisualization/useTableConfig';
+import useToaster from '../../../hooks/toaster/useToaster';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
     useVisualizationServices,
-    useVisualizationState,
 } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { RowLimitControls } from '../common/RowLimitControls';
@@ -19,10 +37,36 @@ enum DroppableIds {
     METRICS = 'METRICS',
 }
 
-const GeneralSettings: FC = () => {
-    const { setPivotDimensions } = useVisualizationServices();
-    const { resultsData, pivotDimensions, visualizationConfig, columnOrder } =
-        useVisualizationState();
+const usePivotLayout = () => {
+    const { pivotDimensions, columnOrder } = useVisualizationInputs();
+    const rowFieldIds = useVisualizationInputSelector(selectTableRowFieldIds);
+    const selectedItemIds = useVisualizationInputSelector(
+        selectTableSelectedItemIds,
+    );
+    return useMemo(() => {
+        const columnFields = pivotDimensions ?? [];
+        const metricsFields = (selectedItemIds ?? [])
+            .filter((id) => ![...columnFields, ...rowFieldIds].includes(id))
+            .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
+        return {
+            columns: columnFields,
+            rows: rowFieldIds,
+            metrics: metricsFields,
+        };
+    }, [pivotDimensions, rowFieldIds, selectedItemIds, columnOrder]);
+};
+
+const PivotLayout: FC = () => {
+    const { setPivotDimensions, setPivotRows } = useVisualizationServices();
+    const { resultsData } = useVisualizationInputs();
+    const isPivotTableEnabled = useVisualizationInputSelector(
+        selectTableIsPivotTableEnabled,
+    );
+    const metricsAsRows = useVisualizationInputSelector(
+        selectTableMetricsAsRows,
+    );
+    const { setMetricsAsRows } = useTableEditorActions();
+    const { columns, rows, metrics } = usePivotLayout();
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const { showToastError } = useToaster();
 
@@ -30,61 +74,8 @@ const GeneralSettings: FC = () => {
         dimensions: [] as string[],
     };
 
-    const isTableConfig = isTableVisualizationConfig(visualizationConfig);
-
-    const chartConfig = useMemo(() => {
-        return isTableConfig ? visualizationConfig.chartConfig : undefined;
-    }, [visualizationConfig, isTableConfig]);
-
-    const {
-        columns,
-        rows,
-        metrics,
-    }: { columns: string[]; rows: string[]; metrics: string[] } =
-        useMemo(() => {
-            const columnFields = pivotDimensions ?? [];
-            const rowsFields = chartConfig?.rowFieldIds ?? [];
-            const metricsFields = (chartConfig?.selectedItemIds ?? [])
-                .filter((id) => ![...columnFields, ...rowsFields].includes(id))
-                .sort(
-                    (a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b),
-                );
-            return {
-                columns: columnFields,
-                rows: rowsFields,
-                metrics: metricsFields,
-            };
-        }, [pivotDimensions, chartConfig, columnOrder]);
-
-    const handleToggleMetricsAsRows = useCallback(() => {
-        if (!chartConfig) return;
-
-        const {
-            metricsAsRows,
-            showRowCalculation,
-            showColumnCalculation,
-            setShowColumnCalculation,
-            setShowRowCalculation,
-            setMetricsAsRows,
-        } = chartConfig;
-
-        const newValue = !metricsAsRows;
-
-        if (newValue) {
-            setShowColumnCalculation(showColumnCalculation);
-            setShowRowCalculation(showRowCalculation);
-        } else {
-            setShowColumnCalculation(showColumnCalculation);
-            setShowRowCalculation(showRowCalculation);
-        }
-
-        setMetricsAsRows(newValue);
-    }, [chartConfig]);
-
     const onDragEnd = useCallback(
         ({ source, destination }: DropResult) => {
-            if (!chartConfig) return;
-
             setIsDragging(false);
             if (!destination) return;
 
@@ -116,9 +107,7 @@ const GeneralSettings: FC = () => {
                         fieldId,
                         ...columns.slice(destination.index),
                     ]);
-                    chartConfig.setRowFieldIds?.(
-                        rows.filter((key) => key !== fieldId),
-                    );
+                    setPivotRows(rows.filter((key) => key !== fieldId));
                 } else if (
                     destination.droppableId === DroppableIds.ROWS &&
                     source.droppableId === DroppableIds.COLUMNS
@@ -127,11 +116,8 @@ const GeneralSettings: FC = () => {
                         (key) => key !== fieldId,
                     );
 
-                    if (
-                        chartConfig.metricsAsRows &&
-                        (!newPivotDimensions || newPivotDimensions.length === 0)
-                    ) {
-                        handleToggleMetricsAsRows();
+                    if (metricsAsRows && newPivotDimensions.length === 0) {
+                        setMetricsAsRows(false);
                     }
                     setPivotDimensions(newPivotDimensions);
                     const newRowFields = [
@@ -139,7 +125,7 @@ const GeneralSettings: FC = () => {
                         fieldId,
                         ...rows.slice(destination.index),
                     ];
-                    chartConfig.setRowFieldIds?.(
+                    setPivotRows(
                         newPivotDimensions.length > 0
                             ? newRowFields
                             : newRowFields.filter((rowFieldId) =>
@@ -151,7 +137,7 @@ const GeneralSettings: FC = () => {
                     source.droppableId === DroppableIds.METRICS &&
                     isValueField
                 ) {
-                    chartConfig.setRowFieldIds?.([
+                    setPivotRows([
                         ...rows.slice(0, destination.index),
                         fieldId,
                         ...rows.slice(destination.index),
@@ -161,9 +147,7 @@ const GeneralSettings: FC = () => {
                     source.droppableId === DroppableIds.ROWS &&
                     isValueField
                 ) {
-                    chartConfig.setRowFieldIds?.(
-                        rows.filter((key) => key !== fieldId),
-                    );
+                    setPivotRows(rows.filter((key) => key !== fieldId));
                 }
             } else if (destination.droppableId === DroppableIds.COLUMNS) {
                 // Reorder pivot
@@ -180,7 +164,7 @@ const GeneralSettings: FC = () => {
                 const rowsWithoutReorderField = rows.filter(
                     (key) => key !== fieldId,
                 );
-                chartConfig.setRowFieldIds?.([
+                setPivotRows([
                     ...rowsWithoutReorderField.slice(0, destination.index),
                     fieldId,
                     ...rowsWithoutReorderField.slice(destination.index),
@@ -191,108 +175,129 @@ const GeneralSettings: FC = () => {
             columns,
             rows,
             metrics,
-            chartConfig,
+            setPivotRows,
+            metricsAsRows,
+            setMetricsAsRows,
             setPivotDimensions,
             showToastError,
-            handleToggleMetricsAsRows,
             dimensions,
             resultsData?.fields,
         ],
     );
 
-    if (!chartConfig) return null;
+    return (
+        <DragDropContext
+            onDragStart={() => setIsDragging(true)}
+            onDragEnd={onDragEnd}
+        >
+            <Config>
+                <Config.Section>
+                    <Config.Heading>Columns</Config.Heading>
+                    <DroppableItemsList
+                        droppableId={DroppableIds.COLUMNS}
+                        itemIds={columns}
+                        isDragging={isDragging}
+                        disableReorder={false}
+                        placeholder={
+                            'Drag dimensions into this area to pivot your table'
+                        }
+                    />
 
-    const {
-        isPivotTableEnabled,
-        isColumnVisible,
-        canUseSubtotals,
-        hideRowNumbers,
-        metricsAsRows,
-        setHideRowNumbers,
-        setShowColumnCalculation,
-        setShowResultsTotal,
-        setShowRowCalculation,
-        setShowSubtotals,
-        setShowSubtotalsExpanded,
-        setShowRowGrouping,
-        setShowTableNames,
-        showColumnCalculation,
-        showResultsTotal,
-        showRowCalculation,
-        showSubtotals,
-        showSubtotalsExpanded,
-        showRowGrouping,
-        showTableNames,
-        rowLimit,
-        setRowLimit,
-    } = chartConfig;
+                    <Config.Heading>Rows</Config.Heading>
+                    <DroppableItemsList
+                        droppableId={DroppableIds.ROWS}
+                        itemIds={rows}
+                        isDragging={isDragging}
+                        disableReorder={false}
+                        placeholder={
+                            'Drag dimensions, metrics, or table calculations into this area'
+                        }
+                    />
+
+                    <Config.Heading>Metrics</Config.Heading>
+                    <DroppableItemsList
+                        droppableId={DroppableIds.METRICS}
+                        itemIds={metrics}
+                        placeholder={
+                            'Drag metrics or table calculations into this area'
+                        }
+                        draggableItemIds={
+                            isPivotTableEnabled
+                                ? metrics.filter((itemId) => {
+                                      const item =
+                                          resultsData?.fields?.[itemId];
+                                      return isPivotRowValue(item);
+                                  })
+                                : []
+                        }
+                        isDragging={isDragging}
+                        disableReorder={true}
+                        getColumnConfigurationProps={() => ({
+                            syncFreezeWith: metricsAsRows ? metrics : undefined,
+                            hideFreezeToggle:
+                                !!isPivotTableEnabled && !metricsAsRows,
+                        })}
+                    />
+                </Config.Section>
+            </Config>
+        </DragDropContext>
+    );
+};
+
+const GeneralSettings: FC = () => {
+    const { resultsData } = useVisualizationInputs();
+    const isPivotTableEnabled = useVisualizationInputSelector(
+        selectTableIsPivotTableEnabled,
+    );
+    const metricsAsRows = useVisualizationInputSelector(
+        selectTableMetricsAsRows,
+    );
+    const columnProperties = useVisualizationInputSelector(
+        selectTableColumnProperties,
+    );
+    const showTableNames = useVisualizationInputSelector(
+        selectTableShowTableNames,
+    );
+    const showSubtotals = useVisualizationInputSelector(
+        selectTableShowSubtotals,
+    );
+    const hideRowNumbers = useVisualizationSelector(
+        (state) => selectTableEditor(state).hideRowNumbers,
+    );
+    const showColumnCalculation = useVisualizationSelector(
+        (state) => selectTableEditor(state).showColumnCalculation,
+    );
+    const showRowCalculation = useVisualizationSelector(
+        (state) => selectTableEditor(state).showRowCalculation,
+    );
+    const showResultsTotal = useVisualizationSelector(
+        (state) => selectTableEditor(state).showResultsTotal,
+    );
+    const showSubtotalsExpanded = useVisualizationSelector(
+        (state) => selectTableEditor(state).showSubtotalsExpanded,
+    );
+    const showRowGrouping = useVisualizationSelector(
+        (state) => selectTableEditor(state).showRowGrouping,
+    );
+    const rowLimit = useVisualizationSelector(
+        (state) => selectTableEditor(state).rowLimit,
+    );
+    const canUseSubtotals = useTableCanUseSubtotals();
+    const { toggle, toggleShowTableNames, setMetricsAsRows, setRowLimit } =
+        useTableEditorActions();
+    const { metrics } = usePivotLayout();
+
     const canUseMetricsAsRows =
         !!isPivotTableEnabled &&
         metrics.some(
             (fieldId) =>
-                isColumnVisible(fieldId) &&
+                isTableColumnVisible(columnProperties, fieldId) &&
                 isPivotRowValue(resultsData?.fields?.[fieldId]),
         );
 
     return (
         <Stack>
-            <DragDropContext
-                onDragStart={() => setIsDragging(true)}
-                onDragEnd={onDragEnd}
-            >
-                <Config>
-                    <Config.Section>
-                        <Config.Heading>Columns</Config.Heading>
-                        <DroppableItemsList
-                            droppableId={DroppableIds.COLUMNS}
-                            itemIds={columns}
-                            isDragging={isDragging}
-                            disableReorder={false}
-                            placeholder={
-                                'Drag dimensions into this area to pivot your table'
-                            }
-                        />
-
-                        <Config.Heading>Rows</Config.Heading>
-                        <DroppableItemsList
-                            droppableId={DroppableIds.ROWS}
-                            itemIds={rows}
-                            isDragging={isDragging}
-                            disableReorder={false}
-                            placeholder={
-                                'Drag dimensions, metrics, or table calculations into this area'
-                            }
-                        />
-
-                        <Config.Heading>Metrics</Config.Heading>
-                        <DroppableItemsList
-                            droppableId={DroppableIds.METRICS}
-                            itemIds={metrics}
-                            placeholder={
-                                'Drag metrics or table calculations into this area'
-                            }
-                            draggableItemIds={
-                                isPivotTableEnabled
-                                    ? metrics.filter((itemId) => {
-                                          const item =
-                                              resultsData?.fields?.[itemId];
-                                          return isPivotRowValue(item);
-                                      })
-                                    : []
-                            }
-                            isDragging={isDragging}
-                            disableReorder={true}
-                            getColumnConfigurationProps={() => ({
-                                syncFreezeWith: metricsAsRows
-                                    ? metrics
-                                    : undefined,
-                                hideFreezeToggle:
-                                    !!isPivotTableEnabled && !metricsAsRows,
-                            })}
-                        />
-                    </Config.Section>
-                </Config>
-            </DragDropContext>
+            <PivotLayout />
 
             <Config.Section>
                 <Config.Section>
@@ -314,7 +319,9 @@ const GeneralSettings: FC = () => {
                                 label="Show metrics as rows"
                                 labelPosition="right"
                                 checked={metricsAsRows}
-                                onChange={() => handleToggleMetricsAsRows()}
+                                onChange={() =>
+                                    setMetricsAsRows(!metricsAsRows)
+                                }
                             />
                         </Box>
                     </Tooltip>
@@ -329,7 +336,7 @@ const GeneralSettings: FC = () => {
                     label="Show table names"
                     checked={showTableNames}
                     onChange={() => {
-                        setShowTableNames(!showTableNames);
+                        toggleShowTableNames();
                     }}
                 />
                 <Checkbox
@@ -337,7 +344,7 @@ const GeneralSettings: FC = () => {
                     label="Show row numbers"
                     checked={!hideRowNumbers}
                     onChange={() => {
-                        setHideRowNumbers(!hideRowNumbers);
+                        toggle('hideRowNumbers');
                     }}
                 />
             </Config.Section>
@@ -360,7 +367,7 @@ const GeneralSettings: FC = () => {
                         label="Show row totals"
                         checked={showRowCalculation}
                         onChange={() => {
-                            setShowRowCalculation(!showRowCalculation);
+                            toggle('showRowCalculation');
                         }}
                     />
                 ) : null}
@@ -369,7 +376,7 @@ const GeneralSettings: FC = () => {
                     label="Show column totals"
                     checked={showColumnCalculation}
                     onChange={() => {
-                        setShowColumnCalculation(!showColumnCalculation);
+                        toggle('showColumnCalculation');
                     }}
                 />
                 <Checkbox
@@ -377,7 +384,7 @@ const GeneralSettings: FC = () => {
                     label="Show number of results"
                     checked={showResultsTotal}
                     onChange={() => {
-                        setShowResultsTotal(!showResultsTotal);
+                        toggle('showResultsTotal');
                     }}
                 />
                 <Tooltip
@@ -394,7 +401,7 @@ const GeneralSettings: FC = () => {
                             label="Show subtotals"
                             checked={canUseSubtotals && showSubtotals}
                             onChange={() => {
-                                setShowSubtotals(!showSubtotals);
+                                toggle('showSubtotals');
                             }}
                             disabled={!canUseSubtotals}
                         />
@@ -406,7 +413,7 @@ const GeneralSettings: FC = () => {
                     label="Expand subtotals by default"
                     checked={showSubtotalsExpanded ?? false}
                     onChange={() => {
-                        setShowSubtotalsExpanded(!showSubtotalsExpanded);
+                        toggle('showSubtotalsExpanded');
                     }}
                     disabled={!canUseSubtotals || !showSubtotals}
                 />
@@ -437,7 +444,7 @@ const GeneralSettings: FC = () => {
                                     (showRowGrouping ?? false))
                             }
                             onChange={() => {
-                                setShowRowGrouping(!showRowGrouping);
+                                toggle('showRowGrouping');
                             }}
                             disabled={
                                 !canUseSubtotals ||

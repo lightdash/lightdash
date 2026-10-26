@@ -7,29 +7,40 @@ import {
     type FilterableItem,
 } from '@lightdash/common';
 import { Accordion } from '@mantine/core';
-import { produce } from 'immer';
-import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import { useCallback, useMemo, useRef, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { isBigNumberVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    selectBigNumberEditor,
+    selectBigNumberSelectedField,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { useBigNumberEditorActions } from '../../../hooks/useBigNumberConfig';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../../LightdashVisualization/useVisualizationContext';
 import accordionClasses from '../common/Accordion.module.css';
 import { AddButton } from '../common/AddButton';
 import { Config } from '../common/Config';
 import { BigNumberConditionalFormattingItem } from './BigNumberConditionalFormattingItem';
 
 export const BigNumberConditionalFormatting: FC = () => {
-    const { itemsMap, visualizationConfig, colorPalette } =
-        useVisualizationState();
-
-    const chartConfig = useMemo(() => {
-        if (!isBigNumberVisualizationConfig(visualizationConfig))
-            return undefined;
-        return visualizationConfig.chartConfig;
-    }, [visualizationConfig]);
+    const { itemsMap, colorPalette } = useVisualizationInputs();
+    const selectedFieldId = useVisualizationInputSelector(
+        selectBigNumberSelectedField,
+    );
+    const activeConfigs = useVisualizationSelector(
+        (state) => selectBigNumberEditor(state).conditionalFormattings,
+    );
+    const {
+        conditionalFormattingAdd,
+        conditionalFormattingRemove,
+        conditionalFormattingChange,
+    } = useBigNumberEditorActions();
 
     const selectedField = useMemo(() => {
-        if (!chartConfig?.selectedField || !itemsMap) return undefined;
-        const field = itemsMap[chartConfig.selectedField];
+        if (!selectedFieldId || !itemsMap) return undefined;
+        const field = itemsMap[selectedFieldId];
         if (
             field &&
             (isNumericItem(field) || isStringDimension(field)) &&
@@ -38,60 +49,32 @@ export const BigNumberConditionalFormatting: FC = () => {
             return field as FilterableItem;
         }
         return undefined;
-    }, [chartConfig?.selectedField, itemsMap]);
-
-    const activeConfigs = useMemo(
-        () => chartConfig?.conditionalFormattings ?? [],
-        [chartConfig?.conditionalFormattings],
-    );
+    }, [selectedFieldId, itemsMap]);
 
     const configIdsRef = useRef<string[]>([]);
-    useEffect(() => {
-        while (configIdsRef.current.length < activeConfigs.length) {
-            configIdsRef.current.push(uuidv4());
-        }
-    }, [activeConfigs.length]);
+    // Filled during render so a new rule keeps one key from its first render; idempotent under StrictMode
+    while (configIdsRef.current.length < activeConfigs.length) {
+        configIdsRef.current.push(uuidv4());
+    }
 
     const handleAdd = useCallback(() => {
-        if (!chartConfig) return;
-
-        chartConfig.onSetConditionalFormattings(
-            produce(activeConfigs, (draft) => {
-                draft.push(
-                    createConditionalFormattingConfigWithSingleColor(
-                        colorPalette[0],
-                    ),
-                );
-            }),
+        conditionalFormattingAdd(
+            createConditionalFormattingConfigWithSingleColor(colorPalette[0]),
         );
-    }, [chartConfig, activeConfigs, colorPalette]);
+    }, [conditionalFormattingAdd, colorPalette]);
 
     const handleRemove = useCallback(
         (index: number) => {
-            if (!chartConfig) return;
-
             configIdsRef.current.splice(index, 1);
-
-            chartConfig.onSetConditionalFormattings(
-                produce(activeConfigs, (draft) => {
-                    draft.splice(index, 1);
-                }),
-            );
+            conditionalFormattingRemove(index);
         },
-        [chartConfig, activeConfigs],
+        [conditionalFormattingRemove],
     );
 
     const handleChange = useCallback(
-        (index: number, newConfig: ConditionalFormattingConfig) => {
-            if (!chartConfig) return;
-
-            chartConfig.onSetConditionalFormattings(
-                produce(activeConfigs, (draft) => {
-                    draft[index] = newConfig;
-                }),
-            );
-        },
-        [chartConfig, activeConfigs],
+        (index: number, newConfig: ConditionalFormattingConfig) =>
+            conditionalFormattingChange(index, newConfig),
+        [conditionalFormattingChange],
     );
 
     return (
@@ -110,7 +93,7 @@ export const BigNumberConditionalFormatting: FC = () => {
                 >
                     {activeConfigs.map((conditionalFormatting, index) => (
                         <BigNumberConditionalFormattingItem
-                            key={configIdsRef.current[index] ?? index}
+                            key={configIdsRef.current[index]}
                             colorPalette={colorPalette}
                             index={index + 1}
                             field={selectedField}

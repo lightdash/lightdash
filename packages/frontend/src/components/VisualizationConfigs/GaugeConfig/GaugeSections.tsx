@@ -1,8 +1,10 @@
-import { type GaugeSection } from '@lightdash/common';
 import { Accordion, Stack } from '@mantine/core';
-import { memo, useCallback, type FC } from 'react';
-import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import { memo, type FC } from 'react';
+import {
+    selectGaugeEditor,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { useGaugeEditorActions } from '../../../hooks/useGaugeChartConfig';
 import accordionClasses from '../common/Accordion.module.css';
 import { AddButton } from '../common/AddButton';
 import { Config } from '../common/Config';
@@ -12,79 +14,23 @@ import GaugeSectionComponent from './GaugeSection';
 const GaugeSections: FC = memo(() => {
     const { openItems, handleAccordionChange, addNewItem, removeItem } =
         useControlledAccordion();
-
-    const { visualizationConfig } = useVisualizationState();
-
-    const isGaugeChart = isGaugeVisualizationConfig(visualizationConfig);
-
-    const addSection = useCallback(() => {
-        if (!isGaugeChart) {
-            return;
-        }
-        const {
-            chartConfig: { setSections, min, max },
-        } = visualizationConfig;
-
-        const newSection: GaugeSection = {
-            min: min,
-            max: max,
-            color: '#5470c6',
-        };
-        setSections((prev) => {
-            const newSections = [...prev, newSection];
-            addNewItem(`${newSections.length}`);
-            return newSections;
-        });
-    }, [addNewItem, isGaugeChart, visualizationConfig]);
-
-    const updateSection = useCallback(
-        (index: number, updatedSection: Partial<GaugeSection>) => {
-            if (!isGaugeChart) {
-                return;
-            }
-            const {
-                chartConfig: { setSections },
-            } = visualizationConfig;
-
-            setSections((prev) => {
-                const newSections = [...prev];
-                newSections[index] = {
-                    ...newSections[index],
-                    ...updatedSection,
-                };
-                return newSections;
-            });
-        },
-        [isGaugeChart, visualizationConfig],
+    const sections = useVisualizationSelector(
+        (state) => selectGaugeEditor(state).sections,
     );
-
-    const removeSection = useCallback(
-        (index: number) => {
-            if (!isGaugeChart) {
-                return;
-            }
-            const {
-                chartConfig: { setSections },
-            } = visualizationConfig;
-            setSections((prev) => prev.filter((_, i) => i !== index));
-        },
-        [isGaugeChart, visualizationConfig],
-    );
-
-    if (!isGaugeChart) {
-        return null;
-    }
-
-    const {
-        chartConfig: { sections },
-    } = visualizationConfig;
+    const { addSection, updateSection, removeSection } =
+        useGaugeEditorActions();
 
     return (
         <Config>
             <Config.Section>
                 <Config.Group>
                     <Config.Heading>Sections</Config.Heading>
-                    <AddButton onClick={addSection} />
+                    <AddButton
+                        onClick={() => {
+                            addSection();
+                            addNewItem(`${sections.length}`);
+                        }}
+                    />
                 </Config.Group>
 
                 <Stack gap="md">

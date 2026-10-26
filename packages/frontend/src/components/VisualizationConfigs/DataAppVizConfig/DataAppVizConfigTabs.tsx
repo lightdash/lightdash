@@ -34,8 +34,9 @@ import Callout from '../../common/Callout';
 import { useIsInsideChartGallery } from '../../common/ChartGallery/ChartGalleryContext';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
 import {
+    useVisualizationConfig,
+    useVisualizationInputs,
     useVisualizationServices,
-    useVisualizationState,
 } from '../../LightdashVisualization/useVisualizationContext';
 import { useIsVegaEditorAvailable } from '../ChartConfigPanel/CustomVis/useIsVegaEditorAvailable';
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
@@ -62,11 +63,10 @@ export const ConfigTabs: FC = memo(() => {
     const location = useLocation();
     const navigate = useNavigate();
     const { setChartType, setPivotDimensions } = useVisualizationServices();
-    const {
-        visualizationConfig,
-        itemsMap,
-        colorPalette: resolvedColorPalette,
-    } = useVisualizationState();
+    // The edit actions live on the aggregate, so this panel reads it whole
+    const visualizationConfig = useVisualizationConfig();
+    const { itemsMap, colorPalette: resolvedColorPalette } =
+        useVisualizationInputs();
     const { addableItems, isFieldPending } = useAddFieldsToQuery();
     const selectProjectChartType = useSelectProjectChartType();
     const dispatch = useExplorerDispatch();

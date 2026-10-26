@@ -1,7 +1,13 @@
-import { type DataAppVizChart } from '@lightdash/common';
+import { ChartType, type DataAppVizChart } from '@lightdash/common';
 import { act, renderHook } from '@testing-library/react';
-import { StrictMode } from 'react';
+import {
+    createElement,
+    StrictMode,
+    type FC,
+    type PropsWithChildren,
+} from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import { withVisualizationStore } from '../testing/visualizationStore';
 import useDataAppVizVisualizationConfig from './useDataAppVizVisualizationConfig';
 
 const initialConfig: DataAppVizChart = {
@@ -10,10 +16,22 @@ const initialConfig: DataAppVizChart = {
     optionValues: { showLegend: false },
 };
 
+const dataAppVizStore = (config: DataAppVizChart | undefined) =>
+    withVisualizationStore({ type: ChartType.DATA_APP_VIZ, config });
+
+const withStrictVisualizationStore = (
+    config: DataAppVizChart | undefined,
+): FC<PropsWithChildren> => {
+    const Store = dataAppVizStore(config);
+    return ({ children }) =>
+        createElement(StrictMode, null, createElement(Store, null, children));
+};
+
 describe('useDataAppVizVisualizationConfig', () => {
     it('starts from the saved option values', () => {
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(initialConfig),
+        const { result } = renderHook(
+            () => useDataAppVizVisualizationConfig(initialConfig),
+            { wrapper: dataAppVizStore(initialConfig) },
         );
 
         expect(result.current.validConfig?.optionValues).toEqual({
@@ -26,11 +44,18 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('preserves the saved custom chart type version through config edits', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(
-                { ...initialConfig, dataAppVizVersion: 7 },
-                onConfigChange,
-            ),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(
+                    { ...initialConfig, dataAppVizVersion: 7 },
+                    onConfigChange,
+                ),
+            {
+                wrapper: dataAppVizStore({
+                    ...initialConfig,
+                    dataAppVizVersion: 7,
+                }),
+            },
         );
 
         act(() => result.current.setField('value', 'orders_count'));
@@ -48,8 +73,10 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('pins the selected custom chart type to the rendered version', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+            { wrapper: dataAppVizStore(initialConfig) },
         );
 
         act(() => result.current.setDataAppVizVersion(8));
@@ -63,11 +90,18 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('moves to a newer type version with the reconciled binding and options', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(
-                { ...initialConfig, dataAppVizVersion: 3 },
-                onConfigChange,
-            ),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(
+                    { ...initialConfig, dataAppVizVersion: 3 },
+                    onConfigChange,
+                ),
+            {
+                wrapper: dataAppVizStore({
+                    ...initialConfig,
+                    dataAppVizVersion: 3,
+                }),
+            },
         );
 
         act(() =>
@@ -88,8 +122,10 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('carries ordered multiple bindings through a version upgrade', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+            { wrapper: dataAppVizStore(initialConfig) },
         );
 
         act(() =>
@@ -115,17 +151,27 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('drops stale multiple bindings when an upgrade supplies no binding', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(
-                {
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(
+                    {
+                        ...initialConfig,
+                        fieldMapping: {
+                            ...initialConfig.fieldMapping,
+                            values: ['orders_total'],
+                        },
+                    },
+                    onConfigChange,
+                ),
+            {
+                wrapper: dataAppVizStore({
                     ...initialConfig,
                     fieldMapping: {
                         ...initialConfig.fieldMapping,
                         values: ['orders_total'],
                     },
-                },
-                onConfigChange,
-            ),
+                }),
+            },
         );
 
         act(() => result.current.upgradeDataAppVizVersion(5, {}, {}));
@@ -140,8 +186,9 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('ignores an upgrade while no type is selected', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(undefined, onConfigChange),
+        const { result } = renderHook(
+            () => useDataAppVizVisualizationConfig(undefined, onConfigChange),
+            { wrapper: dataAppVizStore(undefined) },
         );
 
         act(() => result.current.upgradeDataAppVizVersion(5, {}, {}));
@@ -151,11 +198,18 @@ describe('useDataAppVizVisualizationConfig', () => {
     });
 
     it('defaults to an empty option map when nothing is saved', () => {
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig({
-                dataAppVizUuid: 'viz-1',
-                fieldMapping: {},
-            }),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig({
+                    dataAppVizUuid: 'viz-1',
+                    fieldMapping: {},
+                }),
+            {
+                wrapper: dataAppVizStore({
+                    dataAppVizUuid: 'viz-1',
+                    fieldMapping: {},
+                }),
+            },
         );
 
         expect(result.current.validConfig?.optionValues).toEqual({});
@@ -163,8 +217,10 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('stores only explicitly set options and pushes them up', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+            { wrapper: dataAppVizStore(initialConfig) },
         );
 
         act(() => result.current.setOption('viz-1', 'barColor', '#ff0000'));
@@ -182,8 +238,10 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('keeps both option edits when two controls flush in the same commit', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+            { wrapper: dataAppVizStore(initialConfig) },
         );
 
         // Closing the config panel flushes every pending debounced control
@@ -211,8 +269,10 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('keeps both field edits when two selects change in the same commit', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+            { wrapper: dataAppVizStore(initialConfig) },
         );
 
         act(() => {
@@ -238,8 +298,10 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('keeps option values when only a field mapping changes', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+            { wrapper: dataAppVizStore(initialConfig) },
         );
 
         act(() => result.current.setField('value', 'orders_count'));
@@ -256,8 +318,10 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('persists an ordered multiple field binding, including an explicit clear', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+            { wrapper: dataAppVizStore(initialConfig) },
         );
 
         act(() =>
@@ -280,14 +344,24 @@ describe('useDataAppVizVisualizationConfig', () => {
     });
 
     it('reopens scalar and multiple bindings without changing either', () => {
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig({
-                dataAppVizUuid: 'viz-1',
-                fieldMapping: {
-                    category: 'orders_status',
-                    values: ['orders_total', 'orders_average_order_size'],
-                },
-            }),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig({
+                    dataAppVizUuid: 'viz-1',
+                    fieldMapping: {
+                        category: 'orders_status',
+                        values: ['orders_total', 'orders_average_order_size'],
+                    },
+                }),
+            {
+                wrapper: dataAppVizStore({
+                    dataAppVizUuid: 'viz-1',
+                    fieldMapping: {
+                        category: 'orders_status',
+                        values: ['orders_total', 'orders_average_order_size'],
+                    },
+                }),
+            },
         );
 
         expect(result.current.validConfig?.fieldMapping).toEqual({
@@ -298,8 +372,10 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('clears option values when the viz is switched', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+            { wrapper: dataAppVizStore(initialConfig) },
         );
 
         act(() => result.current.setDataAppVizUuid('viz-2', {}));
@@ -314,8 +390,10 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('drops a late option edit belonging to a viz that is no longer selected', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+            { wrapper: dataAppVizStore(initialConfig) },
         );
 
         // The user picks another viz while a debounced control still holds an
@@ -331,8 +409,10 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('drops a late option edit once this config no longer owns the chart', () => {
         const onConfigChange = vi.fn();
-        const { result, unmount } = renderHook(() =>
-            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        const { result, unmount } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+            { wrapper: dataAppVizStore(initialConfig) },
         );
         const { setOption } = result.current;
 
@@ -344,6 +424,22 @@ describe('useDataAppVizVisualizationConfig', () => {
         expect(onConfigChange).not.toHaveBeenCalled();
     });
 
+    it('drops a late field edit or clear once this config no longer owns the chart', () => {
+        const onConfigChange = vi.fn();
+        const { result, unmount } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+            { wrapper: dataAppVizStore(initialConfig) },
+        );
+        const { setField, clearDataAppViz } = result.current;
+
+        unmount();
+        act(() => setField('category', 'orders_amount'));
+        act(() => clearDataAppViz());
+
+        expect(onConfigChange).not.toHaveBeenCalled();
+    });
+
     it('still writes options after a StrictMode remount', () => {
         const onConfigChange = vi.fn();
         // StrictMode runs setup → cleanup → setup on mount, so ownership has
@@ -351,7 +447,7 @@ describe('useDataAppVizVisualizationConfig', () => {
         const { result } = renderHook(
             () =>
                 useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
-            { wrapper: StrictMode },
+            { wrapper: withStrictVisualizationStore(initialConfig) },
         );
 
         act(() => result.current.setOption('viz-1', 'barColor', '#ff0000'));
@@ -372,7 +468,10 @@ describe('useDataAppVizVisualizationConfig', () => {
         const { result, rerender } = renderHook(
             ({ config }) =>
                 useDataAppVizVisualizationConfig(config, onConfigChange),
-            { initialProps: { config: initialConfig } },
+            {
+                wrapper: dataAppVizStore(initialConfig),
+                initialProps: { config: initialConfig },
+            },
         );
 
         act(() => result.current.setOption('viz-1', 'barColor', '#ff0000'));
@@ -407,7 +506,10 @@ describe('useDataAppVizVisualizationConfig', () => {
         const { result, rerender } = renderHook(
             ({ config }) =>
                 useDataAppVizVisualizationConfig(config, onConfigChange),
-            { initialProps: { config: initialConfig } },
+            {
+                wrapper: dataAppVizStore(initialConfig),
+                initialProps: { config: initialConfig },
+            },
         );
 
         act(() => result.current.setOption('viz-1', 'barColor', '#ff0000'));
@@ -423,6 +525,10 @@ describe('useDataAppVizVisualizationConfig', () => {
         const { result, rerender } = renderHook(
             ({ config }) => useDataAppVizVisualizationConfig(config),
             {
+                wrapper: dataAppVizStore({
+                    ...initialConfig,
+                    dataAppVizVersion: 3,
+                }),
                 initialProps: {
                     config: {
                         ...initialConfig,
@@ -438,8 +544,9 @@ describe('useDataAppVizVisualizationConfig', () => {
     });
 
     it('points at no viz when the chart has no config', () => {
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(undefined),
+        const { result } = renderHook(
+            () => useDataAppVizVisualizationConfig(undefined),
+            { wrapper: dataAppVizStore(undefined) },
         );
 
         expect(result.current.validConfig).toBeNull();
@@ -447,12 +554,20 @@ describe('useDataAppVizVisualizationConfig', () => {
     });
 
     it('reads the legacy empty uuid as no viz', () => {
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig({
-                dataAppVizUuid: '',
-                fieldMapping: {},
-                optionValues: {},
-            }),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig({
+                    dataAppVizUuid: '',
+                    fieldMapping: {},
+                    optionValues: {},
+                }),
+            {
+                wrapper: dataAppVizStore({
+                    dataAppVizUuid: '',
+                    fieldMapping: {},
+                    optionValues: {},
+                }),
+            },
         );
 
         expect(result.current.validConfig).toBeNull();
@@ -460,8 +575,9 @@ describe('useDataAppVizVisualizationConfig', () => {
     });
 
     it('reads a config with no uuid as no viz', () => {
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig({} as DataAppVizChart),
+        const { result } = renderHook(
+            () => useDataAppVizVisualizationConfig({} as DataAppVizChart),
+            { wrapper: dataAppVizStore({} as DataAppVizChart) },
         );
 
         expect(result.current.validConfig).toBeNull();
@@ -470,8 +586,10 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('clears the selection and pushes the absence up', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+            { wrapper: dataAppVizStore(initialConfig) },
         );
 
         act(() => result.current.clearDataAppViz());
@@ -482,8 +600,9 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('ignores field and option edits while no viz is selected', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(undefined, onConfigChange),
+        const { result } = renderHook(
+            () => useDataAppVizVisualizationConfig(undefined, onConfigChange),
+            { wrapper: dataAppVizStore(undefined) },
         );
 
         act(() => {
@@ -501,6 +620,7 @@ describe('useDataAppVizVisualizationConfig', () => {
             ({ config }) =>
                 useDataAppVizVisualizationConfig(config, onConfigChange),
             {
+                wrapper: dataAppVizStore(initialConfig),
                 initialProps: {
                     config: initialConfig as DataAppVizChart | undefined,
                 },
@@ -515,16 +635,19 @@ describe('useDataAppVizVisualizationConfig', () => {
 
     it('round-trips the emitted config back into a fresh hook', () => {
         const onConfigChange = vi.fn();
-        const { result } = renderHook(() =>
-            useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+        const { result } = renderHook(
+            () =>
+                useDataAppVizVisualizationConfig(initialConfig, onConfigChange),
+            { wrapper: dataAppVizStore(initialConfig) },
         );
 
         act(() => result.current.setOption('viz-1', 'barCount', 12));
         const emitted = onConfigChange.mock
             .calls[0][0] as unknown as DataAppVizChart;
 
-        const reloaded = renderHook(() =>
-            useDataAppVizVisualizationConfig(emitted),
+        const reloaded = renderHook(
+            () => useDataAppVizVisualizationConfig(emitted),
+            { wrapper: dataAppVizStore(emitted) },
         );
 
         expect(reloaded.result.current.validConfig).toEqual(emitted);

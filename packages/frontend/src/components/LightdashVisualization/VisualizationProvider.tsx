@@ -13,10 +13,12 @@ import {
     type MetricQuery,
     type ParametersValuesMap,
     type Series,
-    type StackType,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-import { createSeriesColorResolver } from '@lightdash/visualization/editor';
+import {
+    createSeriesColorResolver,
+    getPendingFieldIds,
+} from '@lightdash/visualization/editor';
 import { useMantineTheme } from '@mantine/core';
 import type { Map as LeafletMap } from 'leaflet';
 import isEqual from 'lodash/isEqual';
@@ -30,8 +32,18 @@ import {
     type PropsWithChildren,
     type RefObject,
 } from 'react';
+import { Provider } from 'react-redux';
 import { resolveMergeColumnOrder } from '../../features/mergeQuery/utils/resolveMergeColumnOrder';
-import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import {
+    buildInitialVisualizationState,
+    cartesianIntentActions,
+    createVisualizationStore,
+    isFirstCustomSpec,
+    tableCalculationsRenamed,
+    VisualizationStoreContext,
+    type CartesianIntentState,
+    type VisualizationStore,
+} from '../../features/visualization/store';
 import { useChartColorMappings } from '../../hooks/useChartColorConfig/useChartColorConfig';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
@@ -40,11 +52,13 @@ import { useStableCallback } from '../../hooks/useStableCallback';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import {
+    ConfigContext,
     LayoutContext,
     ServicesContext,
     StateContext,
     type EmbeddedDashboardInteractivity,
     type SavedChartReference,
+    type VisualizationConfigValue,
     type VisualizationLayout,
     type VisualizationServices,
     type VisualizationState,
@@ -104,22 +118,123 @@ export type VisualizationProviderProps = {
     dateZoom?: DateZoom;
 };
 
-type VisualizationStateProviderProps = PropsWithChildren<{
-    state: Omit<VisualizationState, 'visualizationConfig'>;
+// The store's config is the edited one; custom and data app viz still expose the prop here
+const editedChartConfig = (
+    visualizationConfig: VisualizationConfig,
+): ChartConfig | null => {
+    switch (visualizationConfig.chartType) {
+        case ChartType.CARTESIAN:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
+        case ChartType.PIE:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
+        case ChartType.FUNNEL:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
+        case ChartType.BIG_NUMBER:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
+        case ChartType.TREEMAP:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
+        case ChartType.GAUGE:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
+        case ChartType.MAP:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
+        case ChartType.TABLE:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
+        case ChartType.SANKEY:
+            return {
+                type: visualizationConfig.chartType,
+                config: visualizationConfig.chartConfig.validConfig,
+            };
+        case ChartType.CUSTOM:
+        case ChartType.DATA_APP_VIZ:
+            return null;
+        default:
+            return assertUnreachable(visualizationConfig, 'Unknown chart type');
+    }
+};
+
+type VisualizationConfigProviderProps = PropsWithChildren<{
     visualizationConfig: VisualizationConfig;
+    propChartConfig: ChartConfig;
+    itemsMap: ItemsMap | undefined;
+    colorPalette: string[];
+    colorMappings: ReturnType<typeof useChartColorMappings>['colorMappings'];
+    nullColor: string;
+    computedSeries: Series[] | undefined;
+    isCalculateSeriesColorEnabled: boolean;
 }>;
 
-const VisualizationStateProvider: FC<VisualizationStateProviderProps> = ({
-    state,
+const VisualizationConfigProvider: FC<VisualizationConfigProviderProps> = ({
     visualizationConfig,
+    propChartConfig,
+    itemsMap,
+    colorPalette,
+    colorMappings,
+    nullColor,
+    computedSeries,
+    isCalculateSeriesColorEnabled,
     children,
 }) => {
-    const value = useMemo(
-        () => ({ ...state, visualizationConfig }),
-        [state, visualizationConfig],
+    // Keyed on the editor's config alone so an owner echoing the config back
+    // through the prop does not rebuild the colours
+    const edited = useMemo(
+        () => editedChartConfig(visualizationConfig),
+        [visualizationConfig],
+    );
+    const chartConfig = edited ?? propChartConfig;
+    // Dashboards pass fallback colours in computedSeries; charts compute them from chartConfig
+    const { getSeriesColor } = useMemo(
+        () =>
+            createSeriesColorResolver({
+                colorPalette,
+                colorMappings,
+                nullColor,
+                chartConfig,
+                itemsMap,
+                computedSeries,
+                calculateSeriesColor: isCalculateSeriesColorEnabled,
+            }),
+        [
+            colorPalette,
+            colorMappings,
+            nullColor,
+            chartConfig,
+            itemsMap,
+            computedSeries,
+            isCalculateSeriesColorEnabled,
+        ],
+    );
+    const value: VisualizationConfigValue = useMemo(
+        () => ({ visualizationConfig, chartConfig, getSeriesColor }),
+        [visualizationConfig, chartConfig, getSeriesColor],
     );
     return (
-        <StateContext.Provider value={value}>{children}</StateContext.Provider>
+        <ConfigContext.Provider value={value}>
+            {children}
+        </ConfigContext.Provider>
     );
 };
 
@@ -183,6 +298,9 @@ const VisualizationProvider: FC<
     // Caller callbacks change identity on unrelated renders; consumers get
     // stable functions that call the latest committed one.
     const setPivotDimensions = useStableCallback(setPivotDimensionsLatest);
+    const setPivotRows = useStableCallback((value: string[] | undefined) =>
+        onPivotRowsChange?.(value),
+    );
     const setChartType = useStableCallback((value: ChartType) =>
         onChartTypeChange?.(value),
     );
@@ -195,10 +313,57 @@ const VisualizationProvider: FC<
     const { colorMappings } = useChartColorMappings();
     const theme = useMantineTheme();
 
-    // cartesian config related
-    const [stacking, setStacking] = useState<boolean | StackType>();
-    const [cartesianType, setCartesianType] = useState<CartesianTypeOptions>();
-    // --
+    const hasConfigOwner = onChartConfigChange !== undefined;
+    const seedContext = { itemsMap, hasConfigOwner };
+    // A type switch, a first custom spec, or a new prop with no owner to keep edits starts a new store
+    const [stores, setStores] = useState<{
+        chartConfig: ChartConfig;
+        store: VisualizationStore;
+    }>(() => ({
+        chartConfig,
+        store: createVisualizationStore(
+            buildInitialVisualizationState(chartConfig, seedContext),
+        ),
+    }));
+    let { store } = stores;
+    if (
+        stores.chartConfig.type !== chartConfig.type ||
+        isFirstCustomSpec(stores.store.getState(), chartConfig) ||
+        (!hasConfigOwner &&
+            stores.chartConfig !== chartConfig &&
+            !isEqual(stores.chartConfig.config, chartConfig.config))
+    ) {
+        store = createVisualizationStore(
+            buildInitialVisualizationState(
+                chartConfig,
+                seedContext,
+                stores.store.getState().cartesianIntent,
+            ),
+        );
+        setStores({ chartConfig, store });
+    } else if (!hasConfigOwner && stores.chartConfig !== chartConfig) {
+        // An equal new prop: remember it so later renders skip the deep compare
+        setStores({ chartConfig, store });
+    }
+    // A rename whose old name is in the edited query again names a new field, so it is skipped
+    const tableCalculationRenames = useMemo(() => {
+        const pendingFieldIds = getPendingFieldIds(unsavedMetricQuery);
+        return tableCalculationsMetadata?.filter(
+            ({ oldName }) => !pendingFieldIds?.has(oldName),
+        );
+    }, [tableCalculationsMetadata, unsavedMetricQuery]);
+    useEffect(() => {
+        if (tableCalculationRenames?.length)
+            store.dispatch(tableCalculationsRenamed(tableCalculationRenames));
+    }, [store, tableCalculationRenames]);
+    const setStacking = useStableCallback(
+        (value: CartesianIntentState['stacking']) =>
+            store.dispatch(cartesianIntentActions.setStacking(value)),
+    );
+    const setCartesianType = useStableCallback(
+        (value: CartesianIntentState['cartesianType']) =>
+            store.dispatch(cartesianIntentActions.setCartesianType(value)),
+    );
 
     // If we don't toggle any fields, (eg: when you `explore from here`) columnOrder on tableConfig might be empty
     // so we initialize it with the fields from resultData
@@ -219,15 +384,33 @@ const VisualizationProvider: FC<
         return columnOrder.length > 0 ? columnOrder : metricQueryFields;
     }, [resultsData?.metricQuery, columnOrder]);
 
-    const handleChartConfigChange = useCallback(
-        (newChartConfig: ChartConfig) => {
-            if (!onChartConfigChange) return;
-            if (isEqual(newChartConfig.config, chartConfig?.config)) return;
-
-            onChartConfigChange(newChartConfig);
-        },
-        [onChartConfigChange, chartConfig?.config],
-    );
+    // Forwards a config unless the owner already has it
+    const forwardChartConfig = useStableCallback((next: ChartConfig) => {
+        if (!onChartConfigChange || isEqual(next.config, chartConfig.config))
+            return;
+        onChartConfigChange(next);
+    });
+    // The adapter's last emitted config and the prop it was last compared with
+    const emitted = useRef<{
+        config: ChartConfig;
+        comparedWith: ChartConfig;
+    } | null>(null);
+    const emitChartConfig = useStableCallback((next: ChartConfig) => {
+        emitted.current = { config: next, comparedWith: chartConfig };
+        forwardChartConfig(next);
+    });
+    // An owner resetting the prop gets the edited config back, so an edit in progress wins
+    useEffect(() => {
+        const last = emitted.current;
+        if (
+            !last ||
+            last.comparedWith === chartConfig ||
+            last.config.type !== chartConfig.type
+        )
+            return;
+        emitted.current = { ...last, comparedWith: chartConfig };
+        forwardChartConfig(last.config);
+    }, [chartConfig, forwardChartConfig]);
 
     const { data: calculateSeriesColorFlag } = useServerFeatureFlag(
         FeatureFlags.CalculateSeriesColor,
@@ -235,35 +418,7 @@ const VisualizationProvider: FC<
     const isCalculateSeriesColorEnabled =
         calculateSeriesColorFlag?.enabled ?? false;
 
-    /**
-     * Shared colors for series and group values, resolved by
-     * `@lightdash/visualization`. On dashboards the fallback colors must be
-     * passed in the computedSeries prop; on charts they are computed from the
-     * chartConfig. Colors are pre-calculated per-series, and re-calculated
-     * when series change.
-     */
     const nullColor = theme.colors.ldGray[6];
-    const { getSeriesColor } = useMemo(
-        () =>
-            createSeriesColorResolver({
-                colorPalette,
-                colorMappings,
-                nullColor,
-                chartConfig,
-                itemsMap,
-                computedSeries,
-                calculateSeriesColor: isCalculateSeriesColorEnabled,
-            }),
-        [
-            colorPalette,
-            colorMappings,
-            nullColor,
-            chartConfig,
-            itemsMap,
-            computedSeries,
-            isCalculateSeriesColorEnabled,
-        ],
-    );
     // Group colors do not depend on the chart config, so they keep their
     // identity while it is edited.
     const { getGroupColor } = useMemo(
@@ -291,6 +446,68 @@ const VisualizationProvider: FC<
         );
     }, []);
 
+    const layout: VisualizationLayout = useMemo(
+        () => ({ containerWidth, containerHeight }),
+        [containerWidth, containerHeight],
+    );
+
+    const resolvedTimezone = resultsData.resolvedTimezone;
+    const state: VisualizationState = useMemo(
+        () => ({
+            minimal,
+            pivotDimensions: validPivotDimensions,
+            initialPivotRows,
+            resultsData,
+            isLoading,
+            apiErrorDetail,
+            columnOrder: defaultColumnOrder,
+            itemsMap,
+            colorPalette,
+            getGroupColor,
+            parameters,
+            unsavedMetricQuery,
+            tableCalculationsMetadata,
+            dashboardFilters,
+            invalidateCache,
+            savedChartUuid,
+            savedChartReference,
+            isDashboard,
+            isEditMode,
+            embeddedDashboardInteractivity,
+            hasExplorerStore,
+            resolvedTimezone,
+            dateZoom,
+        }),
+        [
+            minimal,
+            validPivotDimensions,
+            initialPivotRows,
+            resultsData,
+            isLoading,
+            apiErrorDetail,
+            defaultColumnOrder,
+            itemsMap,
+            colorPalette,
+            getGroupColor,
+            parameters,
+            unsavedMetricQuery,
+            tableCalculationsMetadata,
+            dashboardFilters,
+            invalidateCache,
+            savedChartUuid,
+            savedChartReference,
+            isDashboard,
+            isEditMode,
+            embeddedDashboardInteractivity,
+            hasExplorerStore,
+            resolvedTimezone,
+            dateZoom,
+        ],
+    );
+
+    // Actions read the inputs at call time, so they stay stable while results change
+    const getInputs = useStableCallback(() => state);
+
     const services: VisualizationServices = useMemo(
         () => ({
             chartRef,
@@ -302,81 +519,53 @@ const VisualizationProvider: FC<
                 : undefined,
             setChartType,
             setPivotDimensions,
+            setPivotRows,
+            getInputs,
             isTouchDevice,
         }),
         [
+            setStacking,
+            setCartesianType,
             hasSeriesContextMenu,
             stableOnSeriesContextMenu,
             setChartType,
             setPivotDimensions,
+            setPivotRows,
+            getInputs,
             isTouchDevice,
         ],
     );
 
-    const layout: VisualizationLayout = useMemo(
-        () => ({ containerWidth, containerHeight }),
-        [containerWidth, containerHeight],
-    );
-
-    const resolvedTimezone = resultsData.resolvedTimezone;
-    const state: Omit<VisualizationState, 'visualizationConfig'> = useMemo(
-        () => ({
-            minimal,
-            pivotDimensions: validPivotDimensions,
-            resultsData,
-            isLoading,
-            apiErrorDetail,
-            columnOrder: defaultColumnOrder,
-            itemsMap,
-            colorPalette,
-            getGroupColor,
-            getSeriesColor,
-            chartConfig,
-            savedChartUuid,
-            savedChartReference,
-            parameters,
-            isDashboard,
-            isEditMode,
-            embeddedDashboardInteractivity,
-            hasExplorerStore,
-            resolvedTimezone,
-            dateZoom,
-        }),
+    // Stable across resizes so memoised adapters skip them; an echo changes it
+    const renderState = useCallback(
+        ({
+            visualizationConfig,
+        }: {
+            visualizationConfig: VisualizationConfig;
+        }) => (
+            <VisualizationConfigProvider
+                visualizationConfig={visualizationConfig}
+                propChartConfig={chartConfig}
+                itemsMap={itemsMap}
+                colorPalette={colorPalette}
+                colorMappings={colorMappings}
+                nullColor={nullColor}
+                computedSeries={computedSeries}
+                isCalculateSeriesColorEnabled={isCalculateSeriesColorEnabled}
+            >
+                {children}
+            </VisualizationConfigProvider>
+        ),
         [
-            minimal,
-            validPivotDimensions,
-            resultsData,
-            isLoading,
-            apiErrorDetail,
-            defaultColumnOrder,
+            chartConfig,
             itemsMap,
             colorPalette,
-            getGroupColor,
-            getSeriesColor,
-            chartConfig,
-            savedChartUuid,
-            savedChartReference,
-            parameters,
-            isDashboard,
-            isEditMode,
-            embeddedDashboardInteractivity,
-            hasExplorerStore,
-            resolvedTimezone,
-            dateZoom,
+            colorMappings,
+            nullColor,
+            computedSeries,
+            isCalculateSeriesColorEnabled,
+            children,
         ],
-    );
-
-    const renderState = ({
-        visualizationConfig,
-    }: {
-        visualizationConfig: VisualizationConfig;
-    }) => (
-        <VisualizationStateProvider
-            state={state}
-            visualizationConfig={visualizationConfig}
-        >
-            {children}
-        </VisualizationStateProvider>
     );
 
     const renderAdapter = () => {
@@ -384,19 +573,7 @@ const VisualizationProvider: FC<
             case ChartType.CARTESIAN:
                 return (
                     <VisualizationCartesianConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
-                        validPivotDimensions={validPivotDimensions}
-                        columnOrder={defaultColumnOrder}
-                        initialChartConfig={chartConfig.config}
-                        stacking={stacking}
-                        cartesianType={cartesianType}
-                        setPivotDimensions={setPivotDimensions}
-                        onChartConfigChange={handleChartConfigChange}
-                        colorPalette={colorPalette}
-                        tableCalculationsMetadata={tableCalculationsMetadata}
-                        parameters={parameters}
-                        unsavedMetricQuery={unsavedMetricQuery}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationCartesianConfig>
@@ -404,14 +581,7 @@ const VisualizationProvider: FC<
             case ChartType.PIE:
                 return (
                     <VisualizationPieConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
-                        initialChartConfig={chartConfig.config}
-                        onChartConfigChange={handleChartConfigChange}
-                        colorPalette={colorPalette}
-                        tableCalculationsMetadata={tableCalculationsMetadata}
-                        parameters={parameters}
-                        unsavedMetricQuery={unsavedMetricQuery}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationPieConfig>
@@ -419,13 +589,7 @@ const VisualizationProvider: FC<
             case ChartType.FUNNEL:
                 return (
                     <VisualizationConfigFunnel
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
-                        initialChartConfig={chartConfig.config}
-                        onChartConfigChange={handleChartConfigChange}
-                        colorPalette={colorPalette}
-                        tableCalculationsMetadata={tableCalculationsMetadata}
-                        parameters={parameters}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationConfigFunnel>
@@ -433,12 +597,7 @@ const VisualizationProvider: FC<
             case ChartType.BIG_NUMBER:
                 return (
                     <VisualizationBigNumberConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
-                        initialChartConfig={chartConfig.config}
-                        onChartConfigChange={handleChartConfigChange}
-                        tableCalculationsMetadata={tableCalculationsMetadata}
-                        parameters={parameters}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationBigNumberConfig>
@@ -446,11 +605,7 @@ const VisualizationProvider: FC<
             case ChartType.TREEMAP:
                 return (
                     <VisualizationTreemapConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
-                        initialChartConfig={chartConfig.config}
-                        onChartConfigChange={handleChartConfigChange}
-                        parameters={parameters}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationTreemapConfig>
@@ -458,11 +613,7 @@ const VisualizationProvider: FC<
             case ChartType.GAUGE:
                 return (
                     <VisualizationGaugeConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
-                        initialChartConfig={chartConfig.config}
-                        onChartConfigChange={handleChartConfigChange}
-                        parameters={parameters}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationGaugeConfig>
@@ -470,11 +621,7 @@ const VisualizationProvider: FC<
             case ChartType.MAP:
                 return (
                     <VisualizationMapConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
-                        initialChartConfig={chartConfig.config}
-                        onChartConfigChange={handleChartConfigChange}
-                        parameters={parameters}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationMapConfig>
@@ -482,19 +629,7 @@ const VisualizationProvider: FC<
             case ChartType.TABLE:
                 return (
                     <VisualizationTableConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
-                        columnOrder={defaultColumnOrder}
-                        validPivotDimensions={validPivotDimensions}
-                        initialPivotRows={initialPivotRows}
-                        onPivotRowsChange={onPivotRowsChange}
-                        initialChartConfig={chartConfig.config}
-                        onChartConfigChange={handleChartConfigChange}
-                        savedChartUuid={savedChartUuid}
-                        dashboardFilters={dashboardFilters}
-                        invalidateCache={invalidateCache}
-                        parameters={parameters}
-                        dateZoom={dateZoom}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationTableConfig>
@@ -502,10 +637,7 @@ const VisualizationProvider: FC<
             case ChartType.CUSTOM:
                 return (
                     <VisualizationCustomConfig
-                        resultsData={resultsData}
-                        itemsMap={itemsMap}
-                        initialChartConfig={chartConfig.config}
-                        onChartConfigChange={handleChartConfigChange}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationCustomConfig>
@@ -513,13 +645,7 @@ const VisualizationProvider: FC<
             case ChartType.SANKEY:
                 return (
                     <VisualizationConfigSankey
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
-                        initialChartConfig={chartConfig.config}
-                        onChartConfigChange={handleChartConfigChange}
-                        colorPalette={colorPalette}
-                        tableCalculationsMetadata={tableCalculationsMetadata}
-                        parameters={parameters}
+                        onChartConfigChange={emitChartConfig}
                     >
                         {renderState}
                     </VisualizationConfigSankey>
@@ -527,10 +653,8 @@ const VisualizationProvider: FC<
             case ChartType.DATA_APP_VIZ:
                 return (
                     <VisualizationDataAppVizConfig
-                        itemsMap={itemsMap}
-                        resultsData={resultsData}
                         initialChartConfig={chartConfig.config}
-                        onChartConfigChange={handleChartConfigChange}
+                        onChartConfigChange={forwardChartConfig}
                     >
                         {renderState}
                     </VisualizationDataAppVizConfig>
@@ -541,11 +665,15 @@ const VisualizationProvider: FC<
     };
 
     return (
-        <ServicesContext.Provider value={services}>
-            <LayoutContext.Provider value={layout}>
-                {renderAdapter()}
-            </LayoutContext.Provider>
-        </ServicesContext.Provider>
+        <Provider store={store} context={VisualizationStoreContext}>
+            <ServicesContext.Provider value={services}>
+                <LayoutContext.Provider value={layout}>
+                    <StateContext.Provider value={state}>
+                        {renderAdapter()}
+                    </StateContext.Provider>
+                </LayoutContext.Provider>
+            </ServicesContext.Provider>
+        </Provider>
     );
 };
 

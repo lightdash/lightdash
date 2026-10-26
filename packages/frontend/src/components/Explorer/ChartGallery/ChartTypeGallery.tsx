@@ -48,7 +48,10 @@ import { CHART_GALLERY_SEARCH_ID } from '../../common/ChartGallery/ChartGalleryC
 import InlineErrorState from '../../common/InlineErrorState';
 import MantineIcon from '../../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationConfig,
+    useVisualizationInputs,
+} from '../../LightdashVisualization/useVisualizationContext';
 import { useIsVegaEditorAvailable } from '../../VisualizationConfigs/ChartConfigPanel/CustomVis/useIsVegaEditorAvailable';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
 import classes from './ChartTypeGallery.module.css';
@@ -534,7 +537,8 @@ const ExplorerChartTypeGallery: FC<ExplorerChartTypeGalleryProps> = ({
     const canEditChartType = useCanEditDataAppChecker(projectUuid);
     const canFork = useCanCreateDataApp(projectUuid);
     const { track } = useTracking();
-    const { visualizationConfig, itemsMap } = useVisualizationState();
+    const visualizationConfig = useVisualizationConfig();
+    const { itemsMap } = useVisualizationInputs();
     const selectProjectChartType = useSelectProjectChartType();
     const { disabled, options, vegaOption } = useChartTypeOptions();
     const isVegaEditorAvailable = useIsVegaEditorAvailable();

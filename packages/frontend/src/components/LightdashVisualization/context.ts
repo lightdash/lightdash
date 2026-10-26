@@ -1,19 +1,14 @@
 import type {
-    ApiErrorDetail,
     ChartConfig,
     ChartType,
-    DateZoom,
     EChartsSeries,
-    ItemsMap,
-    MetricQuery,
-    ParametersValuesMap,
     StackType,
 } from '@lightdash/common';
 import type { Map as LeafletMap } from 'leaflet';
 import { createContext, type RefObject } from 'react';
+import { type VisualizationInputs } from '../../features/visualization/store/inputs';
 import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { type SeriesLike } from '../../hooks/useChartColorConfig/types';
-import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import { type VisualizationConfig } from './types';
@@ -43,6 +38,9 @@ export type VisualizationServices = {
     ) => void;
     setChartType: (value: ChartType) => void;
     setPivotDimensions: (value: string[] | undefined) => void;
+    setPivotRows: (value: string[] | undefined) => void;
+    // The latest inputs, for actions that read them at call time
+    getInputs: () => VisualizationState;
     // Touch device detection for tooltip positioning
     isTouchDevice: boolean;
 };
@@ -53,36 +51,18 @@ export type VisualizationLayout = {
     containerHeight?: number;
 };
 
-export type VisualizationState = {
-    minimal: boolean;
-    pivotDimensions: string[] | undefined;
-    resultsData:
-        | (InfiniteQueryResults & {
-              metricQuery?: MetricQuery;
-              fields?: ItemsMap;
-              resolvedTimezone?: string;
-          })
-        | undefined;
-    isLoading: boolean;
-    columnOrder: string[];
-    itemsMap: ItemsMap | undefined;
-    visualizationConfig: VisualizationConfig;
-    getSeriesColor: (seriesLike: SeriesLike) => string;
-    getGroupColor: (groupPrefix: string, groupName: string) => string;
-    colorPalette: string[];
-    chartConfig: ChartConfig;
-    savedChartUuid?: string;
+// Inputs: results, fields, colours and flags. Stable while a chart is edited.
+export type VisualizationState = VisualizationInputs & {
     savedChartReference?: SavedChartReference;
-    apiErrorDetail?: ApiErrorDetail | null;
-    parameters?: ParametersValuesMap;
-    isDashboard?: boolean;
-    isEditMode?: boolean;
     embeddedDashboardInteractivity?: EmbeddedDashboardInteractivity;
-    hasExplorerStore: boolean;
-    // Resolved timezone for formatting (undefined when EnableTimezoneSupport flag is off)
-    resolvedTimezone?: string;
-    // Date-zoom granularity applied by the surface (dashboards); undefined elsewhere.
-    dateZoom?: DateZoom;
+};
+
+// The editor's current config and what derives from it; changes on every edit.
+export type VisualizationConfigValue = {
+    visualizationConfig: VisualizationConfig;
+    /** The chart config as the editor currently has it */
+    chartConfig: ChartConfig;
+    getSeriesColor: (seriesLike: SeriesLike) => string;
 };
 
 export const ServicesContext = createContext<VisualizationServices | undefined>(
@@ -94,7 +74,11 @@ export const LayoutContext = createContext<VisualizationLayout | undefined>(
 export const StateContext = createContext<VisualizationState | undefined>(
     undefined,
 );
+export const ConfigContext = createContext<
+    VisualizationConfigValue | undefined
+>(undefined);
 
 export type VisualizationContextValue = VisualizationServices &
     VisualizationLayout &
-    VisualizationState;
+    VisualizationState &
+    VisualizationConfigValue;

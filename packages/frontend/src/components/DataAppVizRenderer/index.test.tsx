@@ -284,7 +284,9 @@ vi.mock('../LightdashVisualization/useVisualizationContext', async () => {
         useVisualizationContext,
         useVisualizationServices: useVisualizationContext,
         useVisualizationLayout: useVisualizationContext,
-        useVisualizationState: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
+        useVisualizationConfig: () =>
+            useVisualizationContext().visualizationConfig,
     };
 });
 vi.mock('../MetricQueryData/useMetricQueryDataContext', () => ({

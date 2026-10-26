@@ -11,54 +11,73 @@ import {
     Stack,
     Tooltip,
 } from '@mantine/core';
-import { memo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
+import {
+    getGaugeItem,
+    selectGaugeEditor,
+    selectNumericMetricsAndTableCalculations,
+    selectGaugeSelectedField,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { useGaugeEditorActions } from '../../../hooks/useGaugeChartConfig';
 import FieldSelect from '../../common/FieldSelect';
 import { NumberInput } from '../../common/NumberInput';
-import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { LabelEditor } from '../common/LabelEditor';
 import GaugeSections from './GaugeSections';
 import { GaugeValueMode } from './types';
 
 export const GaugeDisplayConfig: FC = memo(() => {
-    const { visualizationConfig, itemsMap } = useVisualizationState();
-
-    if (!isGaugeVisualizationConfig(visualizationConfig)) {
-        return null;
-    }
-
-    const granularityFields = Object.keys(getGranularityMapFromItems(itemsMap));
-
+    const { itemsMap } = useVisualizationInputs();
+    const numericMetrics = useVisualizationInputSelector(
+        selectNumericMetricsAndTableCalculations,
+    );
+    const selectedFieldId = useVisualizationInputSelector(
+        selectGaugeSelectedField,
+    );
+    const min = useVisualizationSelector((s) => selectGaugeEditor(s).min);
+    const max = useVisualizationSelector((s) => selectGaugeEditor(s).max);
+    const maxFieldId = useVisualizationSelector(
+        (s) => selectGaugeEditor(s).maxFieldId,
+    );
+    const showAxisLabels = useVisualizationSelector(
+        (s) => selectGaugeEditor(s).showAxisLabels,
+    );
+    const customLabel = useVisualizationSelector(
+        (s) => selectGaugeEditor(s).customLabel,
+    );
+    const showPercentage = useVisualizationSelector(
+        (s) => selectGaugeEditor(s).showPercentage,
+    );
+    const customPercentageLabel = useVisualizationSelector(
+        (s) => selectGaugeEditor(s).customPercentageLabel,
+    );
     const {
-        chartConfig: {
-            selectedField: selectedFieldId,
-            min,
-            setMin,
-            max,
-            setMax,
-            maxFieldId,
-            setMaxFieldId,
-            getField,
-            showAxisLabels,
-            setShowAxisLabels,
-            customLabel,
-            setCustomLabel,
-            showPercentage,
-            setShowPercentage,
-            customPercentageLabel,
-            setCustomPercentageLabel,
-        },
-        numericMetrics,
-    } = visualizationConfig;
+        setMin,
+        setMax,
+        setMaxFieldId,
+        setShowAxisLabels,
+        setCustomLabel,
+        setShowPercentage,
+        setCustomPercentageLabel,
+    } = useGaugeEditorActions();
+
+    const granularityFields = useMemo(
+        () => Object.keys(getGranularityMapFromItems(itemsMap)),
+        [itemsMap],
+    );
 
     const maxValueMode = maxFieldId
         ? GaugeValueMode.FIELD
         : GaugeValueMode.FIXED;
-    const maxField = getField(maxFieldId);
-    const selectedField = getField(selectedFieldId);
+    const maxField = getGaugeItem(itemsMap, maxFieldId);
+    const selectedField = getGaugeItem(itemsMap, selectedFieldId);
 
-    const numericMetricsList = Object.values(numericMetrics ?? {});
+    const numericMetricsList = Object.values(numericMetrics);
 
     return (
         <Stack>

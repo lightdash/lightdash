@@ -12,34 +12,40 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { memo, type FC } from 'react';
+import {
+    getGaugeItem,
+    selectNumericMetricsAndTableCalculations,
+} from '../../../features/visualization/store';
 import FieldSelect from '../../common/FieldSelect';
 import { NumberInput } from '../../common/NumberInput';
-import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
 import { GaugeValueMode } from './types';
+
+// Parses Mantine's string states ('01', '') as main did, skipping a half-typed '-'
+const commitNumber = (value: number | string, commit: (n: number) => void) => {
+    const parsed = Number(value);
+    if (!Number.isNaN(parsed)) commit(parsed);
+};
 
 export type Props = {
     onClick: () => void;
     index: number;
     section: GaugeSection;
-    onUpdate: (index: number, updatedSection: Partial<GaugeSection>) => void;
+    onUpdate: (index: number, changes: Partial<GaugeSection>) => void;
     onRemove: (index: number) => void;
 };
 
 const GaugeSectionComponent: FC<Props> = memo(
     ({ index, onClick, section, onUpdate, onRemove }) => {
-        const { colorPalette, visualizationConfig } = useVisualizationState();
-
-        if (!isGaugeVisualizationConfig(visualizationConfig)) {
-            return null;
-        }
-
-        const {
-            chartConfig: { getField },
-            numericMetrics,
-        } = visualizationConfig;
+        const { colorPalette, itemsMap } = useVisualizationInputs();
+        const numericMetrics = useVisualizationInputSelector(
+            selectNumericMetricsAndTableCalculations,
+        );
 
         const minValueMode = section.minFieldId
             ? GaugeValueMode.FIELD
@@ -47,9 +53,9 @@ const GaugeSectionComponent: FC<Props> = memo(
         const maxValueMode = section.maxFieldId
             ? GaugeValueMode.FIELD
             : GaugeValueMode.FIXED;
-        const minField = getField(section.minFieldId);
-        const maxField = getField(section.maxFieldId);
-        const numericMetricsList = Object.values(numericMetrics ?? {});
+        const minField = getGaugeItem(itemsMap, section.minFieldId);
+        const maxField = getGaugeItem(itemsMap, section.maxFieldId);
+        const numericMetricsList = Object.values(numericMetrics);
 
         const minLabel = minField
             ? getItemLabelWithoutTableName(minField)
@@ -93,7 +99,9 @@ const GaugeSectionComponent: FC<Props> = memo(
                                     description="Set the minimum value for the section"
                                     value={section.min}
                                     onChange={(value) =>
-                                        onUpdate(index, { min: Number(value) })
+                                        commitNumber(value, (min) =>
+                                            onUpdate(index, { min }),
+                                        )
                                     }
                                     flex={1}
                                     decimalScale={2}
@@ -161,7 +169,9 @@ const GaugeSectionComponent: FC<Props> = memo(
                                     description="Set the maximum value for the section"
                                     value={section.max}
                                     onChange={(value) =>
-                                        onUpdate(index, { max: Number(value) })
+                                        commitNumber(value, (max) =>
+                                            onUpdate(index, { max }),
+                                        )
                                     }
                                     decimalScale={2}
                                     flex={1}

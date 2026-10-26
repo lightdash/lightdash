@@ -1,19 +1,23 @@
 import { Group, Stack, Tooltip } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import React from 'react';
+import {
+    selectTreemapEditor,
+    useVisualizationSelector,
+} from '../../../features/visualization/store';
+import { useTreemapEditorActions } from '../../../hooks/useTreemapChartConfig';
 import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
-import { isTreemapVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 
 export const Display: React.FC = () => {
-    const { visualizationConfig } = useVisualizationState();
-
-    if (!isTreemapVisualizationConfig(visualizationConfig)) return null;
-
-    const { visibleMin, setVisibleMin, leafDepth, setLeafDepth } =
-        visualizationConfig.chartConfig;
+    const { setVisibleMin, setLeafDepth } = useTreemapEditorActions();
+    const visibleMin = useVisualizationSelector(
+        (state) => selectTreemapEditor(state).visibleMin,
+    );
+    const leafDepth = useVisualizationSelector(
+        (state) => selectTreemapEditor(state).leafDepth,
+    );
 
     return (
         <Stack>

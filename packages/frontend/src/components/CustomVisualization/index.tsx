@@ -15,8 +15,9 @@ import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
 import {
+    useVisualizationConfig,
+    useVisualizationInputs,
     useVisualizationLayout,
-    useVisualizationState,
 } from '../LightdashVisualization/useVisualizationContext';
 import { vegaStyleConfig } from './vegaConfig';
 
@@ -40,8 +41,8 @@ const CustomVisualization: FC<Props> = ({
     const isDarkMode = colorScheme === 'dark';
 
     const { containerWidth, containerHeight } = useVisualizationLayout();
-    const { isLoading, visualizationConfig, resultsData } =
-        useVisualizationState();
+    const { isLoading, resultsData } = useVisualizationInputs();
+    const visualizationConfig = useVisualizationConfig();
 
     const hasSignaledScreenshotReady = useRef(false);
 

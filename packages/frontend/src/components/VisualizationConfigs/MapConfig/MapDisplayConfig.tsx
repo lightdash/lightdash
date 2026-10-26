@@ -1,11 +1,7 @@
 import {
     ECHARTS_DEFAULT_COLORS,
     getItemId,
-    isCustomDimension,
-    isDimension,
-    isMetric,
     isNumericItem,
-    isTableCalculation,
     MapChartType,
     MapHexbinAggregation,
     MapHexbinSizingMode,
@@ -24,12 +20,25 @@ import {
     Switch,
     Text,
 } from '@mantine/core';
-import debounce from 'lodash/debounce';
-import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
-import { DEFAULT_MAP_COLORS } from '../../../hooks/useMapChartConfig';
+import { memo, useState, type FC } from 'react';
+import { shallowEqual } from 'react-redux';
+import {
+    selectMapAvailableFields,
+    selectMapCategoricalColorDefaults,
+    selectMapCategoricalValues,
+    selectMapEditor,
+    useVisualizationSelector,
+    type VisualizationStoreState,
+} from '../../../features/visualization/store';
+import {
+    DEFAULT_MAP_COLORS,
+    useMapEditorActions,
+} from '../../../hooks/useMapChartConfig';
 import FieldSelect from '../../common/FieldSelect';
-import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+} from '../../LightdashVisualization/useVisualizationContext';
 import {
     DEFAULT_FIXED_RESOLUTION,
     HEXBIN_SIZE_PRESETS,
@@ -37,6 +46,7 @@ import {
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 import { GradientStopsEditor } from '../common/GradientStopsEditor';
+import { useDebouncedDraft } from '../common/useDebouncedDraft';
 
 const findPresetIdxByResolution = (resolution: number): number => {
     const idx = HEXBIN_SIZE_PRESETS.findIndex(
@@ -93,96 +103,50 @@ const HexbinSizeSlider: FC<HexbinSizeSliderProps> = ({
     );
 };
 
+// Fields this panel shows; pans and layout edits do not re-render it
+const pickDisplayFields = (state: VisualizationStoreState) => {
+    const editor = selectMapEditor(state);
+    return {
+        locationType: editor.locationType,
+        valueFieldId: editor.valueFieldId,
+        sizeFieldId: editor.sizeFieldId,
+        colorRange: editor.colorRange,
+        colorOverrides: editor.colorOverrides,
+        noDataColor: editor.noDataColor,
+        backgroundColor: editor.backgroundColor,
+        dataLayerOpacity: editor.dataLayerOpacity,
+        hexbinConfig: editor.hexbinConfig,
+        heatmapConfig: editor.heatmapConfig,
+        minBubbleSize: editor.minBubbleSize,
+        maxBubbleSize: editor.maxBubbleSize,
+        saveMapExtent: editor.saveMapExtent,
+        showLegend: editor.showLegend,
+        tileBackground: editor.tileBackground,
+        darkModeTileBackground: editor.darkModeTileBackground,
+    };
+};
+
+const tileBackgroundOptions = [
+    { value: MapTileBackground.NONE, label: 'None' },
+    { value: MapTileBackground.OPENSTREETMAP, label: 'OpenStreetMap' },
+    { value: MapTileBackground.LIGHT, label: 'Light' },
+    { value: MapTileBackground.DARK, label: 'Dark' },
+    { value: MapTileBackground.VOYAGER, label: 'Voyager (clean)' },
+    { value: MapTileBackground.SATELLITE, label: 'Satellite' },
+];
+
 export const Display: FC = memo(() => {
-    const { visualizationConfig, itemsMap, resultsData, colorPalette } =
-        useVisualizationState();
-
-    // Ref to hold the current setDataLayerOpacity function
-    const setDataLayerOpacityRef = useRef<
-        ((opacity: number | undefined) => void) | null
-    >(null);
-
-    // Stable debounced function that calls the ref
-    const debouncedSetDataLayerOpacity = useRef(
-        debounce((value: number) => {
-            setDataLayerOpacityRef.current?.(value);
-        }, 100),
-    ).current;
-
-    // Local state for immediate slider feedback (initialized with default, synced via effect)
-    const [localOpacity, setLocalOpacity] = useState(0.7);
-
-    // Get the config opacity value (only available when it's a map config)
-    const configOpacity = isMapVisualizationConfig(visualizationConfig)
-        ? (visualizationConfig.chartConfig.validConfig.dataLayerOpacity ?? 0.7)
-        : 0.7;
-
-    // Sync local state when config changes externally
-    useEffect(() => {
-        setLocalOpacity(configOpacity);
-    }, [configOpacity]);
-
-    // Get all available fields for selection (dimensions, metrics, and table calculations)
-    const availableFields = useMemo(() => {
-        if (!itemsMap) return [];
-
-        return Object.values(itemsMap).filter(
-            (item) =>
-                isDimension(item) ||
-                isCustomDimension(item) ||
-                isMetric(item) ||
-                isTableCalculation(item),
-        );
-    }, [itemsMap]);
-
-    const mapChartConfig = isMapVisualizationConfig(visualizationConfig)
-        ? visualizationConfig.chartConfig
-        : null;
-
-    // Unique string values for categorical color picker (first 50)
-    const MAX_COLOR_VALUES = 50;
-    const { uniqueStringValues, remainingCount } = useMemo(() => {
-        if (!mapChartConfig)
-            return { uniqueStringValues: [], remainingCount: 0 };
-        const { valueFieldId } = mapChartConfig.validConfig;
-        const valueItem = valueFieldId ? itemsMap?.[valueFieldId] : undefined;
-        const isNumeric = isNumericItem(valueItem);
-        const isHeatmapType =
-            mapChartConfig.validConfig.locationType === MapChartType.HEATMAP;
-        if (isNumeric || isHeatmapType || !valueFieldId || !resultsData?.rows)
-            return { uniqueStringValues: [], remainingCount: 0 };
-        const seen = new Set<string>();
-        for (const row of resultsData.rows) {
-            const cell = row[valueFieldId];
-            if (cell?.value?.raw != null && cell.value.raw !== '') {
-                seen.add(String(cell.value.raw));
-            }
-        }
-        const sorted = Array.from(seen).sort();
-        return {
-            uniqueStringValues: sorted.slice(0, MAX_COLOR_VALUES),
-            remainingCount: Math.max(0, sorted.length - MAX_COLOR_VALUES),
-        };
-    }, [mapChartConfig, itemsMap, resultsData?.rows]);
-
-    const tileBackgroundOptions = useMemo(
-        () => [
-            { value: MapTileBackground.NONE, label: 'None' },
-            { value: MapTileBackground.OPENSTREETMAP, label: 'OpenStreetMap' },
-            { value: MapTileBackground.LIGHT, label: 'Light' },
-            { value: MapTileBackground.DARK, label: 'Dark' },
-            { value: MapTileBackground.VOYAGER, label: 'Voyager (clean)' },
-            { value: MapTileBackground.SATELLITE, label: 'Satellite' },
-        ],
-        [],
+    const { itemsMap, colorPalette } = useVisualizationInputs();
+    const config = useVisualizationSelector(pickDisplayFields, shallowEqual);
+    const availableFields = useVisualizationInputSelector(
+        selectMapAvailableFields,
     );
-
-    if (!mapChartConfig) {
-        return null;
-    }
-
+    const { values: uniqueStringValues, remainingCount } =
+        useVisualizationInputSelector(selectMapCategoricalValues);
+    const colorDefaults = useVisualizationInputSelector(
+        selectMapCategoricalColorDefaults,
+    );
     const {
-        validConfig,
         addColor,
         removeColor,
         updateColor,
@@ -200,39 +164,33 @@ export const Display: FC = memo(() => {
         setNoDataColor,
         setDataLayerOpacity,
         setColorOverride,
-    } = mapChartConfig;
+    } = useMapEditorActions();
 
-    const colors = validConfig.colorRange ?? DEFAULT_MAP_COLORS;
+    const [opacity, setOpacity, flushOpacity] = useDebouncedDraft(
+        config.dataLayerOpacity ?? 0.7,
+        setDataLayerOpacity,
+        { delay: 100 },
+    );
+
+    const colors = config.colorRange ?? DEFAULT_MAP_COLORS;
     const isScatterMap =
-        !validConfig.locationType ||
-        validConfig.locationType === MapChartType.SCATTER;
-    const isAreaMap = validConfig.locationType === MapChartType.AREA;
-    const isBackgroundNone =
-        validConfig.tileBackground === MapTileBackground.NONE;
+        !config.locationType || config.locationType === MapChartType.SCATTER;
+    const isAreaMap = config.locationType === MapChartType.AREA;
+    const isBackgroundNone = config.tileBackground === MapTileBackground.NONE;
 
-    // Get selected size field object
-    const sizeField = itemsMap
-        ? validConfig.sizeFieldId
-            ? itemsMap[validConfig.sizeFieldId]
-            : undefined
+    const sizeField = config.sizeFieldId
+        ? itemsMap?.[config.sizeFieldId]
         : undefined;
-
-    // Get selected value field object and check if it's numeric
-    const valueField = itemsMap
-        ? validConfig.valueFieldId
-            ? itemsMap[validConfig.valueFieldId]
-            : undefined
+    const valueField = config.valueFieldId
+        ? itemsMap?.[config.valueFieldId]
         : undefined;
     const isValueFieldNumeric = isNumericItem(valueField);
-    const isHeatmap = validConfig.locationType === MapChartType.HEATMAP;
-    const isHexbin = validConfig.locationType === MapChartType.HEXBIN;
+    const isHeatmap = config.locationType === MapChartType.HEATMAP;
+    const isHexbin = config.locationType === MapChartType.HEXBIN;
     // Show color range for numeric values OR density-based coloring (heatmap/hexbin)
     const showColorRange = isValueFieldNumeric || isHeatmap || isHexbin;
-    const hasSizeField = !!validConfig.sizeFieldId;
-    const colorOverrides = validConfig.colorOverrides ?? {};
-
-    // Update the ref with the current function
-    setDataLayerOpacityRef.current = setDataLayerOpacity;
+    const hasSizeField = !!config.sizeFieldId;
+    const colorOverrides = config.colorOverrides ?? {};
 
     return (
         <Stack>
@@ -261,12 +219,12 @@ export const Display: FC = memo(() => {
                     {isHexbin &&
                         (() => {
                             const valueBasis =
-                                validConfig.hexbinConfig?.valueBasis ??
+                                config.hexbinConfig?.valueBasis ??
                                 MapHexbinValueBasis.COUNT;
                             const isFieldBasis =
                                 valueBasis === MapHexbinValueBasis.FIELD;
                             const aggregation =
-                                validConfig.hexbinConfig?.aggregation ??
+                                config.hexbinConfig?.aggregation ??
                                 MapHexbinAggregation.SUM;
                             return (
                                 <Stack gap="xs">
@@ -373,7 +331,7 @@ export const Display: FC = memo(() => {
                     {(isAreaMap || isScatterMap) && (
                         <Group my="xs">
                             <ColorSelector
-                                color={validConfig.noDataColor ?? '#f3f3f3'}
+                                color={config.noDataColor ?? '#f3f3f3'}
                                 swatches={ECHARTS_DEFAULT_COLORS}
                                 onColorChange={setNoDataColor}
                             />
@@ -400,8 +358,8 @@ export const Display: FC = memo(() => {
                                             max={1}
                                             step={0.1}
                                             value={
-                                                validConfig.hexbinConfig
-                                                    ?.opacity ?? 0.7
+                                                config.hexbinConfig?.opacity ??
+                                                0.7
                                             }
                                             onChange={(value) =>
                                                 setHexbinConfig({
@@ -425,7 +383,7 @@ export const Display: FC = memo(() => {
                                 <Config.Label>Value colors</Config.Label>
                                 <ScrollArea.Autosize mah={300}>
                                     <Stack gap="xs">
-                                        {uniqueStringValues.map((val, idx) => (
+                                        {uniqueStringValues.map((val) => (
                                             <Group
                                                 key={val}
                                                 gap="xs"
@@ -434,10 +392,7 @@ export const Display: FC = memo(() => {
                                                 <ColorSelector
                                                     color={
                                                         colorOverrides[val] ??
-                                                        colorPalette[
-                                                            idx %
-                                                                colorPalette.length
-                                                        ]
+                                                        colorDefaults[val]
                                                     }
                                                     swatches={colorPalette}
                                                     onColorChange={(c) =>
@@ -493,11 +448,9 @@ export const Display: FC = memo(() => {
                                 min={0.1}
                                 max={1}
                                 step={0.1}
-                                value={localOpacity}
-                                onChange={(value) => {
-                                    setLocalOpacity(value);
-                                    debouncedSetDataLayerOpacity(value);
-                                }}
+                                value={opacity}
+                                onChange={setOpacity}
+                                onChangeEnd={flushOpacity}
                                 marks={[
                                     { value: 0.1, label: '0.1' },
                                     { value: 0.5, label: '0.5' },
@@ -512,7 +465,7 @@ export const Display: FC = memo(() => {
                         <Config.Group>
                             <Config.Label>Background color</Config.Label>
                             <ColorSelector
-                                color={validConfig.backgroundColor ?? '#f3f3f3'}
+                                color={config.backgroundColor ?? '#f3f3f3'}
                                 swatches={ECHARTS_DEFAULT_COLORS}
                                 onColorChange={setBackgroundColor}
                             />
@@ -522,13 +475,12 @@ export const Display: FC = memo(() => {
                     {isHexbin &&
                         (() => {
                             const sizingMode =
-                                validConfig.hexbinConfig?.sizingMode ??
+                                config.hexbinConfig?.sizingMode ??
                                 MapHexbinSizingMode.DYNAMIC;
                             const isFixed =
                                 sizingMode === MapHexbinSizingMode.FIXED;
                             const showEmpty =
-                                validConfig.hexbinConfig?.showEmptyBins ??
-                                false;
+                                config.hexbinConfig?.showEmptyBins ?? false;
                             return (
                                 <Stack gap="xs" mt="xs">
                                     <Config.Group>
@@ -553,7 +505,7 @@ export const Display: FC = memo(() => {
                                             </Config.Label>
                                             <ColorSelector
                                                 color={
-                                                    validConfig.hexbinConfig
+                                                    config.hexbinConfig
                                                         ?.emptyBinColor ??
                                                     '#adb5bd00'
                                                 }
@@ -606,12 +558,12 @@ export const Display: FC = memo(() => {
                                             // change so local draft state
                                             // resets without a useEffect.
                                             key={
-                                                validConfig.hexbinConfig
+                                                config.hexbinConfig
                                                     ?.fixedResolution ??
                                                 DEFAULT_FIXED_RESOLUTION
                                             }
                                             storedResolution={
-                                                validConfig.hexbinConfig
+                                                config.hexbinConfig
                                                     ?.fixedResolution ??
                                                 DEFAULT_FIXED_RESOLUTION
                                             }
@@ -655,8 +607,8 @@ export const Display: FC = memo(() => {
                                 step={1}
                                 minRange={1}
                                 value={[
-                                    validConfig.minBubbleSize ?? 5,
-                                    validConfig.maxBubbleSize ?? 20,
+                                    config.minBubbleSize ?? 5,
+                                    config.maxBubbleSize ?? 20,
                                 ]}
                                 onChange={([min, max]) => {
                                     setMinBubbleSize(min);
@@ -674,7 +626,7 @@ export const Display: FC = memo(() => {
                                 min={0}
                                 max={100}
                                 step={1}
-                                value={validConfig.minBubbleSize ?? 5}
+                                value={config.minBubbleSize ?? 5}
                                 onChange={(value) => {
                                     setMinBubbleSize(value);
                                     setMaxBubbleSize(value);
@@ -702,7 +654,7 @@ export const Display: FC = memo(() => {
                             min={1}
                             max={50}
                             step={1}
-                            value={validConfig.heatmapConfig?.radius ?? 25}
+                            value={config.heatmapConfig?.radius ?? 25}
                             onChange={(value) =>
                                 setHeatmapConfig({ radius: value })
                             }
@@ -720,7 +672,7 @@ export const Display: FC = memo(() => {
                             min={0}
                             max={30}
                             step={1}
-                            value={validConfig.heatmapConfig?.blur ?? 15}
+                            value={config.heatmapConfig?.blur ?? 15}
                             onChange={(value) =>
                                 setHeatmapConfig({ blur: value })
                             }
@@ -738,7 +690,7 @@ export const Display: FC = memo(() => {
                             min={0.1}
                             max={1}
                             step={0.1}
-                            value={validConfig.heatmapConfig?.opacity ?? 0.6}
+                            value={config.heatmapConfig?.opacity ?? 0.6}
                             onChange={(value) =>
                                 setHeatmapConfig({ opacity: value })
                             }
@@ -760,7 +712,7 @@ export const Display: FC = memo(() => {
                         <Config.Label>Save current map extent</Config.Label>
                         <Switch
                             size="xs"
-                            checked={validConfig.saveMapExtent}
+                            checked={config.saveMapExtent}
                             onChange={(e) =>
                                 setSaveMapExtent(e.currentTarget.checked)
                             }
@@ -776,7 +728,7 @@ export const Display: FC = memo(() => {
                         <Config.Label>Show legend</Config.Label>
                         <Switch
                             size="xs"
-                            checked={validConfig.showLegend ?? false}
+                            checked={config.showLegend ?? false}
                             onChange={(e) =>
                                 setShowLegend(e.currentTarget.checked)
                             }
@@ -794,7 +746,7 @@ export const Display: FC = memo(() => {
                             size="xs"
                             data={tileBackgroundOptions}
                             value={
-                                validConfig.tileBackground ??
+                                config.tileBackground ??
                                 MapTileBackground.OPENSTREETMAP
                             }
                             onChange={(value) =>
@@ -810,7 +762,7 @@ export const Display: FC = memo(() => {
                             size="xs"
                             data={tileBackgroundOptions}
                             value={
-                                validConfig.darkModeTileBackground ??
+                                config.darkModeTileBackground ??
                                 MapTileBackground.DARK
                             }
                             onChange={(value) =>

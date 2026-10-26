@@ -1,24 +1,15 @@
 import {
     ChartType,
     type CustomDimension,
-    type DashboardFilters,
     type DataAppVizChart,
     type DataAppVizChartConfig,
-    type DateZoom,
     type Dimension,
     type ItemsMap,
-    type MapChart,
-    type MergeFieldOrigins,
     type Metric,
-    type MetricQuery,
-    type ParametersValuesMap,
-    type StackType,
     type TableCalculation,
-    type TableCalculationMetadata,
 } from '@lightdash/common';
 import { type JSX } from 'react';
 import type useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
-import { type CartesianTypeOptions } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import type useTableConfig from '../../hooks/tableVisualization/useTableConfig';
 import type useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import type useCustomVisualizationConfig from '../../hooks/useCustomVisualizationConfig';
@@ -26,25 +17,14 @@ import type useDataAppVizVisualizationConfig from '../../hooks/useDataAppVizVisu
 import type useFunnelChartConfig from '../../hooks/useFunnelChartConfig';
 import type useGaugeChartConfig from '../../hooks/useGaugeChartConfig';
 import type usePieChartConfig from '../../hooks/usePieChartConfig';
-import type { InfiniteQueryResults } from '../../hooks/useQueryResults';
 import type useTreemapChartConfig from '../../hooks/useTreemapChartConfig';
 
 export type VisualizationConfigCommon<T extends VisualizationConfig> = {
-    resultsData:
-        | (InfiniteQueryResults & {
-              metricQuery?: MetricQuery;
-              fields?: ItemsMap;
-              resolvedTimezone?: string;
-              fieldOrigins?: MergeFieldOrigins;
-          })
-        | undefined;
-    initialChartConfig: T['chartConfig']['validConfig'] | undefined;
     onChartConfigChange?: (chartConfig: {
         type: T['chartType'];
         config: T['chartConfig']['validConfig'];
     }) => void;
     children: (props: { visualizationConfig: T }) => JSX.Element;
-    parameters?: ParametersValuesMap;
 };
 
 // Big Number
@@ -60,11 +40,10 @@ export const isBigNumberVisualizationConfig = (
     return visualizationConfig?.chartType === ChartType.BIG_NUMBER;
 };
 
-export type VisualizationBigNumberConfigProps =
-    VisualizationConfigCommon<VisualizationConfigBigNumber> & {
-        itemsMap: ItemsMap | undefined;
-        tableCalculationsMetadata?: TableCalculationMetadata[];
-    };
+export type VisualizationBigNumberConfigProps = Pick<
+    VisualizationConfigCommon<VisualizationConfigBigNumber>,
+    'onChartConfigChange' | 'children'
+>;
 
 // Cartesian
 
@@ -79,20 +58,10 @@ export const isCartesianVisualizationConfig = (
     return visualizationConfig?.chartType === ChartType.CARTESIAN;
 };
 
-export type VisualizationCartesianConfigProps =
-    VisualizationConfigCommon<VisualizationConfigCartesian> & {
-        itemsMap: ItemsMap | undefined;
-        stacking: boolean | StackType | undefined;
-        cartesianType: CartesianTypeOptions | undefined;
-        columnOrder: string[];
-        validPivotDimensions: string[] | undefined;
-        setPivotDimensions: React.Dispatch<
-            React.SetStateAction<string[] | undefined>
-        >;
-        colorPalette: string[];
-        tableCalculationsMetadata?: TableCalculationMetadata[];
-        unsavedMetricQuery?: MetricQuery;
-    };
+export type VisualizationCartesianConfigProps = Pick<
+    VisualizationConfigCommon<VisualizationConfigCartesian>,
+    'onChartConfigChange' | 'children'
+>;
 
 // Funnel
 
@@ -109,12 +78,10 @@ export const isFunnelVisualizationConfig = (
     return visualizationConfig?.chartType === ChartType.FUNNEL;
 };
 
-export type VisualizationConfigFunnelProps =
-    VisualizationConfigCommon<VisualizationConfigFunnelType> & {
-        itemsMap: ItemsMap | undefined;
-        colorPalette: string[];
-        tableCalculationsMetadata?: TableCalculationMetadata[];
-    };
+export type VisualizationConfigFunnelProps = Pick<
+    VisualizationConfigCommon<VisualizationConfigFunnelType>,
+    'onChartConfigChange' | 'children'
+>;
 
 // Pie
 
@@ -131,14 +98,10 @@ export const isPieVisualizationConfig = (
     return visualizationConfig?.chartType === ChartType.PIE;
 };
 
-export type VisualizationConfigPieProps =
-    VisualizationConfigCommon<VisualizationConfigPie> & {
-        // TODO: shared prop once all visualizations are converted
-        itemsMap: ItemsMap | undefined;
-        colorPalette: string[];
-        tableCalculationsMetadata?: TableCalculationMetadata[];
-        unsavedMetricQuery?: MetricQuery;
-    };
+export type VisualizationConfigPieProps = Pick<
+    VisualizationConfigCommon<VisualizationConfigPie>,
+    'onChartConfigChange' | 'children'
+>;
 
 // Table
 
@@ -153,19 +116,10 @@ export const isTableVisualizationConfig = (
     return visualizationConfig?.chartType === ChartType.TABLE;
 };
 
-export type VisualizationTableConfigProps =
-    VisualizationConfigCommon<VisualizationConfigTable> & {
-        itemsMap: ItemsMap | undefined;
-        columnOrder: string[];
-        validPivotDimensions: string[] | undefined;
-        initialPivotRows: string[] | undefined;
-        onPivotRowsChange?: (value: string[] | undefined) => void;
-        savedChartUuid: string | undefined;
-        dashboardFilters: DashboardFilters | undefined;
-        invalidateCache: boolean | undefined;
-        parameters?: ParametersValuesMap;
-        dateZoom?: DateZoom;
-    };
+export type VisualizationTableConfigProps = Pick<
+    VisualizationConfigCommon<VisualizationConfigTable>,
+    'onChartConfigChange' | 'children'
+>;
 
 // Treemap
 
@@ -182,12 +136,10 @@ export const isTreemapVisualizationConfig = (
     return visualizationConfig?.chartType === ChartType.TREEMAP;
 };
 
-export type VisualizationConfigTreemapProps =
-    VisualizationConfigCommon<VisualizationConfigTreemap> & {
-        itemsMap: ItemsMap | undefined;
-        tableCalculationsMetadata?: TableCalculationMetadata[];
-        parameters?: ParametersValuesMap;
-    };
+export type VisualizationConfigTreemapProps = Pick<
+    VisualizationConfigCommon<VisualizationConfigTreemap>,
+    'onChartConfigChange' | 'children'
+>;
 
 // Custom
 
@@ -202,11 +154,10 @@ export const isCustomVisualizationConfig = (
     return visualizationConfig?.chartType === ChartType.CUSTOM;
 };
 
-export type VisualizationCustomConfigProps =
-    VisualizationConfigCommon<VisualizationCustomConfigType> & {
-        // TODO: shared prop once all visualizations are converted
-        itemsMap?: ItemsMap | undefined;
-    };
+export type VisualizationCustomConfigProps = Pick<
+    VisualizationConfigCommon<VisualizationCustomConfigType>,
+    'onChartConfigChange' | 'children'
+>;
 
 // Data app viz
 
@@ -223,13 +174,12 @@ export const isDataAppVizVisualizationConfig = (
 
 // Local state is null while the chart points at no viz; the saved chart
 // carries that as an absent config, so the two sides are typed apart.
-export type VisualizationDataAppVizConfigProps = Omit<
+export type VisualizationDataAppVizConfigProps = Pick<
     VisualizationConfigCommon<VisualizationConfigDataAppViz>,
-    'initialChartConfig' | 'onChartConfigChange'
+    'children'
 > & {
     initialChartConfig: DataAppVizChart | undefined;
     onChartConfigChange?: (chartConfig: DataAppVizChartConfig) => void;
-    itemsMap?: ItemsMap | undefined;
 };
 
 // Gauge
@@ -246,10 +196,10 @@ export const isGaugeVisualizationConfig = (
     return visualizationConfig?.chartType === ChartType.GAUGE;
 };
 
-export type VisualizationConfigGaugeProps =
-    VisualizationConfigCommon<VisualizationConfigGauge> & {
-        itemsMap: ItemsMap | undefined;
-    };
+export type VisualizationConfigGaugeProps = Pick<
+    VisualizationConfigCommon<VisualizationConfigGauge>,
+    'onChartConfigChange' | 'children'
+>;
 
 // Map
 
@@ -266,15 +216,10 @@ export const isMapVisualizationConfig = (
     return visualizationConfig?.chartType === ChartType.MAP;
 };
 
-export type VisualizationConfigMapProps = Omit<
+export type VisualizationConfigMapProps = Pick<
     VisualizationConfigCommon<VisualizationConfigMap>,
-    'initialChartConfig'
-> & {
-    // Override initialChartConfig to accept MapChart without saveMapExtent
-    // since saveMapExtent is a UI-only property not persisted to backend
-    initialChartConfig: MapChart | undefined;
-    itemsMap: ItemsMap | undefined;
-};
+    'onChartConfigChange' | 'children'
+>;
 
 // Sankey
 
@@ -293,12 +238,10 @@ export const isSankeyVisualizationConfig = (
     return visualizationConfig?.chartType === ChartType.SANKEY;
 };
 
-export type VisualizationConfigSankeyProps =
-    VisualizationConfigCommon<VisualizationConfigSankeyType> & {
-        itemsMap: ItemsMap | undefined;
-        colorPalette: string[];
-        tableCalculationsMetadata?: TableCalculationMetadata[];
-    };
+export type VisualizationConfigSankeyProps = Pick<
+    VisualizationConfigCommon<VisualizationConfigSankeyType>,
+    'onChartConfigChange' | 'children'
+>;
 
 // Union of all visualization configs
 

@@ -21,14 +21,26 @@ import {
 } from '@mantine/core';
 import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import {
+    selectCartesianDirtyChartType,
+    selectCartesianEditor,
+    selectCartesianLayout,
+    selectCartesianValidConfig,
+    useVisualizationSelector,
+    type VisualizationInputs,
+    type VisualizationStoreState,
+} from '../../../../features/visualization/store';
+import {
+    EMPTY_X_AXIS,
+    useCartesianEditorActions,
+} from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import FieldSelect from '../../../common/FieldSelect';
 import MantineIcon from '../../../common/MantineIcon';
 import { NumberInput } from '../../../common/NumberInput';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
     useVisualizationServices,
-    useVisualizationState,
 } from '../../../LightdashVisualization/useVisualizationContext';
 import { AddButton } from '../../common/AddButton';
 import { Config } from '../../common/Config';
@@ -40,14 +52,38 @@ type Props = {
     items: (Field | TableCalculation | CustomDimension)[];
 };
 
+// The valid layout keeps its identity across edits that leave it alone
+const selectValidLayout = (
+    state: VisualizationStoreState,
+    inputs: VisualizationInputs,
+) => selectCartesianValidConfig(state, inputs).layout;
+const selectRowLimit = (state: VisualizationStoreState) =>
+    selectCartesianEditor(state).rowLimit;
+const selectColumnLimit = (state: VisualizationStoreState) =>
+    selectCartesianEditor(state).columnLimit;
+
 export const Layout: FC<Props> = ({ items }) => {
     const { setPivotDimensions } = useVisualizationServices();
-    const { visualizationConfig, pivotDimensions } = useVisualizationState();
+    const { pivotDimensions } = useVisualizationInputs();
+    const dirtyLayout = useVisualizationSelector(selectCartesianLayout);
+    const validLayout = useVisualizationInputSelector(selectValidLayout);
+    const cartesianType = useVisualizationSelector(
+        selectCartesianDirtyChartType,
+    );
+    const rowLimit = useVisualizationSelector(selectRowLimit);
+    const columnLimit = useVisualizationSelector(selectColumnLimit);
+    const {
+        setXField,
+        setStacking,
+        setFlipAxis,
+        updateYField,
+        removeSingleSeries,
+        addSingleSeries,
+        setRowLimit,
+        setColumnLimit,
+    } = useCartesianEditorActions();
     const { addableItems, addFieldToQuery, isFieldPending } =
         useAddFieldsToQuery();
-
-    const isCartesianChart =
-        isCartesianVisualizationConfig(visualizationConfig);
 
     // Whether picking this option must first put its field on the query.
     const isAddableField = useCallback(
@@ -56,19 +92,13 @@ export const Layout: FC<Props> = ({ items }) => {
         [items],
     );
 
-    const cartesianType = isCartesianChart
-        ? visualizationConfig.chartConfig.dirtyChartType
-        : undefined;
-
     const canBeStacked =
         cartesianType !== CartesianSeriesType.LINE &&
         cartesianType !== CartesianSeriesType.SCATTER;
 
     // Initialize stacking mode from saved configuration
     const initialStackMode = useMemo(() => {
-        if (!isCartesianChart) return StackType.NONE;
-        const { validConfig } = visualizationConfig.chartConfig;
-        const stackValue = validConfig?.layout?.stack;
+        const stackValue = validLayout.stack;
 
         // Convert boolean format to StackType for backward compatibility
         if (stackValue === true) return StackType.NORMAL;
@@ -76,7 +106,7 @@ export const Layout: FC<Props> = ({ items }) => {
 
         // Return StackType format or default to NONE
         return stackValue || StackType.NONE;
-    }, [isCartesianChart, visualizationConfig.chartConfig]);
+    }, [validLayout]);
 
     // Track current stacking mode locally
     const [currentStackMode, setCurrentStackMode] =
@@ -89,14 +119,11 @@ export const Layout: FC<Props> = ({ items }) => {
 
     // X axis logic
     const xAxisField = useMemo(() => {
-        if (!isCartesianChart) return undefined;
-        const { dirtyLayout } = visualizationConfig.chartConfig;
-
         return (
             items.find((item) => getItemId(item) === dirtyLayout?.xField) ??
             addableItems.find((item) => getItemId(item) === dirtyLayout?.xField)
         );
-    }, [items, addableItems, isCartesianChart, visualizationConfig]);
+    }, [items, addableItems, dirtyLayout?.xField]);
 
     const isXAxisFieldNumeric = useMemo(
         () => isNumericItem(xAxisField),
@@ -104,12 +131,7 @@ export const Layout: FC<Props> = ({ items }) => {
     );
 
     // Y axis logic
-    const yFields = useMemo(() => {
-        if (!isCartesianChart) return [];
-        const { dirtyLayout } = visualizationConfig.chartConfig;
-
-        return dirtyLayout?.yField || [];
-    }, [isCartesianChart, visualizationConfig]);
+    const yFields = useMemo(() => dirtyLayout?.yField || [], [dirtyLayout]);
 
     const yActiveField = useCallback(
         (field: string) => {
@@ -121,15 +143,10 @@ export const Layout: FC<Props> = ({ items }) => {
         [items, addableItems],
     );
 
-    const availableYFields = useMemo(() => {
-        if (!isCartesianChart) return [];
-
-        const { dirtyLayout } = visualizationConfig.chartConfig;
-
-        return items.filter(
-            (item) => !dirtyLayout?.yField?.includes(getItemId(item)),
-        );
-    }, [isCartesianChart, items, visualizationConfig]);
+    const availableYFields = useMemo(
+        () => items.filter((item) => !yFields.includes(getItemId(item))),
+        [items, yFields],
+    );
 
     const addableYItems = useMemo(
         () => addableItems.filter((item) => !yFields.includes(getItemId(item))),
@@ -144,35 +161,23 @@ export const Layout: FC<Props> = ({ items }) => {
     }, [items]);
 
     const chartHasMetricOrTableCalc = useMemo(() => {
-        if (!isCartesianChart) return false;
-
-        const { validConfig } = visualizationConfig.chartConfig;
-
-        const yField = validConfig?.layout.yField;
+        const yField = validLayout.yField;
 
         if (!yField) return false;
 
         return items.some(
             (item) => !isDimension(item) && yField.includes(getItemId(item)),
         );
-    }, [isCartesianChart, items, visualizationConfig]);
+    }, [items, validLayout]);
 
     const availableGroupByDimensions = useMemo(
         () =>
             availableDimensions.filter(
                 (item) =>
                     !pivotDimensions?.includes(getItemId(item)) &&
-                    (!isCartesianChart ||
-                        getItemId(item) !==
-                            visualizationConfig.chartConfig.dirtyLayout
-                                ?.xField),
+                    getItemId(item) !== dirtyLayout?.xField,
             ),
-        [
-            availableDimensions,
-            visualizationConfig.chartConfig,
-            isCartesianChart,
-            pivotDimensions,
-        ],
+        [availableDimensions, dirtyLayout?.xField, pivotDimensions],
     );
 
     const addableDimensions = useMemo(
@@ -188,17 +193,9 @@ export const Layout: FC<Props> = ({ items }) => {
             addableDimensions.filter(
                 (item) =>
                     !pivotDimensions?.includes(getItemId(item)) &&
-                    (!isCartesianChart ||
-                        getItemId(item) !==
-                            visualizationConfig.chartConfig.dirtyLayout
-                                ?.xField),
+                    getItemId(item) !== dirtyLayout?.xField,
             ),
-        [
-            addableDimensions,
-            visualizationConfig.chartConfig,
-            isCartesianChart,
-            pivotDimensions,
-        ],
+        [addableDimensions, dirtyLayout?.xField, pivotDimensions],
     );
 
     const canAddPivot = useMemo(
@@ -218,9 +215,6 @@ export const Layout: FC<Props> = ({ items }) => {
 
     const handleOnChangeOfXAxisField = useCallback(
         (newValue: Field | TableCalculation | CustomDimension | undefined) => {
-            if (!isCartesianChart) return;
-            const { setXField, setStacking } = visualizationConfig.chartConfig;
-
             if (newValue && isAddableField(newValue)) {
                 addFieldToQuery(newValue);
             }
@@ -238,30 +232,13 @@ export const Layout: FC<Props> = ({ items }) => {
             }
         },
         [
-            isCartesianChart,
-            visualizationConfig,
+            setXField,
+            setStacking,
             currentStackMode,
             isAddableField,
             addFieldToQuery,
         ],
     );
-
-    if (!isCartesianChart) return null;
-
-    const {
-        validConfig,
-        dirtyLayout,
-        setXField,
-        setStacking,
-        setFlipAxis,
-        updateYField,
-        removeSingleSeries,
-        addSingleSeries,
-        rowLimit,
-        setRowLimit,
-        columnLimit,
-        setColumnLimit,
-    } = visualizationConfig.chartConfig;
 
     const handleColumnLimitChange = (value: string | number) => {
         if (typeof value === 'number') {
@@ -277,7 +254,7 @@ export const Layout: FC<Props> = ({ items }) => {
                 <Config.Section>
                     <Config.Group>
                         <Config.Heading>{`${
-                            validConfig?.layout.flipAxes ? 'Y' : 'X'
+                            validLayout.flipAxes ? 'Y' : 'X'
                         }-axis`}</Config.Heading>
                         <Group gap="two">
                             <Tooltip label="Flip Axes">
@@ -359,7 +336,7 @@ export const Layout: FC<Props> = ({ items }) => {
                 <Config.Section>
                     <Config.Group>
                         <Config.Heading>{`${
-                            validConfig?.layout.flipAxes ? 'X' : 'Y'
+                            validLayout.flipAxes ? 'X' : 'Y'
                         }-axis`}</Config.Heading>
                         {(availableYFields.length > 0 ||
                             addableYItems.length > 0) && (

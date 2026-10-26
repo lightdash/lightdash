@@ -9,7 +9,7 @@ import {
     Tooltip,
     useMantineColorScheme,
 } from '@mantine/core';
-import { useDebouncedValue } from '@mantine/hooks';
+import { useDebouncedCallback } from '@mantine/hooks';
 import { IconHelpCircle } from '@tabler/icons-react';
 import { type editor, type IDisposable, type languages } from 'monaco-editor';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
@@ -18,10 +18,14 @@ import { AiTooltipInput } from '../../../../ee/features/ambientAi/components/too
 import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import useIsEmbedded from '../../../../ee/providers/Embed/useIsEmbedded';
 import { getLightdashMonacoTheme } from '../../../../features/sqlRunner/utils/monaco';
+import {
+    selectCartesianEditor,
+    useVisualizationSelector,
+    type VisualizationStoreState,
+} from '../../../../features/visualization/store';
+import { useCartesianEditorActions } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import MantineIcon from '../../../common/MantineIcon';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import {
     Editor,
     type BeforeMount,
@@ -111,80 +115,46 @@ const calculateEditorHeight = (lineCount: number): number => {
     const lines = Math.min(lineCount || 1, MAX_LINES);
     return lines * MONACO_LINE_HEIGHT + MONACO_PADDING;
 };
+const selectTooltip = (state: VisualizationStoreState) =>
+    selectCartesianEditor(state).tooltip;
+
 export const TooltipConfig: FC<Props> = ({ fields }) => {
-    const { visualizationConfig } = useVisualizationState();
+    const tooltip = useVisualizationSelector(selectTooltip);
+    const { setTooltip } = useCartesianEditorActions();
     const { colorScheme } = useMantineColorScheme();
     const projectUuid = useProjectUuid();
     const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
     const isEmbedded = useIsEmbedded();
-    const isCartesianChart =
-        isCartesianVisualizationConfig(visualizationConfig);
-
-    const [tooltipValue, setTooltipValue] = useState<string>(
-        (isCartesianChart && visualizationConfig.chartConfig.tooltip) || '',
-    );
-    const [debouncedTooltipValue] = useDebouncedValue(tooltipValue, 1000);
+    const [tooltipValue, setTooltipValue] = useState<string>(tooltip || '');
+    const commitTooltip = useDebouncedCallback(setTooltip, {
+        delay: 1000,
+        flushOnUnmount: true,
+    });
     const [editorHeight, setEditorHeight] = useState<number>(
         calculateEditorHeight(1),
     );
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     const disposableRef = useRef<IDisposable | null>(null);
-    const prevShowRef = useRef<boolean>(
-        isCartesianChart ? !!visualizationConfig.chartConfig.tooltip : false,
-    );
-    const tooltipValueRef = useRef<string>(
-        (isCartesianChart && visualizationConfig.chartConfig.tooltip) || '',
-    );
 
-    const [show, setShow] = useState<boolean>(
-        isCartesianChart ? !!visualizationConfig.chartConfig.tooltip : false,
-    );
+    const [show, setShow] = useState<boolean>(!!tooltip);
 
-    // Keep ref in sync with tooltipValue for immediate toggle restore
-    useEffect(() => {
-        tooltipValueRef.current = tooltipValue;
-    }, [tooltipValue]);
-
-    // Handle tooltip updates: toggle changes are immediate, typing uses debounced value
-    useEffect(() => {
-        if (!isCartesianChart) return;
-
-        const { setTooltip } = visualizationConfig.chartConfig;
-
-        // If show state changed, handle toggle immediately
-        if (prevShowRef.current !== show) {
-            if (show) {
-                // When toggled on, immediately restore the current tooltip value
-                setTooltip(tooltipValueRef.current);
-            } else {
-                // When toggled off, immediately clear the tooltip
-                setTooltip('');
-            }
-            prevShowRef.current = show;
-        } else if (show) {
-            // When show is true and debounced value changes (user typing), update with debounced value
-            setTooltip(debouncedTooltipValue);
-        }
-    }, [
-        isCartesianChart,
-        show,
-        debouncedTooltipValue,
-        visualizationConfig.chartConfig,
-    ]);
-
-    const handleEditorOnChange = (value: string | undefined) => {
-        setTooltipValue(value ?? '');
-        // Update height based on line count
-        const lineCount = (value ?? '').split('\n').length;
-        setEditorHeight(calculateEditorHeight(lineCount));
+    // Toggling applies at once: on restores the typed value, off clears it
+    const handleToggle = () => {
+        commitTooltip.cancel();
+        setTooltip(show ? '' : tooltipValue);
+        setShow(!show);
     };
 
-    const handleAiApply = useCallback((html: string) => {
-        setTooltipValue(html);
+    const updateTooltipValue = (value: string) => {
+        setTooltipValue(value);
+        if (show) commitTooltip(value);
         // Update height based on line count
-        const lineCount = html.split('\n').length;
-        setEditorHeight(calculateEditorHeight(lineCount));
-    }, []);
+        setEditorHeight(calculateEditorHeight(value.split('\n').length));
+    };
+
+    const handleEditorOnChange = (value: string | undefined) =>
+        updateTooltipValue(value ?? '');
+
     const [monacoOptions, setMonacoOptions] = useState<
         EditorProps['options'] | undefined
     >();
@@ -287,11 +257,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                         />
                     </Tooltip>
                 )}
-                <Switch
-                    size="xs"
-                    checked={show}
-                    onChange={() => setShow(!show)}
-                />
+                <Switch size="xs" checked={show} onChange={handleToggle} />
             </Group>
 
             <Collapse expanded={show}>
@@ -301,6 +267,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                     className={styles.editorWrapper}
                     radius="md"
                     pos="relative"
+                    onBlur={() => commitTooltip.flush()}
                 >
                     {tooltipValue?.length === 0 ? (
                         <Text
@@ -340,7 +307,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                         <AiTooltipInput
                             fields={fields}
                             currentHtml={tooltipValue || undefined}
-                            onApply={handleAiApply}
+                            onApply={updateTooltipValue}
                         />
                     )}
                 </Paper>

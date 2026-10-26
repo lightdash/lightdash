@@ -22,7 +22,7 @@ import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import {
     useVisualizationServices,
-    useVisualizationState,
+    useVisualizationInputs,
 } from '../LightdashVisualization/useVisualizationContext';
 import PieChartContextMenu, {
     type PieChartContextMenuProps,
@@ -57,7 +57,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
         ...props
     }) => {
         const { chartRef } = useVisualizationServices();
-        const { isLoading, resultsData, minimal } = useVisualizationState();
+        const { isLoading, resultsData, minimal } = useVisualizationInputs();
         const { selectedLegends, onLegendChange } =
             useLegendDoubleClickSelection();
 

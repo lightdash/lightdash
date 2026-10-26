@@ -14,7 +14,10 @@ import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationState } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationConfig,
+    useVisualizationInputs,
+} from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 type BigNumberContextMenuProps = {
@@ -28,8 +31,8 @@ const BigNumberContextMenu: FC<
 > = ({ children, isMinimal = false, canDrillInto, canViewUnderlyingData }) => {
     const clipboard = useClipboard({ timeout: 200 });
     const { showToastSuccess } = useToaster();
-    const { resultsData, visualizationConfig, itemsMap } =
-        useVisualizationState();
+    const { resultsData, itemsMap } = useVisualizationInputs();
+    const visualizationConfig = useVisualizationConfig();
     // Always fail silently - parent component controls when this menu is rendered
     const metricQueryData = useMetricQueryDataContext(true);
 

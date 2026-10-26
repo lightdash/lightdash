@@ -17,7 +17,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import MantineIcon from '../../common/MantineIcon';
-import { useVisualizationState } from '../../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../../LightdashVisualization/useVisualizationContext';
 import { useSelectProjectChartType } from '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType';
 import { ProvenanceGlyph } from './ChartTypeGallery';
 
@@ -40,7 +40,7 @@ const AddChartTypeMenu: FC = () => {
         useServerFeatureFlag(FeatureFlags.ChartTypeRegistry).data?.enabled ===
         true;
     const canCreateChartType = useCanCreateDataApp(projectUuid);
-    const { itemsMap } = useVisualizationState();
+    const { itemsMap } = useVisualizationInputs();
     const selectProjectChartType = useSelectProjectChartType();
     const onCreateNew =
         chartStudioAvailable && canCreateChartType

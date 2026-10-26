@@ -1,9 +1,16 @@
 import { CartesianSeriesType, type ItemsMap } from '@lightdash/common';
 import { Button, Checkbox, Group, Stack } from '@mantine/core';
 import { type FC } from 'react';
+import {
+    selectCartesianDirtyChartType,
+    selectCartesianEchartsConfig,
+    selectCartesianLayout,
+    selectCartesianSeries,
+    useVisualizationSelector,
+    type VisualizationStoreState,
+} from '../../../../features/visualization/store';
+import { useCartesianEditorActions } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { NumberInput } from '../../../common/NumberInput';
-import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
-import { useVisualizationState } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { AxesLabelSections } from './AxesLabelSections';
 
@@ -11,14 +18,36 @@ type Props = {
     itemsMap: ItemsMap | undefined;
 };
 
+const selectShowAxisTicks = (state: VisualizationStoreState) =>
+    selectCartesianEchartsConfig(state)?.showAxisTicks;
+const selectAxisLabelFontSize = (state: VisualizationStoreState) =>
+    selectCartesianEchartsConfig(state)?.axisLabelFontSize;
+const selectAxisTitleFontSize = (state: VisualizationStoreState) =>
+    selectCartesianEchartsConfig(state)?.axisTitleFontSize;
+const selectHasSeriesOnLeftAxis = (state: VisualizationStoreState) =>
+    (selectCartesianSeries(state) || []).some(
+        (series) => (series.yAxisIndex || 0) === 0,
+    );
+const selectHasSeriesOnRightAxis = (state: VisualizationStoreState) =>
+    (selectCartesianSeries(state) || []).some(
+        (series) => series.yAxisIndex === 1,
+    );
+
 export const Axes: FC<Props> = ({ itemsMap }) => {
-    const { visualizationConfig } = useVisualizationState();
-
-    if (!isCartesianVisualizationConfig(visualizationConfig)) return null;
-
+    const dirtyLayout = useVisualizationSelector(selectCartesianLayout);
+    const dirtyChartType = useVisualizationSelector(
+        selectCartesianDirtyChartType,
+    );
+    const showAxisTicks = useVisualizationSelector(selectShowAxisTicks);
+    const axisLabelFontSize = useVisualizationSelector(selectAxisLabelFontSize);
+    const axisTitleFontSize = useVisualizationSelector(selectAxisTitleFontSize);
+    const hasSeriesOnLeftAxis = useVisualizationSelector(
+        selectHasSeriesOnLeftAxis,
+    );
+    const hasSeriesOnRightAxis = useVisualizationSelector(
+        selectHasSeriesOnRightAxis,
+    );
     const {
-        dirtyLayout,
-        dirtyEchartsConfig,
         setShowGridX,
         setShowGridY,
         setShowXAxis,
@@ -28,8 +57,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setConnectNulls,
         setAxisLabelFontSize,
         setAxisTitleFontSize,
-        dirtyChartType,
-    } = visualizationConfig.chartConfig;
+    } = useCartesianEditorActions();
 
     const showXAxis =
         dirtyLayout?.showXAxis !== undefined ? dirtyLayout?.showXAxis : true;
@@ -44,13 +72,6 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         dirtyLayout?.showRightYAxis !== undefined
             ? dirtyLayout?.showRightYAxis
             : legacyShowYAxis;
-    // Determine if there are series on each Y-axis
-    const hasSeriesOnLeftAxis = (dirtyEchartsConfig?.series || []).some(
-        (series) => (series.yAxisIndex || 0) === 0,
-    );
-    const hasSeriesOnRightAxis = (dirtyEchartsConfig?.series || []).some(
-        (series) => series.yAxisIndex === 1,
-    );
     // Only show axis controls when not flipped and there are series on that axis
     const hasPrimaryYAxis = !dirtyLayout?.flipAxes && hasSeriesOnLeftAxis;
     const hasSecondaryYAxis = !dirtyLayout?.flipAxes && hasSeriesOnRightAxis;
@@ -154,7 +175,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     <Checkbox
                         size="xs"
                         label="Show tick lines on axes"
-                        checked={!!dirtyEchartsConfig?.showAxisTicks}
+                        checked={!!showAxisTicks}
                         onChange={(e) => {
                             setShowAxisTicks(e.currentTarget.checked);
                         }}
@@ -187,9 +208,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     <Group gap="xs">
                         <NumberInput
                             size="xs"
-                            value={
-                                dirtyEchartsConfig?.axisLabelFontSize ?? 11.5
-                            }
+                            value={axisLabelFontSize ?? 11.5}
                             min={8}
                             max={24}
                             step={0.5}
@@ -198,8 +217,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             maw={60}
                             onNumberChange={setAxisLabelFontSize}
                         />
-                        {dirtyEchartsConfig?.axisLabelFontSize !==
-                            undefined && (
+                        {axisLabelFontSize !== undefined && (
                             <Button
                                 variant="subtle"
                                 size="xs"
@@ -217,7 +235,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     <Group gap="xs">
                         <NumberInput
                             size="xs"
-                            value={dirtyEchartsConfig?.axisTitleFontSize ?? 12}
+                            value={axisTitleFontSize ?? 12}
                             min={8}
                             max={24}
                             step={0.5}
@@ -226,8 +244,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             maw={60}
                             onNumberChange={setAxisTitleFontSize}
                         />
-                        {dirtyEchartsConfig?.axisTitleFontSize !==
-                            undefined && (
+                        {axisTitleFontSize !== undefined && (
                             <Button
                                 variant="subtle"
                                 size="xs"

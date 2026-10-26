@@ -1,194 +1,124 @@
-import type {
-    ApiError,
-    CustomDimension,
-    Dimension,
-    ItemsMap,
-    Metric,
-    MetricQuery,
-    TableCalculation,
-    TableCalculationMetadata,
-    TreemapChart,
+import {
+    type ApiError,
+    type Metric,
+    type TableCalculation,
+    type TreemapChart,
 } from '@lightdash/common';
 import {
     buildTreemapData,
-    getTreemapMetricItem,
-    getValidTreemapGroupFieldIds,
-    reorderTreemapGroupFieldIds,
-    repairTreemapSizeMetricId,
-    TREEMAP_DEFAULT_END_COLOR,
-    TREEMAP_DEFAULT_LEAF_DEPTH,
-    TREEMAP_DEFAULT_START_COLOR,
-    TREEMAP_DEFAULT_VISIBLE_MIN,
     type TreemapNode,
 } from '@lightdash/visualization/editor';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import {
+    useVisualizationInputs,
+    useVisualizationInputSelector,
+    useVisualizationServices,
+} from '../components/LightdashVisualization/useVisualizationContext';
+import {
+    selectTreemapEditor,
+    selectTreemapGroupFieldIds,
+    selectTreemapSelectedColorMetric,
+    selectTreemapSelectedSizeMetric,
+    selectTreemapSizeMetricId,
+    selectTreemapValidConfig,
+    treemapEditorActions,
+    useEditorFieldSetter,
+    useVisualizationDispatch,
+    useVisualizationSelector,
+    useVisualizationStore,
+    type TreemapEditorState,
+} from '../features/visualization/store';
 import { useAsyncCalculateSubtotals } from './useAsyncCalculateTotal';
 import { useProjectUuid } from './useProjectUuid';
-import { type InfiniteQueryResults } from './useQueryResults';
 
-type TreemapChartConfig = {
+export type TreemapEditorActions = {
+    groupReorder: (args: { from: number; to: number }) => void;
+    sizeMetricChange: (sizeMetricId: string | null) => void;
+    colorMetricChange: (colorMetricId: string | null) => void;
+    toggleDynamicColors: () => void;
+    onStartColorChange: (color: string) => void;
+    onEndColorChange: (color: string) => void;
+    setStartColorThreshold: (startColorThreshold: number | undefined) => void;
+    setEndColorThreshold: (endColorThreshold: number | undefined) => void;
+    setVisibleMin: (visibleMin: number) => void;
+    setLeafDepth: (leafDepth: number) => void;
+};
+
+/** Stable treemap editor actions; the displayed group order is read at call time. */
+export const useTreemapEditorActions = (): TreemapEditorActions => {
+    const dispatch = useVisualizationDispatch();
+    const store = useVisualizationStore();
+    const { getInputs } = useVisualizationServices();
+    const set = useEditorFieldSetter<TreemapEditorState>(
+        treemapEditorActions.set,
+    );
+    return useMemo(
+        () => ({
+            groupReorder: ({ from, to }) =>
+                dispatch(
+                    treemapEditorActions.groupReorder({
+                        from,
+                        to,
+                        groupFieldIds: selectTreemapGroupFieldIds(
+                            store.getState(),
+                            getInputs(),
+                        ),
+                    }),
+                ),
+            sizeMetricChange: (value) => set('sizeMetricId', value),
+            colorMetricChange: (value) => set('colorMetricId', value),
+            toggleDynamicColors: () =>
+                dispatch(treemapEditorActions.toggleDynamicColors()),
+            onStartColorChange: (color) => set('startColor', color),
+            onEndColorChange: (color) => set('endColor', color),
+            setStartColorThreshold: (value) =>
+                set('startColorThreshold', value),
+            setEndColorThreshold: (value) => set('endColorThreshold', value),
+            setVisibleMin: (value) => set('visibleMin', value),
+            setLeafDepth: (value) => set('leafDepth', value),
+        }),
+        [dispatch, store, getInputs, set],
+    );
+};
+
+export type TreemapChartConfig = TreemapEditorActions & {
     validConfig: TreemapChart;
     isLoadingSubtotals: boolean;
     subtotalsError: ApiError | null;
-
-    groupFieldIds: (string | null)[];
-    groupReorder: (args: { from: number; to: number }) => void;
-
+    groupFieldIds: string[];
     sizeMetricId: string | null;
     selectedSizeMetric: Metric | TableCalculation | undefined;
-    sizeMetricChange: (sizeMetricId: string | null) => void;
-
     colorMetricId: string | null;
     selectedColorMetric: Metric | TableCalculation | undefined;
-    colorMetricChange: (colorMetricId: string | null) => void;
-
     useDynamicColors: boolean;
-    toggleDynamicColors?: () => void;
-    startColor?: string;
-    endColor?: string;
-    onStartColorChange?: (color: string) => void;
-    onEndColorChange?: (color: string) => void;
-    topLevelColors?: string[];
-
-    startColorThreshold?: number;
-    setStartColorThreshold: (startColorThreshold: number | undefined) => void;
-    endColorThreshold?: number;
-    setEndColorThreshold: (endColorThreshold: number | undefined) => void;
-
+    startColor: string;
+    endColor: string;
+    startColorThreshold: number | undefined;
+    endColorThreshold: number | undefined;
     visibleMin: number;
-    setVisibleMin: (visibleMin: number) => void;
     leafDepth: number;
-    setLeafDepth: (leafDepth: number) => void;
-
     data: TreemapNode[];
 };
 
-export type TreemapChartConfigFn = (
-    treemapConfig: TreemapChart | undefined,
-    resultsData:
-        | (InfiniteQueryResults & {
-              metricQuery?: MetricQuery;
-              fields?: ItemsMap;
-              resolvedTimezone?: string;
-          })
-        | undefined,
-    itemsMap: ItemsMap | undefined,
-    dimensions: Record<string, CustomDimension | Dimension>,
-    numericMetrics: Record<string, Metric | TableCalculation>,
-    tableCalculationsMetadata?: TableCalculationMetadata[],
-) => TreemapChartConfig;
-
-/**
- * The treemap editor state. Defaults, field validation and the tree itself
- * come from `@lightdash/visualization`; this hook holds the editor state
- * and its mutators, and fetches the subtotals the tree's parent nodes need.
- */
-const useTreemapChartConfig: TreemapChartConfigFn = (
-    treemapConfig,
-    resultsData,
-    itemsMap,
-    dimensions,
-    numericMetrics,
-    tableCalculationsMetadata,
-) => {
+/** Everything the treemap body reads, re-rendering on every edit; fetches the parents' subtotals */
+const useTreemapChartConfig = (): TreemapChartConfig => {
     const projectUuid = useProjectUuid();
-
-    const [visibleMin, setVisibleMin] = useState(
-        treemapConfig?.visibleMin ?? TREEMAP_DEFAULT_VISIBLE_MIN,
+    const { resultsData } = useVisualizationInputs();
+    const editor = useVisualizationSelector(selectTreemapEditor);
+    const groupFieldIds = useVisualizationInputSelector(
+        selectTreemapGroupFieldIds,
     );
-    const [leafDepth, setLeafDepth] = useState(
-        treemapConfig?.leafDepth ?? TREEMAP_DEFAULT_LEAF_DEPTH,
+    const sizeMetricId = useVisualizationInputSelector(
+        selectTreemapSizeMetricId,
     );
-
-    const dimensionIds = useMemo(() => Object.keys(dimensions), [dimensions]);
-
-    const validGroupFieldIds = useMemo(
-        () =>
-            getValidTreemapGroupFieldIds(
-                treemapConfig?.groupFieldIds,
-                dimensionIds,
-            ),
-        [treemapConfig?.groupFieldIds, dimensionIds],
+    const selectedSizeMetric = useVisualizationInputSelector(
+        selectTreemapSelectedSizeMetric,
     );
-
-    const [groupFieldIds, setGroupFieldIds] = useState(validGroupFieldIds);
-
-    const [sizeMetricId, setSizeMetricId] = useState(
-        treemapConfig?.sizeMetricId ?? null,
+    const selectedColorMetric = useVisualizationInputSelector(
+        selectTreemapSelectedColorMetric,
     );
-    const [colorMetricId, setColorMetricId] = useState(
-        treemapConfig?.colorMetricId ?? null,
-    );
-    const [startColor, onStartColorChange] = useState(
-        treemapConfig?.startColor ?? TREEMAP_DEFAULT_START_COLOR,
-    );
-    const [endColor, onEndColorChange] = useState(
-        treemapConfig?.endColor ?? TREEMAP_DEFAULT_END_COLOR,
-    );
-    const [useDynamicColors, setDynamicColors] = useState(
-        treemapConfig?.useDynamicColors ?? false,
-    );
-    const [startColorThreshold, setStartColorThreshold] = useState(
-        treemapConfig?.startColorThreshold ?? undefined,
-    );
-    const [endColorThreshold, setEndColorThreshold] = useState(
-        treemapConfig?.endColorThreshold ?? undefined,
-    );
-
-    const toggleDynamicColors = useCallback(() => {
-        setDynamicColors((prev) => {
-            if (prev) {
-                setColorMetricId(null);
-            }
-            return !prev;
-        });
-    }, []);
-
-    const allNumericMetricIds = useMemo(
-        () => Object.keys(numericMetrics),
-        [numericMetrics],
-    );
-
-    const selectedSizeMetric = useMemo(
-        () => getTreemapMetricItem(itemsMap, sizeMetricId),
-        [itemsMap, sizeMetricId],
-    );
-
-    const selectedColorMetric = useMemo(
-        () => getTreemapMetricItem(itemsMap, colorMetricId),
-        [itemsMap, colorMetricId],
-    );
-
-    const isLoading = !resultsData;
-
-    useEffect(() => {
-        setGroupFieldIds(validGroupFieldIds);
-    }, [validGroupFieldIds]);
-
-    useEffect(() => {
-        const repairedSizeMetricId = repairTreemapSizeMetricId({
-            sizeMetricId,
-            allNumericMetricIds,
-            isLoading,
-            tableCalculationsMetadata,
-        });
-        if (repairedSizeMetricId === undefined) return;
-        setSizeMetricId(repairedSizeMetricId);
-    }, [
-        allNumericMetricIds,
-        isLoading,
-        sizeMetricId,
-        tableCalculationsMetadata,
-    ]);
-
-    const handleGroupReorder = useCallback(
-        ({ from, to }: { from: number; to: number }) => {
-            setGroupFieldIds((prev) =>
-                reorderTreemapGroupFieldIds(prev, { from, to }),
-            );
-        },
-        [],
-    );
+    const validConfig = useVisualizationInputSelector(selectTreemapValidConfig);
+    const actions = useTreemapEditorActions();
 
     const {
         data: groupedSubtotals,
@@ -198,7 +128,7 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         projectUuid,
         sourceQueryUuid: resultsData?.queryUuid,
         dimensions: resultsData?.metricQuery?.dimensions,
-        columnOrder: groupFieldIds.filter((id): id is string => id !== null),
+        columnOrder: groupFieldIds,
         pivotDimensions: undefined,
         enabled: true,
         invalidateCache: undefined,
@@ -210,112 +140,50 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
                 resultsData,
                 sizeMetricId,
                 selectedSizeMetric,
-                colorMetricId,
+                colorMetricId: editor.colorMetricId,
                 groupFieldIds,
                 groupedSubtotals,
             }),
         [
             resultsData,
-            groupFieldIds,
-            selectedSizeMetric,
             sizeMetricId,
-            colorMetricId,
+            selectedSizeMetric,
+            editor.colorMetricId,
+            groupFieldIds,
             groupedSubtotals,
         ],
     );
 
-    const groupFieldIdsCopy = useMemo(
-        () => Array.from(groupFieldIds),
-        [groupFieldIds],
-    );
-
-    const validConfig: TreemapChart = useMemo(() => {
-        return {
-            visibleMin,
-            leafDepth,
-            groupFieldIds,
-            sizeMetricId: sizeMetricId ?? undefined,
-            useDynamicColors,
-            colorMetricId: colorMetricId ?? undefined,
-            startColor,
-            endColor,
-            startColorThreshold,
-            endColorThreshold,
-        };
-    }, [
-        visibleMin,
-        leafDepth,
-        groupFieldIds,
-        sizeMetricId,
-        useDynamicColors,
-        colorMetricId,
-        startColor,
-        endColor,
-        startColorThreshold,
-        endColorThreshold,
-    ]);
-
     return useMemo(
         () => ({
+            ...actions,
             validConfig,
             isLoadingSubtotals,
             subtotalsError,
-
-            groupFieldIds: groupFieldIdsCopy,
-            groupReorder: handleGroupReorder,
-
-            selectedSizeMetric,
+            groupFieldIds,
             sizeMetricId,
-            sizeMetricChange: setSizeMetricId,
-
+            selectedSizeMetric,
+            colorMetricId: editor.colorMetricId,
             selectedColorMetric,
-            colorMetricId,
-            colorMetricChange: setColorMetricId,
-
-            useDynamicColors,
-            toggleDynamicColors,
-            startColor,
-            endColor,
-            onStartColorChange,
-            onEndColorChange,
-            startColorThreshold,
-            setStartColorThreshold,
-            endColorThreshold,
-            setEndColorThreshold,
-
-            visibleMin,
-            setVisibleMin,
-            leafDepth,
-            setLeafDepth,
-
+            useDynamicColors: editor.useDynamicColors,
+            startColor: editor.startColor,
+            endColor: editor.endColor,
+            startColorThreshold: editor.startColorThreshold,
+            endColorThreshold: editor.endColorThreshold,
+            visibleMin: editor.visibleMin,
+            leafDepth: editor.leafDepth,
             data,
         }),
         [
+            actions,
             validConfig,
             isLoadingSubtotals,
             subtotalsError,
-            groupFieldIdsCopy,
-            handleGroupReorder,
-            selectedSizeMetric,
+            groupFieldIds,
             sizeMetricId,
-            setSizeMetricId,
+            selectedSizeMetric,
             selectedColorMetric,
-            colorMetricId,
-            setColorMetricId,
-            useDynamicColors,
-            toggleDynamicColors,
-            startColor,
-            endColor,
-            onStartColorChange,
-            onEndColorChange,
-            startColorThreshold,
-            setStartColorThreshold,
-            endColorThreshold,
-            setEndColorThreshold,
-            visibleMin,
-            setVisibleMin,
-            leafDepth,
-            setLeafDepth,
+            editor,
             data,
         ],
     );
