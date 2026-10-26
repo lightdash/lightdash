@@ -1126,7 +1126,10 @@ the language map, as tab names are.
   item and the box both toggle; the box shows how the bar starts the
   section (`isCollapsedByDefault`, so a dense one with no saved choice is
   ticked) and `setControlSectionCollapsed` saves the opposite, `true` or
-  `false`; it changes nothing in the open rail) and "Remove section" at the far right on hover) with a
+  `false`; it changes nothing in the open rail), a divider and "Remove
+  section", at the far right on hover; the menu is `SectionMenu` in
+  `SectionHeader.tsx`, shared with the bar's capsule, which passes no
+  leading items) with a
   hairline above it, none above the first thing in the list
   (`.body > .sectionHeader:first-child`); its rows are indented one `md`
   further than the unsectioned ones (`.sectionRow`, also on a viewer's
@@ -1274,9 +1277,10 @@ the language map, as tab names are.
   radius, 36px tall at one line with `3px 4px` padding, an `8px 6px` gap so
   wrapped lines keep the bar's row spacing, and `margin-block: -4px` so it
   is centred on the bar's 28px pill line, 10px on the right when collapsed)
-  holds its toggle (`.toggle`, an `UnstyledButton` 28px tall: a 14px
-  dimmed chevron, down open and right collapsed, and the name in `sm` 600,
-  normal case, `aria-expanded`) and, open, `FilterPills
+  holds its toggle (a viewer's: `.toggle`, an `UnstyledButton` 28px tall: a
+  14px dimmed chevron, down open and right collapsed, and the name in `sm`
+  600, normal case, `aria-expanded`; an editor's head is split, see below)
+  and, open, `FilterPills
   sectionId={section.id}` in its own flow (a `display: contents`
   `.pillsEnter` box, whose children arrive with opacity and a 6px
   `translateX`, 20ms apart up to eight; collapsing animates nothing);
@@ -1299,6 +1303,30 @@ the language map, as tab names are.
   per group, and the temporary pills render once, in the unsectioned pass);
   `SectionedFilters` owns the popover state so one saved popover is open
   across the whole bar, and a lone `FilterPills` keeps its own.
+- The capsule's controls, edit mode only (`actions` on `SectionCapsule`,
+  null for a viewer, whose capsule is unchanged): the head is the chevron
+  (an `ActionIcon` named by `filters.rail.collapseSection` /
+  `expandSection`, `aria-expanded`, the fold summary's `aria-describedby`;
+  it only folds) and the name, its own button (`.name`), which turns into
+  `SectionNameInput` in place (`.nameInput` / `.nameInputField`, 28px, `sm`
+  600): Enter or blur with a name dispatches `renameControlSection` (an
+  unchanged name writes nothing); Escape or an empty name keeps the old one.
+  At the capsule's end, always shown and inside the outline (`.actions`;
+  `data-editable` drops the collapsed capsule's 10px right padding), two
+  `sm` subtle icons: `+` "Add filter to {name}" (`openNew(section.id)`) and
+  `SectionMenu` named "{name} menu" ("Collapsed by default" and the
+  two-click "Remove section · N filters", the rail's semantics: the box is
+  `isCollapsedByDefault`, a toggle saves the opposite; remove dispatches
+  `removeControlSection` and, with members, one `setDashboardFilters` over
+  `removeSectionFromRules` plus `setHaveFiltersChanged(true)`). After the
+  last capsule, `AddSection`: a dashed `xs` "Add section" button
+  (`.addSection`) that becomes a capsule holding a focused, empty
+  `SectionNameInput` ("Section name"); Enter or blur with a name dispatches
+  `addControlSection` (a new uuid, appended last), Escape or an empty name
+  drops it. Focus returns to the name button, or "Add section", when the
+  input unmounts with focus (`useRefocusAfter`: only when focus fell to
+  `body`, so a blur by click keeps where it went). The strings are
+  editor-only and literal.
 - The sectioned bar's drag, edit mode only (a viewer's bar has none): one
   `DndContext` in `SectionedFilters` over every pass, the rail's model
   restated. A `FilterPills` pass with a `sectionId` (`null` or a string)

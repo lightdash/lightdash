@@ -26,7 +26,8 @@
     border-radius: 18px;
 }
 
-.capsule[data-collapsed] {
+/* An editor's capsule ends in its action icons, which carry their own air */
+.capsule[data-collapsed]:not([data-editable]) {
     padding-right: 10px;
 }
 
@@ -44,7 +45,7 @@
     pointer-events: none;
 }
 
-.capsule[data-collapsed][data-over]::after {
+.capsule[data-collapsed]:not([data-editable])[data-over]::after {
     right: 4px;
 }
 
@@ -79,6 +80,42 @@
     padding: 0 var(--mantine-spacing-xs) 0 6px;
     border-radius: var(--mantine-radius-xl);
     cursor: pointer;
+}
+
+/* An editor's name: its own button, renamed in place */
+.name {
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 6px;
+    border-radius: var(--mantine-radius-xl);
+    cursor: text;
+}
+
+.name:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.nameInput {
+    width: 14ch;
+}
+
+/* The same size as the name it replaces */
+.nameInputField {
+    height: 28px;
+    min-height: 28px;
+    padding: 0 6px;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    border-radius: var(--mantine-radius-xl);
+}
+
+.actions {
+    flex: 0 0 auto;
+}
+
+.addSection {
+    border-style: dashed;
 }
 
 /* Expanded, the pills arrive one after the other, up to eight */

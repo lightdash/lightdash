@@ -10,7 +10,7 @@ import {
     type DashboardFilters,
     type DashboardTile,
 } from '@lightdash/common';
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -20,7 +20,10 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../testing/testUtils';
-import { dashboardFiltersActions } from '../dashboard/store';
+import {
+    dashboardFiltersActions,
+    selectControlSections,
+} from '../dashboard/store';
 import { SectionedFilters } from './SectionedFilters';
 
 const mockDashboardContext = vi.hoisted(() => ({
@@ -30,6 +33,7 @@ const pillsProps = vi.hoisted(() => ({
     current: [] as { sectionId: string | null | undefined }[],
 }));
 const mockSidebar = vi.hoisted(() => ({ current: { isViewer: false } }));
+const mockOpenNew = vi.hoisted(() => vi.fn());
 const mockDragEnd = vi.hoisted(() => ({
     handlers: [] as ((event: DragEndEvent) => void)[],
 }));
@@ -46,8 +50,10 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
 
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebarSelector: (
-        selector: (value: typeof mockSidebar.current) => unknown,
-    ) => selector(mockSidebar.current),
+        selector: (
+            value: typeof mockSidebar.current & { openNew: typeof mockOpenNew },
+        ) => unknown,
+    ) => selector({ ...mockSidebar.current, openNew: mockOpenNew }),
 }));
 // The drag gesture is dnd-kit's; the drop handler is captured
 vi.mock('@dnd-kit/core', async (importOriginal) => {
@@ -192,6 +198,14 @@ const onTabOne = {
     },
 };
 
+// An editor's chevron is the fold, apart from the name; a viewer's toggle is
+// the name
+const foldOf = (name: string) =>
+    screen.getByRole('button', {
+        name: new RegExp(`^(Expand|Collapse) section ${name}$`),
+    });
+const capsuleOf = (name: string) => screen.getByRole('group', { name });
+
 const renderSectioned = (
     dimensions: DashboardFilterRule[],
     activeTabUuid: string | undefined,
@@ -316,7 +330,7 @@ describe('SectionedFilters', () => {
             rule('both-2', 'a'),
         ];
         const { switchTab } = renderSectioned(members, 'tab-1');
-        const toggle = () => screen.getByRole('button', { name: /^Dates/ });
+        const toggle = () => foldOf('Dates');
         expect(toggle()).toHaveAttribute('aria-expanded', 'false');
         fireEvent.click(toggle());
         expect(toggle()).toHaveAttribute('aria-expanded', 'true');
@@ -368,18 +382,12 @@ describe('SectionedFilters', () => {
         const { unmount } = renderSectioned(members(2), 'tab-1', [
             sectionA(true),
         ]);
-        expect(screen.getByRole('button', { name: /^Dates/ })).toHaveAttribute(
-            'aria-expanded',
-            'false',
-        );
+        expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
         expect(screen.queryByTestId('pills-a')).not.toBeInTheDocument();
         unmount();
 
         renderSectioned(members(7), 'tab-1', [sectionA(false)]);
-        expect(screen.getByRole('button', { name: 'Dates' })).toHaveAttribute(
-            'aria-expanded',
-            'true',
-        );
+        expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'true');
         expect(screen.getByTestId('pills-a')).toBeInTheDocument();
     });
 
@@ -387,17 +395,14 @@ describe('SectionedFilters', () => {
         const members = (count: number) =>
             Array.from({ length: count }, (_, i) => rule(`a-${i}`, 'a'));
         const { unmount } = renderSectioned(members(7), 'tab-1');
-        const folded = screen.getByRole('button', { name: /^Dates/ });
+        const folded = foldOf('Dates');
         expect(folded).toHaveAttribute('aria-expanded', 'false');
         expect(screen.queryByTestId('pills-a')).not.toBeInTheDocument();
         expect(screen.getByText('7 filters')).toBeInTheDocument();
         unmount();
 
         renderSectioned(members(6), 'tab-1');
-        expect(screen.getByRole('button', { name: 'Dates' })).toHaveAttribute(
-            'aria-expanded',
-            'true',
-        );
+        expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'true');
         expect(screen.getByTestId('pills-a')).toBeInTheDocument();
     });
 
@@ -452,7 +457,7 @@ describe('SectionedFilters', () => {
             ],
             'tab-2',
         );
-        const toggle = screen.getByRole('button', { name: 'Dates' });
+        const toggle = foldOf('Dates');
         expect(toggle).toHaveAttribute('aria-expanded', 'true');
         expect(toggle).not.toHaveAttribute('aria-describedby');
 
@@ -478,7 +483,7 @@ describe('SectionedFilters', () => {
             ],
             'tab-1',
         );
-        await userEvent.click(screen.getByRole('button', { name: 'Dates' }));
+        await userEvent.click(foldOf('Dates'));
         expect(screen.getByText('2 filters')).toBeInTheDocument();
     });
 
@@ -561,9 +566,15 @@ describe('SectionedFilters', () => {
                     const measured = isOverlay
                         ? (document.querySelector('[data-dragging]') ?? this)
                         : this;
+                    // A capsule's trailing actions take no room, so the
+                    // next capsule stays next
                     const top =
-                        [...document.querySelectorAll('*')].indexOf(measured) *
-                        10;
+                        [...document.querySelectorAll('*')]
+                            .filter(
+                                (node) =>
+                                    node.closest('[class*="actions"]') === null,
+                            )
+                            .indexOf(measured) * 10;
                     return {
                         top,
                         bottom: top + 10,
@@ -606,15 +617,12 @@ describe('SectionedFilters', () => {
         });
 
         it('marks a capsule only under a pill from elsewhere, folded too, adding nothing to it', () => {
-            const capsule = (name: RegExp) =>
-                screen.getByRole('button', { name })
-                    .parentElement as HTMLElement;
             mockDroppable.current = { activeId: 'one', overId: 'a' };
             const { unmount } = renderSectioned(
                 [rule('one', 'a'), rule('two', 'b')],
                 'tab-1',
             );
-            expect(capsule(/^Dates/)).not.toHaveAttribute('data-over');
+            expect(capsuleOf('Dates')).not.toHaveAttribute('data-over');
             unmount();
 
             mockDroppable.current = null;
@@ -625,7 +633,7 @@ describe('SectionedFilters', () => {
                 ],
                 'tab-1',
             );
-            const folded = capsule(/^Dates/);
+            const folded = capsuleOf('Dates');
             expect(folded.firstElementChild).toHaveAttribute(
                 'aria-expanded',
                 'false',
@@ -642,8 +650,8 @@ describe('SectionedFilters', () => {
                 'tab-1',
             );
             // The line is a pseudo-element: the attribute is all jsdom sees
-            expect(capsule(/^Dates/)).toHaveAttribute('data-over');
-            expect(capsule(/^Dates/).children).toHaveLength(childrenBefore);
+            expect(capsuleOf('Dates')).toHaveAttribute('data-over');
+            expect(capsuleOf('Dates').children).toHaveLength(childrenBefore);
         });
 
         it('renders every section, an empty one with its count, and takes a drop on it', () => {
@@ -651,10 +659,12 @@ describe('SectionedFilters', () => {
                 [rule('one', 'a'), rule('two', 'b', onTabOne)],
                 'tab-2',
             );
-            const empty = screen.getByRole('button', { name: 'Empty' });
             const count = screen.getByText('0 filters');
-            expect(empty.parentElement).toContainElement(count);
-            expect(empty).toHaveAttribute('aria-describedby', count.id);
+            expect(capsuleOf('Empty')).toContainElement(count);
+            expect(foldOf('Empty')).toHaveAttribute(
+                'aria-describedby',
+                count.id,
+            );
             // Members all hidden on this tab: the plain total
             expect(
                 screen.getByRole('button', { name: 'Regions' }).parentElement,
@@ -706,9 +716,7 @@ describe('SectionedFilters', () => {
                 rule(`a-${i}`, 'a'),
             );
             renderSectioned([...many, rule('two', 'b')], 'tab-1');
-            expect(
-                screen.getByRole('button', { name: /^Dates/ }),
-            ).toHaveAttribute('aria-expanded', 'false');
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
             act(() => mockDragEnd.handlers[0](dragEvent('two', 'a')));
             const ids = sectionIdsOf(setDashboardFilters.mock.calls[0][0]);
             expect(ids.at(-1)).toEqual(['two', 'a']);
@@ -726,6 +734,181 @@ describe('SectionedFilters', () => {
                 ['one', 'b'],
                 ['three', 'b'],
             ]);
+        });
+    });
+
+    describe('section controls in edit mode', () => {
+        const setDashboardFilters = vi.fn();
+        const setHaveFiltersChanged = vi.fn();
+        const sectionsOf = (store: { getState: () => unknown }) =>
+            selectControlSections(
+                store.getState() as Parameters<typeof selectControlSections>[0],
+            );
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+            mockDroppable.current = null;
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                setDashboardFilters,
+                setHaveFiltersChanged,
+            };
+        });
+
+        it('renames in place: Enter keeps, Escape restores, empty keeps the old name', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const user = userEvent.setup();
+
+            await user.click(screen.getByRole('button', { name: 'Dates' }));
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            expect(input).toHaveFocus();
+            await user.clear(input);
+            await user.type(input, 'When{Enter}');
+            expect(sectionsOf(store)[0].name).toBe('When');
+            expect(screen.getByRole('button', { name: 'When' })).toHaveFocus();
+
+            await user.click(screen.getByRole('button', { name: 'When' }));
+            await user.type(
+                screen.getByRole('textbox', { name: 'Section name' }),
+                'ever{Escape}',
+            );
+            expect(sectionsOf(store)[0].name).toBe('When');
+            expect(screen.getByRole('button', { name: 'When' })).toHaveFocus();
+
+            await user.click(screen.getByRole('button', { name: 'When' }));
+            await user.clear(
+                screen.getByRole('textbox', { name: 'Section name' }),
+            );
+            await user.keyboard('{Enter}');
+            expect(sectionsOf(store)[0].name).toBe('When');
+        });
+
+        it('keeps the chevron to folding alone', async () => {
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            await userEvent.click(foldOf('Dates'));
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
+            expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+        });
+
+        it('opens a new filter in the section from its +', async () => {
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Add filter to Regions' }),
+            );
+            expect(mockOpenNew).toHaveBeenCalledWith('b');
+        });
+
+        it('saves the opposite of how the bar starts it from the menu', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Dates menu' }),
+            );
+            const item = await screen.findByRole('menuitem', {
+                name: 'Collapsed by default',
+            });
+            expect(within(item).getByRole('checkbox')).not.toBeChecked();
+            await userEvent.click(item);
+            expect(sectionsOf(store)[0].collapsed).toBe(true);
+            // The menu stays, showing the change
+            expect(
+                within(
+                    screen.getByRole('menuitem', {
+                        name: 'Collapsed by default',
+                    }),
+                ).getByRole('checkbox'),
+            ).toBeChecked();
+            await userEvent.click(
+                screen.getByRole('menuitem', { name: 'Collapsed by default' }),
+            );
+            expect(sectionsOf(store)[0].collapsed).toBe(false);
+        });
+
+        it('removes a section on the second click, stripping its members in one write', async () => {
+            const { store } = renderSectioned(
+                [rule('one', 'a'), rule('two', 'a'), rule('three', 'b')],
+                'tab-1',
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Dates menu' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', { name: 'Remove section' }),
+            );
+            expect(sectionsOf(store).map((s) => s.id)).toContain('a');
+            const armed = screen.getByRole('menuitem', {
+                name: 'Remove section · 2 filters',
+            });
+            await userEvent.click(armed);
+
+            expect(sectionsOf(store).map((s) => s.id)).toEqual(['b', 'c']);
+            expect(setDashboardFilters).toHaveBeenCalledTimes(1);
+            const update = setDashboardFilters.mock.calls[0][0] as (
+                filters: DashboardFilters,
+            ) => DashboardFilters;
+            const stripped = update({
+                dimensions: [
+                    rule('one', 'a'),
+                    rule('two', 'a'),
+                    rule('three', 'b'),
+                ],
+                metrics: [],
+                tableCalculations: [],
+            });
+            expect(
+                stripped.dimensions.map((r) => [r.id, r.sectionId ?? null]),
+            ).toEqual([
+                ['one', null],
+                ['two', null],
+                ['three', 'b'],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+        });
+
+        it('adds a section last on Enter and drops it on Escape or an empty name', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const user = userEvent.setup();
+            const addSection = () =>
+                screen.getByRole('button', { name: 'Add section' });
+
+            await user.click(addSection());
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            expect(input).toHaveFocus();
+            expect(input).toHaveAttribute('placeholder', 'Section name');
+            await user.type(input, 'Late{Escape}');
+            expect(sectionsOf(store)).toHaveLength(3);
+            expect(addSection()).toHaveFocus();
+
+            await user.click(addSection());
+            await user.keyboard('{Enter}');
+            expect(sectionsOf(store)).toHaveLength(3);
+            expect(addSection()).toHaveFocus();
+
+            await user.click(addSection());
+            await user.keyboard('Late{Enter}');
+            expect(sectionsOf(store).map((s) => s.name)).toEqual([
+                'Dates',
+                'Regions',
+                'Empty',
+                'Late',
+            ]);
+            expect(addSection()).toHaveFocus();
+        });
+
+        it("gives a viewer's bar none of these controls", () => {
+            mockSidebar.current = { isViewer: true };
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            expect(
+                screen.getByRole('button', { name: 'Dates', expanded: true }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: /Add filter to|menu$/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Add section' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: /^(Expand|Collapse)/ }),
+            ).not.toBeInTheDocument();
         });
     });
 });

@@ -20,21 +20,40 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Box, Group, Text, UnstyledButton } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Group,
+    Text,
+    UnstyledButton,
+} from '@mantine/core';
 import {
     IconChevronDown,
     IconChevronRight,
     IconFilter,
+    IconPlus,
 } from '@tabler/icons-react';
-import { useCallback, useId, useState, type FC, type ReactNode } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useId,
+    useRef,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
+    dashboardEditActions,
     selectControlSections,
     selectDashboardFilters,
     selectSavedFilterOverrides,
+    useDashboardDispatch,
     useDashboardSelector,
 } from '../dashboard/store';
 import {
@@ -45,6 +64,7 @@ import { AddControl } from './AddControl';
 import { formatSectionCount } from './fieldLabels';
 import { FilterPills } from './FilterPills';
 import classes from './SectionedFilters.module.css';
+import { SectionMenu, SectionNameInput } from './SectionHeader';
 import {
     getDragAnnouncements,
     groupRulesBySection,
@@ -53,6 +73,7 @@ import {
     UNSECTIONED_TARGET_ID,
     type SectionRule,
     isCollapsedByDefault,
+    removeSectionFromRules,
 } from './sections';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { type PillPopoverState } from './ViewerSavedPills';
@@ -62,6 +83,37 @@ import { type PillPopoverState } from './ViewerSavedPills';
 const underPointer: CollisionDetection = (args) => {
     const within = pointerWithin(args);
     return within.length > 0 ? within : closestCenter(args);
+};
+
+// Focus goes back to `ref` once an input unmounts with focus (Enter or
+// Escape), never away from what a blur clicked
+const useRefocusAfter = (isEditing: boolean) => {
+    const ref = useRef<HTMLButtonElement>(null);
+    const wasEditing = useRef(isEditing);
+    useEffect(() => {
+        if (
+            wasEditing.current &&
+            !isEditing &&
+            (document.activeElement === null ||
+                document.activeElement === document.body)
+        )
+            ref.current?.focus();
+        wasEditing.current = isEditing;
+    }, [isEditing]);
+    return ref;
+};
+
+const nameInputClassNames = {
+    root: classes.nameInput,
+    input: classes.nameInputField,
+};
+
+/** An editor's capsule controls; a viewer's capsule has none. */
+type CapsuleActions = {
+    onRename: (name: string) => void;
+    onAddFilter: () => void;
+    onToggleCollapsedByDefault: () => void;
+    onRemove: () => void;
 };
 
 type CapsuleProps = {
@@ -76,6 +128,7 @@ type CapsuleProps = {
     onToggle: () => void;
     activeTabUuid: string | undefined;
     popover: PillPopoverState;
+    actions: CapsuleActions | null;
 };
 
 const SectionCapsule: FC<CapsuleProps> = ({
@@ -87,9 +140,12 @@ const SectionCapsule: FC<CapsuleProps> = ({
     onToggle,
     activeTabUuid,
     popover,
+    actions,
 }) => {
     const getUiString = useUiStrings();
     const summaryId = useId();
+    const [isRenaming, setIsRenaming] = useState(false);
+    const nameRef = useRefocusAfter(isRenaming);
     const changedCount = visibleRules.filter(isChanged).length;
     // A drop anywhere on the outline joins the section: a line after its
     // last pill (`data-over`, a pseudo-element, so nothing changes size);
@@ -106,23 +162,79 @@ const SectionCapsule: FC<CapsuleProps> = ({
             aria-label={section.name}
             className={classes.capsule}
             data-collapsed={!(isOpen && hasVisible) || undefined}
+            data-editable={actions !== null || undefined}
             data-over={isForeignOver || undefined}
         >
-            <UnstyledButton
-                className={`${classes.toggle} mantine-focus-auto`}
-                aria-expanded={isOpen}
-                aria-describedby={isOpen && hasVisible ? undefined : summaryId}
-                onClick={onToggle}
-            >
-                <MantineIcon
-                    icon={isOpen ? IconChevronDown : IconChevronRight}
-                    size={14}
-                    color="dimmed"
-                />
-                <Text span fz="sm" fw={600}>
-                    {section.name}
-                </Text>
-            </UnstyledButton>
+            {actions === null ? (
+                <UnstyledButton
+                    className={`${classes.toggle} mantine-focus-auto`}
+                    aria-expanded={isOpen}
+                    aria-describedby={
+                        isOpen && hasVisible ? undefined : summaryId
+                    }
+                    onClick={onToggle}
+                >
+                    <MantineIcon
+                        icon={isOpen ? IconChevronDown : IconChevronRight}
+                        size={14}
+                        color="dimmed"
+                    />
+                    <Text span fz="sm" fw={600}>
+                        {section.name}
+                    </Text>
+                </UnstyledButton>
+            ) : (
+                <>
+                    {/* An editor's chevron only folds; the name renames */}
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        size="sm"
+                        radius="xl"
+                        aria-label={interpolateUiString(
+                            getUiString(
+                                isOpen
+                                    ? 'filters.rail.collapseSection'
+                                    : 'filters.rail.expandSection',
+                            ),
+                            { section: section.name },
+                        )}
+                        aria-expanded={isOpen}
+                        aria-describedby={
+                            isOpen && hasVisible ? undefined : summaryId
+                        }
+                        onClick={onToggle}
+                    >
+                        <MantineIcon
+                            icon={isOpen ? IconChevronDown : IconChevronRight}
+                            size={14}
+                            color="dimmed"
+                        />
+                    </ActionIcon>
+                    {isRenaming ? (
+                        <SectionNameInput
+                            name={section.name}
+                            onCommit={(name) => {
+                                setIsRenaming(false);
+                                if (name !== section.name)
+                                    actions.onRename(name);
+                            }}
+                            onCancel={() => setIsRenaming(false)}
+                            classNames={nameInputClassNames}
+                        />
+                    ) : (
+                        <UnstyledButton
+                            ref={nameRef}
+                            className={`${classes.name} mantine-focus-auto`}
+                            onClick={() => setIsRenaming(true)}
+                        >
+                            <Text span fz="sm" fw={600}>
+                                {section.name}
+                            </Text>
+                        </UnstyledButton>
+                    )}
+                </>
+            )}
             {/* Mounted on expand, so its pills arrive; `contents` keeps them
                 in the capsule's own flow */}
             {!hasVisible ? (
@@ -147,7 +259,66 @@ const SectionCapsule: FC<CapsuleProps> = ({
                         : formatSectionCount(getUiString, visibleRules.length)}
                 </Text>
             )}
+            {actions !== null && (
+                <Group gap={2} wrap="nowrap" className={classes.actions}>
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        size="sm"
+                        radius="xl"
+                        aria-label={`Add filter to ${section.name}`}
+                        onClick={actions.onAddFilter}
+                    >
+                        <MantineIcon icon={IconPlus} size={14} />
+                    </ActionIcon>
+                    <SectionMenu
+                        label={`${section.name} menu`}
+                        countLabel={formatSectionCount(
+                            getUiString,
+                            rules.length,
+                        )}
+                        isCollapsedByDefault={isCollapsedByDefault(
+                            section,
+                            rules.length,
+                        )}
+                        onToggleCollapsedByDefault={
+                            actions.onToggleCollapsedByDefault
+                        }
+                        onRemove={actions.onRemove}
+                    />
+                </Group>
+            )}
         </Box>
+    );
+};
+
+// "Add section" and, once clicked, a new capsule naming the section in place
+const AddSection: FC<{ onAdd: (name: string) => void }> = ({ onAdd }) => {
+    const [isNaming, setIsNaming] = useState(false);
+    const addRef = useRefocusAfter(isNaming);
+    return isNaming ? (
+        <Box className={classes.capsule} data-collapsed data-editable>
+            <SectionNameInput
+                name=""
+                onCommit={(name) => {
+                    setIsNaming(false);
+                    onAdd(name);
+                }}
+                onCancel={() => setIsNaming(false)}
+                classNames={nameInputClassNames}
+            />
+        </Box>
+    ) : (
+        <Button
+            ref={addRef}
+            size="xs"
+            variant="default"
+            radius={100}
+            className={classes.addSection}
+            onClick={() => setIsNaming(true)}
+        >
+            Add section
+        </Button>
     );
 };
 
@@ -186,6 +357,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
     const onPopoverClose = useCallback(() => setOpenPopoverId(undefined), []);
     const getUiString = useUiStrings();
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
+    const openNew = useControlsSidebarSelector((c) => c.openNew);
+    const dispatch = useDashboardDispatch();
     const sections = useDashboardSelector(selectControlSections);
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const overrides = useDashboardSelector(selectSavedFilterOverrides);
@@ -285,6 +458,45 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
             onToggle={() => toggle(section.id)}
             activeTabUuid={activeTabUuid}
             popover={popover}
+            actions={
+                isViewer
+                    ? null
+                    : {
+                          onRename: (name) =>
+                              dispatch(
+                                  dashboardEditActions.renameControlSection({
+                                      ...section,
+                                      name,
+                                  }),
+                              ),
+                          onAddFilter: () => openNew(section.id),
+                          // Saved either way, so unticked means open
+                          onToggleCollapsedByDefault: () =>
+                              dispatch(
+                                  dashboardEditActions.setControlSectionCollapsed(
+                                      {
+                                          id: section.id,
+                                          collapsed: !isCollapsedByDefault(
+                                              section,
+                                              rules.length,
+                                          ),
+                                      },
+                                  ),
+                              ),
+                          onRemove: () => {
+                              dispatch(
+                                  dashboardEditActions.removeControlSection(
+                                      section.id,
+                                  ),
+                              );
+                              if (rules.length === 0) return;
+                              setDashboardFilters((filters) =>
+                                  removeSectionFromRules(filters, section.id),
+                              );
+                              setHaveFiltersChanged(true);
+                          },
+                      }
+            }
         />
     ));
     const pills = (
@@ -381,6 +593,16 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
                     <AddControl />
                 </UnsectionTarget>
                 {capsules}
+                <AddSection
+                    onAdd={(name) =>
+                        dispatch(
+                            dashboardEditActions.addControlSection({
+                                id: uuidv4(),
+                                name,
+                            }),
+                        )
+                    }
+                />
                 {pills}
                 {children}
             </Box>
