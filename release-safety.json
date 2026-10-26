@@ -1,27 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.60.1",
-  "previousVersion": "3.60.0",
-  "releaseDate": "2026-10-26T22:26:37.498Z",
+  "version": "3.61.0",
+  "previousVersion": "3.60.1",
+  "releaseDate": "2026-10-26T22:33:48.455Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261026161219_delete_slack_system_fallback_agents.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_agent"
-        ],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": true,
-          "scansTable": true
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

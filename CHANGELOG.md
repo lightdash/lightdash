@@ -1,3 +1,10 @@
+# [3.61.0](https://github.com/lightdash/lightdash/compare/3.60.1...3.61.0) (2026-10-26)
+
+
+### Features
+
+* **visualization:** migrate visualization provider to redux ([#31558](https://github.com/lightdash/lightdash/issues/31558)) ([7ea5404](https://github.com/lightdash/lightdash/commit/7ea5404327578ddb0bd48bab1b360afff684ca72))
+
 ## [3.60.1](https://github.com/lightdash/lightdash/compare/3.60.0...3.60.1) (2026-10-26)
 
 
