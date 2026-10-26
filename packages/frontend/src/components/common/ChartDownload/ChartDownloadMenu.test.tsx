@@ -112,7 +112,6 @@ vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
         useVisualizationConfig: () =>
             useVisualizationContext().visualizationConfig,
         useEditedChartConfig: () => useVisualizationContext().chartConfig,
-        useSeriesColor: () => useVisualizationContext().getSeriesColor,
     };
 });
 

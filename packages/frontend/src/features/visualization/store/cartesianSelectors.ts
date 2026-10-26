@@ -36,7 +36,7 @@ const selectYFields = (state: State) =>
 const selectLayoutStack = (state: State) =>
     selectCartesianEditor(state).dirtyLayout?.stack;
 
-export const selectCartesianAvailableFields = createSelector(
+const selectCartesianAvailableFields = createSelector(
     [inputsMetricQuery, inputsItemsMap, inputsColumnOrder],
     (metricQuery, itemsMap, columnOrder) =>
         getAvailableCartesianFields({ metricQuery, itemsMap, columnOrder }),
@@ -44,7 +44,7 @@ export const selectCartesianAvailableFields = createSelector(
 
 // The available fields only know the last run; a field just added from a
 // config picker must not be stripped before its results land.
-export const selectCartesianPendingFieldIds = createSelector(
+const selectCartesianPendingFieldIds = createSelector(
     [(_: State, inputs: VisualizationInputs) => inputs.unsavedMetricQuery],
     getPendingFieldIds,
 );
@@ -94,7 +94,7 @@ export const selectCartesianSeriesHiddenKey = createSelector(
         ),
 );
 
-export const selectCartesianHasCustomColorsStacking = createSelector(
+const selectCartesianHasCustomColorsStacking = createSelector(
     [selectCartesianSeries, selectLayoutStack],
     hasCartesianCustomColorsStacking,
 );

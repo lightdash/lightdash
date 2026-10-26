@@ -81,48 +81,27 @@ export { buildInitialVisualizationState } from './buildInitialState';
 export { cartesianIntentActions } from './cartesianIntentSlice';
 export type { CartesianIntentState } from './cartesianIntentSlice';
 export type { EditorFieldUpdate } from './editorSlice';
-export {
-    bigNumberEditorActions,
-    buildBigNumberEditorState,
-} from './bigNumberEditorSlice';
+export { bigNumberEditorActions } from './bigNumberEditorSlice';
 export type { BigNumberEditorState } from './bigNumberEditorSlice';
-export {
-    cartesianEditorActions,
-    buildCartesianEditorState,
-} from './cartesianEditorSlice';
+export { cartesianEditorActions } from './cartesianEditorSlice';
 export type { CartesianEditorState } from './cartesianEditorSlice';
-export {
-    customEditorActions,
-    buildCustomEditorState,
-} from './customEditorSlice';
+export { customEditorActions } from './customEditorSlice';
 export type { CustomEditorState } from './customEditorSlice';
-export {
-    dataAppVizEditorActions,
-    buildDataAppVizEditorState,
-} from './dataAppVizEditorSlice';
+export { dataAppVizEditorActions } from './dataAppVizEditorSlice';
 export type { DataAppVizEditorState } from './dataAppVizEditorSlice';
-export {
-    funnelEditorActions,
-    buildFunnelEditorState,
-} from './funnelEditorSlice';
+export { funnelEditorActions } from './funnelEditorSlice';
 export type { FunnelEditorState } from './funnelEditorSlice';
-export { gaugeEditorActions, buildGaugeEditorState } from './gaugeEditorSlice';
+export { gaugeEditorActions } from './gaugeEditorSlice';
 export type { GaugeEditorState } from './gaugeEditorSlice';
-export { mapEditorActions, buildMapEditorState } from './mapEditorSlice';
+export { mapEditorActions } from './mapEditorSlice';
 export type { MapEditorState } from './mapEditorSlice';
-export { pieEditorActions, buildPieEditorState } from './pieEditorSlice';
+export { pieEditorActions } from './pieEditorSlice';
 export type { PieEditorState } from './pieEditorSlice';
-export {
-    sankeyEditorActions,
-    buildSankeyEditorState,
-} from './sankeyEditorSlice';
+export { sankeyEditorActions } from './sankeyEditorSlice';
 export type { SankeyEditorState } from './sankeyEditorSlice';
-export { tableEditorActions, buildTableEditorState } from './tableEditorSlice';
+export { tableEditorActions } from './tableEditorSlice';
 export type { TableEditorState } from './tableEditorSlice';
-export {
-    treemapEditorActions,
-    buildTreemapEditorState,
-} from './treemapEditorSlice';
+export { treemapEditorActions } from './treemapEditorSlice';
 export type { TreemapEditorState } from './treemapEditorSlice';
 export type { VisualizationInputs } from './inputs';
 export * from './hooks';

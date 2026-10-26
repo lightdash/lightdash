@@ -29,9 +29,13 @@ import {
     explorerActions,
 } from '../../features/explorer/store';
 import {
+    selectCartesianEchartsConfig,
+    selectCartesianLayout,
     selectPieEditor,
     selectPieGroupFieldIds,
     selectPieMetricId,
+    selectTableEditor,
+    selectTableShowTableNames,
     useVisualizationSelector,
 } from '../../features/visualization/store';
 import type useCartesianChartConfig from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -241,7 +245,7 @@ const useTable = () => {
 
 // Consumers every chart type has
 const ResultsOnlyProbe = memo(() => {
-    useVisualizationInputs().resultsData;
+    void useVisualizationInputs().resultsData;
     bump('resultsOnly');
     return null;
 });
@@ -262,30 +266,33 @@ const CartesianBodyProbe = memo(() => {
     bump('chartBody');
     return null;
 });
+// Cartesian panels select the fields they show, like the real panels do
 const CartesianLayoutPanelProbe = memo(() => {
-    const config = useCartesian();
-    cartesian = config;
-    void config?.dirtyLayout;
-    void config?.isStacked;
+    useVisualizationSelector(selectCartesianLayout);
     bump('layoutPanel');
     return null;
 });
 const CartesianAxesPanelProbe = memo(() => {
-    const config = useCartesian();
-    void config?.dirtyEchartsConfig?.xAxis;
-    void config?.dirtyEchartsConfig?.yAxis;
+    useVisualizationSelector(
+        (state) => selectCartesianEchartsConfig(state)?.xAxis,
+    );
+    useVisualizationSelector(
+        (state) => selectCartesianEchartsConfig(state)?.yAxis,
+    );
     bump('axesPanel');
     return null;
 });
 const CartesianSeriesPanelProbe = memo(() => {
     const config = useCartesian();
+    cartesian = config;
     void config?.dirtyEchartsConfig?.series;
     bump('seriesPanel');
     return null;
 });
 const CartesianLegendPanelProbe = memo(() => {
-    const config = useCartesian();
-    void config?.dirtyEchartsConfig?.legend;
+    useVisualizationSelector(
+        (state) => selectCartesianEchartsConfig(state)?.legend,
+    );
     bump('legendPanel');
     return null;
 });
@@ -330,10 +337,13 @@ const TableBodyProbe = memo(() => {
     return null;
 });
 const TableDisplayPanelProbe = memo(() => {
-    const config = useTable();
-    void config?.showTableNames;
-    void config?.showRowCalculation;
-    void config?.hideRowNumbers;
+    useVisualizationInputSelector(selectTableShowTableNames);
+    useVisualizationSelector(
+        (state) => selectTableEditor(state).showRowCalculation,
+    );
+    useVisualizationSelector(
+        (state) => selectTableEditor(state).hideRowNumbers,
+    );
     bump('displayPanel');
     return null;
 });
@@ -524,18 +534,18 @@ describe('VisualizationProvider render benchmark', () => {
                 axesPanel: 10,
                 chartBody: 10,
                 host: 10,
-                layoutPanel: 10,
-                legendPanel: 10,
+                layoutPanel: 0,
+                legendPanel: 0,
                 resultsOnly: 0,
                 seriesPanel: 10,
                 servicesOnly: 0,
                 wholeContext: 10,
             },
             legend: {
-                axesPanel: 1,
+                axesPanel: 0,
                 chartBody: 1,
                 host: 1,
-                layoutPanel: 1,
+                layoutPanel: 0,
                 legendPanel: 1,
                 resultsOnly: 0,
                 seriesPanel: 1,
@@ -543,11 +553,11 @@ describe('VisualizationProvider render benchmark', () => {
                 wholeContext: 1,
             },
             series: {
-                axesPanel: 1,
+                axesPanel: 0,
                 chartBody: 1,
                 host: 1,
-                layoutPanel: 1,
-                legendPanel: 1,
+                layoutPanel: 0,
+                legendPanel: 0,
                 resultsOnly: 0,
                 seriesPanel: 1,
                 servicesOnly: 0,
@@ -675,7 +685,7 @@ describe('VisualizationProvider render benchmark', () => {
             },
             columns: {
                 chartBody: 5,
-                displayPanel: 5,
+                displayPanel: 0,
                 host: 5,
                 resultsOnly: 0,
                 servicesOnly: 0,

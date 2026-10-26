@@ -2,7 +2,6 @@ import { type VisualizationStoreState } from '.';
 import { buildBigNumberEditorState } from './bigNumberEditorSlice';
 import { buildCartesianEditorState } from './cartesianEditorSlice';
 import { buildCustomEditorState } from './customEditorSlice';
-import { buildDataAppVizEditorState } from './dataAppVizEditorSlice';
 import { buildFunnelEditorState } from './funnelEditorSlice';
 import { buildGaugeEditorState } from './gaugeEditorSlice';
 import { buildMapEditorState } from './mapEditorSlice';
@@ -25,9 +24,6 @@ export const selectCartesianEditor = (state: VisualizationStoreState) =>
 const defaultCustom = buildCustomEditorState();
 export const selectCustomEditor = (state: VisualizationStoreState) =>
     state.customEditor ?? defaultCustom;
-const defaultDataAppViz = buildDataAppVizEditorState(undefined);
-export const selectDataAppVizEditor = (state: VisualizationStoreState) =>
-    state.dataAppVizEditor ?? defaultDataAppViz;
 const defaultFunnel = buildFunnelEditorState(undefined);
 export const selectFunnelEditor = (state: VisualizationStoreState) =>
     state.funnelEditor ?? defaultFunnel;

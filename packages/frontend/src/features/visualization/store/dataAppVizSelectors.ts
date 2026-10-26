@@ -1,9 +1,10 @@
 import { type VisualizationStoreState } from '.';
-import { selectDataAppVizEditor } from './selectors';
+import { buildDataAppVizEditorState } from './dataAppVizEditorSlice';
+
+const defaultDataAppViz = buildDataAppVizEditorState(undefined);
+const selectDataAppVizEditor = (state: VisualizationStoreState) =>
+    state.dataAppVizEditor ?? defaultDataAppViz;
 
 // Plain projections: each edit assigns a fresh config, so identity tracks changes
 export const selectDataAppVizValidConfig = (state: VisualizationStoreState) =>
     selectDataAppVizEditor(state).config;
-
-export const selectDataAppVizUuid = (state: VisualizationStoreState) =>
-    selectDataAppVizEditor(state).config?.dataAppVizUuid ?? null;

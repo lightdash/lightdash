@@ -88,8 +88,7 @@ export const usePieEditorActions = (): PieEditorActions => {
                 dispatch(pieEditorActions.valueLabelChange(valueLabel)),
             valueLabelColorChange: (color) =>
                 dispatch(pieEditorActions.valueLabelColorChange(color)),
-            toggleShowValue: () =>
-                dispatch(pieEditorActions.toggleShowValue()),
+            toggleShowValue: () => dispatch(pieEditorActions.toggleShowValue()),
             toggleShowPercentage: () =>
                 dispatch(pieEditorActions.toggleShowPercentage()),
             groupLabelChange: (key, value) =>
@@ -113,8 +112,7 @@ export const usePieEditorActions = (): PieEditorActions => {
                 ),
             toggleShowLegend: () =>
                 dispatch(pieEditorActions.toggleShowLegend()),
-            legendPositionChange: (position) =>
-                set('legendPosition', position),
+            legendPositionChange: (position) => set('legendPosition', position),
             legendMaxItemLengthChange: (length) =>
                 set('legendMaxItemLength', length),
         }),

@@ -500,7 +500,6 @@ const VisualizationProvider: FC<
             case ChartType.CARTESIAN:
                 return (
                     <VisualizationCartesianConfig
-                        initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
                     >
                         {renderState}
@@ -517,7 +516,6 @@ const VisualizationProvider: FC<
             case ChartType.FUNNEL:
                 return (
                     <VisualizationConfigFunnel
-                        initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
                     >
                         {renderState}
@@ -526,7 +524,6 @@ const VisualizationProvider: FC<
             case ChartType.BIG_NUMBER:
                 return (
                     <VisualizationBigNumberConfig
-                        initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
                     >
                         {renderState}
@@ -535,7 +532,6 @@ const VisualizationProvider: FC<
             case ChartType.TREEMAP:
                 return (
                     <VisualizationTreemapConfig
-                        initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
                     >
                         {renderState}
@@ -544,7 +540,6 @@ const VisualizationProvider: FC<
             case ChartType.GAUGE:
                 return (
                     <VisualizationGaugeConfig
-                        initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
                     >
                         {renderState}
@@ -553,7 +548,6 @@ const VisualizationProvider: FC<
             case ChartType.MAP:
                 return (
                     <VisualizationMapConfig
-                        initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
                     >
                         {renderState}
@@ -562,7 +556,6 @@ const VisualizationProvider: FC<
             case ChartType.TABLE:
                 return (
                     <VisualizationTableConfig
-                        initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
                         onPivotRowsChange={onPivotRowsChange}
                     >
@@ -572,7 +565,6 @@ const VisualizationProvider: FC<
             case ChartType.CUSTOM:
                 return (
                     <VisualizationCustomConfig
-                        initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
                     >
                         {renderState}
@@ -581,7 +573,6 @@ const VisualizationProvider: FC<
             case ChartType.SANKEY:
                 return (
                     <VisualizationConfigSankey
-                        initialChartConfig={chartConfig.config}
                         onChartConfigChange={handleChartConfigChange}
                     >
                         {renderState}

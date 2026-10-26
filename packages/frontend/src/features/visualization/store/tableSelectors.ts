@@ -64,7 +64,7 @@ export const selectTableRowFieldIds = createSelector(
         }),
 );
 
-export const selectTableDimensions = createSelector(
+const selectTableDimensions = createSelector(
     [inputsColumnOrder, inputsItemsMap],
     getTableDimensions,
 );

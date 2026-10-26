@@ -40,11 +40,16 @@ export const StepConfig: FC<StepConfigProps> = ({
     const [draftLabel, setDraftLabel] = useState(label ?? '');
     const [draftColor, setDraftColor] = useState<string | undefined>();
     const commitLabel = useDebouncedCallback(
-        (value: string) => onLabelChange(stepId, value), { delay: 500, flushOnUnmount: true });
-    const commitColor = useDebouncedCallback((value: string) => {
-        onColorChange(stepId, value);
-        setDraftColor(undefined);
-    }, { delay: 500, flushOnUnmount: true });
+        (value: string) => onLabelChange(stepId, value),
+        { delay: 500, flushOnUnmount: true },
+    );
+    const commitColor = useDebouncedCallback(
+        (value: string) => {
+            onColorChange(stepId, value);
+            setDraftColor(undefined);
+        },
+        { delay: 500, flushOnUnmount: true },
+    );
     return (
         <Stack gap="xs" {...rest}>
             <Group gap="xs">

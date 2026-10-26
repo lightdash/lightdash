@@ -181,5 +181,10 @@ export const selectPieValidConfig = createSelector(
         selectPieGroupLabels,
     ],
     (editor, groupFieldIds, metricId, groupLabels) =>
-        buildValidPieConfig({ ...editor, groupFieldIds, metricId, groupLabels }),
+        buildValidPieConfig({
+            ...editor,
+            groupFieldIds,
+            metricId,
+            groupLabels,
+        }),
 );

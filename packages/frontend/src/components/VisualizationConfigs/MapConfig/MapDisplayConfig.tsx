@@ -138,10 +138,13 @@ const DebouncedColorSelector: FC<DebouncedColorSelectorProps> = ({
     ...rest
 }) => {
     const [draft, setDraft] = useState<string>();
-    const commit = useDebouncedCallback((value: string) => {
-        onColorChange(value);
-        setDraft(undefined);
-    }, { delay: 300, flushOnUnmount: true });
+    const commit = useDebouncedCallback(
+        (value: string) => {
+            onColorChange(value);
+            setDraft(undefined);
+        },
+        { delay: 300, flushOnUnmount: true },
+    );
     return (
         <ColorSelector
             {...rest}
@@ -195,19 +198,25 @@ export const Display: FC = memo(() => {
     } = useMapEditorActions();
 
     const [draftOpacity, setDraftOpacity] = useState<number>();
-    const commitOpacity = useDebouncedCallback((value: number) => {
-        setDataLayerOpacity(value);
-        setDraftOpacity(undefined);
-    }, { delay: 100, flushOnUnmount: true });
+    const commitOpacity = useDebouncedCallback(
+        (value: number) => {
+            setDataLayerOpacity(value);
+            setDraftOpacity(undefined);
+        },
+        { delay: 100, flushOnUnmount: true },
+    );
 
     const [draftStop, setDraftStop] = useState<{
         index: number;
         color: string;
     }>();
-    const commitStop = useDebouncedCallback((index: number, color: string) => {
-        updateColor(index, color);
-        setDraftStop(undefined);
-    }, { delay: 300, flushOnUnmount: true });
+    const commitStop = useDebouncedCallback(
+        (index: number, color: string) => {
+            updateColor(index, color);
+            setDraftStop(undefined);
+        },
+        { delay: 300, flushOnUnmount: true },
+    );
 
     const storedColors = config.colorRange ?? DEFAULT_MAP_COLORS;
     const colors = draftStop

@@ -12,14 +12,14 @@ import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation } from 'react-router';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
-import useToaster from '../../hooks/toaster/useToaster';
-import { useProjectUuid } from '../../hooks/useProjectUuid';
-import MantineIcon from '../common/MantineIcon';
-import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import {
     selectPieGroupFieldIds,
     selectPieSelectedMetric,
 } from '../../features/visualization/store';
+import useToaster from '../../hooks/toaster/useToaster';
+import { useProjectUuid } from '../../hooks/useProjectUuid';
+import MantineIcon from '../common/MantineIcon';
+import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import {
     useVisualizationInputs,
     useVisualizationInputSelector,
@@ -76,16 +76,17 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     const handleOpenUnderlyingDataModal = () => {
         if (!selectedMetric) return;
 
-        const fieldValues = groupFieldIds.reduce<
-            Record<string, ResultValue>
-        >((acc, fieldId) => {
-            if (!fieldId) return acc;
+        const fieldValues = groupFieldIds.reduce<Record<string, ResultValue>>(
+            (acc, fieldId) => {
+                if (!fieldId) return acc;
 
-            const fieldValue = rows?.[0]?.[fieldId]?.value;
-            if (!fieldValue) return acc;
+                const fieldValue = rows?.[0]?.[fieldId]?.value;
+                if (!fieldValue) return acc;
 
-            return { ...acc, [fieldId]: fieldValue };
-        }, {});
+                return { ...acc, [fieldId]: fieldValue };
+            },
+            {},
+        );
 
         openUnderlyingDataModal({
             item: selectedMetric,

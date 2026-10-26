@@ -30,12 +30,15 @@ const MapFieldConfigurationInput: FC<MapFieldConfigurationInputProps> = ({
     updateFieldConfig,
 }) => {
     const initialValue = labelOverride ?? defaultLabel;
-    const commitLabel = useDebouncedCallback((value: string) => {
-        const newLabel = value === defaultLabel ? undefined : value;
-        if (newLabel !== labelOverride) {
-            updateFieldConfig(fieldId, { label: newLabel || undefined });
-        }
-    }, { delay: 300, flushOnUnmount: true });
+    const commitLabel = useDebouncedCallback(
+        (value: string) => {
+            const newLabel = value === defaultLabel ? undefined : value;
+            if (newLabel !== labelOverride) {
+                updateFieldConfig(fieldId, { label: newLabel || undefined });
+            }
+        },
+        { delay: 300, flushOnUnmount: true },
+    );
 
     return (
         <TextInput

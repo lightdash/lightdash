@@ -8,7 +8,6 @@ import {
     LayoutContext,
     ServicesContext,
     StateContext,
-    type VisualizationConfigValue,
     type VisualizationContextValue,
     type VisualizationLayout,
     type VisualizationServices,
@@ -63,24 +62,14 @@ export const useEditedChartConfig = () =>
 export const useSeriesColor = () =>
     useRequiredContext(ConfigContext).getSeriesColor;
 
-/**
- * Inputs and config together; re-renders on every edit. Prefer
- * `useVisualizationInputs` plus a store selector or `useVisualizationConfig`.
- */
-export const useVisualizationState = (): VisualizationState &
-    VisualizationConfigValue => {
-    const state = useVisualizationInputs();
-    const config = useRequiredContext(ConfigContext);
-    return useMemo(() => ({ ...state, ...config }), [state, config]);
-};
-
 /** Everything at once: subscribes to every change, including resizes. */
 export function useVisualizationContext(): VisualizationContextValue {
     const services = useVisualizationServices();
     const layout = useVisualizationLayout();
-    const state = useVisualizationState();
+    const inputs = useVisualizationInputs();
+    const config = useRequiredContext(ConfigContext);
     return useMemo(
-        () => ({ ...services, ...layout, ...state }),
-        [services, layout, state],
+        () => ({ ...services, ...layout, ...inputs, ...config }),
+        [services, layout, inputs, config],
     );
 }

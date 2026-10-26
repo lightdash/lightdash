@@ -102,10 +102,13 @@ const CustomGeoJsonUrlInput: FC<{
     onCommit: (url: string | undefined) => void;
 }> = ({ url, onCommit }) => {
     const [draft, setDraft] = useState<string>();
-    const commit = useDebouncedCallback((value: string) => {
-        onCommit(value || undefined);
-        setDraft(undefined);
-    }, { delay: 500, flushOnUnmount: true });
+    const commit = useDebouncedCallback(
+        (value: string) => {
+            onCommit(value || undefined);
+            setDraft(undefined);
+        },
+        { delay: 500, flushOnUnmount: true },
+    );
     return (
         <TextInput
             size="xs"

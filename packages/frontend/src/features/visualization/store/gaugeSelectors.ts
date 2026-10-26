@@ -20,7 +20,7 @@ const inputsItemsMap = (
     inputs: VisualizationInputs,
 ) => inputs.itemsMap;
 
-export const selectGaugeAvailableFieldIds = createSelector(
+const selectGaugeAvailableFieldIds = createSelector(
     [inputsItemsMap],
     getAvailableGaugeFieldIds,
 );

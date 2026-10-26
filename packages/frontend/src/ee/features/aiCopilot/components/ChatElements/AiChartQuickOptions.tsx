@@ -182,8 +182,13 @@ export const AiChartQuickOptions = ({
     const { chartRef } = useVisualizationServices();
     const visualizationConfig = useVisualizationConfig();
     const chartConfig = useEditedChartConfig();
-    const { columnOrder, resultsData, pivotDimensions, savedChartUuid, parameters } =
-        useVisualizationInputs();
+    const {
+        columnOrder,
+        resultsData,
+        pivotDimensions,
+        savedChartUuid,
+        parameters,
+    } = useVisualizationInputs();
     const canDownloadResults =
         showDownloadResults &&
         (isEmbed

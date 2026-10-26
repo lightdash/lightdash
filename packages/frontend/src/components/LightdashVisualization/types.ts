@@ -5,7 +5,6 @@ import {
     type DataAppVizChartConfig,
     type Dimension,
     type ItemsMap,
-    type MapChart,
     type MergeFieldOrigins,
     type Metric,
     type MetricQuery,
@@ -57,7 +56,7 @@ export const isBigNumberVisualizationConfig = (
 
 export type VisualizationBigNumberConfigProps = Pick<
     VisualizationConfigCommon<VisualizationConfigBigNumber>,
-    'initialChartConfig' | 'onChartConfigChange' | 'children'
+    'onChartConfigChange' | 'children'
 >;
 
 // Cartesian
@@ -75,7 +74,7 @@ export const isCartesianVisualizationConfig = (
 
 export type VisualizationCartesianConfigProps = Pick<
     VisualizationConfigCommon<VisualizationConfigCartesian>,
-    'initialChartConfig' | 'onChartConfigChange' | 'children'
+    'onChartConfigChange' | 'children'
 >;
 
 // Funnel
@@ -95,7 +94,7 @@ export const isFunnelVisualizationConfig = (
 
 export type VisualizationConfigFunnelProps = Pick<
     VisualizationConfigCommon<VisualizationConfigFunnelType>,
-    'initialChartConfig' | 'onChartConfigChange' | 'children'
+    'onChartConfigChange' | 'children'
 >;
 
 // Pie
@@ -133,7 +132,7 @@ export const isTableVisualizationConfig = (
 
 export type VisualizationTableConfigProps = Pick<
     VisualizationConfigCommon<VisualizationConfigTable>,
-    'initialChartConfig' | 'onChartConfigChange' | 'children'
+    'onChartConfigChange' | 'children'
 > & {
     onPivotRowsChange?: (value: string[] | undefined) => void;
 };
@@ -155,7 +154,7 @@ export const isTreemapVisualizationConfig = (
 
 export type VisualizationConfigTreemapProps = Pick<
     VisualizationConfigCommon<VisualizationConfigTreemap>,
-    'initialChartConfig' | 'onChartConfigChange' | 'children'
+    'onChartConfigChange' | 'children'
 >;
 
 // Custom
@@ -173,7 +172,7 @@ export const isCustomVisualizationConfig = (
 
 export type VisualizationCustomConfigProps = Pick<
     VisualizationConfigCommon<VisualizationCustomConfigType>,
-    'initialChartConfig' | 'onChartConfigChange' | 'children'
+    'onChartConfigChange' | 'children'
 >;
 
 // Data app viz
@@ -215,7 +214,7 @@ export const isGaugeVisualizationConfig = (
 
 export type VisualizationConfigGaugeProps = Pick<
     VisualizationConfigCommon<VisualizationConfigGauge>,
-    'initialChartConfig' | 'onChartConfigChange' | 'children'
+    'onChartConfigChange' | 'children'
 >;
 
 // Map
@@ -236,11 +235,7 @@ export const isMapVisualizationConfig = (
 export type VisualizationConfigMapProps = Pick<
     VisualizationConfigCommon<VisualizationConfigMap>,
     'onChartConfigChange' | 'children'
-> & {
-    // Override initialChartConfig to accept MapChart without saveMapExtent
-    // since saveMapExtent is a UI-only property not persisted to backend
-    initialChartConfig: MapChart | undefined;
-};
+>;
 
 // Sankey
 
@@ -261,7 +256,7 @@ export const isSankeyVisualizationConfig = (
 
 export type VisualizationConfigSankeyProps = Pick<
     VisualizationConfigCommon<VisualizationConfigSankeyType>,
-    'initialChartConfig' | 'onChartConfigChange' | 'children'
+    'onChartConfigChange' | 'children'
 >;
 
 // Union of all visualization configs
