@@ -167,9 +167,6 @@ export const BadgesAndCheckboxes: StoryObj = {
                             gap={2}
                             wrap="nowrap"
                         >
-                            <Text span fw={400} fz="xs">
-                                Sorted by
-                            </Text>
                             <Text
                                 className={sortButtonClasses.field}
                                 fw={600}

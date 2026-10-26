@@ -96,7 +96,7 @@ to `.work/<project>.log`. A failed stage stops the build and returns non-zero.
 ## Register
 
 Push the fixture to the chosen branch before registration. Enable the
-`multi-dbt-sources` and `cross-source-dbt-refs` flags for the organization.
+`cross-source-dbt-refs` flag for the organization.
 Provide a session cookie jar and set `GITHUB_TOKEN` in the shell environment.
 
 ```bash

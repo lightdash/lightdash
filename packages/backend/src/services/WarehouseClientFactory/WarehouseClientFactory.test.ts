@@ -70,6 +70,8 @@ import {
 import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel as PersistedProjectModel } from '../../models/ProjectModel/ProjectModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { createDatabase } from '../../models/RefreshTokenRotation/fakeKnex.mock';
+import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type { SshKeyPairModel } from '../../models/SshKeyPairModel';
 import { type AiUserWarehouseCredentials } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -4567,7 +4569,9 @@ describe('Snowflake revocation with a warm agent client', () => {
                 featureFlagModel: {
                     get: vi.fn().mockResolvedValue({ enabled: false }),
                 },
-                refreshTokenRotation: { run: vi.fn() },
+                refreshTokenRotation: new RefreshTokenRotation({
+                    database: createDatabase().database,
+                }),
                 lightdashConfig: config,
                 userWarehouseCredentialsModel: model,
                 snowflakeAgentClientResolver: new SnowflakeAgentClientResolver({
@@ -4688,7 +4692,7 @@ describe('Snowflake revocation with a warm agent client', () => {
             ).rejects.toMatchObject({ refusal: { reason } });
             expect(query).not.toHaveBeenCalled();
             expect(model.findAiCredentialWithSecrets).toHaveBeenCalledTimes(
-                failure === 'refresh' ? 6 : 3,
+                failure === 'disconnect' ? 5 : 6,
             );
             expect(
                 projectModel.getWarehouseClientFromCredentials,

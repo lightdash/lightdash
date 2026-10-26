@@ -358,32 +358,6 @@ Console changes affect the next resolution without a restart. ENV changes need
 a process restart. Disabling this flag does not undo token rotations or revoke
 issued tokens. It does not change non-agent Snowflake authentication.
 
-### Warehouse OAuth refresh locking
-
-`warehouse-oauth-refresh-lock` is a default-on kill switch. When it is on, a
-Snowflake or Databricks OAuth refresh runs one at a time per credential row.
-Databricks U2M and M2M refresh-token grants use the lock. M2M client-credentials
-grants and submitted credentials without a stored owner stay unlocked. Callers
-in one process share one refresh. A PostgreSQL advisory
-transaction lock serializes refreshes of the row across processes, and the
-waiter refreshes with the rotated token that the first caller saved.
-
-Callers resolve the flag for the credential's organisation, without a user
-UUID, so personal overrides do not apply. Instance defaults, organisation
-overrides and the generic ENV precedence apply.
-
-At most a quarter of the pool, minimum one, holds a refresh lock at
-one time in each process. A caller waits up to 30 seconds for a slot and up to
-5 seconds for the advisory lock. The guarded token write can wait longer for a
-database row lock. Token requests close their sockets after 30 seconds
-of inactivity. A timeout returns a retryable refresh error.
-
-Console changes apply to the next refresh. Turning the flag off restores the
-previous refresh behavior inside the resolver: no locked reread or request
-deadline, with the legacy rotation-write policy. It does not undo rotations or
-enable a disabled preview credential-resolution path. ENV changes need a process
-restart.
-
 ### OAuth scope enforcement
 
 `agent-identity` also enables OAuth scope checks. With that flag off, OAuth

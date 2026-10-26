@@ -600,7 +600,6 @@ export class QuerySourceService extends BaseService {
                         projectUuid,
                         error: queryHistory.error,
                         projectModel: this.projectModel,
-                        featureFlagModel: this.featureFlagModel,
                     }),
                 };
                 return status;

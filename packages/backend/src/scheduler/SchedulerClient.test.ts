@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     JobPriority,
     LightdashPage,
     SCHEDULER_TASKS,
@@ -13,7 +12,6 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { type LightdashConfig } from '../config/parseConfig';
-import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { SchedulerModel } from '../models/SchedulerModel';
 import { getOrgDeliveryQueueName, SchedulerClient } from './SchedulerClient';
 
@@ -32,7 +30,7 @@ vi.mock('graphile-worker', () => ({
 
 const ORG_UUID = 'org-1';
 
-const makeClient = (allowMultiOrgs: boolean, get: import('vitest').Mock) =>
+const makeClient = (allowMultiOrgs: boolean) =>
     new SchedulerClient({
         lightdashConfig: {
             allowMultiOrgs,
@@ -42,7 +40,6 @@ const makeClient = (allowMultiOrgs: boolean, get: import('vitest').Mock) =>
         schedulerModel: {
             logSchedulerJob: vi.fn().mockResolvedValue(undefined),
         } as unknown as SchedulerModel,
-        featureFlagModel: { get } as unknown as FeatureFlagModel,
     });
 
 const scheduler = {
@@ -67,7 +64,7 @@ const startingDateTime = new Date(2023, 0, 1);
 
 test('serializes catalog indexing per project so an earlier deploy cannot overwrite a later tag update', async () => {
     graphileAddJob.mockClear();
-    const client = makeClient(false, vi.fn());
+    const client = makeClient(false);
     const payload = {
         organizationUuid: ORG_UUID,
         userUuid: 'user-1',
@@ -93,7 +90,7 @@ test('serializes catalog indexing per project so an earlier deploy cannot overwr
 
 describe('initial usage processing', () => {
     it('deduplicates by organization and shares the serial nightly queue without retries', async () => {
-        const client = makeClient(true, vi.fn());
+        const client = makeClient(true);
         await client.scheduleInitialUsageProcessing(traceProperties);
         expect(graphileAddJob).toHaveBeenCalledWith(
             SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
@@ -204,7 +201,7 @@ describe('SchedulerClient per-org delivery queue', () => {
     });
 
     it('preserves the send-now execution user in the persisted job payload', async () => {
-        const client = makeClient(false, vi.fn());
+        const client = makeClient(false);
 
         await client.addScheduledDeliveryJob(
             new Date('2026-08-03T10:00:00Z'),
@@ -231,7 +228,7 @@ describe('SchedulerClient per-org delivery queue', () => {
     // App deliveries render through the headless browser (capture render), so
     // they need the same retry budget as dashboard image jobs.
     it('gives app deliveries a retry budget', async () => {
-        const client = makeClient(false, vi.fn());
+        const client = makeClient(false);
 
         await client.addScheduledDeliveryJob(
             new Date('2026-08-03T10:00:00Z'),
@@ -253,12 +250,8 @@ describe('SchedulerClient per-org delivery queue', () => {
         );
     });
 
-    it('routes recurring deliveries into a per-org queue when multi-org + flag are on', async () => {
-        const get = vi.fn().mockResolvedValue({
-            id: FeatureFlags.ScheduledDeliveryPerOrgQueue,
-            enabled: true,
-        });
-        const client = makeClient(true, get);
+    it('routes recurring deliveries into a per-org queue on multi-org instances', async () => {
+        const client = makeClient(true);
         const addJob = vi
             .spyOn(client, 'addScheduledDeliveryJob')
             .mockResolvedValue({ jobId: 'j1', date: new Date() });
@@ -276,22 +269,10 @@ describe('SchedulerClient per-org delivery queue', () => {
                 (call) => call[3] === getOrgDeliveryQueueName(ORG_UUID),
             ),
         ).toBe(true);
-        // Flag evaluated per-org for the scheduler's user + organization.
-        expect(get).toHaveBeenCalledWith({
-            user: {
-                userUuid: 'user-1',
-                organizationUuid: ORG_UUID,
-            },
-            featureFlagId: FeatureFlags.ScheduledDeliveryPerOrgQueue,
-        });
     });
 
-    it('does not set a queue when the flag is off', async () => {
-        const get = vi.fn().mockResolvedValue({
-            id: FeatureFlags.ScheduledDeliveryPerOrgQueue,
-            enabled: false,
-        });
-        const client = makeClient(true, get);
+    it('does not set a queue on single-tenant instances', async () => {
+        const client = makeClient(false);
         const addJob = vi
             .spyOn(client, 'addScheduledDeliveryJob')
             .mockResolvedValue({ jobId: 'j1', date: new Date() });
@@ -303,27 +284,6 @@ describe('SchedulerClient per-org delivery queue', () => {
             startingDateTime,
         );
 
-        expect(addJob).toHaveBeenCalled();
-        expect(addJob.mock.calls.every((call) => call[3] === undefined)).toBe(
-            true,
-        );
-    });
-
-    it('skips the flag lookup entirely on single-tenant instances', async () => {
-        const get = vi.fn();
-        const client = makeClient(false, get);
-        const addJob = vi
-            .spyOn(client, 'addScheduledDeliveryJob')
-            .mockResolvedValue({ jobId: 'j1', date: new Date() });
-
-        await client.generateDailyJobsForScheduler(
-            scheduler,
-            traceProperties,
-            'UTC',
-            startingDateTime,
-        );
-
-        expect(get).not.toHaveBeenCalled();
         expect(addJob).toHaveBeenCalled();
         expect(addJob.mock.calls.every((call) => call[3] === undefined)).toBe(
             true,
@@ -336,7 +296,7 @@ describe('SchedulerClient per-org delivery queue', () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-08-03T09:57:00Z'));
         try {
-            const client = makeClient(false, vi.fn());
+            const client = makeClient(false);
             const addJob = vi
                 .spyOn(client, 'addScheduledDeliveryJob')
                 .mockResolvedValue({ jobId: 'j1', date: new Date() });
@@ -361,7 +321,7 @@ describe('SchedulerClient create project job lookup', () => {
     afterEach(() => vi.restoreAllMocks());
 
     it('finds a queued create project job by its Lightdash job UUID', async () => {
-        const client = makeClient(false, vi.fn());
+        const client = makeClient(false);
         const query = vi.fn().mockResolvedValue({
             rows: [{ exists: true }],
         });
@@ -383,7 +343,7 @@ describe('SchedulerClient create project job lookup', () => {
 
 describe('SchedulerClient learn sandbox command queue', () => {
     it('routes each sandbox command into a bounded per-project queue', async () => {
-        const client = makeClient(false, vi.fn());
+        const client = makeClient(false);
         graphileAddJob.mockClear();
         const payload = {
             commandUuid: 'cmd-1',
@@ -431,7 +391,7 @@ describe('SchedulerClient connection envelope storage', () => {
     };
 
     it('stores a normalized copy of an explicit trusted envelope', async () => {
-        await makeClient(false, vi.fn()).compileProject({
+        await makeClient(false).compileProject({
             ...payload,
             agentConnectionExecution: execution,
         });
@@ -451,7 +411,7 @@ describe('SchedulerClient connection envelope storage', () => {
         async (method) => {
             const effect =
                 method === 'generateValidation' ? 'validateProject' : method;
-            const client = makeClient(false, vi.fn());
+            const client = makeClient(false);
             await client[method]({
                 ...payload,
                 agentConnectionExecution: execution,
@@ -480,7 +440,7 @@ describe('SchedulerClient connection envelope storage', () => {
     );
 
     it('keeps legacy unbound payloads without connection metadata', async () => {
-        await makeClient(false, vi.fn()).compileProject(payload);
+        await makeClient(false).compileProject(payload);
         expect(graphileAddJob.mock.calls[0][1]).not.toHaveProperty(
             'agentConnectionExecution',
         );
@@ -496,7 +456,7 @@ describe('SchedulerClient connection envelope storage', () => {
         'refuses invalid envelope metadata before enqueue: %j',
         async (change) => {
             await expect(
-                makeClient(false, vi.fn()).compileProject({
+                makeClient(false).compileProject({
                     ...payload,
                     agentConnectionExecution: { ...execution, ...change },
                 }),
@@ -537,7 +497,7 @@ describe('scheduled notification payload parity', () => {
     test.each([false, true])(
         'preserves all eight payload key sets, AI summary=%s',
         async (summary) => {
-            const client = makeClient(false, vi.fn());
+            const client = makeClient(false);
             await Promise.all(
                 [false, true].map(async (saved) => {
                     const delivery = {
@@ -607,7 +567,7 @@ describe('scheduled notification payload parity', () => {
     test.each(['Stored message', null])(
         'marks all eight payloads with original message %s',
         async (message) => {
-            const client = makeClient(false, vi.fn());
+            const client = makeClient(false);
             const authority = {
                 agentWork: { ...traceProperties, userUuid: 'execution-user' },
                 aiSummaryOriginalMessage: message,
@@ -642,7 +602,7 @@ describe('scheduled notification payload parity', () => {
         },
     );
     test('does not mark Google Sheets jobs even when summary authority is supplied', async () => {
-        const client = makeClient(false, vi.fn());
+        const client = makeClient(false);
         await client.generateJobsForSchedulerTargets(
             startingDateTime,
             { ...scheduler, format: SchedulerFormat.GSHEETS },
@@ -661,7 +621,7 @@ describe('scheduled notification payload parity', () => {
     });
 
     test('keeps query exports to Google Sheets unmarked', async () => {
-        const client = makeClient(false, vi.fn());
+        const client = makeClient(false);
         const payload = {
             ...traceProperties,
             exploreId: 'orders',

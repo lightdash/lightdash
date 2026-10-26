@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     DatabricksAuthenticationType,
     DatabricksTokenError,
-    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     UnexpectedServerError,
@@ -164,72 +163,54 @@ const setup = (
 afterEach(() => vi.restoreAllMocks());
 
 describe.each(modes)('Databricks OAuth %s', (mode) => {
-    test.each([true, false])(
-        'resolves and persists with lock %s',
-        async (enabled) => {
-            const f = setup(enabled, mode);
-            const result = await f.resolver.resolve(f.input);
-            expect(result).toEqual({
-                clientCredentials: {
-                    ...f.input.connection,
-                    token: 'fresh-access',
-                    refreshToken: 'new-refresh',
-                },
-                clientOptions: {},
-                agentSignIn: null,
-                cacheable: true,
-            });
-            expect(f.input.stored).toEqual({
-                ...credentials,
-                authenticationType: mode,
-            });
-            expect(f.deps.featureFlagModel.get).toHaveBeenCalledExactlyOnceWith(
-                {
-                    user: { organizationUuid: 'org' },
-                    featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
-                },
-            );
-            expect(
-                enabled ? f.lockedExchange : f.exchange,
-            ).toHaveBeenCalledExactlyOnceWith(
-                credentials.serverHostName,
-                'config-client',
-                'old-refresh',
-                'config-secret',
-            );
-            expect(
-                enabled ? f.exchange : f.lockedExchange,
-            ).not.toHaveBeenCalled();
-            expect(f.run).toHaveBeenCalledTimes(enabled ? 1 : 0);
-            expect(
-                f.deps.projectModel.getOwnWarehouseCredentialsForProject,
-            ).toHaveBeenCalledTimes(enabled ? 1 : 0);
-            expect(
-                f.deps.projectModel.rotateRefreshToken,
-            ).toHaveBeenCalledExactlyOnceWith(
-                'project',
-                'old-refresh',
-                'new-refresh',
-                ...(enabled ? [{ raw: f.raw }] : []),
-            );
-            await expect(f.resolver.dispose()).resolves.toBeUndefined();
-        },
-    );
+    test('resolves and persists', async () => {
+        const f = setup(true, mode);
+        const result = await f.resolver.resolve(f.input);
+        expect(result).toEqual({
+            clientCredentials: {
+                ...f.input.connection,
+                token: 'fresh-access',
+                refreshToken: 'new-refresh',
+            },
+            clientOptions: {},
+            agentSignIn: null,
+            cacheable: true,
+        });
+        expect(f.input.stored).toEqual({
+            ...credentials,
+            authenticationType: mode,
+        });
+        expect(f.lockedExchange).toHaveBeenCalledExactlyOnceWith(
+            credentials.serverHostName,
+            'config-client',
+            'old-refresh',
+            'config-secret',
+        );
+        expect(f.exchange).not.toHaveBeenCalled();
+        expect(f.run).toHaveBeenCalledTimes(1);
+        expect(
+            f.deps.projectModel.getOwnWarehouseCredentialsForProject,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+            f.deps.projectModel.rotateRefreshToken,
+        ).toHaveBeenCalledExactlyOnceWith(
+            'project',
+            'old-refresh',
+            'new-refresh',
+            { raw: f.raw },
+        );
+        await expect(f.resolver.dispose()).resolves.toBeUndefined();
+    });
 
-    test.each([true, false])(
-        'owner null stays unlocked with flag %s',
-        async (enabled) => {
-            const f = setup(enabled, mode);
-            await f.resolver.resolve({ ...f.input, owner: null });
-            expect(f.run).not.toHaveBeenCalled();
-            expect(f.deps.featureFlagModel.get).not.toHaveBeenCalled();
-            expect(
-                f.deps.projectModel.rotateRefreshToken,
-            ).not.toHaveBeenCalled();
-            expect(f.exchange).toHaveBeenCalledOnce();
-            expect(f.lockedExchange).not.toHaveBeenCalled();
-        },
-    );
+    test('owner null stays unlocked', async () => {
+        const f = setup(true, mode);
+        await f.resolver.resolve({ ...f.input, owner: null });
+        expect(f.run).not.toHaveBeenCalled();
+        expect(f.deps.featureFlagModel.get).not.toHaveBeenCalled();
+        expect(f.deps.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
+        expect(f.exchange).toHaveBeenCalledOnce();
+        expect(f.lockedExchange).not.toHaveBeenCalled();
+    });
 
     test.each([
         'project',
@@ -331,35 +312,30 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
         },
     );
 
-    test.each([true, false])(
-        'raw compile keeps omitted response token and error with lock %s',
-        async (enabled) => {
-            const f = setup(enabled, mode);
-            const exchange = enabled ? f.lockedExchange : f.exchange;
-            exchange.mockResolvedValue({
-                accessToken: 'fresh',
-                expiresIn: 3600,
-                refreshToken: undefined,
-            } as unknown as Awaited<
-                ReturnType<typeof warehouses.refreshDatabricksOAuthToken>
-            >);
-            const policy = {
-                errorPolicy: 'raw' as const,
-                legacyOwner: null,
-                refreshTokenFallback: 'response' as const,
-            };
-            expect(
-                (await f.resolver.refresh(f.input, policy)).clientCredentials
-                    .refreshToken,
-            ).toBeUndefined();
-            const error = new Error('invalid_grant');
-            exchange.mockRejectedValue(error);
-            await expect(f.resolver.refresh(f.input, policy)).rejects.toBe(
-                error,
-            );
-            expect(f.deps.attributeSharedSignInExpiry).not.toHaveBeenCalled();
-        },
-    );
+    test('raw compile keeps omitted response token and error', async () => {
+        const f = setup(true, mode);
+        const exchange = f.lockedExchange;
+        exchange.mockResolvedValue({
+            accessToken: 'fresh',
+            expiresIn: 3600,
+            refreshToken: undefined,
+        } as unknown as Awaited<
+            ReturnType<typeof warehouses.refreshDatabricksOAuthToken>
+        >);
+        const policy = {
+            errorPolicy: 'raw' as const,
+            legacyOwner: null,
+            refreshTokenFallback: 'response' as const,
+        };
+        expect(
+            (await f.resolver.refresh(f.input, policy)).clientCredentials
+                .refreshToken,
+        ).toBeUndefined();
+        const error = new Error('invalid_grant');
+        exchange.mockRejectedValue(error);
+        await expect(f.resolver.refresh(f.input, policy)).rejects.toBe(error);
+        expect(f.deps.attributeSharedSignInExpiry).not.toHaveBeenCalled();
+    });
 
     test('maps provider errors and passes existing errors through', async () => {
         const f = setup(true, mode);
@@ -463,65 +439,6 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
         },
     );
 
-    test.each([
-        'project',
-        'organization',
-        'user',
-        'warehouseConnection',
-    ] as const)(
-        'lock off preserves the legacy %s write without a reread',
-        async (kind) => {
-            const f = setup(false, mode);
-            const owner: CredentialOwner =
-                kind === 'user'
-                    ? {
-                          kind,
-                          uuid: 'row',
-                          purpose: UserWarehouseCredentialPurpose.DEFAULT,
-                      }
-                    : { kind, uuid: 'row' };
-            await f.resolver.resolve({
-                ...f.input,
-                owner,
-                refreshSource: {
-                    credentials: f.input.connection,
-                    fallback: f.input.connection,
-                    personalCredentialPolicy: { strictPersonalOverlay: false },
-                },
-            });
-            const rotate = {
-                project: f.deps.projectModel.rotateRefreshToken,
-                organization:
-                    f.deps.organizationWarehouseCredentialsModel
-                        .rotateRefreshToken,
-                user: f.deps.userWarehouseCredentialsModel.rotateRefreshToken,
-                warehouseConnection:
-                    f.deps.warehouseConnectionModel.rotateRefreshToken,
-            }[kind];
-            expect(rotate).toHaveBeenCalledExactlyOnceWith(
-                ...(kind === 'warehouseConnection' ? [f.project] : []),
-                'row',
-                'old-refresh',
-                'new-refresh',
-            );
-            expect(f.run).not.toHaveBeenCalled();
-            expect(f.lockedExchange).not.toHaveBeenCalled();
-            expect(
-                f.deps.projectModel.getOwnWarehouseCredentialsForProject,
-            ).not.toHaveBeenCalled();
-            expect(
-                f.deps.organizationWarehouseCredentialsModel
-                    .getByUuidWithSensitiveData,
-            ).not.toHaveBeenCalled();
-            expect(
-                f.deps.userWarehouseCredentialsModel.getByUuidWithSecrets,
-            ).not.toHaveBeenCalled();
-            expect(
-                f.deps.warehouseConnectionModel.getOwnCredentials,
-            ).not.toHaveBeenCalled();
-        },
-    );
-
     test('omitted response tokens use the locked token only for query M2M', async () => {
         const f = setup(true, mode);
         f.deps.projectModel.getOwnWarehouseCredentialsForProject.mockResolvedValue(
@@ -557,30 +474,27 @@ describe.each(modes)('Databricks OAuth %s', (mode) => {
         ).toBe(credentials.httpPath);
     });
 
-    test.each([true, false])(
-        'preserves best effort persistence with lock %s',
-        async (enabled) => {
-            const f = setup(enabled, mode);
-            f.deps.projectModel.rotateRefreshToken.mockRejectedValue(
-                new Error('write failed'),
-            );
-            expect(
-                (await f.resolver.resolve(f.input)).clientCredentials.token,
-            ).toBe('fresh-access');
-            expect(f.deps.logger.error).toHaveBeenCalledWith(
-                'Failed to persist rotated OAuth refresh token',
-                {
-                    sourceKind: 'project',
-                    sourceUuid: 'project',
-                    error: 'write failed',
-                },
-            );
-            f.deps.projectModel.rotateRefreshToken.mockResolvedValue(false);
-            expect(
-                (await f.resolver.resolve(f.input)).clientCredentials.token,
-            ).toBe('fresh-access');
-        },
-    );
+    test('preserves best effort persistence', async () => {
+        const f = setup(true, mode);
+        f.deps.projectModel.rotateRefreshToken.mockRejectedValue(
+            new Error('write failed'),
+        );
+        expect(
+            (await f.resolver.resolve(f.input)).clientCredentials.token,
+        ).toBe('fresh-access');
+        expect(f.deps.logger.error).toHaveBeenCalledWith(
+            'Failed to persist rotated OAuth refresh token',
+            {
+                sourceKind: 'project',
+                sourceUuid: 'project',
+                error: 'write failed',
+            },
+        );
+        f.deps.projectModel.rotateRefreshToken.mockResolvedValue(false);
+        expect(
+            (await f.resolver.resolve(f.input)).clientCredentials.token,
+        ).toBe('fresh-access');
+    });
 
     test('rejects AI service account owners before exchange', async () => {
         const f = setup(true, mode);
@@ -720,6 +634,7 @@ describe('Databricks client selection and save', () => {
         'stored, configured and default client precedence for %s',
         async (mode) => {
             const f = setup(false, mode);
+            f.input.owner = null;
             f.input.connection.oauthClientId = 'stored-client';
             f.input.connection.oauthClientSecret = 'stored-secret';
             await f.resolver.resolve(f.input);
@@ -760,42 +675,42 @@ describe('Databricks client selection and save', () => {
         },
     );
 
-    test.each([true, false])(
-        'M2M client credentials never lock with flag %s',
-        async (enabled) => {
-            const f = setup(enabled, DatabricksAuthenticationType.OAUTH_M2M);
-            f.input.connection = {
-                ...f.input.connection,
-                refreshToken: undefined,
-                oauthClientId: 'stored',
-                oauthClientSecret: 'secret',
-            };
-            const result = await f.resolver.resolve(f.input);
-            expect(result.clientCredentials).toMatchObject({
-                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
-                token: 'fresh-access',
-                refreshToken: 'new-refresh',
-            });
-            expect(f.clientExchange).toHaveBeenCalledExactlyOnceWith(
-                credentials.serverHostName,
-                'stored',
-                'secret',
-            );
-            expect(f.run).not.toHaveBeenCalled();
-            expect(f.exchange).not.toHaveBeenCalled();
-            expect(f.deps.featureFlagModel.get).not.toHaveBeenCalled();
-        },
-    );
+    test('M2M client credentials never lock', async () => {
+        const f = setup(true, DatabricksAuthenticationType.OAUTH_M2M);
+        f.input.connection = {
+            ...f.input.connection,
+            refreshToken: undefined,
+            oauthClientId: 'stored',
+            oauthClientSecret: 'secret',
+        };
+        const result = await f.resolver.resolve(f.input);
+        expect(result.clientCredentials).toMatchObject({
+            authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+            token: 'fresh-access',
+            refreshToken: 'new-refresh',
+        });
+        expect(f.clientExchange).toHaveBeenCalledExactlyOnceWith(
+            credentials.serverHostName,
+            'stored',
+            'secret',
+        );
+        expect(f.run).not.toHaveBeenCalled();
+        expect(f.exchange).not.toHaveBeenCalled();
+        expect(f.deps.featureFlagModel.get).not.toHaveBeenCalled();
+    });
 
     test('M2M refresh token takes precedence over the client credentials grant', async () => {
-        const f = setup(false, DatabricksAuthenticationType.OAUTH_M2M);
+        const f = setup(true, DatabricksAuthenticationType.OAUTH_M2M);
         f.input.connection = {
             ...f.input.connection,
             oauthClientId: 'stored',
             oauthClientSecret: 'secret',
         };
+        f.deps.projectModel.getOwnWarehouseCredentialsForProject.mockResolvedValue(
+            f.input.connection,
+        );
         await f.resolver.resolve(f.input);
-        expect(f.exchange).toHaveBeenCalledExactlyOnceWith(
+        expect(f.lockedExchange).toHaveBeenCalledExactlyOnceWith(
             credentials.serverHostName,
             'stored',
             'old-refresh',

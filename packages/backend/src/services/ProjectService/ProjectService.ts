@@ -1896,16 +1896,6 @@ export class ProjectService
     protected recheckGoogleRefreshToken: CheckGoogleRefreshToken = (keyfile) =>
         recheckGoogleRefreshToken(keyfile, this.lightdashConfig.auth.google);
 
-    private async isPreviewSsoCredentialSyncEnabled(
-        organizationUuid: string,
-    ): Promise<boolean> {
-        const { enabled } = await this.featureFlagModel.get({
-            user: { organizationUuid },
-            featureFlagId: FeatureFlags.PreviewSsoCredentialSync,
-        });
-        return enabled;
-    }
-
     private async getSsoPushToPreviews({
         savedProject,
         updatedProject,
@@ -1921,21 +1911,6 @@ export class ProjectService
             updatedProject.organizationWarehouseCredentialsUuid ||
             !getBigquerySsoCredentials(updatedProject.warehouseConnection)
         ) {
-            return null;
-        }
-        try {
-            if (
-                !(await this.isPreviewSsoCredentialSyncEnabled(
-                    savedProject.organizationUuid,
-                ))
-            ) {
-                return null;
-            }
-        } catch (error) {
-            this.logger.error('Failed to push SSO credentials to previews', {
-                projectUuid: savedProject.projectUuid,
-                error: getErrorMessage(error),
-            });
             return null;
         }
         return ({ previewCredentials, previousUpstreamCredentials }) =>
@@ -2048,9 +2023,6 @@ export class ProjectService
         if (
             preview.type !== ProjectType.PREVIEW ||
             !preview.upstreamProjectUuid ||
-            !(await this.isPreviewSsoCredentialSyncEnabled(
-                preview.organizationUuid,
-            )) ||
             (await this.projectModel.getPreviewOwnsCredentials(projectUuid))
         ) {
             return credentials;
@@ -2127,19 +2099,14 @@ export class ProjectService
 
     protected async repairPreviewSsoCredentialsAfterRejection({
         projectUuid,
-        organizationUuid,
         rejectedCredentials,
     }: {
         projectUuid: string;
-        organizationUuid: string;
         rejectedCredentials: CreateWarehouseCredentials;
     }): Promise<boolean> {
         const rejectedRefreshToken =
             getBigquerySsoCredentials(rejectedCredentials)?.refreshToken;
-        if (
-            !rejectedRefreshToken ||
-            !(await this.isPreviewSsoCredentialSyncEnabled(organizationUuid))
-        ) {
+        if (!rejectedRefreshToken) {
             return false;
         }
         const { organizationWarehouseCredentialsUuid } =
@@ -3609,12 +3576,7 @@ export class ProjectService
             createdByUserUuid: project.createdByUserUuid,
         });
         if (ability.cannot('view', resource)) throw new ForbiddenError();
-        const flag = await this.featureFlagModel.get({
-            user: { organizationUuid: project.organizationUuid },
-            featureFlagId: FeatureFlags.SharedSignInReconnect,
-        });
-        if (!flag.enabled || project.organizationWarehouseCredentialsUuid)
-            return null;
+        if (project.organizationWarehouseCredentialsUuid) return null;
         const credentials = project.warehouseConnection;
         const signIn = credentials ? getPersonSignIn(credentials) : null;
         if (!signIn) return null;
@@ -3675,11 +3637,6 @@ export class ProjectService
         projectUuid: string,
     ): Promise<void> {
         assertIsAccountWithOrg(account);
-        const flag = await this.featureFlagModel.get({
-            user: { organizationUuid: account.organization.organizationUuid },
-            featureFlagId: FeatureFlags.SharedSignInReconnect,
-        });
-        if (!flag.enabled) throw new ForbiddenError();
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         const ability = this.createAuditedAbility(account);
@@ -8675,11 +8632,6 @@ export class ProjectService
             user,
         });
         if (!enabled) return;
-        const { enabled: multiSource } = await this.featureFlagModel.get({
-            featureFlagId: FeatureFlags.MultiDbtSources,
-            user,
-        });
-        if (!multiSource) return;
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         if (sources.length > 0) armCompileShutdown();
@@ -9381,11 +9333,6 @@ export class ProjectService
         manifestFetchAdapters: ProjectAdapter[];
         trackingParams: TrackingParams;
     }): Promise<MultiConnectionCompilation> {
-        const { enabled: includeUnboundSources } =
-            await this.featureFlagModel.get({
-                featureFlagId: FeatureFlags.MultiDbtSources,
-                user: { userUuid, organizationUuid },
-            });
         const { enabled: crossSourceRefsEnabled } =
             await this.featureFlagModel.get({
                 featureFlagId: FeatureFlags.CrossSourceDbtRefs,
@@ -9531,7 +9478,6 @@ export class ProjectService
             },
             context: compileContext,
             dbtVersion: resolveDbtVersion(primary.dbtVersionOption),
-            includeUnboundSources,
             crossSourceRefsEnabled,
             mixedWarehouseConnectionsEnabled,
             ...(crossSourceRefsEnabled
@@ -9597,15 +9543,6 @@ export class ProjectService
         });
     }
 
-    /**
-     * Resolve the adapter to compile a project with. When the MultiDbtSources
-     * flag is on and the project has additional sources, returns a merged
-     * manifest adapter (the union of every source); otherwise returns the
-     * primary adapter unchanged (N=0 short-circuit / regression firewall).
-     * Source git clones are pushed onto `manifestFetchAdapters` for the caller
-     * to destroy. Shared by both compile entry points (compileProject /
-     * testAndCompileProject) so "Refresh dbt" and "Test & deploy" merge alike.
-     */
     private async resolveCompileAdapter({
         projectUuid,
         organizationUuid,
@@ -9631,11 +9568,6 @@ export class ProjectService
         manifestFetchAdapters: ProjectAdapter[];
         onDbtSourceCount?: (dbtSourceCount: number) => void;
     }): Promise<ResolvedCompileAdapter> {
-        const { enabled: multiDbtSourcesEnabled } =
-            await this.featureFlagModel.get({
-                featureFlagId: FeatureFlags.MultiDbtSources,
-                user: { userUuid, organizationUuid },
-            });
         const existingNaming = async (): Promise<ExploreNaming | undefined> => {
             if (
                 !(await this.projectModel.hasExploreNameAllocations(
@@ -9652,14 +9584,6 @@ export class ProjectService
                 refreshedSourceUuids: [identity.dbtSourceUuid],
             };
         };
-        if (!multiDbtSourcesEnabled) {
-            await this.deleteMergedManifestBestEffort(projectUuid);
-            onDbtSourceCount?.(1);
-            return {
-                adapter: primary.adapter,
-                exploreNaming: await existingNaming(),
-            };
-        }
         const sources =
             await this.projectDbtSourcesModel.getSources(projectUuid);
         if (sources.length === 0) {

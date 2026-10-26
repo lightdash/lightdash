@@ -368,7 +368,6 @@ const harness = ({
             dbtProjectDir: undefined,
         },
         dbtVersion: SupportedDbtVersions.V1_8,
-        includeUnboundSources: true,
         crossSourceRefsEnabled: crossSource,
         mixedWarehouseConnectionsEnabled: mixed,
         concurrency: 2,

@@ -6,7 +6,6 @@ import {
     CreateSchedulerTarget,
     EmailBatchNotificationPayload,
     EmailNotificationPayload,
-    FeatureFlags,
     getSchedulerTargetUuid,
     getSchedulerUuid,
     GoogleChatBatchNotificationPayload,
@@ -68,7 +67,6 @@ import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
-import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { SchedulerModel } from '../models/SchedulerModel';
 import {
     learnSandboxQueueName,
@@ -86,7 +84,6 @@ type SchedulerClientArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     schedulerModel: SchedulerModel;
-    featureFlagModel: FeatureFlagModel;
 };
 
 const SCHEDULED_JOB_MAX_ATTEMPTS = 1;
@@ -141,20 +138,16 @@ export class SchedulerClient {
 
     schedulerModel: SchedulerModel;
 
-    featureFlagModel: FeatureFlagModel;
-
     private static STUCK_JOB_WINDOW = 1.5;
 
     constructor({
         lightdashConfig,
         analytics,
         schedulerModel,
-        featureFlagModel,
     }: SchedulerClientArguments) {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.schedulerModel = schedulerModel;
-        this.featureFlagModel = featureFlagModel;
         this.graphileUtils = makeWorkerUtils({
             connectionString: lightdashConfig.database.connectionUri,
         })
@@ -912,26 +905,6 @@ export class SchedulerClient {
         };
     }
 
-    /**
-     * On multi-org (shared-tenant) instances with the per-org delivery queue flag
-     * enabled for the org, recurring deliveries are routed into a per-org graphile
-     * named queue so they run serially and can't occupy every worker. Returns the
-     * queue name, or undefined to keep the default (fully parallel) behavior.
-     * Gated cheaply by allowMultiOrgs first to avoid a flag lookup on single-tenant
-     * instances.
-     */
-    private async resolveDeliveryQueueName(
-        traceProperties: TraceTaskBase,
-    ): Promise<string | undefined> {
-        if (!this.lightdashConfig.allowMultiOrgs) return undefined;
-        const { organizationUuid, userUuid } = traceProperties;
-        const { enabled } = await this.featureFlagModel.get({
-            user: { userUuid, organizationUuid },
-            featureFlagId: FeatureFlags.ScheduledDeliveryPerOrgQueue,
-        });
-        return enabled ? getOrgDeliveryQueueName(organizationUuid) : undefined;
-    }
-
     async generateDailyJobsForScheduler(
         scheduler: SchedulerAndTargets,
         traceProperties: TraceTaskBase,
@@ -951,8 +924,9 @@ export class SchedulerClient {
             startingDateTime,
         );
 
-        // Evaluate the per-org queue gate once; the org is constant across all dates.
-        const queueName = await this.resolveDeliveryQueueName(traceProperties);
+        const queueName = this.lightdashConfig.allowMultiOrgs
+            ? getOrgDeliveryQueueName(traceProperties.organizationUuid)
+            : undefined;
 
         try {
             const promises = dates.map((date: Date) =>

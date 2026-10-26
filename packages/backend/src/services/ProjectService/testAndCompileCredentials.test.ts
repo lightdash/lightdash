@@ -28,6 +28,8 @@ import {
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
+import { createDatabase } from '../../models/RefreshTokenRotation/fakeKnex.mock';
+import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import { type ProjectAdapter } from '../../types';
@@ -61,6 +63,12 @@ vi.mock('@lightdash/warehouses', async (importOriginal) => ({
         this.connect = async () => credentials;
         this.disconnect = disconnect;
     }),
+}));
+
+vi.mock('../../auth/databricksOAuthRefresh', () => ({
+    refreshDatabricksOAuthTokenWithDeadline: (
+        ...args: Parameters<typeof refreshDatabricksOAuthToken>
+    ) => refreshDatabricksOAuthToken(...args),
 }));
 vi.mock('../../projectAdapters/projectAdapter', () => ({
     projectAdapterFromConfig: vi.fn(),
@@ -127,6 +135,10 @@ const setup = (
     };
     const projectModel = {
         ...singleRouteProjectModelMethods,
+        getOwnWarehouseCredentialsForProject: vi.fn(
+            async (): Promise<CreateWarehouseCredentials> =>
+                project.warehouseConnection,
+        ),
         getWithSensitiveFields: vi.fn(async () => project),
         getSummary: vi.fn(async () => project),
         getWarehouseCredentialsForBinding: vi.fn(async () => credentials),
@@ -143,6 +155,18 @@ const setup = (
         update: vi.fn<ProjectModel['update']>(async () => undefined),
     };
     const userWarehouseCredentialsModel = {
+        getByUuidWithSecrets: vi.fn(
+            async (): Promise<
+                Awaited<
+                    ReturnType<
+                        UserWarehouseCredentialsModel['getByUuidWithSecrets']
+                    >
+                >
+            > =>
+                userWarehouseCredentialsModel.findForProjectWithSecrets.mock.results.at(
+                    -1,
+                )?.value,
+        ),
         findForProjectWithSecrets:
             vi.fn<UserWarehouseCredentialsModel['findForProjectWithSecrets']>(),
         findDatabricksOauthU2mForHostWithSecrets:
@@ -155,7 +179,7 @@ const setup = (
         rotateRefreshToken: vi.fn(async () => undefined),
         getByUuidWithSensitiveData: vi.fn(async () => ({
             organizationUuid: workerUser.organizationUuid,
-            credentials,
+            credentials: project.warehouseConnection,
         })),
     };
     const userOAuthGrantsModel = {
@@ -191,7 +215,9 @@ const setup = (
         })),
     };
     const service = new ProjectService({
-        refreshTokenRotation: { run: vi.fn() },
+        refreshTokenRotation: new RefreshTokenRotation({
+            database: createDatabase().database,
+        }),
         lightdashConfig: {
             ...lightdashConfigMock,
             staticIp: '192.0.2.1',
@@ -530,6 +556,7 @@ describe('test-and-compile credential resolution', () => {
                             organizationUuid,
                             'org-refresh',
                             rotated,
+                            expect.anything(),
                         );
                         expect(
                             f.projectModel.rotateRefreshToken,
@@ -541,6 +568,8 @@ describe('test-and-compile credential resolution', () => {
                             'user-credential-uuid',
                             'user-refresh',
                             rotated,
+                            undefined,
+                            expect.anything(),
                         );
                         expect(
                             refreshDatabricksOAuthToken,
@@ -560,6 +589,7 @@ describe('test-and-compile credential resolution', () => {
                             f.project.projectUuid,
                             credentials.refreshToken,
                             rotated,
+                            expect.anything(),
                         );
                     } else {
                         expect(
@@ -772,20 +802,8 @@ describe('test-and-compile credential resolution', () => {
                                 ? 'rejected'
                                 : 'valid',
                     );
-                    const featureFlagGet = vi.fn(
-                        async ({
-                            featureFlagId,
-                        }: {
-                            featureFlagId: FeatureFlags;
-                        }) => ({
-                            enabled:
-                                featureFlagId ===
-                                FeatureFlags.PreviewSsoCredentialSync,
-                        }),
-                    );
                     Object.assign(f.service, {
                         checkGoogleRefreshToken: checkRefreshToken,
-                        featureFlagModel: { get: featureFlagGet },
                     });
                     let stored: CreateWarehouseCredentials = stale;
                     const readBinding = vi.fn<
@@ -851,10 +869,6 @@ describe('test-and-compile credential resolution', () => {
                     expect(
                         f.projectModel.getSummary,
                     ).toHaveBeenCalledExactlyOnceWith(f.project.projectUuid);
-                    expect(featureFlagGet).toHaveBeenCalledWith({
-                        user: { organizationUuid: f.project.organizationUuid },
-                        featureFlagId: FeatureFlags.PreviewSsoCredentialSync,
-                    });
                     expect(
                         getPreviewOwnsCredentials,
                     ).toHaveBeenCalledExactlyOnceWith(f.project.projectUuid);
@@ -955,6 +969,7 @@ describe('test-and-compile credential resolution', () => {
             f.project.projectUuid,
             'reloaded-refresh',
             'rotated-refresh',
+            expect.anything(),
         );
     });
 
@@ -1009,13 +1024,26 @@ describe('test-and-compile credential resolution', () => {
         );
         expect(
             UserService.generateSnowflakeAccessToken,
-        ).toHaveBeenLastCalledWith('org-reloaded-refresh');
+        ).toHaveBeenLastCalledWith('org-reloaded-refresh', 30_000);
         expect(
             f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-        ).toHaveBeenCalledExactlyOnceWith(
+        ).toHaveBeenLastCalledWith(
             'org-credential-uuid',
             'org-reloaded-refresh',
             'worker-rotated-refresh',
+            expect.anything(),
+        );
+        expect(
+            f.organizationWarehouseCredentialsModel.rotateRefreshToken,
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            f.organizationWarehouseCredentialsModel.rotateRefreshToken,
+        ).toHaveBeenNthCalledWith(
+            1,
+            'org-credential-uuid',
+            'org-refresh',
+            'form-refresh',
+            expect.anything(),
         );
         expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
     });

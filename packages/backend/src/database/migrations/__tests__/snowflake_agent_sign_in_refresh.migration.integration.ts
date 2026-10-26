@@ -73,7 +73,7 @@ describe('Snowflake agent sign-in refresh on the migrated schema', () => {
     });
     afterEach(() => vi.restoreAllMocks());
 
-    const setup = async (lockEnabled: boolean, silentRefresh: boolean) => {
+    const setup = async (silentRefresh: boolean) => {
         const userUuid = randomUUID();
         await database('users').insert({
             user_uuid: userUuid,
@@ -104,7 +104,7 @@ describe('Snowflake agent sign-in refresh on the migrated schema', () => {
         };
         const deps = {
             featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: lockEnabled }),
+                get: vi.fn().mockResolvedValue({ enabled: true }),
             },
             refreshTokenRotation: new RefreshTokenRotation({ database }),
             snowflakeAgentClientResolver: {
@@ -129,7 +129,7 @@ describe('Snowflake agent sign-in refresh on the migrated schema', () => {
     test.each([true, false])(
         'shares one exchange and commits the AI row with silent refresh %s',
         async (silentRefresh) => {
-            const f = await setup(true, silentRefresh);
+            const f = await setup(silentRefresh);
             const pending = deferred<refresh.SnowflakeRefreshResult>();
             const exchange = vi
                 .spyOn(refresh, 'exchangeSnowflakeRefreshToken')
@@ -172,52 +172,46 @@ describe('Snowflake agent sign-in refresh on the migrated schema', () => {
         },
     );
 
-    test.each([true, false])(
-        'writes an unchanged-token expiry only with silent refresh enabled (lock=%s)',
-        async (lockEnabled) => {
-            const f = await setup(lockEnabled, true);
-            const expiresAt = new Date('2099-02-01');
-            vi.spyOn(
-                refresh,
-                'exchangeSnowflakeRefreshToken',
-            ).mockResolvedValue({
-                accessToken: 'A2',
-                refreshToken: 'T1',
-                accessTokenExpiresAt: null,
-                refreshTokenExpiresAt: expiresAt,
-            });
-            await f.harness.mint(f.args);
-            expect(
-                await model.findAiCredentialWithSecrets(
-                    {
-                        userUuid: f.userUuid,
-                        warehouseType: WarehouseTypes.SNOWFLAKE,
-                    },
-                    { strictPersonalOverlay: false },
-                ),
-            ).toMatchObject({
-                credentials: { refreshToken: 'T1' },
-                expiresAt,
-            });
-            expect(
-                await model.rotateRefreshToken(f.uuid, 'obsolete', 'obsolete', {
-                    kind: 'reported',
-                    expiresAt: new Date('2000-01-01'),
-                }),
-            ).toBe(false);
-            expect(
-                await model.findAiCredentialWithSecrets(
-                    {
-                        userUuid: f.userUuid,
-                        warehouseType: WarehouseTypes.SNOWFLAKE,
-                    },
-                    { strictPersonalOverlay: false },
-                ),
-            ).toMatchObject({ expiresAt });
-        },
-    );
+    test('writes an unchanged-token expiry with silent refresh enabled', async () => {
+        const f = await setup(true);
+        const expiresAt = new Date('2099-02-01');
+        vi.spyOn(refresh, 'exchangeSnowflakeRefreshToken').mockResolvedValue({
+            accessToken: 'A2',
+            refreshToken: 'T1',
+            accessTokenExpiresAt: null,
+            refreshTokenExpiresAt: expiresAt,
+        });
+        await f.harness.mint(f.args);
+        expect(
+            await model.findAiCredentialWithSecrets(
+                {
+                    userUuid: f.userUuid,
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                },
+                { strictPersonalOverlay: false },
+            ),
+        ).toMatchObject({
+            credentials: { refreshToken: 'T1' },
+            expiresAt,
+        });
+        expect(
+            await model.rotateRefreshToken(f.uuid, 'obsolete', 'obsolete', {
+                kind: 'reported',
+                expiresAt: new Date('2000-01-01'),
+            }),
+        ).toBe(false);
+        expect(
+            await model.findAiCredentialWithSecrets(
+                {
+                    userUuid: f.userUuid,
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                },
+                { strictPersonalOverlay: false },
+            ),
+        ).toMatchObject({ expiresAt });
+    });
     test('attributes unchanged-token expiry to the token read after acquiring the lock', async () => {
-        const f = await setup(true, true);
+        const f = await setup(true);
         const holder = await database.transaction();
         await holder.raw(
             'select pg_advisory_xact_lock(hashtextextended(?, 0))',
@@ -262,38 +256,4 @@ describe('Snowflake agent sign-in refresh on the migrated schema', () => {
             ),
         ).toMatchObject({ credentials: { refreshToken: 'T2' }, expiresAt });
     });
-
-    test.each([true, false])(
-        'resolves a fresh saved sign-in with locking disabled and silent refresh %s',
-        async (silentRefresh) => {
-            const f = await setup(false, silentRefresh);
-            const run = vi.spyOn(f.deps.refreshTokenRotation, 'run');
-            vi.spyOn(
-                refresh,
-                'exchangeSnowflakeRefreshToken',
-            ).mockResolvedValue({
-                accessToken: 'fresh-access',
-                refreshToken: 'T2',
-                accessTokenExpiresAt: null,
-                refreshTokenExpiresAt: null,
-            });
-            await expect(f.harness.mint(f.args)).resolves.toMatchObject({
-                identityUuid: f.uuid,
-                credentials: {
-                    token: 'fresh-access',
-                    requireAgentSession: true,
-                },
-            });
-            expect(run).not.toHaveBeenCalled();
-            expect(
-                await model.findAiCredentialWithSecrets(
-                    {
-                        userUuid: f.userUuid,
-                        warehouseType: WarehouseTypes.SNOWFLAKE,
-                    },
-                    { strictPersonalOverlay: false },
-                ),
-            ).toMatchObject({ credentials: { refreshToken: 'T2' } });
-        },
-    );
 });

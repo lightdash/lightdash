@@ -1,6 +1,5 @@
 import {
     DatabricksAuthenticationType,
-    FeatureFlags,
     ForbiddenError,
     MissingWarehouseCredentialsError,
     NotFoundError,
@@ -270,48 +269,6 @@ test('keeps persistence failures best effort with the existing log fields', asyn
             error: 'write failed',
         },
     );
-});
-
-test.each(owners)(
-    'looks up the organization for $kind when context has none',
-    async (owner) => {
-        const f = setup();
-        f.input.context.organizationUuid = null;
-        await expect(f.source.isLockEnabled(f.input, owner)).resolves.toBe(
-            true,
-        );
-        expect(f.deps.featureFlagModel.get).toHaveBeenCalledExactlyOnceWith({
-            user: { organizationUuid: 'org' },
-            featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
-        });
-        if (owner.kind === 'organization')
-            expect(
-                f.deps.organizationWarehouseCredentialsModel
-                    .getByUuidWithSensitiveData,
-            ).toHaveBeenCalledExactlyOnceWith(owner.uuid);
-        else
-            expect(
-                f.deps.projectModel.getSummary,
-            ).toHaveBeenCalledExactlyOnceWith(
-                owner.kind === 'project' ? owner.uuid : 'project',
-            );
-    },
-);
-
-test('uses the context organization without owner reads and falls back to the global flag without a project', async () => {
-    const f = setup();
-    await f.source.isLockEnabled(f.input, owners[0]);
-    expect(f.deps.projectModel.getSummary).not.toHaveBeenCalled();
-    expect(f.deps.featureFlagModel.get).toHaveBeenLastCalledWith({
-        user: { organizationUuid: 'org' },
-        featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
-    });
-    f.input.context.organizationUuid = null;
-    f.input.projectUuid = null;
-    await f.source.isLockEnabled(f.input, owners[2]);
-    expect(f.deps.featureFlagModel.get).toHaveBeenLastCalledWith({
-        featureFlagId: FeatureFlags.WarehouseOAuthRefreshLock,
-    });
 });
 
 describe('AI-purpose user policy', () => {

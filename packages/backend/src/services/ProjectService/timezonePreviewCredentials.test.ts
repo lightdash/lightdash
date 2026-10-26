@@ -28,6 +28,8 @@ import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { singleRouteProjectModelMethods } from '../../models/ProjectModel/ProjectModel.mock';
+import { createDatabase } from '../../models/RefreshTokenRotation/fakeKnex.mock';
+import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { UserService } from '../UserService';
@@ -162,11 +164,13 @@ const setup = (
         warehouseConnection: credentials,
         organizationWarehouseCredentialsUuid: orgId,
     };
+    const { database } = createDatabase();
     const projectModel = {
         ...singleRouteProjectModelMethods,
         getWithSensitiveFields: vi.fn(async () => project),
         getSummary: vi.fn(async () => project),
         getWarehouseCredentialsForProject: vi.fn(async () => credentials),
+        getOwnWarehouseCredentialsForProject: vi.fn(async () => credentials),
         getProjectWarehouseConfig: vi.fn(async () => ({
             organizationWarehouseCredentialsUuid: orgId,
         })),
@@ -178,6 +182,7 @@ const setup = (
         updateWarehouseCredentials: vi.fn(),
     };
     const userWarehouseCredentialsModel = {
+        getByUuidWithSecrets: vi.fn(),
         findForProjectWithSecrets:
             vi.fn<UserWarehouseCredentialsModel['findForProjectWithSecrets']>(),
         findDatabricksOauthU2mForHostWithSecrets:
@@ -210,7 +215,9 @@ const setup = (
         getRefreshToken: vi.fn(async () => 'user-grant-refresh'),
     };
     const service = new ProjectService({
-        refreshTokenRotation: { run: vi.fn() },
+        refreshTokenRotation: new RefreshTokenRotation({
+            database,
+        }),
         lightdashConfig: {
             ...lightdashConfigMock,
             warehouseClient: {
@@ -384,13 +391,19 @@ describe('timezone preview credential resolution', () => {
                             orgId,
                             'org-refresh',
                             'rotated-snowflake',
+                            expect.objectContaining({
+                                raw: expect.any(Function),
+                            }),
                         );
                         expect(
                             f.projectModel.rotateRefreshToken,
                         ).not.toHaveBeenCalled();
                         expect(
                             UserService.generateSnowflakeAccessToken,
-                        ).toHaveBeenCalledExactlyOnceWith('org-refresh');
+                        ).toHaveBeenCalledExactlyOnceWith(
+                            'org-refresh',
+                            30_000,
+                        );
                     }
                 },
             );
@@ -539,21 +552,25 @@ describe('timezone preview credential resolution', () => {
                 refreshToken: undefined,
                 requireUserCredentials: required,
             });
+            const personalCredential = {
+                uuid: 'personal-uuid',
+                expiresAt: null,
+                credentials: {
+                    ...databricks(DatabricksAuthenticationType.OAUTH_U2M),
+                    oauthClientId: 'personal-client',
+                    refreshToken: 'personal-refresh',
+                    dataTimezone: 'Pacific/Auckland',
+                },
+            } as Awaited<
+                ReturnType<
+                    UserWarehouseCredentialsModel['findForProjectWithSecrets']
+                >
+            >;
             f.userWarehouseCredentialsModel.findForProjectWithSecrets.mockResolvedValue(
-                {
-                    uuid: 'personal-uuid',
-                    expiresAt: null,
-                    credentials: {
-                        ...databricks(DatabricksAuthenticationType.OAUTH_U2M),
-                        oauthClientId: 'personal-client',
-                        refreshToken: 'personal-refresh',
-                        dataTimezone: 'Pacific/Auckland',
-                    },
-                } as Awaited<
-                    ReturnType<
-                        UserWarehouseCredentialsModel['findForProjectWithSecrets']
-                    >
-                >,
+                personalCredential,
+            );
+            f.userWarehouseCredentialsModel.getByUuidWithSecrets.mockResolvedValue(
+                personalCredential,
             );
             await f.edit();
             expect(refreshDatabricksOAuthToken).toHaveBeenCalledExactlyOnceWith(
@@ -561,6 +578,9 @@ describe('timezone preview credential resolution', () => {
                 'personal-client',
                 'personal-refresh',
                 undefined,
+                expect.objectContaining({
+                    agent: expect.objectContaining({ timeoutMs: 30_000 }),
+                }),
             );
             expect(
                 f.userWarehouseCredentialsModel.rotateRefreshToken,
@@ -568,6 +588,8 @@ describe('timezone preview credential resolution', () => {
                 'personal-uuid',
                 'personal-refresh',
                 'rotated-databricks',
+                undefined,
+                expect.objectContaining({ raw: expect.any(Function) }),
             );
             expect(f.projectModel.rotateRefreshToken).not.toHaveBeenCalled();
             expect(queries).toHaveBeenCalledWith(
@@ -692,10 +714,20 @@ describe('timezone preview credential resolution', () => {
         await f.create(organizationCredentialAccount);
         expect(
             f.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
-        ).toHaveBeenCalledExactlyOnceWith('org-credential-uuid');
+        ).toHaveBeenCalledTimes(2);
+        expect(
+            f.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
+        ).toHaveBeenNthCalledWith(1, 'org-credential-uuid');
+        expect(
+            f.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData,
+        ).toHaveBeenNthCalledWith(
+            2,
+            'org-credential-uuid',
+            expect.objectContaining({ raw: expect.any(Function) }),
+        );
         expect(
             UserService.generateSnowflakeAccessToken,
-        ).toHaveBeenCalledExactlyOnceWith('org-refresh');
+        ).toHaveBeenCalledExactlyOnceWith('org-refresh', 30_000);
         expect(queries).toHaveBeenCalledWith(
             expect.objectContaining({
                 token: 'fresh-snowflake',
@@ -726,20 +758,25 @@ describe('timezone preview credential resolution', () => {
     });
 
     it('create saves organisation rotation before the next preview consumes the token', async () => {
-        const f = setup({
-            ...snowflake(),
-            organizationWarehouseCredentialsUuid: 'org-credential-uuid',
-        });
         const storage = organizationCredentialStorage(
             { ...snowflake(), refreshToken: 'R0' },
             organizationUuid,
         );
+        const f = setup({
+            ...snowflake(),
+            organizationWarehouseCredentialsUuid: 'org-credential-uuid',
+        });
         f.organizationWarehouseCredentialsModel.getByUuidWithSensitiveData.mockImplementation(
             () =>
                 storage.model.getByUuidWithSensitiveData('org-credential-uuid'),
         );
         f.organizationWarehouseCredentialsModel.rotateRefreshToken.mockImplementation(
-            (...args) => storage.model.rotateRefreshToken(...args),
+            (uuid, previousToken, nextToken) =>
+                storage.model.rotateRefreshToken(
+                    uuid,
+                    previousToken,
+                    nextToken,
+                ),
         );
         const consumed = new Set<string>();
         vi.mocked(UserService.generateSnowflakeAccessToken).mockImplementation(
@@ -774,7 +811,7 @@ describe('timezone preview credential resolution', () => {
             await f.create(organizationCredentialAccount);
             expect(
                 UserService.generateSnowflakeAccessToken,
-            ).toHaveBeenNthCalledWith(2, 'R1');
+            ).toHaveBeenNthCalledWith(2, 'R1', 30_000);
             expect(storage.rotate).toHaveBeenNthCalledWith(
                 2,
                 'org-credential-uuid',
@@ -791,7 +828,7 @@ describe('timezone preview credential resolution', () => {
         }
     });
 
-    it('connection tests keep ignoring organisation rotation', async () => {
+    it('connection tests persist organisation rotation through the row lock', async () => {
         const credentials = {
             ...snowflake(),
             organizationWarehouseCredentialsUuid: 'org-credential-uuid',
@@ -804,10 +841,15 @@ describe('timezone preview credential resolution', () => {
         );
         expect(
             UserService.generateSnowflakeAccessToken,
-        ).toHaveBeenCalledExactlyOnceWith('org-refresh');
+        ).toHaveBeenCalledExactlyOnceWith('org-refresh', 30_000);
         expect(
             f.organizationWarehouseCredentialsModel.rotateRefreshToken,
-        ).not.toHaveBeenCalled();
+        ).toHaveBeenCalledExactlyOnceWith(
+            'org-credential-uuid',
+            'org-refresh',
+            'rotated-snowflake',
+            expect.objectContaining({ raw: expect.any(Function) }),
+        );
     });
 
     it('create resolves the SSH key reference before opening the tunnel', async () => {
