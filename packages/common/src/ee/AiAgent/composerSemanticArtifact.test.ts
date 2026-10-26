@@ -288,6 +288,34 @@ describe('toComposerSemanticArtifactVersion', () => {
             },
         );
 
+        it('carries an unfiltered custom metric without the explore', () => {
+            const version = toComposerSemanticArtifactVersion({
+                title: 'Buyers',
+                description: null,
+                node: {
+                    ...node,
+                    ...withCustomMetrics([{ ...buyers, filters: undefined }]),
+                },
+                vizConfig: line,
+                maxQueryLimit: 1000,
+                explore: null,
+            });
+
+            const artifact = parseAiArtifactChartConfig(version?.vizConfig);
+            if (artifact?.source !== 'semantic')
+                throw new Error('not semantic');
+            expect(
+                parseVizConfig(artifact.config, 1000)?.metricQuery
+                    .customMetrics,
+            ).toMatchObject([
+                {
+                    name: 'buyers',
+                    baseDimensionName: 'dim1',
+                    filters: undefined,
+                },
+            ]);
+        });
+
         it('is null for a filtered custom metric without the explore', () => {
             expect(
                 toComposerSemanticArtifactVersion({

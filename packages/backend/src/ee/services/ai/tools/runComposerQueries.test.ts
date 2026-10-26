@@ -2374,6 +2374,86 @@ describe('semanticLayer node period comparisons', () => {
         });
     });
 
+    it('keeps the percentile of a compared percentile custom metric', async () => {
+        const { submitted } = await run(
+            monthlyNode({
+                metrics: ['orders_p90_amount'],
+                customMetrics: [
+                    {
+                        table: 'orders',
+                        name: 'p90_amount',
+                        label: 'P90 amount',
+                        aggregation: MetricType.PERCENTILE,
+                        dimensionFieldId: 'orders_amount',
+                        percentile: 90,
+                    },
+                ],
+                periodComparisons: [
+                    {
+                        metricFieldId: 'orders_p90_amount',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+        );
+
+        expect(submitted).toMatchObject({
+            additionalMetrics: [
+                { name: 'p90_amount' },
+                {
+                    generationType: 'periodOverPeriod',
+                    type: MetricType.PERCENTILE,
+                    percentile: 90,
+                },
+            ],
+        });
+    });
+
+    it('reports custom metric, period comparison and filter errors together', async () => {
+        const { output, made } = await run(
+            monthlyNode({
+                metrics: ['orders_total_revenue', 'orders_buyers'],
+                filters: {
+                    dimensions: 'orders_customer_nam equals=Alice',
+                    metrics: null,
+                },
+                customMetrics: [
+                    {
+                        table: 'orders',
+                        name: 'buyers',
+                        label: 'Buyers',
+                        aggregation: MetricType.AVERAGE,
+                        dimensionFieldId: 'orders_customer_name',
+                    },
+                ],
+                periodComparisons: [
+                    {
+                        metricFieldId: 'orders_buyers',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                    {
+                        metricFieldId: 'orders_order_count',
+                        timeDimensionFieldId: 'orders_order_date_month',
+                        periodOffset: 1,
+                    },
+                ],
+            }),
+        );
+
+        expect(output.metadata.status).toBe('error');
+        expect(output.result).toContain('average cannot aggregate');
+        expect(output.result).toContain(
+            '"orders_order_count" must be in metrics',
+        );
+        expect(output.result).not.toContain('"orders_buyers" must be');
+        expect(output.result).toContain(
+            'Invalid filters on semanticLayer node "monthly"',
+        );
+        expect(made.dependencies.runComposerQueries).not.toHaveBeenCalled();
+    });
+
     it.each([
         {
             name: 'a time dimension the node does not select',
