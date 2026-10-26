@@ -61,6 +61,8 @@ When the user wants the summary written a certain way — a language or locale (
 
 Or equivalently `useInsights({ instructions })` in a custom block. One string per app (the last value set wins), applied to every analysis of the app, max 2000 characters — keep it to a few short sentences. It guides wording and interpretation only; it cannot grant data access or change which rows are analysed. Do not restate what the data already shows, and do not set it unless the user asked for specific guidance.
 
+The organization may also set default instructions in its settings; those apply first and the app's instructions are added after them, so keep app instructions to app-specific guidance (domain vocabulary) and leave org-wide style (language, currency) to the org default when the user says it should apply everywhere.
+
 Rules for the block:
 
 - Say "AI-generated" in the footer. Never name a model or provider.

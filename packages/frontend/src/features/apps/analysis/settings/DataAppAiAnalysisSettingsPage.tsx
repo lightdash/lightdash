@@ -1,5 +1,6 @@
 import {
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
     type DataAppAnalysisLimits,
 } from '@lightdash/common';
 import {
@@ -11,6 +12,7 @@ import {
     Stack,
     Switch,
     Text,
+    Textarea,
     Title,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -136,6 +138,72 @@ const toLimits = (values: LimitsFormValues): DataAppAnalysisLimits => ({
 // Per-run limits must hold a value; only the daily caps may be left empty.
 const requiredLimit = (value: number | '') =>
     value === '' ? 'Enter a value of 1 or more' : null;
+
+const InstructionsForm: FC<{
+    initialInstructions: string | null;
+    disabled: boolean;
+}> = ({ initialInstructions, disabled }) => {
+    const updateSettings = useUpdateAiOrganizationSettings();
+    const initialValue = initialInstructions ?? '';
+    const form = useForm({
+        initialValues: { instructions: initialValue },
+    });
+    const isUnchanged = form.values.instructions.trim() === initialValue;
+    const handleSubmit = form.onSubmit((values) => {
+        updateSettings.mutate({
+            dataAppAnalysisDefaultInstructions:
+                values.instructions.trim() || null,
+        });
+    });
+
+    return (
+        <SettingsGridCard>
+            <Box>
+                <Title order={5}>Summary instructions</Title>
+                <Text c="dimmed" fz="xs">
+                    Guidance every AI analysis summary in your organization
+                    follows — language, formats, or a line of domain vocabulary.
+                    An app's own instructions are applied on top of these.
+                </Text>
+            </Box>
+            <form onSubmit={handleSubmit}>
+                <Stack gap="md">
+                    <Textarea
+                        placeholder="e.g. Write in British English. Show amounts in ZAR."
+                        description={`Up to ${DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS} characters. Changing this re-runs stored analyses on next view.`}
+                        autosize
+                        minRows={3}
+                        maxRows={8}
+                        maxLength={DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS}
+                        disabled={disabled}
+                        {...form.getInputProps('instructions')}
+                    />
+                    <Group justify="flex-end">
+                        {!isUnchanged && !updateSettings.isLoading && (
+                            <Button
+                                variant="outline"
+                                onClick={() =>
+                                    form.setValues({
+                                        instructions: initialValue,
+                                    })
+                                }
+                            >
+                                Cancel
+                            </Button>
+                        )}
+                        <Button
+                            type="submit"
+                            disabled={disabled || isUnchanged}
+                            loading={updateSettings.isLoading}
+                        >
+                            Save
+                        </Button>
+                    </Group>
+                </Stack>
+            </form>
+        </SettingsGridCard>
+    );
+};
 
 const LimitsForm: FC<{
     initialLimits: DataAppAnalysisLimits;
@@ -297,6 +365,13 @@ export const DataAppAiAnalysisSettingsPage: FC = () => {
                             />
                         </Stack>
                     </SettingsCard>
+                    <InstructionsForm
+                        key={settings.dataAppAnalysisDefaultInstructions ?? ''}
+                        initialInstructions={
+                            settings.dataAppAnalysisDefaultInstructions ?? null
+                        }
+                        disabled={isUpdating || !aiOn || !analysisOn}
+                    />
                     <LimitsForm
                         key={JSON.stringify(
                             settings.dataAppAnalysisLimits ??
