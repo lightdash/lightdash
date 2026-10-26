@@ -93,14 +93,16 @@ describe('OAuth ability', () => {
                 { action: 'manage', subject: 'all' },
             ]),
         );
-        ability.can(
-            'create',
-            subject('SavedChart', {
-                projectUuid: 'private',
-                sql: 'secret query',
-                name: 'customer',
-            }),
-        );
+        expect(
+            ability.can(
+                'create',
+                subject('SavedChart', {
+                    projectUuid: 'private',
+                    sql: 'secret query',
+                    name: 'customer',
+                }),
+            ),
+        ).toBe(false);
         expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
             'oauth_scope_refusal',
             {
@@ -120,8 +122,11 @@ describe('OAuth ability', () => {
         const base = new Ability<PossibleAbilities>([
             { action: 'manage', subject: 'all' },
         ]);
-        create(base).can('create', 'SavedChart');
-        create(base).can('create', 'SavedChart');
+        const firstRequest = create(base);
+        expect(firstRequest.can('create', 'SavedChart')).toBe(false);
+        expect(firstRequest.can('create', 'SavedChart')).toBe(false);
+        expect(Logger.warn).toHaveBeenCalledTimes(1);
+        expect(create(base).can('create', 'SavedChart')).toBe(false);
         expect(Logger.warn).toHaveBeenCalledTimes(2);
         expect(getOAuthScopeContext(base)).toBeNull();
     });

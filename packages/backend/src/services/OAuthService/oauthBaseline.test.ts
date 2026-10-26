@@ -822,3 +822,20 @@ it('keeps concurrent strict and legacy redirect checks isolated by user', async 
     });
     expect(model.saveAuthorizationCode).toHaveBeenCalledOnce();
 });
+
+it.each(strictModes)(
+    'rejects unknown scopes before authorization-code issuance with security strict %s',
+    async (strict) => {
+        await setSecurityStrict(strict);
+        vi.mocked(model.getClient).mockResolvedValue({
+            ...client,
+            scopes: ['read', 'unknown-scope'],
+        });
+        await expect(
+            authorize({ scope: 'read unknown-scope' }),
+        ).rejects.toMatchObject({ name: 'invalid_scope' });
+        expect(model.saveAuthorizationCode).not.toHaveBeenCalled();
+        expect(model.saveToken).not.toHaveBeenCalled();
+        expect(codes.size).toBe(0);
+    },
+);

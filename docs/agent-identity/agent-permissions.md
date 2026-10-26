@@ -218,6 +218,10 @@ for environment and file access.
 `mcp:write` are separate from the 11 capabilities. `read` and `mcp:read`
 include the SQL runner and exports. OAuth scopes are always enforced.
 
+Own-connection status and revocation routes are ownership-limited exceptions to
+scope checks. `POST /api/v1/oauth/register` is public client registration and
+does not require authentication.
+
 ## MCP settings
 
 With `agent-identity` on, Enable agents over MCP appears on the Agents page

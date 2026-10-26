@@ -353,6 +353,10 @@ scopes. Scope checks filter MCP tools and refuse unknown requested scopes at
 grant issuance. No feature flag changes this behaviour, including
 `agent-identity`.
 
+Own-connection status and revocation routes are ownership-limited exceptions to
+scope checks. `POST /api/v1/oauth/register` is public client registration and
+does not require authentication.
+
 OAuth callers can never create or rotate personal access tokens, service
 accounts or SCIM tokens. They cannot create, update or delete OAuth clients.
 Personal access tokens, sessions and service accounts keep their permissions.
