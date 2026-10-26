@@ -1,44 +1,24 @@
 // Subtotals are server state, so the tree itself is built in useTreemapChartConfig
-import {
-    getDimensionsFromItemsMap,
-    getMetricsFromItemsMap,
-    getTableCalculationsFromItemsMap,
-    isNumericItem,
-    type TreemapChart,
-} from '@lightdash/common';
+import { type TreemapChart } from '@lightdash/common';
 import {
     getTreemapMetricItem,
     getValidTreemapGroupFieldIds,
     repairTreemapSizeMetricId,
 } from '@lightdash/visualization/editor';
 import { createSelector } from '@reduxjs/toolkit';
-import isEqual from 'lodash/isEqual';
 import { type VisualizationStoreState } from '.';
-import { type VisualizationInputs } from './inputs';
+import {
+    inputsHasNoResults,
+    inputsItemsMap,
+    keepIfEqual,
+    selectDimensionsAndNumericMetrics,
+} from './inputSelectors';
 import { keepPendingField, selectPendingFieldIds } from './pendingFields';
 import { selectTreemapEditor } from './selectors';
 
 type State = VisualizationStoreState;
-const inputsItemsMap = (_: State, inputs: VisualizationInputs) =>
-    inputs.itemsMap;
-const inputsIsLoading = (_: State, inputs: VisualizationInputs) =>
-    !inputs.resultsData;
 
-// A repaired list that equals the stored one keeps the stored identity
-const keepIfEqual = <T>(stored: T, repaired: T) =>
-    isEqual(stored, repaired) ? stored : repaired;
-
-export const selectTreemapFieldPools = createSelector(
-    [inputsItemsMap],
-    (itemsMap) => {
-        const metrics = getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem);
-        const tableCalculations = getTableCalculationsFromItemsMap(itemsMap);
-        return {
-            dimensions: getDimensionsFromItemsMap(itemsMap ?? {}),
-            numericMetrics: { ...metrics, ...tableCalculations },
-        };
-    },
-);
+export const selectTreemapFieldPools = selectDimensionsAndNumericMetrics;
 const selectDimensionIds = createSelector([selectTreemapFieldPools], (pools) =>
     Object.keys(pools.dimensions),
 );
@@ -65,7 +45,7 @@ export const selectTreemapSizeMetricId = createSelector(
     [
         (state: State) => selectTreemapEditor(state).sizeMetricId,
         selectNumericMetricIds,
-        inputsIsLoading,
+        inputsHasNoResults,
         selectPendingFieldIds,
     ],
     (sizeMetricId, allNumericMetricIds, isLoading, pendingFieldIds) =>

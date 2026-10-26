@@ -86,6 +86,7 @@ const LegendAreaWidthInput: FC<LegendAreaWidthInputProps> = ({
                 setValue(v);
                 if (v) debouncedOnCommit(v);
             }}
+            onBlur={() => debouncedOnCommit.flush()}
         />
     );
 };

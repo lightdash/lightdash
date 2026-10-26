@@ -1,10 +1,11 @@
 import { ChartType } from '@lightdash/common';
-import { memo, useEffect, useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import useTableConfig from '../../hooks/tableVisualization/useTableConfig';
 import {
     type VisualizationConfigTable,
     type VisualizationTableConfigProps,
 } from './types';
+import { useEmitChartConfig } from './useEmitChartConfig';
 
 const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     onChartConfigChange,
@@ -13,13 +14,11 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
 }) => {
     const tableConfig = useTableConfig(onPivotRowsChange);
 
-    useEffect(() => {
-        if (!onChartConfigChange) return;
-        onChartConfigChange({
-            type: ChartType.TABLE,
-            config: tableConfig.validConfig,
-        });
-    }, [tableConfig.validConfig, onChartConfigChange]);
+    useEmitChartConfig(
+        ChartType.TABLE,
+        tableConfig.validConfig,
+        onChartConfigChange,
+    );
 
     const visualizationConfig: VisualizationConfigTable = useMemo(
         () => ({
@@ -32,5 +31,5 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     return children({ visualizationConfig });
 };
 
-// Skips provider re-renders that keep its props, e.g. a resize; an echoed config still re-renders it
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
 export default memo(VisualizationTableConfig);

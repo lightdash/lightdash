@@ -8,16 +8,17 @@ import {
 } from '@lightdash/visualization/editor';
 import { createSelector } from '@reduxjs/toolkit';
 import { type VisualizationStoreState } from '.';
-import { selectNumericMetricsAndTableCalculations } from './gaugeSelectors';
 import { type VisualizationInputs } from './inputs';
+import {
+    inputsColorPalette,
+    inputsItemsMap,
+    inputsResults,
+    selectNumericMetricsAndTableCalculations,
+} from './inputSelectors';
 import { keepPendingField, selectPendingFieldIds } from './pendingFields';
 import { selectFunnelEditor } from './selectors';
 
 type State = VisualizationStoreState;
-const inputsItemsMap = (_: State, inputs: VisualizationInputs) =>
-    inputs.itemsMap;
-const inputsResults = (_: State, inputs: VisualizationInputs) =>
-    inputs.resultsData;
 
 export const selectFunnelFieldPools = createSelector(
     [inputsItemsMap, selectNumericMetricsAndTableCalculations],
@@ -88,10 +89,7 @@ export const selectFunnelMaxValue = (
 ) => selectFunnelChartData(state, inputs).maxValue;
 
 export const selectFunnelColorDefaults = createSelector(
-    [
-        selectFunnelData,
-        (_: State, inputs: VisualizationInputs) => inputs.colorPalette,
-    ],
+    [selectFunnelData, inputsColorPalette],
     getFunnelColorDefaults,
 );
 

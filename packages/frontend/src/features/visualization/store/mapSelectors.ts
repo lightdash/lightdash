@@ -1,4 +1,5 @@
 import {
+    getItemLabelWithoutTableName,
     isCustomDimension,
     isDimension,
     isMetric,
@@ -11,33 +12,23 @@ import {
 import { createSelector } from '@reduxjs/toolkit';
 import { type VisualizationStoreState } from '.';
 import { type VisualizationInputs } from './inputs';
+import {
+    inputsColorPalette,
+    inputsItemsMap,
+    inputsRows,
+} from './inputSelectors';
 import { selectMapEditor } from './selectors';
 
 type State = VisualizationStoreState;
-const inputsItemsMap = (_: State, inputs: VisualizationInputs) =>
-    inputs.itemsMap;
-const inputsRows = (_: State, inputs: VisualizationInputs) =>
-    inputs.resultsData?.rows;
-const inputsColorPalette = (_: State, inputs: VisualizationInputs) =>
-    inputs.colorPalette;
 
 const MAX_COLOR_VALUES = 50;
-
-const getItemName = (item: ItemsMap[string]) =>
-    'label' in item
-        ? item.label
-        : 'displayName' in item
-          ? item.displayName
-          : 'name' in item
-            ? item.name
-            : '';
 
 const findFieldIdByName = (
     itemsMap: ItemsMap | undefined,
     names: string[],
 ): string | undefined =>
     Object.entries(itemsMap ?? {}).find(([, item]) =>
-        names.includes(getItemName(item).toLowerCase()),
+        names.includes(getItemLabelWithoutTableName(item).toLowerCase()),
     )?.[0];
 
 /** Dimensions, metrics and table calculations the field pickers offer */

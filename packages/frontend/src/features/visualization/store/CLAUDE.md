@@ -11,9 +11,9 @@ so does a custom spec arriving while the custom editor has none
 
 ## Rules
 
-- **One slice per chart type, seeded by the provider.** Only the mounted
-  type's slice is non-null; `selectXxxEditor` falls back to the type's
-  defaults so selectors are total. Slices are never seeded from inside a
+- **One slice per chart type, seeded by the provider.** Every slice starts
+  at its type's defaults and the provider seeds only the mounted type, so
+  slices are never null. Slices are never seeded from inside a
   hook or an effect. The one exception is data app viz: the gallery switches
   the viz without changing the chart type, so its hook dispatches
   `externalConfigReceived` when the owner's viz uuid or version changes.
@@ -23,7 +23,8 @@ so does a custom spec arriving while the custom editor has none
   ("drop a group whose dimension is gone", "fall back to the first metric")
   are derivations, so a missing field never costs an extra emission or
   render. A derived list that equals the stored one must return the stored
-  reference (`keepIfEqual` in `pieSelectors.ts`). Only when a repair must
+  reference (`keepIfEqual` in `inputSelectors.ts`, which also holds the
+  shared `inputs*` accessors and field pools). Only when a repair must
   *generate* new editor state from the inputs (cartesian series) does it
   become a reducer handling one `inputsChanged`-style event.
 - **Inputs come from context, never the store.** `useVisualizationInputs()`
@@ -44,12 +45,13 @@ so does a custom spec arriving while the custom editor has none
 - **Table calculation renames are an event.** The provider dispatches
   `tableCalculationsRenamed` when the explorer's metadata changes; a slice
   that stores a field id rewrites it with `renamedFieldId` in
-  `extraReducers`, never in a selector.
-- **Debounce on the dispatch, in the control.** A text or colour input keeps
-  a local draft and dispatches debounced (`useDebouncedDraft`), so the store
-  is the only truth and `validConfig` never lags it.
+  `extraReducers`, never in a selector. Cartesian is the exception: its
+  layout repair (`inputsChanged`) applies the renames.
+- **Commit like main did, per control.** Most inputs dispatch on every
+  change; the few main debounced use `useDebouncedDraft`, which also flushes
+  on blur and unmount so a Save or chart type switch never loses an edit.
 - **Adapters are thin and memoised.** `VisualizationConfigXxx` calls the
-  hook, emits `validConfig` through `onChartConfigChange` when it changes,
+  hook, emits `validConfig` with `useEmitChartConfig` when it changes,
   and builds the aggregate. It reads inputs from context, not props, and
   is wrapped in `memo` so a resize skips it. An echoed config still
   re-renders it (its `onChartConfigChange` and children change); the

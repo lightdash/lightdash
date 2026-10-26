@@ -1,11 +1,12 @@
 import { ChartType } from '@lightdash/common';
-import { memo, useEffect, useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import { selectSankeyFieldPools } from '../../features/visualization/store';
 import useSankeyChartConfig from '../../hooks/useSankeyChartConfig';
 import {
     type VisualizationConfigSankeyProps,
     type VisualizationConfigSankeyType,
 } from './types';
+import { useEmitChartConfig } from './useEmitChartConfig';
 import { useVisualizationInputSelector } from './useVisualizationContext';
 
 const VisualizationConfigSankey: FC<VisualizationConfigSankeyProps> = ({
@@ -17,13 +18,11 @@ const VisualizationConfigSankey: FC<VisualizationConfigSankeyProps> = ({
     );
     const sankeyChartConfig = useSankeyChartConfig();
 
-    useEffect(() => {
-        if (!onChartConfigChange) return;
-        onChartConfigChange({
-            type: ChartType.SANKEY,
-            config: sankeyChartConfig.validConfig,
-        });
-    }, [sankeyChartConfig.validConfig, onChartConfigChange]);
+    useEmitChartConfig(
+        ChartType.SANKEY,
+        sankeyChartConfig.validConfig,
+        onChartConfigChange,
+    );
 
     const visualizationConfig: VisualizationConfigSankeyType = useMemo(
         () => ({
@@ -38,5 +37,5 @@ const VisualizationConfigSankey: FC<VisualizationConfigSankeyProps> = ({
     return children({ visualizationConfig });
 };
 
-// Memoised so a resize skips it; an echoed config still re-renders it (new chartConfig in its props)
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
 export default memo(VisualizationConfigSankey);

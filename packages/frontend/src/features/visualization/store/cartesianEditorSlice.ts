@@ -106,15 +106,13 @@ export type ReferenceLineUpdate = {
 
 const cartesianEditorSlice = createSlice({
     name: 'cartesianEditor',
-    initialState: null as CartesianEditorState | null,
+    initialState: buildCartesianEditorState(undefined),
     reducers: {
         ...editorCaseReducers<CartesianEditorState>(),
         layoutMerge: (state, action: PayloadAction<Layout>) => {
-            if (!state) return;
             state.dirtyLayout = { ...state.dirtyLayout, ...action.payload };
         },
         echartsMerge: (state, action: PayloadAction<EchartsConfig>) => {
-            if (!state) return;
             state.dirtyEchartsConfig = {
                 ...state.dirtyEchartsConfig,
                 ...action.payload,
@@ -122,7 +120,6 @@ const cartesianEditorSlice = createSlice({
         },
         // Patches the first x axis, keeping any others as they are
         firstXAxisMerge: (state, action: PayloadAction<Partial<XAxis>>) => {
-            if (!state) return;
             const [firstAxis, ...axes] = state.dirtyEchartsConfig?.xAxis || [];
             state.dirtyEchartsConfig = {
                 ...state.dirtyEchartsConfig,
@@ -131,7 +128,6 @@ const cartesianEditorSlice = createSlice({
         },
         // Patches one of the two axes, materialising both
         axisMerge: (state, action: PayloadAction<AxisPatch>) => {
-            if (!state) return;
             const { axis, index, patch } = action.payload;
             const prev = state.dirtyEchartsConfig?.[axis];
             state.dirtyEchartsConfig = {
@@ -148,7 +144,6 @@ const cartesianEditorSlice = createSlice({
             state,
             action: PayloadAction<{ categoryValue: string; color: string }>,
         ) => {
-            if (!state) return;
             state.dirtyLayout = {
                 ...state.dirtyLayout,
                 categoryColorOverrides: {
@@ -161,7 +156,6 @@ const cartesianEditorSlice = createSlice({
             state,
             action: PayloadAction<ConditionalFormattingConfig[]>,
         ) => {
-            if (!state) return;
             state.conditionalFormattings = action.payload;
             if (action.payload.length > 0) {
                 state.dirtyLayout = {
@@ -171,7 +165,6 @@ const cartesianEditorSlice = createSlice({
             }
         },
         singleSeriesAdd: (state, action: PayloadAction<string>) => {
-            if (!state) return;
             const prev = state.dirtyLayout;
             state.dirtyLayout = {
                 ...prev,
@@ -187,7 +180,6 @@ const cartesianEditorSlice = createSlice({
             }
         },
         singleSeriesRemove: (state, action: PayloadAction<number>) => {
-            if (!state) return;
             const index = action.payload;
             // Drop the colour of the removed series so a re-added one starts clean
             const series = state.dirtyEchartsConfig?.series;
@@ -209,7 +201,6 @@ const cartesianEditorSlice = createSlice({
             state,
             action: PayloadAction<{ index: number; fieldId: string }>,
         ) => {
-            if (!state) return;
             const { index, fieldId } = action.payload;
             state.dirtyLayout = {
                 ...state.dirtyLayout,
@@ -219,7 +210,6 @@ const cartesianEditorSlice = createSlice({
             };
         },
         typeApply: (state, action: PayloadAction<CartesianTypeOptions>) => {
-            if (!state) return;
             state.dirtyLayout = applyCartesianType(
                 state.dirtyLayout,
                 undefined,
@@ -238,7 +228,7 @@ const cartesianEditorSlice = createSlice({
                 updateSeries: Partial<Series>;
             }>,
         ) => {
-            if (!state?.dirtyEchartsConfig) return;
+            if (!state.dirtyEchartsConfig) return;
             const { fieldKey, updateSeries } = action.payload;
             state.dirtyEchartsConfig.series =
                 state.dirtyEchartsConfig.series?.map((series) =>
@@ -248,7 +238,6 @@ const cartesianEditorSlice = createSlice({
                 );
         },
         singleSeriesUpdate: (state, action: PayloadAction<Series>) => {
-            if (!state) return;
             const updated = action.payload;
             state.dirtyEchartsConfig = {
                 ...state.dirtyEchartsConfig,
@@ -261,7 +250,7 @@ const cartesianEditorSlice = createSlice({
             };
         },
         seriesSet: (state, action: PayloadAction<Series[]>) => {
-            if (!state?.dirtyEchartsConfig) return;
+            if (!state.dirtyEchartsConfig) return;
             state.dirtyEchartsConfig.series = action.payload;
         },
         // The query's fields changed: rename, drop or fall back to valid fields
@@ -269,7 +258,7 @@ const cartesianEditorSlice = createSlice({
             state,
             action: PayloadAction<CartesianRepairInputs>,
         ) => {
-            if (!state || action.payload.availableFields.length === 0) return;
+            if (action.payload.availableFields.length === 0) return;
             const { pendingFieldIds, ...fields } = action.payload;
             const repaired = repairCartesianLayout({
                 ...fields,
@@ -288,7 +277,6 @@ const cartesianEditorSlice = createSlice({
                 pivotKeys: string[] | undefined;
             }>,
         ) => {
-            if (!state) return;
             const { expectedSeries, pivotKeys } = action.payload;
             if (
                 expectedSeries &&
@@ -323,7 +311,6 @@ const cartesianEditorSlice = createSlice({
             state,
             action: PayloadAction<NonNullable<EchartsConfig['grid']>>,
         ) => {
-            if (!state) return;
             state.dirtyEchartsConfig = {
                 ...state.dirtyEchartsConfig,
                 grid: { ...state.dirtyEchartsConfig?.grid, ...action.payload },
@@ -333,15 +320,12 @@ const cartesianEditorSlice = createSlice({
             state,
             action: PayloadAction<Record<string, SeriesMetadata>>,
         ) => {
-            if (!state) return;
             state.dirtyMetadata = { ...state.dirtyMetadata, ...action.payload };
         },
         referenceLineAdd: (state, action: PayloadAction<string>) => {
-            if (!state) return;
             state.referenceLines.push({ data: { uuid: action.payload } });
         },
         referenceLineRemove: (state, action: PayloadAction<string>) => {
-            if (!state) return;
             const lineId = action.payload;
             const series = state.dirtyEchartsConfig?.series;
             if (!state.dirtyEchartsConfig || !series) return;
@@ -363,7 +347,6 @@ const cartesianEditorSlice = createSlice({
             state,
             action: PayloadAction<ReferenceLineUpdate>,
         ) => {
-            if (!state) return;
             const {
                 lineId,
                 fieldId,
@@ -417,7 +400,6 @@ const cartesianEditorSlice = createSlice({
                 pivotKeys: string[] | undefined;
             }>,
         ) => {
-            if (!state) return;
             const { stack, yFields, pivotKeys } = action.payload;
             state.isStacked = isStackTypeStacked(stack);
             state.dirtyLayout = {

@@ -273,11 +273,7 @@ export const useCartesianEditorActions = (): CartesianEditorActions => {
     }, [dispatch, store, inputsRef, set]);
 };
 
-/**
- * Applies what the editor cannot derive: the gallery's stacking and type
- * intent, the layout fallbacks the query's fields imply, and the series the
- * results imply. Mounted once, by the adapter.
- */
+/** Applies the gallery's intent, the layout fallbacks and the series the results imply; mounted once */
 export const useCartesianEditorSync = () => {
     const dispatch = useVisualizationDispatch();
     const store = useVisualizationStore();
@@ -374,10 +370,7 @@ export const useCartesianEditorSync = () => {
     ]);
 };
 
-/**
- * Everything the cartesian chart body and the wide panels read, re-rendering
- * on every edit. Config panels select the fields they show instead.
- */
+/** Everything the cartesian chart body and the wide panels reads, re-rendering on every edit; config panels select their own fields */
 const useCartesianChartConfig = () => {
     const {
         columnLimit,

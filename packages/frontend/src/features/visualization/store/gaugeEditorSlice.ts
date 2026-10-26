@@ -30,12 +30,11 @@ export const buildGaugeEditorState = (
 
 const gaugeEditorSlice = createSlice({
     name: 'gaugeEditor',
-    initialState: null as GaugeEditorState | null,
+    initialState: buildGaugeEditorState(undefined),
     reducers: {
         ...editorCaseReducers<GaugeEditorState>(),
         // A new section spans the current scale
         addSection: (state) => {
-            if (!state) return;
             state.sections.push({
                 min: state.min,
                 max: state.max,
@@ -43,10 +42,9 @@ const gaugeEditorSlice = createSlice({
             });
         },
         removeSection: (state, action: PayloadAction<number>) => {
-            if (!state) return;
             state.sections.splice(action.payload, 1);
         },
-        // Targets the section object the edit was made on, so a late commit for a removed or shifted section is dropped
+        // Ignores an index that no longer exists
         updateSection: (
             state,
             action: PayloadAction<{
@@ -54,7 +52,7 @@ const gaugeEditorSlice = createSlice({
                 changes: Partial<GaugeSection>;
             }>,
         ) => {
-            const section = state?.sections[action.payload.index];
+            const section = state.sections[action.payload.index];
             if (section) Object.assign(section, action.payload.changes);
         },
     },

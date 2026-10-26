@@ -9,11 +9,7 @@ import {
 } from '@lightdash/common';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 
-/**
- * What a chart editor derives its config from: results, fields, colours and
- * the query being edited. Owned by react-query and the provider's props, so
- * not stored; selectors take it as their second argument.
- */
+/** What an editor derives its config from; not stored, so selectors take it as their second argument */
 export type VisualizationInputs = {
     resultsData:
         | (InfiniteQueryResults & {

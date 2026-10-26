@@ -7,12 +7,15 @@ import {
 import { createSelector } from '@reduxjs/toolkit';
 import { type VisualizationStoreState } from '.';
 import { type VisualizationInputs } from './inputs';
+import {
+    inputsItemsMap,
+    inputsParameters,
+    inputsResults,
+} from './inputSelectors';
 import { keepPendingField, selectPendingFieldIds } from './pendingFields';
 import { selectBigNumberEditor } from './selectors';
 
 type State = VisualizationStoreState;
-const inputsItemsMap = (_: State, inputs: VisualizationInputs) =>
-    inputs.itemsMap;
 
 const selectAvailableFieldIds = createSelector(
     [inputsItemsMap],
@@ -74,9 +77,9 @@ export const selectBigNumberValidConfig = createSelector(
 
 export const selectBigNumberModel = createSelector(
     [
-        (_: State, inputs: VisualizationInputs) => inputs.resultsData,
+        inputsResults,
         inputsItemsMap,
-        (_: State, inputs: VisualizationInputs) => inputs.parameters,
+        inputsParameters,
         selectBigNumberValidConfig,
         (state: State) => selectBigNumberEditor(state).bigNumberComparisonStyle,
     ],

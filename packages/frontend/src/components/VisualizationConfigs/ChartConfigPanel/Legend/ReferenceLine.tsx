@@ -27,7 +27,6 @@ import {
     TextInput,
     type TextInputProps,
 } from '@mantine/core';
-import { useDebouncedCallback } from '@mantine/hooks';
 import {
     IconLayoutAlignLeft,
     IconLayoutAlignRight,
@@ -324,29 +323,16 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
         [isOpen, removeItem, addNewItem, accordionValue],
     );
 
-    // Typed values and picked colours reach the store debounced
-    const commitDebounced = useDebouncedCallback(updateReferenceLine, {
-        delay: 300,
-        flushOnUnmount: true,
-    });
-    const commit = useCallback(
-        (config: UpdateReferenceLineProps) => {
-            commitDebounced.cancel();
-            updateReferenceLine(config);
-        },
-        [commitDebounced, updateReferenceLine],
-    );
-
     const onColorChange = useCallback(
         (color: string) => {
             setLineColor(color);
             if (selectedField !== undefined)
-                commitDebounced({
+                updateReferenceLine({
                     ...currentLineConfig,
                     lineColor: color,
                 });
         },
-        [selectedField, commitDebounced, currentLineConfig],
+        [selectedField, updateReferenceLine, currentLineConfig],
     );
 
     return (
@@ -377,7 +363,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                         onChange={(newField) => {
                             setSelectedField(newField);
                             if (newField !== undefined)
-                                commit({
+                                updateReferenceLine({
                                     ...currentLineConfig,
                                     field: newField,
                                 });
@@ -396,7 +382,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                             onChange={(newValue: string) => {
                                 setValue(newValue);
                                 if (selectedField !== undefined)
-                                    commitDebounced({
+                                    updateReferenceLine({
                                         ...currentLineConfig,
                                         value: newValue,
                                     });
@@ -417,7 +403,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                             onBlur={(newValue) => {
                                 setLabel(newValue.target.value);
                                 if (selectedField)
-                                    commit({
+                                    updateReferenceLine({
                                         ...currentLineConfig,
                                         label: newValue.target.value,
                                     });
@@ -436,7 +422,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                             onChange={(newState) => {
                                 setUseAverage(newState.target.checked);
                                 if (selectedField !== undefined) {
-                                    commit({
+                                    updateReferenceLine({
                                         ...currentLineConfig,
                                         dynamicValue: newState.target.checked
                                             ? 'average'
@@ -461,7 +447,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                                         | 'end';
                                     setLabelPosition(newPosition);
 
-                                    commit({
+                                    updateReferenceLine({
                                         ...currentLineConfig,
                                         labelPosition: newPosition,
                                     });

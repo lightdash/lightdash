@@ -90,7 +90,7 @@ export const buildMapEditorState = (
 
 const mapEditorSlice = createSlice({
     name: 'mapEditor',
-    initialState: null as MapEditorState | null,
+    initialState: buildMapEditorState(undefined),
     reducers: {
         ...editorCaseReducers<MapEditorState>(),
         // Switching to/from heatmap swaps in that mode's default colors
@@ -98,7 +98,6 @@ const mapEditorSlice = createSlice({
             state,
             action: PayloadAction<MapChartType | undefined>,
         ) => {
-            if (!state) return;
             const wasHeatmap = state.locationType === MapChartType.HEATMAP;
             const isNowHeatmap = action.payload === MapChartType.HEATMAP;
             state.locationType = action.payload;
@@ -113,7 +112,6 @@ const mapEditorSlice = createSlice({
             state,
             action: PayloadAction<string | undefined>,
         ) => {
-            if (!state) return;
             state.valueFieldId = action.payload;
             state.colorOverrides = {};
         },
@@ -125,30 +123,27 @@ const mapEditorSlice = createSlice({
                 geoJsonPropertyKey: string;
             }>,
         ) => {
-            if (!state) return;
             state.locationFieldId = action.payload.locationFieldId;
             state.geoJsonPropertyKey = action.payload.geoJsonPropertyKey;
         },
         addColor: (state) => {
-            if (!state || state.colorRange.length >= 5) return;
+            if (state.colorRange.length >= 5) return;
             state.colorRange.splice(state.colorRange.length - 1, 0, '#fab005');
         },
         removeColor: (state, action: PayloadAction<number>) => {
-            if (!state || state.colorRange.length <= 2) return;
+            if (state.colorRange.length <= 2) return;
             state.colorRange.splice(action.payload, 1);
         },
         updateColor: (
             state,
             action: PayloadAction<{ index: number; color: string }>,
         ) => {
-            if (!state) return;
             state.colorRange[action.payload.index] = action.payload.color;
         },
         heatmapConfigChange: (
             state,
             action: PayloadAction<MapHeatmapConfig | undefined>,
         ) => {
-            if (!state) return;
             if (action.payload === undefined) {
                 state.heatmapConfig = undefined;
                 return;
@@ -166,7 +161,6 @@ const mapEditorSlice = createSlice({
                 NonNullable<MapChart['hexbinConfig']> | undefined
             >,
         ) => {
-            if (!state) return;
             state.hexbinConfig =
                 action.payload === undefined
                     ? undefined
@@ -176,7 +170,6 @@ const mapEditorSlice = createSlice({
             state,
             action: PayloadAction<{ value: string; color: string }>,
         ) => {
-            if (!state) return;
             state.colorOverrides[action.payload.value] = action.payload.color;
         },
         fieldConfigUpdate: (
@@ -186,7 +179,6 @@ const mapEditorSlice = createSlice({
                 config: Partial<MapFieldConfig>;
             }>,
         ) => {
-            if (!state) return;
             const { fieldId, config } = action.payload;
             state.fieldConfig[fieldId] = {
                 ...state.fieldConfig[fieldId],

@@ -44,19 +44,25 @@ const renderWithCoordinates = (config?: MapChart) =>
     });
 
 describe('useMapChartConfig', () => {
-    it('auto-fills coordinates by name in point modes only', () => {
-        const { result } = renderWithCoordinates(undefined);
-        expect(result.current.validConfig).toMatchObject({
-            latitudeFieldId: 'places_lat',
-            longitudeFieldId: 'places_lon',
-        });
-        act(() => result.current.setLatitudeFieldId('other'));
-        expect(result.current.validConfig.latitudeFieldId).toBe('other');
+    it.each([MapChartType.SCATTER, MapChartType.HEATMAP, MapChartType.HEXBIN])(
+        'auto-fills coordinates by name in %s mode',
+        (locationType) => {
+            const { result } = renderWithCoordinates({ locationType });
+            expect(result.current.validConfig).toMatchObject({
+                latitudeFieldId: 'places_lat',
+                longitudeFieldId: 'places_lon',
+            });
+            act(() => result.current.setLatitudeFieldId('other'));
+            expect(result.current.validConfig.latitudeFieldId).toBe('other');
+        },
+    );
 
-        const area = renderWithCoordinates({
+    it('does not auto-fill coordinates in area mode', () => {
+        const { result } = renderWithCoordinates({
             locationType: MapChartType.AREA,
         });
-        expect(area.result.current.validConfig.latitudeFieldId).toBe(undefined);
+        expect(result.current.validConfig.latitudeFieldId).toBe(undefined);
+        expect(result.current.validConfig.longitudeFieldId).toBe(undefined);
     });
 
     it('seeds defaults from an empty config', () => {

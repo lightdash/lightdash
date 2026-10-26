@@ -28,11 +28,10 @@ export const buildSankeyEditorState = (
 
 const sankeyEditorSlice = createSlice({
     name: 'sankeyEditor',
-    initialState: null as SankeyEditorState | null,
+    initialState: buildSankeyEditorState(undefined),
     reducers: editorCaseReducers<SankeyEditorState>(),
     extraReducers: (builder) =>
         builder.addCase(tableCalculationsRenamed, (state, { payload }) => {
-            if (!state) return;
             const rename = (id: string | null) =>
                 id === null ? null : renamedFieldId(id, payload);
             state.sourceFieldId = rename(state.sourceFieldId);

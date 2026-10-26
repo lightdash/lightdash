@@ -15,11 +15,7 @@ import {
     Select,
     Stack,
 } from '@mantine/core';
-import {
-    useDebouncedCallback,
-    useDebouncedState,
-    useHover,
-} from '@mantine/hooks';
+import { useDebouncedState, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronUp,
@@ -36,9 +32,9 @@ import {
     useSeriesColor,
     useVisualizationInputs,
 } from '../../../LightdashVisualization/useVisualizationContext';
+import ColorSelector from '../../ColorSelector';
 import { EditableText } from '../../common/EditableText';
 import { GrabIcon } from '../../common/GrabIcon';
-import { DebouncedColorSelector } from '../common/DebouncedColorSelector';
 import { ChartTypeSelect } from './ChartTypeSelect';
 
 type Props = {
@@ -90,10 +86,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
         getSingleSeries(series)?.name || seriesLabel,
         200,
     );
-    const commitName = useDebouncedCallback(
-        (name: string) => updateSingleSeries({ ...series, name }),
-        { delay: 300, flushOnUnmount: true },
-    );
 
     return (
         <Box>
@@ -108,7 +100,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
                     )}
                     {isGrouped && (
-                        <DebouncedColorSelector
+                        <ColorSelector
                             color={seriesColor}
                             swatches={colorPalette}
                             withAlpha
@@ -133,7 +125,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 placeholder={seriesLabel}
                                 onChange={(event) => {
                                     setSeriesValue(event.currentTarget.value);
-                                    commitName(event.currentTarget.value);
+                                    updateSingleSeries({
+                                        ...series,
+                                        name: event.currentTarget.value,
+                                    });
                                 }}
                             />
                         </Box>
@@ -337,7 +332,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
                         {series.label?.show && (
                             <Box mt={!isGrouped ? 'lg' : undefined}>
-                                <DebouncedColorSelector
+                                <ColorSelector
                                     color={series.label.color}
                                     defaultColor={automaticLabelColor}
                                     swatches={colorPalette}

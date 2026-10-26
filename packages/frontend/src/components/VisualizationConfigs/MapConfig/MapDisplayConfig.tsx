@@ -20,7 +20,6 @@ import {
     Switch,
     Text,
 } from '@mantine/core';
-import { useDebouncedCallback } from '@mantine/hooks';
 import { memo, useState, type FC } from 'react';
 import { shallowEqual } from 'react-redux';
 import {
@@ -44,7 +43,7 @@ import {
     DEFAULT_FIXED_RESOLUTION,
     HEXBIN_SIZE_PRESETS,
 } from '../../SimpleMap/hexbin/zoomToResolution';
-import { DebouncedColorSelector } from '../ChartConfigPanel/common/DebouncedColorSelector';
+import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 import { GradientStopsEditor } from '../common/GradientStopsEditor';
 import { useDebouncedDraft } from '../common/useDebouncedDraft';
@@ -151,7 +150,6 @@ export const Display: FC = memo(() => {
         addColor,
         removeColor,
         updateColor,
-        setColorRange,
         setShowLegend,
         setSaveMapExtent,
         setMinBubbleSize,
@@ -168,22 +166,13 @@ export const Display: FC = memo(() => {
         setColorOverride,
     } = useMapEditorActions();
 
-    const [opacity, setOpacity] = useDebouncedDraft(
+    const [opacity, setOpacity, flushOpacity] = useDebouncedDraft(
         config.dataLayerOpacity ?? 0.7,
         setDataLayerOpacity,
+        { delay: 100 },
     );
 
-    const storedColors = config.colorRange ?? DEFAULT_MAP_COLORS;
-    // One draft per stop; add and remove flush first so a pending edit keeps its stop
-    const [draftStops, setDraftStops] = useState<Record<number, string>>({});
-    const commitStops = useDebouncedCallback(
-        (drafts: Record<number, string>) => {
-            setColorRange(storedColors.map((c, i) => drafts[i] ?? c));
-            setDraftStops({});
-        },
-        { delay: 300, flushOnUnmount: true },
-    );
-    const colors = storedColors.map((c, i) => draftStops[i] ?? c);
+    const colors = config.colorRange ?? DEFAULT_MAP_COLORS;
     const isScatterMap =
         !config.locationType || config.locationType === MapChartType.SCATTER;
     const isAreaMap = config.locationType === MapChartType.AREA;
@@ -341,7 +330,7 @@ export const Display: FC = memo(() => {
                         })()}
                     {(isAreaMap || isScatterMap) && (
                         <Group my="xs">
-                            <DebouncedColorSelector
+                            <ColorSelector
                                 color={config.noDataColor ?? '#f3f3f3'}
                                 swatches={ECHARTS_DEFAULT_COLORS}
                                 onColorChange={setNoDataColor}
@@ -355,22 +344,9 @@ export const Display: FC = memo(() => {
                                 <Config.Label>Color range</Config.Label>
                                 <GradientStopsEditor
                                     colors={colors}
-                                    onAddColor={() => {
-                                        commitStops.flush();
-                                        addColor();
-                                    }}
-                                    onRemoveColor={(index) => {
-                                        commitStops.flush();
-                                        removeColor(index);
-                                    }}
-                                    onColorChange={(index, color) => {
-                                        const next = {
-                                            ...draftStops,
-                                            [index]: color,
-                                        };
-                                        setDraftStops(next);
-                                        commitStops(next);
-                                    }}
+                                    onAddColor={addColor}
+                                    onRemoveColor={removeColor}
+                                    onColorChange={updateColor}
                                 />
                                 {isHexbin && (
                                     <>
@@ -413,7 +389,7 @@ export const Display: FC = memo(() => {
                                                 gap="xs"
                                                 wrap="nowrap"
                                             >
-                                                <DebouncedColorSelector
+                                                <ColorSelector
                                                     color={
                                                         colorOverrides[val] ??
                                                         colorDefaults[val]
@@ -448,7 +424,7 @@ export const Display: FC = memo(() => {
                         !isAreaMap && (
                             <Config.Group>
                                 <Config.Label>Color</Config.Label>
-                                <DebouncedColorSelector
+                                <ColorSelector
                                     color={
                                         colors[Math.floor(colors.length / 2)]
                                     }
@@ -474,6 +450,7 @@ export const Display: FC = memo(() => {
                                 step={0.1}
                                 value={opacity}
                                 onChange={setOpacity}
+                                onChangeEnd={flushOpacity}
                                 marks={[
                                     { value: 0.1, label: '0.1' },
                                     { value: 0.5, label: '0.5' },
@@ -487,7 +464,7 @@ export const Display: FC = memo(() => {
                     {isBackgroundNone && (
                         <Config.Group>
                             <Config.Label>Background color</Config.Label>
-                            <DebouncedColorSelector
+                            <ColorSelector
                                 color={config.backgroundColor ?? '#f3f3f3'}
                                 swatches={ECHARTS_DEFAULT_COLORS}
                                 onColorChange={setBackgroundColor}
@@ -526,7 +503,7 @@ export const Display: FC = memo(() => {
                                             <Config.Label>
                                                 Empty cell fill
                                             </Config.Label>
-                                            <DebouncedColorSelector
+                                            <ColorSelector
                                                 color={
                                                     config.hexbinConfig
                                                         ?.emptyBinColor ??

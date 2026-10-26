@@ -6,9 +6,8 @@ import {
     type FilterableItem,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
-import { useDebouncedCallback } from '@mantine/hooks';
 import { IconEye, IconEyeOff, IconInfoCircle } from '@tabler/icons-react';
-import { useMemo, useState, type ComponentProps, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { selectTableColumnProperties } from '../../../features/visualization/store';
 import { useTableEditorActions } from '../../../hooks/tableVisualization/useTableConfig';
 import MantineIcon from '../../common/MantineIcon';
@@ -18,32 +17,6 @@ import {
 } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
-
-// Picking a colour is debounced before it reaches the store; the draft keeps the swatch responsive
-const DebouncedColorSelector: FC<
-    ComponentProps<typeof ColorSelector> & {
-        onColorChange: (color: string) => void;
-    }
-> = ({ color, onColorChange, ...rest }) => {
-    const [draft, setDraft] = useState<string | undefined>();
-    const commit = useDebouncedCallback(
-        (value: string) => {
-            onColorChange(value);
-            setDraft(undefined);
-        },
-        { delay: 500, flushOnUnmount: true },
-    );
-    return (
-        <ColorSelector
-            {...rest}
-            color={draft ?? color}
-            onColorChange={(value) => {
-                setDraft(value);
-                commit(value);
-            }}
-        />
-    );
-};
 
 export const ColumnCellDisplay: FC = () => {
     const { itemsMap, resultsData, colorPalette } = useVisualizationInputs();
@@ -103,7 +76,7 @@ export const ColumnCellDisplay: FC = () => {
                         const negativeBarColor = negativeColor || barColor;
 
                         const positiveColorSelector = (
-                            <DebouncedColorSelector
+                            <ColorSelector
                                 color={barColor}
                                 swatches={colorPalette}
                                 ariaLabel="Select positive bar color"
@@ -139,7 +112,7 @@ export const ColumnCellDisplay: FC = () => {
                                                 position="top"
                                             >
                                                 <Box>
-                                                    <DebouncedColorSelector
+                                                    <ColorSelector
                                                         color={negativeBarColor}
                                                         swatches={colorPalette}
                                                         ariaLabel="Select negative bar color"

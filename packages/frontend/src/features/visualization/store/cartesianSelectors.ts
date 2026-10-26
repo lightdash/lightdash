@@ -12,18 +12,17 @@ import {
 import { createSelector } from '@reduxjs/toolkit';
 import { type VisualizationStoreState } from '.';
 import { type CartesianRepairInputs } from './cartesianEditorSlice';
-import { type VisualizationInputs } from './inputs';
+import {
+    inputsColumnOrder,
+    inputsItemsMap,
+    inputsMetricQuery,
+    inputsPivotDimensions,
+    inputsTableCalculationsMetadata,
+    inputsUnsavedMetricQuery,
+} from './inputSelectors';
 import { selectCartesianEditor } from './selectors';
 
 type State = VisualizationStoreState;
-const inputsMetricQuery = (_: State, inputs: VisualizationInputs) =>
-    inputs.resultsData?.metricQuery;
-const inputsItemsMap = (_: State, inputs: VisualizationInputs) =>
-    inputs.itemsMap;
-const inputsColumnOrder = (_: State, inputs: VisualizationInputs) =>
-    inputs.columnOrder;
-const inputsPivotKeys = (_: State, inputs: VisualizationInputs) =>
-    inputs.pivotDimensions;
 
 export const selectCartesianLayout = (state: State) =>
     selectCartesianEditor(state).dirtyLayout;
@@ -42,27 +41,23 @@ const selectCartesianAvailableFields = createSelector(
         getAvailableCartesianFields({ metricQuery, itemsMap, columnOrder }),
 );
 
-// The available fields only know the last run; a field just added from a
-// config picker must not be stripped before its results land.
+// A field just added from a picker must not be stripped before its results land
 const selectCartesianPendingFieldIds = createSelector(
-    [(_: State, inputs: VisualizationInputs) => inputs.unsavedMetricQuery],
+    [inputsUnsavedMetricQuery],
     (unsavedMetricQuery) => {
         const ids = getPendingFieldIds(unsavedMetricQuery);
         return ids && [...ids];
     },
 );
 
-/**
- * What the layout fallbacks follow. A new results object for the same query
- * keeps this reference; a pivot change re-runs them, as it always did.
- */
+/** What the layout fallbacks follow; a new results object for the same query keeps this reference */
 export const selectCartesianRepairInputs = createSelector(
     [
         selectCartesianAvailableFields,
         selectCartesianPendingFieldIds,
-        (_: State, inputs: VisualizationInputs) =>
-            inputs.tableCalculationsMetadata,
-        inputsPivotKeys,
+        inputsTableCalculationsMetadata,
+        // Unread, but a pivot change re-runs the fallbacks, as it did before the store
+        inputsPivotDimensions,
     ],
     (
         { availableFields, availableDimensions, availableMetrics },
@@ -98,12 +93,12 @@ const selectCartesianHasCustomColorsStacking = createSelector(
 );
 
 const selectIsCartesianConditionalFormattingAllowed = createSelector(
-    [selectCartesianSeries, inputsPivotKeys],
+    [selectCartesianSeries, inputsPivotDimensions],
     isConditionalFormattingEligible,
 );
 
 const selectIsCartesianColorByCategoryAllowed = createSelector(
-    [selectCartesianSeries, inputsPivotKeys, selectCartesianLayout],
+    [selectCartesianSeries, inputsPivotDimensions, selectCartesianLayout],
     (series, pivotKeys, layout) =>
         isColorByCategoryEligible({ series, pivotKeys, layout }),
 );

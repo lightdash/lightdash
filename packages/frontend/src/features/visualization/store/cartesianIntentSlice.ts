@@ -9,14 +9,14 @@ export type CartesianIntentState = {
     cartesianType: CartesianTypeOptions | undefined;
 };
 
-const initialState: CartesianIntentState = {
+export const initialCartesianIntent: CartesianIntentState = {
     stacking: undefined,
     cartesianType: undefined,
 };
 
 const cartesianIntentSlice = createSlice({
     name: 'cartesianIntent',
-    initialState,
+    initialState: initialCartesianIntent,
     reducers: {
         setStacking: (
             state,

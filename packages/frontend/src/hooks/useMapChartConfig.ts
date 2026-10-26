@@ -144,10 +144,7 @@ const defaultConfig: MapChart = {
     colorRange: DEFAULT_MAP_COLORS,
 };
 
-/**
- * Everything the map body reads, re-rendering on every edit. Config panels
- * select the fields they show instead.
- */
+/** Everything the map body reads, re-rendering on every edit; config panels select their own fields */
 const useMapChartConfig = (): MapChartConfig => {
     const validConfig = useVisualizationInputSelector(selectMapValidConfig);
     const fieldConfig = useVisualizationSelector(

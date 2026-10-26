@@ -1,10 +1,11 @@
 import { ChartType } from '@lightdash/common';
-import { memo, useEffect, useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import useMapChartConfig from '../../hooks/useMapChartConfig';
 import {
     type VisualizationConfigMap,
     type VisualizationConfigMapProps,
 } from './types';
+import { useEmitChartConfig } from './useEmitChartConfig';
 
 const VisualizationMapConfig: FC<VisualizationConfigMapProps> = ({
     onChartConfigChange,
@@ -12,13 +13,11 @@ const VisualizationMapConfig: FC<VisualizationConfigMapProps> = ({
 }) => {
     const mapConfig = useMapChartConfig();
 
-    useEffect(() => {
-        if (!onChartConfigChange) return;
-        onChartConfigChange({
-            type: ChartType.MAP,
-            config: mapConfig.validConfig,
-        });
-    }, [mapConfig.validConfig, onChartConfigChange]);
+    useEmitChartConfig(
+        ChartType.MAP,
+        mapConfig.validConfig,
+        onChartConfigChange,
+    );
 
     const visualizationConfig: VisualizationConfigMap = useMemo(
         () => ({
@@ -31,5 +30,5 @@ const VisualizationMapConfig: FC<VisualizationConfigMapProps> = ({
     return children({ visualizationConfig });
 };
 
-// Memoised so a resize skips it; an echoed config still re-renders it (new chartConfig in its props)
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
 export default memo(VisualizationMapConfig);

@@ -7,6 +7,10 @@ import {
 } from '@lightdash/common';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import {
+    cartesianIntentActions,
+    useVisualizationDispatch,
+} from '../features/visualization/store';
 import { withVisualizationStore } from '../testing/visualizationStore';
 import useGaugeChartConfig from './useGaugeChartConfig';
 
@@ -73,12 +77,26 @@ describe('useGaugeChartConfig', () => {
         expect(result.current.validConfig.sections).toEqual([]);
     });
 
-    it('keeps the config identity across an unrelated re-render', () => {
-        const { result, rerender } = render({
-            selectedField: 'orders_revenue',
+    it('keeps the config identity across an unrelated store update', () => {
+        const { result } = renderHook(
+            () => ({
+                config: useGaugeChartConfig(),
+                dispatch: useVisualizationDispatch(),
+            }),
+            {
+                wrapper: withVisualizationStore(
+                    {
+                        type: ChartType.GAUGE,
+                        config: { selectedField: 'orders_revenue' },
+                    },
+                    { itemsMap: { orders_revenue: revenue } },
+                ),
+            },
+        );
+        const before = result.current.config.validConfig;
+        act(() => {
+            result.current.dispatch(cartesianIntentActions.setStacking(true));
         });
-        const before = result.current.validConfig;
-        rerender();
-        expect(result.current.validConfig).toBe(before);
+        expect(result.current.config.validConfig).toBe(before);
     });
 });

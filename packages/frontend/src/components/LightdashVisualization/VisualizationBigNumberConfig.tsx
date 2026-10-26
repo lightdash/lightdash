@@ -1,10 +1,11 @@
 import { ChartType } from '@lightdash/common';
-import { memo, useEffect, useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import useBigNumberConfig from '../../hooks/useBigNumberConfig';
 import {
     type VisualizationBigNumberConfigProps,
     type VisualizationConfigBigNumber,
 } from './types';
+import { useEmitChartConfig } from './useEmitChartConfig';
 
 const VisualizationBigNumberConfig: FC<VisualizationBigNumberConfigProps> = ({
     onChartConfigChange,
@@ -12,13 +13,11 @@ const VisualizationBigNumberConfig: FC<VisualizationBigNumberConfigProps> = ({
 }) => {
     const bigNumberConfig = useBigNumberConfig();
 
-    useEffect(() => {
-        if (!onChartConfigChange) return;
-        onChartConfigChange({
-            type: ChartType.BIG_NUMBER,
-            config: bigNumberConfig.validConfig,
-        });
-    }, [bigNumberConfig.validConfig, onChartConfigChange]);
+    useEmitChartConfig(
+        ChartType.BIG_NUMBER,
+        bigNumberConfig.validConfig,
+        onChartConfigChange,
+    );
 
     const visualizationConfig: VisualizationConfigBigNumber = useMemo(
         () => ({
@@ -31,5 +30,5 @@ const VisualizationBigNumberConfig: FC<VisualizationBigNumberConfigProps> = ({
     return children({ visualizationConfig });
 };
 
-// Skips provider re-renders that keep its props, e.g. a resize; an echoed config still re-renders it
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
 export default memo(VisualizationBigNumberConfig);

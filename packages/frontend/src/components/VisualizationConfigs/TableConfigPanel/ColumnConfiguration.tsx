@@ -11,7 +11,6 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useDebouncedCallback } from '@mantine/hooks';
 import {
     IconEye,
     IconEyeOff,
@@ -58,22 +57,16 @@ const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
         showTableNames,
         fieldId,
     );
-    const [draft, setDraft] = useState(labelOverride ?? labelDefault ?? '');
-    const commitLabel = useDebouncedCallback(
-        (name: string) => updateColumnProperty(fieldId, { name }),
-        { delay: 500, flushOnUnmount: true },
-    );
 
     return (
         <TextInput
             size="xs"
             disabled={!isVisible}
             placeholder={labelDefault}
-            value={draft}
-            onChange={(e) => {
-                setDraft(e.currentTarget.value);
-                commitLabel(e.currentTarget.value);
-            }}
+            defaultValue={labelOverride ?? labelDefault}
+            onChange={(e) =>
+                updateColumnProperty(fieldId, { name: e.currentTarget.value })
+            }
         />
     );
 };

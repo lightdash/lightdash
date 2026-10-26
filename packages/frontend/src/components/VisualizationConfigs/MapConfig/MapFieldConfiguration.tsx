@@ -47,6 +47,7 @@ const MapFieldConfigurationInput: FC<MapFieldConfigurationInputProps> = ({
             placeholder={defaultLabel}
             defaultValue={initialValue}
             onChange={(e) => commitLabel(e.currentTarget.value)}
+            onBlur={() => commitLabel.flush()}
         />
     );
 };

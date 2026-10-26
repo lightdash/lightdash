@@ -53,10 +53,7 @@ export type SankeyChartConfig = SankeyEditorActions & {
     data: SankeySeriesDataPoint;
 };
 
-/**
- * Everything the sankey chart body reads, re-rendering on every edit.
- * Config panels select the fields they show instead.
- */
+/** Everything the sankey chart body reads, re-rendering on every edit; config panels select their own fields */
 const useSankeyChartConfig = (): SankeyChartConfig => {
     const { nodeAlign, orient, nodeLayout } =
         useVisualizationSelector(selectSankeyEditor);

@@ -34,7 +34,6 @@ import {
     useVisualizationInputSelector,
 } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
-import { useDebouncedDraft } from '../common/useDebouncedDraft';
 import MapFieldConfiguration from './MapFieldConfiguration';
 
 // Get the label and description for the region field based on map type
@@ -94,24 +93,6 @@ const findLocationField = (
         if (match) return match[0];
     }
     return undefined;
-};
-
-const CustomGeoJsonUrlInput: FC<{
-    url: string | undefined;
-    onCommit: (url: string | undefined) => void;
-}> = ({ url, onCommit }) => {
-    const [draft, setDraft] = useDebouncedDraft(url ?? '', (value) =>
-        onCommit(value || undefined),
-    );
-    return (
-        <TextInput
-            size="xs"
-            label="Custom GeoJSON URL"
-            placeholder="https://example.com/map.geojson"
-            value={draft}
-            onChange={(e) => setDraft(e.currentTarget.value)}
-        />
-    );
 };
 
 export const Layout: FC = memo(() => {
@@ -412,9 +393,17 @@ export const Layout: FC = memo(() => {
 
                             {isCustomMap ? (
                                 <>
-                                    <CustomGeoJsonUrlInput
-                                        url={customGeoJsonUrl}
-                                        onCommit={setCustomGeoJsonUrl}
+                                    <TextInput
+                                        size="xs"
+                                        label="Custom GeoJSON URL"
+                                        placeholder="https://example.com/map.geojson"
+                                        value={customGeoJsonUrl || ''}
+                                        onChange={(e) =>
+                                            setCustomGeoJsonUrl(
+                                                e.currentTarget.value ||
+                                                    undefined,
+                                            )
+                                        }
                                     />
                                     <Select
                                         label="Map join field"

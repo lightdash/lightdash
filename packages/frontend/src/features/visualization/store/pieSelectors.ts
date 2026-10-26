@@ -1,10 +1,4 @@
 import {
-    getDimensionsFromItemsMap,
-    getMetricsFromItemsMap,
-    getTableCalculationsFromItemsMap,
-    isNumericItem,
-} from '@lightdash/common';
-import {
     buildValidPieConfig,
     getPieChartData,
     getPieGroupColorDefaults,
@@ -17,37 +11,22 @@ import {
 import { createSelector } from '@reduxjs/toolkit';
 import isEqual from 'lodash/isEqual';
 import { type VisualizationStoreState } from '.';
-import { type VisualizationInputs } from './inputs';
+import {
+    inputsColorPalette,
+    inputsHasNoResults,
+    inputsItemsMap,
+    inputsParameters,
+    inputsResults,
+    inputsUnsavedMetricQuery,
+    keepIfEqual,
+    selectDimensionsAndNumericMetrics,
+} from './inputSelectors';
 import { selectPendingFieldIds } from './pendingFields';
 import { selectPieEditor } from './selectors';
 
 type State = VisualizationStoreState;
-const inputsItemsMap = (_: State, inputs: VisualizationInputs) =>
-    inputs.itemsMap;
-const inputsResults = (_: State, inputs: VisualizationInputs) =>
-    inputs.resultsData;
-const inputsIsLoading = (_: State, inputs: VisualizationInputs) =>
-    !inputs.resultsData;
-const inputsParameters = (_: State, inputs: VisualizationInputs) =>
-    inputs.parameters;
-const inputsColorPalette = (_: State, inputs: VisualizationInputs) =>
-    inputs.colorPalette;
 
-// A repaired list that equals the stored one keeps the stored identity
-const keepIfEqual = <T>(stored: T, repaired: T) =>
-    isEqual(stored, repaired) ? stored : repaired;
-
-export const selectPieFieldPools = createSelector(
-    [inputsItemsMap],
-    (itemsMap) => {
-        const metrics = getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem);
-        const tableCalculations = getTableCalculationsFromItemsMap(itemsMap);
-        return {
-            dimensions: getDimensionsFromItemsMap(itemsMap ?? {}),
-            numericMetrics: { ...metrics, ...tableCalculations },
-        };
-    },
-);
+export const selectPieFieldPools = selectDimensionsAndNumericMetrics;
 const selectDimensionIds = createSelector([selectPieFieldPools], (pools) =>
     Object.keys(pools.dimensions),
 );
@@ -57,7 +36,7 @@ const selectNumericMetricIds = createSelector([selectPieFieldPools], (pools) =>
 // The pools only know the last run; a field just added from the config
 // picker must not be dropped before its results land.
 const selectPendingDimensionIds = createSelector(
-    [(_: State, inputs: VisualizationInputs) => inputs.unsavedMetricQuery],
+    [inputsUnsavedMetricQuery],
     (unsavedMetricQuery) => new Set(unsavedMetricQuery?.dimensions),
 );
 
@@ -67,7 +46,7 @@ export const selectPieGroupFieldIds = createSelector(
         (state: State) => selectPieEditor(state).groupFieldIds,
         selectDimensionIds,
         selectPendingDimensionIds,
-        inputsIsLoading,
+        inputsHasNoResults,
     ],
     (groupFieldIds, dimensionIds, pendingDimensionIds, isLoading) =>
         isLoading || dimensionIds.length === 0
@@ -88,7 +67,7 @@ export const selectPieMetricId = createSelector(
         (state: State) => selectPieEditor(state).metricId,
         selectNumericMetricIds,
         selectPendingFieldIds,
-        inputsIsLoading,
+        inputsHasNoResults,
     ],
     (metricId, allNumericMetricIds, pendingMetricIds, isLoading) =>
         isLoading || allNumericMetricIds.length === 0
@@ -123,8 +102,11 @@ export const selectPieData = createSelector(
         }),
 );
 
-export const selectPieGroupLabels = createSelector([selectPieData], (data) =>
-    data.map(({ name }) => name),
+// Equal labels keep their identity, so a replaced but equal results object keeps the config
+export const selectPieGroupLabels = createSelector(
+    [selectPieData],
+    (data) => data.map(({ name }) => name),
+    { memoizeOptions: { resultEqualityCheck: isEqual } },
 );
 
 export const selectPieSortedGroupLabels = createSelector(

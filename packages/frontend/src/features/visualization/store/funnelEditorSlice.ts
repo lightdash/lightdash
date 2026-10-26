@@ -50,18 +50,16 @@ const withoutBlankOverride = (
 
 const funnelEditorSlice = createSlice({
     name: 'funnelEditor',
-    initialState: null as FunnelEditorState | null,
+    initialState: buildFunnelEditorState(undefined),
     reducers: {
         ...editorCaseReducers<FunnelEditorState>(),
         labelsMerge: (state, action: PayloadAction<FunnelChart['labels']>) => {
-            if (!state) return;
             state.labels = { ...state.labels, ...action.payload };
         },
         labelOverrideChange: (
             state,
             action: PayloadAction<{ key: string; value: string }>,
         ) => {
-            if (!state) return;
             state.labelOverrides = withoutBlankOverride(
                 state.labelOverrides,
                 action.payload.key,
@@ -72,7 +70,6 @@ const funnelEditorSlice = createSlice({
             state,
             action: PayloadAction<{ key: string; value: string }>,
         ) => {
-            if (!state) return;
             state.colorOverrides = withoutBlankOverride(
                 state.colorOverrides,
                 action.payload.key,
@@ -80,13 +77,12 @@ const funnelEditorSlice = createSlice({
             );
         },
         toggleShowLegend: (state) => {
-            if (!state) return;
             state.showLegend = !state.showLegend;
         },
     },
     extraReducers: (builder) =>
         builder.addCase(tableCalculationsRenamed, (state, { payload }) => {
-            if (!state?.fieldId) return;
+            if (!state.fieldId) return;
             state.fieldId = renamedFieldId(state.fieldId, payload);
         }),
 });

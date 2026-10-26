@@ -8,17 +8,15 @@ import {
 } from '@lightdash/visualization/editor';
 import { createSelector } from '@reduxjs/toolkit';
 import { type VisualizationStoreState } from '.';
-import { type VisualizationInputs } from './inputs';
+import {
+    inputsHasNoResults,
+    inputsItemsMap,
+    inputsResults,
+} from './inputSelectors';
 import { keepPendingField, selectPendingFieldIds } from './pendingFields';
 import { selectSankeyEditor } from './selectors';
 
 type State = VisualizationStoreState;
-const inputsItemsMap = (_: State, inputs: VisualizationInputs) =>
-    inputs.itemsMap;
-const inputsResults = (_: State, inputs: VisualizationInputs) =>
-    inputs.resultsData;
-const inputsIsLoading = (_: State, inputs: VisualizationInputs) =>
-    !inputs.resultsData;
 const storedSourceFieldId = (state: State) =>
     selectSankeyEditor(state).sourceFieldId;
 
@@ -39,7 +37,7 @@ export const selectSankeySourceFieldId = createSelector(
     [
         storedSourceFieldId,
         selectDimensionIds,
-        inputsIsLoading,
+        inputsHasNoResults,
         selectPendingFieldIds,
     ],
     (sourceFieldId, dimensionIds, isLoading, pendingFieldIds) =>
@@ -58,7 +56,7 @@ export const selectSankeyTargetFieldId = createSelector(
         (state: State) => selectSankeyEditor(state).targetFieldId,
         storedSourceFieldId,
         selectDimensionIds,
-        inputsIsLoading,
+        inputsHasNoResults,
         selectPendingFieldIds,
     ],
     (targetFieldId, sourceFieldId, dimensionIds, isLoading, pendingFieldIds) =>
@@ -77,7 +75,7 @@ export const selectSankeyMetricFieldId = createSelector(
     [
         (state: State) => selectSankeyEditor(state).metricFieldId,
         selectNumericFieldIds,
-        inputsIsLoading,
+        inputsHasNoResults,
         selectPendingFieldIds,
     ],
     (metricFieldId, numericFieldIds, isLoading, pendingFieldIds) =>

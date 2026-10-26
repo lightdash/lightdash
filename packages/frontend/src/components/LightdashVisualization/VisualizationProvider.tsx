@@ -115,9 +115,7 @@ export type VisualizationProviderProps = {
     dateZoom?: DateZoom;
 };
 
-// The editor's config is the store's; the provider's `chartConfig` prop only
-// seeds it. Custom and data app viz editors own no chart config of their own,
-// so they keep the prop.
+// The store's config is the edited one; custom and data app viz still expose the prop here
 const editedChartConfig = (
     visualizationConfig: VisualizationConfig,
 ): ChartConfig | null => {
@@ -204,12 +202,7 @@ const VisualizationConfigProvider: FC<VisualizationConfigProviderProps> = ({
         [visualizationConfig],
     );
     const chartConfig = edited ?? propChartConfig;
-    /**
-     * Shared colors for series, resolved by `@lightdash/visualization`. On
-     * dashboards the fallback colors must be passed in the computedSeries
-     * prop; on charts they are computed from the chartConfig. Colors are
-     * pre-calculated per-series, and re-calculated when series change.
-     */
+    // Dashboards pass fallback colours in computedSeries; charts compute them from chartConfig
     const { getSeriesColor } = useMemo(
         () =>
             createSeriesColorResolver({
@@ -318,9 +311,7 @@ const VisualizationProvider: FC<
         itemsMap,
         hasConfigOwner: onChartConfigChange !== undefined,
     };
-    // Editor state for the mounted chart. A chart type switch, or a custom
-    // spec arriving for an untouched editor, starts a new store seeded from
-    // the config; the cartesian intent the gallery set carries over.
+    // A type switch or a first custom spec starts a new store, carrying the cartesian intent
     const [stores, setStores] = useState<{
         type: ChartType;
         store: VisualizationStore;

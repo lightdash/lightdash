@@ -201,13 +201,13 @@ export const ConfigTabs: React.FC = memo(() => {
             );
     }, [fields]);
 
-    // The editor keeps a draft; the store sees it debounced
+    // The editor keeps a draft; the store sees it debounced, and on blur
     const [editorConfig, setEditorConfigDraft] = useState<string>(
         () => selectCustomEditor(store.getState()).visSpec ?? '',
     );
     const commitVisSpec = useDebouncedCallback(
         (spec: string) => setVisSpec(spec),
-        { delay: 500, flushOnUnmount: true },
+        { delay: 1000, flushOnUnmount: true },
     );
     const setEditorConfig = useCallback(
         (spec: string) => {
@@ -448,6 +448,7 @@ export const ConfigTabs: React.FC = memo(() => {
                                 );
                     }}
                     defaultLanguage="json"
+                    wrapperProps={{ onBlur: () => commitVisSpec.flush() }}
                     options={monacoOptions}
                     value={editorConfig}
                     onChange={(config) => {

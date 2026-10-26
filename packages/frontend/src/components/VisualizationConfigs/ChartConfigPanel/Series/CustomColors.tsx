@@ -18,7 +18,7 @@ import {
     SegmentedControl,
 } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { DebouncedColorSelector } from '../common/DebouncedColorSelector';
+import ColorSelector from '../../ColorSelector';
 import { ChartConditionalFormatting } from './ChartConditionalFormatting';
 
 const MAX_COLOR_VALUES = 50;
@@ -169,7 +169,7 @@ export const CustomColors: FC<Props> = ({
                     <>
                         <Divider />
                         <Group gap="xs" wrap="nowrap">
-                            <DebouncedColorSelector
+                            <ColorSelector
                                 color={setAllColor ?? colorPalette[0]}
                                 swatches={colorPalette}
                                 onColorChange={handleSetAllCategoryColors}
@@ -195,7 +195,7 @@ export const CustomColors: FC<Props> = ({
                                                 gap="xs"
                                                 wrap="nowrap"
                                             >
-                                                <DebouncedColorSelector
+                                                <ColorSelector
                                                     color={
                                                         categoryColorOverrides[
                                                             rawKey

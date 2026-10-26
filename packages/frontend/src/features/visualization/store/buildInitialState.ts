@@ -6,7 +6,10 @@ import {
 import { type VisualizationStoreState } from '.';
 import { buildBigNumberEditorState } from './bigNumberEditorSlice';
 import { buildCartesianEditorState } from './cartesianEditorSlice';
-import { type CartesianIntentState } from './cartesianIntentSlice';
+import {
+    initialCartesianIntent,
+    type CartesianIntentState,
+} from './cartesianIntentSlice';
 import { buildCustomEditorState } from './customEditorSlice';
 import { buildDataAppVizEditorState } from './dataAppVizEditorSlice';
 import { type EditorSeedContext } from './editorSlice';
@@ -17,20 +20,6 @@ import { buildPieEditorState } from './pieEditorSlice';
 import { buildSankeyEditorState } from './sankeyEditorSlice';
 import { buildTableEditorState } from './tableEditorSlice';
 import { buildTreemapEditorState } from './treemapEditorSlice';
-
-const emptyEditors = {
-    bigNumberEditor: null,
-    cartesianEditor: null,
-    customEditor: null,
-    dataAppVizEditor: null,
-    funnelEditor: null,
-    gaugeEditor: null,
-    mapEditor: null,
-    pieEditor: null,
-    sankeyEditor: null,
-    tableEditor: null,
-    treemapEditor: null,
-} satisfies Omit<VisualizationStoreState, 'cartesianIntent'>;
 
 const seedEditor = (
     chartConfig: ChartConfig,
@@ -78,17 +67,13 @@ const seedEditor = (
     }
 };
 
-/** Seeds the mounted chart type's editor from its config; the others stay empty */
+/** Seeds the mounted chart type's editor from its config; the others keep their slice defaults */
 export const buildInitialVisualizationState = (
     chartConfig: ChartConfig,
     seed: EditorSeedContext,
-    cartesianIntent: CartesianIntentState = {
-        stacking: undefined,
-        cartesianType: undefined,
-    },
-): VisualizationStoreState => ({
+    cartesianIntent: CartesianIntentState = initialCartesianIntent,
+): Partial<VisualizationStoreState> => ({
     cartesianIntent,
-    ...emptyEditors,
     ...seedEditor(chartConfig, seed),
 });
 
@@ -98,5 +83,5 @@ export const isFirstCustomSpec = (
     chartConfig: ChartConfig,
 ) =>
     chartConfig.type === ChartType.CUSTOM &&
-    state.customEditor?.visSpec === undefined &&
+    state.customEditor.visSpec === undefined &&
     buildCustomEditorState(chartConfig.config).visSpec !== undefined;

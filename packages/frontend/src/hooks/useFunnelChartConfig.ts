@@ -76,10 +76,7 @@ export type FunnelChartConfig = FunnelEditorActions & {
     data: FunnelSeriesDataPoint[];
 };
 
-/**
- * Everything the funnel body and context menu read, re-rendering on every
- * edit. Config panels select the fields they show instead.
- */
+/** Everything the funnel body and context menu reads, re-rendering on every edit; config panels select their own fields */
 const useFunnelChartConfig = (): FunnelChartConfig => {
     const editor = useVisualizationSelector(selectFunnelEditor);
     const fieldId = useVisualizationInputSelector(selectFunnelFieldId);

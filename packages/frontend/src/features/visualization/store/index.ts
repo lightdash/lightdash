@@ -1,4 +1,4 @@
-import { configureStore } from '@reduxjs/toolkit';
+import { combineReducers, configureStore } from '@reduxjs/toolkit';
 import {
     bigNumberEditorReducer,
     type BigNumberEditorState,
@@ -38,40 +38,38 @@ import {
 
 export type VisualizationStoreState = {
     cartesianIntent: CartesianIntentState;
-    bigNumberEditor: BigNumberEditorState | null;
-    cartesianEditor: CartesianEditorState | null;
-    customEditor: CustomEditorState | null;
-    dataAppVizEditor: DataAppVizEditorState | null;
-    funnelEditor: FunnelEditorState | null;
-    gaugeEditor: GaugeEditorState | null;
-    mapEditor: MapEditorState | null;
-    pieEditor: PieEditorState | null;
-    sankeyEditor: SankeyEditorState | null;
-    tableEditor: TableEditorState | null;
-    treemapEditor: TreemapEditorState | null;
+    bigNumberEditor: BigNumberEditorState;
+    cartesianEditor: CartesianEditorState;
+    customEditor: CustomEditorState;
+    dataAppVizEditor: DataAppVizEditorState;
+    funnelEditor: FunnelEditorState;
+    gaugeEditor: GaugeEditorState;
+    mapEditor: MapEditorState;
+    pieEditor: PieEditorState;
+    sankeyEditor: SankeyEditorState;
+    tableEditor: TableEditorState;
+    treemapEditor: TreemapEditorState;
 };
+
+const visualizationReducer = combineReducers({
+    cartesianIntent: cartesianIntentReducer,
+    bigNumberEditor: bigNumberEditorReducer,
+    cartesianEditor: cartesianEditorReducer,
+    customEditor: customEditorReducer,
+    dataAppVizEditor: dataAppVizEditorReducer,
+    funnelEditor: funnelEditorReducer,
+    gaugeEditor: gaugeEditorReducer,
+    mapEditor: mapEditorReducer,
+    pieEditor: pieEditorReducer,
+    sankeyEditor: sankeyEditorReducer,
+    tableEditor: tableEditorReducer,
+    treemapEditor: treemapEditorReducer,
+});
 
 // One store per mounted VisualizationProvider and chart type
 export const createVisualizationStore = (
-    preloadedState: VisualizationStoreState,
-) =>
-    configureStore({
-        preloadedState,
-        reducer: {
-            cartesianIntent: cartesianIntentReducer,
-            bigNumberEditor: bigNumberEditorReducer,
-            cartesianEditor: cartesianEditorReducer,
-            customEditor: customEditorReducer,
-            dataAppVizEditor: dataAppVizEditorReducer,
-            funnelEditor: funnelEditorReducer,
-            gaugeEditor: gaugeEditorReducer,
-            mapEditor: mapEditorReducer,
-            pieEditor: pieEditorReducer,
-            sankeyEditor: sankeyEditorReducer,
-            tableEditor: tableEditorReducer,
-            treemapEditor: treemapEditorReducer,
-        },
-    });
+    preloadedState: Partial<VisualizationStoreState>,
+) => configureStore({ reducer: visualizationReducer, preloadedState });
 
 export type VisualizationStore = ReturnType<typeof createVisualizationStore>;
 export type VisualizationStoreDispatch = VisualizationStore['dispatch'];
@@ -109,6 +107,7 @@ export { treemapEditorActions } from './treemapEditorSlice';
 export type { TreemapEditorState } from './treemapEditorSlice';
 export type { VisualizationInputs } from './inputs';
 export * from './hooks';
+export { selectNumericMetricsAndTableCalculations } from './inputSelectors';
 export * from './pieSelectors';
 export * from './bigNumberSelectors';
 export * from './cartesianSelectors';

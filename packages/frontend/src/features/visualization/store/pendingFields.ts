@@ -1,15 +1,11 @@
 import { getPendingFieldIds } from '@lightdash/visualization/editor';
 import { createSelector } from '@reduxjs/toolkit';
-import { type VisualizationStoreState } from '.';
-import { type VisualizationInputs } from './inputs';
+import { inputsUnsavedMetricQuery } from './inputSelectors';
 
 const noPendingFields = new Set<string>();
 /** Fields of the query being edited that the last run may not have yet, e.g. a just-renamed table calculation */
 export const selectPendingFieldIds = createSelector(
-    [
-        (_: VisualizationStoreState, inputs: VisualizationInputs) =>
-            inputs.unsavedMetricQuery,
-    ],
+    [inputsUnsavedMetricQuery],
     (unsavedMetricQuery) =>
         getPendingFieldIds(unsavedMetricQuery) ?? noPendingFields,
 );

@@ -1,4 +1,9 @@
-import { DimensionType, FieldType, type ItemsMap } from '@lightdash/common';
+import {
+    DimensionType,
+    FieldType,
+    type ItemsMap,
+    type TableChart,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { buildTableEditorState } from './tableEditorSlice';
 
@@ -22,6 +27,16 @@ describe('buildTableEditorState show table names seed', () => {
                 { showTableNames: false },
                 { itemsMap, hasConfigOwner: false },
             ).showTableNames,
+        ).toBe(false);
+    });
+
+    it('reads a null saved value as off', () => {
+        const savedFromYaml: TableChart = JSON.parse('{"showTableNames":null}');
+        expect(
+            buildTableEditorState(savedFromYaml, {
+                itemsMap,
+                hasConfigOwner: false,
+            }).showTableNames,
         ).toBe(false);
     });
 

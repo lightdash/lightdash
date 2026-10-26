@@ -16,30 +16,22 @@ import {
     shouldDisableSubtotals,
 } from '@lightdash/visualization/editor';
 import { createSelector } from '@reduxjs/toolkit';
-import isEqual from 'lodash/isEqual';
 import { type VisualizationStoreState } from '.';
 import { type VisualizationInputs } from './inputs';
+import {
+    inputsColumnOrder,
+    inputsItemsMap,
+    inputsMetricQuery,
+    inputsPivotDimensions,
+    inputsPivotRows,
+    inputsResults,
+    keepIfEqual,
+} from './inputSelectors';
 import { selectTableEditor } from './selectors';
 
 export type { TableToggleKey } from './tableEditorSlice';
 
 type State = VisualizationStoreState;
-const inputsItemsMap = (_: State, inputs: VisualizationInputs) =>
-    inputs.itemsMap;
-const inputsResults = (_: State, inputs: VisualizationInputs) =>
-    inputs.resultsData;
-const inputsMetricQuery = (_: State, inputs: VisualizationInputs) =>
-    inputs.resultsData?.metricQuery;
-const inputsColumnOrder = (_: State, inputs: VisualizationInputs) =>
-    inputs.columnOrder;
-const inputsPivotDimensions = (_: State, inputs: VisualizationInputs) =>
-    inputs.pivotDimensions;
-const inputsPivotRows = (_: State, inputs: VisualizationInputs) =>
-    inputs.initialPivotRows;
-
-// A repaired value that equals the stored one keeps the stored identity
-const keepIfEqual = <T>(stored: T, repaired: T) =>
-    isEqual(stored, repaired) ? stored : repaired;
 
 export const selectTableSelectedItemIds = createSelector(
     [inputsMetricQuery],

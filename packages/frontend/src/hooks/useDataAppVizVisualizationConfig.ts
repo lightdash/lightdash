@@ -53,18 +53,14 @@ export interface DataAppVizVisualizationConfigAndData {
     ) => void;
 }
 
-// The selected viz, its field mapping and the options the user changed;
-// each applied edit is pushed up through `onConfigChange` as it happens.
-// Only options the user changed are stored; declared defaults resolve at render time.
+// Stores only the options the user changed and pushes each applied edit through `onConfigChange`
 const useDataAppVizVisualizationConfig = (
     initialChartConfig: DataAppVizChart | undefined,
     onConfigChange?: (config: SelectedDataAppViz | null) => void,
 ): DataAppVizVisualizationConfigAndData => {
     const config = useVisualizationSelector(selectDataAppVizValidConfig);
 
-    // Read the committed config from the store so setters called within a
-    // single commit (debounced controls all flushing as the panel closes)
-    // build on each other instead of on a stale render closure.
+    // Reads the store, so setters flushed in one commit build on each other, not a stale closure
     const store = useVisualizationStore();
     const readConfig = useCallback(
         () => selectDataAppVizValidConfig(store.getState()),
@@ -108,9 +104,7 @@ const useDataAppVizVisualizationConfig = (
         store,
     ]);
 
-    // Pushes the edit up only when the reducer applied it. A debounced control
-    // flushes from its unmount cleanup, by which point the edit can belong to
-    // a config that no longer owns the chart.
+    // Pushes only applied edits; an unmount flush can target a config that no longer owns the chart
     const commit = useCallback(
         (action: UnknownAction) => {
             if (!isOwningChartConfigRef.current) return;

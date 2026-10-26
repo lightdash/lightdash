@@ -24,13 +24,13 @@ export type TableEditorState = {
     columnProperties: Record<string, ColumnProperties>;
 };
 
-// No saved flag: on when the loaded items have a table; off when an owner
-// mounts before the items load; otherwise derived once they load.
+// Unsaved: the items' default when loaded, off for an owner, else derived once they load
 const seedShowTableNames = (
     saved: boolean | undefined,
     seed: EditorSeedContext,
 ): boolean | undefined => {
-    if (saved !== undefined) return saved;
+    // A YAML or JSON null reads as off, as before the store
+    if (saved !== undefined) return saved ?? false;
     if (seed.itemsMap !== undefined)
         return shouldDefaultShowTableNames(seed.itemsMap);
     return seed.hasConfigOwner ? false : undefined;
@@ -68,11 +68,10 @@ export type TableToggleKey =
 
 const tableEditorSlice = createSlice({
     name: 'tableEditor',
-    initialState: null as TableEditorState | null,
+    initialState: buildTableEditorState(undefined),
     reducers: {
         ...editorCaseReducers<TableEditorState>(),
         toggle: (state, action: PayloadAction<TableToggleKey>) => {
-            if (!state) return;
             state[action.payload] = !state[action.payload];
         },
         updateColumnProperty: (
@@ -82,7 +81,6 @@ const tableEditorSlice = createSlice({
                 properties: Partial<ColumnProperties>;
             }>,
         ) => {
-            if (!state) return;
             const { field, properties } = action.payload;
             state.columnProperties[field] = {
                 ...state.columnProperties[field],

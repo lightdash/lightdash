@@ -1,11 +1,12 @@
 import { ChartType } from '@lightdash/common';
-import { memo, useEffect, useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import { selectTreemapFieldPools } from '../../features/visualization/store';
 import useTreemapChartConfig from '../../hooks/useTreemapChartConfig';
 import {
     type VisualizationConfigTreemap,
     type VisualizationConfigTreemapProps,
 } from './types';
+import { useEmitChartConfig } from './useEmitChartConfig';
 import { useVisualizationInputSelector } from './useVisualizationContext';
 
 const VisualizationConfigTreemap: FC<VisualizationConfigTreemapProps> = ({
@@ -17,13 +18,11 @@ const VisualizationConfigTreemap: FC<VisualizationConfigTreemapProps> = ({
     );
     const treemapConfig = useTreemapChartConfig();
 
-    useEffect(() => {
-        if (!onChartConfigChange) return;
-        onChartConfigChange({
-            type: ChartType.TREEMAP,
-            config: treemapConfig.validConfig,
-        });
-    }, [treemapConfig.validConfig, onChartConfigChange]);
+    useEmitChartConfig(
+        ChartType.TREEMAP,
+        treemapConfig.validConfig,
+        onChartConfigChange,
+    );
 
     const visualizationConfig: VisualizationConfigTreemap = useMemo(
         () => ({
@@ -38,5 +37,5 @@ const VisualizationConfigTreemap: FC<VisualizationConfigTreemapProps> = ({
     return children({ visualizationConfig });
 };
 
-// Memoised so a resize skips it; an echoed config still re-renders it (new chartConfig in its props)
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
 export default memo(VisualizationConfigTreemap);

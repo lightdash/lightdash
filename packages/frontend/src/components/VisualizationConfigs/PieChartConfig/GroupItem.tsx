@@ -19,7 +19,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { forwardRef } from 'react';
 import MantineIcon from '../../common/MantineIcon';
-import { DebouncedColorSelector } from '../ChartConfigPanel/common/DebouncedColorSelector';
+import ColorSelector from '../ColorSelector';
 import { EditableText } from '../common/EditableText';
 import { GrabIcon } from '../common/GrabIcon';
 import { useDebouncedDraft } from '../common/useDebouncedDraft';
@@ -89,9 +89,19 @@ export const GroupItem = forwardRef<
         ref,
     ) => {
         const [opened, { toggle }] = useDisclosure();
-        const [draftLabel, setDraftLabel] = useDebouncedDraft(
+        const [draftLabel, setDraftLabel, flushLabel] = useDebouncedDraft(
             label ?? '',
             (value) => onLabelChange(defaultLabel, value),
+            { delay: 500 },
+        );
+        const [draftColor, setDraftColor, flushColor] = useDebouncedDraft<
+            string | undefined
+        >(
+            color,
+            (value) => {
+                if (value) onColorChange(defaultLabel, value);
+            },
+            { delay: 500 },
         );
 
         return (
@@ -101,13 +111,12 @@ export const GroupItem = forwardRef<
                         <GrabIcon dragHandleProps={dragHandleProps} />
                     )}
 
-                    <DebouncedColorSelector
-                        color={color}
+                    <ColorSelector
+                        color={draftColor}
                         defaultColor={defaultColor}
                         swatches={swatches}
-                        onColorChange={(newColor) =>
-                            onColorChange(defaultLabel, newColor)
-                        }
+                        onColorChange={setDraftColor}
+                        onClose={flushColor}
                     />
                     <Box flex={1}>
                         <EditableText
@@ -117,6 +126,7 @@ export const GroupItem = forwardRef<
                             onChange={(event) =>
                                 setDraftLabel(event.currentTarget.value)
                             }
+                            onBlur={flushLabel}
                         />
                     </Box>
 

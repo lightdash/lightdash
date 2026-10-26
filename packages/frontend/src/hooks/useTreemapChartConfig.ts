@@ -100,11 +100,7 @@ export type TreemapChartConfig = TreemapEditorActions & {
     data: TreemapNode[];
 };
 
-/**
- * Everything the treemap chart body reads, re-rendering on every edit.
- * Config panels select the fields they show instead. The subtotals the
- * parent nodes need are server state, so they are fetched here.
- */
+/** Everything the treemap body reads, re-rendering on every edit; fetches the parents' subtotals */
 const useTreemapChartConfig = (): TreemapChartConfig => {
     const projectUuid = useProjectUuid();
     const { resultsData } = useVisualizationInputs();

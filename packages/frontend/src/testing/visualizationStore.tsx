@@ -10,7 +10,7 @@ import {
 } from '../features/visualization/store';
 import { VisualizationStoreTestProvider } from './VisualizationStoreTestProvider';
 
-const defaultInputs: VisualizationState = {
+export const defaultVisualizationInputs: VisualizationState = {
     resultsData: undefined,
     itemsMap: undefined,
     colorPalette: [],
@@ -28,17 +28,16 @@ const defaultInputs: VisualizationState = {
     hasExplorerStore: true,
 };
 
-/**
- * A `renderHook` wrapper with a fresh visualization store seeded from a chart
- * config the way the provider seeds it, and the inputs the hooks read.
- * `hasConfigOwner` seeds as a provider with an `onChartConfigChange` would.
- */
+/** A `renderHook` wrapper seeding a fresh store as the provider would; `hasConfigOwner` mimics an owner */
 export const withVisualizationStore = (
     chartConfig: ChartConfig,
     inputs: Partial<VisualizationState> = {},
     { hasConfigOwner = false }: { hasConfigOwner?: boolean } = {},
 ): FC<PropsWithChildren> => {
-    const state: VisualizationState = { ...defaultInputs, ...inputs };
+    const state: VisualizationState = {
+        ...defaultVisualizationInputs,
+        ...inputs,
+    };
     const store = createVisualizationStore(
         buildInitialVisualizationState(chartConfig, {
             itemsMap: state.itemsMap,

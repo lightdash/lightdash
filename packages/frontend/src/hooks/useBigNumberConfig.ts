@@ -85,10 +85,7 @@ export const useBigNumberEditorActions = (): BigNumberEditorActions => {
     );
 };
 
-/**
- * Everything the big number body and context menu read, re-rendering on
- * every edit. Config panels select the fields they show instead.
- */
+/** Everything the big number body and context menu reads, re-rendering on every edit; config panels select their own fields */
 const useBigNumberConfig = () => {
     const { itemsMap } = useVisualizationInputs();
     const editor = useVisualizationSelector(selectBigNumberEditor);

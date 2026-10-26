@@ -9,21 +9,14 @@ import { useTreemapEditorActions } from '../../../hooks/useTreemapChartConfig';
 import MantineIcon from '../../common/MantineIcon';
 import { NumberInput } from '../../common/NumberInput';
 import { Config } from '../common/Config';
-import { useDebouncedDraft } from '../common/useDebouncedDraft';
 
 export const Display: React.FC = () => {
     const { setVisibleMin, setLeafDepth } = useTreemapEditorActions();
-    const [visibleMin, onVisibleMinChange] = useDebouncedDraft(
-        useVisualizationSelector(
-            (state) => selectTreemapEditor(state).visibleMin,
-        ),
-        setVisibleMin,
+    const visibleMin = useVisualizationSelector(
+        (state) => selectTreemapEditor(state).visibleMin,
     );
-    const [leafDepth, onLeafDepthChange] = useDebouncedDraft(
-        useVisualizationSelector(
-            (state) => selectTreemapEditor(state).leafDepth,
-        ),
-        setLeafDepth,
+    const leafDepth = useVisualizationSelector(
+        (state) => selectTreemapEditor(state).leafDepth,
     );
 
     return (
@@ -48,7 +41,7 @@ export const Display: React.FC = () => {
                             value={visibleMin}
                             onChange={(value) => {
                                 if (typeof value === 'number')
-                                    onVisibleMinChange(value);
+                                    setVisibleMin(value);
                             }}
                             min={0}
                             step={500}
@@ -73,7 +66,7 @@ export const Display: React.FC = () => {
                             value={leafDepth}
                             onChange={(value) => {
                                 if (typeof value === 'number')
-                                    onLeafDepthChange(value);
+                                    setLeafDepth(value);
                             }}
                             min={1}
                             placeholder="No limit"

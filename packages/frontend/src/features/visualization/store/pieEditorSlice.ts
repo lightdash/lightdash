@@ -66,7 +66,7 @@ const withoutOverride = (
 
 const pieEditorSlice = createSlice({
     name: 'pieEditor',
-    initialState: null as PieEditorState | null,
+    initialState: buildPieEditorState(undefined),
     reducers: {
         ...editorCaseReducers<PieEditorState>(),
         // Group edits start from the list the panel shows, which may be a repaired fallback
@@ -78,7 +78,6 @@ const pieEditorSlice = createSlice({
                 dimensionIds: string[];
             }>,
         ) => {
-            if (!state) return;
             const { current, dimensionId, dimensionIds } = action.payload;
             const nextId =
                 dimensionId ?? dimensionIds.find((id) => !current.includes(id));
@@ -93,7 +92,6 @@ const pieEditorSlice = createSlice({
                 newDimensionId: string;
             }>,
         ) => {
-            if (!state) return;
             const next = new Set(action.payload.current);
             next.delete(action.payload.prevDimensionId);
             next.add(action.payload.newDimensionId);
@@ -103,13 +101,11 @@ const pieEditorSlice = createSlice({
             state,
             action: PayloadAction<{ current: string[]; dimensionId: string }>,
         ) => {
-            if (!state) return;
             state.groupFieldIds = action.payload.current.filter(
                 (id) => id !== action.payload.dimensionId,
             );
         },
         toggleDonut: (state) => {
-            if (!state) return;
             state.isDonut = !state.isDonut;
         },
         // Changing a chart-wide value option drops the per-group overrides of it
@@ -117,7 +113,6 @@ const pieEditorSlice = createSlice({
             state,
             action: PayloadAction<PieChartValueOptions['valueLabel']>,
         ) => {
-            if (!state) return;
             state.valueLabel = action.payload;
             state.groupValueOptionOverrides = mapValues(
                 state.groupValueOptionOverrides,
@@ -125,7 +120,6 @@ const pieEditorSlice = createSlice({
             );
         },
         toggleShowValue: (state) => {
-            if (!state) return;
             state.showValue = !state.showValue;
             state.groupValueOptionOverrides = mapValues(
                 state.groupValueOptionOverrides,
@@ -133,7 +127,6 @@ const pieEditorSlice = createSlice({
             );
         },
         toggleShowPercentage: (state) => {
-            if (!state) return;
             state.showPercentage = !state.showPercentage;
             state.groupValueOptionOverrides = mapValues(
                 state.groupValueOptionOverrides,
@@ -144,7 +137,6 @@ const pieEditorSlice = createSlice({
             state,
             action: PayloadAction<string | undefined>,
         ) => {
-            if (!state) return;
             state.valueLabelColor = action.payload;
             state.groupValueOptionOverrides = mapValues(
                 state.groupValueOptionOverrides,
@@ -155,7 +147,6 @@ const pieEditorSlice = createSlice({
             state,
             action: PayloadAction<{ key: string; value: string }>,
         ) => {
-            if (!state) return;
             state.groupLabelOverrides = withoutOverride(
                 state.groupLabelOverrides,
                 action.payload.key,
@@ -166,7 +157,6 @@ const pieEditorSlice = createSlice({
             state,
             action: PayloadAction<{ key: string; value: string }>,
         ) => {
-            if (!state) return;
             state.groupColorOverrides = withoutOverride(
                 state.groupColorOverrides,
                 action.payload.key,
@@ -180,7 +170,6 @@ const pieEditorSlice = createSlice({
                 value: Partial<PieChartValueOptions>;
             }>,
         ) => {
-            if (!state) return;
             const { label, value } = action.payload;
             const nextOptions = omitBy(
                 { ...state.groupValueOptionOverrides[label], ...value },
@@ -200,7 +189,6 @@ const pieEditorSlice = createSlice({
                 groupLabels: string[];
             }>,
         ) => {
-            if (!state) return;
             const { oldIndex, newIndex, groupLabels } = action.payload;
             const filteredOverrides = state.groupSortOverrides.filter((label) =>
                 groupLabels.includes(label),
@@ -215,13 +203,12 @@ const pieEditorSlice = createSlice({
             state.groupSortOverrides = newSort;
         },
         toggleShowLegend: (state) => {
-            if (!state) return;
             state.showLegend = !state.showLegend;
         },
     },
     extraReducers: (builder) =>
         builder.addCase(tableCalculationsRenamed, (state, { payload }) => {
-            if (!state?.metricId) return;
+            if (!state.metricId) return;
             state.metricId = renamedFieldId(state.metricId, payload);
         }),
 });

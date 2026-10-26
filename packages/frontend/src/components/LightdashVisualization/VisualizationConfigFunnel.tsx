@@ -1,11 +1,12 @@
 import { ChartType } from '@lightdash/common';
-import { memo, useEffect, useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import { selectFunnelFieldPools } from '../../features/visualization/store';
 import useFunnelChartConfig from '../../hooks/useFunnelChartConfig';
 import {
     type VisualizationConfigFunnelProps,
     type VisualizationConfigFunnelType,
 } from './types';
+import { useEmitChartConfig } from './useEmitChartConfig';
 import { useVisualizationInputSelector } from './useVisualizationContext';
 
 const VisualizationConfigFunnel: FC<VisualizationConfigFunnelProps> = ({
@@ -17,13 +18,11 @@ const VisualizationConfigFunnel: FC<VisualizationConfigFunnelProps> = ({
     );
     const funnelChartConfig = useFunnelChartConfig();
 
-    useEffect(() => {
-        if (!onChartConfigChange) return;
-        onChartConfigChange({
-            type: ChartType.FUNNEL,
-            config: funnelChartConfig.validConfig,
-        });
-    }, [funnelChartConfig.validConfig, onChartConfigChange]);
+    useEmitChartConfig(
+        ChartType.FUNNEL,
+        funnelChartConfig.validConfig,
+        onChartConfigChange,
+    );
 
     const visualizationConfig: VisualizationConfigFunnelType = useMemo(
         () => ({
@@ -38,5 +37,5 @@ const VisualizationConfigFunnel: FC<VisualizationConfigFunnelProps> = ({
     return children({ visualizationConfig });
 };
 
-// Skips provider re-renders that keep its props (a resize); an echoed config changes them
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
 export default memo(VisualizationConfigFunnel);

@@ -36,6 +36,8 @@ interface Props {
     // custom value to clear.
     onColorReset?: () => void;
     resetLabel?: string;
+    // Called when the picker closes, e.g. to flush a debounced commit
+    onClose?: () => void;
     ariaLabel?: string;
     readOnly?: boolean;
     colorSwatchProps?: Omit<ColorSwatchProps, 'color'>;
@@ -50,6 +52,7 @@ const ColorSelector: FC<Props> = ({
     onColorChange,
     onColorReset,
     resetLabel = 'Reset color',
+    onClose,
     ariaLabel = 'Select color',
     readOnly = false,
     colorSwatchProps,
@@ -111,6 +114,7 @@ const ColorSelector: FC<Props> = ({
         <Popover
             withArrow
             opened={isOpen}
+            onClose={onClose}
             onChange={(opened) => {
                 setIsOpen(opened);
                 setDraftColor(opened ? (color ?? '') : undefined);

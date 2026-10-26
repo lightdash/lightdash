@@ -8,7 +8,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { Box, Group } from '@mantine/core';
-import { useDebouncedCallback, useDebouncedState } from '@mantine/hooks';
+import { useDebouncedState } from '@mantine/hooks';
 import { IconPalette } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -17,10 +17,10 @@ import {
     useSeriesColor,
     useVisualizationInputs,
 } from '../../../LightdashVisualization/useVisualizationContext';
+import ColorSelector from '../../ColorSelector';
 import { Config } from '../../common/Config';
 import { EditableText } from '../../common/EditableText';
 import { GrabIcon } from '../../common/GrabIcon';
-import { DebouncedColorSelector } from '../common/DebouncedColorSelector';
 import {
     SeriesDepthControl,
     type SeriesDrawOrderControl,
@@ -60,10 +60,6 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
         getSingleSeries(series)?.name || getItemLabelWithoutTableName(item),
         500,
     );
-    const commitName = useDebouncedCallback(
-        (name: string) => updateSingleSeries({ ...series, name }),
-        { delay: 300, flushOnUnmount: true },
-    );
 
     return (
         <Config>
@@ -82,7 +78,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                     {showColorPickerIcon ? (
                         <MantineIcon size="sm" icon={IconPalette} />
                     ) : (
-                        <DebouncedColorSelector
+                        <ColorSelector
                             color={getSeriesColor(series)}
                             swatches={colorPalette}
                             withAlpha
@@ -113,7 +109,10 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
                                 placeholder={getItemLabelWithoutTableName(item)}
                                 onChange={(event) => {
                                     setValue(event.currentTarget.value);
-                                    commitName(event.currentTarget.value);
+                                    updateSingleSeries({
+                                        ...series,
+                                        name: event.currentTarget.value,
+                                    });
                                 }}
                             />
                         </Box>

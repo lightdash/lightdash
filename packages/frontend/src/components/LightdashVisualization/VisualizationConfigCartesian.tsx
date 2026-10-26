@@ -1,5 +1,5 @@
 import { ChartType } from '@lightdash/common';
-import { memo, useEffect, useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import useCartesianChartConfig, {
     useCartesianEditorSync,
 } from '../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -7,6 +7,7 @@ import {
     type VisualizationCartesianConfigProps,
     type VisualizationConfigCartesian,
 } from './types';
+import { useEmitChartConfig } from './useEmitChartConfig';
 
 const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     onChartConfigChange,
@@ -15,13 +16,11 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     useCartesianEditorSync();
     const cartesianConfig = useCartesianChartConfig();
 
-    useEffect(() => {
-        if (!onChartConfigChange) return;
-        onChartConfigChange({
-            type: ChartType.CARTESIAN,
-            config: cartesianConfig.validConfig,
-        });
-    }, [cartesianConfig.validConfig, onChartConfigChange]);
+    useEmitChartConfig(
+        ChartType.CARTESIAN,
+        cartesianConfig.validConfig,
+        onChartConfigChange,
+    );
 
     const visualizationConfig: VisualizationConfigCartesian = useMemo(
         () => ({
@@ -34,5 +33,5 @@ const VisualizationCartesianConfig: FC<VisualizationCartesianConfigProps> = ({
     return children({ visualizationConfig });
 };
 
-// Memoised so a resize skips it; an echoed config changes its callbacks and still re-renders it
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
 export default memo(VisualizationCartesianConfig);

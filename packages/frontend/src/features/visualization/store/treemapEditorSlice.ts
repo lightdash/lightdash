@@ -44,12 +44,11 @@ export const buildTreemapEditorState = (
 
 const treemapEditorSlice = createSlice({
     name: 'treemapEditor',
-    initialState: null as TreemapEditorState | null,
+    initialState: buildTreemapEditorState(undefined),
     reducers: {
         ...editorCaseReducers<TreemapEditorState>(),
         // Turning dynamic colors off drops the color metric
         toggleDynamicColors: (state) => {
-            if (!state) return;
             if (state.useDynamicColors) state.colorMetricId = null;
             state.useDynamicColors = !state.useDynamicColors;
         },
@@ -62,7 +61,6 @@ const treemapEditorSlice = createSlice({
                 groupFieldIds: string[];
             }>,
         ) => {
-            if (!state) return;
             const { groupFieldIds, ...move } = action.payload;
             state.groupFieldIds = reorderTreemapGroupFieldIds(
                 groupFieldIds,
@@ -72,7 +70,6 @@ const treemapEditorSlice = createSlice({
     },
     extraReducers: (builder) =>
         builder.addCase(tableCalculationsRenamed, (state, { payload }) => {
-            if (!state) return;
             const rename = (id: string | null) =>
                 id === null ? null : renamedFieldId(id, payload);
             state.sizeMetricId = rename(state.sizeMetricId);

@@ -6,11 +6,7 @@ import {
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
-/**
- * The chart's binding to a picked viz; null while it points at none.
- * Deliberately not Required<DataAppVizChart>: the as-code-only
- * dataAppVizSlug never participates in runtime state.
- */
+/** The chart's binding to a picked viz, without the as-code-only dataAppVizSlug */
 export type SelectedDataAppViz = Pick<
     DataAppVizChart,
     'dataAppVizUuid' | 'dataAppVizVersion' | 'fieldMapping'
@@ -53,18 +49,16 @@ export const buildDataAppVizEditorState = (
 // Each edit assigns a fresh config so the hook can tell an applied edit from an ignored one by reference.
 const dataAppVizEditorSlice = createSlice({
     name: 'dataAppVizEditor',
-    initialState: null as DataAppVizEditorState | null,
+    initialState: buildDataAppVizEditorState(undefined),
     reducers: {
         // The owner switched the viz from outside the editor (the chart gallery)
         externalConfigReceived: (
             state,
             action: PayloadAction<DataAppVizChart | undefined>,
         ) => {
-            if (!state) return;
             state.config = toSelectedDataAppViz(action.payload);
         },
         vizCleared: (state) => {
-            if (!state) return;
             state.config = null;
         },
         vizSelected: (
@@ -74,15 +68,12 @@ const dataAppVizEditorSlice = createSlice({
                 fieldMapping: DataAppVizFieldMapping;
             }>,
         ) => {
-            if (!state) return;
-            // Options are viz-specific, so switching viz drops them rather
-            // than carrying over now-meaningless names. The mapping is
-            // replaced wholesale by the caller's auto-binding.
+            // Options are viz-specific, so they reset; the caller's auto-binding replaces the mapping
             state.config = { ...action.payload, optionValues: {} };
         },
         versionSet: (state, action: PayloadAction<number>) => {
-            const selected = state?.config;
-            if (!state || !selected) return;
+            const selected = state.config;
+            if (!selected) return;
             if (selected.dataAppVizVersion === action.payload) return;
             state.config = { ...selected, dataAppVizVersion: action.payload };
         },
@@ -94,8 +85,8 @@ const dataAppVizEditorSlice = createSlice({
                 optionValues: DataAppVizOptionValues;
             }>,
         ) => {
-            const selected = state?.config;
-            if (!state || !selected) return;
+            const selected = state.config;
+            if (!selected) return;
             state.config = { ...selected, ...action.payload };
         },
         fieldSet: (
@@ -105,8 +96,8 @@ const dataAppVizEditorSlice = createSlice({
                 fieldId: string | string[] | null;
             }>,
         ) => {
-            const selected = state?.config;
-            if (!state || !selected) return;
+            const selected = state.config;
+            if (!selected) return;
             const { fieldName, fieldId } = action.payload;
             const fieldMapping = { ...selected.fieldMapping };
             if (fieldId === null) {
@@ -124,8 +115,8 @@ const dataAppVizEditorSlice = createSlice({
                 value: DataAppVizOptionValue;
             }>,
         ) => {
-            const selected = state?.config;
-            if (!state || !selected) return;
+            const selected = state.config;
+            if (!selected) return;
             const { dataAppVizUuid, optionName, value } = action.payload;
             if (dataAppVizUuid !== selected.dataAppVizUuid) return;
             state.config = {

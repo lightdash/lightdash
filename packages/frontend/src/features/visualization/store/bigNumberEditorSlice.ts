@@ -46,7 +46,7 @@ export const buildBigNumberEditorState = (
 
 const bigNumberEditorSlice = createSlice({
     name: 'bigNumberEditor',
-    initialState: null as BigNumberEditorState | null,
+    initialState: buildBigNumberEditorState(undefined),
     reducers: {
         ...editorCaseReducers<BigNumberEditorState>(),
         // The value's style also resets the comparison's
@@ -54,35 +54,28 @@ const bigNumberEditorSlice = createSlice({
             state,
             action: PayloadAction<CompactOrAlias | undefined>,
         ) => {
-            if (!state) return;
             state.bigNumberStyle = action.payload;
             state.bigNumberComparisonStyle = action.payload;
         },
         toggleShowBigNumberLabel: (state) => {
-            if (!state) return;
             state.showBigNumberLabel = !state.showBigNumberLabel;
         },
         toggleShowTableNamesInLabel: (state) => {
-            if (!state) return;
             state.showTableNamesInLabel = !state.showTableNamesInLabel;
         },
         toggleShowComparison: (state) => {
-            if (!state) return;
             state.showComparison = !state.showComparison;
         },
         toggleFlipColors: (state) => {
-            if (!state) return;
             state.flipColors = !state.flipColors;
         },
         conditionalFormattingAdd: (
             state,
             action: PayloadAction<ConditionalFormattingConfig>,
         ) => {
-            if (!state) return;
             state.conditionalFormattings.push(action.payload);
         },
         conditionalFormattingRemove: (state, action: PayloadAction<number>) => {
-            if (!state) return;
             state.conditionalFormattings.splice(action.payload, 1);
         },
         conditionalFormattingChange: (
@@ -92,14 +85,13 @@ const bigNumberEditorSlice = createSlice({
                 config: ConditionalFormattingConfig;
             }>,
         ) => {
-            if (!state) return;
             state.conditionalFormattings[action.payload.index] =
                 action.payload.config;
         },
     },
     extraReducers: (builder) =>
         builder.addCase(tableCalculationsRenamed, (state, { payload }) => {
-            if (!state?.selectedField) return;
+            if (!state.selectedField) return;
             state.selectedField = renamedFieldId(state.selectedField, payload);
         }),
 });

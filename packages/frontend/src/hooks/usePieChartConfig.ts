@@ -26,6 +26,7 @@ import {
     selectPieValueOptionOverrideFlags,
     useEditorFieldSetter,
     useVisualizationDispatch,
+    useVisualizationSelector,
     useVisualizationStore,
     type PieEditorState,
 } from '../features/visualization/store';
@@ -152,12 +153,9 @@ export type PieChartConfig = PieEditorActions & {
     data: PieChartDataPoint[];
 };
 
-/**
- * Everything the pie chart body and context menu read, re-rendering on
- * every edit. Config panels select the fields they show instead.
- */
+/** Everything the pie chart body and context menu reads, re-rendering on every edit; config panels select their own fields */
 const usePieChartConfig = (): PieChartConfig => {
-    const editor = useVisualizationInputSelector(selectPieEditor);
+    const editor = useVisualizationSelector(selectPieEditor);
     const groupFieldIds = useVisualizationInputSelector(selectPieGroupFieldIds);
     const metricId = useVisualizationInputSelector(selectPieMetricId);
     const selectedMetric = useVisualizationInputSelector(

@@ -6,10 +6,16 @@ import {
     results,
 } from '../components/LightdashVisualization/visualizationDifferential.fixtures';
 import {
+    buildInitialVisualizationState,
+    createVisualizationStore,
+    selectPieValidConfig,
     tableCalculationsRenamed,
     useVisualizationDispatch,
 } from '../features/visualization/store';
-import { withVisualizationStore } from '../testing/visualizationStore';
+import {
+    defaultVisualizationInputs,
+    withVisualizationStore,
+} from '../testing/visualizationStore';
 import usePieChartConfig from './usePieChartConfig';
 
 const render = (config: PieChart, itemsMap: ItemsMap = fields) =>
@@ -33,6 +39,26 @@ const withMarginRenamedTo = (name: string): ItemsMap => {
 };
 
 describe('usePieChartConfig', () => {
+    it('keeps the config when the results are replaced by equal ones', () => {
+        const state = createVisualizationStore(
+            buildInitialVisualizationState(
+                { type: ChartType.PIE, config: {} },
+                { itemsMap: fields, hasConfigOwner: false },
+            ),
+        ).getState();
+        const inputs = {
+            ...defaultVisualizationInputs,
+            itemsMap: fields,
+            resultsData: results,
+        };
+        expect(
+            selectPieValidConfig(state, {
+                ...inputs,
+                resultsData: { ...results },
+            }),
+        ).toBe(selectPieValidConfig(state, inputs));
+    });
+
     it.each([
         ['no saved group', {}],
         ['a saved group that is gone', { groupFieldIds: ['missing_dim'] }],

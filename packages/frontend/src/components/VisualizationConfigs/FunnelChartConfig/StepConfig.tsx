@@ -3,7 +3,7 @@
 
 import { Box, Group, Stack } from '@mantine/core';
 import { type FC } from 'react';
-import { DebouncedColorSelector } from '../ChartConfigPanel/common/DebouncedColorSelector';
+import ColorSelector from '../ColorSelector';
 import { EditableText } from '../common/EditableText';
 import { useDebouncedDraft } from '../common/useDebouncedDraft';
 
@@ -36,14 +36,15 @@ export const StepConfig: FC<StepConfigProps> = ({
     ...rest
 }) => {
     const stepId = id ?? defaultLabel;
-    const [draftLabel, setDraftLabel] = useDebouncedDraft(
+    const [draftLabel, setDraftLabel, flushLabel] = useDebouncedDraft(
         label ?? '',
         (value) => onLabelChange(stepId, value),
+        { delay: 500 },
     );
     return (
         <Stack gap="xs" {...rest}>
             <Group gap="xs">
-                <DebouncedColorSelector
+                <ColorSelector
                     color={color}
                     defaultColor={defaultColor}
                     swatches={swatches}
@@ -59,6 +60,7 @@ export const StepConfig: FC<StepConfigProps> = ({
                         onChange={(event) =>
                             setDraftLabel(event.currentTarget.value)
                         }
+                        onBlur={flushLabel}
                     />
                 </Box>
             </Group>

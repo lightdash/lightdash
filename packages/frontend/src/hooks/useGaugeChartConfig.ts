@@ -51,10 +51,7 @@ export const useGaugeEditorActions = (): GaugeEditorActions => {
     );
 };
 
-/**
- * Everything the gauge chart body reads, re-rendering on every edit.
- * Config panels select the fields they show instead.
- */
+/** Everything the gauge chart body reads, re-rendering on every edit; config panels select their own fields */
 const useGaugeChartConfig = () => {
     const editor = useVisualizationSelector(selectGaugeEditor);
     const selectedField = useVisualizationInputSelector(

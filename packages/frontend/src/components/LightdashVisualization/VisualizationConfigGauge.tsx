@@ -1,11 +1,12 @@
 import { ChartType } from '@lightdash/common';
-import { memo, useEffect, useMemo, type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import { selectNumericMetricsAndTableCalculations } from '../../features/visualization/store';
 import useGaugeChartConfig from '../../hooks/useGaugeChartConfig';
 import {
     type VisualizationConfigGauge,
     type VisualizationConfigGaugeProps,
 } from './types';
+import { useEmitChartConfig } from './useEmitChartConfig';
 import { useVisualizationInputSelector } from './useVisualizationContext';
 
 const VisualizationGaugeConfig: FC<VisualizationConfigGaugeProps> = ({
@@ -17,13 +18,11 @@ const VisualizationGaugeConfig: FC<VisualizationConfigGaugeProps> = ({
     );
     const gaugeConfig = useGaugeChartConfig();
 
-    useEffect(() => {
-        if (!onChartConfigChange) return;
-        onChartConfigChange({
-            type: ChartType.GAUGE,
-            config: gaugeConfig.validConfig,
-        });
-    }, [gaugeConfig.validConfig, onChartConfigChange]);
+    useEmitChartConfig(
+        ChartType.GAUGE,
+        gaugeConfig.validConfig,
+        onChartConfigChange,
+    );
 
     const visualizationConfig: VisualizationConfigGauge = useMemo(
         () => ({
@@ -37,5 +36,5 @@ const VisualizationGaugeConfig: FC<VisualizationConfigGaugeProps> = ({
     return children({ visualizationConfig });
 };
 
-// Skips provider re-renders that keep its props (a resize); an echoed config changes them
+// Memoised so a resize skips it; an echoed config re-renders it, the memoised aggregate spares consumers
 export default memo(VisualizationGaugeConfig);

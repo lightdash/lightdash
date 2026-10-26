@@ -267,6 +267,7 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                     className={styles.editorWrapper}
                     radius="md"
                     pos="relative"
+                    onBlur={() => commitTooltip.flush()}
                 >
                     {tooltipValue?.length === 0 ? (
                         <Text
