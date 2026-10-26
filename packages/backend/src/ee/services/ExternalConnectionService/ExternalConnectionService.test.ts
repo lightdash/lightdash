@@ -201,6 +201,9 @@ function buildService(opts: {
             invalidateAccessToken: vi.fn(),
         } as never,
         orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: true }),
+        } as never,
     });
     return { service, model, orgAiCopilotConfigResolver };
 }
@@ -294,7 +297,9 @@ describe('ExternalConnectionService reads (view, not manage)', () => {
         const result = await service.list(viewerAccount, projectUuid);
 
         expect(result).toEqual([listedConnection]);
-        expect(model.list).toHaveBeenCalledWith(projectUuid, orgUuid);
+        expect(model.list).toHaveBeenCalledWith(projectUuid, orgUuid, {
+            kind: null,
+        });
     });
 
     it('only lists connections enabled for builder linking to a builder', async () => {

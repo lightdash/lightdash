@@ -1,15 +1,19 @@
 import { subject } from '@casl/ability';
 import {
+    ApiConnectorType,
     assertRegisteredAccount,
+    assertUnreachable,
     DATA_APP_VIZ_TEMPLATE,
     EXTERNAL_CONNECTION_DEFAULTS,
     EXTERNAL_CONNECTION_IDENTITY_HEADERS,
+    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     isJwtUser,
     MissingConfigError,
     NotFoundError,
     ParameterError,
+    TimeoutError,
     TooManyRequestsError,
     type Account,
     type ApiSaveExternalConnectionSampleRequest,
@@ -30,7 +34,13 @@ import { performance } from 'node:perf_hooks';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { toSessionUser } from '../../../auth/account';
 import { type AppModel } from '../../../models/AppModel';
+import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { BaseService } from '../../../services/BaseService';
+import type {
+    ApiConnector,
+    ApiConnectorTransport,
+} from '../../../services/QuerySourceService/api/ApiConnector';
+import { PostHogConnector } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import {
     normalizeCredentialUrlHref,
@@ -53,6 +63,10 @@ import {
 } from '../AppGenerateService/appAuthz';
 import { type AppGenerateService } from '../AppGenerateService/AppGenerateService';
 import { type EmbedService } from '../EmbedService/EmbedService';
+import {
+    validateApiSourceConnection,
+    withApiSourceAccessRules,
+} from './apiSourceConnection';
 import { getExternalConnectionSubject } from './externalConnectionAuthz';
 import {
     validateExternalConnectionConfig,
@@ -84,6 +98,7 @@ type ExternalConnectionServiceArguments = {
     googleTokenProvider: GoogleServiceAccountTokenProvider;
     oauthClientCredentialsTokenProvider: OAuthClientCredentialsTokenProvider;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class ExternalConnectionService extends BaseService {
@@ -107,6 +122,8 @@ export class ExternalConnectionService extends BaseService {
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     private static readonly DEFAULT_RATE_LIMIT_PER_MINUTE = 60;
 
     private static readonly MAX_PROPOSAL_DESCRIPTION_CHARS = 2_000;
@@ -124,6 +141,24 @@ export class ExternalConnectionService extends BaseService {
         this.oauthClientCredentialsTokenProvider =
             args.oauthClientCredentialsTokenProvider;
         this.orgAiCopilotConfigResolver = args.orgAiCopilotConfigResolver;
+        this.featureFlagModel = args.featureFlagModel;
+    }
+
+    private async assertLiveSourcesEnabled(
+        account: RegisteredAccount,
+    ): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ApiQuerySources,
+        });
+        if (!enabled) {
+            throw new ForbiddenError(
+                'Live data sources are not enabled for this organization',
+            );
+        }
     }
 
     private assertCanManage(
@@ -240,15 +275,18 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
-        validateExternalConnectionConfig(data, Boolean(data.secret));
-        if (data.type === 'google_service_account' && data.secret) {
-            validateServiceAccountKeyfile(data.secret);
+        if (data.apiSource) await this.assertLiveSourcesEnabled(account);
+        const config = withApiSourceAccessRules(data);
+        validateExternalConnectionConfig(config, Boolean(config.secret));
+        validateApiSourceConnection(config);
+        if (config.type === 'google_service_account' && config.secret) {
+            validateServiceAccountKeyfile(config.secret);
         }
         const connection = await this.externalConnectionModel.create(
             projectUuid,
             organizationUuid,
             account.user.id,
-            data,
+            config,
             options,
         );
         this.analytics.track({
@@ -296,6 +334,7 @@ export class ExternalConnectionService extends BaseService {
         const connections = await this.externalConnectionModel.list(
             projectUuid,
             organizationUuid,
+            { kind: null },
         );
         return connections.filter((connection) =>
             ability.can('view', getExternalConnectionSubject(connection)),
@@ -461,7 +500,7 @@ export class ExternalConnectionService extends BaseService {
             existing.oauthClientAuthMethod,
         );
 
-        const resolved: ExternalConnection = {
+        const resolved = withApiSourceAccessRules<ExternalConnection>({
             ...existing,
             name: data.name ?? existing.name,
             type: resultingType,
@@ -502,10 +541,15 @@ export class ExternalConnectionService extends BaseService {
                 data.customHeaders !== undefined
                     ? data.customHeaders
                     : existing.customHeaders,
+            apiSource:
+                data.apiSource !== undefined
+                    ? data.apiSource
+                    : (existing.apiSource ?? null),
             hasSecret: hasSecretAfter,
-        };
+        });
 
         validateExternalConnectionConfig(resolved, hasSecretAfter);
+        validateApiSourceConnection(resolved);
         // A secret-less same-type update keeps the already-validated stored
         // keyfile; only a replacement keyfile needs parsing again.
         if (resultingType === 'google_service_account' && data.secret) {
@@ -526,6 +570,20 @@ export class ExternalConnectionService extends BaseService {
             projectUuid,
             connectionUuid,
         );
+        const isLiveSource = existing.kind === 'live_source';
+        if (isLiveSource || data.apiSource) {
+            await this.assertLiveSourcesEnabled(account);
+        }
+        if (!isLiveSource && data.apiSource) {
+            throw new ParameterError(
+                'A data app connection cannot become a live data source',
+            );
+        }
+        if (isLiveSource && data.apiSource === null) {
+            throw new ParameterError(
+                'A live data source cannot drop its connector settings',
+            );
+        }
         const resolved = ExternalConnectionService.resolveConnectionUpdate(
             existing,
             data,
@@ -543,6 +601,15 @@ export class ExternalConnectionService extends BaseService {
                 oauthTokenUrl: resolved.oauthTokenUrl,
                 oauthClientId: resolved.oauthClientId,
                 oauthClientAuthMethod: resolved.oauthClientAuthMethod,
+                ...(resolved.apiSource
+                    ? {
+                          allowedPathPrefixes: resolved.allowedPathPrefixes,
+                          allowedMethods: resolved.allowedMethods,
+                          allowedContentTypes: resolved.allowedContentTypes,
+                          timeoutMs: resolved.timeoutMs,
+                          responseMaxBytes: resolved.responseMaxBytes,
+                      }
+                    : {}),
             },
         );
         this.analytics.track({
@@ -764,6 +831,102 @@ export class ExternalConnectionService extends BaseService {
             );
         }
         return app;
+    }
+
+    /** Connections a live api query can use: api sources the account may view. */
+    async listApiSourceConnections(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ): Promise<ExternalConnection[]> {
+        const organizationUuid =
+            await this.externalConnectionModel.getProjectOrganizationUuid(
+                projectUuid,
+            );
+        if (!organizationUuid) {
+            throw new NotFoundError('Project not found');
+        }
+        const ability = this.createAuditedAbility(account);
+        const connections = await this.externalConnectionModel.list(
+            projectUuid,
+            organizationUuid,
+            { kind: 'live_source' },
+        );
+        return connections.filter(
+            (connection) =>
+                connection.apiSource &&
+                ability.can('view', getExternalConnectionSubject(connection)),
+        );
+    }
+
+    /**
+     * A connector for a live api query. The stored secret never leaves this
+     * service: requests go through the same guarded fetch as the app proxy.
+     */
+    async getApiConnector(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionUuid: string,
+    ): Promise<ApiConnector> {
+        const connection = await this.getViewableConnection(
+            account,
+            projectUuid,
+            connectionUuid,
+        );
+        const { apiSource } = connection;
+        if (connection.kind !== 'live_source' || !apiSource) {
+            throw new ParameterError(
+                `Connection "${connection.name}" is not set up for live queries`,
+            );
+        }
+        const send: ApiConnectorTransport = async (request) => {
+            const secret =
+                await this.externalConnectionModel.getDecryptedSecret(
+                    connection.externalConnectionUuid,
+                );
+            try {
+                const { response } = await this.executeExternalFetch(
+                    connection,
+                    secret,
+                    {
+                        method: request.method,
+                        path: request.path,
+                        body: request.body,
+                    },
+                    { account, appUuid: null },
+                );
+                return {
+                    status: response.status,
+                    headers: response.headers,
+                    body: response.body,
+                };
+            } catch (error) {
+                if (error instanceof SecureFetchError) {
+                    if (error.reason === 'timeout') {
+                        throw new TimeoutError(
+                            `Connection "${connection.name}" did not respond within ${
+                                connection.timeoutMs / 1000
+                            } seconds`,
+                        );
+                    }
+                    throw new ParameterError(
+                        `Request to connection "${connection.name}" was blocked (${error.reason})`,
+                    );
+                }
+                throw error;
+            }
+        };
+        switch (apiSource.connector) {
+            case ApiConnectorType.POSTHOG:
+                return new PostHogConnector({
+                    projectId: apiSource.projectId,
+                    send,
+                });
+            default:
+                return assertUnreachable(
+                    apiSource.connector,
+                    `Unknown api connector: ${apiSource.connector}`,
+                );
+        }
     }
 
     async proxyFetch(
@@ -1517,7 +1680,7 @@ export class ExternalConnectionService extends BaseService {
     async testConfig(
         account: RegisteredAccount,
         projectUuid: string,
-        data: CreateExternalConnection,
+        requested: CreateExternalConnection,
         req: {
             method?: ExternalConnectionMethod;
             path: string;
@@ -1535,10 +1698,13 @@ export class ExternalConnectionService extends BaseService {
             throw new NotFoundError('Project not found');
         }
         this.assertCanManage(account, projectUuid, organizationUuid);
+        if (requested.apiSource) await this.assertLiveSourcesEnabled(account);
 
         // Same validation create runs, so a test can never exercise a config we
         // would refuse to store (SSRF guard, auth invariants, bounded limits).
+        const data = withApiSourceAccessRules(requested);
         validateExternalConnectionConfig(data, Boolean(data.secret));
+        validateApiSourceConnection(data);
         if (data.type === 'google_service_account' && data.secret) {
             validateServiceAccountKeyfile(data.secret);
         }
@@ -1583,6 +1749,7 @@ export class ExternalConnectionService extends BaseService {
             oauthClientId: data.oauthClientId ?? null,
             oauthClientAuthMethod: data.oauthClientAuthMethod ?? null,
             customHeaders: data.customHeaders ?? null,
+            apiSource: data.apiSource ?? null,
             hasSecret: Boolean(data.secret),
             createdByUserUuid: null,
             updatedByUserUuid: null,

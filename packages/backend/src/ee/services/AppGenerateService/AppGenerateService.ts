@@ -2117,6 +2117,7 @@ export class AppGenerateService extends BaseService {
         const connections = await this.externalConnectionModel.list(
             projectUuid,
             organizationUuid,
+            { kind: 'data_app' },
         );
         return connections.filter((connection) =>
             ability.can('view', getExternalConnectionSubject(connection)),

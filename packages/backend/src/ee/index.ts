@@ -1127,6 +1127,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     externalConnectionModel:
                         models.getExternalConnectionModel(),
                     appModel: models.getAppModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                     appGenerateService:
                         repository.getAppGenerateService<AppGenerateService>(),
                     embedService: repository.getEmbedService<EmbedService>(),
