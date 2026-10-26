@@ -31,14 +31,20 @@ type ResolveOptions = {
     getExplore: (exploreName: string) => Explore;
 };
 
-const invalid = (
+type NodeProperty = 'filters' | 'customMetrics' | 'periodComparisons';
+
+type Resolved<T> = { value: T; errors: string[] };
+
+const describeErrors = (
     node: ToolComposerSemanticLayerNode,
-    property: 'filters' | 'customMetrics' | 'periodComparisons',
-    message: string,
-) =>
-    new AiAgentValidatorError(
-        `Invalid ${property} on semanticLayer node "${node.nodeId}": ${message}`,
-    );
+    property: NodeProperty,
+    errors: string[],
+): string[] =>
+    errors.length > 0
+        ? [
+              `Invalid ${property} on semanticLayer node "${node.nodeId}": ${errors.join(' ')}`,
+          ]
+        : [];
 
 const MAX_LISTED_DIMENSIONS = 50;
 
@@ -46,8 +52,9 @@ const describeTableDimensions = (explore: Explore, table: string): string => {
     const ids = getDimensions(explore)
         .filter((dimension) => dimension.table === table && !dimension.hidden)
         .map(getItemId);
-    if (ids.length === 0)
+    if (!explore.tables[table])
         return `Explore "${explore.name}" has no table "${table}".`;
+    if (ids.length === 0) return `Table "${table}" has no visible dimensions.`;
     const more =
         ids.length > MAX_LISTED_DIMENSIONS
             ? ` and ${ids.length - MAX_LISTED_DIMENSIONS} more`
@@ -151,7 +158,7 @@ const toAdditionalMetric = (
 const toAdditionalMetrics = (
     node: ToolComposerSemanticLayerNode,
     explore: Explore,
-): AdditionalMetric[] => {
+): Resolved<AdditionalMetric[]> => {
     const exploreFieldIds = new Set(getFields(explore).map(getItemId));
     const errors: string[] = [];
     const additionalMetrics = (node.customMetrics ?? []).flatMap(
@@ -174,10 +181,7 @@ const toAdditionalMetrics = (
             }
         },
     );
-    if (errors.length > 0) {
-        throw invalid(node, 'customMetrics', errors.join(' '));
-    }
-    return additionalMetrics;
+    return { value: additionalMetrics, errors };
 };
 
 const toPeriodComparisonMetric = (
@@ -224,17 +228,27 @@ const toPeriodComparisonMetric = (
         granularity,
         periodOffset,
     }).additionalMetric;
-    return additionalMetric;
+    return baseMetric.percentile !== undefined
+        ? { ...additionalMetric, percentile: baseMetric.percentile }
+        : additionalMetric;
 };
 
 const toPeriodComparisonMetrics = (
     node: ToolComposerSemanticLayerNode,
     explore: Explore,
     customMetrics: AdditionalMetric[],
-): AdditionalMetric[] => {
+): Resolved<AdditionalMetric[]> => {
+    const compiledIds = new Set(customMetrics.map(getItemId));
+    // A custom metric that failed to compile already reports its own error.
+    const failedIds = new Set(
+        (node.customMetrics ?? [])
+            .map(getItemId)
+            .filter((id) => !compiledIds.has(id)),
+    );
     const errors: string[] = [];
     const metrics = (node.periodComparisons ?? []).flatMap(
         (periodComparison) => {
+            if (failedIds.has(periodComparison.metricFieldId)) return [];
             try {
                 return [
                     toPeriodComparisonMetric(
@@ -250,14 +264,14 @@ const toPeriodComparisonMetrics = (
             }
         },
     );
-    if (errors.length > 0) {
-        throw invalid(node, 'periodComparisons', errors.join(' '));
-    }
-    return metrics.filter(
-        (metric, index) =>
-            metrics.findIndex((m) => getItemId(m) === getItemId(metric)) ===
-            index,
-    );
+    return {
+        value: metrics.filter(
+            (metric, index) =>
+                metrics.findIndex((m) => getItemId(m) === getItemId(metric)) ===
+                index,
+        ),
+        errors,
+    };
 };
 
 // runQuery's resolver, so unknown fields come back with suggestions.
@@ -265,21 +279,19 @@ const resolveFilters = (
     node: ToolComposerSemanticLayerNode,
     explore: Explore,
     additionalMetrics: AdditionalMetric[],
-): Filters | null => {
-    if (node.filters === null) return null;
+): Resolved<Filters | null> => {
+    if (node.filters === null) return { value: null, errors: [] };
     const result = resolveExploreFilterExpressions({
         filters: node.filters,
         explore,
         additionalMetrics,
     });
-    if (!result.success) {
-        throw invalid(
-            node,
-            'filters',
-            formatFilterExpressionError(result.error),
-        );
-    }
-    return result.data;
+    return result.success
+        ? { value: result.data, errors: [] }
+        : {
+              value: null,
+              errors: [formatFilterExpressionError(result.error)],
+          };
 };
 
 const resolveSemanticLayerNode = (
@@ -296,17 +308,37 @@ const resolveSemanticLayerNode = (
     }
     const explore = getExplore(node.exploreName);
     const customMetricDefinitions = toAdditionalMetrics(node, explore);
+    const periodComparisonMetrics = toPeriodComparisonMetrics(
+        node,
+        explore,
+        customMetricDefinitions.value,
+    );
     const additionalMetrics = [
-        ...customMetricDefinitions,
-        ...toPeriodComparisonMetrics(node, explore, customMetricDefinitions),
+        ...customMetricDefinitions.value,
+        ...periodComparisonMetrics.value,
     ];
+    const filters = resolveFilters(node, explore, additionalMetrics);
+    const errors = [
+        ...describeErrors(
+            node,
+            'customMetrics',
+            customMetricDefinitions.errors,
+        ),
+        ...describeErrors(
+            node,
+            'periodComparisons',
+            periodComparisonMetrics.errors,
+        ),
+        ...describeErrors(node, 'filters', filters.errors),
+    ];
+    if (errors.length > 0) throw new AiAgentValidatorError(errors.join('\n'));
     return {
         ...rest,
         metrics: expandMetricsWithPopAdditionalMetrics(
             node.metrics,
             additionalMetrics,
         ),
-        filters: resolveFilters(node, explore, additionalMetrics),
+        filters: filters.value,
         additionalMetrics,
     };
 };
