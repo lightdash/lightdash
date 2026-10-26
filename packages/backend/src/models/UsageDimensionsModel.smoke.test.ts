@@ -210,6 +210,42 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             });
         });
 
+        it('keeps inventory pagination scoped across multiple tenant projects', async () => {
+            await db.raw(`
+                INSERT INTO saved_queries VALUES(3000,md5('second project chart')::uuid,md5('same org project')::uuid,3,null,'Second project chart',now(),null);
+                INSERT INTO saved_sql VALUES(md5('second project sql')::uuid,md5('same org project')::uuid,md5('same org space')::uuid,null,'Second project SQL',now(),null);
+                INSERT INTO apps VALUES(md5('second project app')::uuid,md5('same org project')::uuid,md5('same org space')::uuid,'Second project app',now(),null);
+            `);
+            const rows = await read();
+            expect(rows).toHaveLength(4023);
+            for (const name of [
+                'Second project chart',
+                'Second project SQL',
+                'Second project app',
+            ]) {
+                expect(
+                    rows.find((row) => row.content_name === name),
+                ).toMatchObject({
+                    org_id: org,
+                    project_name: 'Same org, different project',
+                    space_name: 'Other project space',
+                });
+            }
+            const empty = [];
+            for await (const line of new UsageDimensionsModel(
+                db,
+                'https://lightdash.example.com',
+            ).getJsonLines(
+                {
+                    organization_id: 999,
+                    organization_uuid: '10000000-0000-0000-0000-000000000999',
+                },
+                'content',
+            ))
+                empty.push(line);
+            expect(empty).toEqual([]);
+        });
+
         it('exports content with extensive dashboard version history within the page deadline', async () => {
             // Every dashboard edit retains its tiles. The latest-version lookup
             // must not rescan all versions once for each historical tile.

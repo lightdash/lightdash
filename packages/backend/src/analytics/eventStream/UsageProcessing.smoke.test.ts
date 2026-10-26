@@ -9,6 +9,7 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { createS3AnalyticsSourceResolver } from '../../services/ProjectService/analyticsProject/S3AnalyticsSource';
 import { createEventStreamWriter } from './createEventStreamWriter';
+import { usageDimensionKey, type UsageDimensionName } from './usageDimensions';
 import { UsageEventsCompactor } from './UsageEventsCompactor';
 
 // Opt-in: isolated local Postgres, native DuckDB and a disposable MinIO bucket.
@@ -31,7 +32,9 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                 pool: { min: 0, max: 2 },
             });
             const storage = {
-                endpoint: 'http://127.0.0.1:9000',
+                endpoint:
+                    process.env.USAGE_EVENTS_S3_ENDPOINT ??
+                    'http://127.0.0.1:9000',
                 bucket: `usage-policy-${randomUUID()}`,
                 region: 'us-east-1',
                 accessKey: process.env.USAGE_EVENTS_S3_ACCESS_KEY!,
@@ -78,15 +81,25 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
             } as unknown as PrometheusMetrics;
             const writer = createEventStreamWriter(config, metrics)!;
             const dimensionsRead: string[] = [];
+            const failedContentOrganizations = new Set<string>();
             const model = {
                 async *getOrganizations() {
                     yield { organization_id: 1, organization_uuid: org };
                     yield { organization_id: 2, organization_uuid: otherOrg };
                 },
-                async *getJsonLines(organization: {
-                    organization_uuid: string;
-                }) {
+                async *getJsonLines(
+                    organization: { organization_uuid: string },
+                    dimension: UsageDimensionName,
+                ) {
                     dimensionsRead.push(organization.organization_uuid);
+                    if (
+                        dimension === 'content' &&
+                        failedContentOrganizations.has(
+                            organization.organization_uuid,
+                        )
+                    ) {
+                        throw new Error('synthetic tenant snapshot timeout');
+                    }
                     yield* [];
                 },
             };
@@ -275,6 +288,55 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                     10022,
                 );
                 expect(await list('events/compaction/')).toHaveLength(0);
+                // A failed tenant snapshot must not stop either tenant's users
+                // stage, even when the failed snapshot has never been published.
+                const retainedSnapshot = await s3.headObject({
+                    Bucket: storage.bucket,
+                    Key: usageDimensionKey(org, 'content'),
+                });
+                await db('feature_flag_overrides')
+                    .where({ organization_uuid: otherOrg })
+                    .update({ enabled: true });
+                failedContentOrganizations.add(org);
+                failedContentOrganizations.add(otherOrg);
+                await putRaw(1);
+                await expect(run()).rejects.toThrow(
+                    '2 refreshes failed; previous snapshots retained',
+                );
+                expect(await total('user_activity', 'sum(event_count)')).toBe(
+                    10023,
+                );
+                const otherReader = new DuckdbWarehouseClient({
+                    type: 'duckdb_parquet',
+                    resolveSource: createS3AnalyticsSourceResolver({
+                        storage,
+                        organizationUuid: otherOrg,
+                    }),
+                });
+                expect(
+                    Number(
+                        (
+                            await otherReader.runQuery(
+                                'SELECT sum(event_count) AS total FROM user_activity',
+                            )
+                        ).rows[0].total,
+                    ),
+                ).toBe(10001);
+                expect(
+                    (
+                        await s3.headObject({
+                            Bucket: storage.bucket,
+                            Key: usageDimensionKey(org, 'content'),
+                        })
+                    ).ETag,
+                ).toBe(retainedSnapshot.ETag);
+                expect(
+                    await list(usageDimensionKey(otherOrg, 'content')),
+                ).toHaveLength(0);
+                failedContentOrganizations.clear();
+                await db('feature_flag_overrides')
+                    .where({ organization_uuid: otherOrg })
+                    .update({ enabled: false });
                 // Disabling processing leaves capture running on the existing writer.
                 await db('feature_flag_overrides')
                     .where({ organization_uuid: org })
@@ -293,7 +355,8 @@ describe.skipIf(!process.env.USAGE_PROCESSING_SMOKE_PGPORT)(
                         eligibleEvents: 10001,
                         captureMs,
                         processingMs,
-                        recoveredTotal: 10022,
+                        recoveredTotal: 10023,
+                        usersPublishedDespiteDimensionFailure: true,
                         flagLookupsPerFlush: 0,
                     })}\n`,
                 );
