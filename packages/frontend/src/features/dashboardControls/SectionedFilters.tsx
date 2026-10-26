@@ -355,7 +355,12 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
                   : { ruleId: overId };
         if ('sectionId' in target && target.sectionId === currentSectionId)
             return;
-        const moved = moveRuleToSection(dashboardFilters, activeId, target);
+        const moved = moveRuleToSection(
+            dashboardFilters,
+            activeId,
+            target,
+            sections,
+        );
         if (moved === dashboardFilters) return;
         setDashboardFilters(moved);
         setHaveFiltersChanged(true);

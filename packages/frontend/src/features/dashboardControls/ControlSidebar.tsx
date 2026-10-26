@@ -78,6 +78,7 @@ import {
     RAIL_LABEL_SELECTOR,
     railRowSelector,
     sectionMenuSelector,
+    sectionStopSelector,
 } from './railSelectors';
 import { SortableRow, type RowSelection } from './SortableRow';
 
@@ -521,7 +522,12 @@ const OpenControlSidebar: FC = () => {
                 : sectionIds.has(overId)
                   ? { sectionId: overId }
                   : { ruleId: overId };
-        const moved = moveRuleToSection(dashboardFilters, activeId, target);
+        const moved = moveRuleToSection(
+            dashboardFilters,
+            activeId,
+            target,
+            controlSections,
+        );
         if (moved === dashboardFilters) return;
         // Dropped from the keyboard, the row takes focus back from its grip
         if (activatorEvent instanceof KeyboardEvent)
@@ -570,16 +576,22 @@ const OpenControlSidebar: FC = () => {
     // moved row takes focus once the footer's menu is gone with the mode
     const moveRules = (ids: string[], sectionId: string | null) => {
         const moved = ids.reduce(
-            (filters, id) => moveRuleToSection(filters, id, { sectionId }),
+            (filters, id) =>
+                moveRuleToSection(filters, id, { sectionId }, controlSections),
             dashboardFilters,
         );
         if (moved !== dashboardFilters) {
             setDashboardFilters(moved);
             setHaveFiltersChanged(true);
         }
-        focusAfter.current = ids[0]
-            ? railRowSelector(ids[0])
-            : RAIL_ADD_SELECTOR;
+        // A collapsed target hides its rows: its header's stop takes focus
+        const target = controlSections.find(({ id }) => id === sectionId);
+        focusAfter.current =
+            target !== undefined && isSectionCollapsed(target)
+                ? sectionStopSelector(target.id)
+                : ids[0]
+                  ? railRowSelector(ids[0])
+                  : RAIL_ADD_SELECTOR;
         setSelectedIds(null);
     };
     const cancelName = () => {
@@ -917,14 +929,25 @@ const OpenControlSidebar: FC = () => {
                         collapse();
                     setSectionCollapsed(section, !isCollapsed);
                 }}
-                onToggleStartCollapsed={() =>
+                onToggleStartCollapsed={() => {
+                    // Ticked on an open section it folds, as the chevron
+                    // does; unticked, the key goes so the bar's dense-section
+                    // default applies again
+                    const collapsed = section.collapsed !== true;
+                    if (
+                        collapsed &&
+                        !isCollapsed &&
+                        holdsEditor &&
+                        !isPlaceholder
+                    )
+                        collapse();
                     dispatch(
                         dashboardEditActions.setControlSectionCollapsed({
                             id: section.id,
-                            collapsed: section.collapsed !== true,
+                            collapsed: collapsed ? true : undefined,
                         }),
-                    )
-                }
+                    );
+                }}
                 onRename={() =>
                     setNameEdit({ id: section.id, isNew: false, moveIds: [] })
                 }

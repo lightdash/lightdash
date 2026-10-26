@@ -362,15 +362,16 @@ describe('tile selectors', () => {
                 { ...sections[1], collapsed: true },
             ]);
             expect(collapsed.haveControlSectionsChanged).toBe(true);
+            // Unticked, the key goes rather than turning false
             expect(
                 reducer(
                     collapsed,
                     actions.setControlSectionCollapsed({
                         id: 'b',
-                        collapsed: false,
+                        collapsed: undefined,
                     }),
-                ).controlSections[1].collapsed,
-            ).toBe(false);
+                ).controlSections[1],
+            ).toEqual(sections[1]);
         });
     });
 });

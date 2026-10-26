@@ -1103,9 +1103,11 @@ the language map, as tab names are.
   `SectionHeader` label row on the card surface, no fill (grip, chevron,
   the name in normal case, "· N filters" in `xs` dimmed right after it, the
   menu with "Add filter" (`openNew(section.id)`), "Rename", "Start
-  collapsed" (a check in its left slot while `section.collapsed`,
-  `setControlSectionCollapsed`) and "Remove section" at the far right on
-  hover) with a
+  collapsed" (a check in its left slot while `section.collapsed`;
+  `setControlSectionCollapsed` writes `true`, or removes the key when
+  unticked so the bar's dense-section default applies again; ticked on an
+  open section holding the expanded filter it calls `collapse()` first, as
+  the chevron does) and "Remove section" at the far right on hover) with a
   hairline above it, none above the first thing in the list
   (`.body > .sectionHeader:first-child`); its rows are indented one `md`
   further than the unsectioned ones (`.sectionRow`, also on a viewer's

@@ -72,6 +72,7 @@ describe('moveRuleToSection', () => {
             filters([rule('d1', 'a'), rule('d2', 'a'), rule('d3', 'a')]),
             'd1',
             { ruleId: 'd3' },
+            sections,
         );
         expect(ids(next).dimensions).toEqual(['d2', 'd3', 'd1']);
         expect(next.dimensions.every((r) => r.sectionId === 'a')).toBe(true);
@@ -82,9 +83,10 @@ describe('moveRuleToSection', () => {
             filters([rule('d1'), rule('d2', 'a'), rule('d3')]),
             'd1',
             { ruleId: 'd2' },
+            sections,
         );
         expect(next.dimensions[1]).toEqual(rule('d1', 'a'));
-        const back = moveRuleToSection(next, 'd1', { ruleId: 'd3' });
+        const back = moveRuleToSection(next, 'd1', { ruleId: 'd3' }, sections);
         expect(back.dimensions[2]).toEqual(rule('d1'));
         expect('sectionId' in back.dimensions[2]).toBe(false);
     });
@@ -94,12 +96,14 @@ describe('moveRuleToSection', () => {
             filters([rule('d1', 'a'), rule('d2', 'a'), rule('d3')]),
             'd3',
             { sectionId: 'a' },
+            sections,
         );
         expect(ids(fromBelow).dimensions).toEqual(['d1', 'd2', 'd3']);
         const fromAbove = moveRuleToSection(
             filters([rule('d0'), rule('d1', 'a'), rule('d2', 'a'), rule('d3')]),
             'd0',
             { sectionId: 'a' },
+            sections,
         );
         expect(ids(fromAbove).dimensions).toEqual(['d1', 'd2', 'd0', 'd3']);
         expect(fromAbove.dimensions[2].sectionId).toBe('a');
@@ -110,6 +114,7 @@ describe('moveRuleToSection', () => {
             filters([rule('d1', 'b')], [rule('m1'), rule('m2')]),
             'm1',
             { ruleId: 'd1' },
+            sections,
         );
         expect(ids(next)).toEqual({
             dimensions: ['d1'],
@@ -123,6 +128,7 @@ describe('moveRuleToSection', () => {
             filters([rule('d1'), rule('d2')]),
             'd1',
             { sectionId: 'b' },
+            sections,
         );
         expect(ids(next).dimensions).toEqual(['d1', 'd2']);
         expect(next.dimensions[0].sectionId).toBe('b');
@@ -131,23 +137,56 @@ describe('moveRuleToSection', () => {
     it('returns the same filters when nothing moves', () => {
         const unsectioned = filters([rule('d1'), rule('d2', 'a')]);
         // An unsectioned row dropped on the rail's header
-        expect(moveRuleToSection(unsectioned, 'd1', { sectionId: null })).toBe(
-            unsectioned,
-        );
+        expect(
+            moveRuleToSection(unsectioned, 'd1', { sectionId: null }, sections),
+        ).toBe(unsectioned);
         // A dimension dropped on a metric of its own section
         const mixed = filters([rule('d1', 'a')], [rule('m1', 'a')]);
-        expect(moveRuleToSection(mixed, 'd1', { ruleId: 'm1' })).toBe(mixed);
+        expect(moveRuleToSection(mixed, 'd1', { ruleId: 'm1' }, sections)).toBe(
+            mixed,
+        );
         // The only member dropped on its own section's header
-        expect(moveRuleToSection(mixed, 'd1', { sectionId: 'a' })).toBe(mixed);
+        expect(
+            moveRuleToSection(mixed, 'd1', { sectionId: 'a' }, sections),
+        ).toBe(mixed);
+    });
+
+    it('treats a rule of a removed section as unsectioned when dropped on', () => {
+        const dangling = filters([rule('d1', 'a'), rule('d2', 'gone')]);
+        const next = moveRuleToSection(
+            dangling,
+            'd1',
+            { ruleId: 'd2' },
+            sections,
+        );
+        expect(next.dimensions.map((r) => r.sectionId)).toEqual([
+            'gone',
+            undefined,
+        ]);
+        // An unsectioned dimension on a dangling metric: already there
+        const mixed = filters([rule('d1')], [rule('m1', 'gone')]);
+        expect(moveRuleToSection(mixed, 'd1', { ruleId: 'm1' }, sections)).toBe(
+            mixed,
+        );
     });
 
     it('returns the same filters for an unknown rule', () => {
         const dashboardFilters = filters([rule('d1')]);
         expect(
-            moveRuleToSection(dashboardFilters, 'missing', { ruleId: 'd1' }),
+            moveRuleToSection(
+                dashboardFilters,
+                'missing',
+                { ruleId: 'd1' },
+                sections,
+            ),
         ).toBe(dashboardFilters);
         expect(
-            moveRuleToSection(dashboardFilters, 'd1', { ruleId: 'missing' }),
+            moveRuleToSection(
+                dashboardFilters,
+                'd1',
+                { ruleId: 'missing' },
+                sections,
+            ),
         ).toBe(dashboardFilters);
     });
 });

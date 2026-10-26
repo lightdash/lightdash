@@ -1683,8 +1683,9 @@ describe('ControlSidebar', () => {
             });
             expect(checked.querySelector('.tabler-icon-check')).not.toBeNull();
             await userEvent.click(checked);
-            expect(selectControlSections(store.getState())[0].collapsed).toBe(
-                false,
+            // Unticked, the key goes rather than turning false
+            expect(selectControlSections(store.getState())[0]).toEqual(
+                sections[0],
             );
             expect(
                 screen.getByRole('button', { name: /^Created/ }),
@@ -1924,6 +1925,59 @@ describe('ControlSidebar', () => {
                         ) as Element,
                     ) & Node.DOCUMENT_POSITION_PRECEDING,
             ).toBeTruthy();
+        });
+
+        it('folds the expanded filter when its open section is set to start collapsed', async () => {
+            const { collapse } = setSidebar({
+                isNew: false,
+                editing: { filterId: 'filter-3' },
+                editingRule: makeRule({
+                    id: 'filter-3',
+                    label: 'Created',
+                    sectionId: 'section-a',
+                }),
+            });
+            const { store, rerender } = renderWithProviders(
+                <ControlSidebar />,
+                sectioned(),
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Start collapsed',
+                }),
+            );
+            expect(collapse).toHaveBeenCalledTimes(1);
+            expect(selectControlSections(store.getState())[0].collapsed).toBe(
+                true,
+            );
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                isSidebarOpen: false,
+            });
+            rerender(<ControlSidebar />);
+            expect(
+                screen.queryByLabelText('Filter label'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: /^Created/ }),
+            ).not.toBeInTheDocument();
+
+            // Unticked, the saved key goes rather than turning false
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Start collapsed',
+                }),
+            );
+            expect(selectControlSections(store.getState())[0]).toEqual(
+                sections[0],
+            );
         });
 
         it('folds the expanded filter before collapsing its section', () => {
@@ -2455,6 +2509,30 @@ describe('ControlSidebar', () => {
                 });
                 expect(badge('3 selected')).toBeInTheDocument();
                 expect(row('Region')).toHaveFocus();
+            });
+
+            it("focuses the collapsed target section's header after a move, its rows being hidden", async () => {
+                closedRail();
+                renderWithProviders(<ControlSidebar />, sectioned());
+                fireEvent.click(
+                    screen.getByRole('button', {
+                        name: 'Collapse section Regions',
+                    }),
+                );
+                await selectThree();
+                await userEvent.click(
+                    screen.getByRole('button', { name: 'Move to' }),
+                );
+                await userEvent.click(
+                    await screen.findByRole('menuitem', {
+                        name: 'Regions · 1',
+                    }),
+                );
+                expect(
+                    screen.getByRole('button', {
+                        name: 'Expand section Regions',
+                    }),
+                ).toHaveFocus();
             });
 
             it('moves the selection to a section, appended in display order, and leaves the mode', async () => {

@@ -8,6 +8,9 @@ export const RAIL_LABEL_SELECTOR = '[data-controls-label]';
 /** A closed row (`FilterRow`). */
 export const railRowSelector = (filterId: string) =>
     `[data-controls-row="${filterId}"]`;
+/** A section header's chevron, the header's tab stop (`SectionHeader`). */
+export const sectionStopSelector = (sectionId: string) =>
+    `[data-controls-stop="section:${sectionId}"]`;
 /** A section header's menu button (`SectionHeader`). */
 export const sectionMenuSelector = (sectionId: string) =>
     `[data-controls-section="${sectionId}"] [data-controls-section-menu]`;
