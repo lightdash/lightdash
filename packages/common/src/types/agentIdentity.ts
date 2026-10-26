@@ -391,7 +391,10 @@ export interface AiServiceAccountParent {
     verification?: AiServiceAccountTestResult | null;
 }
 
-export type AiServiceAccountParentUnavailableReason = 'destination_mismatch';
+export type AiServiceAccountParentUnavailableReason =
+    | 'destination_mismatch'
+    | 'transport_mismatch'
+    | 'parent_connection_unreadable';
 
 export interface ApiAiServiceAccountStatusResponse extends ApiAiServiceAccountSlotResponse {
     parent: AiServiceAccountParent | null;

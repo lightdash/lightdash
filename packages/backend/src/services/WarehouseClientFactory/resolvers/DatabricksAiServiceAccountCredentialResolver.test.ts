@@ -4,7 +4,10 @@ import {
     WarehouseTypes,
     type CreateDatabricksCredentials,
 } from '@lightdash/common';
-import { exchangeDatabricksOAuthCredentials } from '@lightdash/warehouses';
+import {
+    DatabricksWarehouseClient,
+    exchangeDatabricksOAuthCredentials,
+} from '@lightdash/warehouses';
 import {
     parseAiServiceAccountSecrets,
     type AiServiceAccountSecrets,
@@ -259,9 +262,18 @@ it('exchanges credentials with the normalized Databricks host', async () => {
     const input = selection();
     input.connection.serverHostName =
         ' https://ADB-123.4.azuredatabricks.net/ ';
-    await resolver.resolve(input);
+    const { clientCredentials } = await resolver.resolve(input);
+    const host = 'adb-123.4.azuredatabricks.net';
+    expect(clientCredentials.serverHostName).toBe(host);
+    const client = new DatabricksWarehouseClient(clientCredentials);
+    expect(client.connectionOptions.host).toBe(host);
+    expect(
+        new URL(
+            `https://${client.connectionOptions.host}:443${client.connectionOptions.path}`,
+        ).hostname,
+    ).toBe(host);
     expect(exchangeDatabricksOAuthCredentials).toHaveBeenCalledExactlyOnceWith(
-        'adb-123.4.azuredatabricks.net',
+        clientCredentials.serverHostName,
         'slot-id',
         ' slot-secret ',
     );

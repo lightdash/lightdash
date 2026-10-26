@@ -870,6 +870,52 @@ describe('preview shared agent account destination and authorization', () => {
             f.audit.mock.calls.filter(([entry]) => entry.action === 'test'),
         ).toEqual([]);
     });
+    it.each([
+        { name: 'TLS mode', change: { sslmode: 'disable' } },
+        { name: 'CA certificate', change: { sslrootcert: 'different CA' } },
+    ] as const)(
+        'reports a transport mismatch for $name before reading slots',
+        async ({ change }) => {
+            const f = prepare();
+            f.load.mockImplementation(async (uuid: string) => ({
+                ...postgresConnection,
+                ...(uuid === 'parent' ? {} : change),
+            }));
+            await expect(
+                f.service.getStatus(f.account, 'project', null),
+            ).resolves.toMatchObject({
+                parentUnavailableReason: 'transport_mismatch',
+                parent: null,
+            });
+            expect(f.model.getSecrets).not.toHaveBeenCalled();
+            expect(f.model.getSlot).not.toHaveBeenCalled();
+        },
+    );
+    it('reports an unreadable parent connection without retrying or reading the readable parent slot', async () => {
+        const f = prepare();
+        f.model.getSlot.mockResolvedValue({
+            uuid: 'parent-slot',
+            identityUuid: 'parent-generation',
+        });
+        f.load.mockImplementation(async (uuid: string) => {
+            if (uuid === 'parent')
+                throw new Error('invalid encrypted connection');
+            return postgresConnection;
+        });
+        await expect(
+            f.service.getStatus(f.account, 'project', null),
+        ).resolves.toMatchObject({
+            results: null,
+            parent: null,
+            parentUnavailableReason: 'parent_connection_unreadable',
+        });
+        expect(f.load.mock.calls).toEqual([
+            ['project', { kind: 'connection', warehouseConnectionUuid: null }],
+            ['parent', { kind: 'connection', warehouseConnectionUuid: null }],
+        ]);
+        expect(f.model.getSlot).not.toHaveBeenCalled();
+        expect(f.model.getSecrets).not.toHaveBeenCalled();
+    });
     it('hides parent metadata when the preview destination differs', async () => {
         const f = prepare();
         await expect(

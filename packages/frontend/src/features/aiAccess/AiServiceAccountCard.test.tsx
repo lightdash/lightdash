@@ -308,45 +308,61 @@ describe('AI service account card', () => {
         beforeEach(() => {
             warehouseType = type;
         });
-        it.each(['ai_service_account', 'marked_person'] as const)(
-            'explains a destination mismatch for %s',
-            async (identitySource) => {
-                source = identitySource;
-                parentUnavailableReason = 'destination_mismatch';
-                setup(asPreview(props));
-                const message =
-                    "This preview's connection points at a different warehouse than its parent project, so it can't use the parent's shared agent account. Point the preview at the same host to inherit it.";
-                expect(await screen.findByText(message)).toBeVisible();
-                expect(
-                    screen.queryByText(
-                        /The parent project has no shared agent account/,
-                    ),
-                ).not.toBeInTheDocument();
-                expect(
-                    screen.queryByText(/Ask an admin to add one/),
-                ).not.toBeInTheDocument();
-                expect(
-                    getAiServiceAccountStatus({
-                        rule: {
-                            warehouseType: type,
-                            source: identitySource,
-                            projectsMissingAiServiceAccount: null,
-                        },
-                        slot: null,
-                        parent: null,
-                        parentUnavailableReason,
-                        credentialsReadable: false,
-                        isPreview: true,
-                    }).alert,
-                ).toEqual({
-                    color:
-                        identitySource === 'ai_service_account'
-                            ? 'red'
-                            : 'yellow',
-                    message,
-                });
+        describe.each([
+            {
+                reason: 'destination_mismatch',
+                message:
+                    "This preview's warehouse destination differs from its parent project, so it can't use the parent's shared agent account. Match the destination settings, including the port and SSH tunnel, to inherit it.",
             },
-        );
+            {
+                reason: 'transport_mismatch',
+                message:
+                    "This preview's TLS settings differ from its parent project, so it can't use the parent's shared agent account. Match the TLS mode and CA certificate to inherit it.",
+            },
+            {
+                reason: 'parent_connection_unreadable',
+                message:
+                    "This preview can't read the parent project's warehouse connection to check whether it can use the parent's shared agent account. Ask an admin to repair the parent connection.",
+            },
+        ] as const)('$reason', ({ reason, message }) => {
+            it.each(['ai_service_account', 'marked_person'] as const)(
+                'explains parent unavailability for %s',
+                async (identitySource) => {
+                    source = identitySource;
+                    parentUnavailableReason = reason;
+                    setup(asPreview(props));
+                    expect(await screen.findByText(message)).toBeVisible();
+                    expect(
+                        screen.queryByText(
+                            /The parent project has no shared agent account/,
+                        ),
+                    ).not.toBeInTheDocument();
+                    expect(
+                        screen.queryByText(/Ask an admin to add one/),
+                    ).not.toBeInTheDocument();
+                    expect(
+                        getAiServiceAccountStatus({
+                            rule: {
+                                warehouseType: type,
+                                source: identitySource,
+                                projectsMissingAiServiceAccount: null,
+                            },
+                            slot: null,
+                            parent: null,
+                            parentUnavailableReason,
+                            credentialsReadable: false,
+                            isPreview: true,
+                        }).alert,
+                    ).toEqual({
+                        color:
+                            identitySource === 'ai_service_account'
+                                ? 'red'
+                                : 'yellow',
+                        message,
+                    });
+                },
+            );
+        });
 
         it('shows all three steps without a section control when no account exists', async () => {
             setup(props);

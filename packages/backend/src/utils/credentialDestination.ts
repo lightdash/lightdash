@@ -231,9 +231,8 @@ export const hasSameWarehouseCredentialDestination = (
     );
 
 const getSslTransport = (config: SslConfiguration): unknown[] => [
-    config.sslmode || null,
+    config.sslmode || 'prefer',
     config.sslrootcert || null,
-    config.sslrootcertFileName || null,
 ];
 
 const getWarehouseCredentialTransport = (

@@ -85,6 +85,7 @@ import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionM
 import { getWarehouseIdentityFingerprint } from '../../utils/queryResultProducer';
 import { withNewWarehouseCredentialVersion } from '../../utils/warehouseCredentialVersion';
 import { sessionUser } from '../UserService.mock';
+import { aiServiceAccountCredentialResolvers } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import { connectionContextFromAccount } from '../WarehouseClientFactory/ConnectionContext';
 import {
     credentialResolution,
@@ -6510,6 +6511,41 @@ describe('preview ClickHouse AI service account inheritance', () => {
         );
         return f;
     };
+    test('refuses a mismatched execution destination before reading or combining any secrets', async () => {
+        const f = previewSetup();
+        const materialize = vi.spyOn(
+            aiServiceAccountCredentialResolvers,
+            'resolveCredentialSelection',
+        );
+        try {
+            await expect(
+                f.service.resolvePlan({
+                    ...args,
+                    connection: {
+                        ...clickhouseConnection,
+                        host: 'other.example.com',
+                    },
+                }),
+            ).rejects.toMatchObject({
+                inheritedFromProjectUuid: 'parent',
+                refusal: {
+                    reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(
+                f.projects.getWarehouseCredentialsForBinding,
+            ).toHaveBeenCalledExactlyOnceWith('parent', {
+                kind: 'connection',
+                warehouseConnectionUuid: null,
+            });
+            expect(f.slots.getSecrets).not.toHaveBeenCalled();
+            expect(f.slots.getSlot).not.toHaveBeenCalled();
+            expect(materialize).not.toHaveBeenCalled();
+            expect(f.provider.mint).not.toHaveBeenCalled();
+        } finally {
+            materialize.mockRestore();
+        }
+    });
     test('carries parent generation and keeps preview settings and actor', async () => {
         const f = previewSetup();
         expect(

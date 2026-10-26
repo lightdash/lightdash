@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     type AiServiceAccountParent,
     type AiServiceAccountParentUnavailableReason,
     type AiServiceAccountSlot,
@@ -11,6 +12,24 @@ export type AiServiceAccountStatusInfo = {
     badge: 'In use' | 'Not in use' | null;
     message: string | null;
     alert: { color: 'red' | 'yellow'; message: ReactNode } | null;
+};
+
+const getParentUnavailableMessage = (
+    reason: AiServiceAccountParentUnavailableReason,
+): string => {
+    switch (reason) {
+        case 'destination_mismatch':
+            return "This preview's warehouse destination differs from its parent project, so it can't use the parent's shared agent account. Match the destination settings, including the port and SSH tunnel, to inherit it.";
+        case 'transport_mismatch':
+            return "This preview's TLS settings differ from its parent project, so it can't use the parent's shared agent account. Match the TLS mode and CA certificate to inherit it.";
+        case 'parent_connection_unreadable':
+            return "This preview can't read the parent project's warehouse connection to check whether it can use the parent's shared agent account. Ask an admin to repair the parent connection.";
+        default:
+            return assertUnreachable(
+                reason,
+                'Unknown parent account unavailability reason',
+            );
+    }
 };
 
 export const getAiServiceAccountStatus = ({
@@ -31,14 +50,13 @@ export const getAiServiceAccountStatus = ({
     isPreview: boolean;
 }): AiServiceAccountStatusInfo => {
     const required = rule.source === 'ai_service_account';
-    if (parentUnavailableReason === 'destination_mismatch')
+    if (parentUnavailableReason !== null)
         return {
             badge: null,
             message: null,
             alert: {
                 color: required ? 'red' : 'yellow',
-                message:
-                    "This preview's connection points at a different warehouse than its parent project, so it can't use the parent's shared agent account. Point the preview at the same host to inherit it.",
+                message: getParentUnavailableMessage(parentUnavailableReason),
             },
         };
     const unreadableParent = !slot && parent?.credentialsReadable === false;

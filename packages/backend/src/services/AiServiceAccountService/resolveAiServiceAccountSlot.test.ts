@@ -26,8 +26,10 @@ import {
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
 import {
     AiServiceAccountDestinationMismatchError,
+    AiServiceAccountParentConnectionUnreadableError,
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,
+    AiServiceAccountTransportMismatchError,
     type AiServiceAccountSlotDependencies,
 } from './resolveAiServiceAccountSlot';
 
@@ -446,6 +448,74 @@ describe.each([
                 );
             },
         );
+        it.each([null, 'extra'])(
+            'rejects the loaded preview destination even if the stored destination changes before comparison for %s',
+            async (connection) => {
+                const f = setup();
+                f.slots.set('parent:parent-extra', record('parent'));
+                const storedKey = `preview:${connection}`;
+                f.credentials.set(
+                    storedKey,
+                    differentDestination(warehouseCredentials()),
+                );
+                const configuration = f.credentials.get(storedKey)!;
+                f.deps.projectModel.getSummary.mockImplementation(
+                    async (uuid) => {
+                        if (uuid === 'parent')
+                            f.credentials.set(
+                                storedKey,
+                                warehouseCredentials(),
+                            );
+                        return f.projects.get(uuid)!;
+                    },
+                );
+                await expect(
+                    f.resolver[method]({
+                        projectUuid: 'preview',
+                        connection,
+                        configuration,
+                    }),
+                ).rejects.toBeInstanceOf(
+                    AiServiceAccountDestinationMismatchError,
+                );
+                expect(f.credentials.get(storedKey)).toEqual(
+                    warehouseCredentials(),
+                );
+                expect(
+                    f.deps.aiServiceAccountCredentialsModel.getSecrets,
+                ).not.toHaveBeenCalled();
+                expect(
+                    f.deps.aiServiceAccountCredentialsModel.getSlot,
+                ).not.toHaveBeenCalled();
+            },
+        );
+        if (
+            warehouseType === WarehouseTypes.POSTGRES ||
+            warehouseType === WarehouseTypes.REDSHIFT
+        ) {
+            it('rejects different TLS settings before reading any slot', async () => {
+                const f = setup();
+                const configuration =
+                    warehouseType === WarehouseTypes.POSTGRES
+                        ? postgresConnection
+                        : redshiftConnection;
+                await expect(
+                    f.resolver[method]({
+                        projectUuid: 'preview',
+                        connection: null,
+                        configuration: { ...configuration, sslmode: 'disable' },
+                    }),
+                ).rejects.toBeInstanceOf(
+                    AiServiceAccountTransportMismatchError,
+                );
+                expect(
+                    f.deps.aiServiceAccountCredentialsModel.getSecrets,
+                ).not.toHaveBeenCalled();
+                expect(
+                    f.deps.aiServiceAccountCredentialsModel.getSlot,
+                ).not.toHaveBeenCalled();
+            });
+        }
         it.each(['parent'])(
             'fails closed when %s credentials cannot be loaded',
             async (projectUuid) => {
@@ -464,7 +534,8 @@ describe.each([
                         configuration: warehouseCredentials(),
                     }),
                 ).rejects.toMatchObject({
-                    constructor: AiServiceAccountSlotResolutionError,
+                    constructor:
+                        AiServiceAccountParentConnectionUnreadableError,
                     inheritedFromProjectUuid: 'parent',
                 });
                 expect(

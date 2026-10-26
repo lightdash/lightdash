@@ -7,7 +7,10 @@ import {
 import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
-import { hasSameWarehouseCredentialDestinationAndTransport } from '../../utils/credentialDestination';
+import {
+    hasSameWarehouseCredentialDestination,
+    hasSameWarehouseCredentialDestinationAndTransport,
+} from '../../utils/credentialDestination';
 
 export type AiServiceAccountSlotDependencies = {
     aiServiceAccountCredentialsModel: Pick<
@@ -51,6 +54,22 @@ export class AiServiceAccountDestinationMismatchError extends AiServiceAccountSl
     }
 }
 
+export class AiServiceAccountTransportMismatchError extends AiServiceAccountSlotResolutionError {
+    constructor(parentProjectUuid: string) {
+        super(parentProjectUuid);
+        this.message =
+            'The preview connection transport settings differ from its parent project, so the parent shared agent account cannot be used.';
+    }
+}
+
+export class AiServiceAccountParentConnectionUnreadableError extends AiServiceAccountSlotResolutionError {
+    constructor(parentProjectUuid: string) {
+        super(parentProjectUuid);
+        this.message =
+            'The parent warehouse connection could not be read, so the parent shared agent account cannot be used.';
+    }
+}
+
 export class AiServiceAccountSlotResolver {
     constructor(private readonly deps: AiServiceAccountSlotDependencies) {}
 
@@ -85,25 +104,33 @@ export class AiServiceAccountSlotResolver {
                       ),
                       connection,
                   );
+        let parentCredentials: CreateWarehouseCredentials;
         try {
-            const parentCredentials = await loadCredentials(parent);
-            if (
-                !hasSameWarehouseCredentialDestinationAndTransport(
-                    child.configuration,
-                    parentCredentials,
-                )
-            )
-                throw new AiServiceAccountDestinationMismatchError(
-                    parent.projectUuid,
-                );
+            parentCredentials = await loadCredentials(parent);
         } catch (error) {
-            if (
-                error instanceof NotFoundError ||
-                error instanceof AiServiceAccountDestinationMismatchError
-            )
-                throw error;
-            throw new AiServiceAccountSlotResolutionError(parent.projectUuid);
+            if (error instanceof NotFoundError) throw error;
+            throw new AiServiceAccountParentConnectionUnreadableError(
+                parent.projectUuid,
+            );
         }
+        if (
+            !hasSameWarehouseCredentialDestination(
+                child.configuration,
+                parentCredentials,
+            )
+        )
+            throw new AiServiceAccountDestinationMismatchError(
+                parent.projectUuid,
+            );
+        if (
+            !hasSameWarehouseCredentialDestinationAndTransport(
+                child.configuration,
+                parentCredentials,
+            )
+        )
+            throw new AiServiceAccountTransportMismatchError(
+                parent.projectUuid,
+            );
     }
 
     private async parent(

@@ -567,11 +567,6 @@ describe.each([postgres, redshift])(
                 before: 'certificate',
                 after: 'certificate\n',
             },
-            {
-                field: 'sslrootcertFileName',
-                before: 'root.pem',
-                after: 'other.pem',
-            },
         ])('compares $field exactly', ({ field, before, after }) => {
             const a = { ...configuration, [field]: before };
             const b = { ...configuration, [field]: after };
@@ -582,6 +577,38 @@ describe.each([postgres, redshift])(
             expect(
                 hasSameWarehouseCredentialDestinationAndTransport(a, { ...a }),
             ).toBe(true);
+        });
+        test('uses prefer as the effective default SSL mode', () => {
+            expect(
+                hasSameWarehouseCredentialDestinationAndTransport(
+                    configuration,
+                    { ...configuration, sslmode: 'prefer' },
+                ),
+            ).toBe(true);
+            expect(
+                hasSameWarehouseCredentialDestinationAndTransport(
+                    configuration,
+                    { ...configuration, sslmode: 'require' },
+                ),
+            ).toBe(false);
+        });
+        test('compares CA content without comparing its display filename', () => {
+            const a = {
+                ...configuration,
+                sslrootcert: 'certificate',
+                sslrootcertFileName: 'root.pem',
+            };
+            const renamed = { ...a, sslrootcertFileName: 'renamed.pem' };
+            const differentContent = { ...a, sslrootcert: 'other certificate' };
+            expect(
+                hasSameWarehouseCredentialDestinationAndTransport(a, renamed),
+            ).toBe(true);
+            expect(
+                hasSameWarehouseCredentialDestinationAndTransport(
+                    a,
+                    differentContent,
+                ),
+            ).toBe(false);
         });
         test.each(['sslmode', 'sslrootcert', 'sslrootcertFileName'])(
             'treats absence forms of %s equally',

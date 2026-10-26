@@ -52,8 +52,10 @@ import {
 import { mergeAiServiceAccountCredentials } from './applyAiServiceAccountCredentials';
 import {
     AiServiceAccountDestinationMismatchError,
+    AiServiceAccountParentConnectionUnreadableError,
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,
+    AiServiceAccountTransportMismatchError,
 } from './resolveAiServiceAccountSlot';
 
 type Dependencies = {
@@ -296,10 +298,25 @@ export class AiServiceAccountService extends BaseService {
         const inherited = await resolver
             .resolveParent(input)
             .catch(async (error) => {
-                if (error instanceof AiServiceAccountDestinationMismatchError) {
-                    parentUnavailableReason = 'destination_mismatch';
+                if (
+                    error instanceof
+                    AiServiceAccountParentConnectionUnreadableError
+                ) {
+                    parentUnavailableReason = 'parent_connection_unreadable';
+                    return null;
+                }
+                if (
+                    error instanceof AiServiceAccountDestinationMismatchError ||
+                    error instanceof AiServiceAccountTransportMismatchError
+                ) {
+                    parentUnavailableReason =
+                        error instanceof AiServiceAccountTransportMismatchError
+                            ? 'transport_mismatch'
+                            : 'destination_mismatch';
                     this.logger.warn(
-                        'Preview shared agent account destination mismatch',
+                        error instanceof AiServiceAccountTransportMismatchError
+                            ? 'Preview shared agent account transport mismatch'
+                            : 'Preview shared agent account destination mismatch',
                         {
                             projectUuid,
                             parentProjectUuid: error.inheritedFromProjectUuid,
