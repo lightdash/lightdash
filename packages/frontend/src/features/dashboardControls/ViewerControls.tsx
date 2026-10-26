@@ -223,10 +223,7 @@ export const ViewerControls: FC<Props> = ({
                                 aria-label="Locked tabs"
                                 data={dashboardTabs.map((tab) => ({
                                     value: tab.uuid,
-                                    label:
-                                        tab.uuid === switchLockKey
-                                            ? `${tab.name} · this tab`
-                                            : tab.name,
+                                    label: tab.name,
                                     disabled: isLockBlocked(tab.uuid),
                                 }))}
                                 value={lockedKeys}
