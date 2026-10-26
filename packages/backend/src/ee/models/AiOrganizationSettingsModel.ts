@@ -300,6 +300,8 @@ export class AiOrganizationSettingsModel {
             dataAppAutoAnalysisEnabled: db.data_app_auto_analysis_enabled,
             dataAppAnalysisLimits:
                 db.data_app_analysis_limits ?? DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+            dataAppAnalysisDefaultInstructions:
+                db.data_app_analysis_default_instructions,
             requireExplicitSlackChannelLinking:
                 db.require_explicit_slack_channel_linking,
             defaultAiAgentModelConfig: db.default_ai_agent_model_config,
@@ -403,6 +405,8 @@ export class AiOrganizationSettingsModel {
                     data.dataAppContinueInAskAiEnabled,
                 data_app_auto_analysis_enabled: data.dataAppAutoAnalysisEnabled,
                 data_app_analysis_limits: data.dataAppAnalysisLimits ?? null,
+                data_app_analysis_default_instructions:
+                    data.dataAppAnalysisDefaultInstructions ?? null,
                 require_explicit_slack_channel_linking:
                     data.requireExplicitSlackChannelLinking,
                 default_ai_agent_model_config: data.defaultAiAgentModelConfig,
@@ -437,6 +441,7 @@ export class AiOrganizationSettingsModel {
                 | 'data_app_continue_in_ask_ai_enabled'
                 | 'data_app_auto_analysis_enabled'
                 | 'data_app_analysis_limits'
+                | 'data_app_analysis_default_instructions'
                 | 'require_explicit_slack_channel_linking'
                 | 'default_ai_agent_model_config'
                 | 'model_visibility'
@@ -484,6 +489,10 @@ export class AiOrganizationSettingsModel {
         }
         if (data.dataAppAnalysisLimits !== undefined) {
             updateData.data_app_analysis_limits = data.dataAppAnalysisLimits;
+        }
+        if (data.dataAppAnalysisDefaultInstructions !== undefined) {
+            updateData.data_app_analysis_default_instructions =
+                data.dataAppAnalysisDefaultInstructions;
         }
         if (data.requireExplicitSlackChannelLinking !== undefined) {
             updateData.require_explicit_slack_channel_linking =
@@ -602,6 +611,8 @@ export class AiOrganizationSettingsModel {
                     data.dataAppContinueInAskAiEnabled ?? true,
                 dataAppAutoAnalysisEnabled:
                     data.dataAppAutoAnalysisEnabled ?? false,
+                dataAppAnalysisDefaultInstructions:
+                    data.dataAppAnalysisDefaultInstructions ?? null,
                 requireExplicitSlackChannelLinking:
                     data.requireExplicitSlackChannelLinking ?? false,
                 defaultAiAgentModelConfig:

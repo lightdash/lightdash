@@ -634,6 +634,9 @@ export type AiOrganizationSettings = {
     dataAppAutoAnalysisEnabled?: boolean;
     // Per-run ceilings and daily caps for AI analysis in data apps.
     dataAppAnalysisLimits?: DataAppAnalysisLimits;
+    // Org-wide guidance prepended to every AI analysis summary; app-level
+    // instructions are appended to it. Optional for old clients.
+    dataAppAnalysisDefaultInstructions?: string | null;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     // Optional to keep the response schema backwards-compatible for old clients.
@@ -672,6 +675,7 @@ export type UpdateAiOrganizationSettings = {
     dataAppContinueInAskAiEnabled?: boolean;
     dataAppAutoAnalysisEnabled?: boolean;
     dataAppAnalysisLimits?: DataAppAnalysisLimits;
+    dataAppAnalysisDefaultInstructions?: string | null;
     requireExplicitSlackChannelLinking?: boolean;
     defaultAiAgentModelConfig?: AiAgentModelConfig | null;
     modelVisibility?: AiOrgModelVisibility | null;

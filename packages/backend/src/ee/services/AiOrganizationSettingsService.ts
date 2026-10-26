@@ -8,6 +8,7 @@ import {
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
@@ -185,6 +186,22 @@ export const validateDataAppAnalysisLimits = (
             );
         }
     });
+};
+
+/** Normalizes a submitted org default to trimmed text or null (cleared). */
+export const normalizeAnalysisDefaultInstructions = (
+    raw: string | null,
+): string | null => {
+    const instructions = raw?.trim() || null;
+    if (
+        instructions !== null &&
+        instructions.length > DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS
+    ) {
+        throw new ParameterError(
+            `Analysis instructions are limited to ${DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS} characters`,
+        );
+    }
+    return instructions;
 };
 
 export const validateDeepResearchLimits = (
@@ -488,6 +505,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 dataAppContinueInAskAiEnabled: true,
                 dataAppAutoAnalysisEnabled: false,
                 dataAppAnalysisLimits: DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+                dataAppAnalysisDefaultInstructions: null,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
@@ -657,6 +675,17 @@ export class AiOrganizationSettingsService extends BaseService {
         );
     }
 
+    /** Org-wide guidance for AI analysis summaries; app instructions append to it. */
+    async getDataAppAnalysisDefaultInstructions(
+        organizationUuid: string,
+    ): Promise<string | null> {
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return settings?.dataAppAnalysisDefaultInstructions ?? null;
+    }
+
     /** Org default for running AI analysis when a data app loads. */
     async isDataAppAutoAnalysisEnabled(
         organizationUuid: string,
@@ -765,6 +794,12 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiSettingsUpdate.dataAppAnalysisLimits,
             );
         }
+        const normalizedDefaultInstructions =
+            aiSettingsUpdate.dataAppAnalysisDefaultInstructions === undefined
+                ? undefined
+                : normalizeAnalysisDefaultInstructions(
+                      aiSettingsUpdate.dataAppAnalysisDefaultInstructions,
+                  );
 
         if (aiSettingsUpdate.threadRetentionHours !== undefined) {
             // No-op writes stay allowed: clients that round-trip the settings
@@ -966,13 +1001,18 @@ export class AiOrganizationSettingsService extends BaseService {
             }
         }
 
-        const update =
-            reconciledDefaultModelConfig === undefined
-                ? aiSettingsUpdate
-                : {
-                      ...aiSettingsUpdate,
-                      defaultAiAgentModelConfig: reconciledDefaultModelConfig,
-                  };
+        const update = {
+            ...aiSettingsUpdate,
+            ...(reconciledDefaultModelConfig !== undefined
+                ? { defaultAiAgentModelConfig: reconciledDefaultModelConfig }
+                : {}),
+            ...(normalizedDefaultInstructions !== undefined
+                ? {
+                      dataAppAnalysisDefaultInstructions:
+                          normalizedDefaultInstructions,
+                  }
+                : {}),
+        };
         const settings = await this.aiOrganizationSettingsModel.upsert(
             organizationUuid,
             update,
