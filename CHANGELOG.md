@@ -1,3 +1,17 @@
+# [3.54.0](https://github.com/lightdash/lightdash/compare/3.53.11...3.54.0) (2026-10-26)
+
+
+### Bug Fixes
+
+* **ai:** have investigations establish same-weekday baselines before hedging ([#31555](https://github.com/lightdash/lightdash/issues/31555)) ([8f73563](https://github.com/lightdash/lightdash/commit/8f73563aa6595a7472155798357b5b944bed0a25))
+* **mcp:** enforce project checks for a pinned agent ([#31489](https://github.com/lightdash/lightdash/issues/31489)) ([46ae1cd](https://github.com/lightdash/lightdash/commit/46ae1cdf501a7f9a5f3ec0072731f3960f9fd288))
+
+
+### Features
+
+* add monthly usage comparisons ([#31551](https://github.com/lightdash/lightdash/issues/31551)) ([d789028](https://github.com/lightdash/lightdash/commit/d789028f95341e916e977b89282c9cff0b0d25ed))
+* **mcp:** pin an agent with the X-Lightdash-Agent header ([#31488](https://github.com/lightdash/lightdash/issues/31488)) ([4c56945](https://github.com/lightdash/lightdash/commit/4c569452ec2961373d20a4618ac31ee325cc9134))
+
 ## [3.53.11](https://github.com/lightdash/lightdash/compare/3.53.10...3.53.11) (2026-10-26)
 
 
