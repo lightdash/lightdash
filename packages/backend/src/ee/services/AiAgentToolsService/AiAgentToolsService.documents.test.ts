@@ -147,15 +147,15 @@ const setup = (
         spaceModel,
         contentService,
         projectService: { getSpaces: vi.fn().mockResolvedValue([space]) },
+        spacePermissionService: {
+            getAccessibleSpaceUuids: vi.fn().mockResolvedValue([]),
+        },
         searchService: {
             findContent: vi.fn().mockResolvedValue({ content: [] }),
         },
     } as unknown as ConstructorParameters<typeof AiAgentToolsService>[0]);
     const context: AiAgentToolsRuntimeContext & { source: 'mcp' } = {
-        user: {
-            userUuid: 'user',
-            ability: { relevantRuleFor: () => undefined },
-        } as unknown as SessionUser,
+        user: { userUuid: 'user' } as SessionUser,
         account,
         projectUuid,
         organizationUuid: document.organizationUuid,

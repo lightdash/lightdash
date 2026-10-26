@@ -49,8 +49,6 @@ import {
     RequestMethod,
     SessionUser,
     shouldUseStaticFilterAutocomplete,
-    SpaceAccess,
-    SpaceMemberRole,
     TimeoutError,
     toMcpCustomChartTypeVizSchema,
     UnexpectedServerError,
@@ -128,6 +126,7 @@ import { SavedChartService } from '../../../services/SavedChartsService/SavedCha
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
+import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import { matchShareUrlNanoid } from '../../../services/UnfurlService/UnfurlService';
 import {
@@ -234,18 +233,6 @@ import type {
 type AgentListContentResult = Awaited<ReturnType<ListContentFn>>;
 type AgentListContentItem = AgentListContentResult['items'][number];
 type ProjectSpace = Awaited<ReturnType<ProjectService['getSpaces']>>[number];
-
-// A space as CASL sees it for saved content: the caller's own grant in `access`.
-type SpaceContentSubject = Pick<
-    ProjectSpace,
-    'organizationUuid' | 'projectUuid'
-> &
-    Partial<
-        Omit<
-            ProjectSpace,
-            'organizationUuid' | 'projectUuid' | 'access' | 'userAccess'
-        >
-    > & { access: SpaceAccess[] };
 type ContentAsCodeType = Parameters<ValidateContentFn>[0]['type'];
 type SearchContentResult = Awaited<
     ReturnType<SearchService['findContent']>
@@ -518,6 +505,7 @@ type AiAgentToolsServiceDependencies = {
     searchModel: SearchModel;
     searchService: SearchService;
     spaceService: SpaceService;
+    spacePermissionService: SpacePermissionService;
     spaceModel: SpaceModel;
     dashboardService: DashboardService;
     dashboardModel: DashboardModel;
@@ -584,6 +572,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly searchService: SearchService;
 
     private readonly spaceService: SpaceService;
+
+    private readonly spacePermissionService: SpacePermissionService;
 
     private readonly spaceModel: SpaceModel;
 
@@ -701,6 +691,7 @@ export class AiAgentToolsService extends BaseService {
         searchModel,
         searchService,
         spaceService,
+        spacePermissionService,
         spaceModel,
         dashboardService,
         dashboardModel,
@@ -740,6 +731,7 @@ export class AiAgentToolsService extends BaseService {
         this.searchModel = searchModel;
         this.searchService = searchService;
         this.spaceService = spaceService;
+        this.spacePermissionService = spacePermissionService;
         this.spaceModel = spaceModel;
         this.dashboardService = dashboardService;
         this.dashboardModel = dashboardModel;
@@ -2011,7 +2003,10 @@ export class AiAgentToolsService extends BaseService {
                     },
                 );
 
-                const canEditSpace = this.createSpaceEditCheck(context.user);
+                const editableSpaceUuids = await this.getEditableSpaceUuids(
+                    context.user,
+                    spaces.map((space) => space.uuid),
+                );
                 // Spaces cannot be verified, so they are omitted from
                 // verified-only searches.
                 const spaceResults = (verifiedOnly ? [] : spaces)
@@ -2045,7 +2040,7 @@ export class AiAgentToolsService extends BaseService {
                             appCount: space.appCount,
                             directAccess:
                                 space.userAccess?.hasDirectAccess === true,
-                            canEdit: canEditSpace(space),
+                            canEdit: editableSpaceUuids.has(space.uuid),
                             space: AiAgentToolsService.getSpaceMetadata(
                                 space,
                                 spacesByPath,
@@ -2453,80 +2448,27 @@ export class AiAgentToolsService extends BaseService {
               );
     }
 
-    private static canSaveContentIn(
-        ability: ReturnType<AiAgentToolsService['createAuditedAbility']>,
-        space: SpaceContentSubject,
-    ): boolean {
-        // subject() tags the object with its type, so each check gets a copy.
-        return (
-            ability.can('create', subject('SavedChart', { ...space })) ||
-            ability.can('create', subject('Dashboard', { ...space }))
+    /** Spaces the user can save charts into, as the app's save modal would list them. */
+    private async getEditableSpaceUuids(
+        user: SessionUser,
+        spaceUuids: string[],
+    ): Promise<Set<string>> {
+        if (spaceUuids.length === 0) {
+            return new Set();
+        }
+        return new Set(
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'create',
+                user,
+                spaceUuids,
+                { subjectType: 'SavedChart' },
+            ),
         );
     }
 
-    /** The app's save rule per space: a grant there lets the user create charts and dashboards. */
-    private createSpaceEditCheck(
-        user: SessionUser,
-    ): (space: ProjectSpace) => boolean {
-        const ability = this.createAuditedAbility(user);
-        return (space) =>
-            AiAgentToolsService.canSaveContentIn(ability, {
-                ...space,
-                access: space.userAccess ? [space.userAccess] : [],
-            });
-    }
-
-    private async canSaveContentInProject(
-        user: SessionUser,
-        organizationUuid: string,
-        projectUuid: UUID,
-    ): Promise<boolean> {
-        const ability = this.createAuditedAbility(user);
-        const canEditSpace = this.createSpaceEditCheck(user);
-        try {
-            const spaces = await this.projectService.getSpaces(
-                user,
-                projectUuid,
-            );
-            // Creating a space makes the creator its admin, so the "save into
-            // a new space" path the app offers counts too.
-            return (
-                spaces.some(canEditSpace) ||
-                (ability.can(
-                    'create',
-                    subject('Space', { organizationUuid, projectUuid }),
-                ) &&
-                    AiAgentToolsService.canSaveContentIn(ability, {
-                        organizationUuid,
-                        projectUuid,
-                        access: [
-                            {
-                                userUuid: user.userUuid,
-                                role: SpaceMemberRole.ADMIN,
-                                hasDirectAccess: true,
-                                projectRole: undefined,
-                                inheritedRole: undefined,
-                                inheritedFrom: undefined,
-                            },
-                        ],
-                    }))
-            );
-        } catch (error) {
-            this.logger.warn(
-                'Failed to resolve content write access, assuming none',
-                {
-                    userUuid: user.userUuid,
-                    projectUuid,
-                    error: getErrorMessage(error),
-                },
-            );
-            return false;
-        }
-    }
-
     /**
-     * Mirrors the app's save rule rather than the project role: an Interactive Viewer with `Can edit` on a space can save there.
-     * Without a project every project the user can view is checked, so the tool list never depends on stored context.
+     * Mirrors the app's save button, not the project role: with a project, a space the user can save into
+     * (or the right to create one) is enough; without one, only the role is known, as before a project is chosen.
      */
     async canAuthorContent(context: {
         user: SessionUser;
@@ -2536,39 +2478,26 @@ export class AiAgentToolsService extends BaseService {
         const { organizationUuid } = user;
         const ability = this.createAuditedAbility(user);
         const roleCanSaveContent =
-            ability.can('create', 'SavedChart') ||
-            ability.can('create', 'Dashboard');
-        if (organizationUuid === undefined || !roleCanSaveContent) {
-            return false;
+            organizationUuid !== undefined &&
+            (ability.can('create', 'SavedChart') ||
+                ability.can('create', 'Dashboard'));
+        if (!roleCanSaveContent || projectUuid === undefined) {
+            return roleCanSaveContent;
         }
-        if (projectUuid !== undefined) {
-            return this.canSaveContentInProject(
-                user,
-                organizationUuid,
-                projectUuid,
-            );
-        }
-        const projects = (
-            await this.projectModel.getAllByOrganizationUuid(organizationUuid)
-        ).filter((project) =>
+        if (
             ability.can(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid: project.projectUuid,
-                }),
-            ),
+                'create',
+                subject('Space', { organizationUuid, projectUuid }),
+            )
+        ) {
+            return true;
+        }
+        const spaces = await this.spaceModel.find({ projectUuid });
+        const editableSpaceUuids = await this.getEditableSpaceUuids(
+            user,
+            spaces.map((space) => space.uuid),
         );
-        return projects.reduce<Promise<boolean>>(
-            async (found, project) =>
-                (await found) ||
-                this.canSaveContentInProject(
-                    user,
-                    organizationUuid,
-                    project.projectUuid,
-                ),
-            Promise.resolve(false),
-        );
+        return editableSpaceUuids.size > 0;
     }
 
     private async listDataAppThemes(
@@ -5928,7 +5857,9 @@ export class AiAgentToolsService extends BaseService {
             ),
         );
         const visibleSpaceUuids = new Set(spaces.map((space) => space.uuid));
-        const canEditSpace = this.createSpaceEditCheck(user);
+        const editableSpaceUuids = await this.getEditableSpaceUuids(user, [
+            ...visibleSpaceUuids,
+        ]);
         const items = spaces
             .filter(
                 (space) =>
@@ -5946,7 +5877,7 @@ export class AiAgentToolsService extends BaseService {
                     childSpaceCount: space.childSpaceCount,
                     appCount: space.appCount,
                     directAccess: space.userAccess?.hasDirectAccess === true,
-                    canEdit: canEditSpace(space),
+                    canEdit: editableSpaceUuids.has(space.uuid),
                 }),
             );
 
@@ -6000,13 +5931,11 @@ export class AiAgentToolsService extends BaseService {
         )
             ? (await this.projectModel.getSummary(projectUuid)).slug
             : projectUuid;
-        const canEditSpace = this.createSpaceEditCheck(user);
-        const childSpacesByUuid = new Map(
-            results.data.some((item) => item.contentType === ContentType.SPACE)
-                ? (await this.projectService.getSpaces(user, projectUuid)).map(
-                      (childSpace) => [childSpace.uuid, childSpace] as const,
-                  )
-                : [],
+        const editableSpaceUuids = await this.getEditableSpaceUuids(
+            user,
+            results.data.flatMap((item) =>
+                item.contentType === ContentType.SPACE ? [item.uuid] : [],
+            ),
         );
 
         return {
@@ -6028,7 +5957,6 @@ export class AiAgentToolsService extends BaseService {
                 )
                 .map((item): AgentListContentItem => {
                     if (item.contentType === ContentType.SPACE) {
-                        const childSpace = childSpacesByUuid.get(item.uuid);
                         return {
                             contentType: ContentType.SPACE,
                             name: item.name,
@@ -6042,9 +5970,7 @@ export class AiAgentToolsService extends BaseService {
                             childSpaceCount: item.childSpaceCount,
                             appCount: item.appCount,
                             directAccess: item.access.includes(user.userUuid),
-                            canEdit:
-                                childSpace !== undefined &&
-                                canEditSpace(childSpace),
+                            canEdit: editableSpaceUuids.has(item.uuid),
                         };
                     }
 

@@ -220,12 +220,16 @@ export class SpacePermissionService extends BaseService {
      * @param action - The action to check permissions for
      * @param user - The session user to check permissions for
      * @param spaceUuids - The space uuids to get the accessible space uuids for
+     * @param subjectType - The space itself, or the content the action targets inside it
      * @returns The accessible space uuids
      */
     async getAccessibleSpaceUuids(
         action: AbilityAction,
         user: SessionUser,
         spaceUuids: string[],
+        {
+            subjectType = 'Space',
+        }: { subjectType?: 'Space' | 'SavedChart' | 'Dashboard' } = {},
     ): Promise<string[]> {
         const accessContext = await this.getSpacesCaslContext(spaceUuids, {
             userUuid: user.userUuid,
@@ -236,7 +240,7 @@ export class SpacePermissionService extends BaseService {
         const accessResults = auditedAbility.canBulk(
             action,
             entries.map(([spaceUuid, access]) =>
-                subject('Space', {
+                subject(subjectType, {
                     ...access,
                     metadata: { spaceUuid },
                 }),

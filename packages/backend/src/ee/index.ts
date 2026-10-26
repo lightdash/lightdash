@@ -729,6 +729,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     searchModel: models.getSearchModel(),
                     searchService: repository.getSearchService(),
                     spaceService: repository.getSpaceService(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                     spaceModel: models.getSpaceModel(),
                     dashboardService: repository.getDashboardService(),
                     dashboardModel: models.getDashboardModel(),
