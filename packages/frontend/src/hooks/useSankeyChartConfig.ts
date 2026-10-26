@@ -15,7 +15,15 @@ import {
     resolveSankeyTargetFieldId,
     type SankeySeriesDataPoint,
 } from '@lightdash/visualization/editor';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
+import {
+    buildSankeyEditorState,
+    sankeyEditorActions,
+    selectSankeyEditor,
+    useEditorFieldSetter,
+    useEditorState,
+    type SankeyEditorState,
+} from '../features/visualization/store';
 import { type InfiniteQueryResults } from './useQueryResults';
 
 type SankeyChartConfig = {
@@ -62,24 +70,38 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
     _colorPalette,
     tableCalculationsMetadata,
 ) => {
-    const [sourceFieldId, setSourceFieldId] = useState(
-        sankeyChartConfig?.sourceFieldId ?? null,
+    const {
+        sourceFieldId,
+        targetFieldId,
+        metricFieldId,
+        nodeAlign,
+        orient,
+        nodeLayout,
+    } = useEditorState(selectSankeyEditor, sankeyEditorActions, () =>
+        buildSankeyEditorState(sankeyChartConfig),
     );
-    const [targetFieldId, setTargetFieldId] = useState(
-        sankeyChartConfig?.targetFieldId ?? null,
+    const set = useEditorFieldSetter<SankeyEditorState>(
+        selectSankeyEditor,
+        sankeyEditorActions.set,
     );
-    const [metricFieldId, setMetricFieldId] = useState(
-        sankeyChartConfig?.metricFieldId ?? null,
+
+    const setters = useMemo(
+        () => ({
+            onSourceFieldChange: (fieldId: string | null) =>
+                set('sourceFieldId', fieldId),
+            onTargetFieldChange: (fieldId: string | null) =>
+                set('targetFieldId', fieldId),
+            onMetricFieldChange: (fieldId: string | null) =>
+                set('metricFieldId', fieldId),
+            onNodeAlignChange: (align: SankeyEditorState['nodeAlign']) =>
+                set('nodeAlign', align),
+            onOrientChange: (value: SankeyEditorState['orient']) =>
+                set('orient', value),
+            onNodeLayoutChange: (value: SankeyEditorState['nodeLayout']) =>
+                set('nodeLayout', value),
+        }),
+        [set],
     );
-    const [nodeAlign, setNodeAlign] = useState<
-        NonNullable<SankeyChart['nodeAlign']>
-    >(sankeyChartConfig?.nodeAlign ?? 'justify');
-    const [orient, setOrient] = useState<NonNullable<SankeyChart['orient']>>(
-        sankeyChartConfig?.orient ?? 'horizontal',
-    );
-    const [nodeLayout, setNodeLayout] = useState<
-        NonNullable<SankeyChart['nodeLayout']>
-    >(sankeyChartConfig?.nodeLayout ?? 'multi-step');
 
     const dimensionIds = useMemo(() => Object.keys(dimensions), [dimensions]);
     const numericFieldIds = useMemo(
@@ -97,8 +119,14 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
             isLoading,
             tableCalculationsMetadata,
         });
-        if (resolved !== sourceFieldId) setSourceFieldId(resolved);
-    }, [dimensionIds, sourceFieldId, isLoading, tableCalculationsMetadata]);
+        if (resolved !== sourceFieldId) set('sourceFieldId', resolved);
+    }, [
+        dimensionIds,
+        sourceFieldId,
+        isLoading,
+        tableCalculationsMetadata,
+        set,
+    ]);
 
     useEffect(() => {
         const resolved = resolveSankeyTargetFieldId({
@@ -108,13 +136,14 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
             isLoading,
             tableCalculationsMetadata,
         });
-        if (resolved !== targetFieldId) setTargetFieldId(resolved);
+        if (resolved !== targetFieldId) set('targetFieldId', resolved);
     }, [
         dimensionIds,
         targetFieldId,
         sourceFieldId,
         isLoading,
         tableCalculationsMetadata,
+        set,
     ]);
 
     useEffect(() => {
@@ -124,8 +153,14 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
             isLoading,
             tableCalculationsMetadata,
         });
-        if (resolved !== metricFieldId) setMetricFieldId(resolved);
-    }, [numericFieldIds, metricFieldId, isLoading, tableCalculationsMetadata]);
+        if (resolved !== metricFieldId) set('metricFieldId', resolved);
+    }, [
+        numericFieldIds,
+        metricFieldId,
+        isLoading,
+        tableCalculationsMetadata,
+        set,
+    ]);
 
     const data: SankeySeriesDataPoint = useMemo(
         () =>
@@ -165,32 +200,22 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
             sourceFieldId,
             targetFieldId,
             metricFieldId,
-            onSourceFieldChange: setSourceFieldId,
-            onTargetFieldChange: setTargetFieldId,
-            onMetricFieldChange: setMetricFieldId,
             nodeAlign,
-            onNodeAlignChange: setNodeAlign,
             orient,
-            onOrientChange: setOrient,
             nodeLayout,
-            onNodeLayoutChange: setNodeLayout,
             data,
+            ...setters,
         }),
         [
             validConfig,
             sourceFieldId,
             targetFieldId,
             metricFieldId,
-            setSourceFieldId,
-            setTargetFieldId,
-            setMetricFieldId,
             nodeAlign,
-            setNodeAlign,
             orient,
-            setOrient,
             nodeLayout,
-            setNodeLayout,
             data,
+            setters,
         ],
     );
 };

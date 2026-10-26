@@ -13,15 +13,19 @@ import {
     buildTreemapData,
     getTreemapMetricItem,
     getValidTreemapGroupFieldIds,
-    reorderTreemapGroupFieldIds,
     repairTreemapSizeMetricId,
-    TREEMAP_DEFAULT_END_COLOR,
-    TREEMAP_DEFAULT_LEAF_DEPTH,
-    TREEMAP_DEFAULT_START_COLOR,
-    TREEMAP_DEFAULT_VISIBLE_MIN,
     type TreemapNode,
 } from '@lightdash/visualization/editor';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
+import {
+    buildTreemapEditorState,
+    selectTreemapEditor,
+    treemapEditorActions,
+    useEditorFieldSetter,
+    useEditorState,
+    useVisualizationDispatch,
+    type TreemapEditorState,
+} from '../features/visualization/store';
 import { useAsyncCalculateSubtotals } from './useAsyncCalculateTotal';
 import { useProjectUuid } from './useProjectUuid';
 import { type InfiniteQueryResults } from './useQueryResults';
@@ -93,13 +97,6 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
 ) => {
     const projectUuid = useProjectUuid();
 
-    const [visibleMin, setVisibleMin] = useState(
-        treemapConfig?.visibleMin ?? TREEMAP_DEFAULT_VISIBLE_MIN,
-    );
-    const [leafDepth, setLeafDepth] = useState(
-        treemapConfig?.leafDepth ?? TREEMAP_DEFAULT_LEAF_DEPTH,
-    );
-
     const dimensionIds = useMemo(() => Object.keys(dimensions), [dimensions]);
 
     const validGroupFieldIds = useMemo(
@@ -111,38 +108,47 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         [treemapConfig?.groupFieldIds, dimensionIds],
     );
 
-    const [groupFieldIds, setGroupFieldIds] = useState(validGroupFieldIds);
-
-    const [sizeMetricId, setSizeMetricId] = useState(
-        treemapConfig?.sizeMetricId ?? null,
+    const {
+        visibleMin,
+        leafDepth,
+        groupFieldIds,
+        sizeMetricId,
+        colorMetricId,
+        startColor,
+        endColor,
+        useDynamicColors,
+        startColorThreshold,
+        endColorThreshold,
+    } = useEditorState(selectTreemapEditor, treemapEditorActions, () =>
+        buildTreemapEditorState(treemapConfig, validGroupFieldIds),
     );
-    const [colorMetricId, setColorMetricId] = useState(
-        treemapConfig?.colorMetricId ?? null,
-    );
-    const [startColor, onStartColorChange] = useState(
-        treemapConfig?.startColor ?? TREEMAP_DEFAULT_START_COLOR,
-    );
-    const [endColor, onEndColorChange] = useState(
-        treemapConfig?.endColor ?? TREEMAP_DEFAULT_END_COLOR,
-    );
-    const [useDynamicColors, setDynamicColors] = useState(
-        treemapConfig?.useDynamicColors ?? false,
-    );
-    const [startColorThreshold, setStartColorThreshold] = useState(
-        treemapConfig?.startColorThreshold ?? undefined,
-    );
-    const [endColorThreshold, setEndColorThreshold] = useState(
-        treemapConfig?.endColorThreshold ?? undefined,
+    const dispatch = useVisualizationDispatch();
+    const set = useEditorFieldSetter<TreemapEditorState>(
+        selectTreemapEditor,
+        treemapEditorActions.set,
     );
 
-    const toggleDynamicColors = useCallback(() => {
-        setDynamicColors((prev) => {
-            if (prev) {
-                setColorMetricId(null);
-            }
-            return !prev;
-        });
-    }, []);
+    const setters = useMemo(
+        () => ({
+            sizeMetricChange: (value: string | null) =>
+                set('sizeMetricId', value),
+            colorMetricChange: (value: string | null) =>
+                set('colorMetricId', value),
+            toggleDynamicColors: () =>
+                dispatch(treemapEditorActions.toggleDynamicColors()),
+            onStartColorChange: (color: string) => set('startColor', color),
+            onEndColorChange: (color: string) => set('endColor', color),
+            setStartColorThreshold: (value: number | undefined) =>
+                set('startColorThreshold', value),
+            setEndColorThreshold: (value: number | undefined) =>
+                set('endColorThreshold', value),
+            setVisibleMin: (value: number) => set('visibleMin', value),
+            setLeafDepth: (value: number) => set('leafDepth', value),
+            groupReorder: (args: { from: number; to: number }) =>
+                dispatch(treemapEditorActions.groupReorder(args)),
+        }),
+        [dispatch, set],
+    );
 
     const allNumericMetricIds = useMemo(
         () => Object.keys(numericMetrics),
@@ -162,8 +168,8 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
     const isLoading = !resultsData;
 
     useEffect(() => {
-        setGroupFieldIds(validGroupFieldIds);
-    }, [validGroupFieldIds]);
+        set('groupFieldIds', validGroupFieldIds);
+    }, [validGroupFieldIds, set]);
 
     useEffect(() => {
         const repairedSizeMetricId = repairTreemapSizeMetricId({
@@ -173,22 +179,14 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
             tableCalculationsMetadata,
         });
         if (repairedSizeMetricId === undefined) return;
-        setSizeMetricId(repairedSizeMetricId);
+        set('sizeMetricId', repairedSizeMetricId);
     }, [
         allNumericMetricIds,
         isLoading,
         sizeMetricId,
         tableCalculationsMetadata,
+        set,
     ]);
-
-    const handleGroupReorder = useCallback(
-        ({ from, to }: { from: number; to: number }) => {
-            setGroupFieldIds((prev) =>
-                reorderTreemapGroupFieldIds(prev, { from, to }),
-            );
-        },
-        [],
-    );
 
     const {
         data: groupedSubtotals,
@@ -262,61 +260,43 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
             subtotalsError,
 
             groupFieldIds: groupFieldIdsCopy,
-            groupReorder: handleGroupReorder,
 
             selectedSizeMetric,
             sizeMetricId,
-            sizeMetricChange: setSizeMetricId,
 
             selectedColorMetric,
             colorMetricId,
-            colorMetricChange: setColorMetricId,
 
             useDynamicColors,
-            toggleDynamicColors,
             startColor,
             endColor,
-            onStartColorChange,
-            onEndColorChange,
             startColorThreshold,
-            setStartColorThreshold,
             endColorThreshold,
-            setEndColorThreshold,
 
             visibleMin,
-            setVisibleMin,
             leafDepth,
-            setLeafDepth,
 
             data,
+            ...setters,
         }),
         [
             validConfig,
             isLoadingSubtotals,
             subtotalsError,
             groupFieldIdsCopy,
-            handleGroupReorder,
             selectedSizeMetric,
             sizeMetricId,
-            setSizeMetricId,
             selectedColorMetric,
             colorMetricId,
-            setColorMetricId,
             useDynamicColors,
-            toggleDynamicColors,
             startColor,
             endColor,
-            onStartColorChange,
-            onEndColorChange,
             startColorThreshold,
-            setStartColorThreshold,
             endColorThreshold,
-            setEndColorThreshold,
             visibleMin,
-            setVisibleMin,
             leafDepth,
-            setLeafDepth,
             data,
+            setters,
         ],
     );
 };
