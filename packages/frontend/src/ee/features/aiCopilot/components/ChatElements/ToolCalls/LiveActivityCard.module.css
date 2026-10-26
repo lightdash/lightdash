@@ -384,6 +384,12 @@
     }
 }
 
+.narration {
+    padding: 2px 0 4px;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+}
+
 /* History rows cascade in with staggered delays (see --row-delay) so opening
  * the bento feels like a deck dealing rather than a flash. */
 .historyRow {

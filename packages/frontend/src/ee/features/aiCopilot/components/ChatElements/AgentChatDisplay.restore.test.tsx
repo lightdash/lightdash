@@ -71,6 +71,7 @@ const assistantMessage = (
     overrides: Partial<AiAgentMessageAssistant>,
 ): AiAgentMessageAssistant => ({
     role: 'assistant',
+    responseParts: null,
     status: 'idle',
     uuid: 'prompt-1',
     threadUuid: 'thread-1',

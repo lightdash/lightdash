@@ -1159,6 +1159,7 @@ const createOptimisticMessages = (
         userMessage,
         {
             role: 'assistant' as const,
+            responseParts: null,
             status: 'pending' as const,
             uuid: promptUuid,
             threadUuid,

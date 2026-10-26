@@ -651,6 +651,7 @@ import { getSlackTablePreviews } from '../ai/utils/slackTablePreviews';
 import {
     parseSlackVisualizationSelection,
     stripSlackVisualizationSelection,
+    stripSlackVisualizationSelectionFromParts,
 } from '../ai/utils/slackVisualizationSelection';
 import { isSqlScopeConfigured } from '../ai/utils/sqlScope';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
@@ -17702,6 +17703,11 @@ Use your existing tools to inspect them when relevant to the user's question (re
                                       response:
                                           stripSlackVisualizationSelection(
                                               update.response,
+                                          ),
+                                      responseParts:
+                                          update.responseParts &&
+                                          stripSlackVisualizationSelectionFromParts(
+                                              update.responseParts,
                                           ),
                                   }
                                 : update;

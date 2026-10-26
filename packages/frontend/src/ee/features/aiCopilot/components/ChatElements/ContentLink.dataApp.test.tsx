@@ -13,6 +13,7 @@ const APP_HREF = `/projects/project-1/apps/${APP_UUID}/view`;
 
 const message: AiAgentMessageAssistant = {
     role: 'assistant',
+    responseParts: null,
     status: 'idle',
     uuid: 'message-1',
     threadUuid: 'thread-1',

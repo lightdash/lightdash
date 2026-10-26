@@ -79,6 +79,8 @@ type Props = {
      * replacing row. Empty when no tool has fired a progress event yet.
      */
     stepProgressMessages?: StepProgressMessage[];
+    /** Model text emitted before each tool group, keyed by the group's keyId. */
+    narrationByGroupKey?: Record<string, string[]>;
     /** runSql / composer / SQL chart calls awaiting a decision; approval renders inline under the SQL. */
     approval?: SqlApprovalThread & {
         pendingToolCallIds: string[];
@@ -665,6 +667,7 @@ export const LiveActivityCard: FC<Props> = ({
     toolCalls,
     mcpServers,
     stepProgressMessages = [],
+    narrationByGroupKey = {},
     approval,
 }) => {
     const latestGroup =
@@ -967,6 +970,16 @@ export const LiveActivityCard: FC<Props> = ({
                                             } as React.CSSProperties
                                         }
                                     >
+                                        {narrationByGroupKey[group.keyId]?.map(
+                                            (text, textIdx) => (
+                                                <AiMarkdown
+                                                    key={textIdx}
+                                                    className={styles.narration}
+                                                >
+                                                    {text}
+                                                </AiMarkdown>
+                                            ),
+                                        )}
                                         <ToolCallRow
                                             toolName={group.toolName}
                                             toolCalls={group.calls}

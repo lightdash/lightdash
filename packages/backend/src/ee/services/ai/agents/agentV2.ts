@@ -9,6 +9,7 @@ import {
     isSqlApprovalToolCall,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
+    type AiPromptResponsePart,
     type CustomChartTypeLibrary,
     type ParameterDefinitions,
 } from '@lightdash/common';
@@ -20,6 +21,7 @@ import {
     stepCountIs,
     streamText,
     StreamTextResult,
+    type ContentPart,
     type LanguageModelUsage,
     type ModelMessage,
     type OnToolCallFinishEvent,
@@ -1122,6 +1124,27 @@ const recordExternalMcpToolCall = (
             );
         });
 };
+
+/** Text and tool calls in emitted order, so the UI can fold narration under the activity card. */
+export const getResponseParts = (
+    steps: ReadonlyArray<{ content: ReadonlyArray<ContentPart<ToolSet>> }>,
+    renderText: (text: string) => string,
+): AiPromptResponsePart[] =>
+    steps.flatMap((step) =>
+        step.content.flatMap((part): AiPromptResponsePart[] => {
+            switch (part.type) {
+                case 'text':
+                    return part.text.trim()
+                        ? [{ type: 'text', text: renderText(part.text) }]
+                        : [];
+                case 'tool-call':
+                    return [{ type: 'tool', toolCallId: part.toolCallId }];
+                default:
+                    // Results, reasoning, sources and files live in their own tables
+                    return [];
+            }
+        }),
+    );
 
 type FastChartStep = {
     toolCalls: ReadonlyArray<{
@@ -3834,6 +3857,17 @@ export const streamAgentResponse = async ({
                       ) ?? modelResponse);
                 const completeResponse =
                     agentContext.responseBlocks.render(responseText);
+                const modelParts = getResponseParts(steps, (text) =>
+                    agentContext.responseBlocks.render(text),
+                );
+                // Fast responses are synthesized, so they never appear in step content
+                const responseParts: AiPromptResponsePart[] =
+                    modelResponse.trim() || !completeResponse.trim()
+                        ? modelParts
+                        : [
+                              ...modelParts,
+                              { type: 'text', text: completeResponse },
+                          ];
 
                 const stepCapReached = steps.length >= args.execution.maxSteps;
 
@@ -3896,6 +3930,7 @@ export const streamAgentResponse = async ({
                 } else {
                     await persistPrompt({
                         response: completeResponse,
+                        responseParts,
                         promptUuid: args.promptUuid,
                         tokenUsage: completedPromptTokenUsage(
                             totalUsage.totalTokens,

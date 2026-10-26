@@ -12,6 +12,7 @@ const DOCUMENT_HREF = '/projects/project-1/documents/document-1';
 const THREAD_HREF = '/projects/project-1/ai-agents/agent-1/threads/thread-1';
 const message: AiAgentMessageAssistant = {
     role: 'assistant',
+    responseParts: null,
     status: 'idle',
     uuid: 'message-1',
     threadUuid: 'thread-1',

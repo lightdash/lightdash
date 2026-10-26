@@ -1160,6 +1160,7 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
         const calls = flattenToolCalls(turn.activity);
         return {
             role: 'assistant',
+            responseParts: null,
             status: turn.assistantStatus ?? 'idle',
             uuid: `assistant-${index}`,
             threadUuid,

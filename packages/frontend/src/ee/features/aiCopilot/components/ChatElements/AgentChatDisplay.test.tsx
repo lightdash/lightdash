@@ -72,6 +72,7 @@ const getAssistantMessage = (
     createdAt: string,
 ): AiAgentMessageAssistant => ({
     role: 'assistant',
+    responseParts: null,
     status: 'idle',
     uuid,
     threadUuid: 'thread-1',

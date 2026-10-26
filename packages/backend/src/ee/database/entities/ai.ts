@@ -7,6 +7,7 @@ import {
     type AiDeepResearchLimits,
     type AiOrgModelVisibility,
     type AiPromptExternalSourceSnapshot,
+    type AiPromptResponsePart,
     type AiPromptResponseTiming,
     type AiPromptThreadFileSnapshot,
     type AiPromptTokenUsage,
@@ -349,6 +350,7 @@ export type DbAiPrompt = {
     model_config: { modelName: string; modelProvider: string } | null;
     token_usage: AiPromptTokenUsage | null;
     response_timing: AiPromptResponseTiming | null;
+    response_parts: AiPromptResponsePart[] | null;
     execution_mode: 'standard' | 'deep_research' | null;
     needs_user_input: boolean | null;
     needs_user_input_metadata: AiPromptNeedsUserInputMetadata | null;
@@ -386,6 +388,8 @@ export type AiPromptTable = Knex.CompositeTableType<
         > & {
             responded_at: Knex.Raw;
             retried_at?: Date | Knex.Raw;
+            // JSON-encoded: pg serializes a JS array as a Postgres array
+            response_parts?: string | null;
         }
     >
 >;

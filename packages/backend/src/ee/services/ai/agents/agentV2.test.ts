@@ -959,7 +959,7 @@ describe('empty finishes and interrupts', () => {
         await capturedOptions.onFinish({
             usage: { totalTokens: 100 },
             totalUsage: { totalTokens: 100 },
-            steps: [{ text: '', usage: { totalTokens: 10 } }],
+            steps: [{ text: '', content: [], usage: { totalTokens: 10 } }],
             finalStep: { reasoning: [], usage: { totalTokens: 10 } },
             finishReason: 'tool-calls',
         });
@@ -970,6 +970,62 @@ describe('empty finishes and interrupts', () => {
         );
         return updatePrompt;
     };
+
+    it('stream: persists text and tool calls in emitted order', async () => {
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(false);
+        let capturedOptions: AnyType;
+        vi.mocked(streamText).mockImplementationOnce(((options: AnyType) => {
+            capturedOptions = options;
+            return {} as AnyType;
+        }) as AnyType);
+        await streamAgentResponse({
+            args: buildAgentArgs() as AnyType,
+            dependencies,
+            mcpToolSetup: mcpToolSetup(),
+        });
+        const toolCall = {
+            toolCallId: 'call-1',
+            toolName: 'runQuery',
+            input: {},
+        };
+        await capturedOptions.onFinish({
+            totalUsage: { totalTokens: 100 },
+            steps: [
+                {
+                    text: 'Checking.',
+                    toolCalls: [toolCall],
+                    toolResults: [],
+                    content: [
+                        { type: 'text', text: 'Checking.' },
+                        { type: 'tool-call', ...toolCall },
+                        { type: 'tool-result', toolCallId: 'call-1' },
+                    ],
+                },
+                {
+                    text: 'Answer.',
+                    toolCalls: [],
+                    toolResults: [],
+                    content: [
+                        { type: 'reasoning', text: 'Thinking' },
+                        { type: 'text', text: '  ' },
+                        { type: 'text', text: 'Answer.' },
+                    ],
+                },
+            ],
+            finalStep: { reasoning: [], usage: { totalTokens: 10 } },
+            finishReason: 'stop',
+        });
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({
+                responseParts: [
+                    { type: 'text', text: 'Checking.' },
+                    { type: 'tool', toolCallId: 'call-1' },
+                    { type: 'text', text: 'Answer.' },
+                ],
+            }),
+        );
+    });
 
     it('stream: persists an empty response instead of an error when the prompt was interrupted', async () => {
         const updatePrompt = await runStreamOnFinish(true);

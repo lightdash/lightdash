@@ -31,6 +31,7 @@ import {
     type AiAgentPromptLoadout,
     type AiPromptContext,
     type AiPromptContextInput,
+    type AiPromptResponsePart,
     type AiPromptResponseTiming,
     type AiPromptTokenUsage,
     type AiThreadBinding,
@@ -370,6 +371,8 @@ export type AiAgentMessageAssistant = {
 
     // ai_prompt.response
     message: string | null;
+    // ai_prompt.response_parts; null for prompts persisted before it existed
+    responseParts: AiPromptResponsePart[] | null;
     // ai_prompt.error_message
     errorMessage: string | null;
     interrupted: boolean;

@@ -102,6 +102,12 @@ import {
 import { MessageTimingIndicator } from './MessageTimingIndicator';
 import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
+import {
+    getToolGroups,
+    segmentPersistedResponse,
+    segmentStreamParts,
+    splitAnswerAndNarration,
+} from './responseSegments';
 import { StreamRecoveryAlert } from './StreamRecoveryAlert';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
@@ -116,56 +122,12 @@ import {
     requiresSqlApproval,
 } from './ToolCalls/utils/sqlApprovalPending';
 import {
-    appendToolCallToActivityGroup,
-    canAppendToolCallToActivityGroup,
-    createToolCallActivityGroup,
     groupToolCallSummaries,
     type ToolCallActivityGroup,
 } from './ToolCalls/utils/toolCallGrouping';
 import { type ToolCallSummary } from './ToolCalls/utils/types';
 import { TypingDots } from './TypingDots';
 import { useMessageMemorySources } from './useMessageMemorySources';
-
-type ToolGroup = ToolCallActivityGroup & {
-    kind: 'toolGroup';
-};
-type TextSegment = { kind: 'text'; text: string; idx: number };
-type StreamSegment = TextSegment | ToolGroup;
-
-const segmentStreamParts = (parts: StreamPart[]): StreamSegment[] => {
-    const segments: StreamSegment[] = [];
-    parts.forEach((part, idx) => {
-        if (part.type === 'text') {
-            segments.push({ kind: 'text', text: part.text, idx });
-            return;
-        }
-        if (isHiddenToolName(part.toolName)) {
-            return;
-        }
-        const call: ToolCallSummary = {
-            toolCallId: part.toolCallId,
-            toolName: part.toolName,
-            toolArgs: part.toolArgs,
-            toolOutput: part.toolResult ?? undefined,
-            isPreliminary: part.isPreliminary,
-        };
-        const last = segments[segments.length - 1];
-        if (
-            last &&
-            last.kind === 'toolGroup' &&
-            canAppendToolCallToActivityGroup(last, call)
-        ) {
-            appendToolCallToActivityGroup(last, call);
-            return;
-        }
-
-        segments.push({
-            ...createToolCallActivityGroup(call),
-            kind: 'toolGroup',
-        });
-    });
-    return segments;
-};
 
 const groupPersistedToolCalls = (
     calls: ToolCallSummary[],
@@ -623,33 +585,19 @@ const AssistantBubbleContent: FC<{
                     // Tool segments are extracted into a single LiveActivityCard
                     // pinned below the texts. Texts keep their interleaved order
                     // with intermediates collapsed; the latest text stays open.
-                    const liveToolGroups: LiveActivityToolGroup[] = segments
-                        .filter(
-                            (
-                                s,
-                            ): s is Extract<typeof s, { kind: 'toolGroup' }> =>
-                                s.kind === 'toolGroup',
-                        )
-                        .map((s) => ({
-                            toolName: s.toolName,
-                            calls: s.calls,
-                            keyId: s.keyId,
-                            display: s.display,
-                        }));
+                    const liveToolGroups: LiveActivityToolGroup[] =
+                        getToolGroups(segments);
                     const pendingApprovalIds = streamingState
                         ? getPendingApprovalIds(streamingState)
                         : [];
-                    const textSegments = segments.filter(
-                        (s): s is Extract<typeof s, { kind: 'text' }> =>
-                            s.kind === 'text',
-                    );
-                    const latestTextSeg = textSegments[textSegments.length - 1];
+                    const { answer, narrationByGroupKey } =
+                        splitAnswerAndNarration(segments, isStreaming);
                     // bridges the gap between artifact landing and closing text.
                     const showFinishingUp =
                         isStreaming &&
                         !!message.artifacts?.length &&
                         segments[segments.length - 1]?.kind !== 'text';
-                    const finalAnswerMd = latestTextSeg ? (
+                    const finalAnswerMd = answer ? (
                         <AiMarkdown
                             isStreaming={isStreaming}
                             allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
@@ -693,7 +641,7 @@ const AssistantBubbleContent: FC<{
                                 },
                             }}
                         >
-                            {latestTextSeg.text}
+                            {answer}
                         </AiMarkdown>
                     ) : null;
                     return (
@@ -739,6 +687,7 @@ const AssistantBubbleContent: FC<{
                                         streamingState?.stepProgressMessages ??
                                         []
                                     }
+                                    narrationByGroupKey={narrationByGroupKey}
                                     approval={{
                                         projectUuid,
                                         agentUuid,
@@ -750,7 +699,7 @@ const AssistantBubbleContent: FC<{
                                     }}
                                 />
                             )}
-                            {latestTextSeg ? (
+                            {answer ? (
                                 <Box
                                     className={styles.streamPart}
                                     // Walkthrough: the answer in words (while
@@ -783,6 +732,10 @@ const AssistantBubbleContent: FC<{
                 // Fallback (page reload, no streamingState): activity card ON
                 // TOP showing what the agent did + reasoning folded in, then
                 // the final markdown answer below as the hero.
+                const persistedSegments = segmentPersistedResponse(message);
+                const persisted = persistedSegments
+                    ? splitAnswerAndNarration(persistedSegments, false)
+                    : null;
                 const renderableToolCalls = message.toolCalls.filter(
                     (tc) =>
                         !isHiddenToolName(tc.toolName) &&
@@ -790,7 +743,12 @@ const AssistantBubbleContent: FC<{
                         tc.parentToolCallId === null,
                 );
                 const persistedToolGroups: LiveActivityToolGroup[] =
-                    groupPersistedToolCalls(renderableToolCalls);
+                    persistedSegments
+                        ? getToolGroups(persistedSegments)
+                        : groupPersistedToolCalls(renderableToolCalls);
+                const persistedContent = persisted
+                    ? persisted.answer + referencedArtifactsMarkdown
+                    : messageContent;
                 const persistedApproval = {
                     projectUuid,
                     agentUuid,
@@ -807,6 +765,9 @@ const AssistantBubbleContent: FC<{
                                 toolResults={message.toolResults}
                                 toolCalls={message.toolCalls}
                                 mcpServers={mcpServers}
+                                narrationByGroupKey={
+                                    persisted?.narrationByGroupKey
+                                }
                                 approval={persistedApproval}
                             />
                         )}
@@ -819,7 +780,7 @@ const AssistantBubbleContent: FC<{
                                 isLive={false}
                             />
                         )}
-                        {messageContent.length > 0 ? (
+                        {persistedContent.length > 0 ? (
                             <Box
                                 // Walkthrough: the answer in words (persisted).
                                 // See scripts/scope-tours.
@@ -867,7 +828,7 @@ const AssistantBubbleContent: FC<{
                                         },
                                     }}
                                 >
-                                    {messageContent}
+                                    {persistedContent}
                                 </AiMarkdown>
                             </Box>
                         ) : null}

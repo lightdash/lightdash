@@ -113,6 +113,14 @@ export type AiPromptResponseTiming = {
 };
 
 /**
+ * Ordered model output: text interleaved with the tool calls it preceded.
+ * Each element maps to one future ai_prompt_part row (`type` + flat payload).
+ */
+export type AiPromptResponsePart =
+    | { type: 'text'; text: string }
+    | { type: 'tool'; toolCallId: string };
+
+/**
  * Every origin an ai_thread can be created from. Canonical source for the
  * DB column type and the admin/list filters — add new origins here.
  */
@@ -577,6 +585,7 @@ export type UpdateSlackResponse = {
     humanScore?: number | null;
     tokenUsage?: AiPromptTokenUsageUpdate | null;
     responseTiming?: AiPromptResponseTiming;
+    responseParts?: AiPromptResponsePart[];
 };
 
 export type UpdateWebAppResponse = {
@@ -586,6 +595,7 @@ export type UpdateWebAppResponse = {
     humanScore?: number | null;
     tokenUsage?: AiPromptTokenUsageUpdate | null;
     responseTiming?: AiPromptResponseTiming;
+    responseParts?: AiPromptResponsePart[];
 };
 
 export type UpdateSlackResponseTs = {

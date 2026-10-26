@@ -23,6 +23,7 @@ const DASHBOARD_PATH =
     '/embed/project-1/ai-agents/agent-1/dashboards/dashboard-1';
 const message: AiAgentMessageAssistant = {
     role: 'assistant',
+    responseParts: null,
     status: 'idle',
     uuid: 'message-1',
     threadUuid: 'thread-1',

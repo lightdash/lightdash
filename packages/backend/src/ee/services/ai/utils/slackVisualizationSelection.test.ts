@@ -1,6 +1,7 @@
 import {
     parseSlackVisualizationSelection,
     stripSlackVisualizationSelection,
+    stripSlackVisualizationSelectionFromParts,
 } from './slackVisualizationSelection';
 
 describe('Slack visualization selection', () => {
@@ -91,5 +92,21 @@ describe('Slack visualization selection', () => {
         expect(stripSlackVisualizationSelection(response)).toBe(
             'First paragraph.\n\nFinal paragraph.',
         );
+    });
+
+    it('strips markers from text parts and drops parts left empty', () => {
+        expect(
+            stripSlackVisualizationSelectionFromParts([
+                { type: 'text', text: '<slack-table queryUuid="q1" />' },
+                { type: 'tool', toolCallId: 'call-1' },
+                {
+                    type: 'text',
+                    text: 'Answer.\n<slack-chart versionUuid="v1" />',
+                },
+            ]),
+        ).toEqual([
+            { type: 'tool', toolCallId: 'call-1' },
+            { type: 'text', text: 'Answer.' },
+        ]);
     });
 });

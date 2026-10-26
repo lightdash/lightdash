@@ -26,6 +26,7 @@ const pendingThread = (createdAt: Date | string) =>
         messages: [
             {
                 role: 'assistant',
+                responseParts: null,
                 status: 'idle',
                 toolResults: [
                     {
@@ -61,6 +62,7 @@ const threadWithAssistantStatus = (status: AiAgentMessageAssistant['status']) =>
         messages: [
             {
                 role: 'assistant',
+                responseParts: null,
                 status,
                 uuid: 'message-1',
                 threadUuid: 'thread-1',

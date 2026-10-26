@@ -1,3 +1,8 @@
+import {
+    assertUnreachable,
+    type AiPromptResponsePart,
+} from '@lightdash/common';
+
 const TABLE_SELECTION_REGEX = /<slack-table\s+queryUuid="([^"<>\s]+)"\s*\/>/g;
 const CHART_SELECTION_REGEX = /<slack-chart\s+versionUuid="([^"<>\s]+)"\s*\/>/g;
 const SELECTION_TAG_REGEX = /<\/?slack-(?:table|chart)\b[^>]*(?:>|$)/gi;
@@ -22,3 +27,19 @@ export const stripSlackVisualizationSelection = (response: string): string =>
         .replace(SELECTION_TAG_REGEX, '')
         .replace(/\n(?:[ \t]*\n){2,}/g, '\n\n')
         .trim();
+
+export const stripSlackVisualizationSelectionFromParts = (
+    parts: AiPromptResponsePart[],
+): AiPromptResponsePart[] =>
+    parts.flatMap((part): AiPromptResponsePart[] => {
+        switch (part.type) {
+            case 'text': {
+                const text = stripSlackVisualizationSelection(part.text);
+                return text ? [{ type: 'text', text }] : [];
+            }
+            case 'tool':
+                return [part];
+            default:
+                return assertUnreachable(part, 'Unknown response part type');
+        }
+    });

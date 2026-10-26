@@ -4847,6 +4847,7 @@ export class AiAgentModel {
                     | 'model_config'
                     | 'token_usage'
                     | 'response_timing'
+                    | 'response_parts'
                     | 'hidden'
                     | 'loadout_base'
                 > &
@@ -4873,6 +4874,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.model_config`,
                 `${AiPromptTableName}.token_usage`,
                 `${AiPromptTableName}.response_timing`,
+                `${AiPromptTableName}.response_parts`,
                 `${AiPromptTableName}.hidden`,
                 `${AiPromptTableName}.loadout_base`,
                 `${UserTableName}.user_uuid`,
@@ -4981,6 +4983,7 @@ export class AiAgentModel {
                 uuid: row.ai_prompt_uuid,
                 threadUuid: row.ai_thread_uuid,
                 message: row.response,
+                responseParts: row.response_parts,
                 errorMessage: row.error_message,
                 interrupted: row.interrupted,
                 createdAt:
@@ -5633,6 +5636,7 @@ export class AiAgentModel {
                     | 'model_config'
                     | 'token_usage'
                     | 'response_timing'
+                    | 'response_parts'
                     | 'hidden'
                     | 'loadout_base'
                 > &
@@ -5659,6 +5663,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.model_config`,
                 `${AiPromptTableName}.token_usage`,
                 `${AiPromptTableName}.response_timing`,
+                `${AiPromptTableName}.response_parts`,
                 `${AiPromptTableName}.hidden`,
                 `${AiPromptTableName}.loadout_base`,
                 `${UserTableName}.user_uuid`,
@@ -5796,6 +5801,7 @@ export class AiAgentModel {
                     uuid: row.ai_prompt_uuid,
                     threadUuid: row.ai_thread_uuid,
                     message: row.response ?? '',
+                    responseParts: row.response_parts,
                     errorMessage: row.error_message,
                     interrupted: row.interrupted,
                     createdAt: row.responded_at?.toString() ?? '',
@@ -6166,11 +6172,15 @@ export class AiAgentModel {
         // A new response supersedes any previous error for this prompt
         const outcome: {
             response?: string | null;
+            response_parts?: string | null;
             error_message?: string | null;
         } =
             'response' in data
                 ? {
                       response: data.response ?? null,
+                      response_parts: data.responseParts
+                          ? JSON.stringify(data.responseParts)
+                          : null,
                       error_message: data.errorMessage ?? null,
                   }
                 : {
@@ -11137,6 +11147,7 @@ export class AiAgentModel {
                 .select(
                     'prompt',
                     'response',
+                    'response_parts',
                     'responded_at',
                     'created_by_user_uuid',
                     'created_at',
@@ -11179,7 +11190,11 @@ export class AiAgentModel {
                             ...(sourcePrompt.response &&
                                 sourcePrompt.responded_at && {
                                     response: sourcePrompt.response,
-
+                                    response_parts: sourcePrompt.response_parts
+                                        ? JSON.stringify(
+                                              sourcePrompt.response_parts,
+                                          )
+                                        : null,
                                     responded_at: sourcePrompt.responded_at,
                                 }),
                         });
