@@ -124,7 +124,7 @@ const styleTable = (chart: ChartAsCode): ChartAsCode => {
                 ...config,
                 showTableNames: false,
                 hideRowNumbers: true,
-                showResultsTotal: true,
+                showResultsTotal: false,
                 columns,
                 conditionalFormattings: rules,
             },
