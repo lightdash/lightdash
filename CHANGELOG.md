@@ -1,3 +1,10 @@
+## [3.60.1](https://github.com/lightdash/lightdash/compare/3.60.0...3.60.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* scope view underlying data to the clicked bar ([#31392](https://github.com/lightdash/lightdash/issues/31392)) ([95ffdec](https://github.com/lightdash/lightdash/commit/95ffdec13e3070b80cd31947a505e68d475dab2b))
+
 # [3.60.0](https://github.com/lightdash/lightdash/compare/3.59.2...3.60.0) (2026-10-26)
 
 
