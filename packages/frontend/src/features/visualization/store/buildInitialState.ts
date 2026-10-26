@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     ChartType,
     type ChartConfig,
-    type ItemsMap,
 } from '@lightdash/common';
 import { type VisualizationStoreState } from '.';
 import { buildBigNumberEditorState } from './bigNumberEditorSlice';
@@ -34,7 +33,6 @@ const emptyEditors = {
 
 const seedEditor = (
     chartConfig: ChartConfig,
-    itemsMap: ItemsMap | undefined,
 ): Partial<Omit<VisualizationStoreState, 'cartesianIntent'>> => {
     switch (chartConfig.type) {
         case ChartType.CARTESIAN:
@@ -52,7 +50,6 @@ const seedEditor = (
         case ChartType.TREEMAP:
             return {
                 treemapEditor: buildTreemapEditorState(chartConfig.config),
-                ),
             };
         case ChartType.GAUGE:
             return { gaugeEditor: buildGaugeEditorState(chartConfig.config) };
@@ -80,7 +77,6 @@ const seedEditor = (
 /** Seeds the mounted chart type's editor from its config; the others stay empty */
 export const buildInitialVisualizationState = (
     chartConfig: ChartConfig,
-    itemsMap: ItemsMap | undefined,
     cartesianIntent: CartesianIntentState = {
         stacking: undefined,
         cartesianType: undefined,
@@ -88,5 +84,5 @@ export const buildInitialVisualizationState = (
 ): VisualizationStoreState => ({
     cartesianIntent,
     ...emptyEditors,
-    ...seedEditor(chartConfig, itemsMap),
+    ...seedEditor(chartConfig),
 });

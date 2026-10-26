@@ -38,7 +38,7 @@ export const withVisualizationStore = (
 ): FC<PropsWithChildren> => {
     const state: VisualizationState = { ...defaultInputs, ...inputs };
     const store = createVisualizationStore(
-        buildInitialVisualizationState(chartConfig, state.itemsMap),
+        buildInitialVisualizationState(chartConfig),
     );
     return ({ children }) => (
         <VisualizationStoreTestProvider store={store}>

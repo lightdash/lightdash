@@ -288,7 +288,7 @@ const VisualizationProvider: FC<
     }>(() => ({
         type: chartConfig.type,
         store: createVisualizationStore(
-            buildInitialVisualizationState(chartConfig, itemsMap),
+            buildInitialVisualizationState(chartConfig),
         ),
     }));
     let { store } = stores;
@@ -296,7 +296,6 @@ const VisualizationProvider: FC<
         store = createVisualizationStore(
             buildInitialVisualizationState(
                 chartConfig,
-                itemsMap,
                 stores.store.getState().cartesianIntent,
             ),
         );

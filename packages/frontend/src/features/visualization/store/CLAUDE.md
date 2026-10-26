@@ -3,7 +3,7 @@
 Editor state for one mounted chart: what the `useXxxChartConfig` hooks used
 to keep in `useState`, plus the cartesian intent the chart type gallery hands
 to the next cartesian editor. `VisualizationProvider` creates the store with
-`createVisualizationStore(buildInitialVisualizationState(chartConfig, itemsMap))`
+`createVisualizationStore(buildInitialVisualizationState(chartConfig))`
 and mounts it on `VisualizationStoreContext`. A chart type switch creates a
 new store seeded from the new type's config, carrying the cartesian intent.
 
