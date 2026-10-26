@@ -239,11 +239,16 @@
     align-items: center;
     gap: var(--mantine-spacing-xs);
     min-height: 36px;
-    padding: 6px var(--mantine-spacing-xs) 2px var(--mantine-spacing-md);
+    padding: 4px var(--mantine-spacing-xs) 4px var(--mantine-spacing-md);
 }
 
 .sectionHeadRow [aria-expanded='true'] .chevron {
     transform: rotate(90deg);
+}
+
+/* The separator is drawn, not read out */
+.sectionCount::before {
+    content: '· ';
 }
 
 .sectionMenu {

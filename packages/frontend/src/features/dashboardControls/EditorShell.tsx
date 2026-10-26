@@ -31,6 +31,8 @@ type Props = {
     /** The dashboard's filters, listed in the rail. */
     filterCount: number;
     onClose: () => void;
+    /** While a section header is dragged: it cannot leave a section. */
+    isUnsectionTargetDisabled: boolean;
     /** Set while the filter cannot be kept: the footer offers only this. */
     onCancel: (() => void) | null;
     /** Null while no filter can be added. */
@@ -45,6 +47,7 @@ type Props = {
 export const EditorShell: FC<Props> = ({
     filterCount,
     onClose,
+    isUnsectionTargetDisabled,
     onCancel,
     onAddFilter,
     onNewSection,
@@ -58,7 +61,17 @@ export const EditorShell: FC<Props> = ({
     // A row dropped on the header leaves its section
     const { setNodeRef: setDropRef, isOver } = useDroppable({
         id: UNSECTIONED_TARGET_ID,
+        disabled: isUnsectionTargetDisabled,
     });
+    // Escape leaves the menu with nothing focused; the name input and the
+    // new filter's editor take focus before this runs
+    const refocusAdd = () =>
+        setTimeout(() => {
+            if (document.activeElement !== document.body) return;
+            document
+                .querySelector<HTMLElement>('[data-controls-new-section]')
+                ?.focus();
+        });
     return (
         <Paper
             ref={ref}
@@ -96,7 +109,11 @@ export const EditorShell: FC<Props> = ({
                 <Group gap={4} wrap="nowrap">
                     {/* Focus must stay on the name input New section opens */}
                     {(onAddFilter || onNewSection) && (
-                        <Menu position="bottom-end" returnFocus={false}>
+                        <Menu
+                            position="bottom-end"
+                            returnFocus={false}
+                            onClose={refocusAdd}
+                        >
                             <Menu.Target>
                                 <Tooltip
                                     label={getUiString('filters.rail.add')}

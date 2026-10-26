@@ -763,6 +763,26 @@ describe('ControlSidebar', () => {
         expect(discard).not.toHaveBeenCalled();
     });
 
+    it('returns focus to Add when the menu closes on Escape, and leaves it on the name input', async () => {
+        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
+        renderWithProviders(<ControlSidebar />);
+        const add = screen.getByRole('button', { name: 'Add' });
+
+        add.focus();
+        await userEvent.keyboard('{Enter}');
+        await screen.findByRole('menuitem', { name: 'Add filter' });
+        await userEvent.keyboard('{Escape}');
+        await waitFor(() => expect(add).toHaveFocus());
+
+        await userEvent.click(add);
+        await userEvent.click(
+            await screen.findByRole('menuitem', { name: 'New section' }),
+        );
+        const input = screen.getByLabelText('Section name');
+        await act(() => new Promise((resolve) => setTimeout(resolve)));
+        expect(input).toHaveFocus();
+    });
+
     it('lists "Add filter" and "New section" in the header menu for an editor', async () => {
         setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
         renderWithProviders(<ControlSidebar />);
@@ -1057,7 +1077,7 @@ describe('ControlSidebar', () => {
                     node.getAttribute('data-controls-row') ??
                     `# ${node.textContent}`,
             );
-            expect(listed).toEqual(['own', '# Dates· 1 filter', 'created']);
+            expect(listed).toEqual(['own', '# Dates1 filter', 'created']);
             expect(screen.queryByText('Empty')).not.toBeInTheDocument();
             // The badge counts their own filters only
             expect(screen.getByText('1')).toBeInTheDocument();
@@ -1274,9 +1294,9 @@ describe('ControlSidebar', () => {
             expect(rowNames()).toEqual([
                 'Order status',
                 'Lost',
-                '# Dates· 1 filter',
+                '# Dates1 filter',
                 'Created',
-                '# Regions· 1 filter',
+                '# Regions1 filter',
                 'Region',
             ]);
         });
@@ -1353,7 +1373,7 @@ describe('ControlSidebar', () => {
                 ]),
             );
 
-            expect(screen.getByText('· 0 filters')).toBeInTheDocument();
+            expect(screen.getByText('0 filters')).toBeInTheDocument();
             fireEvent.click(
                 screen.getByRole('button', { name: 'Collapse section Dates' }),
             );
@@ -1632,6 +1652,108 @@ describe('ControlSidebar', () => {
                 screen.getByLabelText('Filter label').closest('[data-expanded]')
                     ?.className,
             ).toContain('sectionRow');
+        });
+
+        // Removal through the store, as the provider writes it
+        const removeThroughStore =
+            (store: ReturnType<typeof renderWithProviders>['store']) =>
+            (ruleId: string) =>
+                store.dispatch(
+                    dashboardFiltersActions.setDashboardFilters({
+                        ...selectDashboardFilters(store.getState()),
+                        dimensions: selectDashboardFilters(
+                            store.getState(),
+                        ).dimensions.filter((rule) => rule.id !== ruleId),
+                    }),
+                );
+        const removeTwice = (ruleId: string) => {
+            const remove = within(
+                document.querySelector(`[data-controls-row="${ruleId}"]`)
+                    ?.parentElement as HTMLElement,
+            ).getByRole('button', { name: 'Remove filter' });
+            fireEvent.click(remove);
+            fireEvent.click(remove);
+        };
+
+        it('sends focus to the expanded filter when it is the next row', () => {
+            const removeViaStore = vi.fn();
+            setSidebar({
+                isNew: false,
+                editing: { filterId: 'filter-2' },
+                editingRule: makeRule({ id: 'filter-2', label: 'Region' }),
+                removeFilterById: removeViaStore,
+            });
+            const { store } = renderWithProviders(
+                <ControlSidebar />,
+                filters([
+                    makeRule({ label: 'Order status' }),
+                    makeRule({ id: 'filter-2', label: 'Region' }),
+                ]),
+            );
+            removeViaStore.mockImplementation(removeThroughStore(store));
+
+            removeTwice('filter-1');
+            expect(
+                document.querySelector('[data-controls-row="filter-1"]'),
+            ).toBeNull();
+            expect(screen.getByLabelText('Filter label')).toHaveFocus();
+        });
+
+        it('sends focus to Add when the only other row is in a collapsed section', () => {
+            const removeViaStore = vi.fn();
+            setSidebar({
+                editing: null,
+                editingRule: null,
+                isSidebarOpen: false,
+                removeFilterById: removeViaStore,
+            });
+            const { store } = renderWithProviders(
+                <ControlSidebar />,
+                filters([
+                    makeRule({ label: 'Order status' }),
+                    makeRule({
+                        id: 'filter-3',
+                        label: 'Created',
+                        sectionId: 'section-a',
+                    }),
+                ]),
+            );
+            removeViaStore.mockImplementation(removeThroughStore(store));
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Collapse section Dates' }),
+            );
+
+            removeTwice('filter-1');
+            expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
+        });
+
+        it('keeps a collapsed section collapsed when its own header is picked up', async () => {
+            closedRail();
+            renderWithProviders(
+                <ControlSidebar />,
+                filters([
+                    makeRule({ label: 'Created', sectionId: 'section-a' }),
+                ]),
+            );
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Collapse section Dates' }),
+            );
+            expect(
+                screen.queryByRole('button', { name: /Created/ }),
+            ).not.toBeInTheDocument();
+
+            const grip = screen.getAllByRole('button', {
+                name: 'Drag to reorder section',
+            })[0];
+            pickUp(grip);
+            await act(() => new Promise((resolve) => setTimeout(resolve)));
+            expect(
+                screen.queryByRole('button', { name: /Created/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                document.querySelector('[data-controls-section="section-a"]'),
+            ).not.toHaveAttribute('data-over');
+            fireEvent.keyDown(document, { code: 'Escape', key: 'Escape' });
         });
 
         it('removes a closed row from its hover action, on the second click only', async () => {

@@ -127,7 +127,7 @@ export const SectionHeader: FC<Props> = ({
             ref={setNodeRef}
             className={classes.sectionHeader}
             data-dragging={isDragging || undefined}
-            data-over={isOver || undefined}
+            data-over={(isOver && !isDragging) || undefined}
             data-controls-section={section.id}
             style={{ transform: CSS.Translate.toString(transform), transition }}
         >
@@ -171,8 +171,13 @@ export const SectionHeader: FC<Props> = ({
                         {name}
                     </Text>
                 )}
-                <Text fz="xs" c="dimmed" flex="0 0 auto">
-                    {`· ${countLabel}`}
+                <Text
+                    fz="xs"
+                    c="dimmed"
+                    flex="0 0 auto"
+                    className={classes.sectionCount}
+                >
+                    {countLabel}
                 </Text>
                 {/* Focus must stay on the name input Rename opens */}
                 {!isReadOnly && !isNew && (

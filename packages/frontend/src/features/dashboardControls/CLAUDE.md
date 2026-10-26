@@ -1149,8 +1149,9 @@ the language map, as tab names are.
   `isFilterHiddenOnTab`); a section with none renders nothing, and no
   capsule renders while the filters load. A capsule (`.capsule` in
   `SectionedFilters.module.css`: no fill, a `default-border` outline, `xl`
-  radius, 36px tall with `0 4px 0 6px` padding, 10px on the right when
-  folded) holds its toggle (`.toggle`, an `UnstyledButton` 26px tall: a 14px
+  radius, 36px tall with `0 4px` padding and `margin-block: -4px` so it is
+  centred on the bar's 28px pill line, 10px on the right when folded)
+  holds its toggle (`.toggle`, an `UnstyledButton` 28px tall: a 14px
   dimmed chevron, down open and right folded, and the name in `sm` 600,
   normal case, `aria-expanded`) and, open, `FilterPills
   sectionId={section.id}` in its own flow (a `display: contents`

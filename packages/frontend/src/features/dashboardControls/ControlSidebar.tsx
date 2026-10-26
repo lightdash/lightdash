@@ -442,8 +442,9 @@ export const ControlSidebar: FC = () => {
     const handleDragStart = ({ active }: DragStartEvent) =>
         setDraggedId(String(active.id));
     // A collapsed section opens under the drag, so its rows become targets
-    const handleDragOver = ({ over }: DragOverEvent) => {
-        if (!over) return;
+    const handleDragOver = ({ active, over }: DragOverEvent) => {
+        // A dragged header starts over itself
+        if (!over || sectionIds.has(String(active.id))) return;
         const overId = String(over.id);
         if (!collapsedIds.includes(overId)) return;
         setCollapsedIds((ids) => ids.filter((id) => id !== overId));
@@ -521,17 +522,20 @@ export const ControlSidebar: FC = () => {
     // Drag is off only while a section is being named
     const isDragDisabled = nameEdit !== null;
     // The pill's X and the rail's row remove take the same path. Focus goes
-    // to the next row, else the one before, else the header's "Add"
-    const rowIds = grouped.flatMap(({ rules }) =>
-        rules.map(({ rule }) => rule.id),
-    );
+    // to the next row on screen, else the one before, else the header's
+    // "Add"; the expanded filter takes it on its label
     const removeRow = (ruleId: string) => {
+        const rowIds = listed.flatMap(({ shown }) =>
+            shown.map(({ rule }) => rule.id),
+        );
         const index = rowIds.indexOf(ruleId);
         const nextId = rowIds[index + 1] ?? rowIds[index - 1];
         focusAfter.current =
             nextId === undefined
                 ? NEW_SECTION_BUTTON
-                : `[data-controls-row="${nextId}"]`;
+                : nextId === filterId
+                  ? '[data-controls-label]'
+                  : `[data-controls-row="${nextId}"]`;
         removeFilterById(ruleId);
     };
     // A viewer's saved row (in a section) opens nothing and has no grip
@@ -707,6 +711,10 @@ export const ControlSidebar: FC = () => {
                     listedFilters.metrics.length
                 }
                 onClose={close}
+                // Dropping a header on the rail's header moves nothing
+                isUnsectionTargetDisabled={
+                    draggedId !== null && sectionIds.has(draggedId)
+                }
                 onCancel={editor !== null && isPlaceholder ? discard : null}
                 onAddFilter={
                     canAddFilters && !(isViewer && isAddFilterDisabled)

@@ -7,9 +7,11 @@
     display: inline-flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: var(--mantine-spacing-xs);
+    gap: 6px;
     min-height: 36px;
-    padding: 0 4px 0 6px;
+    padding: 0 4px;
+    /* The bar aligns its row to the top: centred on the 28px pill line */
+    margin-block: -4px;
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-xl);
 }
@@ -21,9 +23,9 @@
 .toggle {
     display: inline-flex;
     align-items: center;
-    gap: var(--mantine-spacing-xxs);
-    height: 26px;
-    padding-inline: var(--mantine-spacing-xxs);
+    gap: 4px;
+    height: 28px;
+    padding: 0 var(--mantine-spacing-xs) 0 6px;
     border-radius: var(--mantine-radius-xl);
     transition: background-color var(--controls-duration-hover)
         var(--controls-ease);
@@ -41,8 +43,10 @@
 }
 
 .pillsEnter > * {
+    /* `backwards`: no transform stays on the wrapper, so a dragged pill
+       still rises above its neighbours */
     animation: pillEnter var(--controls-duration-arrive)
-        var(--controls-ease-arrive) both;
+        var(--controls-ease-arrive) backwards;
 }
 
 .pillsEnter > :nth-child(2) {
