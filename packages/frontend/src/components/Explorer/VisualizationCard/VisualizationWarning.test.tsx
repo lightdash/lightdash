@@ -73,7 +73,9 @@ describe('VisualizationWarning', () => {
                 />,
             );
 
-            await userEvent.hover(screen.getByText('Results may be incorrect'));
+            await userEvent.hover(
+                screen.getByRole('img', { name: 'Results may be incorrect' }),
+            );
 
             expect(await screen.findByRole('tooltip')).toHaveTextContent(
                 `Your query includes dimensions that are not used in the chart configuration (x-axis, y-axis, or group by): ${names}. Remove them from the query to avoid incorrect results.`,
@@ -98,7 +100,7 @@ describe('VisualizationWarning', () => {
         );
 
         expect(
-            screen.queryByText('Results may be incorrect'),
+            screen.queryByRole('img', { name: 'Results may be incorrect' }),
         ).not.toBeInTheDocument();
     });
 });
