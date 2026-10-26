@@ -1934,6 +1934,31 @@ describe('DataAppAnalysisService.investigate', () => {
         );
     });
 
+    it("states the org's query budget and the recurring-cycle rule in the investigation prompt", async () => {
+        const { service, aiOrganizationSettingsService } =
+            buildInvestigateService();
+        aiOrganizationSettingsService.getDataAppAnalysisLimits.mockResolvedValue(
+            {
+                ...DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+                investigateMaxWarehouseQueries: 7,
+            },
+        );
+        primeRunInvestigation(service, async () => 'explanation');
+        await service.runInvestigation(
+            jobPayload,
+            'job-1',
+            new Date('2026-09-15T10:00:00Z'),
+        );
+        const { createAgentThread } = (
+            service as unknown as {
+                aiAgentService: { createAgentThread: ReturnType<typeof vi.fn> };
+            }
+        ).aiAgentService;
+        const [, , { prompt }] = createAgentThread.mock.calls[0];
+        expect(prompt).toContain('up to 7 queries');
+        expect(prompt).toContain('four prior weeks');
+    });
+
     it('reports agent_unavailable as 403 instead of picking another agent', async () => {
         const { service, dataAppInvestigate } = buildInvestigateService({
             agentAccessible: false,
