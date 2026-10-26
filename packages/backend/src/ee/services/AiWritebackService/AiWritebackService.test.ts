@@ -2191,10 +2191,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         async (marked) => {
             const sandbox = fakeSandbox(0, true);
             fakeSandboxProvider.create.mockResolvedValue(sandbox);
+            const user = permittedUser();
             const userModel = {
-                findSessionUserAndOrgByUuid: vi
-                    .fn()
-                    .mockResolvedValue(permittedUser()),
+                findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(user),
                 findServiceAccountByUserUuid: vi.fn(),
             };
             const agentPermissionService = {
@@ -2205,7 +2204,12 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             };
             const featureFlagModel = { get: vi.fn() };
             const featureFlagService = {
-                get: vi.fn().mockResolvedValue({ enabled: false }),
+                get: vi.fn(),
+            };
+            const previewDeploySetupService = {
+                getOrScanProjectCiStatus: vi.fn().mockResolvedValue({
+                    hasPreviewDeployWorkflow: false,
+                }),
             };
             const agentActionLogModel = { insert: vi.fn() };
             const runRow = {
@@ -2246,6 +2250,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 agentPermissionService,
                 agentActionLogModel,
                 featureFlagService,
+                previewDeploySetupService,
                 aiWritebackService,
                 aiAgentModel: {
                     findWebAppPrompt: vi.fn().mockResolvedValue({
@@ -2291,6 +2296,9 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 'prompt-1',
                 'tool-1',
                 expect.objectContaining({
+                    result: expect.stringContaining(
+                        'Offer to set it up by opening a pull request',
+                    ),
                     metadata: expect.objectContaining({
                         status: 'success',
                         prUrl: PR_7,
@@ -2304,7 +2312,10 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 userModel.findServiceAccountByUserUuid,
             ).not.toHaveBeenCalled();
             expect(featureFlagModel.get).not.toHaveBeenCalled();
-            expect(featureFlagService.get).toHaveBeenCalledTimes(1);
+            expect(featureFlagService.get).not.toHaveBeenCalled();
+            expect(
+                previewDeploySetupService.getOrScanProjectCiStatus,
+            ).toHaveBeenCalledExactlyOnceWith(user, 'p1');
             expect(agentPermissionService.isManaged).toHaveBeenCalledTimes(1);
             expect(agentPermissionService.loadRequest).toHaveBeenCalledTimes(
                 marked ? 5 : 0,
