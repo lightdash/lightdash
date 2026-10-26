@@ -61,6 +61,8 @@ const app: ApiGetAppResponse['results'] = {
     hasMore: false,
     latestReadyVersion: 3,
     latestReadyVersionUsesAiAnalysis: null,
+    latestReadyVersionHasAnalyzableData: null,
+    addAnalysisDismissed: false,
     icon: null,
     verification: null,
     autoAnalysis: 'inherit',

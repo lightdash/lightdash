@@ -596,6 +596,15 @@ export type ApiGetAppResponse = ApiSuccess<{
     // ready version or the source scan is unavailable — never offer an
     // analysis upgrade on null.
     latestReadyVersionUsesAiAnalysis: boolean | null;
+    // Whether the latest ready version pulls data AI analysis can run over
+    // (query or saved-chart references in the source scan). False means the
+    // analysis surface would stay blank. Null when there is no ready version
+    // or the source scan is unavailable.
+    latestReadyVersionHasAnalyzableData: boolean | null;
+    // Whether the builder-side "add AI analysis" offer was dismissed for
+    // this app (closed, or acted on once). App-level, so the offer stops
+    // nagging every builder once the build agent has declined.
+    addAnalysisDismissed: boolean;
     // The registry slug it was installed from, or null for a project-authored
     // (or forked) app. Registry-installed chart types are read-only.
     registrySlug: string | null;
@@ -623,6 +632,8 @@ export type ApiUpdateAppResponse = ApiSuccess<{
     icon: ChartTypeIcon | null;
     autoAnalysis: DataAppAutoAnalysis;
 }>;
+
+export type ApiDismissAddAnalysisOfferResponse = ApiSuccessEmpty;
 
 export type ApiCancelAppVersionResponse = ApiSuccessEmpty;
 

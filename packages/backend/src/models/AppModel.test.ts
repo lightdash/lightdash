@@ -26,6 +26,7 @@ const appRow: DbApp = {
     template: null,
     icon: null,
     auto_analysis: 'inherit',
+    add_analysis_dismissed_at: null,
     design_uuid: null,
     upstream_app_uuid: null,
     registry_slug: null,
