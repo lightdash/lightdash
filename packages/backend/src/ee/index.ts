@@ -823,6 +823,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     catalogService: repository.getCatalogService(),
                     asyncQueryService: repository.getAsyncQueryService(),
                     querySourceService: repository.getQuerySourceService(),
+                    externalConnectionService:
+                        repository.getExternalConnectionService<ExternalConnectionService>(),
                     queryHistoryModel: models.getQueryHistoryModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     searchModel: models.getSearchModel(),

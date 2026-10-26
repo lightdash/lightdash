@@ -10,6 +10,7 @@ import {
     toComposerNodeColumns,
     toolComposerQueryNodeToSourceQuery,
     type AnyType,
+    type ComposerApiConnection,
     type ParameterDefinitions,
     type SemanticLayerSourceQuery,
     type SourceQuery,
@@ -88,6 +89,8 @@ type Dependencies = {
     enableDataAccess: boolean;
     canRunSql: boolean;
     enablePythonNodes: boolean;
+    // Project API connections api nodes may query; empty disables api nodes.
+    apiConnections: ComposerApiConnection[];
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
     useSlackStreamCard?: boolean;
@@ -225,6 +228,7 @@ export const getRunComposerQueries = ({
     enableDataAccess,
     canRunSql,
     enablePythonNodes,
+    apiConnections,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     useSlackStreamCard = false,
@@ -250,13 +254,18 @@ export const getRunComposerQueries = ({
         COMPOSER_SQL_APPROVAL_COPY,
     );
 
+    const enableApiNodes = apiConnections.length > 0;
     const inputSchema = createToolComposerQueriesArgsSchema({
         maxLimit: maxQueryLimit,
         enablePythonNodes,
+        enableApiNodes,
     });
 
     return tool({
-        description: getToolComposerQueriesDescription({ enablePythonNodes }),
+        description: getToolComposerQueriesDescription({
+            enablePythonNodes,
+            apiConnections,
+        }),
         inputSchema,
         outputSchema: toolDefinition.outputSchema,
         toModelOutput: toolDefinition.toModelOutput,
@@ -360,6 +369,37 @@ export const getRunComposerQueries = ({
                     return await persistIfResumed(
                         failure(
                             'This pipeline contains "python" nodes but python queries are not enabled. Rebuild the pipeline with duckdb nodes instead.',
+                            'error',
+                        ),
+                    );
+                }
+
+                if (
+                    !enableApiNodes &&
+                    queries.some(
+                        (node) => node.sourceType === QuerySourceType.API,
+                    )
+                ) {
+                    return await persistIfResumed(
+                        failure(
+                            'This pipeline contains "api" nodes but api queries are not enabled. Rebuild the pipeline without them.',
+                            'error',
+                        ),
+                    );
+                }
+
+                const unknownConnectionNode = queries.find(
+                    (node) =>
+                        node.sourceType === QuerySourceType.API &&
+                        !apiConnections.some(
+                            ({ connectionUuid }) =>
+                                connectionUuid === node.connectionUuid,
+                        ),
+                );
+                if (unknownConnectionNode) {
+                    return await persistIfResumed(
+                        failure(
+                            `Node "${unknownConnectionNode.nodeId}" names a connection that is not available. Use one of the connectionUuid values listed in the tool description.`,
                             'error',
                         ),
                     );

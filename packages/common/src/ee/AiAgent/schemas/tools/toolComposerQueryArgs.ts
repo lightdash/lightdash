@@ -8,6 +8,8 @@ import {
 import { type ParametersValuesMap } from '../../../../types/parameters';
 import {
     QuerySourceType,
+    type ApiConnectorType,
+    type ApiSourceQuery,
     type DuckdbSourceQuery,
     type ExternalSourceQuery,
     type PythonSourceQuery,
@@ -41,12 +43,21 @@ export const DEFAULT_COMPOSER_QUERY_LIMIT = 500;
 export const DEFAULT_COMPOSER_QUERY_MAX_LIMIT = 5000;
 export const COMPOSER_QUERY_PREVIEW_ROW_LIMIT = 50;
 
+/** A project connection an api node can query. */
+export type ComposerApiConnection = {
+    connectionUuid: string;
+    name: string;
+    connector: ApiConnectorType;
+};
+
 type ComposerQueriesDescriptionOptions = {
     enablePythonNodes: boolean;
+    apiConnections: ComposerApiConnection[];
 };
 
 export const getToolComposerQueriesDescription = ({
     enablePythonNodes,
+    apiConnections,
 }: ComposerQueriesDescriptionOptions) => `Run a pipeline: one or more nodes submitted together, where ${
     enablePythonNodes ? 'duckdb and python' : 'duckdb'
 } nodes join or transform other nodes' results. The terminal node's rows are returned to you.
@@ -60,6 +71,16 @@ Node kinds:
         ? `
 - "python": pandas code over other results declared in "references".`
         : ''
+}${
+    apiConnections.length > 0
+        ? `
+- "api": a query sent live to an external API through a project connection, such as HogQL to PostHog. It reads no other results; join its rows with a duckdb node. Set "connectionUuid" to one of: ${apiConnections
+              .map(
+                  ({ connectionUuid, name, connector }) =>
+                      `"${connectionUuid}" (${name}, ${connector})`,
+              )
+              .join(', ')}.`
+        : ''
 }
 
 A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: before totalling, averaging or ranking over it, give that node a limit that holds its whole population, or aggregate there.
@@ -67,7 +88,10 @@ A node reads only the rows its references returned, so a referenced result that 
 Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
-    getToolComposerQueriesDescription({ enablePythonNodes: false });
+    getToolComposerQueriesDescription({
+        enablePythonNodes: false,
+        apiConnections: [],
+    });
 
 const nodeIdSchema = z
     .string()
@@ -128,6 +152,8 @@ type CreateToolComposerQueriesArgsSchemaOptions = {
     enablePythonNodes?: boolean;
     /** Persisted calls predate the required description; only new input requires it. */
     persisted?: boolean;
+    /** Offers the api node; only when an api connector is enabled and configured. */
+    enableApiNodes?: boolean;
 };
 
 export const createToolComposerQueriesArgsSchemaV1 = ({
@@ -135,6 +161,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
     defaultLimit = DEFAULT_COMPOSER_QUERY_LIMIT,
     enablePythonNodes = false,
     persisted = false,
+    enableApiNodes = false,
 }: CreateToolComposerQueriesArgsSchemaOptions = {}) => {
     const nodeMetaSchema = {
         title: nodeTitleSchema,
@@ -241,18 +268,39 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         limit: limitSchema,
     });
 
+    const apiNodeSchema = z.object({
+        sourceType: z.literal(QuerySourceType.API),
+        nodeId: nodeIdSchema,
+        ...nodeMetaSchema,
+        connectionUuid: z
+            .string()
+            .describe(
+                'The project connection the query is sent to, from the list in the tool description.',
+            ),
+        payload: z
+            .object({
+                kind: z.literal('query'),
+                query: z
+                    .string()
+                    .describe(
+                        'For "posthog": one HogQL SELECT, the ClickHouse SQL dialect, over tables such as events (event, timestamp, distinct_id, person_id, properties), persons (id, created_at, properties) and sessions. Read a property as properties.$browser or properties.plan. Alias every column with AS using letters, digits and underscores. PostHog stops a query after 10 seconds, so aggregate in HogQL rather than fetching raw events. List event names first when unsure which exist.',
+                    ),
+            })
+            .describe('What the API runs.'),
+        limit: limitSchema,
+    });
+
     const baseNodeSchemas = [
         semanticLayerNodeSchema,
         sqlNodeSchema,
         duckdbNodeSchema,
         externalNodeSchema,
     ] as const;
-    const sourceQueryNodeSchema = z.discriminatedUnion(
-        'sourceType',
-        enablePythonNodes
-            ? [...baseNodeSchemas, pythonNodeSchema]
-            : [...baseNodeSchemas],
-    );
+    const sourceQueryNodeSchema = z.discriminatedUnion('sourceType', [
+        ...baseNodeSchemas,
+        ...(enablePythonNodes ? [pythonNodeSchema] : []),
+        ...(enableApiNodes ? [apiNodeSchema] : []),
+    ]);
 
     return createToolSchema()
         .extend({
@@ -284,7 +332,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         .build();
 };
 
-// The advertised contract; python nodes and the row limit are runtime-selected.
+// The advertised contract; python and api nodes and the row limit are runtime-selected.
 export const createToolComposerQueriesArgsSchema =
     createToolComposerQueriesArgsSchemaV1;
 
@@ -321,6 +369,7 @@ export const toolComposerQueriesArgsSchemaPersisted = z.preprocess(
     dropLegacyComposerNodeFilters,
     createToolComposerQueriesArgsSchemaV1({
         enablePythonNodes: true,
+        enableApiNodes: true,
         maxLimit: Number.MAX_SAFE_INTEGER,
         persisted: true,
     }),
@@ -362,6 +411,7 @@ export type SubmittedSourceQuery = (
     | DuckdbSourceQuery
     | ExternalSourceQuery
     | PythonSourceQuery
+    | ApiSourceQuery
 ) & { nodeId: QueryNodeId };
 
 export const toolComposerQueryNodeToSourceQuery = (
@@ -422,6 +472,15 @@ export const toolComposerQueryNodeToSourceQuery = (
                 ...toSourceQueryNodeMeta(node),
                 code: node.code,
                 references: node.references,
+                limit: node.limit,
+            };
+        case QuerySourceType.API:
+            return {
+                sourceType: node.sourceType,
+                nodeId: node.nodeId,
+                ...toSourceQueryNodeMeta(node),
+                connectionUuid: node.connectionUuid,
+                payload: node.payload,
                 limit: node.limit,
             };
         default:
@@ -537,6 +596,28 @@ export const parsePartialToolComposerQueriesArgs = (
                         limit: DEFAULT_COMPOSER_QUERY_LIMIT,
                     },
                 ];
+            case QuerySourceType.API: {
+                if (typeof node.connectionUuid !== 'string') return [];
+                const payload =
+                    node.payload && typeof node.payload === 'object'
+                        ? (node.payload as Record<string, unknown>)
+                        : {};
+                return [
+                    {
+                        sourceType: QuerySourceType.API,
+                        ...meta,
+                        connectionUuid: node.connectionUuid,
+                        payload: {
+                            kind: 'query',
+                            query:
+                                typeof payload.query === 'string'
+                                    ? payload.query
+                                    : '',
+                        },
+                        limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+                    },
+                ];
+            }
             default:
                 return [];
         }

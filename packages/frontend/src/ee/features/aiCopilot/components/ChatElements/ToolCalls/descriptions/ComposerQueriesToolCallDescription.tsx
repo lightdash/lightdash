@@ -13,6 +13,7 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import {
+    IconApi,
     IconBrandPython,
     IconChevronRight,
     IconDatabase,
@@ -103,6 +104,12 @@ const getNodePresentation = (
                 detail: `Reads ${references.join(', ')}`,
             } as const;
         }
+        case QuerySourceType.API:
+            return {
+                icon: IconApi,
+                badge: 'Live API',
+                detail: 'Project connection',
+            } as const;
     }
 };
 
@@ -126,6 +133,14 @@ const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
         return (
             <Box className={sqlBlockStyles.code}>
                 <CodeBlock code={node.code} language="python" />
+            </Box>
+        );
+    }
+    if (node.sourceType === QuerySourceType.API) {
+        if (!canViewSql || !node.payload.query) return null;
+        return (
+            <Box className={sqlBlockStyles.code}>
+                <CodeBlock code={node.payload.query} language="sql" />
             </Box>
         );
     }
