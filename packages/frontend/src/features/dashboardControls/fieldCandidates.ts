@@ -69,14 +69,9 @@ export const getTileFieldCandidateIds = (
     toSortedFieldIds(getFieldCandidates(tileFields, takenFieldIds, target));
 
 // What a new control can start from on one tile: its fields of every kind.
-// Metrics only where creating metric filters is enabled, as in "Add filter"
 export const getTileStarterFieldIds = (
     tileFields: DashboardFilterableField[],
-    includeMetrics: boolean,
-): string[] =>
-    toSortedFieldIds(
-        includeMetrics ? tileFields : tileFields.filter(isDimension),
-    );
+): string[] => toSortedFieldIds(tileFields);
 
 // A candidate that would read like another entry of the dropdown carries its
 // table label

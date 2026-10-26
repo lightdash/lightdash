@@ -1,6 +1,5 @@
 import {
     DashboardTileTypes,
-    FeatureFlags,
     getItemId,
     interpolateUiString,
     isDashboardDataAppTileType,
@@ -26,7 +25,6 @@ import { createPortal } from 'react-dom';
 import FieldIcon from '../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectActiveTab,
@@ -472,12 +470,6 @@ const EditedTileOverlays: FC = () => {
         () => ({ ...dimensionsMap, ...metricsMap }),
         [dimensionsMap, metricsMap],
     );
-    // Creating a metric filter is gated like the shipped "Add filter"
-    const metricFiltersFlag = useServerFeatureFlag(
-        FeatureFlags.MetricDashboardFilters,
-    );
-    const canStartFromMetrics =
-        metricFiltersFlag.data?.enabled ?? import.meta.env.DEV;
     const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
     // A hovered rail row shows where its filter is, over the edited one's look
     const hoveredRule = useHoveredFilterRule();
@@ -711,13 +703,10 @@ const EditedTileOverlays: FC = () => {
                 .filter((tile) => tile.type !== DashboardTileTypes.SQL_CHART)
                 .map((tile): [string, string[]] => [
                     tile.uuid,
-                    getTileStarterFieldIds(
-                        fieldsByTile?.[tile.uuid] ?? [],
-                        canStartFromMetrics,
-                    ),
+                    getTileStarterFieldIds(fieldsByTile?.[tile.uuid] ?? []),
                 ]),
         );
-    }, [isPlaceholder, tiles, fieldsByTile, canStartFromMetrics]);
+    }, [isPlaceholder, tiles, fieldsByTile]);
 
     if (editingRule === null) return null;
 

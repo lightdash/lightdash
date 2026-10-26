@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getItemId,
     isMetric,
     type DashboardFilterableField,
@@ -18,7 +17,6 @@ import {
 } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectActiveTabUuid,
@@ -125,12 +123,6 @@ export const FieldsAndTiles: FC = () => {
     const sqlChartTilesMetadata = useDashboardSelector(
         selectSqlChartTilesMetadata,
     );
-    // Creating a metric filter is gated like the shipped "Add filter"
-    const { data: metricFiltersFlag } = useServerFeatureFlag(
-        FeatureFlags.MetricDashboardFilters,
-    );
-    const canCreateMetricFilters =
-        metricFiltersFlag?.enabled ?? import.meta.env.DEV;
     const [isAdding, setIsAdding] = useState(false);
     const addButtonRef = useRef<HTMLButtonElement>(null);
     const wasAddingOnPress = useRef(false);
@@ -148,8 +140,8 @@ export const FieldsAndTiles: FC = () => {
     const metrics = allFilterableMetrics ?? NO_FIELDS;
     // What the shipped "Add filter" lists: every time grain is its own field
     const starterFields = useMemo(
-        () => [...dimensions, ...(canCreateMetricFilters ? metrics : [])],
-        [dimensions, metrics, canCreateMetricFilters],
+        () => [...dimensions, ...metrics],
+        [dimensions, metrics],
     );
     const sqlColumnOptions = useMemo(
         () => getUniqueSqlColumns(sqlChartTilesMetadata),

@@ -68,13 +68,6 @@ export enum FeatureFlags {
     DashboardControls = 'dashboard-controls',
 
     /**
-     * Enable creating and editing metric filters on dashboards.
-     * When enabled, the "Add filter" UI includes metrics alongside dimensions.
-     * Existing metric filters are always displayed regardless of this flag.
-     */
-    MetricDashboardFilters = 'metric-dashboard-filters',
-
-    /**
      * Enable data apps feature. Disabled by default. Self-hosted
      * deployments can force it on with APPS_RUNTIME_ENABLED=true, which
      * the config parser translates into the enable allowlist. Does not gate

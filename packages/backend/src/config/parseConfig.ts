@@ -3010,7 +3010,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
         'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
         'organization-warehouse-credentials',
     ],
-    ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
     // Self-hosted switch for data apps; forces the flag on.
     ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
 ];
