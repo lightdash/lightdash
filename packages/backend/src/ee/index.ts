@@ -1937,7 +1937,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     schedulerModel: models.getSchedulerModel(),
-                    featureFlagModel: models.getFeatureFlagModel(),
                 }),
             slackClient: ({ context, models, repository }) =>
                 new CommercialSlackClient({

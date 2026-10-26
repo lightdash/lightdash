@@ -144,6 +144,10 @@
                     "mcp": []
                 }
             }
+        },
+        "scheduled-delivery-per-org-queue-flag-removed": {
+            "reason": "The ScheduledDeliveryPerOrgQueue member is removed from the exported FeatureFlags enum. TypeScript consumers that reference this rollout flag must remove the reference when they upgrade. Recurring deliveries keep per-organisation queues on multi-org instances. Single-tenant queue behaviour stays unchanged.",
+            "requiredStop": false
         }
     }
 }

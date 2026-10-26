@@ -203,7 +203,6 @@ export class ClientRepository
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     schedulerModel: this.models.getSchedulerModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

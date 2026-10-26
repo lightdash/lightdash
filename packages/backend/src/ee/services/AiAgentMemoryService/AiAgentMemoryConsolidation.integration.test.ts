@@ -112,7 +112,6 @@ describe('AI agent memory consolidation integration', () => {
             schedulerModel: getTestContext()
                 .app.getModels()
                 .getSchedulerModel(),
-            featureFlagModel,
         });
 
         const flagIds = [CommercialFeatureFlags.AiCopilot];
