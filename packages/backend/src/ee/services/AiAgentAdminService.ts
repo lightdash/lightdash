@@ -55,6 +55,7 @@ import {
     MissingConfigError,
     NotFoundError,
     ParameterError,
+    ProjectType,
     PullRequestProvider,
     PullRequestSource,
     RequestMethod,
@@ -76,6 +77,7 @@ import {
     type AiAgentReviewRemediationEventType,
     type AiAgentReviewRemediationLiveState,
     type AiAgentReviewRemediationStatus,
+    type OrganizationProject,
     type PullRequest,
     type SessionUser,
 } from '@lightdash/common';
@@ -567,6 +569,8 @@ export class AiAgentAdminService extends BaseService {
      * (not `view`) is deliberate: org `view:AiAgent`/`view:OrganizationAiAgent`
      * is granted org-wide down to interactive_viewer, so a `view` check would
      * hand every interactive_viewer full cross-project org-wide admin reads.
+     * Preview and training projects never count: their access is a copy taken
+     * at creation, so a stale grant there must not open org-wide admin reads.
      * Throws when the principal has neither org nor any project AI-admin access.
      */
     private async resolveReadScope(
@@ -587,6 +591,9 @@ export class AiAgentAdminService extends BaseService {
             await this.projectModel.getAllByOrganizationUuid(organizationUuid);
         const projectUuids = projects
             .filter((project) =>
+                AiAgentAdminService.isAdminScopedProject(project),
+            )
+            .filter((project) =>
                 ability.can(
                     'manage',
                     subject('AiAgent', {
@@ -603,6 +610,20 @@ export class AiAgentAdminService extends BaseService {
             );
         }
         return { kind: 'projects', projectUuids };
+    }
+
+    private static isAdminScopedProject({
+        type,
+    }: Pick<OrganizationProject, 'type'>): boolean {
+        switch (type) {
+            case ProjectType.DEFAULT:
+                return true;
+            case ProjectType.PREVIEW:
+            case ProjectType.TRAINING:
+                return false;
+            default:
+                return assertUnreachable(type, `Unknown project type ${type}`);
+        }
     }
 
     /** Narrows admin filters to a principal's readable projects. */
