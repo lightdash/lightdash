@@ -7,6 +7,7 @@ import {
     Explore,
     getErrorMessage,
     isSqlApprovalToolCall,
+    joinAgentTextSegments,
     type AiDeepResearchBudget,
     type AiDeepResearchExecutionContextSnapshot,
     type CustomChartTypeLibrary,
@@ -3822,9 +3823,9 @@ export const streamAgentResponse = async ({
                 );
 
                 // Extract complete response from all steps instead of just the last text
-                const modelResponse = steps
-                    .map((step) => step.text ?? '')
-                    .join('\n');
+                const modelResponse = joinAgentTextSegments(
+                    steps.map((step) => step.text),
+                );
                 const responseText = modelResponse.trim()
                     ? modelResponse
                     : (getTurnFastResponse(
@@ -3842,8 +3843,7 @@ export const streamAgentResponse = async ({
                 // the client's post-stream refetch then reads persisted content.
                 // Invariant: a finished prompt must persist either a response
                 // or an error message — a blank response with no error renders
-                // as an empty chat bubble with no explanation. trim() matters:
-                // steps with empty text still join into "\n" strings.
+                // as an empty chat bubble with no explanation.
                 // Interrupted prompts are exempt: the user stopped the
                 // generation, so an empty response is expected and persisted
                 // as-is instead of surfacing as an error.

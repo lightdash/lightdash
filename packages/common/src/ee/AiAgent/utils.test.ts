@@ -3,6 +3,7 @@ import { AiResultType } from './types';
 import {
     getDataAppVizChartFromArtifact,
     getMcpToolBaseName,
+    joinAgentTextSegments,
     parseAiArtifactChartConfig,
     parseVizConfig,
 } from './utils';
@@ -13,6 +14,22 @@ describe('getMcpToolBaseName', () => {
             'mcp_linear_mcp__get_issue',
         );
         expect(getMcpToolBaseName('---', '---')).toBe('mcp_tool__tool');
+    });
+});
+
+describe('joinAgentTextSegments', () => {
+    it('separates segments from different steps as markdown paragraphs', () => {
+        expect(
+            joinAgentTextSegments([
+                "I'll check the last few days.",
+                undefined,
+                '',
+                '  \n',
+                '**Mostly. The figures are right**',
+            ]),
+        ).toBe(
+            "I'll check the last few days.\n\n**Mostly. The figures are right**",
+        );
     });
 });
 

@@ -1,5 +1,6 @@
 import {
     isAiAgentToolName,
+    joinAgentTextSegments,
     toolRunQueryOutputSchema,
     type ApiAiAgentThreadStreamRequest,
 } from '@lightdash/common';
@@ -476,10 +477,11 @@ export function useAiAgentThreadStreamMutation() {
                     if (done || abortController.signal.aborted) break;
 
                     // Extract and combine all text content from the complete message
-                    const fullTextContent = uiMessage.parts
-                        .filter((part) => part.type === 'text')
-                        .map((part) => part.text)
-                        .join('\n');
+                    const fullTextContent = joinAgentTextSegments(
+                        uiMessage.parts.map((part) =>
+                            part.type === 'text' ? part.text : undefined,
+                        ),
+                    );
 
                     // Update message content with complete text
                     if (fullTextContent) {

@@ -35,6 +35,14 @@ export const getMcpToolBaseName = (
 ): string =>
     `mcp_${sanitizeMcpToolKeyPart(mcpServerName)}__${sanitizeMcpToolKeyPart(toolName)}`;
 
+// Blank line keeps text from separate agent steps as separate markdown paragraphs
+export const joinAgentTextSegments = (
+    segments: ReadonlyArray<string | undefined>,
+): string =>
+    segments
+        .filter((segment): segment is string => !!segment?.trim())
+        .join('\n\n');
+
 export const parseVizConfig = (
     vizConfigUnknown: object | null,
     maxLimit?: number | undefined,
