@@ -26,6 +26,10 @@ import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
 import { getGrantOperationContract } from '../../auth/agentConnectionGrants/operationContracts';
 import {
+    assertOAuthCredentialOperationAllowed,
+    OAUTH_CREDENTIAL_ROUTE_OPERATIONS,
+} from '../../auth/oauthScopes/credentials';
+import {
     oauthApiResource,
     oauthMcpResource,
 } from '../../auth/oauthScopes/oauthResources';
@@ -102,13 +106,21 @@ const getOAuthScopePolicy = (req: Request): OAuthScopePolicy => ({
 
 const assertOAuthAgentOperation = async (req: Request): Promise<void> => {
     const { account } = req;
-    if (
-        account?.authentication.type !== 'oauth' ||
-        !account.organization.organizationUuid
-    )
-        return;
-    assertRegisteredAccount(account);
+    if (account?.authentication.type !== 'oauth') return;
     const operation = resolveOAuthRouteOperation(req);
+    if (
+        operation !== null &&
+        Object.hasOwn(OAUTH_CREDENTIAL_ROUTE_OPERATIONS, operation)
+    ) {
+        assertOAuthCredentialOperationAllowed(
+            account,
+            OAUTH_CREDENTIAL_ROUTE_OPERATIONS[
+                operation as keyof typeof OAUTH_CREDENTIAL_ROUTE_OPERATIONS
+            ],
+        );
+    }
+    if (!account.organization.organizationUuid) return;
+    assertRegisteredAccount(account);
     const grantProjectUuids =
         account.authentication.agentConnectionGrant && !isMcpRequest(req)
             ? await req.services

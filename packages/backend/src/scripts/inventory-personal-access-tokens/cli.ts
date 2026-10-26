@@ -153,8 +153,11 @@ export const formatReport = (
     format: InventoryOptions['format'],
 ): string => {
     if (format === 'json') return JSON.stringify(report, null, 2);
-    const csvValue = (value: string | null) =>
-        value === null ? '' : `"${value.replace(/"/g, '""')}"`;
+    const csvValue = (value: string | null) => {
+        if (value === null) return '';
+        const safeValue = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+        return `"${safeValue.replace(/"/g, '""')}"`;
+    };
     return [
         columns.join(','),
         ...report.tokens.map((token) =>

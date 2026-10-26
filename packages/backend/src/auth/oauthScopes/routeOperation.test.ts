@@ -1,4 +1,5 @@
 import { type Request } from 'express';
+import { OAUTH_CREDENTIAL_ROUTE_OPERATIONS } from './credentials';
 import { resolveOAuthRouteOperation } from './routeOperation';
 import { requireOAuthScopeOperation } from './unchecked';
 
@@ -71,3 +72,15 @@ it('prefers the terminal TSOA handler over an earlier scope guard', () => {
         'OrganizationController.getProjects',
     );
 });
+
+it.each(Object.keys(OAUTH_CREDENTIAL_ROUTE_OPERATIONS))(
+    'resolves credential route %s',
+    (operation) => {
+        const [, method, path] = operation.split(' ');
+        const req = operation.startsWith('oauthRouter ')
+            ? request('anonymous', '/api/v1/oauth', path)
+            : request(operation.replace('.', '_'));
+        if (operation.startsWith('oauthRouter ')) req.method = method;
+        expect(resolveOAuthRouteOperation(req)).toBe(operation);
+    },
+);

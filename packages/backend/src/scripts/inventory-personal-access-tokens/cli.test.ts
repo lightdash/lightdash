@@ -198,6 +198,40 @@ describe('formatReport', () => {
         );
     });
 
+    it.each(['=', '+', '-', '@', '\t', '\r'])(
+        'neutralizes a description starting with %j',
+        (prefix) => {
+            const description = `${prefix}formula`;
+            const unsafeReport = {
+                ...report,
+                tokens: [{ ...report.tokens[0], description }],
+            };
+            expect(formatReport(unsafeReport, 'csv')).toContain(
+                `,"'${description}"`,
+            );
+            expect(formatReport(unsafeReport, 'json')).toBe(
+                JSON.stringify(unsafeReport, null, 2),
+            );
+        },
+    );
+
+    it('neutralizes formulas before escaping double quotes', () => {
+        expect(
+            formatReport(
+                {
+                    ...report,
+                    tokens: [
+                        {
+                            ...report.tokens[0],
+                            description: '=HYPERLINK("https://example.test")',
+                        },
+                    ],
+                },
+                'csv',
+            ),
+        ).toContain(`,"'=HYPERLINK(""https://example.test"")"`);
+    });
+
     it('prints a CSV header even when no tokens match', () => {
         expect(
             formatReport({ notice: INVENTORY_NOTICE, tokens: [] }, 'csv'),

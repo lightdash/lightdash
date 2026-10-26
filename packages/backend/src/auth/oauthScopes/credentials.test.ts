@@ -16,6 +16,7 @@ import { defaultSessionUser } from '../account/account.mock';
 import {
     assertOAuthCredentialOperationAllowed,
     OAUTH_CREDENTIAL_OPERATIONS,
+    OAUTH_CREDENTIAL_ROUTE_OPERATIONS,
 } from './credentials';
 
 const operations = [
@@ -55,6 +56,11 @@ const oauthAccount = (scopes: string[], defaultPolicy: boolean) =>
     );
 
 describe('OAuth credential minting', () => {
+    it('maps a route for every credential operation', () => {
+        expect(
+            new Set(Object.values(OAUTH_CREDENTIAL_ROUTE_OPERATIONS)),
+        ).toEqual(new Set(Object.keys(OAUTH_CREDENTIAL_OPERATIONS)));
+    });
     it('covers every credential operation', () => {
         expect(operations.map(([operation]) => operation)).toEqual(
             Object.keys(OAUTH_CREDENTIAL_OPERATIONS),
@@ -166,6 +172,66 @@ describe('OAuth credential minting', () => {
         );
         expect(JSON.stringify(vi.mocked(Logger.warn).mock.calls)).not.toContain(
             'never-log-this-token',
+        );
+    });
+
+    it('deduplicates credential refusals across account and session-user guards per request', () => {
+        const first = oauthAccount(['write'], true);
+        const second = oauthAccount(['write'], true);
+        for (const actor of [
+            first,
+            toSessionUser(first),
+            second,
+            toSessionUser(second),
+        ]) {
+            expect(() =>
+                assertOAuthCredentialOperationAllowed(
+                    actor,
+                    'createPersonalAccessToken',
+                ),
+            ).toThrow(ForbiddenError);
+        }
+        expect(Logger.warn).toHaveBeenCalledTimes(2);
+        expect(() =>
+            assertOAuthCredentialOperationAllowed(
+                first,
+                'rotatePersonalAccessToken',
+            ),
+        ).toThrow(ForbiddenError);
+        expect(Logger.warn).toHaveBeenCalledTimes(3);
+    });
+
+    it.each([
+        [
+            'https://client.example/metadata?token=secret#person@example.test',
+            'https://client.example/metadata',
+        ],
+        [
+            'https://person:secret@client.example/metadata?token=secret',
+            'https://client.example/metadata',
+        ],
+        ['x'.repeat(129), 'x'.repeat(128)],
+    ])('sanitizes client id %s', (clientId, expected) => {
+        const account = fromOauth(user, {
+            accessToken: 'secret-token',
+            client: { id: clientId },
+            scope: ['write'],
+        });
+        expect(() =>
+            assertOAuthCredentialOperationAllowed(
+                account,
+                'createPersonalAccessToken',
+            ),
+        ).toThrow(ForbiddenError);
+        expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
+            'oauth_credential_mint_refused',
+            expect.objectContaining({ clientId: expected }),
+        );
+        expect(JSON.stringify(vi.mocked(Logger.warn).mock.calls)).not.toContain(
+            'secret',
+        );
+        expect(JSON.stringify(vi.mocked(Logger.warn).mock.calls)).not.toContain(
+            'person@example.test',
         );
     });
 
