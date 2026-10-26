@@ -138,7 +138,7 @@ export const resolveCredential = async (
             throw new AuthorizationError(
                 `Not logged in. Run 'lightdash login --help'`,
             );
-        const apiKey = process.env.LIGHTDASH_API_KEY || config.context.apiKey;
+        const { apiKey } = config.context;
         if (apiKey) return humanCredential(apiKey);
         const { PersonalLoginTokenProvider } =
             await import('./personalLogin/tokenProvider');
