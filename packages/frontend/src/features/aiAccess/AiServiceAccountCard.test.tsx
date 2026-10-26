@@ -8,6 +8,7 @@ import {
     type AiServiceAccountSlot,
     type AiServiceAccountTestResult,
     type AiServiceAccountParent,
+    type AiServiceAccountParentUnavailableReason,
     type Project,
 } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -122,6 +123,8 @@ let verification: AiServiceAccountTestResult | null = null;
 let source: AiIdentitySource = 'marked_person';
 let slot: AiServiceAccountSlot | null = null;
 let parent: AiServiceAccountParent | null = null;
+let parentUnavailableReason: AiServiceAccountParentUnavailableReason | null =
+    null;
 const parentAccount = {
     credentialsReadable: true,
     projectUuid: 'parent-project',
@@ -230,6 +233,7 @@ describe('AI service account card', () => {
         credentialsReadable = true;
         slot = null;
         parent = null;
+        parentUnavailableReason = null;
         mockedLightdashApi.mockImplementation(async ({ url, method }) => {
             if (url === '/org/agent-identity')
                 return {
@@ -258,6 +262,7 @@ describe('AI service account card', () => {
                     status: 'ok',
                     results: slot,
                     parent,
+                    parentUnavailableReason,
                     verification: parent ? null : verification,
                     credentialsReadable: parent ? false : credentialsReadable,
                 };
@@ -303,6 +308,46 @@ describe('AI service account card', () => {
         beforeEach(() => {
             warehouseType = type;
         });
+        it.each(['ai_service_account', 'marked_person'] as const)(
+            'explains a destination mismatch for %s',
+            async (identitySource) => {
+                source = identitySource;
+                parentUnavailableReason = 'destination_mismatch';
+                setup(asPreview(props));
+                const message =
+                    "This preview's connection points at a different warehouse than its parent project, so it can't use the parent's shared agent account. Point the preview at the same host to inherit it.";
+                expect(await screen.findByText(message)).toBeVisible();
+                expect(
+                    screen.queryByText(
+                        /The parent project has no shared agent account/,
+                    ),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.queryByText(/Ask an admin to add one/),
+                ).not.toBeInTheDocument();
+                expect(
+                    getAiServiceAccountStatus({
+                        rule: {
+                            warehouseType: type,
+                            source: identitySource,
+                            projectsMissingAiServiceAccount: null,
+                        },
+                        slot: null,
+                        parent: null,
+                        parentUnavailableReason,
+                        credentialsReadable: false,
+                        isPreview: true,
+                    }).alert,
+                ).toEqual({
+                    color:
+                        identitySource === 'ai_service_account'
+                            ? 'red'
+                            : 'yellow',
+                    message,
+                });
+            },
+        );
+
         it('shows all three steps without a section control when no account exists', async () => {
             setup(props);
             await screen.findByRole('button', {
@@ -626,6 +671,7 @@ describe('AI service account card', () => {
                 scenario === 'missing required' ||
                 scenario === 'empty not in use';
             const result = getAiServiceAccountStatus({
+                parentUnavailableReason: null,
                 isPreview: inherited,
                 rule: {
                     warehouseType: type,
@@ -733,6 +779,7 @@ describe('AI service account card', () => {
         };
         expect(
             getAiServiceAccountStatus({
+                parentUnavailableReason: null,
                 isPreview: true,
                 rule,
                 slot: null,
@@ -750,6 +797,7 @@ describe('AI service account card', () => {
         expect(unreadableParent.credentialsReadable).toBe(false);
         expect(
             getAiServiceAccountStatus({
+                parentUnavailableReason: null,
                 isPreview: true,
                 rule,
                 slot: null,
@@ -759,6 +807,7 @@ describe('AI service account card', () => {
         ).toMatchObject({ badge: 'In use', alert: null });
         expect(
             getAiServiceAccountStatus({
+                parentUnavailableReason: null,
                 isPreview: false,
                 rule: {
                     ...rule,
@@ -2166,6 +2215,7 @@ describe('AI service account card', () => {
                         );
                         expect(
                             getAiServiceAccountStatus({
+                                parentUnavailableReason: null,
                                 rule: {
                                     warehouseType: type,
                                     source,

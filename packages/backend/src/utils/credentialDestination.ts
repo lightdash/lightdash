@@ -8,6 +8,7 @@ import {
     type CreateWarehouseCredentials,
     type CreateWarehouseCredentialsWithOptionalSecrets,
     type DbtProjectConfig,
+    type SslConfiguration,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
 import { normalizeDatabricksHostLenient } from '../controllers/authentication/strategies/databricksStrategy';
@@ -227,4 +228,40 @@ export const hasSameWarehouseCredentialDestination = (
     isEqual(
         getWarehouseCredentialDestination(incompleteConfig),
         getWarehouseCredentialDestination(completeConfig),
+    );
+
+const getSslTransport = (config: SslConfiguration): unknown[] => [
+    config.sslmode || null,
+    config.sslrootcert || null,
+    config.sslrootcertFileName || null,
+];
+
+const getWarehouseCredentialTransport = (
+    config: CreateWarehouseCredentials,
+): unknown[] => {
+    switch (config.type) {
+        case WarehouseTypes.POSTGRES:
+        case WarehouseTypes.REDSHIFT:
+            return getSslTransport(config);
+        case WarehouseTypes.BIGQUERY:
+        case WarehouseTypes.SNOWFLAKE:
+        case WarehouseTypes.DATABRICKS:
+        case WarehouseTypes.TRINO:
+        case WarehouseTypes.CLICKHOUSE:
+        case WarehouseTypes.ATHENA:
+        case WarehouseTypes.DUCKDB:
+            return [];
+        default:
+            return assertUnreachable(config, 'Unknown warehouse type');
+    }
+};
+
+export const hasSameWarehouseCredentialDestinationAndTransport = (
+    a: CreateWarehouseCredentials,
+    b: CreateWarehouseCredentials,
+): boolean =>
+    hasSameWarehouseCredentialDestination(a, b) &&
+    isEqual(
+        getWarehouseCredentialTransport(a),
+        getWarehouseCredentialTransport(b),
     );

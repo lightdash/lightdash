@@ -10,6 +10,7 @@ import {
 import {
     hasSameDbtCredentialDestination,
     hasSameWarehouseCredentialDestination,
+    hasSameWarehouseCredentialDestinationAndTransport,
     normalizeCredentialUrlOrigin,
 } from './credentialDestination';
 
@@ -548,5 +549,71 @@ describe('credential destinations', () => {
         },
     ])('keeps secrets for non-retargetable dbt type $type', (config) => {
         expect(hasSameDbtCredentialDestination(config, config)).toBe(true);
+    });
+});
+
+describe.each([postgres, redshift])(
+    '$type credential transport',
+    (configuration) => {
+        test.each([
+            { field: 'sslmode', before: 'verify-full', after: 'disable' },
+            {
+                field: 'sslrootcert',
+                before: 'certificate',
+                after: 'other certificate',
+            },
+            {
+                field: 'sslrootcert',
+                before: 'certificate',
+                after: 'certificate\n',
+            },
+            {
+                field: 'sslrootcertFileName',
+                before: 'root.pem',
+                after: 'other.pem',
+            },
+        ])('compares $field exactly', ({ field, before, after }) => {
+            const a = { ...configuration, [field]: before };
+            const b = { ...configuration, [field]: after };
+            expect(hasSameWarehouseCredentialDestination(a, b)).toBe(true);
+            expect(
+                hasSameWarehouseCredentialDestinationAndTransport(a, b),
+            ).toBe(false);
+            expect(
+                hasSameWarehouseCredentialDestinationAndTransport(a, { ...a }),
+            ).toBe(true);
+        });
+        test.each(['sslmode', 'sslrootcert', 'sslrootcertFileName'])(
+            'treats absence forms of %s equally',
+            (field) => {
+                for (const a of [undefined, null, '']) {
+                    for (const b of [undefined, null, '']) {
+                        expect(
+                            hasSameWarehouseCredentialDestinationAndTransport(
+                                { ...configuration, [field]: a },
+                                { ...configuration, [field]: b },
+                            ),
+                        ).toBe(true);
+                    }
+                }
+            },
+        );
+    },
+);
+
+describe('credential destination and transport', () => {
+    test.each(
+        warehouseDestinationChanges.filter(
+            ({ before }) => before.type !== WarehouseTypes.DUCKDB,
+        ),
+    )('detects a changed $name', ({ before, after }) => {
+        expect(
+            hasSameWarehouseCredentialDestinationAndTransport(before, after),
+        ).toBe(false);
+        expect(
+            hasSameWarehouseCredentialDestinationAndTransport(before, {
+                ...before,
+            }),
+        ).toBe(true);
     });
 });

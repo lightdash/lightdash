@@ -391,8 +391,11 @@ export interface AiServiceAccountParent {
     verification?: AiServiceAccountTestResult | null;
 }
 
+export type AiServiceAccountParentUnavailableReason = 'destination_mismatch';
+
 export interface ApiAiServiceAccountStatusResponse extends ApiAiServiceAccountSlotResponse {
     parent: AiServiceAccountParent | null;
+    parentUnavailableReason: AiServiceAccountParentUnavailableReason | null;
     credentialsReadable: boolean;
     verification?: AiServiceAccountTestResult | null;
 }

@@ -5258,7 +5258,7 @@ describe('Databricks AI service account runtime', () => {
     } as const;
     const databricksConnection: CreateWarehouseCredentials = {
         type: WarehouseTypes.DATABRICKS,
-        serverHostName: 'workspace.example.com',
+        serverHostName: 'adb-123.4.azuredatabricks.net',
         httpPath: '/sql/preview',
         database: 'schema',
         personalAccessToken: 'project-pat',
@@ -5314,7 +5314,7 @@ describe('Databricks AI service account runtime', () => {
             expect(
                 exchangeDatabricksOAuthCredentials,
             ).toHaveBeenCalledExactlyOnceWith(
-                'workspace.example.com',
+                'adb-123.4.azuredatabricks.net',
                 'slot-id',
                 'slot-secret',
             );
@@ -6517,7 +6517,7 @@ describe('preview ClickHouse AI service account inheritance', () => {
                 ...args,
                 connection: {
                     ...clickhouseConnection,
-                    host: 'preview.internal',
+                    host: clickhouseConnection.host,
                     schema: 'preview_analytics',
                 },
             }),
@@ -6527,7 +6527,7 @@ describe('preview ClickHouse AI service account inheritance', () => {
             sourceProjectUuid: 'parent',
             inheritedFromProjectUuid: 'parent',
             credentials: {
-                host: 'preview.internal',
+                host: clickhouseConnection.host,
                 schema: 'preview_analytics',
                 password: clickhouseSecrets.password,
             },

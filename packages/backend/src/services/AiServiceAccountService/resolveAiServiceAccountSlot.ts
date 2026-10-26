@@ -1,26 +1,36 @@
 import {
     NotFoundError,
     ProjectType,
+    type CreateWarehouseCredentials,
     type ProjectSummary,
 } from '@lightdash/common';
 import { type AiServiceAccountCredentialsModel } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { hasSameWarehouseCredentialDestinationAndTransport } from '../../utils/credentialDestination';
 
 export type AiServiceAccountSlotDependencies = {
     aiServiceAccountCredentialsModel: Pick<
         AiServiceAccountCredentialsModel,
         'getSecrets' | 'getSlot'
     >;
-    projectModel: Pick<ProjectModel, 'getSummary'>;
+    projectModel: Pick<
+        ProjectModel,
+        'getSummary' | 'getWarehouseCredentialsForBinding'
+    >;
     warehouseConnectionModel: Pick<
         WarehouseConnectionModel,
-        'getProject' | 'get' | 'list'
+        'getProject' | 'get' | 'list' | 'getCredentials'
     >;
 };
 
-type Input = { projectUuid: string; connection: string | null };
+type Input = {
+    projectUuid: string;
+    connection: string | null;
+    configuration: CreateWarehouseCredentials;
+};
 type Resolution<T> = {
+    configuration: CreateWarehouseCredentials;
     slot: T;
     sourceProjectUuid: string;
     sourceConnection: string | null;
@@ -30,6 +40,14 @@ type Resolution<T> = {
 export class AiServiceAccountSlotResolutionError extends Error {
     constructor(readonly inheritedFromProjectUuid: string | null) {
         super('The saved shared agent account credentials could not be read.');
+    }
+}
+
+export class AiServiceAccountDestinationMismatchError extends AiServiceAccountSlotResolutionError {
+    constructor(parentProjectUuid: string) {
+        super(parentProjectUuid);
+        this.message =
+            'The preview connection does not point at the same warehouse as its parent project, so the parent shared agent account cannot be used.';
     }
 }
 
@@ -51,6 +69,43 @@ export class AiServiceAccountSlotResolver {
         };
     }
 
+    private async requireSameDestination(
+        child: Input,
+        parent: Input,
+    ): Promise<void> {
+        const loadCredentials = async ({ projectUuid, connection }: Input) =>
+            connection === null
+                ? this.deps.projectModel.getWarehouseCredentialsForBinding(
+                      projectUuid,
+                      { kind: 'connection', warehouseConnectionUuid: null },
+                  )
+                : this.deps.warehouseConnectionModel.getCredentials(
+                      await this.deps.warehouseConnectionModel.getProject(
+                          projectUuid,
+                      ),
+                      connection,
+                  );
+        try {
+            const parentCredentials = await loadCredentials(parent);
+            if (
+                !hasSameWarehouseCredentialDestinationAndTransport(
+                    child.configuration,
+                    parentCredentials,
+                )
+            )
+                throw new AiServiceAccountDestinationMismatchError(
+                    parent.projectUuid,
+                );
+        } catch (error) {
+            if (
+                error instanceof NotFoundError ||
+                error instanceof AiServiceAccountDestinationMismatchError
+            )
+                throw error;
+            throw new AiServiceAccountSlotResolutionError(parent.projectUuid);
+        }
+    }
+
     private async parent(
         input: Input,
         project: ProjectSummary,
@@ -66,8 +121,15 @@ export class AiServiceAccountSlotResolver {
             const parent = await this.deps.projectModel.getSummary(parentUuid);
             if (parent.organizationUuid !== project.organizationUuid)
                 return null;
-            if (input.connection === null)
-                return { projectUuid: parentUuid, connection: null };
+            if (input.connection === null) {
+                const parentInput = {
+                    projectUuid: parentUuid,
+                    connection: null,
+                    configuration: input.configuration,
+                };
+                await this.requireSameDestination(input, parentInput);
+                return parentInput;
+            }
             const childConnection =
                 await this.deps.warehouseConnectionModel.get(
                     await this.deps.warehouseConnectionModel.getProject(
@@ -84,12 +146,14 @@ export class AiServiceAccountSlotResolver {
                     connection.name === childConnection.name &&
                     connection.warehouseType === childConnection.warehouseType,
             );
-            return matching
-                ? {
-                      projectUuid: parentUuid,
-                      connection: matching.warehouseConnectionUuid,
-                  }
-                : null;
+            if (!matching) return null;
+            const parentInput = {
+                projectUuid: parentUuid,
+                connection: matching.warehouseConnectionUuid,
+                configuration: input.configuration,
+            };
+            await this.requireSameDestination(input, parentInput);
+            return parentInput;
         } catch (error) {
             if (error instanceof NotFoundError) return null;
             throw error;
@@ -113,6 +177,7 @@ export class AiServiceAccountSlotResolver {
             ? null
             : {
                   slot,
+                  configuration: input.configuration,
                   sourceProjectUuid: input.projectUuid,
                   sourceConnection: input.connection,
                   inherited,

@@ -20,6 +20,7 @@ import {
     type ApiError,
     type AiServiceAccountSlot,
     type AiServiceAccountParent,
+    type AiServiceAccountParentUnavailableReason,
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
 import { Alert, Anchor, Button, Group, Stack, Text } from '@mantine/core';
@@ -244,6 +245,7 @@ const AiServiceAccountSettingsContent = ({
     slot,
     credentialsReadable,
     parent,
+    parentUnavailableReason,
     rule,
     testedPrincipal,
     observation,
@@ -256,6 +258,7 @@ const AiServiceAccountSettingsContent = ({
     slot: AiServiceAccountSlot | null;
     credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
+    parentUnavailableReason: AiServiceAccountParentUnavailableReason | null;
     rule: OrganizationAgentIdentityRule;
     testedPrincipal: string | null;
     observation: AiServiceAccountTestResult | null;
@@ -270,6 +273,7 @@ const AiServiceAccountSettingsContent = ({
         rule: { ...rule, warehouseType },
         slot,
         parent,
+        parentUnavailableReason,
         credentialsReadable,
         isPreview: upstreamProjectUuid !== null,
     });
@@ -287,6 +291,7 @@ const AiServiceAccountSettingsContent = ({
         upstreamProjectUuid !== null &&
         !slot &&
         !parent &&
+        parentUnavailableReason === null &&
         rule.source === 'ai_service_account';
     return (
         <Stack gap="sm">
@@ -319,7 +324,8 @@ const AiServiceAccountSettingsContent = ({
                     onReplace={upstreamProjectUuid === null ? onEdit : null}
                 />
             ) : upstreamProjectUuid !== null ? (
-                !missingRequiredParent && (
+                !missingRequiredParent &&
+                parentUnavailableReason === null && (
                     <Text size="sm">
                         The parent project has no shared agent account. Add one
                         on {parentLink}.
@@ -410,6 +416,7 @@ const AiServiceAccountSettingsBody = ({
     slot,
     credentialsReadable,
     parent,
+    parentUnavailableReason,
     rule,
     verification,
 }: {
@@ -420,6 +427,7 @@ const AiServiceAccountSettingsBody = ({
     slot: AiServiceAccountSlot | null;
     credentialsReadable: boolean;
     parent: AiServiceAccountParent | null;
+    parentUnavailableReason: AiServiceAccountParentUnavailableReason | null;
     rule: OrganizationAgentIdentityRule;
 }) => {
     const [editing, setEditing] = useState(false);
@@ -445,6 +453,7 @@ const AiServiceAccountSettingsBody = ({
                 slot={slot}
                 credentialsReadable={credentialsReadable}
                 parent={parent}
+                parentUnavailableReason={parentUnavailableReason}
                 rule={rule}
                 testedPrincipal={principal}
                 observation={observation}
@@ -518,6 +527,7 @@ const AiServiceAccountSettings = ({
             slot={upstreamProjectUuid === null ? status.data.results : null}
             credentialsReadable={status.data.credentialsReadable}
             parent={status.data.parent}
+            parentUnavailableReason={status.data.parentUnavailableReason}
             rule={rule}
         />
     );

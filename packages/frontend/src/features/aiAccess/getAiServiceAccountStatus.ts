@@ -1,5 +1,6 @@
 import {
     type AiServiceAccountParent,
+    type AiServiceAccountParentUnavailableReason,
     type AiServiceAccountSlot,
     type OrganizationAgentIdentityRule,
 } from '@lightdash/common';
@@ -16,6 +17,7 @@ export const getAiServiceAccountStatus = ({
     rule,
     slot,
     parent,
+    parentUnavailableReason,
     credentialsReadable,
     isPreview,
 }: {
@@ -24,10 +26,21 @@ export const getAiServiceAccountStatus = ({
     };
     slot: AiServiceAccountSlot | null;
     parent: AiServiceAccountParent | null;
+    parentUnavailableReason: AiServiceAccountParentUnavailableReason | null;
     credentialsReadable: boolean;
     isPreview: boolean;
 }): AiServiceAccountStatusInfo => {
     const required = rule.source === 'ai_service_account';
+    if (parentUnavailableReason === 'destination_mismatch')
+        return {
+            badge: null,
+            message: null,
+            alert: {
+                color: required ? 'red' : 'yellow',
+                message:
+                    "This preview's connection points at a different warehouse than its parent project, so it can't use the parent's shared agent account. Point the preview at the same host to inherit it.",
+            },
+        };
     const unreadableParent = !slot && parent?.credentialsReadable === false;
     const warehouse = identityWarehouseNames[rule.warehouseType];
     const parentWarning = `This preview can't read the parent project's shared agent account. Ask an admin of ${parent?.projectName ?? 'the parent project'} to replace it.`;

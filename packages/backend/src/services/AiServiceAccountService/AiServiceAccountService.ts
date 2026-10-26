@@ -51,6 +51,7 @@ import {
 } from '../WarehouseClientFactory/ConnectionContext';
 import { mergeAiServiceAccountCredentials } from './applyAiServiceAccountCredentials';
 import {
+    AiServiceAccountDestinationMismatchError,
     AiServiceAccountSlotResolutionError,
     AiServiceAccountSlotResolver,
 } from './resolveAiServiceAccountSlot';
@@ -68,6 +69,7 @@ type ManagedProject = {
     organizationUuid: string;
     projectName: string;
     isPreview: boolean;
+    upstreamProjectUuid: string | null;
 };
 
 type ServiceAccountConnection = {
@@ -122,7 +124,12 @@ export class AiServiceAccountService extends BaseService {
         if (!enabled)
             throw new FeatureNotEnabledError(FeatureFlags.AgentIdentity);
         const isPreview = type === ProjectType.PREVIEW && !!upstreamProjectUuid;
-        return { organizationUuid, projectName, isPreview };
+        return {
+            organizationUuid,
+            projectName,
+            isPreview,
+            upstreamProjectUuid: isPreview ? upstreamProjectUuid! : null,
+        };
     }
 
     private async loadConnection(
@@ -279,10 +286,27 @@ export class AiServiceAccountService extends BaseService {
               }
             : {};
         const resolver = new AiServiceAccountSlotResolver(this.deps);
-        const input = { projectUuid, connection: warehouseConnectionUuid };
+        const input = {
+            projectUuid,
+            connection: warehouseConnectionUuid,
+            configuration: connection,
+        };
+        let parentUnavailableReason: ApiAiServiceAccountStatusResponse['parentUnavailableReason'] =
+            null;
         const inherited = await resolver
             .resolveParent(input)
             .catch(async (error) => {
+                if (error instanceof AiServiceAccountDestinationMismatchError) {
+                    parentUnavailableReason = 'destination_mismatch';
+                    this.logger.warn(
+                        'Preview shared agent account destination mismatch',
+                        {
+                            projectUuid,
+                            parentProjectUuid: error.inheritedFromProjectUuid,
+                        },
+                    );
+                    return null;
+                }
                 if (!(error instanceof AiServiceAccountSlotResolutionError))
                     throw error;
                 const metadata = await resolver.resolveParentMetadata(input);
@@ -297,6 +321,7 @@ export class AiServiceAccountService extends BaseService {
             return {
                 results,
                 parent: null,
+                parentUnavailableReason,
                 credentialsReadable,
                 ...verification,
             };
@@ -309,6 +334,7 @@ export class AiServiceAccountService extends BaseService {
             results,
             credentialsReadable,
             ...verification,
+            parentUnavailableReason,
             parent: {
                 credentialsReadable: inherited.slot.secrets !== null,
                 projectUuid: parentUuid,
@@ -512,6 +538,20 @@ export class AiServiceAccountService extends BaseService {
         const project = await this.loadManagedProject(account, projectUuid);
         if (input !== null && project.isPreview)
             throw new ParameterError(previewAccountMessage);
+        if (
+            project.upstreamProjectUuid !== null &&
+            this.createAuditedAbility(account).cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.upstreamProjectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You need to manage the parent project to test its shared agent account.',
+            );
+        }
         const loaded = await this.loadConnection(
             projectUuid,
             connectionUuid,
@@ -795,6 +835,7 @@ export class AiServiceAccountService extends BaseService {
             connectionName,
         } = loaded;
         let secrets = input;
+        let configuration = connection;
         const slot = loaded.isPreview
             ? null
             : await this.deps.aiServiceAccountCredentialsModel.getSlot(
@@ -813,7 +854,12 @@ export class AiServiceAccountService extends BaseService {
             if (input === null) {
                 const resolved = await new AiServiceAccountSlotResolver(
                     this.deps,
-                ).resolve({ projectUuid, connection: warehouseConnectionUuid });
+                ).resolve({
+                    projectUuid,
+                    connection: warehouseConnectionUuid,
+                    configuration: connection,
+                });
+                configuration = resolved?.configuration ?? connection;
                 secrets = resolved?.slot.secrets ?? null;
                 sourceProjectUuid = resolved?.sourceProjectUuid ?? projectUuid;
                 sourceConnection = resolved
@@ -833,7 +879,7 @@ export class AiServiceAccountService extends BaseService {
                 account,
                 projectUuid,
                 organizationUuid,
-                connection,
+                configuration,
                 secrets,
                 () => {
                     queryStarted = true;

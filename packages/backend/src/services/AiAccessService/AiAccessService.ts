@@ -1792,6 +1792,7 @@ export class AiAccessService extends BaseService {
                     saved = await this.slotResolver.resolve({
                         projectUuid: args.projectUuid,
                         connection: args.warehouseConnectionUuid,
+                        configuration: args.connection,
                     });
                     inheritedFromProjectUuid = saved?.inherited
                         ? saved.sourceProjectUuid
@@ -1813,7 +1814,7 @@ export class AiAccessService extends BaseService {
                 let credentials;
                 try {
                     credentials = await resolveAiServiceAccountCredentials({
-                        connection: args.connection,
+                        connection: saved.configuration,
                         stored: saved.slot.secrets,
                         owner: {
                             kind: 'aiServiceAccount',
@@ -2705,6 +2706,7 @@ export class AiAccessService extends BaseService {
                     const resolved = await this.slotResolver.resolveMetadata({
                         projectUuid: args.projectUuid,
                         connection: args.warehouseConnectionUuid,
+                        configuration: args.connection,
                     });
                     const slot = resolved?.slot ?? null;
                     if (slot === null) {

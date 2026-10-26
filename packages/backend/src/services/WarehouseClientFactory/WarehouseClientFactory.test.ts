@@ -3506,7 +3506,7 @@ describe('AI service account factory scopes', () => {
             );
             const databricks = {
                 type: WarehouseTypes.DATABRICKS,
-                serverHostName: 'workspace.example.com',
+                serverHostName: 'adb-123.4.azuredatabricks.net',
                 httpPath: '/sql/warehouse',
                 database: 'schema',
                 token: 'slot-token',
@@ -3555,7 +3555,7 @@ describe('AI service account factory scopes', () => {
         );
         const databricks = {
             type: WarehouseTypes.DATABRICKS,
-            serverHostName: 'workspace.example.com',
+            serverHostName: 'adb-123.4.azuredatabricks.net',
             httpPath: '/sql/warehouse',
             database: 'schema',
             token: 'slot-token',
@@ -3612,7 +3612,7 @@ describe('AI service account factory scopes', () => {
                 clientOptions: { agentJobControls: true },
                 credentials: {
                     type: WarehouseTypes.DATABRICKS,
-                    serverHostName: 'workspace.example.com',
+                    serverHostName: 'adb-123.4.azuredatabricks.net',
                     httpPath: '/sql/warehouse',
                     database: 'schema',
                     token: 'slot-token',
@@ -3637,7 +3637,7 @@ describe('AI service account factory scopes', () => {
         const { factory, aiAccessService, projectModel } = buildFixture();
         const connection = {
             type: WarehouseTypes.DATABRICKS as const,
-            serverHostName: 'workspace.example.com',
+            serverHostName: 'adb-123.4.azuredatabricks.net',
             httpPath: '/sql/warehouse',
             database: 'schema',
             personalAccessToken: 'project-pat',
@@ -5307,7 +5307,7 @@ describe('prepared OAuth credentials', () => {
                 const connection: CreateDatabricksCredentials = {
                     type: WarehouseTypes.DATABRICKS,
                     authenticationType,
-                    serverHostName: 'workspace.example.com',
+                    serverHostName: 'adb-123.4.azuredatabricks.net',
                     database: 'schema',
                     httpPath: '/sql/warehouse',
                     token: 'already-exchanged',
@@ -5352,7 +5352,7 @@ describe('prepared OAuth credentials', () => {
                 const connection: CreateDatabricksCredentials = {
                     type: WarehouseTypes.DATABRICKS,
                     authenticationType,
-                    serverHostName: 'workspace.example.com',
+                    serverHostName: 'adb-123.4.azuredatabricks.net',
                     httpPath: '/sql/warehouse',
                     database: 'schema',
                     token: 'access-secret',
