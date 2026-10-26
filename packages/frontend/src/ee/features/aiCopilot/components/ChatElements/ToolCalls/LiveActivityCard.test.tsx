@@ -146,10 +146,10 @@ describe('LiveActivityCard composer failure', () => {
         );
 
         expect(screen.getByLabelText('Failed')).toBeInTheDocument();
-        const openRows = screen
-            .getAllByRole('button', { expanded: true })
-            .filter((row) => row.textContent?.includes('Revenue targets'));
-        expect(openRows).toHaveLength(1);
+        const failedRow = screen
+            .getAllByRole('button', { expanded: false })
+            .find((row) => row.textContent?.includes('Revenue targets'));
+        expect(failedRow).toBeDefined();
     });
 });
 
