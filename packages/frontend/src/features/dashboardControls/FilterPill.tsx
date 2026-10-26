@@ -98,7 +98,13 @@ export const FilterPill: FC<Props> = memo(
                 disabled={!isOrphaned}
                 label={orphanedTooltip}
             >
-                <Box className={classes.pill}>
+                <Box
+                    className={
+                        kind === 'editor'
+                            ? `${classes.pill} ${classes.hoverControls}`
+                            : classes.pill
+                    }
+                >
                     <FilterPillButton
                         field={field}
                         filterRule={filter}

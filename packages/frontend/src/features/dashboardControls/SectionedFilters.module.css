@@ -1,27 +1,92 @@
-/* A section on the bar: a filled, pill-shaped box holding its toggle and,
-   open, its pills inline; the bar's children are pills already */
-.capsule {
-    display: inline-flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--mantine-spacing-xs);
-    /* A pill's height, so a folded capsule lines up with the pills */
-    min-height: calc(1.75rem * var(--mantine-scale));
-    padding: 0 var(--mantine-spacing-sm) 0 var(--mantine-spacing-xs);
-    background-color: var(--mantine-color-ldGray-1);
-    border: 1px solid var(--mantine-color-default-border);
-    border-radius: var(--mantine-radius-xl);
+/* A section on the bar: a hairline, a plain label and, open, its pills in
+   the bar's own flow */
+.divider {
+    flex: 0 0 auto;
+    width: 1px;
+    height: 16px;
+    background-color: var(--mantine-color-default-border);
 }
 
-.toggle {
+.sectionLabel {
+    --controls-ease: ease-in-out;
+    --controls-duration-hover: 0.12s;
+
     display: inline-flex;
     align-items: center;
     gap: var(--mantine-spacing-xxs);
-    border-radius: var(--mantine-radius-xl);
+    /* A pill's height, so the label sits level with them */
+    height: calc(1.75rem * var(--mantine-scale));
     padding-inline: var(--mantine-spacing-xxs);
+    border-radius: var(--mantine-radius-sm);
+    transition: background-color var(--controls-duration-hover)
+        var(--controls-ease);
 
     &:hover,
     &:focus-visible {
         background-color: var(--mantine-color-default-hover);
+    }
+}
+
+.sectionSummary {
+    margin-left: var(--mantine-spacing-xxs);
+}
+
+/* Unfolded, the pills arrive one after the other, up to eight */
+.pillsEnter {
+    --controls-ease-arrive: cubic-bezier(0.22, 1, 0.36, 1);
+    --controls-duration-arrive: 0.28s;
+}
+
+.pillsEnter > * {
+    animation: pillEnter var(--controls-duration-arrive)
+        var(--controls-ease-arrive) both;
+}
+
+.pillsEnter > :nth-child(2) {
+    animation-delay: 20ms;
+}
+
+.pillsEnter > :nth-child(3) {
+    animation-delay: 40ms;
+}
+
+.pillsEnter > :nth-child(4) {
+    animation-delay: 60ms;
+}
+
+.pillsEnter > :nth-child(5) {
+    animation-delay: 80ms;
+}
+
+.pillsEnter > :nth-child(6) {
+    animation-delay: 100ms;
+}
+
+.pillsEnter > :nth-child(7) {
+    animation-delay: 120ms;
+}
+
+.pillsEnter > :nth-child(n + 8) {
+    animation-delay: 140ms;
+}
+
+@keyframes pillEnter {
+    from {
+        opacity: 0;
+        transform: translateX(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pillsEnter > * {
+        animation: none;
+    }
+
+    .sectionLabel {
+        transition: none;
     }
 }

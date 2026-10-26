@@ -159,7 +159,7 @@ describe('SectionedFilters', () => {
         };
     });
 
-    it('renders Add and the unsectioned pass first, then a capsule per section in order', () => {
+    it('renders Add and the unsectioned pass first, then a hairline and a label per section in order', () => {
         renderSectioned([rule('two', 'b'), rule('one', 'a')], 'tab-1');
 
         const order = screen
@@ -172,6 +172,50 @@ describe('SectionedFilters', () => {
             'b',
         ]);
         expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
+        // One hairline before each section, the first one included
+        const dividers = screen.getAllByRole('separator');
+        expect(dividers).toHaveLength(2);
+        expect(dividers[0]).toHaveAttribute('aria-orientation', 'vertical');
+        const dates = screen.getByRole('button', { name: 'Dates' });
+        expect(
+            dividers[0].compareDocumentPosition(dates) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(
+            dates.compareDocumentPosition(screen.getByTestId('pills-a')) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(
+            dividers[1].compareDocumentPosition(
+                screen.getByRole('button', { name: 'Regions' }),
+            ) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+    });
+
+    it('draws a hairline only for the sections that have a visible member', () => {
+        renderSectioned(
+            [rule('one', 'a', onTabOne), rule('two', 'b')],
+            'tab-2',
+        );
+        expect(screen.getAllByRole('separator')).toHaveLength(1);
+    });
+
+    it('starts folded above six members on the tab and open at six', () => {
+        const members = (count: number) =>
+            Array.from({ length: count }, (_, i) => rule(`a-${i}`, 'a'));
+        const { unmount } = renderSectioned(members(7), 'tab-1');
+        const folded = screen.getByRole('button', { name: /^Dates/ });
+        expect(folded).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByTestId('pills-a')).not.toBeInTheDocument();
+        expect(screen.getByText('7 of 7 set')).toBeInTheDocument();
+        unmount();
+
+        renderSectioned(members(6), 'tab-1');
+        expect(screen.getByRole('button', { name: 'Dates' })).toHaveAttribute(
+            'aria-expanded',
+            'true',
+        );
+        expect(screen.getByTestId('pills-a')).toBeInTheDocument();
     });
 
     it('shares one open popover across the passes', async () => {

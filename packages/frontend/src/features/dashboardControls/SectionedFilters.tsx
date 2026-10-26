@@ -4,7 +4,7 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { Box, Text, UnstyledButton } from '@mantine/core';
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useId, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -35,7 +35,10 @@ type CapsuleProps = {
     popover: PillPopoverState;
 };
 
-const SectionCapsule: FC<CapsuleProps> = ({
+/** A section with more members than this on the tab starts folded */
+const FOLDED_BY_DEFAULT_ABOVE = 6;
+
+const SectionGroup: FC<CapsuleProps> = ({
     section,
     visibleRules,
     isOpen,
@@ -47,40 +50,55 @@ const SectionCapsule: FC<CapsuleProps> = ({
     const summaryId = useId();
     const setCount = visibleRules.filter(hasFilterValueSet).length;
     return (
-        <Box className={classes.capsule}>
+        <>
+            <Box
+                className={classes.divider}
+                role="separator"
+                aria-orientation="vertical"
+            />
             <UnstyledButton
-                className={classes.toggle}
+                className={classes.sectionLabel}
                 aria-expanded={isOpen}
                 aria-describedby={isOpen ? undefined : summaryId}
                 onClick={onToggle}
             >
-                <MantineIcon
-                    icon={isOpen ? IconChevronDown : IconChevronRight}
-                    size={14}
-                    color="dimmed"
-                />
                 <Text span fz="sm" fw={600}>
                     {section.name}
                 </Text>
+                {!isOpen && (
+                    <>
+                        <Text
+                            span
+                            id={summaryId}
+                            fz="sm"
+                            c="dimmed"
+                            className={classes.sectionSummary}
+                        >
+                            {interpolateUiString(
+                                getUiString('filters.sectionSummary'),
+                                { set: setCount, total: visibleRules.length },
+                            )}
+                        </Text>
+                        <MantineIcon
+                            icon={IconChevronRight}
+                            size={14}
+                            color="dimmed"
+                        />
+                    </>
+                )}
             </UnstyledButton>
-            {isOpen ? (
-                <FilterPills
-                    activeTabUuid={activeTabUuid}
-                    sectionId={section.id}
-                    popover={popover}
-                />
-            ) : (
-                <Text id={summaryId} fz="sm" c="dimmed">
-                    {interpolateUiString(
-                        getUiString('filters.sectionSummary'),
-                        {
-                            set: setCount,
-                            total: visibleRules.length,
-                        },
-                    )}
-                </Text>
+            {/* Mounted on unfold, so its pills arrive; `contents` keeps them
+                in the bar's own flow */}
+            {isOpen && (
+                <Box display="contents" className={classes.pillsEnter}>
+                    <FilterPills
+                        activeTabUuid={activeTabUuid}
+                        sectionId={section.id}
+                        popover={popover}
+                    />
+                </Box>
             )}
-        </Box>
+        </>
     );
 };
 
@@ -90,10 +108,11 @@ type Props = {
 
 // The filter area of a dashboard with sections: the unsectioned
 // pass first (Add, the unsectioned saved pills, the viewer's own), then one
-// capsule per section with a member on this tab. A fold is local state keyed
-// by section id; one saved popover is open across every pass
+// hairline group per section with a member on this tab: a label, then its
+// pills inline. A fold is local state keyed by section id, as the ids whose
+// fold differs from their default; one saved popover is open across every pass
 export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
-    const [closedIds, setClosedIds] = useState<Set<string>>(() => new Set());
+    const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
     const [openPopoverId, setOpenPopoverId] = useState<string>();
     const onPopoverClose = useCallback(() => setOpenPopoverId(undefined), []);
     const popover: PillPopoverState = {
@@ -109,15 +128,15 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     const { getTabsUsingFilter } = useFilterTabPlacement();
 
     const toggle = (id: string) =>
-        setClosedIds((previous) => {
+        setFlippedIds((previous) => {
             const next = new Set(previous);
             if (next.has(id)) next.delete(id);
             else next.add(id);
             return next;
         });
 
-    // No capsules while loading: the unsectioned pass shows the skeletons
-    const capsules = isLoading
+    // No groups while loading: the unsectioned pass shows the skeletons
+    const groups = isLoading
         ? []
         : groupRulesBySection(dashboardFilters, sections).flatMap(
               ({ section, rules }) => {
@@ -145,12 +164,15 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                 sectionId={null}
                 popover={popover}
             />
-            {capsules.map(({ section, visibleRules }) => (
-                <SectionCapsule
+            {groups.map(({ section, visibleRules }) => (
+                <SectionGroup
                     key={section.id}
                     section={section}
                     visibleRules={visibleRules}
-                    isOpen={!closedIds.has(section.id)}
+                    isOpen={
+                        visibleRules.length <= FOLDED_BY_DEFAULT_ABOVE !==
+                        flippedIds.has(section.id)
+                    }
                     onToggle={() => toggle(section.id)}
                     activeTabUuid={activeTabUuid}
                     popover={popover}

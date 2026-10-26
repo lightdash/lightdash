@@ -1137,18 +1137,26 @@ the language map, as tab names are.
   + `FilterPills` (in edit mode `FilterRequirementsButton` follows it, as
   it follows the flat pills). It is `AddControl`,
   `FilterPills sectionId={null}` (the unsectioned saved pills and the
-  viewer's own pills, which are never in a section) and then one capsule per
-  section in `controlSections` order that has a saved member visible on this
-  tab (`groupRulesBySection`, `useFilterTabPlacement` /
-  `isFilterHiddenOnTab`); a section with none renders nothing, and no
-  capsule renders while the filters load. A capsule (`.capsule` in
-  `SectionedFilters.module.css`: `ldGray-1`, default border, pill radius and
-  height) is a toggle (chevron and the name, `aria-expanded`) and, open,
-  `FilterPills sectionId={section.id}`; folded, the dimmed
+  viewer's own pills, which are never in a section) and then one hairline
+  group per section in `controlSections` order that has a saved member
+  visible on this tab (`groupRulesBySection`, `useFilterTabPlacement` /
+  `isFilterHiddenOnTab`); a section with none renders nothing, and no group
+  renders while the filters load. A group is a vertical hairline
+  (`.divider`, `role="separator"`, 1px by 16px, before every section, the
+  first included), a plain label (`.sectionLabel`, an `UnstyledButton` at a
+  pill's height: the name in `sm` 600, normal case, no border or fill,
+  `aria-expanded`) and, open, `FilterPills sectionId={section.id}` in the
+  bar's own flow (a `display: contents` `.pillsEnter` box, whose children
+  arrive with opacity and a 6px `translateX`, 20ms apart up to eight;
+  folding animates nothing); folded, the label adds the dimmed
   `filters.sectionSummary` ("{set} of {total} set", `hasFilterValueSet` over
-  the visible members) that the toggle names with `aria-describedby`. Open by
-  default; a fold is local state keyed by section id, nothing saved and
-  nothing in the URL. `FilterPills` threads `sectionId` (`undefined`: every
+  the visible members, `aria-describedby`) and a 14px right chevron that
+  never rotates. A section with more than `FOLDED_BY_DEFAULT_ABOVE` (6)
+  members on the tab starts folded, the rest open; the fold is local state
+  keyed by section id (the ids whose fold differs from that default), nothing
+  saved and nothing in the URL. In edit mode every pill the feature renders
+  (`FilterPill`, `.hoverControls` in `FilterPills.module.css`) shows its grip
+  and X on hover and `:focus-within` only, by opacity so nothing resizes. `FilterPills` threads `sectionId` (`undefined`: every
   saved rule, the default; `null`; a string) and a shared `popover` state to
   `ViewerSavedPills`, which filters with `isRuleInSection` and keeps the
   saved index for remove and update (the editor's pills filter the same way,

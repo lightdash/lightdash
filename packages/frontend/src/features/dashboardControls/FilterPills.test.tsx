@@ -735,6 +735,8 @@ describe('FilterPills', () => {
             expect(
                 status.querySelector('.tabler-icon-grip-vertical'),
             ).not.toBeNull();
+            // The grip and the X show on hover and focus only
+            expect(status.parentElement?.className).toContain('hoverControls');
             expect(
                 status.closest('[aria-roledescription="draggable"]'),
             ).not.toBeNull();
