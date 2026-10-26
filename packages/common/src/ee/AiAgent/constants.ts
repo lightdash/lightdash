@@ -1,1 +1,1 @@
-export const AI_DEFAULT_MAX_QUERY_LIMIT = 1000;
+export const AI_DEFAULT_MAX_QUERY_LIMIT = 5000;
