@@ -280,38 +280,66 @@ jobs:
     name: Select Tests to Run
     runs-on: depot-ubuntu-24.04-4
     outputs:
-      # A Rainbow parity run (PR body contains `rainbow-parity`, same-repo PR) runs every suite.
+      # Which preview the E2E suites run against (see "Select preview backend").
+      # Only an explicit `rainbow-parity` run forces every suite; a PR the
+      # rollout picked keeps the usual change-based selection.
       preview_backend: ${{ steps.backend.outputs.backend }}
       # Must equal the backend's SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN; the backend dials it, not the runner.
       snowflake_ai_stub_url: ${{ steps.backend.outputs.backend == 'rainbow' && 'http://localhost:3900' || 'http://snowflake-ai-stub:3900' }}
-      preview: ${{ steps.backend.outputs.backend == 'rainbow' || (steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all') }}
-      frontend: ${{ steps.backend.outputs.backend == 'rainbow' || steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
-      backend: ${{ steps.backend.outputs.backend == 'rainbow' || steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
+      preview: ${{ steps.backend.outputs.all_suites == 'true' || (steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all') }}
+      frontend: ${{ steps.backend.outputs.all_suites == 'true' || steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
+      backend: ${{ steps.backend.outputs.all_suites == 'true' || steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
       api_schema: ${{ steps.changes.outputs.api_schema == 'true' }}
-      timezone: ${{ steps.backend.outputs.backend == 'rainbow' || steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
-      cli: ${{ steps.backend.outputs.backend == 'rainbow' || steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
+      timezone: ${{ steps.backend.outputs.all_suites == 'true' || steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
+      cli: ${{ steps.backend.outputs.all_suites == 'true' || steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
       db_divert: ${{ steps.changes.outputs.preview_db_full != 'true' }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
-      # Okteto unless the PR asks for a Rainbow parity run and its head branch
-      # lives in this repository. This selects a path; it is not a security
-      # boundary (a PR can edit this file). Fork PRs get no secrets anyway.
+      # Okteto, or Rainbow for a same-repo PR that either asks for it
+      # (`rainbow-parity` in the body: every suite runs) or is picked by the
+      # rollout: half of the PRs opened after RAINBOW_ROLLOUT_AFTER, by PR
+      # number, so a PR keeps its backend for its whole life. `okteto-only`
+      # in the body opts out. Bots stay on Okteto. This selects a path; it is
+      # not a security boundary (a PR can edit this file). Fork PRs get no
+      # secrets anyway.
       - name: Select preview backend
         id: backend
         env:
+          RAINBOW_ROLLOUT_AFTER: "31583"
+          NUMBER: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
           REQUESTED: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.body, 'rainbow-parity') }}
+          OPTED_OUT: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.body, 'okteto-only') }}
           SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
         run: |
-          backend=okteto
-          if [ "$REQUESTED" = true ] && [ "$SAME_REPO" = true ]; then
-            backend=rainbow
+          backend=okteto all_suites=false picked=false
+          if [ "$SAME_REPO" != true ]; then
+            [ "$REQUESTED" = true ] && echo "::warning::rainbow-parity requested, but this PR comes from a fork; using Okteto."
           elif [ "$REQUESTED" = true ]; then
-            echo "::warning::rainbow-parity requested, but this PR comes from a fork; using Okteto."
+            backend=rainbow all_suites=true
+          elif [ "$OPTED_OUT" != true ] && [[ "$AUTHOR" != *"[bot]" ]] \
+               && [ "$NUMBER" -gt "$RAINBOW_ROLLOUT_AFTER" ] && [ $((NUMBER % 2)) -eq 0 ]; then
+            backend=rainbow picked=true
           fi
-          echo "Preview backend: $backend"
-          echo "backend=$backend" >> "$GITHUB_OUTPUT"
+          echo "Preview backend: $backend (all suites: $all_suites, picked by rollout: $picked)"
+          {
+            echo "backend=$backend"
+            echo "all_suites=$all_suites"
+            echo "picked=$picked"
+          } >> "$GITHUB_OUTPUT"
+      - name: Tell the author this PR runs on Rainbow
+        if: steps.backend.outputs.picked == 'true' && github.event.action == 'opened'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "🌈 **This PR was picked to run on Rainbow Machine.**
+
+          Half of new PRs now run their E2E tests against a Rainbow preview instead of Okteto, while we compare the two. Your tests and checks are the same; the preview link is in the Rainbow comment on this PR.
+
+          Something looks off? Add \`okteto-only\` to the PR description and push to go back to Okteto, and reply here with what you saw."
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Check for files changes
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
