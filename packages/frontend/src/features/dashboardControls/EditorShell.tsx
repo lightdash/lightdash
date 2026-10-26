@@ -1,4 +1,5 @@
 import { useDroppable } from '@dnd-kit/core';
+import { type DashboardControlSection } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -17,10 +18,12 @@ import {
 import {
     IconFilterPlus,
     IconFolderPlus,
+    IconListCheck,
     IconPlus,
     IconX,
 } from '@tabler/icons-react';
 import { useRef, type FC, type ReactNode } from 'react';
+import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import classes from './ControlSidebar.module.css';
@@ -28,6 +31,18 @@ import { useRailContractClasses } from './railContractClasses';
 import { RAIL_ADD_SELECTOR } from './railSelectors';
 import { UNSECTIONED_TARGET_ID } from './sections';
 import { useRailTop } from './useRailTop';
+
+export type SelectMode = {
+    count: number;
+    /** Each section with how many filters it holds. */
+    sections: (DashboardControlSection & { count: number })[];
+    onExit: () => void;
+    /** Null takes the selected filters out of their sections. */
+    onMove: (sectionId: string | null) => void;
+    /** Names a new section, then moves the selection into it. */
+    onMoveToNewSection: () => void;
+    onRemove: () => void;
+};
 
 type Props = {
     /** The dashboard's filters, listed in the rail. */
@@ -43,6 +58,16 @@ type Props = {
     onAddFilter: (() => void) | null;
     /** Null for a viewer, whose rail has no sections. */
     onNewSection: (() => void) | null;
+    /**
+     * Editors only. `disabledReason` while a new filter has no field yet:
+     * the item stays, disabled, with the reason as its tooltip.
+     */
+    selectFilters: {
+        onSelect: () => void;
+        disabledReason: string | null;
+    } | null;
+    /** Editors only: while filters are being selected. */
+    selectMode: SelectMode | null;
     footerStatus: string | null;
     /** Editors only: whether viewers may add their own filters, and its setter. */
     viewerAdd: {
@@ -51,6 +76,8 @@ type Props = {
     } | null;
     children: ReactNode;
 };
+
+const selectedLabel = (count: number) => `${count} selected`;
 
 // The rail: a card next to the grid, stuck under the tabs and filter bar
 export const EditorShell: FC<Props> = ({
@@ -61,6 +88,8 @@ export const EditorShell: FC<Props> = ({
     onCancel,
     onAddFilter,
     onNewSection,
+    selectFilters,
+    selectMode,
     footerStatus,
     viewerAdd,
     children,
@@ -81,6 +110,16 @@ export const EditorShell: FC<Props> = ({
             if (document.activeElement !== document.body) return;
             document.querySelector<HTMLElement>(RAIL_ADD_SELECTOR)?.focus();
         });
+    const selectItem = selectFilters && (
+        <Menu.Item
+            fz="xs"
+            leftSection={<MantineIcon icon={IconListCheck} size={14} />}
+            disabled={selectFilters.disabledReason !== null}
+            onClick={selectFilters.onSelect}
+        >
+            Select filters
+        </Menu.Item>
+    );
     return (
         <Paper
             ref={ref}
@@ -91,6 +130,20 @@ export const EditorShell: FC<Props> = ({
             }
             data-controls-editor
             data-controls-dragging={isDragging || undefined}
+            // Escape leaves select mode, not the rail; a menu and an armed
+            // remove keep their own
+            data-own-escape={selectMode !== null || undefined}
+            onKeyDown={(event) => {
+                if (selectMode === null || event.key !== 'Escape') return;
+                if (
+                    event.target instanceof Element &&
+                    event.target.closest('[role="menu"], [data-own-escape]') !==
+                        event.currentTarget
+                )
+                    return;
+                event.preventDefault();
+                selectMode.onExit();
+            }}
         >
             <Group
                 ref={setDropRef}
@@ -103,17 +156,23 @@ export const EditorShell: FC<Props> = ({
             >
                 <Group gap="xs" wrap="nowrap">
                     <Title order={5}>{getUiString('filters.rail.title')}</Title>
-                    {filterCount > 0 && (
+                    {selectMode ? (
                         <Badge size="sm">
-                            {filterCount}
-                            <VisuallyHidden>
-                                {` ${getUiString(
-                                    filterCount === 1
-                                        ? 'filters.summary.filterSingular'
-                                        : 'filters.summary.filterPlural',
-                                )}`}
-                            </VisuallyHidden>
+                            {selectedLabel(selectMode.count)}
                         </Badge>
+                    ) : (
+                        filterCount > 0 && (
+                            <Badge size="sm">
+                                {filterCount}
+                                <VisuallyHidden>
+                                    {` ${getUiString(
+                                        filterCount === 1
+                                            ? 'filters.summary.filterSingular'
+                                            : 'filters.summary.filterPlural',
+                                    )}`}
+                                </VisuallyHidden>
+                            </Badge>
+                        )
                     )}
                 </Group>
                 <Group gap={4} wrap="nowrap">
@@ -170,16 +229,39 @@ export const EditorShell: FC<Props> = ({
                                         New section
                                     </Menu.Item>
                                 )}
+                                {selectFilters && <Menu.Divider />}
+                                {/* A disabled item takes no pointer: the
+                                    box around it carries the tooltip */}
+                                {selectFilters?.disabledReason ? (
+                                    <Tooltip
+                                        label={selectFilters.disabledReason}
+                                        position="left"
+                                    >
+                                        <Box>{selectItem}</Box>
+                                    </Tooltip>
+                                ) : (
+                                    selectItem
+                                )}
                             </Menu.Dropdown>
                         </Menu>
                     )}
-                    <Tooltip label={getUiString('filters.rail.close')}>
+                    <Tooltip
+                        label={
+                            selectMode
+                                ? 'Stop selecting'
+                                : getUiString('filters.rail.close')
+                        }
+                    >
                         <ActionIcon
                             size="sm"
                             variant="subtle"
                             color="gray"
-                            aria-label={getUiString('filters.rail.close')}
-                            onClick={onClose}
+                            aria-label={
+                                selectMode
+                                    ? 'Stop selecting'
+                                    : getUiString('filters.rail.close')
+                            }
+                            onClick={selectMode ? selectMode.onExit : onClose}
                         >
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
@@ -190,7 +272,7 @@ export const EditorShell: FC<Props> = ({
             <Box className={classes.body}>{children}</Box>
 
             <Stack gap="xs" p="sm" className={classes.footer}>
-                {footerStatus !== null && !onCancel && (
+                {footerStatus !== null && !onCancel && !selectMode && (
                     <Text
                         key={footerStatus}
                         fz="xs"
@@ -201,7 +283,91 @@ export const EditorShell: FC<Props> = ({
                     </Text>
                 )}
                 <Group justify="space-between" gap="xs" wrap="nowrap">
-                    {onCancel ? (
+                    {selectMode ? (
+                        <>
+                            <Button
+                                variant="subtle"
+                                color="gray"
+                                size="xs"
+                                mr="auto"
+                                onClick={selectMode.onExit}
+                            >
+                                {getUiString('filters.actions.cancel')}
+                            </Button>
+                            {/* Focus must stay on the name input New section opens */}
+                            <Menu position="top-end" returnFocus={false}>
+                                <Menu.Target>
+                                    <Button
+                                        variant="subtle"
+                                        color="gray"
+                                        size="xs"
+                                        flex="0 0 auto"
+                                        disabled={selectMode.count === 0}
+                                    >
+                                        Move to
+                                    </Button>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                    <Menu.Item
+                                        fz="xs"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconFolderPlus}
+                                                size={14}
+                                            />
+                                        }
+                                        onClick={selectMode.onMoveToNewSection}
+                                    >
+                                        New section
+                                    </Menu.Item>
+                                    <Menu.Divider />
+                                    {selectMode.sections.map((section) => (
+                                        <Menu.Item
+                                            key={section.id}
+                                            fz="xs"
+                                            onClick={() =>
+                                                selectMode.onMove(section.id)
+                                            }
+                                        >
+                                            {section.name ||
+                                                getUiString(
+                                                    'filters.rail.untitledSection',
+                                                )}
+                                            <Text span inherit c="dimmed">
+                                                {` · ${section.count}`}
+                                            </Text>
+                                        </Menu.Item>
+                                    ))}
+                                    {selectMode.sections.length > 0 && (
+                                        <Menu.Divider />
+                                    )}
+                                    <Menu.Item
+                                        fz="xs"
+                                        onClick={() => selectMode.onMove(null)}
+                                    >
+                                        No section
+                                    </Menu.Item>
+                                </Menu.Dropdown>
+                            </Menu>
+                            <ConfirmDeleteButton
+                                size="sm"
+                                w="auto"
+                                px="xs"
+                                fz="xs"
+                                data-own-escape
+                                aria-label="Remove"
+                                tooltip={`Click again to remove ${selectMode.count} ${
+                                    selectMode.count === 1
+                                        ? 'filter'
+                                        : 'filters'
+                                }`}
+                                disabled={selectMode.count === 0}
+                                onConfirm={selectMode.onRemove}
+                            >
+                                Remove
+                            </ConfirmDeleteButton>
+                        </>
+                    ) : onCancel ? (
                         <>
                             <Text
                                 key={footerStatus}
