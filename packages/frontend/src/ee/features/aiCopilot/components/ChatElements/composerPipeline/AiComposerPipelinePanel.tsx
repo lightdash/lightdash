@@ -2,6 +2,8 @@ import {
     assertUnreachable,
     formatSql,
     friendlyName,
+    getItemMap,
+    interpolateUiString,
     metricQueryOfSemanticNode,
     QuerySourceType,
     WarehouseTypes,
@@ -53,7 +55,8 @@ import DefaultEdge from '../../../../../../components/common/ReactFlow/DefaultEd
 import reactFlowStyles from '../../../../../../components/common/ReactFlow/reactFlow.module.css';
 import ResizableSplitter from '../../../../../../components/common/ResizableSplitter';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../hooks/useCompiledSql';
-import { LD_FIELD_COLORS } from '../../../../../../theme/fieldColors';
+import { useExploreByProjectUuid } from '../../../../../../hooks/useExplore';
+import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import { useCanViewAiAgentSql } from '../../../hooks/useCanViewAiAgentSql';
 import { NodeStatusIndicator } from '../ComposerNodeStatusIndicator';
 import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
@@ -70,6 +73,7 @@ import {
     toPipelineFlow,
     type PipelineFlowNode,
 } from './pipelineGraph';
+import { SemanticNodeDetails } from './SemanticNodeDetails';
 
 const TRANSFORMATIONS_HELP =
     'Transformations run in DuckDB or Python on top of the source results. They never touch the warehouse.';
@@ -117,37 +121,99 @@ const queryToggleLabel = (query: SourceQuery, open: boolean) => {
     return open ? `Hide ${noun}` : `View ${noun}`;
 };
 
-const SemanticFields: FC<{ query: SemanticLayerSourceQuery }> = ({ query }) => {
-    const fieldLabel = (fieldId: string) =>
-        friendlyName(fieldId.replace(`${query.exploreName}_`, ''));
+const DisclosureToggle: FC<{
+    open: boolean;
+    onToggle: () => void;
+    children: ReactNode;
+}> = ({ open, onToggle, children }) => (
+    <UnstyledButton
+        className={styles.queryToggle}
+        onClick={onToggle}
+        aria-expanded={open}
+    >
+        <MantineIcon
+            icon={IconChevronRight}
+            size={11}
+            stroke={1.6}
+            className={clsx(styles.chevron, open && styles.chevronOpen)}
+        />
+        {children}
+    </UnstyledButton>
+);
+
+const disclosureCollapse = {
+    transitionDuration: 240,
+    transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+} as const;
+
+const SemanticNodeSummary: FC<{
+    query: SemanticLayerSourceQuery;
+    projectUuid: string;
+}> = ({ query, projectUuid }) => {
+    const [open, setOpen] = useState(false);
+    // Labels fall back to field ids, so a failed explore load stays silent.
+    const { data: explore } = useExploreByProjectUuid(
+        query.exploreName,
+        projectUuid,
+        { onError: () => {} },
+    );
+    const fieldsMap = useMemo(
+        () =>
+            explore
+                ? getItemMap(
+                      explore,
+                      query.additionalMetrics,
+                      query.tableCalculations,
+                      query.customDimensions,
+                  )
+                : {},
+        [
+            explore,
+            query.additionalMetrics,
+            query.tableCalculations,
+            query.customDimensions,
+        ],
+    );
+    const metricQuery = useMemo(
+        () => metricQueryOfSemanticNode(query),
+        [query],
+    );
+    const getUiString = useUiStrings();
+    const rowsLabel = interpolateUiString(
+        getUiString(
+            metricQuery.limit === 1
+                ? 'aiAgent.composer.semanticNode.rows.singular'
+                : 'aiAgent.composer.semanticNode.rows.plural',
+        ),
+        { count: metricQuery.limit },
+    );
+    const parts = [
+        getUiString(
+            open
+                ? 'aiAgent.composer.semanticNode.hide'
+                : 'aiAgent.composer.semanticNode.view',
+        ),
+        explore?.label ?? friendlyName(query.exploreName),
+        rowsLabel,
+    ];
     return (
-        <Group gap={4} className={styles.fields}>
-            <Text component="span" className={styles.exploreName}>
-                {friendlyName(query.exploreName)}
-            </Text>
-            {query.dimensions.map((fieldId) => (
-                <Box
-                    key={fieldId}
-                    component="span"
-                    className={styles.fieldChip}
-                    bg={LD_FIELD_COLORS.dimension.bg}
-                    c={LD_FIELD_COLORS.dimension.color}
-                >
-                    {fieldLabel(fieldId)}
+        <Box
+            className={styles.details}
+            onClick={(event) => event.stopPropagation()}
+        >
+            <DisclosureToggle open={open} onToggle={() => setOpen((v) => !v)}>
+                {parts.join(' · ')}
+            </DisclosureToggle>
+            <Collapse expanded={open} {...disclosureCollapse}>
+                <Box className={styles.summaryBody}>
+                    <SemanticNodeDetails
+                        metricQuery={metricQuery}
+                        fieldsMap={fieldsMap}
+                        parameters={query.parameters ?? {}}
+                    />
                 </Box>
-            ))}
-            {query.metrics.map((fieldId) => (
-                <Box
-                    key={fieldId}
-                    component="span"
-                    className={styles.fieldChip}
-                    bg={LD_FIELD_COLORS.metric.bg}
-                    c={LD_FIELD_COLORS.metric.color}
-                >
-                    {fieldLabel(fieldId)}
-                </Box>
-            ))}
-        </Group>
+            </Collapse>
+        </Box>
     );
 };
 
@@ -206,7 +272,7 @@ const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
     return (
         <>
             {query.sourceType === QuerySourceType.SEMANTIC_LAYER && (
-                <SemanticFields query={query} />
+                <SemanticNodeSummary query={query} projectUuid={projectUuid} />
             )}
             {/* Reading or copying the query must not display the node. */}
             {canViewSql && (
@@ -214,27 +280,13 @@ const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
                     className={styles.details}
                     onClick={(event) => event.stopPropagation()}
                 >
-                    <UnstyledButton
-                        className={styles.queryToggle}
-                        onClick={() => setQueryOpen((value) => !value)}
-                        aria-expanded={queryOpen}
+                    <DisclosureToggle
+                        open={queryOpen}
+                        onToggle={() => setQueryOpen((value) => !value)}
                     >
-                        <MantineIcon
-                            icon={IconChevronRight}
-                            size={11}
-                            stroke={1.6}
-                            className={clsx(
-                                styles.chevron,
-                                queryOpen && styles.chevronOpen,
-                            )}
-                        />
                         {queryToggleLabel(query, queryOpen)}
-                    </UnstyledButton>
-                    <Collapse
-                        expanded={queryOpen}
-                        transitionDuration={240}
-                        transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
-                    >
+                    </DisclosureToggle>
+                    <Collapse expanded={queryOpen} {...disclosureCollapse}>
                         <Box className={styles.code}>
                             {query.sourceType ===
                             QuerySourceType.SEMANTIC_LAYER ? (

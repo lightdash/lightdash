@@ -1,5 +1,6 @@
 import { friendlyName, type ParametersValuesMap } from '@lightdash/common';
 import { Badge, Flex, Text } from '@mantine/core';
+import { clsx } from 'clsx';
 import { type FC } from 'react';
 import classes from './AgentVisualizationParameters.module.css';
 
@@ -13,9 +14,13 @@ const parameterLabel = (name: string): string =>
 
 type Props = {
     parameterValues: ParametersValuesMap;
+    compact?: boolean;
 };
 
-const AgentVisualizationParameters: FC<Props> = ({ parameterValues }) => {
+const AgentVisualizationParameters: FC<Props> = ({
+    parameterValues,
+    compact = false,
+}) => {
     const entries = Object.entries(parameterValues);
     if (entries.length === 0) return null;
 
@@ -26,7 +31,10 @@ const AgentVisualizationParameters: FC<Props> = ({ parameterValues }) => {
                     key={name}
                     variant="default"
                     fw={400}
-                    className={classes.parameterBadge}
+                    className={clsx(
+                        classes.parameterBadge,
+                        compact && classes.compact,
+                    )}
                 >
                     <Text fz="xs" truncate>
                         <Text fw={600} span fz="xs">

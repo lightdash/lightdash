@@ -6,15 +6,20 @@ import {
     getItemLabelWithoutTableName,
     isAndFilterGroup,
     isField,
+    isFilterableField,
     isOrFilterGroup,
     type AiFilterRule,
+    FilterType,
     type FilterGroup,
     type Filters,
     type ItemsMap,
 } from '@lightdash/common';
 import { Button, Flex, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
-import { getConditionalRuleLabel } from '../../../../../components/common/Filters/FilterInputs/utils';
+import {
+    getConditionalRuleLabel,
+    getConditionalRuleLabelFromItem,
+} from '../../../../../components/common/Filters/FilterInputs/utils';
 import classes from './AgentVisualizationFilters.module.css';
 
 const FilterRuleDisplay: FC<{
@@ -30,11 +35,18 @@ const FilterRuleDisplay: FC<{
             : getItemLabelWithoutTableName(field)
         : friendlyName(rule.target.fieldId);
 
-    const ruleLabels = getConditionalRuleLabel(
-        rule,
-        rule.target.fieldFilterType,
-        displayName,
-    );
+    // Stored query filters carry no filter type; format their values with the field.
+    const ruleLabels =
+        !rule.target.fieldFilterType && field && isFilterableField(field)
+            ? {
+                  ...getConditionalRuleLabelFromItem(rule, field),
+                  field: displayName,
+              }
+            : getConditionalRuleLabel(
+                  rule,
+                  rule.target.fieldFilterType ?? FilterType.STRING,
+                  displayName,
+              );
 
     return (
         <Button
