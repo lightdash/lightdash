@@ -227,6 +227,7 @@
 /* A dragged row would join this section, or leave its section on the
    rail's header */
 .sectionHeader[data-over],
+.sortableRow[data-over],
 .header[data-over] {
     background-color: var(--mantine-color-default-hover);
     box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);

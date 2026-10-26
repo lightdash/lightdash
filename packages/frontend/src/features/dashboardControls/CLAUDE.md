@@ -1107,17 +1107,22 @@ the language map, as tab names are.
   section. A drop that moves nothing marks nothing changed.
 - Drag: one `DndContext` around `EditorShell`, with one `SortableContext`
   in the body over the headers and rows on screen, in display order
-  (`closestCenter`, `PointerSensor` at 5px and `KeyboardSensor` with
+  (`PointerSensor` at 5px and `KeyboardSensor` with
   `sortableKeyboardCoordinates`); the items never name a collapsed section's
-  rows, which are not rendered. The targets are rows, section headers and
+  rows, which are not rendered. The target is what is under the pointer
+  (`pointerWithin`, falling back to `closestCenter` for the keyboard), and
+  nothing is displaced during the drag (a `SortingStrategy` that returns
+  null): the feedback is the overlay and `data-over` on rows, section
+  headers and the rail header. The targets are rows, section headers and
   the rail's header bar (`useDroppable` with `UNSECTIONED_TARGET_ID` in
   `EditorShell`), nothing mounts or unmounts during a drag. Droppables are
   measured `MeasuringStrategy.Always`, since a collapsed section opens
   mid-drag, and `autoScroll` has `layoutShiftCompensation` off (`.body`
   scrolls). A `DragOverlay` carries a compact copy (type icon and name,
   `.dragPreview`) while the source stays in place at `opacity: 0.3`
-  (`data-dragging`). A section header or the rail header under the drag
-  carries `data-over` (`isOver`): hover fill and an inset `blue-5` ring.
+  (`data-dragging`). The row, section header or rail header under the drag
+  carries `data-over` (`isOver`, never the source row): hover fill and an
+  inset `blue-5` ring.
   Dragging over a collapsed section's header expands it, and it stays
   expanded. The grip (`DragGrip`, a button of its own next to the row, shown
   on hover and focus) is the handle. A row dropped on a row takes that row's

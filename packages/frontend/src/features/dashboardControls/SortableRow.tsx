@@ -27,6 +27,7 @@ export const SortableRow: FC<Props> = ({
         transform,
         transition,
         isDragging,
+        isOver,
     } = useSortable({ id, disabled: isDisabled });
     return (
         <Box
@@ -37,6 +38,7 @@ export const SortableRow: FC<Props> = ({
                     : classes.sortableRow
             }
             data-dragging={isDragging || undefined}
+            data-over={(isOver && !isDragging) || undefined}
             style={{ transform: CSS.Translate.toString(transform), transition }}
         >
             {!isDisabled && (

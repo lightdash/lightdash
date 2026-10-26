@@ -1317,6 +1317,12 @@ describe('ControlSidebar', () => {
                     ?.parentElement,
             ).toHaveAttribute('data-dragging');
             expect(screen.queryByText(/Drag|Drop/)).not.toBeInTheDocument();
+            // The keyboard sensor falls back to the nearest centre: one
+            // target, a row, never the source row
+            const over = container.querySelectorAll('[data-over]');
+            expect(over).toHaveLength(1);
+            expect(over[0].className).toContain('sortableRow');
+            expect(over[0]).not.toHaveAttribute('data-dragging');
 
             // The sensor listens for Escape from the next tick on
             await act(() => new Promise((resolve) => setTimeout(resolve)));

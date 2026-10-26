@@ -1,6 +1,8 @@
 import {
     closestCenter,
     DndContext,
+    pointerWithin,
+    type CollisionDetection,
     DragOverlay,
     KeyboardSensor,
     MeasuringStrategy,
@@ -14,7 +16,7 @@ import {
 import {
     SortableContext,
     sortableKeyboardCoordinates,
-    verticalListSortingStrategy,
+    type SortingStrategy,
 } from '@dnd-kit/sortable';
 import {
     getDashboardFilterField,
@@ -72,6 +74,14 @@ import { getTilesSummary } from './railSummaries';
 import { SectionHeader } from './SectionHeader';
 
 const NEW_SECTION_BUTTON = '[data-controls-new-section]';
+// The target is what is under the pointer; the keyboard sensor has none,
+// so it falls back to the nearest centre
+const underPointer: CollisionDetection = (args) => {
+    const within = pointerWithin(args);
+    return within.length > 0 ? within : closestCenter(args);
+};
+// Nothing moves until the drop: the overlay and `data-over` are the feedback
+const noDisplacement: SortingStrategy = () => null;
 const sectionMenuSelector = (sectionId: string) =>
     `[data-controls-section="${sectionId}"] [data-controls-section-menu]`;
 import {
@@ -651,7 +661,7 @@ export const ControlSidebar: FC = () => {
     return (
         <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={underPointer}
             accessibility={{
                 announcements: getDragAnnouncements(nameOf),
             }}
@@ -690,10 +700,7 @@ export const ControlSidebar: FC = () => {
                 }
                 footerStatus={footerStatus}
             >
-                <SortableContext
-                    items={sortableIds}
-                    strategy={verticalListSortingStrategy}
-                >
+                <SortableContext items={sortableIds} strategy={noDisplacement}>
                     {body}
                 </SortableContext>
                 <DragOverlay>{dragPreview}</DragOverlay>
