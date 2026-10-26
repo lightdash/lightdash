@@ -1,7 +1,10 @@
 import { ChartType } from '@lightdash/common';
 import { buildAiTokenDashboard } from './aiTokenDashboard';
 import { withAnalyticsChartPresentation } from './analyticsChartPresentation';
-import { analyticsContentAsCode } from './sampleContent';
+import {
+    analyticsContentAsCode,
+    analyticsSampleDashboards,
+} from './sampleContent';
 import { buildUsageDashboards } from './usageDashboards';
 
 describe('analytics chart presentation', () => {
@@ -42,6 +45,23 @@ describe('analytics chart presentation', () => {
                 ).not.toBe(false);
             }
         }
+    });
+
+    it('retains the native daily chart alongside the calendar', () => {
+        const original = analyticsSampleDashboards
+            .flatMap(({ charts }) => charts)
+            .find(({ key }) => key === 'queries-by-day')!;
+        const native = analyticsContentAsCode
+            .flatMap(({ charts }) => charts)
+            .find(
+                ({ slug }) =>
+                    slug ===
+                    'lightdash-analytics-query-activity-queries-by-day',
+            )!;
+        expect(native.metricQuery).toBe(original.metricQuery);
+        expect(native.tableConfig).toBe(original.tableConfig);
+        expect(native.chartConfig.type).toBe(ChartType.CARTESIAN);
+        expect(native.name).toBe(original.name);
     });
 
     it('keeps isolated observations visible on line charts', () => {

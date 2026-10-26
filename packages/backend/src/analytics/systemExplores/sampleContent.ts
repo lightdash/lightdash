@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { buildAiTokenDashboard } from './aiTokenDashboard';
 import { withAnalyticsChartPresentation } from './analyticsChartPresentation';
+import { buildQueryCalendarChart } from './queryCalendarChart';
 import { buildUsageDashboards } from './usageDashboards';
 
 type SampleChart = Omit<
@@ -301,13 +302,21 @@ const legacyContentAsCode: {
     charts: ChartAsCode[];
 }[] = analyticsSampleDashboards.map((bundle) => {
     const { spaceSlug } = bundle;
-    const charts = bundle.charts.map(({ key, ...definition }) => ({
-        ...definition,
-        slug: `${bundle.key}-${key}`,
-        dashboardSlug: bundle.key,
-        spaceSlug,
-        version: 1,
-    }));
+    const charts: ChartAsCode[] = bundle.charts.map(
+        ({ key, ...definition }) => ({
+            ...definition,
+            slug: `${bundle.key}-${key}`,
+            dashboardSlug: bundle.key,
+            spaceSlug,
+            version: 1,
+        }),
+    );
+    if (bundle.key === 'lightdash-analytics-query-activity') {
+        const dailyQueries = charts.find(({ slug }) =>
+            slug.endsWith('-queries-by-day'),
+        )!;
+        charts.push(buildQueryCalendarChart(dailyQueries));
+    }
     return {
         charts,
         dashboard: {
@@ -319,6 +328,27 @@ const legacyContentAsCode: {
             tabs: [],
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
             tiles: charts.map(({ slug }, index) => {
+                if (
+                    bundle.key === 'lightdash-analytics-query-activity' &&
+                    index >= 4
+                ) {
+                    const positions = [
+                        { x: 0, y: 15, w: 18, h: 8 },
+                        { x: 18, y: 15, w: 18, h: 8 },
+                        { x: 0, y: 23, w: 18, h: 8 },
+                        { x: 18, y: 23, w: 18, h: 8 },
+                        { x: 0, y: 31, w: 36, h: 8 },
+                        { x: 0, y: 3, w: 36, h: 12 },
+                    ];
+                    return {
+                        uuid: undefined,
+                        tileSlug: slug,
+                        type: DashboardTileTypes.SAVED_CHART,
+                        ...positions[index - 4],
+                        tabSlug: null,
+                        properties: { chartSlug: slug },
+                    };
+                }
                 let width = index < 4 ? 9 : 18;
                 if (
                     index >= 4 &&
