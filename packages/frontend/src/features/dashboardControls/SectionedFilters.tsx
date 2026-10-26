@@ -4,7 +4,7 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import { Box, Text, UnstyledButton } from '@mantine/core';
-import { IconChevronRight } from '@tabler/icons-react';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useId, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -50,46 +50,25 @@ const SectionGroup: FC<CapsuleProps> = ({
     const summaryId = useId();
     const setCount = visibleRules.filter(hasFilterValueSet).length;
     return (
-        <>
-            <Box
-                className={classes.divider}
-                role="separator"
-                aria-orientation="vertical"
-            />
+        <Box className={classes.capsule} data-folded={!isOpen || undefined}>
             <UnstyledButton
-                className={classes.sectionLabel}
+                className={classes.toggle}
                 aria-expanded={isOpen}
                 aria-describedby={isOpen ? undefined : summaryId}
                 onClick={onToggle}
             >
+                <MantineIcon
+                    icon={isOpen ? IconChevronDown : IconChevronRight}
+                    size={14}
+                    color="dimmed"
+                />
                 <Text span fz="sm" fw={600}>
                     {section.name}
                 </Text>
-                {!isOpen && (
-                    <>
-                        <Text
-                            span
-                            id={summaryId}
-                            fz="sm"
-                            c="dimmed"
-                            className={classes.sectionSummary}
-                        >
-                            {interpolateUiString(
-                                getUiString('filters.sectionSummary'),
-                                { set: setCount, total: visibleRules.length },
-                            )}
-                        </Text>
-                        <MantineIcon
-                            icon={IconChevronRight}
-                            size={14}
-                            color="dimmed"
-                        />
-                    </>
-                )}
             </UnstyledButton>
             {/* Mounted on unfold, so its pills arrive; `contents` keeps them
-                in the bar's own flow */}
-            {isOpen && (
+                in the capsule's own flow */}
+            {isOpen ? (
                 <Box display="contents" className={classes.pillsEnter}>
                     <FilterPills
                         activeTabUuid={activeTabUuid}
@@ -97,8 +76,15 @@ const SectionGroup: FC<CapsuleProps> = ({
                         popover={popover}
                     />
                 </Box>
+            ) : (
+                <Text span id={summaryId} fz="sm" c="dimmed">
+                    {interpolateUiString(
+                        getUiString('filters.sectionSummary'),
+                        { set: setCount, total: visibleRules.length },
+                    )}
+                </Text>
             )}
-        </>
+        </Box>
     );
 };
 
@@ -108,9 +94,10 @@ type Props = {
 
 // The filter area of a dashboard with sections: the unsectioned
 // pass first (Add, the unsectioned saved pills, the viewer's own), then one
-// hairline group per section with a member on this tab: a label, then its
-// pills inline. A fold is local state keyed by section id, as the ids whose
-// fold differs from their default; one saved popover is open across every pass
+// outlined capsule per section with a member on this tab: its toggle, then
+// its pills inline. A fold is local state keyed by section id, as the ids
+// whose fold differs from their default; one saved popover is open across
+// every pass
 export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
     const [openPopoverId, setOpenPopoverId] = useState<string>();

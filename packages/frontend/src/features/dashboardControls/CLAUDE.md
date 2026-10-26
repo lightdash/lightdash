@@ -1146,18 +1146,19 @@ the language map, as tab names are.
   viewer's own pills, which are never in a section) and then one hairline
   group per section in `controlSections` order that has a saved member
   visible on this tab (`groupRulesBySection`, `useFilterTabPlacement` /
-  `isFilterHiddenOnTab`); a section with none renders nothing, and no group
-  renders while the filters load. A group is a vertical hairline
-  (`.divider`, `role="separator"`, 1px by 16px, before every section, the
-  first included), a plain label (`.sectionLabel`, an `UnstyledButton` at a
-  pill's height: the name in `sm` 600, normal case, no border or fill,
-  `aria-expanded`) and, open, `FilterPills sectionId={section.id}` in the
-  bar's own flow (a `display: contents` `.pillsEnter` box, whose children
-  arrive with opacity and a 6px `translateX`, 20ms apart up to eight;
-  folding animates nothing); folded, the label adds the dimmed
-  `filters.sectionSummary` ("{set} of {total} set", `hasFilterValueSet` over
-  the visible members, `aria-describedby`) and a 14px right chevron that
-  never rotates. A section with more than `FOLDED_BY_DEFAULT_ABOVE` (6)
+  `isFilterHiddenOnTab`); a section with none renders nothing, and no
+  capsule renders while the filters load. A capsule (`.capsule` in
+  `SectionedFilters.module.css`: no fill, a `default-border` outline, `xl`
+  radius, 36px tall with `0 4px 0 6px` padding, 10px on the right when
+  folded) holds its toggle (`.toggle`, an `UnstyledButton` 26px tall: a 14px
+  dimmed chevron, down open and right folded, and the name in `sm` 600,
+  normal case, `aria-expanded`) and, open, `FilterPills
+  sectionId={section.id}` in its own flow (a `display: contents`
+  `.pillsEnter` box, whose children arrive with opacity and a 6px
+  `translateX`, 20ms apart up to eight; folding animates nothing); folded,
+  the dimmed `filters.sectionSummary` ("{set} of {total} set",
+  `hasFilterValueSet` over the visible members, `aria-describedby`) inside
+  the same outline. The bar's own gap separates capsules. A section with more than `FOLDED_BY_DEFAULT_ABOVE` (6)
   members on the tab starts folded, the rest open; the fold is local state
   keyed by section id (the ids whose fold differs from that default), nothing
   saved and nothing in the URL. In edit mode every pill the feature renders

@@ -1,23 +1,30 @@
-/* A section on the bar: a hairline, a plain label and, open, its pills in
-   the bar's own flow */
-.divider {
-    flex: 0 0 auto;
-    width: 1px;
-    height: 16px;
-    background-color: var(--mantine-color-default-border);
-}
-
-.sectionLabel {
+/* A section on the bar: an outlined, pill-shaped capsule with no fill
+   holding its toggle and, open, its pills with 4px of air around them */
+.capsule {
     --controls-ease: ease-in-out;
     --controls-duration-hover: 0.12s;
 
     display: inline-flex;
     align-items: center;
+    flex-wrap: wrap;
+    gap: var(--mantine-spacing-xs);
+    min-height: 36px;
+    padding: 0 4px 0 6px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-xl);
+}
+
+.capsule[data-folded] {
+    padding-right: 10px;
+}
+
+.toggle {
+    display: inline-flex;
+    align-items: center;
     gap: var(--mantine-spacing-xxs);
-    /* A pill's height, so the label sits level with them */
-    height: calc(1.75rem * var(--mantine-scale));
+    height: 26px;
     padding-inline: var(--mantine-spacing-xxs);
-    border-radius: var(--mantine-radius-sm);
+    border-radius: var(--mantine-radius-xl);
     transition: background-color var(--controls-duration-hover)
         var(--controls-ease);
 
@@ -25,10 +32,6 @@
     &:focus-visible {
         background-color: var(--mantine-color-default-hover);
     }
-}
-
-.sectionSummary {
-    margin-left: var(--mantine-spacing-xxs);
 }
 
 /* Unfolded, the pills arrive one after the other, up to eight */
@@ -86,7 +89,7 @@
         animation: none;
     }
 
-    .sectionLabel {
+    .toggle {
         transition: none;
     }
 }

@@ -1,31 +1,6 @@
 .pill {
-    --controls-ease: ease-in-out;
-    --controls-duration-hover: 0.12s;
-
     position: relative;
     display: inline-flex;
-}
-
-/* In edit mode the grip and the X show on hover and focus; they keep their
-   space so the pill does not resize */
-.hoverControls :global(.tabler-icon-grip-vertical),
-.hoverControls :global(.tabler-icon-x) {
-    opacity: 0;
-    transition: opacity var(--controls-duration-hover) var(--controls-ease);
-}
-
-.hoverControls:hover :global(.tabler-icon-grip-vertical),
-.hoverControls:hover :global(.tabler-icon-x),
-.hoverControls:focus-within :global(.tabler-icon-grip-vertical),
-.hoverControls:focus-within :global(.tabler-icon-x) {
-    opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .hoverControls :global(.tabler-icon-grip-vertical),
-    .hoverControls :global(.tabler-icon-x) {
-        transition: none;
-    }
 }
 
 /* Doubled so it outranks the theme's border on a default button, hovered too */

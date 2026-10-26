@@ -159,7 +159,7 @@ describe('SectionedFilters', () => {
         };
     });
 
-    it('renders Add and the unsectioned pass first, then a hairline and a label per section in order', () => {
+    it('renders Add and the unsectioned pass first, then a capsule per section in order', () => {
         renderSectioned([rule('two', 'b'), rule('one', 'a')], 'tab-1');
 
         const order = screen
@@ -172,32 +172,24 @@ describe('SectionedFilters', () => {
             'b',
         ]);
         expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
-        // One hairline before each section, the first one included
-        const dividers = screen.getAllByRole('separator');
-        expect(dividers).toHaveLength(2);
-        expect(dividers[0]).toHaveAttribute('aria-orientation', 'vertical');
+        // One capsule per section, its toggle and its pills inside it
         const dates = screen.getByRole('button', { name: 'Dates' });
+        const capsule = dates.parentElement;
+        expect(capsule?.className).toContain('capsule');
+        expect(capsule).toContainElement(screen.getByTestId('pills-a'));
+        expect(capsule).not.toContainElement(screen.getByTestId('pills-b'));
         expect(
-            dividers[0].compareDocumentPosition(dates) &
-                Node.DOCUMENT_POSITION_FOLLOWING,
-        ).toBeTruthy();
-        expect(
-            dates.compareDocumentPosition(screen.getByTestId('pills-a')) &
-                Node.DOCUMENT_POSITION_FOLLOWING,
-        ).toBeTruthy();
-        expect(
-            dividers[1].compareDocumentPosition(
-                screen.getByRole('button', { name: 'Regions' }),
-            ) & Node.DOCUMENT_POSITION_FOLLOWING,
-        ).toBeTruthy();
+            screen.getByRole('button', { name: 'Regions' }).parentElement,
+        ).toContainElement(screen.getByTestId('pills-b'));
+        expect(document.querySelectorAll('[class*="capsule"]')).toHaveLength(2);
     });
 
-    it('draws a hairline only for the sections that have a visible member', () => {
+    it('renders a capsule only for the sections that have a visible member', () => {
         renderSectioned(
             [rule('one', 'a', onTabOne), rule('two', 'b')],
             'tab-2',
         );
-        expect(screen.getAllByRole('separator')).toHaveLength(1);
+        expect(document.querySelectorAll('[class*="capsule"]')).toHaveLength(1);
     });
 
     it('starts folded above six members on the tab and open at six', () => {
