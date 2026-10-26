@@ -94,12 +94,14 @@ S3_ACCESS_KEY = "minioadmin"
 S3_SECRET_KEY = "minioadmin"
 S3_FORCE_PATH_STYLE = "true"
 APPS_S3_BUCKET = "lightdash-apps"
-# Pre-aggregates, materialized to the same MinIO. Licence comes from [secrets];
-# DuckDB fetches httpfs through the extensions.duckdb.org egress rule below.
-PRE_AGGREGATES_ENABLED = "true"
-PRE_AGGREGATES_PARQUET_ENABLED = "true"
-PRE_AGGREGATE_RESULTS_S3_BUCKET = "default"
-PRE_AGGREGATE_RESULTS_S3_REGION = "us-east-1"
+# Pre-aggregates stay off, as in the Okteto preview: with them on, an embed
+# reader's calculate-total was routed to a pre-aggregate whose result lineage
+# the AI access check refused (403 ai_access_refused, embedDashboard.test.ts
+# "with canExplore"). A product question for the owning team, not a preview
+# setting. Enabling them here needs PRE_AGGREGATES_ENABLED,
+# PRE_AGGREGATES_PARQUET_ENABLED and PRE_AGGREGATE_RESULTS_S3_{BUCKET,REGION}
+# (the same MinIO; DuckDB fetches httpfs through the extensions.duckdb.org
+# egress rule below).
 EMAIL_SMTP_HOST = "localhost"
 EMAIL_SMTP_PORT = "1025"
 EMAIL_SMTP_SECURE = "false"
@@ -137,7 +139,10 @@ EXTENDED_USAGE_ANALYTICS = "true"
 MICROSOFT_TEAMS_ENABLED = "true"
 APPS_RUNTIME_ENABLED = "true"          # data apps; the E2B key below makes it usable
 ALLOW_MISSING_MIGRATIONS = "true"
-SOFT_DELETE_ENABLED = "true"           # every cloud instance runs with it; Recently deleted needs it
+# SOFT_DELETE_ENABLED stays unset, as in the Okteto preview: with it on, a
+# deleted SQL chart keeps its slug and sqlRunner.test.ts "save & update SQL
+# chart" gets 409 reusing it. Cloud runs with soft delete; whether slug reuse
+# after a soft delete should work is the owning team's call.
 # Postgres wire-protocol server for the semantic layer: setting the port
 # starts the listener and renders the project settings page. No TLS certs in
 # a preview, and the port stays private to the environment.
