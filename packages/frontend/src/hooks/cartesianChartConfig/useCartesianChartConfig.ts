@@ -4,6 +4,7 @@ import {
     isNumericItem,
     type CartesianChart,
     type ConditionalFormattingConfig,
+    type EChartsConfig,
     type EchartsGrid,
     type EchartsLegend,
     type ItemsMap,
@@ -15,11 +16,10 @@ import {
     type StackType,
     type TableCalculationMetadata,
     type TooltipSortBy,
+    type XAxis,
     type XAxisSort,
 } from '@lightdash/common';
 import {
-    applyCartesianStacking,
-    applyCartesianType,
     applyReferenceLines,
     buildCartesianSeries,
     buildValidCartesianConfig,
@@ -28,21 +28,31 @@ import {
     getAvailableCartesianFields,
     getCartesianChartType,
     getPendingFieldIds,
-    getReferenceLinesFromSeries,
     getXAxisSortConfig,
     hasCartesianCustomColorsStacking,
-    isCartesianStacked,
     isColorByCategoryEligible,
     isConditionalFormattingEligible,
-    isStackTypeStacked,
     repairCartesianLayout,
-    toStackType,
     repairConditionalFormattings,
     type CartesianTypeOptions,
     type ReferenceLineField,
 } from '@lightdash/visualization/editor';
-import { produce } from 'immer';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    type Dispatch,
+    type SetStateAction,
+} from 'react';
+import {
+    buildCartesianEditorState,
+    cartesianEditorActions,
+    selectCartesianEditor,
+    useEditorFieldSetter,
+    useEditorState,
+    useVisualizationDispatch,
+    type CartesianEditorState,
+} from '../../features/visualization/store';
 import type { InfiniteQueryResults } from '../useQueryResults';
 
 export {
@@ -91,487 +101,274 @@ const useCartesianChartConfig = ({
     tableCalculationsMetadata,
     unsavedMetricQuery,
 }: Args) => {
-    const [columnLimit, setColumnLimit] = useState<number | undefined>(
-        initialChartConfig?.columnLimit,
+    const {
+        columnLimit,
+        dirtyLayout,
+        dirtyMetadata,
+        conditionalFormattings,
+        dirtyEchartsConfig,
+        isStacked,
+        rowLimit,
+        referenceLines,
+        tooltip,
+        tooltipSort,
+    } = useEditorState(selectCartesianEditor, cartesianEditorActions, () =>
+        buildCartesianEditorState(initialChartConfig),
+    );
+    const dispatch = useVisualizationDispatch();
+    const set = useEditorFieldSetter<CartesianEditorState>(
+        selectCartesianEditor,
+        cartesianEditorActions.set,
     );
 
-    const [dirtyLayout, setDirtyLayout] = useState<
-        Partial<CartesianChart['layout']> | undefined
-    >(initialChartConfig?.layout);
-    const [dirtyMetadata, setDirtyMetadata] = useState<
-        CartesianChart['metadata'] | undefined
-    >(initialChartConfig?.metadata);
-    const [conditionalFormattings, setConditionalFormattings] = useState<
-        ConditionalFormattingConfig[]
-    >(initialChartConfig?.conditionalFormattings ?? []);
+    const setColumnLimit: Dispatch<SetStateAction<number | undefined>> =
+        useCallback((value) => set('columnLimit', value), [set]);
+    const setRowLimit: Dispatch<SetStateAction<RowLimit | undefined>> =
+        useCallback((value) => set('rowLimit', value), [set]);
+    const setReferenceLines: Dispatch<SetStateAction<ReferenceLineField[]>> =
+        useCallback((value) => set('referenceLines', value), [set]);
+    const setTooltip: Dispatch<SetStateAction<string | undefined>> =
+        useCallback((value) => set('tooltip', value), [set]);
+    const setTooltipSort: Dispatch<SetStateAction<TooltipSortBy | undefined>> =
+        useCallback((value) => set('tooltipSort', value), [set]);
 
-    const [dirtyEchartsConfig, setDirtyEchartsConfig] = useState<
-        Partial<CartesianChart['eChartsConfig']> | undefined
-    >(
-        initialChartConfig?.eChartsConfig
-            ? {
-                  ...EMPTY_CARTESIAN_CHART_CONFIG.eChartsConfig,
-                  ...initialChartConfig.eChartsConfig,
-              }
-            : initialChartConfig?.eChartsConfig,
+    const mergeLayout = useCallback(
+        (patch: Partial<CartesianChart['layout']>) =>
+            dispatch(cartesianEditorActions.layoutMerge(patch)),
+        [dispatch],
+    );
+    const mergeEcharts = useCallback(
+        (patch: Partial<CartesianChart['eChartsConfig']>) =>
+            dispatch(cartesianEditorActions.echartsMerge(patch)),
+        [dispatch],
+    );
+    const mergeFirstXAxis = useCallback(
+        (patch: Partial<XAxis>) =>
+            dispatch(cartesianEditorActions.firstXAxisMerge(patch)),
+        [dispatch],
+    );
+    const mergeAxis = useCallback(
+        (
+            axis: 'xAxis' | 'yAxis',
+            index: number,
+            patch: Partial<NonNullable<EChartsConfig['yAxis']>[number]>,
+        ) => dispatch(cartesianEditorActions.axisMerge({ axis, index, patch })),
+        [dispatch],
     );
 
-    const isInitiallyStacked = useMemo(
-        () =>
-            isCartesianStacked(
-                initialChartConfig?.layout?.stack,
-                dirtyEchartsConfig?.series,
-            ),
-        [dirtyEchartsConfig?.series, initialChartConfig?.layout?.stack],
+    const setLegend = useCallback(
+        (legend: EchartsLegend) => {
+            const removePropertiesWithAuto = Object.entries(
+                legend,
+            ).reduce<EchartsLegend>((acc, [key, value]) => {
+                if (value === 'auto') return acc;
+                return { ...acc, [key]: value };
+            }, {});
+            mergeEcharts({ legend: removePropertiesWithAuto });
+        },
+        [mergeEcharts],
     );
 
-    const [isStacked, setIsStacked] = useState<boolean>(isInitiallyStacked);
-
-    const [rowLimit, setRowLimit] = useState<RowLimit | undefined>(
-        initialChartConfig?.rowLimit,
+    const setGrid = useCallback(
+        (grid: EchartsGrid) => mergeEcharts({ grid }),
+        [mergeEcharts],
     );
 
-    const setLegend = useCallback((legend: EchartsLegend) => {
-        const removePropertiesWithAuto = Object.entries(
-            legend,
-        ).reduce<EchartsLegend>((acc, [key, value]) => {
-            if (value === 'auto') return acc;
-            return { ...acc, [key]: value };
-        }, {});
+    const setXAxisName = useCallback(
+        (name: string) => mergeFirstXAxis({ name }),
+        [mergeFirstXAxis],
+    );
 
-        setDirtyEchartsConfig((prevState) => {
-            return {
-                ...prevState,
-                legend: removePropertiesWithAuto,
-            };
-        });
-    }, []);
-
-    const setGrid = useCallback((grid: EchartsGrid) => {
-        setDirtyEchartsConfig((prevState) => {
-            return {
-                ...prevState,
-                grid,
-            };
-        });
-    }, []);
-
-    const setXAxisName = useCallback((name: string) => {
-        setDirtyEchartsConfig((prevState) => {
-            const [firstAxis, ...axes] = prevState?.xAxis || [];
-            return {
-                ...prevState,
-                xAxis: [{ ...firstAxis, name }, ...axes],
-            };
-        });
-    }, []);
-
-    const setYAxisName = useCallback((index: number, name: string) => {
-        setDirtyEchartsConfig((prevState) => {
-            return {
-                ...prevState,
-                yAxis: [
-                    prevState?.yAxis?.[0] || {},
-                    prevState?.yAxis?.[1] || {},
-                ].map((axis, axisIndex) =>
-                    axisIndex === index ? { ...axis, name } : axis,
-                ),
-            };
-        });
-    }, []);
+    const setYAxisName = useCallback(
+        (index: number, name: string) => mergeAxis('yAxis', index, { name }),
+        [mergeAxis],
+    );
 
     const setYMinValue = useCallback(
-        (index: number, value: string | undefined) => {
-            setDirtyEchartsConfig((prevState) => {
-                return {
-                    ...prevState,
-                    yAxis: [
-                        prevState?.yAxis?.[0] || {},
-                        prevState?.yAxis?.[1] || {},
-                    ].map((axis, axisIndex) =>
-                        axisIndex === index ? { ...axis, min: value } : axis,
-                    ),
-                };
-            });
-        },
-        [],
+        (index: number, value: string | undefined) =>
+            mergeAxis('yAxis', index, { min: value }),
+        [mergeAxis],
     );
 
     const setYMaxValue = useCallback(
-        (index: number, value: string | undefined) => {
-            setDirtyEchartsConfig((prevState) => {
-                return {
-                    ...prevState,
-                    yAxis: [
-                        prevState?.yAxis?.[0] || {},
-                        prevState?.yAxis?.[1] || {},
-                    ].map((axis, axisIndex) =>
-                        axisIndex === index ? { ...axis, max: value } : axis,
-                    ),
-                };
-            });
-        },
-        [],
+        (index: number, value: string | undefined) =>
+            mergeAxis('yAxis', index, { max: value }),
+        [mergeAxis],
     );
 
     const setYMinInterval = useCallback(
-        (index: number, value: number | undefined) => {
-            setDirtyEchartsConfig((prevState) => {
-                return {
-                    ...prevState,
-                    yAxis: [
-                        prevState?.yAxis?.[0] || {},
-                        prevState?.yAxis?.[1] || {},
-                    ].map((axis, axisIndex) =>
-                        axisIndex === index
-                            ? { ...axis, minInterval: value }
-                            : axis,
-                    ),
-                };
-            });
-        },
-        [],
+        (index: number, value: number | undefined) =>
+            mergeAxis('yAxis', index, { minInterval: value }),
+        [mergeAxis],
     );
 
     const setXMinValue = useCallback(
-        (index: number, value: string | undefined) => {
-            setDirtyEchartsConfig((prevState) => {
-                return {
-                    ...prevState,
-                    xAxis: [
-                        prevState?.xAxis?.[0] || {},
-                        prevState?.xAxis?.[1] || {},
-                    ].map((axis, axisIndex) =>
-                        axisIndex === index ? { ...axis, min: value } : axis,
-                    ),
-                };
-            });
-        },
-        [],
+        (index: number, value: string | undefined) =>
+            mergeAxis('xAxis', index, { min: value }),
+        [mergeAxis],
     );
 
     const setXMinInterval = useCallback(
-        (index: number, value: number | undefined) => {
-            setDirtyEchartsConfig((prevState) => {
-                return {
-                    ...prevState,
-                    xAxis: [
-                        prevState?.xAxis?.[0] || {},
-                        prevState?.xAxis?.[1] || {},
-                    ].map((axis, axisIndex) =>
-                        axisIndex === index
-                            ? { ...axis, minInterval: value }
-                            : axis,
-                    ),
-                };
-            });
-        },
-        [],
+        (index: number, value: number | undefined) =>
+            mergeAxis('xAxis', index, { minInterval: value }),
+        [mergeAxis],
     );
 
     const setXMinOffsetValue = useCallback(
-        (index: number, value: string | undefined) => {
-            setDirtyEchartsConfig((prevState) => {
-                return {
-                    ...prevState,
-                    xAxis: [
-                        prevState?.xAxis?.[0] || {},
-                        prevState?.xAxis?.[1] || {},
-                    ].map((axis, axisIndex) =>
-                        axisIndex === index
-                            ? { ...axis, minOffset: value }
-                            : axis,
-                    ),
-                };
-            });
-        },
-        [],
+        (index: number, value: string | undefined) =>
+            mergeAxis('xAxis', index, { minOffset: value }),
+        [mergeAxis],
     );
 
     const setXMaxValue = useCallback(
-        (index: number, value: string | undefined) => {
-            setDirtyEchartsConfig((prevState) => {
-                return {
-                    ...prevState,
-                    xAxis: [
-                        prevState?.xAxis?.[0] || {},
-                        prevState?.xAxis?.[1] || {},
-                    ].map((axis, axisIndex) =>
-                        axisIndex === index ? { ...axis, max: value } : axis,
-                    ),
-                };
-            });
-        },
-        [],
+        (index: number, value: string | undefined) =>
+            mergeAxis('xAxis', index, { max: value }),
+        [mergeAxis],
     );
 
     const setXMaxOffsetValue = useCallback(
-        (index: number, value: string | undefined) => {
-            setDirtyEchartsConfig((prevState) => {
-                return {
-                    ...prevState,
-                    xAxis: [
-                        prevState?.xAxis?.[0] || {},
-                        prevState?.xAxis?.[1] || {},
-                    ].map((axis, axisIndex) =>
-                        axisIndex === index
-                            ? { ...axis, maxOffset: value }
-                            : axis,
-                    ),
-                };
-            });
-        },
-        [],
+        (index: number, value: string | undefined) =>
+            mergeAxis('xAxis', index, { maxOffset: value }),
+        [mergeAxis],
     );
 
-    const setXField = useCallback((xField: string | undefined) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            xField,
-        }));
-    }, []);
+    const setXField = useCallback(
+        (xField: string | undefined) => mergeLayout({ xField }),
+        [mergeLayout],
+    );
 
-    const setShowGridX = useCallback((show: boolean) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            showGridX: show,
-        }));
-    }, []);
-    const setShowGridY = useCallback((show: boolean) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            showGridY: show,
-        }));
-    }, []);
-    const setShowXAxis = useCallback((hide: boolean) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            showXAxis: hide,
-        }));
-    }, []);
-    const setShowYAxis = useCallback((hide: boolean) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            showYAxis: hide,
-        }));
-    }, []);
-    const setShowLeftYAxis = useCallback((show: boolean) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            showLeftYAxis: show,
-        }));
-    }, []);
-    const setShowRightYAxis = useCallback((show: boolean) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            showRightYAxis: show,
-        }));
-    }, []);
-    const setShowAxisTicks = useCallback((show: boolean) => {
-        setDirtyEchartsConfig((prev) => ({
-            ...prev,
-            showAxisTicks: show,
-        }));
-    }, []);
+    const setShowGridX = useCallback(
+        (show: boolean) => mergeLayout({ showGridX: show }),
+        [mergeLayout],
+    );
+    const setShowGridY = useCallback(
+        (show: boolean) => mergeLayout({ showGridY: show }),
+        [mergeLayout],
+    );
+    const setShowXAxis = useCallback(
+        (hide: boolean) => mergeLayout({ showXAxis: hide }),
+        [mergeLayout],
+    );
+    const setShowYAxis = useCallback(
+        (hide: boolean) => mergeLayout({ showYAxis: hide }),
+        [mergeLayout],
+    );
+    const setShowLeftYAxis = useCallback(
+        (show: boolean) => mergeLayout({ showLeftYAxis: show }),
+        [mergeLayout],
+    );
+    const setShowRightYAxis = useCallback(
+        (show: boolean) => mergeLayout({ showRightYAxis: show }),
+        [mergeLayout],
+    );
+    const setShowAxisTicks = useCallback(
+        (show: boolean) => mergeEcharts({ showAxisTicks: show }),
+        [mergeEcharts],
+    );
 
-    const setConnectNulls = useCallback((connect: boolean) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            connectNulls: connect,
-        }));
-    }, []);
+    const setConnectNulls = useCallback(
+        (connect: boolean) => mergeLayout({ connectNulls: connect }),
+        [mergeLayout],
+    );
 
-    const setShowIncompletePeriod = useCallback((show: boolean) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            showIncompletePeriod: show,
-        }));
-    }, []);
+    const setShowIncompletePeriod = useCallback(
+        (show: boolean) => mergeLayout({ showIncompletePeriod: show }),
+        [mergeLayout],
+    );
 
-    const setColorByCategory = useCallback((enabled: boolean) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            colorByCategory: enabled,
-        }));
-    }, []);
+    const setColorByCategory = useCallback(
+        (enabled: boolean) => mergeLayout({ colorByCategory: enabled }),
+        [mergeLayout],
+    );
 
     const setCategoryColorOverride = useCallback(
-        (categoryValue: string, color: string) => {
-            setDirtyLayout((prev) => ({
-                ...prev,
-                categoryColorOverrides: {
-                    ...prev?.categoryColorOverrides,
-                    [categoryValue]: color,
-                },
-            }));
-        },
-        [],
+        (categoryValue: string, color: string) =>
+            dispatch(
+                cartesianEditorActions.categoryColorOverrideSet({
+                    categoryValue,
+                    color,
+                }),
+            ),
+        [dispatch],
     );
 
     const setAllCategoryColorOverrides = useCallback(
-        (overrides: Record<string, string>) => {
-            setDirtyLayout((prev) => ({
-                ...prev,
-                categoryColorOverrides: overrides,
-            }));
-        },
-        [],
+        (overrides: Record<string, string>) =>
+            mergeLayout({ categoryColorOverrides: overrides }),
+        [mergeLayout],
     );
 
     const onSetConditionalFormattings = useCallback(
-        (configs: ConditionalFormattingConfig[]) => {
-            setConditionalFormattings(configs);
-
-            if (configs.length > 0) {
-                setDirtyLayout((prev) => ({
-                    ...prev,
-                    colorByCategory: undefined,
-                }));
-            }
-        },
-        [],
+        (configs: ConditionalFormattingConfig[]) =>
+            dispatch(cartesianEditorActions.conditionalFormattingsSet(configs)),
+        [dispatch],
     );
 
-    const setAxisLabelFontSize = useCallback((fontSize: number | undefined) => {
-        setDirtyEchartsConfig((prev) => ({
-            ...prev,
-            axisLabelFontSize: fontSize,
-        }));
-    }, []);
+    const setAxisLabelFontSize = useCallback(
+        (fontSize: number | undefined) =>
+            mergeEcharts({ axisLabelFontSize: fontSize }),
+        [mergeEcharts],
+    );
 
-    const setAxisTitleFontSize = useCallback((fontSize: number | undefined) => {
-        setDirtyEchartsConfig((prev) => ({
-            ...prev,
-            axisTitleFontSize: fontSize,
-        }));
-    }, []);
+    const setAxisTitleFontSize = useCallback(
+        (fontSize: number | undefined) =>
+            mergeEcharts({ axisTitleFontSize: fontSize }),
+        [mergeEcharts],
+    );
 
-    const setXAxisSort = useCallback((sort: XAxisSort) => {
-        setDirtyEchartsConfig((prevState) => {
-            const [firstAxis, ...axes] = prevState?.xAxis || [];
-            const { inverse, sortType } = getXAxisSortConfig(sort);
-            return {
-                ...prevState,
-                xAxis: [{ ...firstAxis, inverse, sortType }, ...axes],
-            };
-        });
-    }, []);
-    const setXAxisLabelRotation = useCallback((rotation: number) => {
-        setDirtyEchartsConfig((prevState) => {
-            const [firstAxis, ...axes] = prevState?.xAxis || [];
-            return {
-                ...prevState,
-                xAxis: [{ ...firstAxis, rotate: rotation }, ...axes],
-            };
-        });
-    }, []);
-    const setScrollableChart = useCallback((enableDataZoom: boolean) => {
-        setDirtyEchartsConfig((prevState) => {
-            const [firstAxis, ...axes] = prevState?.xAxis || [];
-            return {
-                ...prevState,
-                xAxis: [{ ...firstAxis, enableDataZoom }, ...axes],
-            };
-        });
-    }, []);
-    const setXAxisTreatAsCategory = useCallback((treatAsCategory: boolean) => {
-        setDirtyEchartsConfig((prevState) => {
-            const [firstAxis, ...axes] = prevState?.xAxis || [];
-            return {
-                ...prevState,
-                xAxis: [{ ...firstAxis, treatAsCategory }, ...axes],
-            };
-        });
-    }, []);
-    const setDataZoomAnchor = useCallback((dataZoomAnchor: 'start' | 'end') => {
-        setDirtyEchartsConfig((prevState) => {
-            const [firstAxis, ...axes] = prevState?.xAxis || [];
-            return {
-                ...prevState,
-                xAxis: [{ ...firstAxis, dataZoomAnchor }, ...axes],
-            };
-        });
-    }, []);
-    const setDataZoomItemCount = useCallback((dataZoomItemCount: number) => {
-        setDirtyEchartsConfig((prevState) => {
-            const [firstAxis, ...axes] = prevState?.xAxis || [];
-            return {
-                ...prevState,
-                xAxis: [{ ...firstAxis, dataZoomItemCount }, ...axes],
-            };
-        });
-    }, []);
-    const addSingleSeries = useCallback((yField: string) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            yField: [...(prev?.yField || []), yField],
-            // Color by category only works for single-series; clear when adding another
-            ...((prev?.yField?.length ?? 0) >= 1 && {
-                colorByCategory: undefined,
-                categoryColorOverrides: undefined,
-            }),
-        }));
-        setConditionalFormattings((prev) => (prev.length > 0 ? [] : prev));
-    }, []);
+    const setXAxisSort = useCallback(
+        (sort: XAxisSort) => mergeFirstXAxis(getXAxisSortConfig(sort)),
+        [mergeFirstXAxis],
+    );
+    const setXAxisLabelRotation = useCallback(
+        (rotation: number) => mergeFirstXAxis({ rotate: rotation }),
+        [mergeFirstXAxis],
+    );
+    const setScrollableChart = useCallback(
+        (enableDataZoom: boolean) => mergeFirstXAxis({ enableDataZoom }),
+        [mergeFirstXAxis],
+    );
+    const setXAxisTreatAsCategory = useCallback(
+        (treatAsCategory: boolean) => mergeFirstXAxis({ treatAsCategory }),
+        [mergeFirstXAxis],
+    );
+    const setDataZoomAnchor = useCallback(
+        (dataZoomAnchor: 'start' | 'end') =>
+            mergeFirstXAxis({ dataZoomAnchor }),
+        [mergeFirstXAxis],
+    );
+    const setDataZoomItemCount = useCallback(
+        (dataZoomItemCount: number) => mergeFirstXAxis({ dataZoomItemCount }),
+        [mergeFirstXAxis],
+    );
+    const addSingleSeries = useCallback(
+        (yField: string) =>
+            dispatch(cartesianEditorActions.singleSeriesAdd(yField)),
+        [dispatch],
+    );
 
-    const removeSingleSeries = useCallback((index: number) => {
-        setDirtyEchartsConfig((prev) => {
-            /**
-             * Clean up any color data assigned to this series, to prevent confusing
-             * behaviors around reordering and deleting/re-adding series.
-             */
-            if (prev?.series && prev.series[index]) {
-                const newSeries = [...prev.series];
-                newSeries[index] = {
-                    ...newSeries[index],
-                    color: undefined,
-                };
+    const removeSingleSeries = useCallback(
+        (index: number) =>
+            dispatch(cartesianEditorActions.singleSeriesRemove(index)),
+        [dispatch],
+    );
 
-                return {
-                    ...prev,
-                    series: newSeries,
-                };
-            }
-
-            return prev;
-        });
-        setDirtyLayout((prev) => ({
-            ...prev,
-            yField: prev?.yField
-                ? [
-                      ...prev.yField.slice(0, index),
-                      ...prev.yField.slice(index + 1),
-                  ]
-                : [],
-        }));
-    }, []);
-
-    const updateYField = useCallback((index: number, fieldId: string) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            yField: prev?.yField?.map((field, i) => {
-                return i === index ? fieldId : field;
-            }),
-        }));
-    }, []);
+    const updateYField = useCallback(
+        (index: number, fieldId: string) =>
+            dispatch(cartesianEditorActions.yFieldUpdate({ index, fieldId })),
+        [dispatch],
+    );
 
     const setType = useCallback(
-        (type: Series['type'], flipAxes: boolean, hasAreaStyle: boolean) => {
-            const options: CartesianTypeOptions = {
-                type,
-                flipAxes,
-                hasAreaStyle,
-            };
-            setDirtyLayout(
-                (prev) => applyCartesianType(prev, undefined, options).layout,
-            );
-            setDirtyEchartsConfig(
-                (prevState) =>
-                    applyCartesianType(undefined, prevState, options)
-                        .eChartsConfig,
-            );
-        },
-        [],
+        (type: Series['type'], flipAxes: boolean, hasAreaStyle: boolean) =>
+            dispatch(
+                cartesianEditorActions.typeApply({
+                    type,
+                    flipAxes,
+                    hasAreaStyle,
+                }),
+            ),
+        [dispatch],
     );
 
     useEffect(() => {
@@ -584,41 +381,27 @@ const useCartesianChartConfig = ({
         }
     }, [cartesianType, setType]);
 
-    const setFlipAxis = useCallback((flipAxes: boolean) => {
-        setDirtyLayout((prev) => ({
-            ...prev,
-            flipAxes,
-        }));
-    }, []);
+    const setFlipAxis = useCallback(
+        (flipAxes: boolean) => mergeLayout({ flipAxes }),
+        [mergeLayout],
+    );
 
     const updateAllGroupedSeries = useCallback(
         (fieldKey: string, updateSeries: Partial<Series>) =>
-            setDirtyEchartsConfig(
-                produce((draft) => {
-                    if (!draft) return;
-
-                    draft.series = draft.series?.map((series) =>
-                        series.encode.yRef.field === fieldKey
-                            ? { ...series, ...updateSeries }
-                            : series,
-                    );
+            dispatch(
+                cartesianEditorActions.groupedSeriesUpdateAll({
+                    fieldKey,
+                    updateSeries,
                 }),
             ),
-        [],
+        [dispatch],
     );
 
-    const updateSingleSeries = useCallback((updatedSeries: Series) => {
-        setDirtyEchartsConfig((prev) => {
-            return {
-                ...prev,
-                series: (prev?.series || []).map((currentSeries) =>
-                    getSeriesId(currentSeries) === getSeriesId(updatedSeries)
-                        ? { ...currentSeries, ...updatedSeries }
-                        : currentSeries,
-                ),
-            };
-        });
-    }, []);
+    const updateSingleSeries = useCallback(
+        (updatedSeries: Series) =>
+            dispatch(cartesianEditorActions.singleSeriesUpdate(updatedSeries)),
+        [dispatch],
+    );
 
     const getSingleSeries = useCallback(
         (series: Series) =>
@@ -628,43 +411,24 @@ const useCartesianChartConfig = ({
         [dirtyEchartsConfig?.series],
     );
 
-    const updateSeries = useCallback((series: Series[]) => {
-        setDirtyEchartsConfig((prev) => {
-            if (prev) {
-                return {
-                    ...prev,
-                    series,
-                };
-            }
-            return prev;
-        });
-    }, []);
+    const updateSeries = useCallback(
+        (series: Series[]) =>
+            dispatch(cartesianEditorActions.seriesSet(series)),
+        [dispatch],
+    );
 
     const setStacking = useCallback(
-        (stack: boolean | StackType) => {
+        (stack: boolean | StackType) =>
             // The y fields the stack applies to are read once, from the
             // layout at call time, as they always were.
-            const yFields = dirtyLayout?.yField;
-
-            setIsStacked(isStackTypeStacked(stack));
-
-            // Store the stack type in the layout
-            setDirtyLayout((prev) => ({
-                ...prev,
-                stack: toStackType(stack),
-            }));
-
-            setDirtyEchartsConfig(
-                (prevState) =>
-                    applyCartesianStacking(
-                        { yField: yFields },
-                        prevState,
-                        stack,
-                        pivotKeys,
-                    ).eChartsConfig,
-            );
-        },
-        [dirtyLayout?.yField, pivotKeys],
+            dispatch(
+                cartesianEditorActions.stackingApply({
+                    stack,
+                    yFields: dirtyLayout?.yField,
+                    pivotKeys,
+                }),
+            ),
+        [dispatch, dirtyLayout?.yField, pivotKeys],
     );
 
     useEffect(() => {
@@ -713,7 +477,7 @@ const useCartesianChartConfig = ({
     // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
     useEffect(() => {
         if (availableFields.length > 0) {
-            setDirtyLayout((prev) =>
+            set('dirtyLayout', (prev) =>
                 repairCartesianLayout({
                     layout: prev,
                     availableFields,
@@ -732,28 +496,8 @@ const useCartesianChartConfig = ({
         tableCalculationsMetadata,
         pendingFieldIds,
         itemsMap,
+        set,
     ]);
-
-    const selectedReferenceLines: ReferenceLineField[] = useMemo(
-        () =>
-            getReferenceLinesFromSeries(
-                dirtyEchartsConfig?.series,
-                dirtyLayout?.flipAxes,
-            ),
-        [dirtyEchartsConfig?.series, dirtyLayout?.flipAxes],
-    );
-
-    const [referenceLines, setReferenceLines] = useState<ReferenceLineField[]>(
-        selectedReferenceLines,
-    );
-
-    const [tooltip, setTooltip] = useState<string | undefined>(
-        dirtyEchartsConfig?.tooltip,
-    );
-
-    const [tooltipSort, setTooltipSort] = useState<TooltipSortBy | undefined>(
-        dirtyEchartsConfig?.tooltipSort,
-    );
 
     // Track series hidden states to trigger reference line redistribution
     const seriesHiddenStatesKey = useMemo(() => {
@@ -769,7 +513,7 @@ const useCartesianChartConfig = ({
     // Generate expected series
     useEffect(() => {
         if (isCompleteLayout(dirtyLayout) && resultsData?.hasFetchedAllRows) {
-            setDirtyEchartsConfig((prev) => ({
+            set('dirtyEchartsConfig', (prev) => ({
                 ...prev,
                 series: buildCartesianSeries({
                     layout: dirtyLayout,
@@ -795,6 +539,7 @@ const useCartesianChartConfig = ({
         seriesHiddenStatesKey, // Re-run when series hidden states change
         columnLimit,
         cartesianType,
+        set,
     ]);
 
     const dirtyChartType = useMemo(
@@ -840,22 +585,24 @@ const useCartesianChartConfig = ({
             return;
         }
 
-        setDirtyLayout((prev) => ({
-            ...prev,
+        mergeLayout({
             colorByCategory: undefined,
             categoryColorOverrides: undefined,
-        }));
+        });
     }, [
         isColorByCategoryAllowed,
         dirtyLayout?.colorByCategory,
         dirtyLayout?.categoryColorOverrides,
+        mergeLayout,
     ]);
 
     useEffect(() => {
         if (isConditionalFormattingAllowed) return;
 
-        setConditionalFormattings((prev) => (prev.length === 0 ? prev : []));
-    }, [isConditionalFormattingAllowed]);
+        set('conditionalFormattings', (prev) =>
+            prev.length === 0 ? prev : [],
+        );
+    }, [isConditionalFormattingAllowed, set]);
 
     // Repair configs whose target no longer exists on the chart (e.g. the
     // metric was swapped or removed) by pointing them at the first metric.
@@ -865,7 +612,7 @@ const useCartesianChartConfig = ({
         const yFields = dirtyLayout?.yField ?? [];
         if (!yFields[0]) return;
 
-        setConditionalFormattings((prev) =>
+        set('conditionalFormattings', (prev) =>
             repairConditionalFormattings({
                 conditionalFormattings: prev,
                 yFields,
@@ -876,6 +623,7 @@ const useCartesianChartConfig = ({
         isConditionalFormattingAllowed,
         hasCustomColorsStacking,
         dirtyLayout?.yField,
+        set,
     ]);
 
     const validConfig: CartesianChart = useMemo(
@@ -903,10 +651,9 @@ const useCartesianChartConfig = ({
     );
 
     const updateMetadata = useCallback(
-        (metadata: Record<string, SeriesMetadata>) => {
-            setDirtyMetadata(metadata);
-        },
-        [],
+        (metadata: Record<string, SeriesMetadata>) =>
+            set('dirtyMetadata', metadata),
+        [set],
     );
 
     return useMemo(

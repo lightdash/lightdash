@@ -20,6 +20,7 @@ vi.mock('../useServerOrClientFeatureFlag', () => ({
 
 import { finalizeTimeAxisOptions } from '@lightdash/visualization/editor';
 import { type ReferenceLineField } from '../../components/common/ReferenceLine';
+import { withVisualizationStore } from '../../testing/visualizationStore';
 import useCartesianChartConfig, {
     applyReferenceLines,
     type CartesianTypeOptions,
@@ -1120,8 +1121,9 @@ describe('reference-line semantic to physical axis integration', () => {
                 cartesianType: undefined,
                 colorPalette: [],
             };
-            const { result } = renderHook(() =>
-                useCartesianChartConfig(params),
+            const { result } = renderHook(
+                () => useCartesianChartConfig(params),
+                { wrapper: withVisualizationStore() },
             );
             const line =
                 result.current.validConfig.eChartsConfig.series?.[0].markLine
@@ -1179,6 +1181,7 @@ describe('useCartesianChartConfig', () => {
         const { result } = renderHook(
             // @ts-expect-error partially mock params for hook
             () => useCartesianChartConfig(useCartesianChartConfigParamsMock),
+            { wrapper: withVisualizationStore() },
         );
 
         const series = result.current.validConfig!.eChartsConfig.series!;
@@ -1214,18 +1217,20 @@ describe('useCartesianChartConfig', () => {
             },
         ];
 
-        const { result } = renderHook(() =>
-            // @ts-expect-error partially mock params for hook
-            useCartesianChartConfig({
-                ...useCartesianChartConfigParamsMock,
-                initialChartConfig: {
-                    ...useCartesianChartConfigParamsMock.initialChartConfig,
+        const { result } = renderHook(
+            () =>
+                // @ts-expect-error partially mock params for hook
+                useCartesianChartConfig({
+                    ...useCartesianChartConfigParamsMock,
+                    initialChartConfig: {
+                        ...useCartesianChartConfigParamsMock.initialChartConfig,
 
-                    eChartsConfig: {
-                        series: seriesFromOldChart,
+                        eChartsConfig: {
+                            series: seriesFromOldChart,
+                        },
                     },
-                },
-            }),
+                }),
+            { wrapper: withVisualizationStore() },
         );
 
         const series = result.current.validConfig!.eChartsConfig.series!;
@@ -1238,21 +1243,24 @@ describe('useCartesianChartConfig', () => {
         const { result } = renderHook(
             // @ts-expect-error partially mock params for hook
             () => useCartesianChartConfig(useCartesianChartConfigParamsMock),
+            { wrapper: withVisualizationStore() },
         );
 
         expect(result.current.columnLimit).toBeUndefined();
     });
 
     test('should preserve saved columnLimit in validConfig', () => {
-        const { result } = renderHook(() =>
-            // @ts-expect-error partially mock params for hook
-            useCartesianChartConfig({
-                ...useCartesianChartConfigParamsMock,
-                initialChartConfig: {
-                    ...useCartesianChartConfigParamsMock.initialChartConfig,
-                    columnLimit: 5,
-                },
-            }),
+        const { result } = renderHook(
+            () =>
+                // @ts-expect-error partially mock params for hook
+                useCartesianChartConfig({
+                    ...useCartesianChartConfigParamsMock,
+                    initialChartConfig: {
+                        ...useCartesianChartConfigParamsMock.initialChartConfig,
+                        columnLimit: 5,
+                    },
+                }),
+            { wrapper: withVisualizationStore() },
         );
 
         expect(result.current.validConfig?.columnLimit).toBe(5);
@@ -1266,14 +1274,16 @@ describe('useCartesianChartConfig', () => {
         ];
         const params = getSingleSeriesParams();
 
-        const { result } = renderHook(() =>
-            useCartesianChartConfig({
-                ...params,
-                initialChartConfig: {
-                    ...params.initialChartConfig!,
-                    conditionalFormattings,
-                },
-            }),
+        const { result } = renderHook(
+            () =>
+                useCartesianChartConfig({
+                    ...params,
+                    initialChartConfig: {
+                        ...params.initialChartConfig!,
+                        conditionalFormattings,
+                    },
+                }),
+            { wrapper: withVisualizationStore() },
         );
 
         expect(result.current.validConfig.conditionalFormattings).toEqual(
@@ -1283,20 +1293,22 @@ describe('useCartesianChartConfig', () => {
 
     test('should preserve category overrides when conditional formattings are set', () => {
         const params = getSingleSeriesParams();
-        const { result } = renderHook(() =>
-            useCartesianChartConfig({
-                ...params,
-                initialChartConfig: {
-                    ...params.initialChartConfig!,
-                    layout: {
-                        ...params.initialChartConfig!.layout,
-                        colorByCategory: true,
-                        categoryColorOverrides: {
-                            retail: '#00ff00',
+        const { result } = renderHook(
+            () =>
+                useCartesianChartConfig({
+                    ...params,
+                    initialChartConfig: {
+                        ...params.initialChartConfig!,
+                        layout: {
+                            ...params.initialChartConfig!.layout,
+                            colorByCategory: true,
+                            categoryColorOverrides: {
+                                retail: '#00ff00',
+                            },
                         },
                     },
-                },
-            }),
+                }),
+            { wrapper: withVisualizationStore() },
         );
 
         act(() => {
@@ -1323,14 +1335,16 @@ describe('useCartesianChartConfig', () => {
             }),
         ];
         const params = getSingleSeriesParams();
-        const { result } = renderHook(() =>
-            useCartesianChartConfig({
-                ...params,
-                initialChartConfig: {
-                    ...params.initialChartConfig!,
-                    conditionalFormattings,
-                },
-            }),
+        const { result } = renderHook(
+            () =>
+                useCartesianChartConfig({
+                    ...params,
+                    initialChartConfig: {
+                        ...params.initialChartConfig!,
+                        conditionalFormattings,
+                    },
+                }),
+            { wrapper: withVisualizationStore() },
         );
 
         act(() => {
@@ -1345,21 +1359,23 @@ describe('useCartesianChartConfig', () => {
 
     test('should clear conditional formattings when adding a second series', () => {
         const params = getSingleSeriesParams();
-        const { result } = renderHook(() =>
-            useCartesianChartConfig({
-                ...params,
-                initialChartConfig: {
-                    ...params.initialChartConfig!,
-                    conditionalFormattings: [
-                        createConditionalFormattingConfigWithSingleColor(
-                            '#ff0000',
-                            {
-                                fieldId: 'orders_total_order_amount',
-                            },
-                        ),
-                    ],
-                },
-            }),
+        const { result } = renderHook(
+            () =>
+                useCartesianChartConfig({
+                    ...params,
+                    initialChartConfig: {
+                        ...params.initialChartConfig!,
+                        conditionalFormattings: [
+                            createConditionalFormattingConfigWithSingleColor(
+                                '#ff0000',
+                                {
+                                    fieldId: 'orders_total_order_amount',
+                                },
+                            ),
+                        ],
+                    },
+                }),
+            { wrapper: withVisualizationStore() },
         );
 
         act(() => {
@@ -1371,7 +1387,9 @@ describe('useCartesianChartConfig', () => {
 
     test('should set and clear y-axis minInterval', () => {
         const params = getSingleSeriesParams();
-        const { result } = renderHook(() => useCartesianChartConfig(params));
+        const { result } = renderHook(() => useCartesianChartConfig(params), {
+            wrapper: withVisualizationStore(),
+        });
 
         act(() => {
             result.current.setYMinInterval(0, 1);
@@ -1392,7 +1410,9 @@ describe('useCartesianChartConfig', () => {
 
     test('should set x-axis minInterval', () => {
         const params = getSingleSeriesParams();
-        const { result } = renderHook(() => useCartesianChartConfig(params));
+        const { result } = renderHook(() => useCartesianChartConfig(params), {
+            wrapper: withVisualizationStore(),
+        });
 
         act(() => {
             result.current.setXMinInterval(0, 1);
@@ -1415,6 +1435,7 @@ describe('useCartesianChartConfig', () => {
                 // @ts-expect-error partially mock params for hook
                 useCartesianChartConfig(params),
             {
+                wrapper: withVisualizationStore(),
                 initialProps: {
                     params: {
                         ...initialParams,
@@ -1509,7 +1530,10 @@ describe('useCartesianChartConfig', () => {
 
         const { result } = renderHook(
             ({ params }) => useCartesianChartConfig(params),
-            { initialProps: { params: multiMetricParams } },
+            {
+                wrapper: withVisualizationStore(),
+                initialProps: { params: multiMetricParams },
+            },
         );
 
         expect(
@@ -1526,6 +1550,7 @@ describe('useCartesianChartConfig', () => {
                 // @ts-expect-error partially mock params for hook
                 useCartesianChartConfig(params),
             {
+                wrapper: withVisualizationStore(),
                 initialProps: {
                     params: {
                         ...initialParams,
@@ -1866,7 +1891,10 @@ describe('PROD-11290 series regeneration through useCartesianChartConfig', () =>
         const { result, rerender } = renderHook(
             (props: Parameters<typeof useCartesianChartConfig>[0]) =>
                 useCartesianChartConfig(props),
-            { initialProps: getParams('dimension_x', ['a']) },
+            {
+                wrapper: withVisualizationStore(),
+                initialProps: getParams('dimension_x', ['a']),
+            },
         );
 
         act(() => {
@@ -1891,7 +1919,10 @@ describe('PROD-11290 series regeneration through useCartesianChartConfig', () =>
         const { result, rerender } = renderHook(
             (props: Parameters<typeof useCartesianChartConfig>[0]) =>
                 useCartesianChartConfig(props),
-            { initialProps: getParams('dimension_x', ['a']) },
+            {
+                wrapper: withVisualizationStore(),
+                initialProps: getParams('dimension_x', ['a']),
+            },
         );
 
         act(() => {
@@ -1935,7 +1966,9 @@ describe('picking a cartesian type before any series exists', () => {
             flipAxes: false,
             hasAreaStyle: false,
         });
-        const { result } = renderHook(() => useCartesianChartConfig(params));
+        const { result } = renderHook(() => useCartesianChartConfig(params), {
+            wrapper: withVisualizationStore(),
+        });
 
         const series = result.current.validConfig!.eChartsConfig.series!;
 
