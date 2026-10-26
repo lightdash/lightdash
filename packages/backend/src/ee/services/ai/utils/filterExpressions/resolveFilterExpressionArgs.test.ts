@@ -2565,6 +2565,7 @@ describe('date-only bounds on timestamp fields', () => {
         const result = resolveExploreFilterExpressions({
             filters,
             explore: timestampExplore,
+            additionalMetrics: [],
         });
         if (!result.success) {
             throw new Error(formatFilterExpressionError(result.error));
