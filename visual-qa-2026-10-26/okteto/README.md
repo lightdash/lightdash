@@ -2,7 +2,7 @@
 
 All 8 dashboards / 32 tabs were opened, scrolled to load every chart, and visually inspected on Okteto at product head `1e670e8d604b3514380415e0b1c08ca35b44188f`. No query errors remained. These screenshots use preview data, not the synthetic local fixture.
 
-The query calendar showed a narrow left-aligned strip with 19 days of history. That is recorded in `okteto-queries-overview.png`. Commit `87b190d474fafcbabea8e94068ae1db6b3ffea71` corrects short-history positioning; its deployed recheck is pending. Local short and long histories were already checked on that commit.
+The query calendar showed a narrow left-aligned strip with 19 days of history. That is recorded in `okteto-queries-overview.png`. Commit `87b190d474fafcbabea8e94068ae1db6b3ffea71` corrects short-history positioning; its deployed recheck passed after all CI checks completed. Local short and long histories were checked on that commit. Hosted Queries Overview, Monthly comparison and populated token coverage were then rechecked on the same deployed revision.
 
 Some App-load, billable-token and completed-month views have no matching preview data. Their empty states are expected; populated equivalents were separately tested locally. All-usage token charts and the formerly failing Content/field-usage tables are populated here.
 
@@ -38,3 +38,11 @@ Some App-load, billable-token and completed-month views have no matching preview
 - [okteto-tokens-user](okteto-tokens-user.png)
 - [okteto-tools-exports](okteto-tools-exports.png)
 - [okteto-tools-overview](okteto-tools-overview.png)
+
+## Final revision follow-up
+
+All checks on `87b190d474` passed: 37 successful, 8 skipped, no retries. This follow-up changes calendar positioning only; the full 32-tab hosted pass above remains attributed to `1e670e8d60`.
+
+- [okteto-queries-overview-final.png](okteto-queries-overview-final.png)
+- [okteto-queries-monthly-final.png](okteto-queries-monthly-final.png)
+- [okteto-tokens-coverage-final.png](okteto-tokens-coverage-final.png)
