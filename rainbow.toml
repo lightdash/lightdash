@@ -402,6 +402,9 @@ GITHUB_CLIENT_SECRET = "github-app"
 GITHUB_PRIVATE_KEY = "github-app"
 # Analytics and object storage, as the Okteto previews (docker-compose.preview.yml).
 # Each overrides its [env] fallback when stored; the two hosts open egress.
+# The five S3_* are one set: store, rotate or delete them together, since the
+# fallback is per variable and a partial set mixes cloud and MinIO settings.
+# Deleting or rotating reaches existing previews only when they are rebuilt.
 RUDDERSTACK_WRITE_KEY = "api-key"
 RUDDERSTACK_DATA_PLANE_URL = "url"
 RUDDERSTACK_HOST = "host"
