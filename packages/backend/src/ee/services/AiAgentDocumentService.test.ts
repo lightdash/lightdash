@@ -192,6 +192,27 @@ describe('AiAgentDocumentService in a Learn training project or copy', () => {
         expect(aiAgentService.getAgent).not.toHaveBeenCalled();
     });
 
+    it('rejects an empty or over-long name before spending a summary', async () => {
+        const { service, aiAgentDocumentModel } = setup({
+            isTrainingProject: false,
+        });
+        await expect(
+            service.createDocument(projectAdmin, { projectUuid, agentUuid }, {
+                ...upload,
+                name: '   ',
+            } as never),
+        ).rejects.toThrow('Document name cannot be empty');
+        await expect(
+            service.createDocument(projectAdmin, { projectUuid, agentUuid }, {
+                ...upload,
+                name: 'n'.repeat(256),
+            } as never),
+        ).rejects.toThrow('Document name cannot exceed 255 characters');
+        expect(
+            aiAgentDocumentModel.getOrganizationContentSize,
+        ).not.toHaveBeenCalled();
+    });
+
     it('lets a real project add documents', async () => {
         const { service } = setup({ isTrainingProject: false });
         await expect(

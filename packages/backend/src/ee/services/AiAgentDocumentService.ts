@@ -596,6 +596,15 @@ export class AiAgentDocumentService extends BaseService {
         },
     ): Promise<AiAgentDocument> {
         await this.assertNotTrainingProject(scope.projectUuid, 'added');
+        const name = body.name.trim();
+        if (name.length === 0) {
+            throw new ParameterError('Document name cannot be empty');
+        }
+        if (name.length > AI_AGENT_DOCUMENT_MAX_NAME_LENGTH) {
+            throw new ParameterError(
+                `Document name cannot exceed ${AI_AGENT_DOCUMENT_MAX_NAME_LENGTH} characters`,
+            );
+        }
         const contentBytes = Buffer.byteLength(body.content, 'utf8');
         if (contentBytes > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES) {
             throw new PayloadTooLargeError(
@@ -630,16 +639,16 @@ export class AiAgentDocumentService extends BaseService {
         let summary: AiAgentDocument['summary'];
         try {
             summary = await this.generateSummary(user, organizationUuid, {
-                name: body.name,
+                name,
                 content: body.content,
                 projectUuid: scope.projectUuid,
                 projectExplores: scope.projectExplores,
             });
         } catch (error) {
             this.logger.error(
-                `Failed to generate summary for document "${body.name}", storing a fallback summary: ${error}`,
+                `Failed to generate summary for document "${name}", storing a fallback summary: ${error}`,
             );
-            summary = createFallbackDocumentSummary(body.name);
+            summary = createFallbackDocumentSummary(name);
         }
 
         const storageKey = `org/${organizationUuid}/doc/${uuidv4()}.${
@@ -649,7 +658,7 @@ export class AiAgentDocumentService extends BaseService {
         const document = await this.aiAgentDocumentModel.create({
             organizationUuid,
             projectUuid: scope.projectUuid,
-            name: body.name,
+            name,
             originalFilename: body.originalFilename,
             mimeType,
             content: body.content,

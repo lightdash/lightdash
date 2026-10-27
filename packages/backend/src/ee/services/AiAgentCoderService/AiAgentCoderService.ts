@@ -1,5 +1,7 @@
 import { subject } from '@casl/ability';
 import {
+    AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+    AI_AGENT_DOCUMENT_MAX_NAME_LENGTH,
     CONTENT_AS_CODE_VERSIONS,
     ContentAsCodeType,
     exceedsRetentionCeiling,
@@ -476,8 +478,8 @@ export class AiAgentCoderService extends BaseService {
         for (const document of declared) {
             const existing = existingByName.get(document.name);
             if (!existing) {
-                // eslint-disable-next-line no-await-in-loop
                 const created =
+                    // eslint-disable-next-line no-await-in-loop
                     await this.aiAgentDocumentService.createDocument(
                         user,
                         scope,
@@ -618,6 +620,26 @@ export class AiAgentCoderService extends BaseService {
             if (documentNames.some((name) => name.length === 0)) {
                 throw new ParameterError(
                     `AI agent '${agent.slug}' has a knowledge document with an empty name`,
+                );
+            }
+            const longName = documentNames.find(
+                (name) => name.length > AI_AGENT_DOCUMENT_MAX_NAME_LENGTH,
+            );
+            if (longName !== undefined) {
+                throw new ParameterError(
+                    `AI agent '${agent.slug}': knowledge document name '${longName.slice(0, 40)}…' exceeds ${AI_AGENT_DOCUMENT_MAX_NAME_LENGTH} characters`,
+                );
+            }
+            // Checked before any write so an oversized file never leaves the
+            // agent half applied.
+            const oversized = (agent.knowledgeDocuments ?? []).find(
+                ({ content }) =>
+                    Buffer.byteLength(content, 'utf8') >
+                    AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+            );
+            if (oversized) {
+                throw new ParameterError(
+                    `AI agent '${agent.slug}': knowledge document '${oversized.name}' exceeds the ${AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES} byte limit`,
                 );
             }
             const duplicateDocumentNames = documentNames.filter(

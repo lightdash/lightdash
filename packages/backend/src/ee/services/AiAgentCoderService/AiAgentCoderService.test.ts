@@ -990,6 +990,35 @@ describe('AiAgentCoderService', () => {
             expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
         });
 
+        it('rejects an oversized or over-named document before changing agents', async () => {
+            const { service, aiAgentModel, aiAgentDocumentService } =
+                buildService();
+            await expect(
+                service.upsertAgents(user, projectUuid, [
+                    {
+                        ...agentAsCode,
+                        knowledgeDocuments: [
+                            { ...declared, content: 'x'.repeat(20 * 1024 + 1) },
+                        ],
+                    },
+                ]),
+            ).rejects.toThrow('exceeds the 20480 byte limit');
+            await expect(
+                service.upsertAgents(user, projectUuid, [
+                    {
+                        ...agentAsCode,
+                        knowledgeDocuments: [
+                            { ...declared, name: 'n'.repeat(256) },
+                        ],
+                    },
+                ]),
+            ).rejects.toThrow('exceeds 255 characters');
+            expect(aiAgentModel.updateAgent).not.toHaveBeenCalled();
+            expect(
+                aiAgentDocumentService.createDocument,
+            ).not.toHaveBeenCalled();
+        });
+
         it('fails only the agent whose documents could not be applied', async () => {
             const { service, aiAgentDocumentService } = buildService();
             aiAgentDocumentService.createDocument.mockRejectedValueOnce(
