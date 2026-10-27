@@ -1,31 +1,20 @@
 import { ActionIcon, Group, Text, Tooltip } from '@mantine/core';
-import { useLocalStorage, useOs } from '@mantine/hooks';
+import { useOs } from '@mantine/hooks';
 import { IconBulb, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import {
-    selectControlSections,
-    selectDashboardFilters,
-    useDashboardSelector,
-} from '../dashboard/store';
+import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
+import { useSectionsTip } from './useSectionsTip';
 
-// An editor's first row of the bar, teaching how a section starts: shown
-// while the dashboard has 2+ filters, no section, and it was not dismissed
+// An editor's first row of the bar, teaching how a section starts
 export const SectionsTip: FC = () => {
     const os = useOs();
-    const [isDismissed, setIsDismissed] = useLocalStorage({
-        key: 'dashboard-controls-sections-tip-dismissed',
-        defaultValue: false,
-        getInitialValueInEffect: false,
-    });
-    const hasSections = useDashboardSelector(
-        (state) => selectControlSections(state).length > 0,
-    );
-    const filterCount = useDashboardSelector((state) => {
-        const { dimensions, metrics } = selectDashboardFilters(state);
-        return dimensions.length + metrics.length;
-    });
-    if (isDismissed || hasSections || filterCount < 2) return null;
+    const { isShown, filterCount, dismiss } = useSectionsTip();
+    const { track } = useTracking();
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
+    if (!isShown) return null;
     return (
         <Group gap="xs" wrap="nowrap" px="lg" pb="xxs" role="note">
             <MantineIcon icon={IconBulb} color="dimmed" />
@@ -36,7 +25,16 @@ export const SectionsTip: FC = () => {
                 <ActionIcon
                     size="sm"
                     aria-label="Dismiss tip"
-                    onClick={() => setIsDismissed(true)}
+                    onClick={() => {
+                        track({
+                            name: EventName.DASHBOARD_SECTIONS_TIP_DISMISSED,
+                            properties: {
+                                dashboardUuid,
+                                filtersCount: filterCount,
+                            },
+                        });
+                        dismiss();
+                    }}
                 >
                     <MantineIcon icon={IconX} />
                 </ActionIcon>

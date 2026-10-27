@@ -1254,7 +1254,40 @@ describe('DashboardService', () => {
             defaultDateZoomGranularity: null,
             dateZoomControlsCount: 0,
             dateZoomTileTargetsCount: 0,
+            sectionsCount: 0,
+            sectionedFiltersCount: 0,
+            collapsedByDefaultSectionsCount: 0,
         });
+    });
+    test('should include control section counts in create analytics, never names', () => {
+        const properties = DashboardService.getCreateEventProperties({
+            ...dashboard,
+            filters: {
+                dimensions: [
+                    { sectionId: 'dates' } as DashboardFilterRule,
+                    { sectionId: 'dates' } as DashboardFilterRule,
+                    // A section that no longer exists does not count
+                    { sectionId: 'gone' } as DashboardFilterRule,
+                    {} as DashboardFilterRule,
+                ],
+                metrics: [{ sectionId: 'regions' } as DashboardFilterRule],
+                tableCalculations: [],
+            },
+            config: {
+                isDateZoomDisabled: false,
+                controlSections: [
+                    { id: 'dates', name: 'Dates', collapsed: true },
+                    { id: 'regions', name: 'Regions', collapsed: false },
+                    { id: 'empty', name: 'Empty' },
+                ],
+            },
+        });
+        expect(properties).toMatchObject({
+            sectionsCount: 3,
+            sectionedFiltersCount: 3,
+            collapsedByDefaultSectionsCount: 1,
+        });
+        expect(JSON.stringify(properties)).not.toMatch(/Dates|Regions|Empty/);
     });
     test('should create dashboard with tile ids', async () => {
         const result = await service.create(
@@ -1314,6 +1347,9 @@ describe('DashboardService', () => {
                     dimensionFilterCount: 1,
                     metricFilterCount: 1,
                     lockedFilterCount: 1,
+                    sectionsCount: 0,
+                    sectionedFiltersCount: 0,
+                    collapsedByDefaultSectionsCount: 0,
                 }),
             }),
         );

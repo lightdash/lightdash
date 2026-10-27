@@ -71,6 +71,29 @@ export const isRuleInSection = (
     return rule.sectionId === sectionId;
 };
 
+// Dimensions and metrics, as the tracking events count filters
+export const countFilters = (filters: DashboardFilters): number =>
+    filters.dimensions.length + filters.metrics.length;
+
+// Rules present in both whose shown section differs (a dangling id is none):
+// a reorder counts none
+export const countSectionChanges = (
+    before: DashboardFilters,
+    after: DashboardFilters,
+    sections: DashboardControlSection[],
+): number => {
+    const sectionOf = (rule: DashboardFilterRule) =>
+        isRuleInSection(rule, null, sections) ? null : rule.sectionId;
+    const beforeById = new Map(
+        listRules(before).map(({ rule }) => [rule.id, sectionOf(rule)]),
+    );
+    return listRules(after).filter(
+        ({ rule }) =>
+            beforeById.has(rule.id) &&
+            beforeById.get(rule.id) !== sectionOf(rule),
+    ).length;
+};
+
 const withSection = (
     rule: DashboardFilterRule,
     sectionId: string | null,
