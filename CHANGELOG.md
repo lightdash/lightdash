@@ -1,3 +1,10 @@
+## [3.73.2](https://github.com/lightdash/lightdash/compare/3.73.1...3.73.2) (2026-10-27)
+
+
+### Bug Fixes
+
+* **agent-identity:** bind inherited shared agent accounts to the parent warehouse destination ([#31602](https://github.com/lightdash/lightdash/issues/31602)) ([6550359](https://github.com/lightdash/lightdash/commit/6550359b10688f6bc40e5696e454caeb427fd443))
+
 ## [3.73.1](https://github.com/lightdash/lightdash/compare/3.73.0...3.73.1) (2026-10-27)
 
 

@@ -78009,6 +78009,19 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiServiceAccountParentUnavailableReason: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['destination_mismatch'] },
+                { dataType: 'enum', enums: ['transport_mismatch'] },
+                { dataType: 'enum', enums: ['parent_connection_unreadable'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     WarehouseServiceAuthMethod: {
         dataType: 'refAlias',
         type: {
@@ -78102,6 +78115,14 @@ const models: TsoaRoute.Models = {
                 dataType: 'union',
                 subSchemas: [
                     { ref: 'AiServiceAccountParent' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
+            parentUnavailableReason: {
+                dataType: 'union',
+                subSchemas: [
+                    { ref: 'AiServiceAccountParentUnavailableReason' },
                     { dataType: 'enum', enums: [null] },
                 ],
                 required: true,
