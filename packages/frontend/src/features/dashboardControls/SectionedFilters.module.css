@@ -47,6 +47,24 @@
     pointer-events: none;
 }
 
+/* A pill leaving its section over the bar's empty space: the drop line
+   after the bar's last item, in the gap, so nothing moves */
+.flow[data-over] > :last-child {
+    position: relative;
+}
+
+.flow[data-over] > :last-child::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    bottom: 2px;
+    right: -4px;
+    width: 2px;
+    border-radius: 1px;
+    background-color: var(--mantine-color-blue-4);
+    pointer-events: none;
+}
+
 /* Over the first button: the rail's ring, since nothing there can carry a line */
 .unsectionTarget[data-over] {
     background-color: var(--mantine-color-default-hover);

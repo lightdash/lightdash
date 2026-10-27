@@ -10,6 +10,7 @@ import {
     rangeBetween,
     removeSectionFromRules,
     getDragAnnouncements,
+    underPointerFor,
 } from './sections';
 
 const rule = (id: string, sectionId?: string): DashboardFilterRule => {
@@ -123,6 +124,25 @@ describe('moveRuleToSection', () => {
             metrics: ['m1', 'm2'],
         });
         expect(next.metrics[0].sectionId).toBe('b');
+    });
+
+    it('leaves its section after the last unsectioned rule of its kind, a dangling id included', () => {
+        const next = moveRuleToSection(
+            filters([
+                rule('d1', 'a'),
+                rule('d2'),
+                rule('d3', 'b'),
+                rule('d4', 'gone'),
+            ]),
+            'd1',
+            { sectionId: null },
+            sections,
+        );
+        expect(ids(next).dimensions).toEqual(['d2', 'd3', 'd4', 'd1']);
+        expect('sectionId' in next.dimensions[3]).toBe(false);
+        // Already unsectioned and after the others: nothing moves
+        const last = filters([rule('d1'), rule('d2', 'a'), rule('d3')]);
+        expect(moveRulesToSection(last, ['d3'], null, sections)).toBe(last);
     });
 
     it('joins an empty section in place', () => {
@@ -246,5 +266,44 @@ describe('getDragAnnouncements', () => {
         expect(a.onDragCancel({ active, over: null })).toBe(
             'Dragging [r1] was cancelled',
         );
+    });
+});
+
+describe('underPointerFor', () => {
+    it('lets a capsule or pill under the pointer win, and anywhere else is outside every section', () => {
+        const rect = (left: number, right: number) =>
+            ({
+                top: 0,
+                bottom: 30,
+                left,
+                right,
+                width: right - left,
+                height: 30,
+            }) as ClientRect;
+        const droppableRects = new Map([
+            ['bar-space-target', rect(0, 600)],
+            ['a', rect(100, 300)],
+            ['one', rect(110, 200)],
+        ]);
+        const collide = (x: number, hasPointer = true) =>
+            underPointerFor({
+                active: { id: 'two', data: { current: undefined } },
+                collisionRect: rect(x, x + 10),
+                droppableRects,
+                droppableContainers: [...droppableRects.keys()].map((id) => ({
+                    id,
+                    data: { current: undefined },
+                })),
+                pointerCoordinates: hasPointer ? { x, y: 15 } : null,
+            } as unknown as Parameters<typeof underPointerFor>[0]).map(
+                ({ id }) => id,
+            );
+        expect(collide(150)).toEqual(['one', 'a']);
+        expect(collide(250)).toEqual(['a']);
+        expect(collide(500)).toEqual(['bar-space-target']);
+        // Off the bar altogether (beside or below it) is outside every section too
+        expect(collide(800)).toEqual(['bar-space-target']);
+        // The keyboard has no pointer: the nearest centre, never the bar's
+        expect(collide(295, false)[0]).toBe('a');
     });
 });

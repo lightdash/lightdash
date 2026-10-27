@@ -1,15 +1,12 @@
 import {
-    closestCenter,
     DndContext,
     DragOverlay,
     KeyboardSensor,
     PointerSensor,
-    pointerWithin,
     useDraggable,
     useDroppable,
     useSensor,
     useSensors,
-    type CollisionDetection,
     type DragEndEvent,
     type DragStartEvent,
 } from '@dnd-kit/core';
@@ -76,6 +73,7 @@ import classes from './SectionedFilters.module.css';
 import { SectionMenu } from './SectionMenu';
 import { SectionNameInput } from './SectionNameInput';
 import {
+    BAR_SPACE_TARGET_ID,
     getDragAnnouncements,
     groupRulesBySection,
     isRuleInSection,
@@ -86,34 +84,14 @@ import {
     type SectionRule,
     isCollapsedByDefault,
     removeSectionFromRules,
+    SECTION_DRAG,
+    underPointerFor,
 } from './sections';
 import { SelectionBar } from './SelectionBar';
 import { removeFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { hasOpenLayer } from './useEditorDismiss';
 import { type PillPopoverState } from './ViewerSavedPills';
-
-// The target is what is under the pointer; the keyboard sensor has none,
-// so it falls back to the nearest centre
-const underPointer: CollisionDetection = (args) => {
-    const within = pointerWithin(args);
-    return within.length > 0 ? within : closestCenter(args);
-};
-
-// A dragged capsule lands only on another capsule
-const SECTION_DRAG = 'section';
-const underPointerFor: CollisionDetection = (args) =>
-    underPointer(
-        args.active.data?.current?.kind === SECTION_DRAG
-            ? {
-                  ...args,
-                  droppableContainers: args.droppableContainers.filter(
-                      (container) =>
-                          container.data?.current?.kind === SECTION_DRAG,
-                  ),
-              }
-            : args,
-    );
 
 const ADD_FILTER_SELECTOR =
     '[data-filter-actions] > button[data-dashboard-filter-control]';
@@ -438,6 +416,29 @@ const UnsectionTarget: FC<{ children: ReactNode }> = ({ children }) => {
     );
 };
 
+// The bar's space outside every capsule and pill also takes a pill out of
+// its section: a line after the bar's last item while one would leave
+const BarSpace: FC<{
+    isLeaving: (id: string) => boolean;
+    children: ReactNode;
+}> = ({ isLeaving, children }) => {
+    const { setNodeRef, isOver, active } = useDroppable({
+        id: BAR_SPACE_TARGET_ID,
+    });
+    return (
+        <Box
+            ref={setNodeRef}
+            className={classes.flow}
+            data-over={
+                (isOver && active !== null && isLeaving(String(active.id))) ||
+                undefined
+            }
+        >
+            {children}
+        </Box>
+    );
+};
+
 type Props = {
     activeTabUuid: string | undefined;
 };
@@ -450,7 +451,7 @@ type Props = {
 // ids whose state differs from their default; one saved popover is open across
 // every pass. In edit mode one drag context spans the passes: a pill dropped
 // on a pill takes its place and section, on a capsule joins that section
-// last, on the first button leaves its section
+// last, on the first button or the bar's empty space leaves its section
 export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
     const [openPopoverId, setOpenPopoverId] = useState<string>();
@@ -790,7 +791,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
             filterableFieldsByTileUuid,
         ) ?? null;
     const nameOf = (id: string) => {
-        if (id === UNSECTIONED_TARGET_ID)
+        if (id === UNSECTIONED_TARGET_ID || id === BAR_SPACE_TARGET_ID)
             return 'the space outside any section';
         const section = sections.find((s) => s.id === id);
         if (section)
@@ -840,6 +841,13 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
         clearSelection();
         focusAfter.current = [ADD_FILTER_SELECTOR];
     };
+    const isUnsectionTarget = (id: string) =>
+        id === UNSECTIONED_TARGET_ID || id === BAR_SPACE_TARGET_ID;
+    const isLeaving = (id: string) => {
+        if (selected.length > 1 && selected.includes(id)) return true;
+        const found = allRules.find(({ rule }) => rule.id === id);
+        return found !== undefined && sectionOfRule(found.rule) !== null;
+    };
     const isSelectionDragged =
         draggedId !== null &&
         selected.length > 1 &&
@@ -858,7 +866,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
             if (overId === activeId) return;
             const overRule = allRules.find(({ rule }) => rule.id === overId);
             moveSelected(
-                overId === UNSECTIONED_TARGET_ID
+                isUnsectionTarget(overId)
                     ? null
                     : overRule
                       ? sectionOfRule(overRule.rule)
@@ -871,12 +879,11 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
         const activeRule = allRules.find(({ rule }) => rule.id === activeId);
         if (!activeRule) return;
         const currentSectionId = sectionOfRule(activeRule.rule);
-        const target =
-            overId === UNSECTIONED_TARGET_ID
-                ? { sectionId: null }
-                : sections.some((s) => s.id === overId)
-                  ? { sectionId: overId }
-                  : { ruleId: overId };
+        const target = isUnsectionTarget(overId)
+            ? { sectionId: null }
+            : sections.some((s) => s.id === overId)
+              ? { sectionId: overId }
+              : { ruleId: overId };
         if ('sectionId' in target && target.sectionId === currentSectionId)
             return;
         // The edited filter moves through the editor, so Cancel puts it back
@@ -911,7 +918,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                 onDragEnd={handleDragEnd}
                 onDragCancel={() => setDraggedId(null)}
             >
-                <Box className={classes.flow}>
+                <BarSpace isLeaving={isLeaving}>
                     <UnsectionTarget>
                         <AddControl />
                     </UnsectionTarget>
@@ -941,7 +948,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                     {newSection}
                     {capsules}
                     {pills}
-                </Box>
+                </BarSpace>
                 {/* On the body, so the bar's overflow doesn't clip the copy */}
                 {createPortal(
                     <DragOverlay>

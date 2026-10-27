@@ -1249,24 +1249,39 @@ the language map, as tab names are.
   shipped per-group contexts and `DraggableItem`. Sensors are
   `PointerSensor` at 5px and `KeyboardSensor` with
   `sortableKeyboardCoordinates`; the target is what is under the pointer
-  (`pointerWithin`, falling back to `closestCenter` for the keyboard). The
+  (`underPointerFor` in `sections.ts`: `pointerWithin`, falling back to
+  `closestCenter` for the keyboard). The
   targets are every saved pill, each capsule (`useDroppable` with the
-  section id on the outline, folded or not; it does not unfold) and the
+  section id on the outline, folded or not; it does not unfold), the
   first button (`UnsectionTarget`, a `useDroppable` with
-  `UNSECTIONED_TARGET_ID` around `AddControl`). Nothing changes size during
+  `UNSECTIONED_TARGET_ID` around `AddControl`) and the bar's empty space
+  (`BarSpace`, a `useDroppable` with `BAR_SPACE_TARGET_ID` on `.flow`
+  itself, every wrapped row's end and the gaps between capsules included).
+  The space holds everything else, so it counts only where no other target
+  is under the pointer; a pointer on no target at all (beside, above or
+  below the bar, over the tiles) resolves to it too (`underPointer`), so
+  "outside a section" is anywhere outside one. It is never in the
+  keyboard's `closestCenter`, which reaches no section through the first
+  button. Nothing changes size during
   a drag. A capsule under a pill from elsewhere carries `data-over`, which
   draws the same 2px `blue-4` line as `.dropLine` after its last pill, or
   after its count when folded or empty, as a `::before` on `.actions` in the
   gap before the "+" and "...": no ring, no fill, no slot. The
   `DragOverlay` is portalled to the body so the bar never clips the copy. The first button under a sectioned pill carries `data-over` with
   a hover fill and inset `blue-5` ring, since nothing there can
-  carry a line. A pill leaving a capsule grows nothing: the line beside the
-  unsectioned pill under the pointer, or the first button's ring, is the
-  feedback. The drop goes through
-  `moveRuleToSection`: on a pill, that pill's section and place; on a
-  capsule, that section after its last member of the same kind; on the first
-  button, no section. A drop on its own capsule, on the first button while
-  unsectioned, on itself or nowhere writes nothing; otherwise
+  carry a line. The empty space under a pill that would leave its section
+  (a sectioned pill, or a carried selection) carries `data-over` on `.flow`,
+  which draws the same line as an `::after` on the bar's last item (the last
+  unsectioned pill, else the last capsule). A pill leaving a capsule grows
+  nothing: the line beside the unsectioned pill under the pointer, the line
+  at the bar's end, or the first button's ring, is the feedback. The drop
+  goes through `moveRuleToSection`: on a pill, that pill's section and
+  place; on a capsule, that section after its last member of the same kind;
+  on the first button or the empty space, no section, after the last
+  unsectioned pill of its kind, as a section is joined (a dimension lands
+  before the unsectioned metrics, so the line at the bar's end is then one
+  place late). A drop on its own capsule, on the first button or the empty
+  space while unsectioned, on itself or nowhere writes nothing; otherwise
   `setDashboardFilters` and `setHaveFiltersChanged(true)`. While a filter is
   edited, a drag of the edited pill goes through `moveEditedFilter` instead
   (Cancel puts it back); any other pill is written as above and Cancel keeps
@@ -1318,7 +1333,7 @@ the language map, as tab names are.
   Remove is one write over `removeFilterRule`. Every finished action clears
   the selection. Dragging a picked pill while more than one is picked
   carries the selection: the overlay reads "{n} filters" and a drop on a
-  capsule, a pill (its section) or the first button moves all of them
+  capsule, a pill (its section), the first button or the empty space moves all of them
   there through the same helper; dragging an unpicked pill moves it alone
   and keeps the selection. The strings are editor-only and literal.
 
