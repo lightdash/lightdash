@@ -1,3 +1,10 @@
+## [3.65.2](https://github.com/lightdash/lightdash/compare/3.65.1...3.65.2) (2026-10-27)
+
+
+### Bug Fixes
+
+* **ai:** offer agent and MCP content tools by space access, not project role ([#31587](https://github.com/lightdash/lightdash/issues/31587)) ([b879a21](https://github.com/lightdash/lightdash/commit/b879a210914baf69d3415b4a7220377f340aba2e))
+
 ## [3.65.1](https://github.com/lightdash/lightdash/compare/3.65.0...3.65.1) (2026-10-27)
 
 
