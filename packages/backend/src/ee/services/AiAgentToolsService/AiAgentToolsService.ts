@@ -8,6 +8,7 @@ import {
     assertUnreachable,
     CatalogFilter,
     CatalogType,
+    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     ConflictError,
     ContentType,
     DATA_APP_VIZ_TEMPLATE,
@@ -4734,10 +4735,11 @@ export class AiAgentToolsService extends BaseService {
                 const terminalQuery = queries.find(
                     (query) => query.nodeId === terminalNodeId,
                 );
+                // Callers read only a preview; rowCount comes from the stored total.
                 const pageSize = Math.min(
                     terminalQuery?.limit ??
                         this.lightdashConfig.ai.copilot.maxQueryLimit,
-                    this.lightdashConfig.ai.copilot.maxQueryLimit,
+                    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
                 );
 
                 // Polling only the terminal node is sufficient: its execution
@@ -4861,7 +4863,7 @@ export class AiAgentToolsService extends BaseService {
                         queryUuid: terminalSubmission.queryUuid,
                         columns: queryResults.columns,
                         rows,
-                        rowCount: rows.length,
+                        rowCount: queryResults.totalResults,
                     },
                 };
             }

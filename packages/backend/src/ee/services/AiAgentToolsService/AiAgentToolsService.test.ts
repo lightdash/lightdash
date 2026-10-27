@@ -8,6 +8,7 @@ import {
     AppVizBuildContext,
     CatalogType,
     ChartType,
+    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     ContentType,
     DATA_APP_VIZ_TEMPLATE,
     DimensionType,
@@ -53,6 +54,7 @@ import {
     withAgentActionScope,
 } from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { validatePagination } from '../../../services/ProjectService/resultsPagination';
 import { PromoteService } from '../../../services/PromoteService/PromoteService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { getDescribeWarehouseTable } from '../ai/tools/describeWarehouseTable';
@@ -158,6 +160,7 @@ const makeService = ({
     appModel = {},
     savedChartModel = {},
     dashboardModel = {},
+    maxQueryLimit = 500,
 }: {
     agentPermissionService?: Pick<
         import('../../../services/AgentPermissionService/AgentPermissionService').AgentPermissionService,
@@ -195,6 +198,7 @@ const makeService = ({
     appModel?: Record<string, unknown>;
     savedChartModel?: Record<string, unknown>;
     dashboardModel?: Record<string, unknown>;
+    maxQueryLimit?: number;
 } = {}) =>
     new AiAgentToolsService({
         agentPermissionService,
@@ -210,7 +214,7 @@ const makeService = ({
         },
         lightdashConfig: {
             siteUrl: 'https://lightdash.example',
-            ai: { copilot: { maxQueryLimit: 500 } },
+            ai: { copilot: { maxQueryLimit } },
         },
         projectModel: {
             findExploresFromCache: vi.fn(
@@ -3611,6 +3615,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
     const readyResults = {
         status: QueryHistoryStatus.READY,
         rows: [{ orders_total: { value: { raw: 42, formatted: '42' } } }],
+        totalResults: 1,
         columns: {
             orders_total: {
                 reference: 'orders_total',
@@ -3962,6 +3967,52 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 terminalNodeId: 'joined',
             }),
         ).rejects.toThrow(/"orders" \(relation does not exist\)/);
+    });
+
+    it('reads a preview page and takes the row count from the stored total when the node limit exceeds the results page cap', async () => {
+        const totalRows = 3000;
+        const getAsyncQueryResults = vi.fn(
+            async ({ page, pageSize }: { page: number; pageSize: number }) => {
+                validatePagination({
+                    page,
+                    pageSize,
+                    queryMaxLimit: 2500,
+                    totalRowCount: totalRows,
+                });
+                return {
+                    ...readyResults,
+                    rows: Array.from({ length: pageSize }, (_, i) => ({
+                        orders_total: { value: { raw: i } },
+                    })),
+                    totalResults: totalRows,
+                };
+            },
+        );
+        const service = makeService({
+            maxQueryLimit: 5000,
+            querySourceService: {
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
+            },
+            asyncQueryService: { getAsyncQueryResults },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries.map((query) =>
+                    query.nodeId === 'joined'
+                        ? { ...query, limit: totalRows }
+                        : query,
+                ),
+                terminalNodeId: 'joined',
+            });
+
+        expect(result.terminal.rowCount).toBe(totalRows);
+        expect(result.terminal.rows).toHaveLength(
+            COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+        );
     });
 });
 
