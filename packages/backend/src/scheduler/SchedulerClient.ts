@@ -1788,6 +1788,46 @@ export class SchedulerClient {
         );
     }
 
+    async getUsageHistoryBackfillJob(
+        organizationUuid: string,
+    ): Promise<{ running: boolean; failed: boolean }> {
+        const graphileClient = await this.graphileUtils;
+        const result = await graphileClient.withPgClient((pgClient) =>
+            pgClient.query(
+                'SELECT locked_at, attempts, max_attempts, last_error FROM graphile_worker.jobs WHERE key = $1',
+                [`usage-query-history:${organizationUuid}`],
+            ),
+        );
+        const job = result.rows[0];
+        return {
+            running:
+                !!job &&
+                (job.locked_at !== null || job.attempts < job.max_attempts),
+            failed: !!job?.last_error,
+        };
+    }
+
+    async scheduleUsageHistoryBackfill(payload: TraceTaskBase): Promise<void> {
+        if (
+            (await this.getUsageHistoryBackfillJob(payload.organizationUuid))
+                .running
+        )
+            return;
+        const graphileClient = await this.graphileUtils;
+        // Serialize backfills on one low-priority worker without locking nightly compaction.
+        await graphileClient.addJob(
+            SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY,
+            payload,
+            {
+                queueName: 'usage-history-backfill',
+                jobKey: `usage-query-history:${payload.organizationUuid}`,
+                jobKeyMode: 'replace',
+                maxAttempts: 1,
+                priority: JobPriority.LOW,
+            },
+        );
+    }
+
     // --- Managed Agent Heartbeat ---
 
     async scheduleManagedAgentHeartbeat(

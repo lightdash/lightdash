@@ -15,3 +15,9 @@ export type EnsureAnalyticsProjectResult = {
     url: string;
     created: boolean;
 };
+
+export type AnalyticsHistoryBackfillStatus = {
+    running: boolean;
+    completed: boolean;
+    error?: string;
+};

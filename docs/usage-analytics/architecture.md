@@ -14,6 +14,9 @@ For current role requirements, project-list visibility and support guidance, see
 [managed analytics project access](access.md). A standard project type does not
 remove the analytics-specific organization-management check.
 
+For the Settings action that recovers retained database queries, see
+[retained query history](history-backfill.md).
+
 ## Current implementation versus rollout intent
 
 | Area                   | Implemented                                                                               | Still required for production                                      |

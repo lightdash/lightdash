@@ -171,7 +171,19 @@ export type DuckdbParquetSource = {
     /** Trusted provider bytes for exact manifest URLs; staged privately per query. */
     fileBuffers?: ReadonlyMap<string, Uint8Array>;
     scope: string;
-    tables: { name: string; urls: string[]; columns?: DuckdbParquetColumns }[];
+    tables: {
+        name: string;
+        urls: string[];
+        columns?: DuckdbParquetColumns;
+        /** Disable inferred path columns for tables with mixed partition layouts. */
+        hivePartitioning?: boolean;
+        /** Suppress historical fallback rows when a captured row has the same identity. */
+        fallbackRows?: {
+            keyColumns: string[];
+            markerColumn: string;
+            markerValue: string;
+        };
+    }[];
     /** Typed, empty lookups for snapshots which have not been published yet. */
     emptyTables?: {
         name: string;
@@ -1313,8 +1325,39 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             validateColumns(columns);
             names.add(name);
         });
-        source.tables.forEach(({ name, urls, columns }) => {
+        source.tables.forEach((table) => {
+            const { name, urls, columns, fallbackRows, hivePartitioning } =
+                table;
             if (columns) validateColumns(columns);
+            if (
+                hivePartitioning !== undefined &&
+                typeof hivePartitioning !== 'boolean'
+            ) {
+                throw new ParameterError(
+                    'Invalid Parquet Hive partitioning configuration',
+                );
+            }
+            if (fallbackRows) {
+                const { keyColumns, markerColumn, markerValue } = fallbackRows;
+                const columnNames = new Set(
+                    columns?.map((column) => column.name),
+                );
+                if (
+                    !columns ||
+                    keyColumns.length === 0 ||
+                    new Set(keyColumns).size !== keyColumns.length ||
+                    [...keyColumns, markerColumn].some(
+                        (column) =>
+                            !/^[a-z][a-z0-9_]*$/.test(column) ||
+                            !columnNames.has(column),
+                    ) ||
+                    typeof markerValue !== 'string'
+                ) {
+                    throw new ParameterError(
+                        'Invalid Parquet fallback row configuration',
+                    );
+                }
+            }
             if (
                 !/^[a-z][a-z0-9_]*$/.test(name) ||
                 names.has(name) ||
@@ -1443,16 +1486,41 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             );
         }
         // eslint-disable-next-line no-restricted-syntax
-        for (const { name, urls, columns } of tables) {
+        for (const {
+            name,
+            urls,
+            columns,
+            fallbackRows,
+            hivePartitioning,
+        } of tables) {
             // Older retained files may all predate an additive column. A typed
             // zero-row branch supplies its schema without materializing rows.
             const missingColumns = columns
                 ? ` UNION ALL BY NAME SELECT ${columns.map((column) => `NULL::${column.type} AS "${column.name}"`).join(', ')} WHERE false`
                 : '';
+            const sourceQuery = `SELECT * FROM read_parquet([${urls.map(literal).join(',')}], hive_partitioning = ${hivePartitioning ?? true}, union_by_name = true)${missingColumns}`;
+            const capturedRow = fallbackRows
+                ? `"${fallbackRows.markerColumn}" IS DISTINCT FROM ${literal(fallbackRows.markerValue)}`
+                : undefined;
+            // Keep every captured row, including its existing duplicate-delivery
+            // semantics. Only historical fallback rows yield to captured identities,
+            // regardless of completion date or nullable identity columns.
+            // Filter fallback rows before matching identities: a window over all
+            // captured events exceeds the query memory budget on larger histories.
+            const viewQuery = fallbackRows
+                ? `WITH parquet_source AS NOT MATERIALIZED (${sourceQuery})
+                   SELECT * FROM parquet_source WHERE ${capturedRow}
+                   UNION ALL
+                   SELECT history.* FROM parquet_source AS history
+                   WHERE NOT (history.${capturedRow})
+                   AND NOT EXISTS (
+                       SELECT 1 FROM parquet_source AS captured
+                       WHERE captured.${capturedRow}
+                       AND ${fallbackRows.keyColumns.map((column) => `captured."${column}" IS NOT DISTINCT FROM history."${column}"`).join(' AND ')}
+                   )`
+                : sourceQuery;
             // eslint-disable-next-line no-await-in-loop
-            await db.run(
-                `CREATE VIEW "${name}" AS SELECT * FROM read_parquet([${urls.map(literal).join(',')}], hive_partitioning = true, union_by_name = true)${missingColumns};`,
-            );
+            await db.run(`CREATE VIEW "${name}" AS ${viewQuery};`);
         }
     }
 

@@ -1,4 +1,5 @@
 import {
+    AnalyticsHistoryBackfillStatus,
     AnalyticsProjectStatus,
     ConflictError,
     ContentType,
@@ -11,16 +12,19 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import memoize from 'lodash/memoize';
+import { UsageHistoryBackfill } from '../../analytics/eventStream/UsageHistoryBackfill';
 import {
     analyticsContentAsCode,
     analyticsDefaultSpace,
 } from '../../analytics/systemExplores/sampleContent';
+import type { LightdashConfig } from '../../config/parseConfig';
 import { type ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type SavedChartModel } from '../../models/SavedChartModel';
 import { type SpaceModel } from '../../models/SpaceModel';
 import { UserModel } from '../../models/UserModel';
+import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { type CoderService } from '../CoderService/CoderService';
 import {
@@ -30,6 +34,11 @@ import {
 import { ProjectService } from '../ProjectService/ProjectService';
 
 type Dependencies = {
+    lightdashConfig: Pick<LightdashConfig, 'usageEvents'>;
+    schedulerClient: Pick<
+        SchedulerClient,
+        'getUsageHistoryBackfillJob' | 'scheduleUsageHistoryBackfill'
+    >;
     coderService: Pick<CoderService, 'upsertChart' | 'upsertDashboard'>;
     contentVerificationModel: Pick<
         ContentVerificationModel,
@@ -82,6 +91,81 @@ export class AnalyticsProjectService extends BaseService {
             user,
         );
         return user.organizationUuid;
+    }
+
+    private async assertBackfill(user: SessionUser): Promise<string> {
+        const org = await this.authorize(user);
+        const projects =
+            await this.dependencies.projectModel.getAllByOrganizationUuid(org);
+        if (
+            !projects.some(
+                (project) => project.provisioningSource === 'analytics',
+            )
+        )
+            throw new NotFoundError('Analytics project not found');
+        if (
+            !this.dependencies.lightdashConfig.usageEvents.enabled ||
+            !this.dependencies.lightdashConfig.usageEvents.s3
+        )
+            throw new ConflictError('Usage history storage is not configured');
+        return org;
+    }
+
+    async getBackfillStatus(
+        user: SessionUser,
+    ): Promise<AnalyticsHistoryBackfillStatus> {
+        const org = await this.assertBackfill(user);
+        const job =
+            await this.dependencies.schedulerClient.getUsageHistoryBackfillJob(
+                org,
+            );
+        // Settings never exports DB history, lists objects or opens DuckDB.
+        const completed =
+            !job.running &&
+            !job.failed &&
+            (await new UsageHistoryBackfill(
+                this.dependencies.lightdashConfig.usageEvents.s3!,
+            ).isComplete(org));
+        return {
+            running: job.running,
+            completed,
+            ...(job.failed
+                ? {
+                      error: 'The previous backfill failed. You can retry safely.',
+                  }
+                : {}),
+        };
+    }
+
+    async backfill(user: SessionUser): Promise<void> {
+        const org = await this.assertBackfill(user);
+        // Add newly available history models without replacing customer content.
+        await this.dependencies.projectModel.runInAnalyticsProvisioningLock(
+            org,
+            async () => {
+                const projects =
+                    await this.dependencies.projectModel.getAllByOrganizationUuid(
+                        org,
+                    );
+                const project = projects.find(
+                    (candidate) => candidate.provisioningSource === 'analytics',
+                );
+                if (!project)
+                    throw new NotFoundError('Analytics project not found');
+                await this.dependencies.projectModel.saveExploresToCache(
+                    project.projectUuid,
+                    createAnalyticsExplores(),
+                    true,
+                );
+            },
+        );
+        // Eligibility is rechecked in the worker. A direct rerun is always safe.
+        await this.dependencies.schedulerClient.scheduleUsageHistoryBackfill({
+            organizationUuid: org,
+            userUuid: user.userUuid,
+            projectUuid: '',
+            schedulerUuid: undefined,
+        });
     }
 
     async getStatus(user: SessionUser): Promise<AnalyticsProjectStatus> {
@@ -149,6 +233,32 @@ export class AnalyticsProjectService extends BaseService {
         const result =
             await this.dependencies.projectService.ensureAnalyticsProject(user);
         await this.installSampleContent(user);
+        if (
+            result.created &&
+            isUserWithOrg(user) &&
+            this.dependencies.lightdashConfig.usageEvents.enabled &&
+            this.dependencies.lightdashConfig.usageEvents.s3
+        ) {
+            try {
+                // Independent of the initial processing job queued by provisioning.
+                await this.dependencies.schedulerClient.scheduleUsageHistoryBackfill(
+                    {
+                        organizationUuid: user.organizationUuid,
+                        projectUuid: result.projectUuid,
+                        userUuid: user.userUuid,
+                    },
+                );
+            } catch {
+                // Creation succeeded. Settings still offers a retry without a completion marker.
+                this.logger.error(
+                    'Failed to enqueue initial analytics history backfill',
+                    {
+                        organizationUuid: user.organizationUuid,
+                        projectUuid: result.projectUuid,
+                    },
+                );
+            }
+        }
         return result;
     }
 

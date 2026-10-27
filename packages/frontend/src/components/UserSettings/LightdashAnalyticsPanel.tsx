@@ -26,6 +26,7 @@ import MantineModal from '../common/MantineModal';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { SettingsPage } from '../common/Settings/SettingsPage';
 import AnalyticsDashboardCard from './AnalyticsDashboardCard';
+import AnalyticsHistoryBackfill from './AnalyticsHistoryBackfill';
 
 const LightdashAnalyticsPanel = ({
     activeProjectUuid,
@@ -174,6 +175,9 @@ const LightdashAnalyticsPanel = ({
                     </Stack>
                 )}
             </SettingsCard>
+            {status.isSuccess && analyticsProject && (
+                <AnalyticsHistoryBackfill />
+            )}
             {status.isSuccess && analyticsProject && (
                 <SettingsCard>
                     <Stack gap="md">

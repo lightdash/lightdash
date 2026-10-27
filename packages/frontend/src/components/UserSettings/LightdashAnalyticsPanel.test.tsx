@@ -1,4 +1,7 @@
-import { type AnalyticsProjectStatus } from '@lightdash/common';
+import {
+    type AnalyticsHistoryBackfillStatus,
+    type AnalyticsProjectStatus,
+} from '@lightdash/common';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
@@ -22,6 +25,22 @@ const project: NonNullable<AnalyticsProjectStatus['project']> = {
     hasContentUpdates: false,
 };
 
+const coveredHistory: AnalyticsHistoryBackfillStatus = {
+    running: false,
+    completed: true,
+};
+
+const mockPanelApi = (
+    implementation: (
+        request: Parameters<typeof sharedLightdashApi>[0],
+    ) => Promise<unknown>,
+) =>
+    mockedLightdashApi.mockImplementation(async (request) =>
+        request.url === '/org/analytics-project/backfill'
+            ? coveredHistory
+            : implementation(request),
+    );
+
 const renderPanel = () =>
     renderWithProviders(
         <MemoryRouter initialEntries={['/settings']}>
@@ -38,7 +57,7 @@ const renderPanel = () =>
 describe('LightdashAnalyticsPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockedLightdashApi.mockImplementation(async ({ url }) =>
+        mockPanelApi(async ({ url }) =>
             url.includes('/dashboards?') ? [] : { project },
         );
     });
@@ -52,7 +71,7 @@ describe('LightdashAnalyticsPanel', () => {
         expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'POST' }),
         );
-        mockedLightdashApi.mockImplementation(async ({ method, url }) =>
+        mockPanelApi(async ({ method, url }) =>
             url.includes('/dashboards?')
                 ? [
                       {
@@ -127,7 +146,7 @@ describe('LightdashAnalyticsPanel', () => {
     });
 
     it('loads dashboard shortcuts without a separate Refresh action', async () => {
-        mockedLightdashApi.mockImplementation(async ({ url }) =>
+        mockPanelApi(async ({ url }) =>
             url.includes('/dashboards?')
                 ? [
                       {
@@ -169,7 +188,7 @@ describe('LightdashAnalyticsPanel', () => {
     });
 
     it('syncs managed content without deleting or recreating the project', async () => {
-        mockedLightdashApi.mockImplementation(async ({ url }) =>
+        mockPanelApi(async ({ url }) =>
             url.includes('/dashboards?')
                 ? []
                 : { project: { ...project, hasContentUpdates: true } },
@@ -204,7 +223,7 @@ describe('LightdashAnalyticsPanel', () => {
 
     it('clears the update indicator after syncing and keeps manual sync available', async () => {
         let hasContentUpdates = true;
-        mockedLightdashApi.mockImplementation(async ({ url, method }) => {
+        mockPanelApi(async ({ url, method }) => {
             if (url.includes('/dashboards?')) return [];
             if (method === 'POST') {
                 hasContentUpdates = false;
@@ -266,7 +285,7 @@ describe('LightdashAnalyticsPanel', () => {
     it('keeps sync available when update status is unknown', async () => {
         const legacyProject = { ...project };
         Reflect.deleteProperty(legacyProject, 'hasContentUpdates');
-        mockedLightdashApi.mockImplementation(async ({ url }) =>
+        mockPanelApi(async ({ url }) =>
             url.includes('/dashboards?') ? [] : { project: legacyProject },
         );
         renderPanel();

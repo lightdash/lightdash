@@ -9,6 +9,10 @@ import {
     usageDimensionTable,
 } from '../../../analytics/eventStream/usageDimensions';
 import {
+    usageHistoryKey,
+    usageHistorySources,
+} from '../../../analytics/eventStream/usageHistorySources';
+import {
     analyticsStreams,
     userActivityColumns,
 } from '../../../analytics/eventStream/userActivity';
@@ -82,6 +86,7 @@ export const createS3AnalyticsSourceResolver = ({
         const fileBuffers = new Map<string, Buffer>();
         let bufferedBytes = 0;
         let hasEvents = false;
+        const historySources = new Set<string>();
         try {
             let continuationToken: string | undefined;
             let pages = 0;
@@ -116,6 +121,12 @@ export const createS3AnalyticsSourceResolver = ({
                         /^stream=(query_events|ai_usage|data_app_events|export_events|agent_steps|mcp_tool_calls|content_views|agent_request_events)\/dt=(\d{4}-\d{2}-\d{2})\/[a-zA-Z0-9_-]+\.parquet$/.exec(
                             key.slice(prefix.length),
                         );
+                    const history = usageHistorySources.find(
+                        (source) =>
+                            key ===
+                            usageHistoryKey(organizationUuid, source.name),
+                    );
+                    if (history) historySources.add(history.name);
                     const userActivity =
                         /^model=user_activity\/stream=(query_events|ai_usage|data_app_events|export_events|agent_steps|mcp_tool_calls|content_views)\/dt=(\d{4}-\d{2}-\d{2})\/activity\.parquet$/.test(
                             key.slice(prefix.length),
@@ -124,14 +135,17 @@ export const createS3AnalyticsSourceResolver = ({
                         (name) =>
                             key === usageDimensionKey(organizationUuid, name),
                     );
-                    const tableName =
-                        (userActivity ? 'user_activity' : match?.[1]) ??
-                        (dimension ? usageDimensionTable(dimension) : null);
+                    let tableName = dimension
+                        ? usageDimensionTable(dimension)
+                        : (match?.[1] ?? null);
+                    if (userActivity) tableName = 'user_activity';
+                    if (history) tableName = history.name;
                     // Expose all retained partitions. Date filters belong to
                     // the Explore query, not a fixed source-level window.
                     if (tableName) {
                         if (
                             match ||
+                            history ||
                             userActivity ||
                             dimension === 'content' ||
                             dimension === 'people'
@@ -222,13 +236,21 @@ export const createS3AnalyticsSourceResolver = ({
             })),
             ...analyticsStreams.map((name) => ({
                 name,
-                columns: compactedStreamSchemas[name],
+                columns: historySources.has(name)
+                    ? (usageHistorySources.find(
+                          (source) => source.name === name,
+                      )?.columns ?? compactedStreamSchemas[name])
+                    : compactedStreamSchemas[name],
             })),
             {
                 name: 'agent_request_events',
                 columns: compactedStreamSchemas.agent_request_events,
             },
             { name: 'user_activity', columns: userActivityColumns },
+            {
+                name: 'historical_activity',
+                columns: usageHistorySources[2].columns,
+            },
         ];
         return {
             scope,
@@ -240,6 +262,14 @@ export const createS3AnalyticsSourceResolver = ({
                 urls: urls.sort(),
                 columns: schemas.find((schema) => schema.name === name)
                     ?.columns,
+                ...(historySources.has(name)
+                    ? {
+                          hivePartitioning: false,
+                          fallbackRows: usageHistorySources.find(
+                              (source) => source.name === name,
+                          )?.fallbackRows,
+                      }
+                    : {}),
             })),
         };
     };

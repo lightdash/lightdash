@@ -388,6 +388,9 @@ const getTagsForTask: {
     }),
     [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: () => ({}),
     [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: () => ({}),
+    [SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+    }),
     [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: () => ({}),
     [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
