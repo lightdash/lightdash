@@ -97,7 +97,7 @@ it('keeps the create entry point for a manager on an empty feed', () => {
     mockUseAnnouncements.mockReturnValue(feed([]));
     renderView();
     expect(screen.getByText('New announcement')).toBeInTheDocument();
-    expect(screen.getByText(/share your first update/)).toBeInTheDocument();
+    expect(screen.getByText('No announcements yet')).toBeInTheDocument();
 });
 
 it('shows admin actions and drafts for a manager', () => {

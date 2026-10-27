@@ -387,6 +387,27 @@ const FeedSkeleton: FC = () => (
     </Stack>
 );
 
+const EmptyFeed: FC<{ onCreate: () => void }> = ({ onCreate }) => (
+    <div className={classes.emptyFeed}>
+        <span className={classes.emptyFeedIcon}>
+            <MantineIcon icon={IconSpeakerphone} size={18} />
+        </span>
+        <div className={classes.emptyFeedTitle}>No announcements yet</div>
+        <div className={classes.emptyFeedText}>
+            Share news with everyone who opens this homepage. Viewers won't see
+            this block until you post.
+        </div>
+        <Button
+            size="xs"
+            mt={6}
+            leftSection={<MantineIcon icon={IconPlus} />}
+            onClick={onCreate}
+        >
+            New announcement
+        </Button>
+    </div>
+);
+
 const FeedError: FC = () => (
     <div className={classes.feedError}>
         Couldn’t load announcements. Try refreshing the page.
@@ -556,7 +577,7 @@ export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
                 icon={IconSpeakerphone}
                 title={block.config.title}
                 actions={
-                    canManage ? (
+                    canManage && announcements.length > 0 ? (
                         <Button
                             variant="subtle"
                             color="ldGray.7"
@@ -572,10 +593,7 @@ export const AnnouncementsBlockView: FC<BlockComponentProps> = ({
                 }
             />
             {announcements.length === 0 ? (
-                <div className={classes.emptyHint}>
-                    No announcements yet — share your first update. Viewers
-                    don’t see this block while it’s empty.
-                </div>
+                <EmptyFeed onCreate={() => setCreating(true)} />
             ) : (
                 <AnnouncementFeed
                     projectUuid={projectUuid}
@@ -966,46 +984,53 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
 
     return (
         <Stack gap="sm">
-            <BlockHeader icon={IconSpeakerphone} title={block.config.title} />
-            <Switch
-                size="xs"
-                label="Collapse all but the first announcement"
-                checked={collapseAfterFirst}
-                onChange={(e) =>
-                    onChange({
-                        ...block,
-                        config: {
-                            ...block.config,
-                            collapseAfterFirst: e.currentTarget.checked,
-                        },
-                    })
+            <BlockHeader
+                icon={IconSpeakerphone}
+                title={block.config.title}
+                actions={
+                    announcements.length > 0 ? (
+                        <Button
+                            variant="subtle"
+                            color="ldGray.7"
+                            size="compact-xs"
+                            leftSection={
+                                <MantineIcon icon={IconPlus} size="sm" />
+                            }
+                            onClick={() => setCreating(true)}
+                        >
+                            New announcement
+                        </Button>
+                    ) : undefined
                 }
             />
-            <Button
-                variant="default"
-                size="xs"
-                leftSection={<MantineIcon icon={IconPlus} />}
-                onClick={() => setCreating(true)}
-                className={classes.newAnnouncementButton}
-            >
-                New announcement
-            </Button>
             {isLoading ? (
                 <FeedSkeleton />
             ) : isError ? (
                 <FeedError />
             ) : announcements.length === 0 ? (
-                <div className={classes.emptyHint}>
-                    No announcements yet — share your first update. The block
-                    stays hidden on the homepage until there is something to
-                    show.
-                </div>
+                <EmptyFeed onCreate={() => setCreating(true)} />
             ) : (
                 <AnnouncementFeed
                     projectUuid={projectUuid}
                     announcements={announcements}
                     collapseAfterFirst={collapseAfterFirst}
                     renderActions={itemActions}
+                />
+            )}
+            {announcements.length > 1 && (
+                <Switch
+                    size="xs"
+                    label="Collapse older announcements"
+                    checked={collapseAfterFirst}
+                    onChange={(e) =>
+                        onChange({
+                            ...block,
+                            config: {
+                                ...block.config,
+                                collapseAfterFirst: e.currentTarget.checked,
+                            },
+                        })
+                    }
                 />
             )}
             {(creating || editing !== null) && (
