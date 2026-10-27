@@ -17,6 +17,19 @@ export type AppSdkAllowedRoute = {
 const SCHEDULE_DOWNLOAD_PATTERN =
     /^\/api\/v2\/projects\/[^/]+\/query\/[^/]+\/schedule-download$/;
 
+const METRIC_QUERY_PATTERN =
+    /^\/api\/v2\/projects\/[^/]+\/query\/metric-query$/;
+
+/**
+ * The route whose request body carries a full metric query — the preview
+ * proxy taps it to compile and show the SQL behind each query (--show-sql).
+ */
+export const isAppSdkMetricQueryRoute = (
+    method: string,
+    path: string,
+): boolean =>
+    method.toUpperCase() === 'POST' && METRIC_QUERY_PATTERN.test(path);
+
 /**
  * The one allowlisted route whose response triggers a follow-up fetch the app
  * performs OUTSIDE the bridge: the SDK anchor-clicks the returned fileUrl from
@@ -35,7 +48,7 @@ export const APP_SDK_ALLOWED_ROUTES: AppSdkAllowedRoute[] = [
     // Async metric query execution
     {
         method: 'POST',
-        pattern: /^\/api\/v2\/projects\/[^/]+\/query\/metric-query$/,
+        pattern: METRIC_QUERY_PATTERN,
     },
     // Run a saved chart live by UUID (linked charts)
     {

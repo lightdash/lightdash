@@ -1466,6 +1466,11 @@ appsProgram
         '--port <port>',
         'port for the app dev server (default: Vite picks one, usually 5173)',
     )
+    .option(
+        '--show-sql',
+        'print the compiled SQL for each metric query the app runs',
+        false,
+    )
     .option('--verbose', undefined, false)
     .action(appsPreviewHandler);
 appsProgram
