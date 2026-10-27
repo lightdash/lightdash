@@ -65,7 +65,6 @@ const handoff = (
     reasonCode,
 });
 
-/** JEV answered the turn itself, with an edit or its own question, so the agent model never ran. */
 export const describeJevDecision = (
     decision: AiAgentJevDecision,
 ): JevDecisionSummary => {

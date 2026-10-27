@@ -667,7 +667,7 @@ export const LiveActivityCard: FC<Props> = ({
     );
     const olderGroups = latest ? toolGroups.slice(0, -1) : toolGroups;
     const olderCount = latest ? totalCalls - latest.calls.length : totalCalls;
-    const hasHistory = olderCount > 0 || hasReasoning;
+    const hasExpandableBody = olderCount > 0 || hasReasoning;
     // Auto-expand while approval is pending so the user sees it immediately.
     const expanded =
         latestAwaitingApproval || (userExpanded ?? defaultExpanded);
@@ -676,7 +676,7 @@ export const LiveActivityCard: FC<Props> = ({
         latest?.toolName === 'runSql' ||
         (latest !== null && isComposerQueryToolName(latest.toolName)) ||
         latestAwaitingApproval;
-    const showBody = expanded && (hasHistory || latestNeedsExpandedBody);
+    const showBody = expanded && (hasExpandableBody || latestNeedsExpandedBody);
 
     return (
         <Box
@@ -689,7 +689,7 @@ export const LiveActivityCard: FC<Props> = ({
                 onClick={() => setUserExpanded(!expanded)}
                 aria-expanded={expanded}
                 className={styles.header}
-                disabled={!hasHistory && !latestNeedsExpandedBody}
+                disabled={!hasExpandableBody && !latestNeedsExpandedBody}
             >
                 <Group gap={6} align="center" wrap="nowrap">
                     <Box className={styles.latestSlot}>
@@ -737,7 +737,7 @@ export const LiveActivityCard: FC<Props> = ({
                             +{olderCount}
                         </Text>
                     )}
-                    {(hasHistory || latestNeedsExpandedBody) && (
+                    {(hasExpandableBody || latestNeedsExpandedBody) && (
                         <MantineIcon
                             icon={IconChevronRight}
                             size={11}
