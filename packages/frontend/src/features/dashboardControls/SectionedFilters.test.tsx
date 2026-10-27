@@ -1137,10 +1137,7 @@ describe('SectionedFilters', () => {
                     }),
                 );
             };
-            // No standalone button and no caret: a selection starts it
-            expect(
-                screen.queryByRole('button', { name: 'Add section' }),
-            ).not.toBeInTheDocument();
+            // No caret on "Add filter"
             expect(
                 screen.queryByRole('button', { name: 'More ways to add' }),
             ).not.toBeInTheDocument();
@@ -1172,6 +1169,119 @@ describe('SectionedFilters', () => {
                     setDashboardFilters.mock.calls[0][0] as DashboardFilters
                 ).dimensions.map((r) => [r.id, r.sectionId]),
             ).toEqual([['one', added?.id]]);
+        });
+    });
+
+    describe('Add section in edit mode', () => {
+        const setDashboardFilters = vi.fn();
+        const setHaveFiltersChanged = vi.fn();
+        const addSection = () =>
+            screen.queryByRole('button', { name: 'Add section' });
+        const sectionsOf = (store: { getState: () => unknown }) =>
+            selectControlSections(
+                store.getState() as Parameters<typeof selectControlSections>[0],
+            );
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+            mockDroppable.current = null;
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                setDashboardFilters,
+                setHaveFiltersChanged,
+            };
+        });
+
+        it('shows at the end of the bar once there is a filter', () => {
+            const empty = renderSectioned([], 'tab-1', []);
+            expect(addSection()).not.toBeInTheDocument();
+            empty.unmount();
+
+            renderSectioned(
+                [rule('one', undefined)],
+                'tab-1',
+                [],
+                <button>Rules after</button>,
+            );
+            const button = addSection();
+            expect(button).toBeInTheDocument();
+            expect(
+                screen
+                    .getByTestId('pills-unsectioned')
+                    .compareDocumentPosition(button as Element) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+            expect(
+                (button as Element).compareDocumentPosition(
+                    screen.getByRole('button', { name: 'Rules after' }),
+                ) & Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+        });
+
+        it('names an empty section with nothing picked, hiding meanwhile; a cancel returns to it', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(
+                [rule('one', undefined)],
+                'tab-1',
+            );
+
+            await user.click(addSection() as HTMLElement);
+            expect(addSection()).not.toBeInTheDocument();
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            expect(input).toHaveFocus();
+            // In the button's place, after the pills
+            expect(
+                screen
+                    .getByTestId('pills-unsectioned')
+                    .compareDocumentPosition(input) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+            await user.type(input, 'Late{Escape}');
+            expect(sectionsOf(store)).toHaveLength(3);
+            expect(addSection()).toHaveFocus();
+
+            await user.click(addSection() as HTMLElement);
+            await user.keyboard('Late{Enter}');
+            expect(sectionsOf(store).map((s) => s.name)).toEqual([
+                'Dates',
+                'Regions',
+                'Empty',
+                'Late',
+            ]);
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(addSection()).toBeInTheDocument();
+        });
+
+        it('makes a section holding the picked pills', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(
+                [rule('one', undefined), rule('two', 'a')],
+                'tab-1',
+            );
+            fireEvent.click(screen.getByText('pill one'), { metaKey: true });
+
+            await user.click(addSection() as HTMLElement);
+            await user.keyboard('Misc{Enter}');
+            const added = sectionsOf(store).at(-1);
+            expect(added?.name).toBe('Misc');
+            expect(
+                (
+                    setDashboardFilters.mock.calls[0][0] as DashboardFilters
+                ).dimensions.map((r) => [r.id, r.sectionId ?? null]),
+            ).toEqual([
+                ['one', added?.id],
+                ['two', 'a'],
+            ]);
+        });
+
+        it('is inert while a filter is edited', () => {
+            mockSidebar.current = { isViewer: false, isSidebarOpen: true };
+            renderSectioned([rule('one', undefined)], 'tab-1');
+            expect(
+                screen
+                    .getByRole('button', { name: 'Add section', hidden: true })
+                    .closest('[inert]'),
+            ).not.toBeNull();
         });
     });
 

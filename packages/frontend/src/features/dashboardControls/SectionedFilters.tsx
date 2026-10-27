@@ -34,6 +34,7 @@ import {
     IconChevronDown,
     IconChevronRight,
     IconFilter,
+    IconFolderPlus,
     IconPlus,
 } from '@tabler/icons-react';
 import {
@@ -65,7 +66,7 @@ import {
     isFilterHiddenOnTab,
     useFilterTabPlacement,
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
-import { AddControl } from './AddControl';
+import { AddControl, InertWhileEditing } from './AddControl';
 import { BarSelectionContext, type BarSelection } from './barSelection';
 import { ChangedDot } from './ChangedDot';
 import { formatSectionCount } from './fieldLabels';
@@ -116,6 +117,7 @@ const underPointerFor: CollisionDetection = (args) =>
 
 const ADD_FILTER_SELECTOR =
     '[data-filter-actions] > button[data-dashboard-filter-control]';
+const ADD_SECTION_SELECTOR = '[data-add-section]';
 const pillSelector = (id: string) => `[data-controls-pill="${id}"]`;
 
 // Focus goes back to `ref` once an input unmounts with focus (Enter or
@@ -386,26 +388,36 @@ const SectionCapsule: FC<CapsuleProps> = ({
     );
 };
 
-// A new section named in place, after the last capsule. Started from the
-// selection bar; focus goes back to "Add filter" once it is settled
+// A new section named in place, after the last capsule. Focus goes back to
+// "Add filter" once it is settled, or to `cancelFocusSelector` if cancelled
 const NewSection: FC<{
     onAdd: (name: string) => void;
     onCancel: () => void;
-}> = ({ onAdd, onCancel }) => {
+    cancelFocusSelector: string;
+}> = ({ onAdd, onCancel, cancelFocusSelector }) => {
+    const isCancelled = useRef(false);
     useEffect(
         () => () => {
             const active = document.activeElement;
             if (active !== null && active !== document.body) return;
-            document.querySelector<HTMLElement>(ADD_FILTER_SELECTOR)?.focus();
+            (
+                (isCancelled.current
+                    ? document.querySelector<HTMLElement>(cancelFocusSelector)
+                    : null) ??
+                document.querySelector<HTMLElement>(ADD_FILTER_SELECTOR)
+            )?.focus();
         },
-        [],
+        [cancelFocusSelector],
     );
     return (
         <Box className={classes.capsule} data-collapsed data-editable>
             <SectionNameInput
                 name=""
                 onCommit={onAdd}
-                onCancel={onCancel}
+                onCancel={() => {
+                    isCancelled.current = true;
+                    onCancel();
+                }}
                 inputClassName={classes.nameInputField}
             />
         </Box>
@@ -451,7 +463,10 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
     }>({ ids: [], anchorId: null });
     const selectedIds = picked.ids;
     // A section being named on the bar, with the pills it takes on commit
-    const [naming, setNaming] = useState<{ moveIds: string[] } | null>(null);
+    const [naming, setNaming] = useState<{
+        moveIds: string[];
+        isFromAddSection: boolean;
+    } | null>(null);
     const onPopoverClose = useCallback(() => setOpenPopoverId(undefined), []);
     const getUiString = useUiStrings();
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
@@ -731,6 +746,29 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
         />
     );
 
+    // Named where it was started: in the button's place, or after the capsules
+    const newSection = naming !== null && (
+        <NewSection
+            onAdd={(name) => {
+                const section = { id: uuidv4(), name };
+                dispatch(dashboardEditActions.addControlSection(section));
+                if (naming.moveIds.length > 0)
+                    moveToSection(naming.moveIds, section.id, [
+                        ...sections,
+                        section,
+                    ]);
+                setNaming(null);
+            }}
+            // A cancelled name moves nothing and keeps the selection
+            onCancel={() => setNaming(null)}
+            cancelFocusSelector={
+                naming.isFromAddSection
+                    ? ADD_SECTION_SELECTOR
+                    : ADD_FILTER_SELECTOR
+            }
+        />
+    );
+
     if (isViewer) {
         return (
             <Box className={classes.flow}>
@@ -880,27 +918,32 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
                         <AddControl />
                     </UnsectionTarget>
                     {capsules}
-                    {naming !== null && (
-                        <NewSection
-                            onAdd={(name) => {
-                                const section = { id: uuidv4(), name };
-                                dispatch(
-                                    dashboardEditActions.addControlSection(
-                                        section,
-                                    ),
-                                );
-                                if (naming.moveIds.length > 0)
-                                    moveToSection(naming.moveIds, section.id, [
-                                        ...sections,
-                                        section,
-                                    ]);
-                                setNaming(null);
-                            }}
-                            // A cancelled name moves nothing and keeps the selection
-                            onCancel={() => setNaming(null)}
-                        />
-                    )}
+                    {naming !== null && !naming.isFromAddSection && newSection}
                     {pills}
+                    {naming?.isFromAddSection && newSection}
+                    {naming === null && allRules.length > 0 && (
+                        <InertWhileEditing>
+                            <Tooltip label="Add section">
+                                <ActionIcon
+                                    size="md"
+                                    radius="xl"
+                                    aria-label="Add section"
+                                    data-add-section
+                                    onClick={() =>
+                                        setNaming({
+                                            moveIds: selected,
+                                            isFromAddSection: true,
+                                        })
+                                    }
+                                >
+                                    <MantineIcon
+                                        icon={IconFolderPlus}
+                                        size={14}
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        </InertWhileEditing>
+                    )}
                     {children}
                 </Box>
                 {/* On the body, so the bar's overflow doesn't clip the copy */}
@@ -967,7 +1010,10 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
                         )}
                         onMove={moveSelected}
                         onMoveToNewSection={() =>
-                            setNaming({ moveIds: selected })
+                            setNaming({
+                                moveIds: selected,
+                                isFromAddSection: false,
+                            })
                         }
                         onRemove={removeSelected}
                         onClear={clearSelection}

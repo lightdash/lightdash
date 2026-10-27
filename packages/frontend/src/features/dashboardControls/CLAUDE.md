@@ -1171,17 +1171,22 @@ the language map, as tab names are.
   `isCollapsedByDefault`, a toggle saves the opposite; remove dispatches
   `removeControlSection` and, with members, one `setDashboardFilters` over
   `removeSectionFromRules` plus `setHaveFiltersChanged(true)`; focus then
-  goes to "Add filter"). A section starts from a selection only: "Move to
-  new section" on the selection bar (or "New section" in its "Move to")
-  puts `NewSection` after the last capsule: a capsule holding a focused,
-  empty `SectionNameInput` ("Section name"); Enter or blur with a name
-  dispatches `addControlSection` (a new uuid, appended last) and moves the
-  selection in, Escape or an empty name drops it. There is no standalone
-  "Add section" button and no menu on "Add filter", so with fewer than two
-  filters there is no way in. Focus returns to the name button after a
-  rename (`useRefocusAfter`), and to "Add filter" once `NewSection`
-  unmounts, both only when focus fell to `body`, so a blur by click keeps
-  where it went. While a filter is edited the name and the `.actions` group
+  goes to "Add filter"). A section starts from "Move to new section" on
+  the selection bar (or "New section" in its "Move to"), or from "Add
+  section": a subtle `md` (28px, the pill line) `ActionIcon` with the
+  folder-plus icon and its tooltip, last in the flow after the unsectioned
+  pills and before the requirements button, shown once the dashboard has a
+  filter, hidden while a section is named and inert while a filter is
+  edited (`InertWhileEditing`). Each puts `NewSection` where it was
+  started: in the button's place for "Add section", after the last capsule
+  for the selection bar. It is a capsule holding a focused, empty `SectionNameInput` ("Section
+  name"); Enter or blur with a name dispatches `addControlSection` (a new
+  uuid, appended last) and moves the picked pills in ("Add section" with
+  nothing picked makes an empty section), Escape or an empty name drops
+  it. There is no menu on "Add filter". Focus returns to the name button
+  after a rename (`useRefocusAfter`), and to "Add filter" once `NewSection`
+  unmounts (to "Add section" after a cancelled name it started), both only
+  when focus fell to `body`, so a blur by click keeps where it went. While a filter is edited the name and the `.actions` group
   carry `inert` (the group dimmed by the shared `.inert` rule); the chevron
   still folds.
 - `SectionsTip` teaches that gesture: an editor's first row above the bar
