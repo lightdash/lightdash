@@ -1,3 +1,10 @@
+## [3.68.6](https://github.com/lightdash/lightdash/compare/3.68.5...3.68.6) (2026-10-27)
+
+
+### Bug Fixes
+
+* **build:** recompress frontend assets after Sentry debug ID injection ([#31652](https://github.com/lightdash/lightdash/issues/31652)) ([f66f49b](https://github.com/lightdash/lightdash/commit/f66f49b08a02c57a5ee7133986641dd2c6a781f7))
+
 ## [3.68.5](https://github.com/lightdash/lightdash/compare/3.68.4...3.68.5) (2026-10-27)
 
 
