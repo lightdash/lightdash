@@ -74,29 +74,6 @@ describe('git adapter disk release', () => {
             await adapter.destroy();
         }
     });
-    it('recreates through the same memoised preparation after eviction', async () => {
-        const adapter = buildAdapter();
-        const refresh = vi
-            .spyOn(GitRepository.prototype, 'refresh')
-            .mockImplementation(async () => {
-                await fs.mkdir(adapter.localRepositoryDir, { recursive: true });
-            });
-        const deps = vi
-            .spyOn(adapter.dbtClient, 'installDeps')
-            .mockResolvedValue(undefined);
-        try {
-            await adapter.prepareDbtSource();
-            await adapter.prepareDbtSource();
-            expect(refresh).toHaveBeenCalledOnce();
-            await adapter.releaseDisk();
-            await adapter.prepareDbtSource();
-            await adapter.prepareDbtSource();
-            expect(refresh).toHaveBeenCalledTimes(2);
-            expect(deps).toHaveBeenCalledTimes(2);
-        } finally {
-            await adapter.destroy();
-        }
-    });
     it('waits for an in-flight manifest before removing the checkout', async () => {
         const adapter = buildAdapter();
         vi.spyOn(GitRepository.prototype, 'refresh').mockResolvedValue(

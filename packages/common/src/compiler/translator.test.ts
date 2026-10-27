@@ -1678,7 +1678,7 @@ describe('merged manifest model qualification', () => {
         },
     );
 
-    it('qualifies every side of a cross-source collision and leaves other explores bare', async () => {
+    it('qualifies every side of a source-name collision and leaves other explores bare', async () => {
         const explores = await convertExplores(
             [
                 buildMergedModel({

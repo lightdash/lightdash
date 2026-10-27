@@ -195,48 +195,6 @@ describe('getDbtManifest', () => {
         });
     });
 
-    it('prepares once across a pre-scan and two manifest fetches', async () => {
-        const installDeps = vi.fn(async () => {
-            vi.advanceTimersByTime(23);
-        });
-        const getDbtManifest = vi.fn(async () => ({ manifest }));
-        const adapter = buildAdapter({
-            installDeps,
-            getDbtManifest,
-        } as unknown as DbtClient);
-        const preparation = await adapter.prepareDbtSource();
-        expect(await adapter.prepareDbtSource()).toBe(preparation);
-        expect((await adapter.getDbtManifest()).timings.depsMs).toBe(23);
-        expect((await adapter.getDbtManifest()).timings.depsMs).toBeNull();
-        expect(installDeps).toHaveBeenCalledTimes(1);
-        expect(getDbtManifest).toHaveBeenCalledTimes(2);
-    });
-
-    it('prepares dependencies once while testing the client', async () => {
-        const installDeps = vi.fn(async () => undefined);
-        const test = vi.fn(async (prepareDependencies: () => Promise<void>) => {
-            await prepareDependencies();
-        });
-        const adapter = new DbtBaseProjectAdapter(
-            {
-                installDeps,
-                test,
-                getDbtManifest: vi.fn(async () => ({ manifest })),
-            } as unknown as DbtClient,
-            {
-                test: vi.fn(async () => undefined),
-            } as unknown as WarehouseClient,
-            vi.fn() as unknown as CachedWarehouse,
-            SupportedDbtVersions.V1_9,
-        );
-        await adapter.test();
-        expect(installDeps).toHaveBeenCalledTimes(1);
-        await adapter.getDbtManifest();
-        await adapter.getDbtManifest();
-        expect(installDeps).toHaveBeenCalledTimes(1);
-        expect(test).toHaveBeenCalledTimes(1);
-    });
-
     it('reports a missing project directory before dependency preparation can fail', async () => {
         const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'dbt-test-'));
         const client = new DbtCliClient({

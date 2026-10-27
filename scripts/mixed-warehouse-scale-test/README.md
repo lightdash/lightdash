@@ -18,10 +18,6 @@ pass/fail matrix with per-scenario timings.
   delivery of it (checked in Mailpit).
 - Adding, editing, renaming and deleting a live connection. Bad credentials,
   an unreachable warehouse and a type change are refused.
-- Cross-source dbt refs through GitHub dbt sources: refs inside one
-  connection resolve, a join to a model on another connection is skipped with
-  a warning, and a ref across connections fails with the cross-connection
-  message.
 - A preview project copies every connection, and `lightdash deploy --source`
   deploys into an extra connection.
 - Additional dbt sources are manifest sources, which the flag allows.
@@ -39,7 +35,6 @@ pass/fail matrix with per-scenario timings.
 - Manifest dbt sources are refused with the existing message.
 - Mixed projects created in the flag-on run keep working, but cannot add a
   mixed extra.
-- A ref across two Postgres connections keeps the existing message.
 
 ## Warehouses
 
@@ -68,28 +63,23 @@ Not covered:
 2. Create the Redshift stand-in database `redshift_standin` with a
    `public.rs_orders` table on the ldenv Postgres.
 3. Generate the fixture manifests with `dbt parse` (see the fixture READMEs).
-4. Give the instance a `dbt1.10` with every adapter on its `PATH`, so the
-   server can run dbt for the GitHub sources: a venv with `dbt-core~=1.10`
-   and the postgres, trino, bigquery, snowflake, duckdb, clickhouse and
-   redshift adapters, linked as `dbt1.10` in a directory at the front of
-   `PATH` in `.env.development.local`.
-5. Deliver the `bigquery`, `snowflake` and `athena` development bundles to
+4. Deliver the `bigquery`, `snowflake` and `athena` development bundles to
    the worktree. For BigQuery, export `BIGQUERY_DATASET` (a dataset the service
    account can use for its default dataset). For Athena, export `ATHENA_WORKGROUP` (the workgroup the
    fixture role may query, with its own result location) and optionally
    `ATHENA_REGION` and `ATHENA_S3_STAGING_DIR`. Athena runs only when the
    bundle and `ATHENA_WORKGROUP` are both present. Its queries read three-row
    fixture tables, so each scans well under 1 KB.
-6. Set `LIGHTDASH_ENABLE_FEATURE_FLAGS=multi-connection-projects,mixed-warehouse-connections,cross-source-dbt-refs`
+5. Set `LIGHTDASH_ENABLE_FEATURE_FLAGS=multi-connection-projects,mixed-warehouse-connections`
    with an Enterprise licence key, and restart the instance.
-7. Build the CLI: `pnpm -F @lightdash/cli build`.
+6. Build the CLI: `pnpm -F @lightdash/cli build`.
 
 ## Run
 
 ```bash
 python3 scripts/mixed-warehouse-scale-test/run.py \
   --url http://localhost:<api-port> --pg-database <jaffle-warehouse-db> \
-  --branch <branch with the fixtures pushed> --mode flag-on --out /tmp/mixed-scale
+  --mode flag-on --out /tmp/mixed-scale
 
 # Remove mixed-warehouse-connections from LIGHTDASH_ENABLE_FEATURE_FLAGS and
 # add it to LIGHTDASH_DISABLE_FEATURE_FLAGS (dev instances turn preview flags

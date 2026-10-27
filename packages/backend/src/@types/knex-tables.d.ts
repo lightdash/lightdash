@@ -144,10 +144,6 @@ import {
     DashboardSlugMappingTable,
 } from '../database/entities/dashboardSlugMappings';
 import {
-    DbtSourceRefCatalogsTableName,
-    type DbtSourceRefCatalogsTable,
-} from '../database/entities/dbtSourceRefCatalogs';
-import {
     DocumentGroupAccessTable,
     DocumentGroupAccessTableName,
     DocumentUserAccessTable,
@@ -773,7 +769,6 @@ import {
 declare module 'knex/types/tables' {
     interface Tables {
         [ExploreNameAllocationsTableName]: ExploreNameAllocationsTable;
-        [DbtSourceRefCatalogsTableName]: DbtSourceRefCatalogsTable;
         [ReleaseHighlightsTableName]: ReleaseHighlightsTable;
         [AgentCapabilityPoliciesTableName]: AgentCapabilityPoliciesTable;
         [AgentConnectionGrantsTableName]: AgentConnectionGrantsTable;

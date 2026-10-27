@@ -6,7 +6,6 @@ import {
     type ExploreError,
 } from '@lightdash/common';
 import { isEqual } from 'lodash';
-import { type DbtSourceRefCatalogModel } from '../models/DbtSourceRefCatalogModel';
 import { type ProjectDbtSourcesModel } from '../models/ProjectDbtSourcesModel';
 import { type ProjectModel } from '../models/ProjectModel/ProjectModel';
 import {
@@ -32,10 +31,6 @@ export const resolveCliPreviewDeploy = async (
         projectDbtSourcesModel: Pick<
             ProjectDbtSourcesModel,
             'getSourcesWithBindings'
-        >;
-        dbtSourceRefCatalogModel: Pick<
-            DbtSourceRefCatalogModel,
-            'getProjectNames'
         >;
     },
     args: {
@@ -99,11 +94,6 @@ export const resolveCliPreviewDeploy = async (
             const owner = sourceOf(explore);
             if (packageName && owner) add(packageName, remap.get(owner));
         });
-        const catalog =
-            await models.dbtSourceRefCatalogModel.getProjectNames(projectUuid);
-        catalog.forEach((row) =>
-            add(row.project_name, remap.get(row.dbt_source_uuid)),
-        );
     };
     await readPackages(
         args.projectUuid,

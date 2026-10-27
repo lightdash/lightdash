@@ -1,5 +1,4 @@
 import {
-    DbtExternalModelNode,
     DbtPackages,
     DbtRpcGetManifestResults,
     Explore,
@@ -17,7 +16,6 @@ export type TrackingParams = {
 };
 
 export type DbtManifestFetchOptions = {
-    externalNodes: DbtExternalModelNode[];
     signal?: AbortSignal;
 };
 
@@ -31,15 +29,7 @@ export type DbtManifestFetchResult = DbtRpcGetManifestResults & {
     timings: DbtManifestFetchTimings;
 };
 
-export type DbtSourcePreparation = {
-    projectDir: string | null;
-    timings: { gitRefreshMs: number | null; depsMs: number | null };
-};
-
 export interface ProjectAdapter {
-    prepareDbtSource(options?: {
-        signal?: AbortSignal;
-    }): Promise<DbtSourcePreparation>;
     /**
      * Compile all explores
      * @param trackingParams - Optional tracking parameters to track the compilation and lightdash project config (lightdash.config.yml) overrides
@@ -104,10 +94,7 @@ export interface DbtClient {
 
     getSelector(): string | undefined;
 
-    test(
-        prepareDependencies?: () => Promise<void>,
-        signal?: AbortSignal,
-    ): Promise<void>;
+    test(signal?: AbortSignal): Promise<void>;
 
     cleanup?(): Promise<void>;
 }

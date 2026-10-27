@@ -1,6 +1,5 @@
 import {
     DbtModelNode,
-    getExternalModelNodesFromManifest,
     MetricFlowAggregation,
     MetricType,
     translateMetricFlowMetrics,
@@ -82,37 +81,28 @@ describe('DbtMetadataApiClient', () => {
     });
 
     it.each([
-        { version: 2, latestVersion: 3, access: 'private' },
-        { version: '2', latestVersion: '3', access: 'public' },
-        { version: undefined, latestVersion: undefined, access: undefined },
-    ])(
-        'preserves model version and access fields for external nodes: %j',
-        async (fields) => {
-            const mockRequest = vi
-                .fn()
-                .mockResolvedValue(
-                    makeApiResponse('postgres', [makeNode(fields)]),
-                );
-            vi.mocked(GraphQLClient).mockImplementation(
-                function MockGraphQLClient(this: GraphQLClient) {
-                    this.request = mockRequest;
-                    return this;
-                },
-            );
-            const result = await createClient().getDbtManifest();
-            const expected = {
-                version: fields.version ?? null,
-                latest_version: fields.latestVersion ?? null,
-                access: fields.access ?? null,
-            };
-            expect(
-                result.manifest.nodes['model.project.pull_requests'],
-            ).toMatchObject(expected);
-            expect(getExternalModelNodesFromManifest(result.manifest)).toEqual([
-                expect.objectContaining(expected),
-            ]);
-        },
-    );
+        { version: 2, latestVersion: 3 },
+        { version: '2', latestVersion: '3' },
+        { version: undefined, latestVersion: undefined },
+    ])('preserves model version fields: %j', async (fields) => {
+        const mockRequest = vi
+            .fn()
+            .mockResolvedValue(makeApiResponse('postgres', [makeNode(fields)]));
+        vi.mocked(GraphQLClient).mockImplementation(
+            function MockGraphQLClient(this: GraphQLClient) {
+                this.request = mockRequest;
+                return this;
+            },
+        );
+        const result = await createClient().getDbtManifest();
+        const expected = {
+            version: fields.version ?? null,
+            latest_version: fields.latestVersion ?? null,
+        };
+        expect(
+            result.manifest.nodes['model.project.pull_requests'],
+        ).toMatchObject(expected);
+    });
 
     describe('Snowflake identifier casing', () => {
         it('should uppercase database, schema, alias, and relation_name for Snowflake', async () => {
