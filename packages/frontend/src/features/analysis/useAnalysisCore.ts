@@ -54,6 +54,8 @@ type ScopedState = {
     analysedSignature: string | null;
     /** Last view signature a stored analysis was looked up for. */
     lookedUpSignature: string | null;
+    /** View signature whose lookup failed: no auto re-run is coming for it. */
+    failedLookupSignature: string | null;
     investigations: Record<string, InvestigationState>;
 };
 
@@ -62,6 +64,7 @@ const freshState = (scope: string): ScopedState => ({
     state: { status: 'idle' },
     analysedSignature: null,
     lookedUpSignature: null,
+    failedLookupSignature: null,
     investigations: {},
 });
 
@@ -313,8 +316,14 @@ export const useAnalysisCore = ({
                                 message: EXPIRED_TWICE_MESSAGE,
                             },
                         }));
+                        return;
                     }
-                    // Any other failed lookup is not an error state; Analyse works.
+                    // Any other failed lookup is not an error state (Analyse
+                    // still works), but stop presenting a pending auto-run.
+                    patch(scope, (prev) => ({
+                        ...prev,
+                        failedLookupSignature: signature,
+                    }));
                 });
         }, LOOKUP_QUIET_MS);
         return () => clearTimeout(timer);
@@ -366,10 +375,26 @@ export const useAnalysisCore = ({
         [projectUuid, target, scope, state, patch, lightdashApi],
     );
 
+    // The view changed and an auto re-run is on its way (queries settling,
+    // or the lookup about to fire). Present analysing right away so the
+    // viewer sees feedback the moment the view changes, not seconds later
+    // when detect actually starts. Guarded to views that can resolve: a view
+    // with no queries never looks up, and a failed lookup cancels the run.
+    const autoRunPending =
+        enabled &&
+        autoAnalyse &&
+        stale &&
+        (inFlight || sources.length > 0) &&
+        current.failedLookupSignature !== signature;
+
     return {
         sources,
         inFlight,
-        state: state.status === 'ready' ? { ...state, stale } : state,
+        state: autoRunPending
+            ? { status: 'analysing' as const }
+            : state.status === 'ready'
+              ? { ...state, stale }
+              : state,
         investigations: current.investigations,
         // Re-running a view that already shows a current analysis is a
         // deliberate regenerate; anything else may still reuse a stored one.
