@@ -481,6 +481,46 @@ export class OAuth2Model implements AuthorizationCodeModel {
         return false;
     }
 
+    private activeOrganizationMembership(database: Knex) {
+        return database('organization_memberships')
+            .innerJoin(
+                'users',
+                'users.user_id',
+                'organization_memberships.user_id',
+            )
+            .innerJoin(
+                'organizations',
+                'organization_memberships.organization_id',
+                'organizations.organization_id',
+            )
+            .select('users.user_id')
+            .where('users.is_active', true);
+    }
+
+    private async lockActiveOrganizationMember(
+        database: Knex,
+        user: UserWithOrganizationUuid,
+    ): Promise<void> {
+        const member = await database('users')
+            .select('user_id')
+            .where('user_id', user.userId)
+            .where('is_active', true)
+            .whereExists(
+                this.activeOrganizationMembership(database)
+                    .where('users.user_id', user.userId)
+                    .where(
+                        'organizations.organization_uuid',
+                        user.organizationUuid,
+                    ),
+            )
+            .forShare()
+            .first();
+        if (!member)
+            throw new OAuth2Server.InvalidGrantError(
+                'User is not an active organization member',
+            );
+    }
+
     async saveToken(
         token: Token & Partial<OAuthTokenBinding>,
         client: Client,
@@ -488,11 +528,10 @@ export class OAuth2Model implements AuthorizationCodeModel {
     ): Promise<Token> {
         const { parentRefreshToken = null, ...issued } = token;
         if (parentRefreshToken === null) {
-            if (issued.agentConnectionGrantUuid != null)
-                return this.database.transaction((database) =>
-                    this.persistToken(database, issued, client, user),
-                );
-            return this.persistToken(this.database, issued, client, user);
+            return this.database.transaction(async (database) => {
+                await this.lockActiveOrganizationMember(database, user);
+                return this.persistToken(database, issued, client, user);
+            });
         }
         const candidates = getStoredTokenCandidates(parentRefreshToken);
         if (candidates.length === 0)
@@ -503,6 +542,7 @@ export class OAuth2Model implements AuthorizationCodeModel {
             );
         const saved = await this.database.transaction(async (database) => {
             await this.lockRefreshRotation(database, user.userId);
+            await this.lockActiveOrganizationMember(database, user);
             if (issued.agentConnectionGrantUuid != null) {
                 const stored = await database('oauth2_refresh_tokens')
                     .whereIn('refresh_token', candidates)
@@ -748,6 +788,19 @@ export class OAuth2Model implements AuthorizationCodeModel {
             )
             .leftJoin('users', 'oauth2_access_tokens.user_id', 'users.user_id')
             .whereIn('oauth2_access_tokens.access_token', candidates)
+            .whereExists(
+                this.activeOrganizationMembership(this.database)
+                    .where(
+                        'users.user_id',
+                        this.database.ref('oauth2_access_tokens.user_id'),
+                    )
+                    .where(
+                        'organizations.organization_uuid',
+                        this.database.ref(
+                            'oauth2_access_tokens.organization_uuid',
+                        ),
+                    ),
+            )
             .first();
 
         if (!result) {
@@ -917,6 +970,19 @@ export class OAuth2Model implements AuthorizationCodeModel {
                 'oauth2_clients.client_id',
             )
             .whereIn('oauth2_refresh_tokens.refresh_token', candidates)
+            .whereExists(
+                this.activeOrganizationMembership(this.database)
+                    .where(
+                        'users.user_id',
+                        this.database.ref('oauth2_refresh_tokens.user_id'),
+                    )
+                    .where(
+                        'organizations.organization_uuid',
+                        this.database.ref(
+                            'oauth2_refresh_tokens.organization_uuid',
+                        ),
+                    ),
+            )
             .first();
 
         if (!result) {

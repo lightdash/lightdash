@@ -1623,17 +1623,30 @@ describe('UserModel', () => {
             },
         );
 
-        it('deletes only the user agent credentials after the user update in one transaction', async () => {
+        it('deletes the user agent and OAuth credentials in the deactivation transaction', async () => {
             tracker.on.delete(UserWarehouseCredentialsTableName).response(1);
+            tracker.on.delete(/oauth2_/).response(1);
 
             await model.updateUser(userDetails.user_uuid, undefined, {
                 isActive: false,
             });
 
-            expect(tracker.history.all).toHaveLength(2);
+            expect(tracker.history.all).toHaveLength(5);
             expect(tracker.history.all[0].sql).toMatch(/^update "users"/);
             expect(tracker.history.all[0].bindings).toContain(false);
-            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.delete).toHaveLength(4);
+            expect(tracker.history.delete.slice(1)).toEqual(
+                [
+                    'oauth2_authorization_codes',
+                    'oauth2_refresh_tokens',
+                    'oauth2_access_tokens',
+                ].map((table) =>
+                    expect.objectContaining({
+                        sql: `delete from "${table}" where "user_id" = $1`,
+                        bindings: [userDetails.user_id],
+                    }),
+                ),
+            );
             expect(tracker.history.all[1]).toMatchObject({
                 sql: 'delete from "user_warehouse_credentials" where "user_uuid" = $1 and "purpose" = $2',
                 bindings: [
@@ -1646,6 +1659,25 @@ describe('UserModel', () => {
                 state: 'committed',
                 queries: tracker.history.all,
             });
+        });
+
+        it.each([
+            'oauth2_authorization_codes',
+            'oauth2_refresh_tokens',
+            'oauth2_access_tokens',
+        ])('rolls back deactivation when deleting %s fails', async (table) => {
+            tracker.on.delete(UserWarehouseCredentialsTableName).response(1);
+            tracker.on.delete(table).simulateError('OAuth deletion failed');
+            tracker.on.delete(/oauth2_/).response(1);
+
+            await expect(
+                model.updateUser(userDetails.user_uuid, undefined, {
+                    isActive: false,
+                }),
+            ).rejects.toThrow('OAuth deletion failed');
+
+            expect(tracker.history.transactions[0].state).toBe('rolled back');
+            expect(model.getUserDetailsByUuid).not.toHaveBeenCalled();
         });
 
         it('rolls back the user update and propagates a credential deletion failure', async () => {

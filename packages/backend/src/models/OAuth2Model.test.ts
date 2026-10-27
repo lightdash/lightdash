@@ -1026,6 +1026,7 @@ describe('OAuth2Model strict refresh rotation', () => {
         expect(transaction.state).toBe('rolled back');
         expect(transaction.queries.map((query) => query.method)).toEqual([
             'select',
+            'select',
             'update',
             'insert',
             'insert',

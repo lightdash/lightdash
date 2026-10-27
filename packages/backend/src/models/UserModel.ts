@@ -698,6 +698,15 @@ export class UserModel {
                         purpose: UserWarehouseCredentialPurpose.AI,
                     })
                     .delete();
+                await trx('oauth2_authorization_codes')
+                    .where('user_id', user.user_id)
+                    .delete();
+                await trx('oauth2_refresh_tokens')
+                    .where('user_id', user.user_id)
+                    .delete();
+                await trx('oauth2_access_tokens')
+                    .where('user_id', user.user_id)
+                    .delete();
             }
 
             if (email && currentEmail !== email) {
