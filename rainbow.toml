@@ -79,6 +79,7 @@ NODE_ENV = "development"
 # already set in the environment, so this value reaches the backend.
 LIGHTDASH_MODE = "pr"
 LIGHTDASH_LOG_LEVEL = "info"
+LIGHTDASH_LOG_FORMAT = "json"
 SECURE_COOKIES = "true"            # as the Okteto preview: served over https behind an ingress that
 TRUST_PROXY = "true"               # sets X-Forwarded-Proto (ingress.go SetXForwarded); iframe embedding needs it
 SCHEDULER_ENABLED = "true"
@@ -291,6 +292,15 @@ port = 443
 
 [[egress.allow]]
 host = "api.github.com"             # GitHub App: repo access for dbt projects
+port = 443
+
+# Runtime dbt deps needs the registry and the GitHub archive redirect destination.
+[[egress.allow]]
+host = "hub.getdbt.com"
+port = 443
+
+[[egress.allow]]
+host = "codeload.github.com"
 port = 443
 
 # BigQuery (the warehouse test suites): the API and the token endpoint.
