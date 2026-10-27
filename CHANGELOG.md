@@ -1,3 +1,20 @@
+# [3.65.0](https://github.com/lightdash/lightdash/compare/3.64.0...3.65.0) (2026-10-27)
+
+
+### Bug Fixes
+
+* **dashboards:** tab counts on hover, a clearer edited pill, drag while editing ([#31623](https://github.com/lightdash/lightdash/issues/31623)) ([0da194f](https://github.com/lightdash/lightdash/commit/0da194f111e9676ddfb3364248967f79f54d5048))
+
+
+### Features
+
+* **ai-agent:** lead composer pipeline list rows with what the node does ([#31617](https://github.com/lightdash/lightdash/issues/31617)) ([e573af0](https://github.com/lightdash/lightdash/commit/e573af09f81c1848016249ec987f4f77da606d8a))
+* **dashboards:** a quieter edit bar with a settings menu on Add filter ([#31627](https://github.com/lightdash/lightdash/issues/31627)) ([e41ac6c](https://github.com/lightdash/lightdash/commit/e41ac6cc393b7cc7829385246062c777c5b26949))
+* **dashboards:** add a section from an icon at the end of the edit bar ([#31624](https://github.com/lightdash/lightdash/issues/31624)) ([e70bdf8](https://github.com/lightdash/lightdash/commit/e70bdf8279d1de90ca6be8f230f5b2264d28feaa))
+* **dashboards:** highlight a filter's tiles while its pill is hovered ([#31621](https://github.com/lightdash/lightdash/issues/31621)) ([172f684](https://github.com/lightdash/lightdash/commit/172f684f6606d2645bed6ff5358787d25bf69b6c))
+* **dashboards:** start a section from selected filters, with a tip ([#31622](https://github.com/lightdash/lightdash/issues/31622)) ([4227fae](https://github.com/lightdash/lightdash/commit/4227fae3043f0aafc2de836c35e648292d177832))
+* **data-apps:** add three.js to the default data-app dependencies ([#31626](https://github.com/lightdash/lightdash/issues/31626)) ([c761197](https://github.com/lightdash/lightdash/commit/c761197e4a4de16d130af8c5014bc5f3f8da7665))
+
 # [3.64.0](https://github.com/lightdash/lightdash/compare/3.63.1...3.64.0) (2026-10-27)
 
 
