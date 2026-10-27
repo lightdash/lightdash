@@ -1,0 +1,95 @@
+{
+  "oldHead": "8be2bcb940",
+  "fixedHead": "704a28b853",
+  "memoryLimit": "256MB",
+  "duckdbThreads": 4,
+  "diskSpill": false,
+  "nativeRows": 769268,
+  "historyRows": 352,
+  "users": 20000,
+  "results": [
+    {
+      "files": [
+        {
+          "name": "native.parquet",
+          "bytes": 8106326
+        },
+        {
+          "name": "history.parquet",
+          "bytes": 12066
+        }
+      ]
+    },
+    {
+      "variant": "plain",
+      "query": "count",
+      "status": "ok",
+      "ms": 8,
+      "resultRows": 1
+    },
+    {
+      "variant": "plain",
+      "query": "distinct",
+      "status": "ok",
+      "ms": 14,
+      "resultRows": 1
+    },
+    {
+      "variant": "plain",
+      "query": "daily",
+      "status": "ok",
+      "ms": 16,
+      "resultRows": 20
+    },
+    {
+      "variant": "window",
+      "query": "count",
+      "status": "ok",
+      "ms": 64,
+      "resultRows": 1
+    },
+    {
+      "variant": "window",
+      "query": "distinct",
+      "status": "error",
+      "ms": 55,
+      "error": "Out of Memory Error: failed to allocate data of size 8.0 MiB (244.0 MiB/244.1 MiB used)\nDatabase is launched in in-memory mode and no temporary directory is specified.\nUnused blocks cannot be offloaded to disk.\n\nLaunch the database with a persistent storage back-end\nOr set SET temp_directory='/path/to/tmp.tmp'\n\nPossible solutions:\n* Reducing the number of threads (SET threads=X)\n* Disabling insertion-order preservation (SET preserve_insertion_order=false)\n* Increasing the memory limit (SET memory_limit='...GB')\n\nSee also https://duckdb.org/docs/stable/guides/performance/how_to_tune_workloads"
+    },
+    {
+      "variant": "window",
+      "query": "daily",
+      "status": "error",
+      "ms": 53,
+      "error": "Out of Memory Error: failed to allocate data of size 8.0 MiB (237.2 MiB/244.1 MiB used)\nDatabase is launched in in-memory mode and no temporary directory is specified.\nUnused blocks cannot be offloaded to disk.\n\nLaunch the database with a persistent storage back-end\nOr set SET temp_directory='/path/to/tmp.tmp'\n\nPossible solutions:\n* Reducing the number of threads (SET threads=X)\n* Disabling insertion-order preservation (SET preserve_insertion_order=false)\n* Increasing the memory limit (SET memory_limit='...GB')\n\nSee also https://duckdb.org/docs/stable/guides/performance/how_to_tune_workloads"
+    },
+    {
+      "variant": "anti",
+      "query": "count",
+      "status": "ok",
+      "ms": 14,
+      "resultRows": 1
+    },
+    {
+      "variant": "anti",
+      "query": "distinct",
+      "status": "ok",
+      "ms": 19,
+      "resultRows": 1
+    },
+    {
+      "variant": "anti",
+      "query": "daily",
+      "status": "ok",
+      "ms": 22,
+      "resultRows": 20
+    }
+  ],
+  "actualReaderTest": {
+    "oldImplementation": "failed with the same sanitized WarehouseQueryError",
+    "fixedImplementation": "passed",
+    "focusedWarehouseTestsPassed": 14,
+    "warehouseTypecheck": "passed",
+    "changedFilesLint": "passed",
+    "changedFilesFormat": "passed"
+  }
+}

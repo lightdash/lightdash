@@ -1,0 +1,22 @@
+{
+  "query.completed": {
+    "min": {
+      "timestamp": "2026-10-07T07:57:52Z",
+      "queryUuid": "2cf51c21-a983-4e0a-89a2-dd1269eed690"
+    },
+    "max": {
+      "timestamp": "2026-10-26T23:25:00Z",
+      "queryUuid": "e8e93953-9956-48e0-8afe-7040de56244c"
+    }
+  },
+  "query.history_backfilled": {
+    "min": {
+      "timestamp": "2026-10-27T11:47:26Z",
+      "queryUuid": "a6be6969-c00c-4e9f-baf4-57d5abf2901a"
+    },
+    "max": {
+      "timestamp": "2026-10-27T11:52:49Z",
+      "queryUuid": "c48d35c2-ab62-4594-97d3-3a1b370bd33b"
+    }
+  }
+}

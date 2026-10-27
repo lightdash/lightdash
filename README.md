@@ -41,3 +41,24 @@ Screenshots 04–12 are earlier query-specific QA, retained for the failure/retr
 Screenshots18–19 show the current simplified UI: no exact-count/date scan, one action while the current completion marker is absent, then hidden after successful backfill and a full page reload. Earlier screenshots are retained as historical test evidence; their live-count UI is superseded.
 
 The status endpoint now checks job state and at most one org-scoped S3 HEAD. Five isolated API requests produced exactly five HEAD200s and zero LIST/GET/Parquet reads. Warm local responses took18–21ms; this is a local measurement, not a cloud benchmark. The expensive reconciliation runs only in the worker. A successful versioned marker does not imply continuous coverage of future database changes; direct reruns remain safe.
+
+
+## Okteto distinct-user memory regression (27 October 2026)
+
+Code commit: `704a28b8535c5407726a6b787d84891723e55085`. [Verified deploy](https://github.com/lightdash/lightdash/actions/runs/40500964878/job/122178457406).
+
+The old reconciliation window reproduced an out-of-memory failure at ~770k rows under the existing 256 MB / four-thread / no-spill settings. The actual reader regression fails with the old implementation and passes after replacing the window with a filtered anti-join. All 14 focused warehouse tests, warehouse typecheck, changed-file lint/format and git secrets scan passed.
+
+Live uncached queries and the dashboard both succeeded after redeploy: 6,454 distinct users; daily users across October 7–27. The source counts remain 769,265 captured queries (October 7–26) and 352 imported queries (October 27). The earlier backfill ran in 16.7 seconds; database replacement on preview deploy explains why its DB history is newer than its retained S3 data. Existing history objects and completion marker survived deployment. API timings include network and queue time and are not a throughput benchmark.
+
+The underlying Okteto error was sanitized; the OOM was directly reproduced locally with the same query/resource limits, then the fix was verified live.
+
+Before:
+
+![Failing distinct-user charts](23-okteto-before-memory-fix.jpg)
+
+After:
+
+![Both distinct-user charts working](24-okteto-fixed-user-charts.jpg)
+
+Evidence: `memory-regression-summary.json`, `memory-fix-live.json`, `exact-backfill-date-summary.json`.
