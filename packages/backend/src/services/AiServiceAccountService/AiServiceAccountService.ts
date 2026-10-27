@@ -33,6 +33,7 @@ import {
 import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import type { WarehouseCredentialReader } from '../../models/WarehouseCredentialReader/WarehouseCredentialReader';
 import {
     getAthenaServiceAccountTestErrorMessage,
     getUserPasswordServiceAccountTestErrorMessage,
@@ -56,6 +57,10 @@ import {
 } from './resolveAiServiceAccountSlot';
 
 type Dependencies = {
+    warehouseCredentialReader: Pick<
+        WarehouseCredentialReader,
+        'aiServiceAccount'
+    >;
     analytics: Pick<LightdashAnalytics, 'track'>;
     aiServiceAccountCredentialsModel: AiServiceAccountCredentialsModel;
     featureFlagModel: FeatureFlagModel;
@@ -366,11 +371,12 @@ export class AiServiceAccountService extends BaseService {
             throw new ParameterError(
                 'The shared agent account must match the connection warehouse type.',
             );
-        const saved =
-            await this.deps.aiServiceAccountCredentialsModel.getReplaceableSecrets(
+        const saved = (
+            await this.deps.warehouseCredentialReader.aiServiceAccount.readReplaceableSecrets(
                 projectUuid,
                 warehouseConnectionUuid,
-            );
+            )
+        ).value;
         const merged = mergeAiServiceAccountCredentials(input, saved);
         const { stored: credentials } =
             await aiServiceAccountCredentialResolvers.validateOnSave(
@@ -527,10 +533,12 @@ export class AiServiceAccountService extends BaseService {
                 ? null
                 : mergeAiServiceAccountCredentials(
                       input,
-                      await this.deps.aiServiceAccountCredentialsModel.getReplaceableSecrets(
-                          projectUuid,
-                          loaded.warehouseConnectionUuid,
-                      ),
+                      (
+                          await this.deps.warehouseCredentialReader.aiServiceAccount.readReplaceableSecrets(
+                              projectUuid,
+                              loaded.warehouseConnectionUuid,
+                          )
+                      ).value,
                   );
         return this.testConnection(account, projectUuid, loaded, secrets);
     }

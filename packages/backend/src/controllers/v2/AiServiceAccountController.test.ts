@@ -24,6 +24,7 @@ import {
     trinoSecrets,
     trinoVerification,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
+import { createLegacyWarehouseCredentialReader } from '../../models/WarehouseCredentialReader/createLegacyWarehouseCredentialReader';
 import { AiServiceAccountService } from '../../services/AiServiceAccountService/AiServiceAccountService';
 import { type ServiceRepository } from '../../services/ServiceRepository';
 import { AiServiceAccountController } from './AiServiceAccountController';
@@ -78,6 +79,9 @@ const setup = (enabled: boolean) => {
             getWarehouseCredentialsForBinding: load,
         },
         aiServiceAccountCredentialsModel: model,
+        warehouseCredentialReader: createLegacyWarehouseCredentialReader({
+            aiServiceAccountCredentialsModel: model,
+        }),
         warehouseConnectionModel: {
             getProject: vi.fn().mockResolvedValue({ projectUuid: 'project' }),
             list: vi.fn().mockResolvedValue([]),

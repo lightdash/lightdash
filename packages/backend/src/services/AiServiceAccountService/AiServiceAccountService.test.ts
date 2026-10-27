@@ -37,6 +37,7 @@ import {
     trinoSecrets,
     trinoVerification,
 } from '../../models/AiServiceAccountCredentialsModel/AiServiceAccountCredentialsModel.mock';
+import { createLegacyWarehouseCredentialReader } from '../../models/WarehouseCredentialReader/createLegacyWarehouseCredentialReader';
 import { aiServiceAccountCredentialResolvers } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import {
     credentialResolution,
@@ -131,6 +132,9 @@ const setup = () => {
     const service = new AiServiceAccountService({
         analytics,
         aiServiceAccountCredentialsModel: model,
+        warehouseCredentialReader: createLegacyWarehouseCredentialReader({
+            aiServiceAccountCredentialsModel: model,
+        }),
         featureFlagModel: { get: flag },
         projectModel: {
             getSummary,

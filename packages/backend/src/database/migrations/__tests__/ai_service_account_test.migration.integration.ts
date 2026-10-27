@@ -12,6 +12,7 @@ import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureF
 import { OrganizationWarehouseCredentialsModel } from '../../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { WarehouseConnectionModel } from '../../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { createLegacyWarehouseCredentialReader } from '../../../models/WarehouseCredentialReader/createLegacyWarehouseCredentialReader';
 import { AiServiceAccountService } from '../../../services/AiServiceAccountService/AiServiceAccountService';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
@@ -121,6 +122,9 @@ const fixture = async () => {
     const service = new AiServiceAccountService({
         analytics,
         aiServiceAccountCredentialsModel: model,
+        warehouseCredentialReader: createLegacyWarehouseCredentialReader({
+            aiServiceAccountCredentialsModel: model,
+        }),
         projectModel: new ProjectModel({
             database,
             encryptionUtil,

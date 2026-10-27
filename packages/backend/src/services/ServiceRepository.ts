@@ -1000,6 +1000,8 @@ export class ServiceRepository
             () =>
                 new AiServiceAccountService({
                     analytics: this.context.lightdashAnalytics,
+                    warehouseCredentialReader:
+                        this.models.getWarehouseCredentialReader(),
                     aiServiceAccountCredentialsModel:
                         this.models.getAiServiceAccountCredentialsModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
@@ -1125,6 +1127,8 @@ export class ServiceRepository
                     agentActionLogModel: this.models.getAgentActionLogModel(),
                     getWarehouseClientFactory: () =>
                         this.getProjectService().warehouseClientFactory,
+                    warehouseCredentialReader:
+                        this.models.getWarehouseCredentialReader(),
                     aiServiceAccountCredentialsModel:
                         this.models.getAiServiceAccountCredentialsModel(),
                     analytics: this.context.lightdashAnalytics,

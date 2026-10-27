@@ -84,6 +84,7 @@ import { RefreshTokenRotation } from '../../models/RefreshTokenRotation/RefreshT
 import { type UserModel } from '../../models/UserModel';
 import { type UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
+import { createLegacyWarehouseCredentialReader } from '../../models/WarehouseCredentialReader/createLegacyWarehouseCredentialReader';
 import { getWarehouseIdentityFingerprint } from '../../utils/queryResultProducer';
 import { withNewWarehouseCredentialVersion } from '../../utils/warehouseCredentialVersion';
 import { sessionUser } from '../UserService.mock';
@@ -415,6 +416,10 @@ const setup = (
         } as unknown as OrganizationSnowflakeAgentClientModel,
         aiServiceAccountCredentialsModel:
             slots as unknown as AiServiceAccountCredentialsModel,
+        warehouseCredentialReader: createLegacyWarehouseCredentialReader({
+            aiServiceAccountCredentialsModel:
+                slots as unknown as AiServiceAccountCredentialsModel,
+        }),
         userWarehouseCredentialsModel:
             credentials as unknown as UserWarehouseCredentialsModel,
         analytics,
