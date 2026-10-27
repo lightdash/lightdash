@@ -18,7 +18,6 @@ import { MotherduckInstanceCache } from '@lightdash/warehouses';
 import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
-import connectSessionKnex from 'connect-session-knex';
 import cors from 'cors';
 import { EventEmitter } from 'events';
 import express, { Express, NextFunction, Request, Response } from 'express';
@@ -43,6 +42,7 @@ import { createEventStreamWriter } from './analytics/eventStream/createEventStre
 import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
 import { eventStreamRegistry } from './analytics/eventStream/registry';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
+import { KnexSessionStore } from './auth/KnexSessionStore';
 import { getFrontendBuildHash } from './buildHash';
 import {
     ClientProviderMap,
@@ -520,14 +520,7 @@ export default class App {
             ),
         );
 
-        const KnexSessionStore = connectSessionKnex(expressSession);
-
-        const store = new KnexSessionStore({
-            knex: this.database as AnyType,
-            createtable: false,
-            tablename: 'sessions',
-            sidfieldname: 'sid',
-        });
+        const store = new KnexSessionStore(this.database);
 
         // Use custom middlewares if provided
         this.customExpressMiddlewares.forEach((middleware) =>
