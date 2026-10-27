@@ -1,3 +1,10 @@
+## [3.68.7](https://github.com/lightdash/lightdash/compare/3.68.6...3.68.7) (2026-10-27)
+
+
+### Bug Fixes
+
+* quieter tabs in the dashboard edit header ([#31642](https://github.com/lightdash/lightdash/issues/31642)) ([58baafa](https://github.com/lightdash/lightdash/commit/58baafa4043316f048b3be844f332660b6b2dba4))
+
 ## [3.68.6](https://github.com/lightdash/lightdash/compare/3.68.5...3.68.6) (2026-10-27)
 
 
