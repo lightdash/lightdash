@@ -1,7 +1,10 @@
 import { type DashboardAsCode } from '../../types/coder';
 import { DashboardTileTypes } from '../../types/dashboard';
 import { FilterOperator } from '../../types/filter';
-import { DashboardAsCodeInternalization } from './dashboardAsCode';
+import {
+    DashboardAsCodeInternalization,
+    translateControlSections,
+} from './dashboardAsCode';
 
 const dashboardAsCode: DashboardAsCode = {
     name: 'Sales overview',
@@ -110,7 +113,10 @@ describe('DashboardAsCodeInternalization', () => {
                 },
             }).dashboard[dashboardAsCode.slug];
             expect(withSections.config).toEqual({
-                controlSections: [{ name: 'Dates' }, { name: 'Region' }],
+                controlSections: [
+                    { id: 's1', name: 'Dates' },
+                    { id: 's2', name: 'Region' },
+                ],
             });
 
             const withoutSections = internalization.getLanguageMap({
@@ -205,10 +211,15 @@ describe('DashboardAsCodeInternalization', () => {
             );
         });
 
-        it('should merge translated section names by position without touching ids', () => {
+        it('should merge translated section names by id, wherever the section moved', () => {
             const merged = new DashboardAsCodeInternalization().merge(
                 {
-                    config: { controlSections: [{ name: 'Dates FR' }] },
+                    config: {
+                        controlSections: [
+                            { id: 's1', name: 'Dates FR' },
+                            { id: 's2', name: 'Région' },
+                        ],
+                    },
                     filters: undefined,
                 },
                 {
@@ -216,8 +227,9 @@ describe('DashboardAsCodeInternalization', () => {
                     config: {
                         isDateZoomDisabled: true,
                         controlSections: [
+                            { id: 's2', name: 'Region', collapsed: true },
+                            { id: 's3', name: 'New' },
                             { id: 's1', name: 'Dates' },
-                            { id: 's2', name: 'Region' },
                         ],
                         parameterSections: { region: 's2' },
                     },
@@ -227,11 +239,27 @@ describe('DashboardAsCodeInternalization', () => {
             expect(merged.config).toEqual({
                 isDateZoomDisabled: true,
                 controlSections: [
+                    { id: 's2', name: 'Région', collapsed: true },
+                    { id: 's3', name: 'New' },
                     { id: 's1', name: 'Dates FR' },
-                    { id: 's2', name: 'Region' },
                 ],
                 parameterSections: { region: 's2' },
             });
+        });
+
+        it('should still apply a section translation with no id by position', () => {
+            expect(
+                translateControlSections(
+                    [
+                        { id: 's1', name: 'Dates' },
+                        { id: 's2', name: 'Region' },
+                    ],
+                    [{ name: 'Dates FR' }, { id: 'gone', name: 'Ignored' }],
+                ),
+            ).toEqual([
+                { id: 's1', name: 'Dates FR' },
+                { id: 's2', name: 'Region' },
+            ]);
         });
 
         it('should merge translated tab names by position without touching other tab fields', () => {

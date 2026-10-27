@@ -16,6 +16,7 @@ import {
     type ParametersValuesMap,
     type SavedChart,
     getEmbedWriteSpaceUuids,
+    translateControlSections,
 } from '@lightdash/common';
 import { Box, Button, Group, Tabs, TextInput } from '@mantine/core';
 import { useSessionStorage } from '@mantine/hooks';
@@ -569,20 +570,36 @@ const EmbedDashboard: FC<{
         [dashboard, languageMap],
     );
     const filterLabelOverrides = dashboardContentOverrides?.filters;
+    const sectionNameOverrides =
+        dashboardContentOverrides?.config?.controlSections;
 
-    // Translated filter labels are applied before the dashboard seeds the
-    // provider so every viewer surface (pills, guided setup, popovers) sees
-    // them; handleSaveDashboard restores the untranslated labels.
+    // Translated filter labels and section names are applied before the
+    // dashboard seeds the provider so every viewer surface (pills, sections,
+    // guided setup, popovers) sees them; handleSaveDashboard restores the
+    // untranslated labels and saves the untranslated config.
     const translatedDashboard = useMemo(() => {
-        if (!dashboard || !filterLabelOverrides) return dashboard;
+        if (!dashboard || (!filterLabelOverrides && !sectionNameOverrides))
+            return dashboard;
         return {
             ...dashboard,
-            filters: applyFilterLabelOverrides(
-                dashboard.filters,
-                filterLabelOverrides,
-            ),
+            filters: filterLabelOverrides
+                ? applyFilterLabelOverrides(
+                      dashboard.filters,
+                      filterLabelOverrides,
+                  )
+                : dashboard.filters,
+            config:
+                sectionNameOverrides && dashboard.config?.controlSections
+                    ? {
+                          ...dashboard.config,
+                          controlSections: translateControlSections(
+                              dashboard.config.controlSections,
+                              sectionNameOverrides,
+                          ),
+                      }
+                    : dashboard.config,
         };
-    }, [dashboard, filterLabelOverrides]);
+    }, [dashboard, filterLabelOverrides, sectionNameOverrides]);
 
     const setEmbedDashboard = useDashboardContext((c) => c.setEmbedDashboard);
     useEffect(() => {

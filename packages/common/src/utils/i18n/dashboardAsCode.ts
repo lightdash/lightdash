@@ -19,7 +19,10 @@ const dashboardAsCodeSchema = z.object({
     ),
     config: z
         .object({
-            controlSections: z.array(z.object({ name: z.string() })).optional(),
+            // The id matches a translation to its section, wherever it moves
+            controlSections: z
+                .array(z.object({ id: z.string(), name: z.string() }))
+                .optional(),
         })
         .optional()
         // Only section names are translatable; drop an otherwise empty config
@@ -100,6 +103,38 @@ export const translateFilterRuleLabels = <
         return translated ? { ...rule, label: translated } : rule;
     });
 
+type ControlSectionTranslation = { id?: string; name?: string } | undefined;
+
+/**
+ * Translated section names, matched by section id. An entry with no id (a
+ * language map made before ids were added) still applies by position.
+ */
+export const translateControlSections = <
+    T extends { id: string; name: string },
+>(
+    sections: T[],
+    translations: ControlSectionTranslation[],
+): T[] => {
+    const byId = new Map<string, string | undefined>(
+        translations.flatMap((entry) =>
+            typeof entry?.id === 'string'
+                ? [[entry.id, entry.name] as const]
+                : [],
+        ),
+    );
+    const nameFor = (id: string, index: number) => {
+        if (byId.has(id)) return byId.get(id);
+        const legacy = translations[index];
+        return legacy?.id === undefined ? legacy?.name : undefined;
+    };
+    return sections.map((section, index) => {
+        const name = nameFor(section.id, index);
+        return typeof name === 'string' && name.length > 0
+            ? { ...section, name }
+            : section;
+    });
+};
+
 const getFilterLabels = (
     filters: DashboardAsCode['filters'],
 ): DashboardFilterLabelTranslations | undefined => {
@@ -158,12 +193,25 @@ export class DashboardAsCodeInternalization extends AsCodeInternalization<
         >['dashboard'][string],
         content: DashboardAsCode,
     ) {
-        const { filters: filterOverrides, ...contentOverrides } =
-            internalizationMap;
+        const {
+            filters: filterOverrides,
+            config: configOverrides,
+            ...contentOverrides
+        } = internalizationMap;
         const merged = mergeExisting(
             content,
             contentOverrides,
         ) as DashboardAsCode;
+        const sectionOverrides = configOverrides?.controlSections;
+        if (sectionOverrides && merged.config?.controlSections) {
+            merged.config = {
+                ...merged.config,
+                controlSections: translateControlSections(
+                    merged.config.controlSections,
+                    sectionOverrides,
+                ),
+            };
+        }
         const labels = filterOverrides?.labels;
         if (labels && merged.filters) {
             merged.filters = {

@@ -353,7 +353,12 @@ In `FilterConfiguration/`:
   on "Add filter", `ld-dashboard-filter` on each pill), the shipped reset
   button (`EmbedResetFiltersButton`, moved out of `EmbedDashboardFilters`)
   where viewers may not add filters, all inside `SettledFilterFields`, so a
-  tile added or removed keeps the pills as on the app's bar. The bar stays
+  tile added or removed keeps the pills as on the app's bar. A dashboard
+  with sections gets `SectionedFilters` in their place, as the app's viewer
+  bar: its `viewerActions` (default `AddControl`) are the embed's "Add
+  filter" and reset, and `triggerClassName` / `dropdownClassName` (default
+  none) carry the contract to every pass, loose and per capsule. Fold is the
+  viewer's, local. The bar stays
   while a filter is edited, as the app's does. `AddControl` renders nothing while
   `canAddFilters` is false. URL
   sync, and its skip in SDK mode, stay the shipped `DashboardFiltersSync`.
@@ -370,8 +375,13 @@ In `FilterConfiguration/`:
   `MantineThemeProvider` that gives `ComboboxDropdown` and `PopoverDropdown`
   a default `className`, so no shared input takes a prop for it. Outside an
   embed it renders its children alone.
-- An embed resolves the flag with no user (JWT), so only instance-wide
-  enablement reaches it, never a Console organisation override.
+- An embed resolves the flag for the JWT's organisation
+  (`FeatureFlagService.getForAccount`), so a Console organisation override
+  reaches it as instance-wide enablement does.
+- Section names are translated before the dashboard seeds the provider
+  (`translatedDashboard` in `EmbedDashboard`, `translateControlSections`):
+  the store holds the translated names, while an embed editor's Save sends
+  the loaded, untranslated `dashboard.config`, so sections survive it.
 
 ## Provider contract (`useControlsSidebar`)
 
@@ -1224,8 +1234,10 @@ filter), `adoptPlaceholder` and the emptied placeholder in
 `ControlsSidebarProvider`, and `buildDashboardConfig`, which today carries
 `parameterSections` forward from the loaded config; `controlSections` is
 saved from the store once `haveControlSectionsChanged`, as `parameterOrder`.
-Section names are translatable through `config.controlSections[].name` in
-the language map, as tab names are.
+Section names are translatable through `config.controlSections[]` in the
+language map (`{ id, name }`), matched by id (`translateControlSections`),
+so a reorder keeps them; an entry with no id, from a map made before ids,
+still applies by position.
 
 - State: `controlSections` and `haveControlSectionsChanged` in the store's
   `edit` slice (`syncControlSections` seeds from the saved config unless

@@ -11,6 +11,7 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     selectActiveTabUuid,
+    selectControlSections,
     selectDashboardFilters,
     selectDateZoomGranularity,
     useDashboardSelector,
@@ -18,6 +19,7 @@ import {
 } from '../../../../../features/dashboard/store';
 import { AddControl } from '../../../../../features/dashboardControls/AddControl';
 import { FilterPills } from '../../../../../features/dashboardControls/FilterPills';
+import { SectionedFilters } from '../../../../../features/dashboardControls/SectionedFilters';
 import { SettledFilterFields } from '../../../../../features/dashboardControls/SettledFilterFields';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
@@ -42,15 +44,18 @@ type Props = {
 };
 
 // The filters as the rail's bar has them: "Add filter" and the pills open
-// the rail, and stay on screen while it is open
+// the rail, and stay on screen while it is open; a dashboard with sections
+// shows them as the app's viewer bar does
 const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
     canAddFilters,
 }) => {
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    const hasSections = useDashboardSelector(
+        (state) => selectControlSections(state).length > 0,
+    );
     const getUiString = useUiStrings();
-    // A tile added or removed keeps the pills, as on the app's bar
-    return (
-        <SettledFilterFields>
+    const actions = (
+        <>
             <AddControl
                 triggerClassName={embedContractClass('ld-dashboard-add-filter')}
                 unsavedFiltersTooltip={getUiString(
@@ -58,13 +63,32 @@ const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
                 )}
             />
             {!canAddFilters && <EmbedResetFiltersButton />}
-            <FilterPills
-                activeTabUuid={activeTabUuid}
-                triggerClassName={embedContractClass('ld-dashboard-filter')}
-                dropdownClassName={embedContractClass(
-                    'ld-dashboard-filter-dropdown',
-                )}
-            />
+        </>
+    );
+    const triggerClassName = embedContractClass('ld-dashboard-filter');
+    const dropdownClassName = embedContractClass(
+        'ld-dashboard-filter-dropdown',
+    );
+    // A tile added or removed keeps the pills, as on the app's bar
+    return (
+        <SettledFilterFields>
+            {hasSections ? (
+                <SectionedFilters
+                    activeTabUuid={activeTabUuid}
+                    viewerActions={actions}
+                    triggerClassName={triggerClassName}
+                    dropdownClassName={dropdownClassName}
+                />
+            ) : (
+                <>
+                    {actions}
+                    <FilterPills
+                        activeTabUuid={activeTabUuid}
+                        triggerClassName={triggerClassName}
+                        dropdownClassName={dropdownClassName}
+                    />
+                </>
+            )}
         </SettledFilterFields>
     );
 };

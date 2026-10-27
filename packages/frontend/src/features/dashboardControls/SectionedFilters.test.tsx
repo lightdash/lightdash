@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { type ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
@@ -35,6 +36,8 @@ const pillsProps = vi.hoisted(() => ({
     current: [] as {
         sectionId: string | null | undefined;
         looseEnds?: Record<string, string>;
+        triggerClassName?: string;
+        dropdownClassName?: string;
     }[],
 }));
 const mockSidebar = vi.hoisted(() => ({
@@ -169,15 +172,24 @@ vi.mock('./FilterPills', async () => {
             sectionId,
             popover,
             looseEnds,
+            triggerClassName,
+            dropdownClassName,
         }: {
             sectionId: string | null | undefined;
             looseEnds?: Record<string, string>;
+            triggerClassName?: string;
+            dropdownClassName?: string;
             popover: {
                 openPopoverId: string | undefined;
                 onPopoverOpen: (id: string) => void;
             };
         }) => {
-            pillsProps.current.push({ sectionId, looseEnds });
+            pillsProps.current.push({
+                sectionId,
+                looseEnds,
+                triggerClassName,
+                dropdownClassName,
+            });
             const sections = useDashboardSelector(selectControlSections);
             const rules = useDashboardSelector(
                 selectDashboardFilters,
@@ -274,13 +286,14 @@ const renderSectioned = (
         { id: 'c', name: 'Empty' },
     ],
     metrics: DashboardFilterRule[] = [],
+    embedProps: Partial<ComponentProps<typeof SectionedFilters>> = {},
 ) => {
     const store = createDashboardTestStore({
         dashboardFilters: { dimensions, metrics, tableCalculations: [] },
     });
     const onTab = (tab: string | undefined) => (
         <DashboardStoreTestProvider store={store}>
-            <SectionedFilters activeTabUuid={tab} />
+            <SectionedFilters activeTabUuid={tab} {...embedProps} />
         </DashboardStoreTestProvider>
     );
     seedDashboardEditState(store, {
@@ -351,6 +364,40 @@ describe('SectionedFilters', () => {
             screen.getByRole('button', { name: 'Regions' }).parentElement,
         ).toContainElement(screen.getByTestId('pills-b'));
         expect(document.querySelectorAll('[class*="capsule"]')).toHaveLength(2);
+    });
+
+    it("takes an embed's own actions and class contract on a viewer's bar, and folds locally", () => {
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+        renderSectioned(
+            [rule('loose', undefined), rule('one', 'a')],
+            'tab-1',
+            undefined,
+            [],
+            {
+                viewerActions: <button type="button">Embed add</button>,
+                triggerClassName: 'ld-dashboard-filter',
+                dropdownClassName: 'ld-dashboard-filter-dropdown',
+            },
+        );
+        expect(
+            screen.getByRole('button', { name: 'Embed add' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Add' }),
+        ).not.toBeInTheDocument();
+        // Every pass, loose and sectioned, carries the contract
+        expect(pillsProps.current.length).toBeGreaterThan(1);
+        for (const props of pillsProps.current) {
+            expect(props.triggerClassName).toBe('ld-dashboard-filter');
+            expect(props.dropdownClassName).toBe(
+                'ld-dashboard-filter-dropdown',
+            );
+        }
+        const toggle = screen.getByRole('button', { name: 'Dates' });
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        fireEvent.click(toggle);
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByTestId('pills-a')).not.toBeInTheDocument();
     });
 
     it('keeps Add, the loose pills, the capsules and New section in one flow, in that order, ending on New section', () => {
