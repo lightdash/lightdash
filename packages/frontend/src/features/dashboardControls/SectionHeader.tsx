@@ -4,9 +4,15 @@ import {
     interpolateUiString,
     type DashboardControlSection,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Text, TextInput } from '@mantine/core';
 import {
-    IconCheck,
+    ActionIcon,
+    Box,
+    Checkbox,
+    Menu,
+    Text,
+    TextInput,
+} from '@mantine/core';
+import {
     IconChevronRight,
     IconDots,
     IconFilterPlus,
@@ -50,7 +56,8 @@ type NameInputProps = {
     onCancel: () => void;
 };
 
-// Enter or blur with a name commits; Escape or an empty name cancels
+// Enter or blur with a name commits; Escape, an empty name or the footer's
+// Cancel (which the blur lets through) cancels
 const SectionNameInput: FC<NameInputProps> = ({ name, onCommit, onCancel }) => {
     const isDone = useRef(false);
     const finish = (value: string) => {
@@ -70,7 +77,14 @@ const SectionNameInput: FC<NameInputProps> = ({ name, onCommit, onCancel }) => {
             defaultValue={name}
             autoFocus
             data-own-escape
-            onBlur={(event) => finish(event.currentTarget.value)}
+            onBlur={(event) => {
+                if (
+                    event.relatedTarget instanceof Element &&
+                    event.relatedTarget.closest('[data-controls-cancel-name]')
+                )
+                    return;
+                finish(event.currentTarget.value);
+            }}
             onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                     event.preventDefault();
@@ -104,6 +118,8 @@ type Props = {
     onCancelName: () => void;
     /** A new filter in this section. */
     onAddFilter: () => void;
+    /** How the bar starts this section: the saved choice, else its size. */
+    isCollapsedByDefault: boolean;
     /** Flips the saved default, `section.collapsed`; this rail's fold stays. */
     onToggleCollapsedByDefault: () => void;
     onRemove: () => void;
@@ -125,6 +141,7 @@ export const SectionHeader: FC<Props> = ({
     onCommitName,
     onCancelName,
     onAddFilter,
+    isCollapsedByDefault,
     onToggleCollapsedByDefault,
     onRemove,
 }) => {
@@ -250,18 +267,21 @@ export const SectionHeader: FC<Props> = ({
                             >
                                 Rename
                             </Menu.Item>
-                            {/* The check in the left slot says it is on */}
+                            {/* A checkbox item, as the date zoom menu: the
+                                item and the box both toggle, the menu stays
+                                so the change shows */}
                             <Menu.Item
                                 fz="xs"
+                                closeMenuOnClick={false}
                                 leftSection={
-                                    section.collapsed ? (
-                                        <MantineIcon
-                                            icon={IconCheck}
-                                            size={14}
-                                        />
-                                    ) : (
-                                        <Box w={14} h={14} />
-                                    )
+                                    <Checkbox
+                                        size="xs"
+                                        checked={isCollapsedByDefault}
+                                        onChange={onToggleCollapsedByDefault}
+                                        onClick={(event) =>
+                                            event.stopPropagation()
+                                        }
+                                    />
                                 }
                                 onClick={onToggleCollapsedByDefault}
                             >

@@ -140,8 +140,8 @@ In `FilterConfiguration/`:
   requirements button; in view mode `AddControl` and `FilterPills` only, as
   the shipped view bar has no requirements button, or `SectionedFilters`
   once the dashboard has sections (see "Sections"). While the rail is open (`isRailOpen`, a filter
-  expanded or not) all three fold away: the rail lists the filters and its
-  header has the "Add" menu. In their place `EditingStrip` says what is being
+  expanded or not) all three fold away: the rail lists the filters and ends
+  with its add row. In their place `EditingStrip` says what is being
   edited, after the bar's own filter icon: "Editing filters" (semibold,
   ink), a vertical `Divider`, then the edited filter's name (semibold, the
   rail's naming, no type icon) and " · N tiles" (dimmed). N is
@@ -367,7 +367,7 @@ In `FilterConfiguration/`:
   The rows are the dashboard's filters in edit mode and, for a viewer,
   their own as the rail lists them: lock-safe on this tab
   (`getSafeTemporaryFilters` with the dashboard's `temporaryFilterLocks`). With nothing expanded the rail lists rows with
-  "Done" in the footer and the header's "Add" menu, the tiles have no overlay or veil,
+  "Done" in the footer and the add row under them, the tiles have no overlay or veil,
   the header is not locked, and the tab badges are gone. Leaving edit mode
   closes both. Internally `closeEdited`, `discardEdited` and `removeEdited`
   take `keepRail`; `resetEdit` ends the edit, `reset` also closes the rail.
@@ -485,18 +485,37 @@ In `FilterConfiguration/`:
 ## Editor
 
 - The editor is a rail: `EditorShell` is a `Paper` (the theme's bordered,
-  flat surface) holding the header ("Filters", an "Add" `IconPlus` menu
-  and a Close X), the body and the footer. Controls are `xs`, names
-  `fz="sm"`, secondary lines `fz="xs"`. The "Add" menu (`filters.rail.add`,
-  `data-controls-new-section`, bottom-end) lists "Add filter"
-  (`filters.addFilter`, `openNew`; gone when `!canAddFilters` and for a
-  viewer hidden by the editor's eye) and "New section" (editors only); with
-  neither the button is not rendered. The footer has, for an editor, the
+  flat surface) holding the header ("Filters", the count badge, for an
+  editor a "..." `IconDots` menu (`filters.rail.more`) holding "Select
+  filters", hidden while selecting, and a Close X), the body and the
+  footer. Controls are `xs`, names `fz="sm"`, secondary lines `fz="xs"`.
+  The list ends with the add row (`AddRow`, `.addRow`: a quiet full-width
+  button, `xs` 500 dimmed with a 14px plus, 36px tall like a section header
+  with its `4px` vertical padding, the loose rows' `md` left padding,
+  `data-controls-new-section`; hidden while a new filter has no field yet or
+  a new section is being named, back once either settles, so the
+  `focusAfter` fallbacks that name it run after it has rendered again),
+  a plain tab stop after the roving list, never one of its stops): for an
+  editor it reads "+ Add" (`filters.rail.add`, `aria-expanded` false) and a
+  click, Enter or Space opens it in place (`.addRowOpen`, same height and
+  padding) into the label "Add", a "Filter" button (`IconFilter`,
+  `filters.rail.filterNoun`, `openNew`; gone when `!canAddFilters`), a
+  "Section" button (`IconSection`, `filters.rail.sectionNoun`, the
+  new-section handler), both `xs` `default` with a 0.12s opacity arrival,
+  and an `xs` X named by `filters.actions.cancel` ("Close" is the rail's
+  X); focus goes to "Filter"; Escape (the
+  box carries `data-own-escape`) and the X fold it with focus back on the
+  row, focus or a pointer leaving it fold it quietly; the folded row alone
+  carries `data-controls-new-section`. For a viewer who may add, a direct
+  "Add filter" button (gone when the editor hid it); with neither, no row.
+  `filters.rail.addFilterOrSection` stays in the registry unused. The footer has, for an editor, the
   `xs` `Switch` "Viewers can add filters" (`xs` dimmed label) at the left (checked
   while `isAddFilterDisabled` is false; it writes `setIsAddFilterDisabled`,
   the saved `config.isAddFilterDisabled` keeps its polarity) and "Done"
   (`close`) at the right; while the edited filter has no field it has only a
-  status, "Select a field to keep this filter", and "Cancel" (`discard`). A footer status says what closing would drop. The body ends
+  status, "Select a field to keep this filter", and "Cancel" (`discard`),
+  and while a new section is named the same row reads "Name this section to
+  keep it" with "Cancel" (`cancelName`). A footer status says what closing would drop. The body ends
   1px under the footer's top border (`.body`'s `margin-bottom: -1px`), so
   the last row's border and the footer's read as one line whether the list
   scrolls or not.
@@ -695,8 +714,7 @@ In `FilterConfiguration/`:
   "This tab", "All tabs", "Some tabs". The segment is derived from
   `lockedTabUuids` (exactly the tab in view, every tab, anything else); the
   only state is that "Some tabs" was picked, which keeps the locked tabs and
-  shows a `MultiSelect` of the tabs by name, the one in view marked "this
-  tab". Every change goes through the pill's `getFilterLockToggle`
+  shows a `MultiSelect` of the tabs by name. Every change goes through the pill's `getFilterLockToggle`
   (`filterLock.ts`), one tab at a time, and tracks its event, one per tab
   whose lock changes. A segment or tab that would lock more is disabled
   while that would leave a locked, required filter with no value.
@@ -1103,10 +1121,12 @@ the language map, as tab names are.
   `SectionHeader` label row on the card surface, no fill (grip, chevron,
   the name in normal case, "· N filters" in `xs` dimmed right after it, the
   menu with "Add filter" (`openNew(section.id)`), "Rename", "Collapsed by
-  default" (a check in its left slot while `section.collapsed`;
-  `setControlSectionCollapsed` writes `true`, or removes the key when
-  unticked so the dense-section default applies again; it changes nothing
-  in the open rail) and "Remove section" at the far right on hover) with a
+  default" (a `Checkbox` in its left slot,
+  `closeMenuOnClick={false}` so the menu stays and shows the change, the
+  item and the box both toggle; the box shows how the bar starts the
+  section (`isCollapsedByDefault`, so a dense one with no saved choice is
+  ticked) and `setControlSectionCollapsed` saves the opposite, `true` or
+  `false`; it changes nothing in the open rail) and "Remove section" at the far right on hover) with a
   hairline above it, none above the first thing in the list
   (`.body > .sectionHeader:first-child`); its rows are indented one `md`
   further than the unsectioned ones (`.sectionRow`, also on a viewer's
@@ -1116,18 +1136,18 @@ the language map, as tab names are.
   `filters.rail.removeFilter` / `confirmRemove`) shown on hover and
   `:focus-within`, which calls the provider's `removeFilterById` as the
   pill's X does; focus then goes to the next row, else the one before, else
-  the header's "Add" (`focusAfter`). A viewer's rows have none. Rows have no hairlines between them; the
+  the add row (`focusAfter`). A viewer's rows have none. Rows have no hairlines between them; the
   lines are the section headers' and the editor's; the editor (`.edited`) keeps its `ldGray-1` fill
   with a hairline above and below. The "Tiles" and "Rules" disclosures are
   compact (32px, `xs` dimmed, name `fw` 500, 12px chevron), inset to the
   editor's padding with one hairline above the pair. No uppercase or
   letter-spaced labels anywhere. There are no drop zones: nothing mounts during
   a drag. The fold is `collapsedIds`, local to the open rail and seeded as
-  it mounts from each section's default (`isCollapsedByDefault` in
-  `sections.ts`: `section.collapsed`, else more than six members; the
-  rail remounts on every open, so a saved choice applies on the next open,
-  a viewer's rail included, and a section made while it is open starts
-  expanded); collapsing the
+  it mounts with every section, so the rail always opens collapsed (the
+  saved "Collapsed by default" is the bar's), except the section of the
+  filter it was opened on (`open(filterId)` from a pill, `openNew(sectionId)`
+  from a section menu), which stays open so the editor shows; a section
+  made while it is open starts expanded; collapsing the
   section that holds the expanded filter calls `collapse()` first, so
   nothing expanded is inside a collapsed section, with one exception: a
   new filter with no field yet (the same `isPlaceholder` guard as "New
@@ -1145,12 +1165,19 @@ the language map, as tab names are.
   `SectionHeader` with `isReadOnly` (chevron, name, count; no grip, menu or
   name input) over its members as read-only `FilterRow`s (`isOwn` false,
   no `SortableRow`, dimmed, tooltip `filters.rail.savedFilterReadOnly`):
-  they are set from the bar. No "New section" in the "Add" menu. The same `collapsedIds` state collapses them.
-- "New section" in the header's "Add" menu collapses the expanded filter
+  they are set from the bar. No "New section" in the add row. The same `collapsedIds` state collapses them.
+- "New section" in the add row's menu collapses the expanded filter
   (`collapse()`, as `openNew` does; a new filter with no field yet stays
   open, since collapsing it would drop it and the rail) and opens a section header with its name
   input, held only in the rail's `nameEdit` state until a name is committed
-  (Enter or blur with a name); Escape or an empty name drops it. The open
+  (Enter or blur with a name); Escape, an empty name or the footer's
+  "Cancel" drops it, focus back on the add row. While it is named the footer
+  is the new filter's (`onCancel` = `cancelName`, status
+  `filters.rail.nameSectionToKeep`, "Name this section to keep it", in place
+  of the switch and Done); that button carries `data-controls-cancel-name`
+  and the input's blur yields to it, so a typed name is not committed on the
+  way. A rename keeps the normal footer; an empty rename keeps the old name.
+  The open
   rail is its own component (`OpenControlSidebar`), so `nameEdit`,
   `collapsedIds` and the drag reset when the rail closes. That header
   (`isNew`) has no menu and a disabled chevron, since a click on either would
@@ -1166,7 +1193,7 @@ the language map, as tab names are.
   the shell's menu close): the section's menu button
   (`data-controls-section-menu`) after a commit or a cancelled rename, the
   expanded filter's label after removing the section that held it, else
-  the header's "Add" button after a remove or a dropped new section. A drop that moves nothing marks nothing changed.
+  the add row after a remove or a dropped new section. A drop that moves nothing marks nothing changed.
 - Drag: one `DndContext` around `EditorShell`, with one `SortableContext`
   in the body over the headers and rows on screen, in display order
   (`PointerSensor` at 5px and `KeyboardSensor` with
@@ -1200,7 +1227,7 @@ the language map, as tab names are.
   named.
 - Select mode, editors only, local to `OpenControlSidebar` (`selectedIds`,
   null outside the mode): entered only from "Select filters" in the header's
-  "Add" menu (`IconListCheck`, under a divider; disabled with the tooltip
+  "..." menu (`IconListCheck`; disabled with the tooltip
   "Finish the new filter first" while a new filter has no field). At rest a
   row shows its grip on hover as before. Entering folds the expanded filter
   (`collapse()`). In it (`data-selecting`) every editor row has an `xs`
@@ -1222,12 +1249,12 @@ the language map, as tab names are.
   selected id in display order, one `setDashboardFilters` write and
   `setHaveFiltersChanged(true)`, focus to the first moved row) and "Remove"
   (`ConfirmDeleteButton`, "Click again to remove n filters", one write over
-  `removeFilterRule`, focus to the header's "Add"), both disabled at 0.
+  `removeFilterRule`, focus to the add row), both disabled at 0.
   "New section" there opens the name input with the selection as the
   `nameEdit`'s `moveIds`: a committed name adds the section and moves them
   in, leaving the mode; a cancelled name moves nothing and stays in the
-  mode. "Add filter" (header and section menus) and "New section" in the
-  "Add" menu leave the mode first. Section chevrons and menus work as
+  mode. "Add filter" (add row and section menus) and "New section" in the
+  add row's menu leave the mode first. Section chevrons and menus work as
   before. Closing the rail unmounts the state.
 - Bar, in both modes: with `selectControlSections` non-empty and the rail
   closed, `ControlsBar` renders `SectionedFilters` in place of `AddControl`

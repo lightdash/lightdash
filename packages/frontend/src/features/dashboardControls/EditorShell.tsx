@@ -16,10 +16,9 @@ import {
     VisuallyHidden,
 } from '@mantine/core';
 import {
-    IconFilterPlus,
+    IconDots,
     IconFolderPlus,
     IconListCheck,
-    IconPlus,
     IconX,
 } from '@tabler/icons-react';
 import { useRef, type FC, type ReactNode } from 'react';
@@ -28,7 +27,6 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import classes from './ControlSidebar.module.css';
 import { useRailContractClasses } from './railContractClasses';
-import { RAIL_ADD_SELECTOR } from './railSelectors';
 import { UNSECTIONED_TARGET_ID } from './sections';
 import { useRailTop } from './useRailTop';
 
@@ -54,10 +52,6 @@ type Props = {
     isDragging: boolean;
     /** Set while the filter cannot be kept: the footer offers only this. */
     onCancel: (() => void) | null;
-    /** Null while no filter can be added. */
-    onAddFilter: (() => void) | null;
-    /** Null for a viewer, whose rail has no sections. */
-    onNewSection: (() => void) | null;
     /**
      * Editors only. `disabledReason` while a new filter has no field yet:
      * the item stays, disabled, with the reason as its tooltip.
@@ -86,8 +80,6 @@ export const EditorShell: FC<Props> = ({
     isUnsectionTargetDisabled,
     isDragging,
     onCancel,
-    onAddFilter,
-    onNewSection,
     selectFilters,
     selectMode,
     footerStatus,
@@ -103,13 +95,6 @@ export const EditorShell: FC<Props> = ({
         id: UNSECTIONED_TARGET_ID,
         disabled: isUnsectionTargetDisabled,
     });
-    // Escape leaves the menu with nothing focused; the name input and the
-    // new filter's editor take focus before this runs
-    const refocusAdd = () =>
-        setTimeout(() => {
-            if (document.activeElement !== document.body) return;
-            document.querySelector<HTMLElement>(RAIL_ADD_SELECTOR)?.focus();
-        });
     const selectItem = selectFilters && (
         <Menu.Item
             fz="xs"
@@ -176,63 +161,29 @@ export const EditorShell: FC<Props> = ({
                     )}
                 </Group>
                 <Group gap={4} wrap="nowrap">
-                    {/* Focus must stay on the name input New section opens */}
-                    {(onAddFilter || onNewSection) && (
-                        <Menu
-                            position="bottom-end"
-                            returnFocus={false}
-                            onClose={refocusAdd}
-                        >
+                    {/* Editors only, and not while selecting */}
+                    {selectFilters && (
+                        <Menu position="bottom-end" returnFocus={false}>
                             <Menu.Target>
                                 <Tooltip
-                                    label={getUiString('filters.rail.add')}
+                                    label={getUiString('filters.rail.more')}
                                 >
                                     <ActionIcon
                                         size="sm"
                                         variant="subtle"
                                         color="gray"
                                         aria-label={getUiString(
-                                            'filters.rail.add',
+                                            'filters.rail.more',
                                         )}
-                                        data-controls-new-section
                                     >
-                                        <MantineIcon icon={IconPlus} />
+                                        <MantineIcon icon={IconDots} />
                                     </ActionIcon>
                                 </Tooltip>
                             </Menu.Target>
                             <Menu.Dropdown>
-                                {onAddFilter && (
-                                    <Menu.Item
-                                        fz="xs"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconFilterPlus}
-                                                size={14}
-                                            />
-                                        }
-                                        onClick={onAddFilter}
-                                    >
-                                        {getUiString('filters.addFilter')}
-                                    </Menu.Item>
-                                )}
-                                {onNewSection && (
-                                    <Menu.Item
-                                        fz="xs"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconFolderPlus}
-                                                size={14}
-                                            />
-                                        }
-                                        onClick={onNewSection}
-                                    >
-                                        New section
-                                    </Menu.Item>
-                                )}
-                                {selectFilters && <Menu.Divider />}
                                 {/* A disabled item takes no pointer: the
                                     box around it carries the tooltip */}
-                                {selectFilters?.disabledReason ? (
+                                {selectFilters.disabledReason ? (
                                     <Tooltip
                                         label={selectFilters.disabledReason}
                                         position="left"
@@ -382,6 +333,7 @@ export const EditorShell: FC<Props> = ({
                                 color="gray"
                                 size="xs"
                                 flex="0 0 auto"
+                                data-controls-cancel-name
                                 onClick={onCancel}
                             >
                                 {getUiString('filters.actions.cancel')}

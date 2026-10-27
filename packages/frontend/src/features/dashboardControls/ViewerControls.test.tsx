@@ -262,7 +262,7 @@ describe('ViewerControls', () => {
             fireEvent.click(tabsField());
             expect(
                 screen.getByRole('option', {
-                    name: 'Overview · this tab',
+                    name: 'Overview',
                     hidden: true,
                 }),
             ).toBeInTheDocument();

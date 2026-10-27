@@ -66,6 +66,7 @@ import {
     useDashboardTemporaryFilters,
 } from '../dashboard/store';
 import { useIsLockedDashboardFilterRule } from '../dashboardFilters/useIsLockedDashboardFilterRule';
+import { AddRow } from './AddRow';
 import classes from './ControlSidebar.module.css';
 import { EditorShell } from './EditorShell';
 import { formatSectionCount } from './fieldLabels';
@@ -94,12 +95,12 @@ import { getTilesSummary } from './railSummaries';
 import { SectionHeader } from './SectionHeader';
 import {
     groupRulesBySection,
+    isCollapsedByDefault,
     moveRuleToSection,
     removeSectionFromRules,
     getDragAnnouncements,
     UNSECTIONED_TARGET_ID,
     type SectionRule,
-    isCollapsedByDefault,
 } from './sections';
 import {
     isDefaultValueIncomplete,
@@ -320,6 +321,7 @@ const OpenControlSidebar: FC = () => {
     );
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
+    const isNew = useControlsSidebarSelector((c) => c.isNew);
     const open = useControlsSidebarSelector((c) => c.open);
     const setHoveredFilterId = useControlsSidebarSelector(
         (c) => c.setHoveredFilterId,
@@ -382,16 +384,13 @@ const OpenControlSidebar: FC = () => {
             : interpolateUiString(getUiString('filters.rail.unknownField'), {
                   field: rule.target.fieldId,
               });
-    // Local to this mount, seeded from each section's default as the rail
-    // opens; a saved choice changed meanwhile moves nothing here, and a
-    // section made while it is open starts expanded
+    // Local to this mount: every section starts collapsed as the rail opens,
+    // except the one holding the filter it opened on (the saved default is
+    // the bar's); a section made while it is open starts expanded
     const [collapsedIds, setCollapsedIds] = useState<string[]>(() =>
-        groupRulesBySection(dashboardFilters, controlSections).flatMap(
-            ({ section, rules }) =>
-                section !== null && isCollapsedByDefault(section, rules.length)
-                    ? [section.id]
-                    : [],
-        ),
+        controlSections
+            .filter(({ id }) => id !== editingRule?.sectionId)
+            .map(({ id }) => id),
     );
     // A new section lives only here until its name is committed
     const [nameEdit, setNameEdit] = useState<NameEdit | null>(null);
@@ -942,15 +941,20 @@ const OpenControlSidebar: FC = () => {
                         collapse();
                     setSectionCollapsed(section, !isCollapsed);
                 }}
+                isCollapsedByDefault={isCollapsedByDefault(
+                    section,
+                    rules.length,
+                )}
                 onToggleCollapsedByDefault={() =>
                     // The saved default only: this rail keeps its own fold.
-                    // Unticked, the key goes so the dense-section default
-                    // applies again
+                    // Saved either way, so unticked means open on the bar
                     dispatch(
                         dashboardEditActions.setControlSectionCollapsed({
                             id: section.id,
-                            collapsed:
-                                section.collapsed !== true ? true : undefined,
+                            collapsed: !isCollapsedByDefault(
+                                section,
+                                rules.length,
+                            ),
                         }),
                     )
                 }
@@ -988,14 +992,39 @@ const OpenControlSidebar: FC = () => {
             </Group>
         );
     // Closing keeps the edits, so the footer says what closing would drop
-    const footerStatus =
-        editingRule === null || editor === null
-            ? null
-            : isPlaceholder
-              ? getUiString('filters.rail.selectFieldToKeep')
-              : !isViewer && isDefaultValueIncomplete(editingRule)
-                ? 'No default value set, so the default stays off'
-                : null;
+    // A new section being named takes the footer as a new filter with no
+    // field does: the hint and Cancel in place of the switch and Done
+    const footerStatus = nameEdit?.isNew
+        ? getUiString('filters.rail.nameSectionToKeep')
+        : editingRule === null || editor === null
+          ? null
+          : isPlaceholder
+            ? getUiString('filters.rail.selectFieldToKeep')
+            : !isViewer && isDefaultValueIncomplete(editingRule)
+              ? 'No default value set, so the default stays off'
+              : null;
+
+    const addFilter =
+        canAddFilters && !(isViewer && isAddFilterDisabled)
+            ? () => {
+                  leaveSelectMode();
+                  openNew();
+              }
+            : null;
+    const newSection = isViewer
+        ? null
+        : () => {
+              if (nameEdit?.isNew) return;
+              leaveSelectMode();
+              // As `openNew`: the expanded filter folds first,
+              // but a new one with no field yet stays as it is
+              if (!isPlaceholder) collapse();
+              setNameEdit({
+                  id: uuidv4(),
+                  isNew: true,
+                  moveIds: [],
+              });
+          };
 
     return (
         <DndContext
@@ -1025,30 +1054,12 @@ const OpenControlSidebar: FC = () => {
                     draggedId !== null && sectionIds.has(draggedId)
                 }
                 isDragging={draggedId !== null}
-                onCancel={editor !== null && isPlaceholder ? discard : null}
-                onAddFilter={
-                    canAddFilters && !(isViewer && isAddFilterDisabled)
-                        ? () => {
-                              leaveSelectMode();
-                              openNew();
-                          }
-                        : null
-                }
-                onNewSection={
-                    isViewer
-                        ? null
-                        : () => {
-                              if (nameEdit?.isNew) return;
-                              leaveSelectMode();
-                              // As `openNew`: the expanded filter folds first,
-                              // but a new one with no field yet stays as it is
-                              if (!isPlaceholder) collapse();
-                              setNameEdit({
-                                  id: uuidv4(),
-                                  isNew: true,
-                                  moveIds: [],
-                              });
-                          }
+                onCancel={
+                    nameEdit?.isNew
+                        ? cancelName
+                        : editor !== null && isPlaceholder
+                          ? discard
+                          : null
                 }
                 selectFilters={
                     isViewer || isSelecting
@@ -1121,6 +1132,15 @@ const OpenControlSidebar: FC = () => {
                     >
                         {body}
                     </SortableContext>
+                    {/* Out of the way while a new filter has no field yet or
+                        a new section is being named; back, and focused again
+                        through `focusAfter`, once either is settled */}
+                    {!((isPlaceholder && isNew) || nameEdit?.isNew) && (
+                        <AddRow
+                            onAddFilter={addFilter}
+                            onNewSection={newSection}
+                        />
+                    )}
                 </Box>
                 <DragOverlay>{dragPreview}</DragOverlay>
             </EditorShell>

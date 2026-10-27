@@ -451,7 +451,7 @@ describe('ControlSidebar', () => {
             expect(row('filter-1')).toHaveFocus();
         });
 
-        it('takes focus on Add when it opens with no filter', () => {
+        it('takes focus on the add row when it opens with no filter', () => {
             setSidebar({
                 editing: null,
                 editingRule: null,
@@ -462,7 +462,7 @@ describe('ControlSidebar', () => {
             expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
         });
 
-        it('has one tab stop: Tab from Add lands on the first row, the next Tab leaves the list', async () => {
+        it('has one tab stop: Tab from the X lands on the first row, the next Tab is the add row', async () => {
             setSidebar({
                 editing: null,
                 editingRule: null,
@@ -475,7 +475,9 @@ describe('ControlSidebar', () => {
             await userEvent.tab();
             expect(row('filter-1')).toHaveFocus();
             await userEvent.tab();
-            // Out of the list: the footer's first control, not a second row
+            // Out of the roving list: the add row, not a second row
+            expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
+            await userEvent.tab();
             expect(screen.getByRole('switch')).toHaveFocus();
             expect(
                 screen.getAllByRole('button', { name: /^Drag to reorder/ }),
@@ -670,11 +672,45 @@ describe('ControlSidebar', () => {
         expect(
             screen.queryByRole('button', { name: 'Done' }),
         ).not.toBeInTheDocument();
+        // No add row while the new filter is being made
+        expect(
+            screen.queryByRole('button', { name: /Add filter/ }),
+        ).not.toBeInTheDocument();
 
         fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
         expect(discard).toHaveBeenCalledTimes(1);
         expect(openNew).not.toHaveBeenCalled();
         expect(close).not.toHaveBeenCalled();
+    });
+
+    it('brings the add row back once the new filter is discarded', () => {
+        setSidebar({
+            isPlaceholder: true,
+            editingRule: makeRule({ target: { fieldId: '', tableName: '' } }),
+        });
+        const { rerender } = renderWithProviders(
+            <ControlSidebar />,
+            filters([makeRule({ id: 'filter-2', label: 'Region' })]),
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Add' }),
+        ).not.toBeInTheDocument();
+        // An existing filter that lost its field is not a new one: the row stays
+        setSidebar({
+            isNew: false,
+            isPlaceholder: true,
+            editing: { filterId: 'filter-2' },
+            editingRule: makeRule({
+                id: 'filter-2',
+                target: { fieldId: '', tableName: '' },
+            }),
+        });
+        rerender(<ControlSidebar />);
+        expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
+
+        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
+        rerender(<ControlSidebar />);
+        expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
     });
 
     it('counts the filters in the header from 1, with no badge at 0', () => {
@@ -881,7 +917,7 @@ describe('ControlSidebar', () => {
         expect(close).not.toHaveBeenCalled();
     });
 
-    it('closes on Done and the X, adds from the header menu, and discards a new filter from its icon', async () => {
+    it('closes on Done and the X, adds from the add row, and discards a new filter from its icon', async () => {
         const { close, discard, openNew } = setSidebar({
             editingRule: makeRule({ label: 'Order status' }),
         });
@@ -903,9 +939,7 @@ describe('ControlSidebar', () => {
         expect(close).toHaveBeenCalledTimes(2);
 
         await userEvent.click(screen.getByRole('button', { name: 'Add' }));
-        await userEvent.click(
-            await screen.findByRole('menuitem', { name: 'Add filter' }),
-        );
+        await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
         expect(openNew).toHaveBeenCalledTimes(1);
 
         expect(screen.queryByLabelText('More actions')).not.toBeInTheDocument();
@@ -916,39 +950,166 @@ describe('ControlSidebar', () => {
         expect(discard).toHaveBeenCalledTimes(1);
     });
 
-    it('returns focus to Add when the menu closes on Escape, and leaves it on the name input', async () => {
+    it('opens in place on Enter, folds back on Escape with focus on the row, and Section hands focus to the name', async () => {
         setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
         renderWithProviders(<ControlSidebar />);
-        const add = screen.getByRole('button', { name: 'Add' });
+        const add = () => screen.getByRole('button', { name: 'Add' });
 
-        add.focus();
+        add().focus();
         await userEvent.keyboard('{Enter}');
-        await screen.findByRole('menuitem', { name: 'Add filter' });
+        expect(screen.getByRole('button', { name: 'Filter' })).toHaveFocus();
+        expect(screen.getByRole('button', { name: 'Section' })).toBeVisible();
+        expect(screen.getByRole('button', { name: 'Cancel' })).toBeVisible();
         await userEvent.keyboard('{Escape}');
-        await waitFor(() => expect(add).toHaveFocus());
+        expect(
+            screen.queryByRole('button', { name: 'Filter' }),
+        ).not.toBeInTheDocument();
+        expect(add()).toHaveFocus();
+        // The rail itself did not take that Escape
+        expect(screen.getByRole('heading', { name: 'Filters' })).toBeVisible();
 
-        await userEvent.click(add);
-        await userEvent.click(
-            await screen.findByRole('menuitem', { name: 'New section' }),
-        );
+        await userEvent.click(add());
+        await userEvent.click(screen.getByRole('button', { name: 'Section' }));
         const input = screen.getByLabelText('Section name');
         await act(() => new Promise((resolve) => setTimeout(resolve)));
         expect(input).toHaveFocus();
     });
 
-    it('lists "Add filter" and "New section" in the header menu for an editor', async () => {
+    it('ends the list with an add row that opens "Add filter" and "New section"', async () => {
+        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
+        renderWithProviders(
+            <ControlSidebar />,
+            filters([
+                makeRule({ label: 'Order status' }),
+                makeRule({ id: 'filter-2', label: 'Region' }),
+            ]),
+        );
+        const addRow = screen.getByRole('button', {
+            name: 'Add',
+        });
+        expect(addRow).toHaveAttribute('data-controls-new-section');
+        // After every row, and not one of the list's roving stops
+        expect(
+            screen
+                .getByRole('button', { name: /^Region/ })
+                .compareDocumentPosition(addRow) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(addRow).not.toHaveAttribute('data-controls-stop');
+        expect(addRow.tabIndex).toBe(0);
+        expect(addRow).toHaveAttribute('aria-expanded', 'false');
+
+        // Opened in place: the label, Filter, Section and an X, focus on Filter
+        await userEvent.click(addRow);
+        expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
+        const filter = screen.getByRole('button', { name: 'Filter' });
+        expect(filter).toHaveFocus();
+        expect(screen.getByRole('button', { name: 'Section' })).toBeVisible();
+        const cancel = screen.getByRole('button', { name: 'Cancel' });
+        expect(
+            filter.parentElement?.querySelector('[data-controls-new-section]'),
+        ).toBeNull();
+        // The X folds it with focus back on the row
+        await userEvent.click(cancel);
+        expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
+        // Focus leaving folds it quietly
+        await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+        act(() => screen.getByRole('button', { name: 'Done' }).focus());
+        expect(
+            screen.queryByRole('button', { name: 'Filter' }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Done' })).toHaveFocus();
+    });
+
+    it('folds when a click lands outside it', async () => {
         setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
         renderWithProviders(<ControlSidebar />);
-
         await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+        expect(screen.getByRole('button', { name: 'Filter' })).toBeVisible();
+        fireEvent.mouseDown(screen.getByRole('heading', { name: 'Filters' }));
+        expect(
+            screen.queryByRole('button', { name: 'Filter' }),
+        ).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Add' })).toHaveAttribute(
+            'aria-expanded',
+            'false',
+        );
+    });
+
+    it('hides the row while a new section is named from it, and brings it back folded after Cancel', async () => {
+        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
+        renderWithProviders(<ControlSidebar />);
+        await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Section' }));
+        expect(screen.getByLabelText('Section name')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /^Add$|^Section$/ }),
+        ).not.toBeInTheDocument();
+
+        await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        const add = screen.getByRole('button', { name: 'Add' });
+        expect(add).toHaveAttribute('aria-expanded', 'false');
+        expect(add).toHaveFocus();
+    });
+
+    it('hides the row while a new filter is started from it, then shows it folded again', async () => {
+        const { openNew } = setSidebar({
+            editing: null,
+            editingRule: null,
+            isSidebarOpen: false,
+        });
+        const { rerender } = renderWithProviders(
+            <ControlSidebar />,
+            filters([makeRule({ label: 'Order status' })]),
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+        await userEvent.click(screen.getByRole('button', { name: 'Filter' }));
+        expect(openNew).toHaveBeenCalledTimes(1);
+
+        setSidebar({
+            isPlaceholder: true,
+            editingRule: makeRule({
+                id: 'new',
+                target: { fieldId: '', tableName: '' },
+            }),
+            editing: { filterId: 'new' },
+        });
+        rerender(<ControlSidebar />);
+        expect(
+            screen.queryByRole('button', { name: /^Add$|^Filter$/ }),
+        ).not.toBeInTheDocument();
+
+        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
+        rerender(<ControlSidebar />);
+        expect(screen.getByRole('button', { name: 'Add' })).toHaveAttribute(
+            'aria-expanded',
+            'false',
+        );
+    });
+
+    it('keeps "Select filters" in the header\'s "..." menu, which enters select mode', async () => {
+        setSidebar({ editing: null, editingRule: null, isSidebarOpen: false });
+        renderWithProviders(
+            <ControlSidebar />,
+            filters([makeRule({ label: 'Order status' })]),
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'More' }));
         expect(
             (await screen.findAllByRole('menuitem')).map(
                 (item) => item.textContent,
             ),
-        ).toEqual(['Add filter', 'New section', 'Select filters']);
+        ).toEqual(['Select filters']);
+        await userEvent.click(
+            screen.getByRole('menuitem', { name: 'Select filters' }),
+        );
+        expect(screen.getAllByRole('checkbox')).toHaveLength(1);
+        // Hidden while selecting
+        expect(
+            screen.queryByRole('button', { name: 'More' }),
+        ).not.toBeInTheDocument();
     });
 
-    it('has no header menu while nothing can be added', () => {
+    it('has no add row and no "..." for a viewer who cannot add', () => {
         setSidebar({
             editing: null,
             editingRule: null,
@@ -958,8 +1119,39 @@ describe('ControlSidebar', () => {
         });
         renderWithProviders(<ControlSidebar />);
         expect(
-            screen.queryByRole('button', { name: 'Add' }),
+            screen.queryByRole('button', { name: /Add filter/ }),
         ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'More' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('sends focus to the add row once the last row is removed', () => {
+        const removeViaStore = vi.fn();
+        setSidebar({
+            editing: null,
+            editingRule: null,
+            isSidebarOpen: false,
+            removeFilterById: removeViaStore,
+        });
+        const { store } = renderWithProviders(
+            <ControlSidebar />,
+            filters([makeRule({ label: 'Order status' })]),
+        );
+        removeViaStore.mockImplementation((ruleId: string) =>
+            store.dispatch(
+                dashboardFiltersActions.setDashboardFilters({
+                    ...selectDashboardFilters(store.getState()),
+                    dimensions: selectDashboardFilters(
+                        store.getState(),
+                    ).dimensions.filter((rule) => rule.id !== ruleId),
+                }),
+            ),
+        );
+        const remove = screen.getByRole('button', { name: 'Remove filter' });
+        fireEvent.click(remove);
+        fireEvent.click(remove);
+        expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
     });
 
     it('offers Discard changes only once an existing filter has changed', () => {
@@ -1221,6 +1413,13 @@ describe('ControlSidebar', () => {
                 ]),
                 filters([own]),
             );
+            // Saved sections open collapsed for a viewer too
+            expect(
+                container.querySelector('[data-controls-row="created"]'),
+            ).toBeNull();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Expand section Dates' }),
+            );
             const listed = [
                 ...container.querySelectorAll(
                     '[data-controls-row], [data-controls-section]',
@@ -1240,13 +1439,17 @@ describe('ControlSidebar', () => {
             expect(
                 screen.queryByRole('button', { name: 'Section Dates actions' }),
             ).not.toBeInTheDocument();
-            await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+            // A viewer adds at once from the list's last row, and has no "..."
             expect(
-                (await screen.findAllByRole('menuitem')).map(
-                    (item) => item.textContent,
-                ),
-            ).toEqual(['Add filter']);
-            await userEvent.keyboard('{Escape}');
+                screen.queryByRole('button', { name: 'Add' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'More' }),
+            ).not.toBeInTheDocument();
+            const addRow = screen.getByRole('button', { name: 'Add filter' });
+            expect(addRow).toHaveAttribute('data-controls-new-section');
+            await userEvent.click(addRow);
+            expect(screen.queryByRole('menuitem')).not.toBeInTheDocument();
 
             const row = container.querySelector<HTMLElement>(
                 '[data-controls-row="created"]',
@@ -1418,6 +1621,12 @@ describe('ControlSidebar', () => {
                 editingRule: null,
                 isSidebarOpen: false,
             });
+        // The rail opens with every section collapsed; most of these look
+        // at the rows under their headers
+        const expandAll = () =>
+            screen
+                .queryAllByRole('button', { name: /^Expand section/ })
+                .forEach((chevron) => fireEvent.click(chevron));
         const rowNames = () =>
             [
                 ...document.querySelectorAll(
@@ -1443,6 +1652,7 @@ describe('ControlSidebar', () => {
         it('lists unsectioned rows first, then each section with its count', () => {
             closedRail();
             renderWithProviders(<ControlSidebar />, sectioned());
+            expandAll();
 
             expect(rowNames()).toEqual([
                 'Order status',
@@ -1468,6 +1678,7 @@ describe('ControlSidebar', () => {
         it('indents the rows of a section, not the unsectioned ones', () => {
             closedRail();
             renderWithProviders(<ControlSidebar />, sectioned());
+            expandAll();
             const wrapperOf = (id: string) =>
                 document.querySelector(`[data-controls-row="${id}"]`)
                     ?.parentElement?.className ?? '';
@@ -1489,6 +1700,7 @@ describe('ControlSidebar', () => {
                     }),
                 ]),
             );
+            expandAll();
             const rows = () =>
                 container.querySelectorAll('[data-controls-row]').length;
             expect(rows()).toBe(2);
@@ -1527,6 +1739,7 @@ describe('ControlSidebar', () => {
                     makeRule({ label: 'Created', sectionId: 'section-a' }),
                 ]),
             );
+            expandAll();
 
             expect(screen.getByText('0 filters')).toBeInTheDocument();
             fireEvent.click(
@@ -1546,17 +1759,33 @@ describe('ControlSidebar', () => {
         const newSection = async () => {
             await userEvent.click(screen.getByRole('button', { name: 'Add' }));
             await userEvent.click(
-                await screen.findByRole('menuitem', { name: 'New section' }),
+                screen.getByRole('button', { name: 'Section' }),
             );
         };
 
         it('adds a section named on Enter and drops one left empty on Escape', async () => {
             closedRail();
             const { store } = renderWithProviders(<ControlSidebar />);
+            expandAll();
 
             await newSection();
             const input = screen.getByLabelText('Section name');
             expect(input).toHaveFocus();
+            // The footer is the new filter's: a hint and Cancel, no switch or Done
+            expect(
+                screen.getByText('Name this section to keep it'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Cancel' }),
+            ).toBeVisible();
+            expect(screen.queryByRole('switch')).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Done' }),
+            ).not.toBeInTheDocument();
+            // The add row waits for the name
+            expect(
+                screen.queryByRole('button', { name: 'Add' }),
+            ).not.toBeInTheDocument();
             // Nothing else on the header takes a click: a blur would drop it
             expect(
                 screen.queryByRole('button', {
@@ -1578,6 +1807,9 @@ describe('ControlSidebar', () => {
             expect(
                 screen.getByRole('button', { name: 'Section Time actions' }),
             ).toHaveFocus();
+            expect(
+                screen.getByRole('button', { name: 'Add' }),
+            ).toBeInTheDocument();
 
             await newSection();
             fireEvent.keyDown(screen.getByLabelText('Section name'), {
@@ -1590,25 +1822,56 @@ describe('ControlSidebar', () => {
             expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
         });
 
-        it('keeps a fieldless new filter open while a new section is named', async () => {
-            const { collapse, discard, close } = setSidebar({
+        it('drops a new section from the footer Cancel, even with a name typed, focus back on the add row', async () => {
+            closedRail();
+            const { store } = renderWithProviders(<ControlSidebar />);
+            expandAll();
+            await newSection();
+            const input = screen.getByLabelText('Section name');
+            fireEvent.change(input, { target: { value: 'Time' } });
+
+            // The click moves focus to the Cancel first: that blur commits nothing
+            const cancel = screen.getByRole('button', { name: 'Cancel' });
+            await userEvent.click(cancel);
+            expect(selectControlSections(store.getState())).toHaveLength(2);
+            expect(
+                screen.queryByLabelText('Section name'),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByText('Name this section to keep it'),
+            ).not.toBeInTheDocument();
+            // The normal footer is back
+            expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
+            expect(screen.getByRole('switch')).toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
+
+            // A rename keeps the normal footer
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', { name: 'Rename' }),
+            );
+            expect(screen.getByLabelText('Section name')).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Cancel' }),
+            ).not.toBeInTheDocument();
+            expect(screen.getByRole('button', { name: 'Done' })).toBeVisible();
+        });
+
+        it('offers no new section while a new filter has no field', () => {
+            setSidebar({
                 isPlaceholder: true,
                 editingRule: makeRule({
                     target: { fieldId: '', tableName: '' },
                 }),
             });
             renderWithProviders(<ControlSidebar />);
-
-            await newSection();
-            expect(collapse).not.toHaveBeenCalled();
-            expect(discard).not.toHaveBeenCalled();
-            expect(close).not.toHaveBeenCalled();
-            expect(
-                screen.getByRole('heading', { name: 'Filters' }),
-            ).toBeVisible();
+            expandAll();
             expect(screen.getByText('New filter')).toBeInTheDocument();
-            expect(screen.getByTestId('fields-and-tiles')).toBeInTheDocument();
-            expect(screen.getByLabelText('Section name')).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: /^Add$|^Section$/ }),
+            ).not.toBeInTheDocument();
         });
 
         it('folds the expanded filter before opening a new section', async () => {
@@ -1620,6 +1883,7 @@ describe('ControlSidebar', () => {
                 <ControlSidebar />,
                 filters([makeRule({ label: 'Order status' })]),
             );
+            expandAll();
             expect(screen.getByLabelText('Filter label')).toBeInTheDocument();
 
             await newSection();
@@ -1652,6 +1916,7 @@ describe('ControlSidebar', () => {
                 <ControlSidebar />,
                 sectioned(),
             );
+            expandAll();
             expect(
                 screen.getByRole('button', { name: /^Created/ }),
             ).toBeVisible();
@@ -1662,12 +1927,15 @@ describe('ControlSidebar', () => {
             const item = await screen.findByRole('menuitem', {
                 name: 'Collapsed by default',
             });
-            expect(item.querySelector('.tabler-icon-check')).toBeNull();
+            const box = () => within(item).getByRole('checkbox');
+            expect(box()).not.toBeChecked();
             await userEvent.click(item);
             expect(selectControlSections(store.getState())[0]).toEqual({
                 ...sections[0],
                 collapsed: true,
             });
+            // The menu stays open and shows the change
+            expect(box()).toBeChecked();
             // The rail keeps the fold it opened with
             expect(
                 screen.getByRole('button', { name: /^Created/ }),
@@ -1676,40 +1944,75 @@ describe('ControlSidebar', () => {
                 screen.getByRole('button', { name: 'Collapse section Dates' }),
             ).toBeInTheDocument();
 
-            await userEvent.click(
-                screen.getByRole('button', { name: 'Section Dates actions' }),
-            );
-            const checked = await screen.findByRole('menuitem', {
-                name: 'Collapsed by default',
+            // The box itself toggles too, once
+            await userEvent.click(box());
+            // Unticked is saved too, so the bar opens it whatever its size
+            expect(selectControlSections(store.getState())[0]).toEqual({
+                ...sections[0],
+                collapsed: false,
             });
-            expect(checked.querySelector('.tabler-icon-check')).not.toBeNull();
-            await userEvent.click(checked);
-            // Unticked, the key goes rather than turning false
-            expect(selectControlSections(store.getState())[0]).toEqual(
-                sections[0],
-            );
             expect(
                 screen.getByRole('button', { name: /^Created/ }),
             ).toBeVisible();
         });
 
-        it('starts a saved collapsed section folded, and a drag over its header opens it', async () => {
+        it('ticks a dense section with no saved choice, and saves it open when unticked', async () => {
+            closedRail();
+            const { store } = renderWithProviders(
+                <ControlSidebar />,
+                filters(
+                    Array.from({ length: 7 }, (_, index) =>
+                        makeRule({
+                            id: `dense-${index}`,
+                            label: `Dense ${index}`,
+                            sectionId: 'section-a',
+                        }),
+                    ),
+                ),
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Section Dates actions' }),
+            );
+            const item = await screen.findByRole('menuitem', {
+                name: 'Collapsed by default',
+            });
+            // The bar starts it collapsed, so the box says so
+            expect(within(item).getByRole('checkbox')).toBeChecked();
+            await userEvent.click(item);
+            expect(selectControlSections(store.getState())[0]).toEqual({
+                ...sections[0],
+                collapsed: false,
+            });
+            expect(within(item).getByRole('checkbox')).not.toBeChecked();
+        });
+
+        it('opens with every section collapsed, whatever the saved default or size', () => {
             mockDashboardContext.current.dashboard = {
                 config: {
                     isDateZoomDisabled: false,
                     controlSections: [
-                        { ...sections[0], collapsed: true },
-                        sections[1],
+                        sections[0],
+                        { ...sections[1], collapsed: false },
                     ],
                 },
             };
             closedRail();
             renderWithProviders(<ControlSidebar />, sectioned());
             expect(
+                screen.getByRole('button', { name: 'Expand section Dates' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Expand section Regions' }),
+            ).toBeInTheDocument();
+            expect(
                 screen.queryByRole('button', { name: /^Created/ }),
             ).not.toBeInTheDocument();
             expect(
-                screen.getByRole('button', { name: /^Region/ }),
+                screen.queryByRole('button', { name: /^Region/ }),
+            ).not.toBeInTheDocument();
+            // The loose rows are there
+            expect(
+                screen.getByRole('button', { name: /^Order status/ }),
             ).toBeVisible();
             fireEvent.click(
                 screen.getByRole('button', { name: 'Expand section Dates' }),
@@ -1719,9 +2022,32 @@ describe('ControlSidebar', () => {
             ).toBeVisible();
         });
 
+        it('opens the section of the filter it was opened on, the others collapsed', () => {
+            setSidebar({
+                isNew: false,
+                editing: { filterId: 'filter-2' },
+                editingRule: makeRule({
+                    id: 'filter-2',
+                    label: 'Region',
+                    sectionId: 'section-b',
+                }),
+            });
+            renderWithProviders(<ControlSidebar />, sectioned());
+            expect(screen.getByLabelText('Filter label')).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', {
+                    name: 'Collapse section Regions',
+                }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Expand section Dates' }),
+            ).toBeInTheDocument();
+        });
+
         it('renames a section from its menu, keeping the name when emptied', async () => {
             closedRail();
             const { store } = renderWithProviders(<ControlSidebar />);
+            expandAll();
 
             await userEvent.click(
                 screen.getByRole('button', { name: 'Section Dates actions' }),
@@ -1764,6 +2090,7 @@ describe('ControlSidebar', () => {
                 <ControlSidebar />,
                 dashboardFilters,
             );
+            expandAll();
 
             await userEvent.click(
                 screen.getByRole('button', { name: 'Section Regions actions' }),
@@ -1804,6 +2131,7 @@ describe('ControlSidebar', () => {
                 openNew,
             });
             renderWithProviders(<ControlSidebar />, sectioned());
+            expandAll();
             await userEvent.click(
                 screen.getByRole('button', { name: 'Section Dates actions' }),
             );
@@ -1832,6 +2160,7 @@ describe('ControlSidebar', () => {
                 <ControlSidebar />,
                 sectioned(),
             );
+            expandAll();
             const order = () =>
                 [
                     ...document.querySelectorAll(
@@ -1907,6 +2236,7 @@ describe('ControlSidebar', () => {
                 }),
             });
             renderWithProviders(<ControlSidebar />, sectioned());
+            expandAll();
             fireEvent.click(
                 screen.getByRole('button', { name: 'Collapse section Dates' }),
             );
@@ -1942,6 +2272,7 @@ describe('ControlSidebar', () => {
                 <ControlSidebar />,
                 sectioned(),
             );
+            expandAll();
             await userEvent.click(
                 screen.getByRole('button', { name: 'Section Dates actions' }),
             );
@@ -1959,17 +2290,12 @@ describe('ControlSidebar', () => {
                 screen.getByRole('button', { name: 'Collapse section Dates' }),
             ).toBeInTheDocument();
 
-            // Unticked, the saved key goes rather than turning false
+            // Unticked (the menu stayed open), saved as open
             await userEvent.click(
-                screen.getByRole('button', { name: 'Section Dates actions' }),
+                screen.getByRole('menuitem', { name: 'Collapsed by default' }),
             );
-            await userEvent.click(
-                await screen.findByRole('menuitem', {
-                    name: 'Collapsed by default',
-                }),
-            );
-            expect(selectControlSections(store.getState())[0]).toEqual(
-                sections[0],
+            expect(selectControlSections(store.getState())[0].collapsed).toBe(
+                false,
             );
         });
 
@@ -1987,6 +2313,7 @@ describe('ControlSidebar', () => {
                 <ControlSidebar />,
                 sectioned(),
             );
+            expandAll();
             fireEvent.click(
                 screen.getByRole('button', {
                     name: 'Collapse section Regions',
@@ -2025,6 +2352,7 @@ describe('ControlSidebar', () => {
                 }),
             });
             renderWithProviders(<ControlSidebar />, sectioned());
+            expandAll();
             const label = screen.getByLabelText('Filter label');
             expect(label).toHaveFocus();
             fireEvent.click(
@@ -2048,6 +2376,7 @@ describe('ControlSidebar', () => {
                 <ControlSidebar />,
                 sectioned(),
             );
+            expandAll();
             fireEvent.click(
                 screen.getByRole('button', { name: 'Collapse section Dates' }),
             );
@@ -2066,14 +2395,16 @@ describe('ControlSidebar', () => {
             expect(
                 screen.queryByLabelText('Section name'),
             ).not.toBeInTheDocument();
+            // Reopened, every section starts collapsed again
             expect(
-                screen.getByRole('button', { name: /^Created/ }),
-            ).toBeVisible();
+                screen.getByRole('button', { name: 'Expand section Dates' }),
+            ).toBeInTheDocument();
         });
 
         it('lets Escape disarm a row remove without reaching the rail', () => {
             closedRail();
             renderWithProviders(<ControlSidebar />, sectioned());
+            expandAll();
             const remove = screen.getAllByRole('button', {
                 name: 'Remove filter',
             })[0];
@@ -2087,6 +2418,7 @@ describe('ControlSidebar', () => {
         it('offers no grip while a section is being named', async () => {
             closedRail();
             renderWithProviders(<ControlSidebar />, sectioned());
+            expandAll();
             expect(grips()).toHaveLength(4);
             await newSection();
             expect(
@@ -2113,6 +2445,7 @@ describe('ControlSidebar', () => {
                 <ControlSidebar />,
                 dashboardFilters,
             );
+            expandAll();
             // The drop writes the dashboard draft, as the provider would
             mockDashboardContext.current.setDashboardFilters = (
                 update: (f: DashboardFilters) => DashboardFilters,
@@ -2218,6 +2551,7 @@ describe('ControlSidebar', () => {
                     makeRule({ id: 'filter-2', label: 'Region' }),
                 ]),
             );
+            expandAll();
             removeViaStore.mockImplementation(removeThroughStore(store));
 
             removeTwice('filter-1');
@@ -2246,6 +2580,7 @@ describe('ControlSidebar', () => {
                     }),
                 ]),
             );
+            expandAll();
             removeViaStore.mockImplementation(removeThroughStore(store));
             fireEvent.click(
                 screen.getByRole('button', { name: 'Collapse section Dates' }),
@@ -2258,6 +2593,7 @@ describe('ControlSidebar', () => {
         it('folds and unfolds a section from its chevron stop with Left and Right', () => {
             closedRail();
             renderWithProviders(<ControlSidebar />, sectioned());
+            expandAll();
             const chevron = screen.getByRole('button', {
                 name: 'Collapse section Dates',
             });
@@ -2288,6 +2624,7 @@ describe('ControlSidebar', () => {
                     }),
                 ]),
             );
+            expandAll();
             fireEvent.click(
                 screen.getByRole('button', { name: 'Collapse section Dates' }),
             );
@@ -2357,6 +2694,7 @@ describe('ControlSidebar', () => {
                     makeRule({ label: 'Created', sectionId: 'section-a' }),
                 ]),
             );
+            expandAll();
             fireEvent.click(
                 screen.getByRole('button', { name: 'Collapse section Dates' }),
             );
@@ -2383,6 +2721,7 @@ describe('ControlSidebar', () => {
             const removeFilterById = vi.fn();
             mockSidebar.current = { ...mockSidebar.current, removeFilterById };
             renderWithProviders(<ControlSidebar />, sectioned());
+            expandAll();
 
             const removes = screen.getAllByRole('button', {
                 name: 'Remove filter',
@@ -2410,7 +2749,7 @@ describe('ControlSidebar', () => {
         describe('select mode', () => {
             const selectFromMenu = async () => {
                 await userEvent.click(
-                    screen.getByRole('button', { name: 'Add' }),
+                    screen.getByRole('button', { name: 'More' }),
                 );
                 await userEvent.click(
                     await screen.findByRole('menuitem', {
@@ -2431,6 +2770,7 @@ describe('ControlSidebar', () => {
             it('enters from the menu: checkboxes, no grips or removes, actions disabled', async () => {
                 closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 expect(grips()).toHaveLength(4);
 
                 await selectFromMenu();
@@ -2460,6 +2800,7 @@ describe('ControlSidebar', () => {
             it('shows no checkbox at rest: the grip keeps its slot', () => {
                 closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
                 expect(grips()).toHaveLength(4);
             });
@@ -2467,9 +2808,10 @@ describe('ControlSidebar', () => {
             it('is disabled while a new filter has no field, with no row checkboxes', async () => {
                 setSidebar({ isPlaceholder: true });
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
                 await userEvent.click(
-                    screen.getByRole('button', { name: 'Add' }),
+                    screen.getByRole('button', { name: 'More' }),
                 );
                 expect(
                     await screen.findByRole('menuitem', {
@@ -2481,6 +2823,7 @@ describe('ControlSidebar', () => {
             it('folds the expanded filter when the mode starts', async () => {
                 const { collapse } = setSidebar({ isNew: false });
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 await selectFromMenu();
                 expect(collapse).toHaveBeenCalledTimes(1);
             });
@@ -2488,6 +2831,7 @@ describe('ControlSidebar', () => {
             it('forgets the shift anchor between select sessions', async () => {
                 closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 await selectThree();
                 fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
                 expect(badge('3 selected')).not.toBeInTheDocument();
@@ -2506,6 +2850,7 @@ describe('ControlSidebar', () => {
             it('selects a range with shift-click and extends it with shift and an arrow', async () => {
                 closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 await selectThree();
                 expect(
                     screen.getByRole('checkbox', { name: 'Lost' }),
@@ -2525,6 +2870,7 @@ describe('ControlSidebar', () => {
             it("focuses the collapsed target section's header after a move, its rows being hidden", async () => {
                 closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 fireEvent.click(
                     screen.getByRole('button', {
                         name: 'Collapse section Regions',
@@ -2549,6 +2895,7 @@ describe('ControlSidebar', () => {
             it('moves the selection to a section, appended in display order, and leaves the mode', async () => {
                 closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 await selectThree();
                 await userEvent.click(
                     screen.getByRole('button', { name: 'Move to' }),
@@ -2589,6 +2936,7 @@ describe('ControlSidebar', () => {
                     <ControlSidebar />,
                     sectioned(),
                 );
+                expandAll();
                 await selectThree();
                 await userEvent.click(
                     screen.getByRole('button', { name: 'Move to' }),
@@ -2628,6 +2976,7 @@ describe('ControlSidebar', () => {
             it('keeps the selection where it is when the new section is cancelled', async () => {
                 closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 await selectThree();
                 await userEvent.click(
                     screen.getByRole('button', { name: 'Move to' }),
@@ -2652,6 +3001,7 @@ describe('ControlSidebar', () => {
             it('removes the selection on the second click only, in one write', async () => {
                 closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 await selectThree();
                 const remove = screen.getByRole('button', { name: 'Remove' });
                 fireEvent.click(remove);
@@ -2672,6 +3022,7 @@ describe('ControlSidebar', () => {
             it('lets Escape disarm the footer Remove without leaving the mode', async () => {
                 closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 await selectThree();
                 const remove = screen.getByRole('button', { name: 'Remove' });
                 fireEvent.click(remove);
@@ -2684,6 +3035,7 @@ describe('ControlSidebar', () => {
             it('keeps the rows and their focus across entering and leaving the mode', async () => {
                 closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 const created = row('Created');
                 await selectFromMenu();
                 expect(row('Created')).toBe(created);
@@ -2697,6 +3049,7 @@ describe('ControlSidebar', () => {
             it('leaves the mode from the footer Cancel, clearing the selection', async () => {
                 const { close } = closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 await selectFromMenu();
                 fireEvent.click(row('Created'));
                 expect(badge('1 selected')).toBeInTheDocument();
@@ -2710,6 +3063,7 @@ describe('ControlSidebar', () => {
             it('says how many hidden rows a collapsed section holds selected', async () => {
                 closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 await selectFromMenu();
                 fireEvent.click(row('Created'));
                 const header = document.querySelector(
@@ -2729,6 +3083,7 @@ describe('ControlSidebar', () => {
             it('leaves the mode on Escape and on the X without closing the rail', async () => {
                 const { close } = closedRail();
                 renderWithProviders(<ControlSidebar />, sectioned());
+                expandAll();
                 await selectFromMenu();
                 fireEvent.keyDown(row('Created'), { key: 'Escape' });
                 expect(badge('0 selected')).not.toBeInTheDocument();
@@ -2753,15 +3108,14 @@ describe('ControlSidebar', () => {
                     filters([]),
                     filters([makeRule({ label: 'Mine' })]),
                 );
+                expandAll();
                 expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
-                await userEvent.click(
-                    screen.getByRole('button', { name: 'Add' }),
-                );
                 expect(
-                    (await screen.findAllByRole('menuitem')).map(
-                        (item) => item.textContent,
-                    ),
-                ).toEqual(['Add filter']);
+                    screen.queryByRole('button', { name: 'More' }),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.getByRole('button', { name: 'Add filter' }),
+                ).toHaveAttribute('data-controls-new-section');
             });
         });
     });
