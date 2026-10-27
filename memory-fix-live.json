@@ -1,9 +1,5 @@
 {
   "projectUuid": "4d0c37ba-cbcc-4c30-8bd0-ff95a332f509",
-  "backfill": {
-    "running": true,
-    "completed": false
-  },
   "queries": {
     "users": {
       "queryUuid": "1ae5582f-c108-4cc0-b0a5-bc9a1e6fd0b8",
@@ -218,5 +214,13 @@
         }
       ]
     }
+  },
+  "backfillAtQueryStart": {
+    "running": true,
+    "completed": false
+  },
+  "backfillAfterQueries": {
+    "running": false,
+    "completed": true
   }
 }

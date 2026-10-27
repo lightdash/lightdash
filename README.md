@@ -49,7 +49,7 @@ Code commit: `704a28b8535c5407726a6b787d84891723e55085`. [Verified deploy](https
 
 The old reconciliation window reproduced an out-of-memory failure at ~770k rows under the existing 256 MB / four-thread / no-spill settings. The actual reader regression fails with the old implementation and passes after replacing the window with a filtered anti-join. All 14 focused warehouse tests, warehouse typecheck, changed-file lint/format and git secrets scan passed.
 
-Live uncached queries and the dashboard both succeeded after redeploy: 6,454 distinct users; daily users across October 7–27. The source counts remain 769,265 captured queries (October 7–26) and 352 imported queries (October 27). The earlier backfill ran in 16.7 seconds; database replacement on preview deploy explains why its DB history is newer than its retained S3 data. Existing history objects and completion marker survived deployment. API timings include network and queue time and are not a throughput benchmark.
+Live uncached queries and the dashboard both succeeded after redeploy: 6,454 distinct users; daily users across October 7–27. The source counts remain 769,265 captured queries (October 7–26) and 352 imported queries (October 27). The earlier backfill ran in 16.7 seconds; database replacement on preview deploy explains why its DB history is newer than its retained S3 data. The retained history remained queryable while the creation-triggered background job ran; its status subsequently returned completed. API timings include network and queue time and are not a throughput benchmark.
 
 The underlying Okteto error was sanitized; the OOM was directly reproduced locally with the same query/resource limits, then the fix was verified live.
 
