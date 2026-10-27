@@ -1,3 +1,10 @@
+# [3.73.0](https://github.com/lightdash/lightdash/compare/3.72.0...3.73.0) (2026-10-27)
+
+
+### Features
+
+* **homepage:** calmer block layout in the homepage editor ([#31680](https://github.com/lightdash/lightdash/issues/31680)) ([f4456b3](https://github.com/lightdash/lightdash/commit/f4456b3c56263285912c14e87d85578fd12daba0))
+
 # [3.72.0](https://github.com/lightdash/lightdash/compare/3.71.0...3.72.0) (2026-10-27)
 
 
