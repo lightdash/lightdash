@@ -56,6 +56,8 @@ type Props = {
     chatNodeIds: ReadonlySet<string>;
     /** Null when this pipeline can't be pinned to the chat. */
     onAddToChat: ((node: { nodeId: string; title: string }) => void) | null;
+    /** Opens the lineage view on this node when it is a non-terminal node of the pipeline. */
+    initialFocusedNodeId?: string;
 };
 
 type ArtifactView = 'chart' | 'lineage';
@@ -76,9 +78,18 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     onClose,
     chatNodeIds,
     onAddToChat,
+    initialFocusedNodeId,
 }) => {
     const getUiString = useUiStrings();
-    const [view, setView] = useState<ArtifactView>('chart');
+    const focusedNodeId =
+        initialFocusedNodeId !== undefined &&
+        initialFocusedNodeId !== config.terminalNodeId &&
+        config.queries.some((query) => query.nodeId === initialFocusedNodeId)
+            ? initialFocusedNodeId
+            : null;
+    const [view, setView] = useState<ArtifactView>(
+        focusedNodeId ? 'lineage' : 'chart',
+    );
     const nodeQueryUuids = run?.nodeQueryUuids ?? null;
     const displayableNodeIds = useMemo(
         () => new Set(Object.keys(nodeQueryUuids ?? {})),
@@ -255,6 +266,7 @@ export const AiComposerArtifactPanel: FC<Props> = ({
             }}
             chatNodeIds={chatNodeIds}
             onAddToChat={onAddToChat}
+            initialFocusedNodeId={focusedNodeId}
         />
     );
 

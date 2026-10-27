@@ -25,9 +25,9 @@ export const AiQueryPipelinePreviewPanel: FC<Props> = ({ pipelinePreview }) => {
     const dispatch = useAiAgentStoreDispatch();
     const { projectUuid, agentUuid, threadUuid, messageUuid, nodeId } =
         pipelinePreview;
-    const ref = { projectUuid, agentUuid, threadUuid, messageUuid };
+    const messageRef = { projectUuid, agentUuid, threadUuid, messageUuid };
     const pipelines = useAiAgentMessageQueryPipelines({
-        ...ref,
+        ...messageRef,
         enabled: true,
     });
     // A reused node sits in several pipelines; prefer the one it ends
@@ -39,7 +39,7 @@ export const AiQueryPipelinePreviewPanel: FC<Props> = ({ pipelinePreview }) => {
             candidate.nodes.some((node) => node.nodeId === nodeId),
         );
     const run = useAiAgentMessageQueryPipelineVizQuery({
-        ...ref,
+        ...messageRef,
         queryUuid: pipeline?.queryUuid ?? '',
         enabled: pipeline !== undefined,
     });
@@ -70,7 +70,8 @@ export const AiQueryPipelinePreviewPanel: FC<Props> = ({ pipelinePreview }) => {
     }
     return (
         <AiComposerArtifactPanel
-            key={pipeline.queryUuid}
+            key={`${pipeline.queryUuid}:${nodeId}`}
+            initialFocusedNodeId={nodeId}
             projectUuid={projectUuid}
             agentUuid={agentUuid}
             source={{

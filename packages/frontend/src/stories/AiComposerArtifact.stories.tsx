@@ -240,6 +240,7 @@ const ComposerArtifact = ({
                             projectUuid={STORY_PROJECT_UUID}
                             queries={queries}
                             terminalNodeId={terminalNodeId}
+                            initialFocusedNodeId={null}
                             displayableNodeIds={
                                 new Set(queries.map((q) => q.nodeId!))
                             }

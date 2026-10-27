@@ -57,6 +57,7 @@ const renderPanel = (props: {
             projectUuid="project"
             queries={queries}
             terminalNodeId="joined"
+            initialFocusedNodeId={null}
             displayableNodeIds={new Set(['orders', 'amounts', 'joined'])}
             nodeStatuses={{}}
             renderNodeResult={(nodeId) => <div>rows of {nodeId}</div>}

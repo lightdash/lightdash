@@ -508,6 +508,7 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.view.lineage': 'Lineage',
     'aiAgent.composer.lineage.focusNode': 'Focus {node}',
     'aiAgent.composer.lineage.resize': 'Resize lineage graph and steps',
+    'aiAgent.queryReference.open': 'Open query {nodeId}',
     'aiAgent.composer.nodeStatus.pending': 'Queued',
     'aiAgent.composer.nodeStatus.awaitingApproval': 'Awaiting approval',
     'aiAgent.composer.nodeStatus.running': 'Running',

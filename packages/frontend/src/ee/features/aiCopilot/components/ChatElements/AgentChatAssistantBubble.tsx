@@ -94,7 +94,10 @@ import {
 import { MessageTimingIndicator } from './MessageTimingIndicator';
 import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
-import { rehypeQueryNodeReferences } from './rehypeQueryNodeReferences';
+import {
+    getQueryNodeReferenceIndices,
+    rehypeQueryNodeReferences,
+} from './rehypeQueryNodeReferences';
 import { StreamRecoveryAlert } from './StreamRecoveryAlert';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
@@ -633,7 +636,14 @@ const AssistantBubbleContent: FC<{
                             rehypePlugins={[
                                 rehypeAiAgentContentLinks,
                                 rehypeMemoryCitationIndices,
-                                rehypeQueryNodeReferences,
+                                [
+                                    rehypeQueryNodeReferences,
+                                    {
+                                        indices: getQueryNodeReferenceIndices(
+                                            latestTextSeg.text,
+                                        ),
+                                    },
+                                ],
                             ]}
                             plugins={markdownPlugins}
                             components={{
@@ -793,7 +803,15 @@ const AssistantBubbleContent: FC<{
                                     rehypePlugins={[
                                         rehypeAiAgentContentLinks,
                                         rehypeMemoryCitationIndices,
-                                        rehypeQueryNodeReferences,
+                                        [
+                                            rehypeQueryNodeReferences,
+                                            {
+                                                indices:
+                                                    getQueryNodeReferenceIndices(
+                                                        messageContent,
+                                                    ),
+                                            },
+                                        ],
                                     ]}
                                     plugins={markdownPlugins}
                                     components={{

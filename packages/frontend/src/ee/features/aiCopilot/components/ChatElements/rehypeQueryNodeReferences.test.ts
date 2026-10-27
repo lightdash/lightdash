@@ -1,8 +1,12 @@
 import { type Element, type Root } from 'hast';
 import { describe, expect, it } from 'vitest';
-import { rehypeQueryNodeReferences } from './rehypeQueryNodeReferences';
+import {
+    getQueryNodeReferenceIndices,
+    rehypeQueryNodeReferences,
+} from './rehypeQueryNodeReferences';
 
 const process = (hrefs: string[]) => {
+    const markdown = hrefs.map((href) => `[x](${href})`).join('\n\n');
     const tree: Root = {
         type: 'root',
         children: hrefs.map(
@@ -14,7 +18,9 @@ const process = (hrefs: string[]) => {
             }),
         ),
     };
-    rehypeQueryNodeReferences()(tree);
+    rehypeQueryNodeReferences({
+        indices: getQueryNodeReferenceIndices(markdown),
+    })(tree);
     return tree.children.map((child) => (child as Element).properties);
 };
 
@@ -45,6 +51,16 @@ describe('rehypeQueryNodeReferences', () => {
                 'data-node-id': 'revenue',
                 'data-reference-index': 1,
             },
+        ]);
+    });
+
+    it('numbers across Markdown blocks from the message text, not per tree', () => {
+        const indices = getQueryNodeReferenceIndices(
+            'Revenue $404 [revenue](#query-node-revenue).\n\nOrders 12 [orders](#query-node-orders) and [again](#query-node-revenue).',
+        );
+        expect([...indices]).toEqual([
+            ['revenue', 1],
+            ['orders', 2],
         ]);
     });
 

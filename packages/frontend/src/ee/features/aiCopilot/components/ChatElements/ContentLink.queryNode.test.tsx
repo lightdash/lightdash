@@ -10,7 +10,10 @@ import { clearPreview } from '../../store/aiArtifactSlice';
 import { ContentLink } from './ContentLink';
 import { MEMORY_CITATION_ALLOWED_TAGS } from './memoryCitationConfig';
 import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
-import { rehypeQueryNodeReferences } from './rehypeQueryNodeReferences';
+import {
+    getQueryNodeReferenceIndices,
+    rehypeQueryNodeReferences,
+} from './rehypeQueryNodeReferences';
 
 const message: AiAgentMessageAssistant = {
     role: 'assistant',
@@ -50,7 +53,10 @@ const renderAnswer = (
                     allowedTags={MEMORY_CITATION_ALLOWED_TAGS}
                     rehypePlugins={[
                         rehypeAiAgentContentLinks,
-                        rehypeQueryNodeReferences,
+                        [
+                            rehypeQueryNodeReferences,
+                            { indices: getQueryNodeReferenceIndices(markdown) },
+                        ],
                     ]}
                     components={{
                         a: ({ node, children, ...props }) => (

@@ -243,6 +243,8 @@ type Props = Pick<
 > & {
     queries: SourceQuery[];
     terminalNodeId: string;
+    /** Cell scrolled into view on mount; null opens at the top. */
+    initialFocusedNodeId: string | null;
 };
 
 // The lineage graph on top, one notebook cell per node below; clicking a
@@ -251,6 +253,7 @@ export const AiComposerLineage: FC<Props> = ({
     queries,
     terminalNodeId,
     nodeStatuses,
+    initialFocusedNodeId,
     ...notebookProps
 }) => {
     const layers = useMemo(
@@ -259,6 +262,13 @@ export const AiComposerLineage: FC<Props> = ({
     );
     const getUiString = useUiStrings();
     const notebookRef = useRef<PipelineNotebookHandle>(null);
+    useEffect(() => {
+        if (initialFocusedNodeId) {
+            notebookRef.current?.focusNode(initialFocusedNodeId);
+        }
+        // Only on mount: the panel is keyed per cited node.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return (
         <ResizableSplitter

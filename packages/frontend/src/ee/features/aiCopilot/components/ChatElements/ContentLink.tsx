@@ -458,7 +458,8 @@ export const ContentLink: FC<ContentLinkProps> = ({
             const nodeId =
                 typeof props['data-node-id'] === 'string'
                     ? props['data-node-id']
-                    : '';
+                    : null;
+            if (nodeId === null) return <>{children}</>;
             const index =
                 typeof props['data-reference-index'] === 'number'
                     ? props['data-reference-index']
