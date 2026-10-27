@@ -373,3 +373,47 @@ describe('LiveActivityCard runSql', () => {
         expect(screen.getByRole('button', { expanded: false })).toBeVisible();
     });
 });
+
+describe('LiveActivityCard reasoning', () => {
+    const reasoning = { texts: ['Checking the orders model'], isLive: false };
+
+    it('renders reasoning alone when there are no tool groups', () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive={false}
+                toolGroups={[]}
+                reasoning={reasoning}
+            />,
+        );
+        expect(screen.getByText('Reasoning')).toBeVisible();
+    });
+
+    it('renders nothing without tool groups or reasoning', () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive={false}
+                toolGroups={[]}
+                reasoning={{ texts: [], isLive: false }}
+            />,
+        );
+        expect(screen.queryByText('Reasoning')).toBeNull();
+    });
+
+    it('renders reasoning as the first item of the card body', async () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive={false}
+                toolGroups={composerToolGroups}
+                reasoning={reasoning}
+            />,
+        );
+        expect(screen.getByText('Reasoning')).not.toBeVisible();
+
+        await userEvent.click(screen.getAllByRole('button')[0]);
+
+        const reasoningRow = screen.getByText('Reasoning');
+        await waitFor(() => expect(reasoningRow).toBeVisible());
+        // First control after the card header is the reasoning row.
+        expect(screen.getAllByRole('button')[1]).toContainElement(reasoningRow);
+    });
+});

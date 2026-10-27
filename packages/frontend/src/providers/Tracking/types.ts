@@ -620,6 +620,30 @@ type AiAgentChatMinimizedEvent = {
     };
 };
 
+type AiAgentResponseEventProperties = {
+    organizationId: string | undefined;
+    projectId: string;
+    agentUuid: string;
+    threadUuid: string;
+    messageUuid: string;
+};
+
+type AiAgentResponseFeedbackClickedEvent = {
+    name: EventName.AI_AGENT_RESPONSE_FEEDBACK_CLICKED;
+    properties: AiAgentResponseEventProperties & {
+        rating: 'up' | 'down';
+        hasComment: boolean;
+    };
+};
+
+type AiAgentResponseActionEvent = {
+    name:
+        | EventName.AI_AGENT_RESPONSE_COPIED
+        | EventName.AI_AGENT_RESPONSE_ADD_TO_EVALS_CLICKED
+        | EventName.AI_AGENT_RESPONSE_DEBUG_OPENED;
+    properties: AiAgentResponseEventProperties;
+};
+
 type AiAgentBattleStartedEvent = {
     name: EventName.AI_AGENT_BATTLE_STARTED;
     properties: {
@@ -1361,6 +1385,8 @@ export type EventData =
     | AiAgentChatMinimizedEvent
     | AiDeepResearchReportEngagedEvent
     | AiAgentBattleStartedEvent
+    | AiAgentResponseFeedbackClickedEvent
+    | AiAgentResponseActionEvent
     | ContentReviewSimilarContentClickedEvent
     | AiAgentSuggestionsDisplayedEvent
     | AiAgentSuggestionImpressionEvent

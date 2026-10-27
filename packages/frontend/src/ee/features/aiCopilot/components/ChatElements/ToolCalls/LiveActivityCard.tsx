@@ -84,6 +84,8 @@ type Props = {
         pendingToolCallIds: string[];
         decidedToolCallIds: string[];
     };
+    /** Rendered as the first item of the card body. */
+    reasoning?: { texts: string[]; isLive: boolean };
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -594,6 +596,7 @@ export const LiveActivityCard: FC<Props> = ({
     mcpServers,
     stepProgressMessages = [],
     approval,
+    reasoning,
 }) => {
     const latestGroup =
         toolGroups.length > 0 ? toolGroups[toolGroups.length - 1] : undefined;
@@ -631,7 +634,23 @@ export const LiveActivityCard: FC<Props> = ({
     const setUserExpanded = (value: boolean) =>
         setUserToggle({ key: expandKey, value });
 
-    if (toolGroups.length === 0) return null;
+    const hasReasoning = (reasoning?.texts.length ?? 0) > 0;
+
+    if (toolGroups.length === 0) {
+        if (!reasoning || !hasReasoning) return null;
+        return (
+            <Box
+                className={styles.card}
+                data-live={reasoning.isLive ? 'true' : 'false'}
+                data-reasoning-only="true"
+            >
+                <ReasoningHistoryRow
+                    texts={reasoning.texts}
+                    isLive={reasoning.isLive}
+                />
+            </Box>
+        );
+    }
 
     // After streaming the header is a *summary title* rather than the latest
     // row, so every tool group (including the last) belongs in the expandable
@@ -648,7 +667,7 @@ export const LiveActivityCard: FC<Props> = ({
     );
     const olderGroups = latest ? toolGroups.slice(0, -1) : toolGroups;
     const olderCount = latest ? totalCalls - latest.calls.length : totalCalls;
-    const hasHistory = olderCount > 0;
+    const hasHistory = olderCount > 0 || hasReasoning;
     // Auto-expand while approval is pending so the user sees it immediately.
     const expanded =
         latestAwaitingApproval || (userExpanded ?? defaultExpanded);
@@ -754,6 +773,12 @@ export const LiveActivityCard: FC<Props> = ({
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >
                 <Stack gap={6} className={styles.history}>
+                    {reasoning && hasReasoning && (
+                        <ReasoningHistoryRow
+                            texts={reasoning.texts}
+                            isLive={reasoning.isLive}
+                        />
+                    )}
                     {(() => {
                         if (!latest) return null;
                         const latestBuiltInToolName = isToolName(
