@@ -1,4 +1,4 @@
-import { type Dashboard, type LanguageMap } from '@lightdash/common';
+import { type Dashboard } from '@lightdash/common';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type FC } from 'react';
@@ -118,12 +118,6 @@ const dashboard = {
     parameterInteractivity: { enabled: false },
 } as unknown as Dashboard;
 
-const languageMap = {
-    dashboard: {
-        sales: { config: { controlSections: [{ id: 'a', name: 'Fechas' }] } },
-    },
-} as unknown as LanguageMap;
-
 const SectionNames: FC = () => {
     const sections = useDashboardSelector(selectControlSections);
     return (
@@ -161,7 +155,7 @@ describe('EmbedDashboard sections', () => {
                 canUpdateDashboard: true,
                 canCreateSavedChart: false,
             },
-            languageMap,
+            languageMap: undefined,
             mode: 'direct',
             writeActions: { spaceUuid: SPACE_UUID },
             filters: undefined,
@@ -169,18 +163,18 @@ describe('EmbedDashboard sections', () => {
         };
     });
 
-    it("shows the dashboard's sections on the viewer bar, translated by id", async () => {
+    it("shows the embed's dashboard sections on the viewer bar", async () => {
         renderEmbed(false);
         expect(
-            await screen.findByRole('group', { name: 'Fechas' }),
+            await screen.findByRole('group', { name: 'Dates' }),
         ).toBeInTheDocument();
     });
 
-    it('shows translated section names and saves the untranslated ones', async () => {
+    it("keeps the sections and each rule's section through an editor's save", async () => {
         renderEmbed(true);
         await waitFor(() =>
             expect(screen.getByTestId('section-names')).toHaveTextContent(
-                'Fechas',
+                'Dates',
             ),
         );
 
@@ -191,8 +185,14 @@ describe('EmbedDashboard sections', () => {
         await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
         expect(mocks.updateDashboard).toHaveBeenCalledTimes(1);
+        const payload = mocks.updateDashboard.mock.calls[0][0];
+        expect(payload.config.controlSections).toEqual([
+            { id: 'a', name: 'Dates' },
+        ]);
         expect(
-            mocks.updateDashboard.mock.calls[0][0].config.controlSections,
-        ).toEqual([{ id: 'a', name: 'Dates' }]);
+            payload.filters.dimensions.map(
+                ({ sectionId }: { sectionId?: string }) => sectionId,
+            ),
+        ).toEqual(['a']);
     });
 });

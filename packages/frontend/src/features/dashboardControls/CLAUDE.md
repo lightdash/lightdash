@@ -378,12 +378,9 @@ In `FilterConfiguration/`:
 - An embed resolves the flag for the JWT's organisation
   (`FeatureFlagService.getForAccount`), so a Console organisation override
   reaches it as instance-wide enablement does.
-- Section names are translated before the dashboard seeds the provider
-  (`translatedDashboard` in `EmbedDashboard`, `translateControlSections`):
-  the store holds the translated names, while an embed editor's Save sends
-  the loaded, untranslated `dashboard.config`, so sections survive it. The section overrides are memoised
-  on their content, so a host's inline `contentOverrides` does not re-seed
-  the store every render.
+- An embed editor's Save sends the loaded `dashboard.config` and the
+  store's rules as they are, so sections and each rule's `sectionId`
+  survive it.
 
 ## Provider contract (`useControlsSidebar`)
 
@@ -1236,10 +1233,8 @@ filter), `adoptPlaceholder` and the emptied placeholder in
 `ControlsSidebarProvider`, and `buildDashboardConfig`, which today carries
 `parameterSections` forward from the loaded config; `controlSections` is
 saved from the store once `haveControlSectionsChanged`, as `parameterOrder`.
-Section names are translatable through `config.controlSections[]` in the
-language map (`{ id, name }`), matched by id (`translateControlSections`),
-so a reorder keeps them; an entry with no id, from a map made before ids,
-still applies by position.
+Section names are translatable through `config.controlSections[].name` in
+the language map, as tab names are.
 
 - State: `controlSections` and `haveControlSectionsChanged` in the store's
   `edit` slice (`syncControlSections` seeds from the saved config unless
