@@ -3,6 +3,7 @@ import {
     AiAccessRefusalReason,
     AiResultType,
     FeatureFlags,
+    getItemLabelWithoutTableName,
     QuerySourceType,
     QueryHistoryStatus,
     ChartKind,
@@ -115,7 +116,11 @@ vi.mock('./AiComposerRunQueryChart', () => ({
                         ...chart.metricQuery.dimensions,
                         ...chart.metricQuery.metrics,
                     ].map((fieldId) => (
-                        <th key={fieldId}>{chart.fields[fieldId].label}</th>
+                        <th key={fieldId}>
+                            {getItemLabelWithoutTableName(
+                                chart.fields[fieldId],
+                            )}
+                        </th>
                     ))}
                 </tr>
             </thead>
