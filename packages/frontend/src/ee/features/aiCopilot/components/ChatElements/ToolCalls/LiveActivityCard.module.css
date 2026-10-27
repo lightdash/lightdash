@@ -386,6 +386,18 @@
     font-family: var(--mantine-font-family);
 }
 
+.card[data-reasoning-only='true'] {
+    padding: 0;
+}
+
+.history .reasoningRow {
+    --reasoning-inset: calc(var(--reasoning-icon-size) + 8px);
+}
+
+.history .reasoningHeader {
+    padding: 2px 0;
+}
+
 .reasoningIcon {
     flex-shrink: 0;
     color: var(--mantine-color-ldGray-7);

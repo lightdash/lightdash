@@ -1,8 +1,6 @@
 import {
     FeatureFlags,
-    isComposerQueryToolName,
     type AiAgentMessageAssistant,
-    type AiAgentMessageQueryPipeline,
     type AiAgentMessageUser,
     type AiMcpServer,
     isToolEditDbtProjectResult,
@@ -46,8 +44,10 @@ import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon'
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
+import useApp from '../../../../../providers/App/useApp';
+import useTracking from '../../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../../types/Events';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
-import { useAiAgentMessageQueryPipelines } from '../../hooks/useAiAgentMessageQueryPipelines';
 import {
     useRetryAiAgentThreadMessageMutation,
     useUpdatePromptFeedbackMutation,
@@ -56,7 +56,6 @@ import { type StreamPart } from '../../store/aiAgentThreadStreamSlice';
 import {
     clearPreview,
     selectArtifactPreview,
-    selectQueryPipelinePreview,
     setPreview,
 } from '../../store/aiArtifactSlice';
 import {
@@ -68,7 +67,6 @@ import {
     useAiAgentThreadStreamQuery,
 } from '../../streaming/useAiAgentThreadStreamQuery';
 import { useBattleMessage } from '../Battle/BattleMessageContext';
-import { isJevTurn } from '../Battle/jevDecision';
 import { JevDecisionIndicator } from '../Battle/JevDecisionIndicator';
 import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
@@ -93,11 +91,6 @@ import {
     MessageSourcesGrid,
     MessageSourcesToggle,
 } from './MessageMemorySources';
-import { MessageModelIndicator } from './MessageModelIndicator';
-import {
-    MessageQueriesList,
-    MessageQueriesToggle,
-} from './MessageQueryPipelines';
 import { MessageTimingIndicator } from './MessageTimingIndicator';
 import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
@@ -106,7 +99,6 @@ import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
 import {
     LiveActivityCard,
-    ReasoningHistoryRow,
     type LiveActivityToolGroup,
 } from './ToolCalls/LiveActivityCard';
 import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
@@ -685,48 +677,35 @@ const AssistantBubbleContent: FC<{
                         >
                             {/* Activity card sits ABOVE the rolling preview /
                              *  final answer so tool work reads top-to-bottom:
-                             *  what was done → the answer. After streaming we
-                             *  fold reasoning into the activity card so the
-                             *  answer remains the focal point. SQL approvals
-                             *  drop into the card's body, auto-expanded. */}
-                            {(() => {
-                                const reasoningTexts = toReasoningTexts(
-                                    !isStreaming
-                                        ? message.reasoning
-                                        : undefined,
-                                    isStreaming
-                                        ? streamingState?.reasoning
-                                        : undefined,
-                                );
-                                return reasoningTexts.length > 0 ? (
-                                    <ReasoningHistoryRow
-                                        texts={reasoningTexts}
-                                        isLive={isStreaming}
-                                    />
-                                ) : null;
-                            })()}
-                            {liveToolGroups.length > 0 && (
-                                <LiveActivityCard
-                                    toolGroups={liveToolGroups}
-                                    isLive={isStreaming}
-                                    toolResults={message.toolResults}
-                                    toolCalls={message.toolCalls}
-                                    mcpServers={mcpServers}
-                                    stepProgressMessages={
-                                        streamingState?.stepProgressMessages ??
-                                        []
-                                    }
-                                    approval={{
-                                        projectUuid,
-                                        agentUuid,
-                                        threadUuid: message.threadUuid,
-                                        pendingToolCallIds: pendingApprovalIds,
-                                        decidedToolCallIds:
-                                            streamingState?.decidedToolCallIds ??
-                                            [],
-                                    }}
-                                />
-                            )}
+                             *  what was done → the answer. Reasoning is the
+                             *  card's first item. SQL approvals drop into the
+                             *  card's body, auto-expanded. */}
+                            <LiveActivityCard
+                                toolGroups={liveToolGroups}
+                                isLive={isStreaming}
+                                reasoning={{
+                                    texts: toReasoningTexts(
+                                        message.reasoning,
+                                        streamingState?.reasoning,
+                                    ),
+                                    isLive: isStreaming,
+                                }}
+                                toolResults={message.toolResults}
+                                toolCalls={message.toolCalls}
+                                mcpServers={mcpServers}
+                                stepProgressMessages={
+                                    streamingState?.stepProgressMessages ?? []
+                                }
+                                approval={{
+                                    projectUuid,
+                                    agentUuid,
+                                    threadUuid: message.threadUuid,
+                                    pendingToolCallIds: pendingApprovalIds,
+                                    decidedToolCallIds:
+                                        streamingState?.decidedToolCallIds ??
+                                        [],
+                                }}
+                            />
                             {latestTextSeg ? (
                                 <Box
                                     className={styles.streamPart}
@@ -777,25 +756,23 @@ const AssistantBubbleContent: FC<{
                 };
                 return (
                     <>
-                        {persistedToolGroups.length > 0 && (
-                            <LiveActivityCard
-                                toolGroups={persistedToolGroups}
-                                isLive={isStreaming || isPending}
-                                toolResults={message.toolResults}
-                                toolCalls={message.toolCalls}
-                                mcpServers={mcpServers}
-                                approval={persistedApproval}
-                            />
-                        )}
-                        {message.reasoning && message.reasoning.length > 0 && (
-                            <ReasoningHistoryRow
-                                texts={toReasoningTexts(
+                        <LiveActivityCard
+                            toolGroups={persistedToolGroups}
+                            isLive={isStreaming || isPending}
+                            toolResults={message.toolResults}
+                            toolCalls={message.toolCalls}
+                            mcpServers={mcpServers}
+                            approval={persistedApproval}
+                            reasoning={{
+                                texts: toReasoningTexts(
                                     message.reasoning,
-                                    undefined,
-                                )}
-                                isLive={false}
-                            />
-                        )}
+                                    shouldUseStreamParts
+                                        ? streamingState?.reasoning
+                                        : undefined,
+                                ),
+                                isLive: isStreaming,
+                            }}
+                        />
                         {messageContent.length > 0 ? (
                             <Box
                                 // Walkthrough: the answer in words (persisted).
@@ -963,12 +940,43 @@ export const AssistantBubble: FC<Props> = memo(
         const [sourcesExpanded, { toggle: toggleSources }] =
             useDisclosure(false);
 
+        const { track } = useTracking();
+        const { user } = useApp();
+        const responseEventProperties = useMemo(
+            () => ({
+                organizationId: user.data?.organizationUuid,
+                projectId: projectUuid,
+                agentUuid,
+                threadUuid: message.threadUuid,
+                messageUuid: message.uuid,
+            }),
+            [
+                user.data?.organizationUuid,
+                projectUuid,
+                agentUuid,
+                message.threadUuid,
+                message.uuid,
+            ],
+        );
+
         const handleUpvote = useCallback(() => {
             updateFeedbackMutation.mutate({
                 messageUuid: message.uuid,
                 humanScore: upVoted ? 0 : 1,
             });
-        }, [updateFeedbackMutation, message.uuid, upVoted]);
+            if (!upVoted) {
+                track({
+                    name: EventName.AI_AGENT_RESPONSE_FEEDBACK_CLICKED,
+                    properties: { ...responseEventProperties, rating: 'up' },
+                });
+            }
+        }, [
+            updateFeedbackMutation,
+            message.uuid,
+            upVoted,
+            track,
+            responseEventProperties,
+        ]);
 
         const handleDownvote = useCallback(() => {
             if (downVoted) {
@@ -981,9 +989,20 @@ export const AssistantBubble: FC<Props> = memo(
                     messageUuid: message.uuid,
                     humanScore: -1,
                 });
+                track({
+                    name: EventName.AI_AGENT_RESPONSE_FEEDBACK_CLICKED,
+                    properties: { ...responseEventProperties, rating: 'down' },
+                });
                 openPopover();
             }
-        }, [updateFeedbackMutation, message.uuid, downVoted, openPopover]);
+        }, [
+            updateFeedbackMutation,
+            message.uuid,
+            downVoted,
+            openPopover,
+            track,
+            responseEventProperties,
+        ]);
 
         const handleSubmitFeedback = useCallback(() => {
             if (feedbackText.trim().length !== 0) {
@@ -992,10 +1011,21 @@ export const AssistantBubble: FC<Props> = memo(
                     humanScore: -1,
                     humanFeedback: feedbackText.trim(),
                 });
+                track({
+                    name: EventName.AI_AGENT_RESPONSE_FEEDBACK_COMMENT_SUBMITTED,
+                    properties: responseEventProperties,
+                });
             }
             closePopover();
             setFeedbackText('');
-        }, [updateFeedbackMutation, message.uuid, feedbackText, closePopover]);
+        }, [
+            updateFeedbackMutation,
+            message.uuid,
+            feedbackText,
+            closePopover,
+            track,
+            responseEventProperties,
+        ]);
 
         const handleCancelFeedback = useCallback(() => {
             closePopover();
@@ -1018,60 +1048,6 @@ export const AssistantBubble: FC<Props> = memo(
         // status flips to 'idle' only at stream end; artifacts land earlier.
         const isArtifactAvailable = !!(
             message.artifacts && message.artifacts.length > 0
-        );
-
-        // Only turns that queried without visualizing need the pipeline list
-        const ranUnvisualizedQueries =
-            !isLoading &&
-            !isArtifactAvailable &&
-            message.toolCalls.some(
-                (toolCall) =>
-                    toolCall.parentToolCallId === null &&
-                    isComposerQueryToolName(toolCall.toolName),
-            );
-        const queryPipelinesQuery = useAiAgentMessageQueryPipelines({
-            projectUuid,
-            agentUuid,
-            threadUuid: message.threadUuid,
-            messageUuid: message.uuid,
-            enabled: ranUnvisualizedQueries,
-        });
-        const queryPipelines = ranUnvisualizedQueries
-            ? (queryPipelinesQuery.data ?? [])
-            : [];
-        const [queriesExpanded, { toggle: toggleQueries }] =
-            useDisclosure(false);
-        const openPipeline = useAiAgentStoreSelector(
-            selectQueryPipelinePreview,
-        );
-        const handleQueryPipelineSelect = useCallback(
-            ({ queryUuid }: AiAgentMessageQueryPipeline) => {
-                if (
-                    openPipeline?.messageUuid === message.uuid &&
-                    openPipeline.queryUuid === queryUuid
-                ) {
-                    dispatch(clearPreview());
-                    return;
-                }
-                dispatch(
-                    setPreview({
-                        type: 'queryPipeline',
-                        queryUuid,
-                        messageUuid: message.uuid,
-                        threadUuid: message.threadUuid,
-                        projectUuid,
-                        agentUuid,
-                    }),
-                );
-            },
-            [
-                openPipeline,
-                dispatch,
-                message.uuid,
-                message.threadUuid,
-                projectUuid,
-                agentUuid,
-            ],
         );
 
         // A restore turn is deterministic (no LLM): the card is the whole
@@ -1219,6 +1195,12 @@ export const AssistantBubble: FC<Props> = memo(
                             value={message.message ?? ''}
                             color="ldGray.9"
                             aria-label="copy"
+                            onCopy={() =>
+                                track({
+                                    name: EventName.AI_AGENT_RESPONSE_COPIED,
+                                    properties: responseEventProperties,
+                                })
+                            }
                         />
 
                         {(!hasRating || upVoted) && (
@@ -1325,7 +1307,13 @@ export const AssistantBubble: FC<Props> = memo(
                                 <ActionIcon
                                     color="ldGray.9"
                                     aria-label="Add to evaluation set"
-                                    onClick={() => onAddToEvals(message.uuid)}
+                                    onClick={() => {
+                                        track({
+                                            name: EventName.AI_AGENT_RESPONSE_ADD_TO_EVALS_CLICKED,
+                                            properties: responseEventProperties,
+                                        });
+                                        onAddToEvals(message.uuid);
+                                    }}
                                 >
                                     <MantineIcon icon={IconTestPipe} />
                                 </ActionIcon>
@@ -1336,19 +1324,18 @@ export const AssistantBubble: FC<Props> = memo(
                             <ActionIcon
                                 color="ldGray.9"
                                 aria-label="Debug information"
-                                onClick={openDrawer}
+                                onClick={() => {
+                                    track({
+                                        name: EventName.AI_AGENT_RESPONSE_DEBUG_OPENED,
+                                        properties: responseEventProperties,
+                                    });
+                                    openDrawer();
+                                }}
                             >
                                 <MantineIcon icon={IconBug} />
                             </ActionIcon>
                         )}
 
-                        {queryPipelines.length > 0 && (
-                            <MessageQueriesToggle
-                                count={queryPipelines.length}
-                                expanded={queriesExpanded}
-                                onToggle={toggleQueries}
-                            />
-                        )}
                         {sourceSlugs.length > 0 && (
                             <MessageSourcesToggle
                                 count={sourceSlugs.length}
@@ -1356,56 +1343,33 @@ export const AssistantBubble: FC<Props> = memo(
                                 onToggle={toggleSources}
                             />
                         )}
-                        {!(
-                            battle.isBattle &&
-                            message.jevDecision &&
-                            isJevTurn(message.jevDecision)
-                        ) && (
-                            <MessageModelIndicator
-                                projectUuid={projectUuid}
-                                agentUuid={agentUuid}
-                                modelConfig={message.modelConfig}
-                            />
-                        )}
                         {battle.isBattle && message.jevDecision && (
                             <JevDecisionIndicator
                                 decision={message.jevDecision}
                             />
                         )}
-                        <MessageTimingIndicator
-                            responseTiming={message.responseTiming}
-                            isWinner={battle.isWinner}
-                            tokens={
-                                battle.isBattle && message.tokenUsage
-                                    ? {
-                                          agent: message.tokenUsage.totalTokens,
-                                          jev:
-                                              (message.tokenUsage
-                                                  .decisionInputTokens ?? 0) +
-                                              (message.tokenUsage
-                                                  .decisionOutputTokens ?? 0),
-                                      }
-                                    : null
-                            }
-                        />
+                        {canViewDebugInfo && (
+                            <MessageTimingIndicator
+                                responseTiming={message.responseTiming}
+                                isWinner={battle.isWinner}
+                                tokens={
+                                    battle.isBattle && message.tokenUsage
+                                        ? {
+                                              agent: message.tokenUsage
+                                                  .totalTokens,
+                                              jev:
+                                                  (message.tokenUsage
+                                                      .decisionInputTokens ??
+                                                      0) +
+                                                  (message.tokenUsage
+                                                      .decisionOutputTokens ??
+                                                      0),
+                                          }
+                                        : null
+                                }
+                            />
+                        )}
                     </Group>
-                )}
-
-                {queriesExpanded && queryPipelines.length > 0 && (
-                    <MessageQueriesList
-                        pipelines={queryPipelines}
-                        // The launcher has no preview pane to open them in
-                        onSelect={
-                            renderArtifactsInline
-                                ? null
-                                : handleQueryPipelineSelect
-                        }
-                        selectedQueryUuid={
-                            openPipeline?.messageUuid === message.uuid
-                                ? openPipeline.queryUuid
-                                : null
-                        }
-                    />
                 )}
 
                 {!isLoading && sourcesExpanded && sourceSlugs.length > 0 && (
