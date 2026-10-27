@@ -3,6 +3,7 @@ import {
     type DashboardFilterRule,
 } from '@lightdash/common';
 import {
+    useCallback,
     useEffect,
     useRef,
     type Dispatch,
@@ -147,42 +148,46 @@ export const useZoomTileHover = (isEnabled: boolean) => {
         [isEnabled, owner, setHoveredFilterId],
     );
 
-    const clear = (controlUuid: string) => {
-        if (marked.current !== controlUuid) return;
-        marked.current = null;
-        release(controlUuid, owner, setHoveredFilterId);
-    };
-
-    const mark = (controlUuid: string) => {
-        if (!isEnabled) return;
-        clearTiles();
-        getZoomTileUuids(config, controlUuid).forEach((tileUuid) =>
-            document
-                .querySelectorAll(getTileSelector(tileUuid))
-                .forEach((element) =>
-                    element.setAttribute(TILE_HOVER_ATTRIBUTE, ''),
-                ),
-        );
-        marked.current = controlUuid;
-        owner.current = controlUuid;
-        setHoveredFilterId(controlUuid);
-    };
-
-    return (controlUuid: string) => ({
-        onMouseEnter: (event: MouseEvent) => {
-            if (event.buttons === 0) mark(controlUuid);
+    // Stable while the config and the switch are, so the pills keep their props
+    return useCallback(
+        (controlUuid: string) => {
+            const clear = () => {
+                if (marked.current !== controlUuid) return;
+                marked.current = null;
+                release(controlUuid, owner, setHoveredFilterId);
+            };
+            const mark = () => {
+                if (!isEnabled) return;
+                clearTiles();
+                getZoomTileUuids(config, controlUuid).forEach((tileUuid) =>
+                    document
+                        .querySelectorAll(getTileSelector(tileUuid))
+                        .forEach((element) =>
+                            element.setAttribute(TILE_HOVER_ATTRIBUTE, ''),
+                        ),
+                );
+                marked.current = controlUuid;
+                owner.current = controlUuid;
+                setHoveredFilterId(controlUuid);
+            };
+            return {
+                onMouseEnter: (event: MouseEvent) => {
+                    if (event.buttons === 0) mark();
+                },
+                onMouseLeave: clear,
+                onFocus: () => {
+                    if (!isPressed.current) mark();
+                },
+                onBlur: () => {
+                    isPressed.current = false;
+                    clear();
+                },
+                onPointerDown: () => {
+                    isPressed.current = true;
+                    clear();
+                },
+            };
         },
-        onMouseLeave: () => clear(controlUuid),
-        onFocus: () => {
-            if (!isPressed.current) mark(controlUuid);
-        },
-        onBlur: () => {
-            isPressed.current = false;
-            clear(controlUuid);
-        },
-        onPointerDown: () => {
-            isPressed.current = true;
-            clear(controlUuid);
-        },
-    });
+        [config, isEnabled, owner, setHoveredFilterId],
+    );
 };

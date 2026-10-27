@@ -181,3 +181,28 @@ export const isZoomDirty = (
     snapshot: DateZoomConfig,
     controlUuid: string,
 ): boolean => !isEqual(restoreZoom(current, snapshot, controlUuid), current);
+
+const getZoomTargets = (config: DateZoomConfig, controlUuid: string) =>
+    Object.fromEntries(
+        Object.entries(config.tileTargets).filter(
+            ([, target]) => target.controlUuid === controlUuid,
+        ),
+    );
+
+const asSaved = (control: DateZoomControl | null) =>
+    control === null ? null : { ...control, hidden: control.hidden === true };
+
+/** What Save would change for this zoom: the control or its tiles. */
+export const isZoomChanged = (
+    saved: DateZoomConfig,
+    current: DateZoomConfig,
+    controlUuid: string,
+): boolean =>
+    !isEqual(
+        asSaved(findZoomControl(saved, controlUuid)),
+        asSaved(findZoomControl(current, controlUuid)),
+    ) ||
+    !isEqual(
+        getZoomTargets(saved, controlUuid),
+        getZoomTargets(current, controlUuid),
+    );

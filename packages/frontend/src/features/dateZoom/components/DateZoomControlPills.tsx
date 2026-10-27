@@ -23,7 +23,13 @@ import {
     IconSettings,
     IconTrash,
 } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import {
+    useMemo,
+    useState,
+    type ComponentPropsWithoutRef,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { v4 as uuid4 } from 'uuid';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
@@ -42,9 +48,32 @@ import { DateZoomControlConfig } from './DateZoomControlConfig';
 
 type Props = {
     isEditMode: boolean;
+    /**
+     * In edit mode, a named pill opens the control elsewhere instead of its
+     * grain menu (default: the menu).
+     */
+    onOpenControl?: (controlUuid: string) => void;
+    /**
+     * Extra props on a named pill's button, and what sits on its corner
+     * (default none).
+     */
+    getControlPillProps?: (controlUuid: string) => ControlPillOpening;
+    /** In edit mode, shown in place of "Add date zoom" and its popover (default: those). */
+    addControl?: ReactNode;
 };
 
-export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
+export type ControlPillOpening = {
+    buttonProps: ComponentPropsWithoutRef<'button'> &
+        Record<`data-${string}`, string | boolean | undefined>;
+    corner: ReactNode;
+};
+
+export const DateZoomControlPills: FC<Props> = ({
+    isEditMode,
+    onOpenControl,
+    getControlPillProps,
+    addControl,
+}) => {
     const getUiString = useUiStrings();
     const dateZoomConfig = useDashboardDateZoomConfig();
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
@@ -124,6 +153,9 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
         });
     };
 
+    // Edit mode with an opener: the pill opens the control, no menu or popover
+    const openControl = isEditMode ? onOpenControl : undefined;
+
     const visibleControls = dateZoomConfig.controls.filter(
         (control) => isEditMode || !control.hidden,
     );
@@ -156,8 +188,16 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                     controlGranularities,
                 );
                 const isEditing = editingControl?.uuid === control.uuid;
+                const opening = isEditMode
+                    ? getControlPillProps?.(control.uuid)
+                    : undefined;
                 return (
-                    <Group key={control.uuid} gap={0} wrap="nowrap">
+                    <Group
+                        key={control.uuid}
+                        gap={0}
+                        wrap="nowrap"
+                        pos={opening?.corner ? 'relative' : undefined}
+                    >
                         <Popover opened={isEditing} {...popoverProps}>
                             <Popover.Target>
                                 <Box>
@@ -167,10 +207,11 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                         offset={1}
                                         arrowOffset={14}
                                         closeOnItemClick
-                                        disabled={isEditing}
+                                        disabled={isEditing || !!openControl}
                                     >
                                         <Menu.Target>
                                             <Button
+                                                {...opening?.buttonProps}
                                                 size="xs"
                                                 variant="default"
                                                 classNames={{
@@ -179,9 +220,21 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                                         : styles.pill,
                                                 }}
                                                 rightSection={
-                                                    <MantineIcon
-                                                        icon={IconChevronDown}
-                                                    />
+                                                    openControl ? undefined : (
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconChevronDown
+                                                            }
+                                                        />
+                                                    )
+                                                }
+                                                onClick={
+                                                    openControl
+                                                        ? () =>
+                                                              openControl(
+                                                                  control.uuid,
+                                                              )
+                                                        : undefined
                                                 }
                                             >
                                                 {control.name} ·{' '}
@@ -354,11 +407,13 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                 </Tooltip>
                             </>
                         )}
+                        {opening?.corner}
                     </Group>
                 );
             })}
 
-            {isEditMode && (
+            {isEditMode && addControl}
+            {isEditMode && !addControl && (
                 <Popover opened={isAddingNew} {...popoverProps}>
                     <Popover.Target>
                         <Button

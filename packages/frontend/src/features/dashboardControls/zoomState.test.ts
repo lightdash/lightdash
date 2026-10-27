@@ -4,6 +4,7 @@ import {
     addZoomTiles,
     applyZoomEdit,
     createZoomControl,
+    isZoomChanged,
     isZoomDirty,
     restoreZoom,
     setZoomTileField,
@@ -137,5 +138,37 @@ describe('zoomState', () => {
             controls: [config.controls[1]],
             tileTargets: { t2: config.tileTargets.t2 },
         });
+    });
+
+    it('says a zoom changed when Save would write it differently', () => {
+        expect(isZoomChanged(config, config, 'z1')).toBe(false);
+        // Shown again reads as never hidden
+        expect(
+            isZoomChanged(
+                config,
+                {
+                    ...config,
+                    controls: [
+                        { ...config.controls[0], hidden: false },
+                        config.controls[1],
+                    ],
+                },
+                'z1',
+            ),
+        ).toBe(false);
+        expect(
+            isZoomChanged(
+                config,
+                setZoomTileField(config, 'z1', 't2', SHIP),
+                'z1',
+            ),
+        ).toBe(true);
+        expect(
+            isZoomChanged(
+                { ...config, controls: [config.controls[1]] },
+                config,
+                'z1',
+            ),
+        ).toBe(true);
     });
 });

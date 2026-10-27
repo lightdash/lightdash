@@ -80,3 +80,19 @@
     composes: changedDot;
     background-color: var(--mantine-color-yellow-filled);
 }
+
+/* The edited date zoom pill, as `.selectedPill`; the shipped pill has no
+   `.pill` parent, so a third class keeps the same weight */
+.selectedZoomPill.selectedZoomPill.selectedZoomPill[aria-pressed='true']:not(
+        :disabled
+    ) {
+    background-color: var(--mantine-color-blue-light);
+    border-color: var(--mantine-color-blue-outline);
+    color: var(--mantine-color-text);
+}
+
+.selectedZoomPill.selectedZoomPill.selectedZoomPill[aria-pressed='true']:not(
+        :disabled
+    ):hover {
+    background-color: var(--mantine-color-blue-light-hover);
+}

@@ -1,6 +1,6 @@
 import { FilterOperator } from '@lightdash/common';
 import { screen } from '@testing-library/react';
-import { type ComponentProps, type ReactElement } from 'react';
+import { type ComponentProps, type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
@@ -23,7 +23,12 @@ const renderWithProviders = (ui: ReactElement) =>
         </DashboardStoreTestProvider>,
     );
 const mockCompact = vi.hoisted(() => ({ current: false }));
-const mockSidebar = vi.hoisted(() => ({ current: { isSidebarOpen: false } }));
+const mockSidebar = vi.hoisted(() => ({
+    current: { isSidebarOpen: false } as Record<string, unknown>,
+}));
+const mockDateZoomProps = vi.hoisted(() => ({
+    current: null as Record<string, unknown> | null,
+}));
 
 vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector) => selector(mockDashboardContext.current)),
@@ -69,7 +74,10 @@ vi.mock('./SectionedFilters', () => ({
 }));
 
 vi.mock('../dateZoom', () => ({
-    DateZoom: () => <div data-testid="date-zoom" />,
+    DateZoom: (props: Record<string, unknown> & { addControl?: ReactNode }) => {
+        mockDateZoomProps.current = props;
+        return <div data-testid="date-zoom">{props.addControl}</div>;
+    },
 }));
 
 const baseProps: ComponentProps<typeof ControlsBar> = {
@@ -94,6 +102,7 @@ const baseProps: ComponentProps<typeof ControlsBar> = {
 
 describe('ControlsBar', () => {
     beforeEach(() => {
+        mockDateZoomProps.current = null;
         mockCompact.current = false;
         mockSidebar.current = { isSidebarOpen: false };
         mockDashboardContext.current = {
@@ -291,5 +300,66 @@ describe('ControlsBar', () => {
         expect(
             screen.queryByRole('button', { name: 'Filters and parameters' }),
         ).not.toBeInTheDocument();
+    });
+
+    describe('date zoom', () => {
+        const openZoom = vi.fn();
+        const openNewZoom = vi.fn();
+        const zoomProps = () =>
+            mockDateZoomProps.current as {
+                onOpenControl: (uuid: string) => void;
+                isDefaultValueShown: boolean;
+                getControlPillProps: (uuid: string) => {
+                    buttonProps: Record<string, unknown>;
+                };
+            };
+
+        beforeEach(() => {
+            openZoom.mockClear();
+            openNewZoom.mockClear();
+            mockSidebar.current = {
+                isSidebarOpen: false,
+                editing: null,
+                openZoom,
+                openNewZoom,
+                setHoveredFilterId: vi.fn(),
+                tileHoverOwner: { current: null },
+            };
+        });
+
+        it('opens zooms in the rail and adds one there', () => {
+            renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
+            expect(zoomProps().isDefaultValueShown).toBe(true);
+            zoomProps().onOpenControl('z1');
+            expect(openZoom).toHaveBeenCalledWith('z1');
+            screen.getByRole('button', { name: 'Add date zoom' }).click();
+            expect(openNewZoom).toHaveBeenCalledTimes(1);
+        });
+
+        it('marks the edited zoom pill and makes Add date zoom inert', () => {
+            mockSidebar.current = {
+                ...mockSidebar.current,
+                isSidebarOpen: true,
+                editing: { kind: 'dateZoom', controlUuid: 'z1' },
+            };
+            renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
+            expect(
+                zoomProps().getControlPillProps('z1').buttonProps,
+            ).toMatchObject({
+                'aria-pressed': true,
+                'data-controls-pill': 'z1',
+            });
+            expect(
+                zoomProps().getControlPillProps('z2').buttonProps,
+            ).toMatchObject({ 'aria-pressed': false });
+            expect(
+                screen
+                    .getByRole('button', {
+                        name: 'Add date zoom',
+                        hidden: true,
+                    })
+                    .closest('[inert]'),
+            ).not.toBeNull();
+        });
     });
 });

@@ -21,7 +21,14 @@ import {
     IconPinFilled,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type ComponentProps,
+    type FC,
+} from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
@@ -133,9 +140,25 @@ const ViewModeGranularityItem: FC<ViewModeGranularityItemProps> = ({
 type Props = {
     isEditMode: boolean;
     dropdownClassName?: string;
-};
+    /**
+     * "Default zoom" always says its grain, "None" when it has none: the
+     * default's in edit mode, the one in use in view mode (default: only
+     * the one in use, in view mode).
+     */
+    isDefaultValueShown?: boolean;
+} & Pick<
+    ComponentProps<typeof DateZoomControlPills>,
+    'onOpenControl' | 'getControlPillProps' | 'addControl'
+>;
 
-export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
+export const DateZoom: FC<Props> = ({
+    isEditMode,
+    dropdownClassName,
+    isDefaultValueShown = false,
+    onOpenControl,
+    getControlPillProps,
+    addControl,
+}) => {
     const getUiString = useUiStrings();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
 
@@ -189,6 +212,23 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
     useEffect(() => {
         if (isEditMode) setDateZoomGranularity(undefined);
     }, [isEditMode, setDateZoomGranularity]);
+
+    // After "Default zoom": the grain in use in view mode; with the value
+    // shown, the default's in edit mode and "None" when there is no grain
+    const shownGranularity = isEditMode
+        ? isDefaultValueShown
+            ? defaultDateZoomGranularity
+            : undefined
+        : dateZoomGranularity;
+    const shownValue = shownGranularity
+        ? getGranularityLabel(
+              shownGranularity,
+              availableCustomGranularities,
+              getUiString,
+          )
+        : isDefaultValueShown
+          ? getUiString('dateZoom.none')
+          : null;
 
     // All standard granularities are offered to editors regardless of the
     // dashboard's dimensions; the editor's enabled list is what viewers see.
@@ -368,7 +408,7 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                                 'dateZoom.defaultZoom',
                                             )}
                                         </Text>
-                                        {!isEditMode && dateZoomGranularity ? (
+                                        {shownValue !== null ? (
                                             <Text
                                                 span
                                                 fw={500}
@@ -378,11 +418,7 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                                                         : undefined
                                                 }
                                             >
-                                                {` · ${getGranularityLabel(
-                                                    dateZoomGranularity,
-                                                    availableCustomGranularities,
-                                                    getUiString,
-                                                )}`}
+                                                {` · ${shownValue}`}
                                             </Text>
                                         ) : null}
                                     </Text>
@@ -562,7 +598,12 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                         </Menu.Dropdown>
                     </Menu>
                 )}
-                <DateZoomControlPills isEditMode={isEditMode} />
+                <DateZoomControlPills
+                    isEditMode={isEditMode}
+                    onOpenControl={onOpenControl}
+                    getControlPillProps={getControlPillProps}
+                    addControl={addControl}
+                />
             </Group>
             {isEditMode && <DateZoomCrossTabFieldsLoader />}
         </Group>

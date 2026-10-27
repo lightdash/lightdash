@@ -27,7 +27,9 @@ the rail edits; see "Date zooms". User-facing copy says *tile*, never *chart*.
 
 - `features/dashboardTabs/index.tsx` picks `ControlsBar` instead of
   `DashboardFiltersBar`, and puts the rail (`ControlSidebar`) first in the
-  grid's row, which gets `CONTROLS_RAIL_LAYOUT` as its class.
+  grid's row, which gets `CONTROLS_RAIL_LAYOUT` as its class. The collapsed
+  view-mode summary says the date zoom's "None" (`dateZoom.none`) instead
+  of "Default" when no grain is in use, as the Default zoom pill does.
 - `pages/Dashboard.tsx` picks `ControlsSidebarPage` instead of `Page` and
   renders the header through `DashboardHeaderGuard`: the shipped header,
   inert as a whole, Save and Cancel included, while an editor's filter is
@@ -56,6 +58,21 @@ behaviour. All but the first are in `features/dashboardFilters/`.
 - `dashboardTabs/Tab.tsx` and the embed's tabs in `EmbedDashboard.tsx`: the
   inline `maw` reads `--dashboard-tab-max-width` first, falling back to
   today's share of the viewport. Nothing sets it outside the tab counts.
+- `dateZoom/components/DateZoom`: `isDefaultValueShown` (default false):
+  "Default zoom · <grain>" in both modes, the default's grain in edit mode
+  and the one in use in view mode, "None" (`dateZoom.none`) without one;
+  `onOpenControl`, `getControlPillProps` and `addControl`, passed to
+  `DateZoomControlPills` (default none), which reads them in edit mode
+  only: a named pill calls `onOpenControl(uuid)` with no grain menu (its
+  chevron goes, the `Menu` is disabled); `getControlPillProps(uuid)` gives
+  extra props for its button (`buttonProps`) and what sits on its corner
+  (`corner`, the pill's group then `position: relative`); `addControl`
+  replaces "Add date zoom" and its popover. A viewer keeps the menu.
+  `granularityData` and the eligible tiles of the shipped
+  `DateZoomControlConfig` are `useGranularityOptions` and
+  `useEligibleZoomTiles` in `dateZoom/hooks.ts`, moved out.
+- `DashboardFiltersBar`: `dateZoomProps` (default none), spread on its
+  `DateZoom`. Embeds render their own `DateZoom` and stay as shipped.
 - `DashboardFiltersBar`: `filterArea`, which replaces the shipped filters and
   the requirements button (default: both, as today), and
   `isCompactDrawerSuppressed` (default false): on a narrow screen the bar is
@@ -254,6 +271,21 @@ In `FilterConfiguration/`:
   lock-safe temporary filters, as the shipped pills list them) follow as
   outline pills (`kind="viewerOwn"`) that open the rail, with an X that is
   `removeFilterById`.
+
+- Date zoom on the bar is the shipped `DateZoom` with `dateZoomProps`
+  from `ControlsBar` (`useDateZoomProps`): `onOpenControl` is `openZoom`;
+  `addControl` is the shipped dashed "Add date zoom" look
+  (`DateZoom.module.css` `addControl`) calling `openNewZoom`, inside
+  `InertWhileEditing` like "Add filter"; `isDefaultValueShown` in both
+  modes. `getControlPillProps` gives each pill `useZoomTileHover`'s
+  handlers (on while nothing is edited), `data-controls-pill` with the
+  uuid (focus return), `aria-pressed` and `.selectedZoomPill` (the
+  `.selectedPill` look; the shipped pill has no `.pill` parent) on the
+  edited zoom, and a `ChangedDot` on the corner while the zoom differs from
+  the saved dashboard (`isZoomChanged`: the control, `hidden: false` read as
+  none, and its tile entries). The pills stay live while anything is
+  edited, so they switch as filter pills do; the shipped visibility eye
+  beside each pill stays as shipped.
 
 ## Embeds
 
