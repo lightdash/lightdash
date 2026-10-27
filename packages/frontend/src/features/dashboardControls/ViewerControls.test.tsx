@@ -115,6 +115,28 @@ const renderControls = (
     return onChange;
 };
 
+const renderControlled = (initial: DashboardFilterRule) => {
+    const onChange = vi.fn();
+    const Controlled = () => {
+        const [rule, setRule] = useState(initial);
+        return (
+            <ViewerControls
+                rule={rule}
+                filterType={FilterType.STRING}
+                field={null}
+                onChange={(next) => {
+                    onChange(next);
+                    setRule(next);
+                }}
+                onChangeOthers={onChangeOthers}
+                onEditRules={null}
+            />
+        );
+    };
+    renderWithProviders(<Controlled />);
+    return onChange;
+};
+
 const lockSwitch = () => screen.getByRole('switch', { name: 'Lock' });
 const requiredSwitch = () => screen.getByRole('switch', { name: 'Required' });
 const scope = (name: string) => screen.getByRole('radio', { name });
@@ -286,6 +308,20 @@ describe('ViewerControls', () => {
             expect(onChange).toHaveBeenCalledWith(
                 expect.objectContaining({ lockedTabUuids: undefined }),
             );
+        });
+
+        it('locks the same tabs again when the switch goes off and on', () => {
+            const onChange = renderControlled(
+                makeRule('a', { lockedTabUuids: ['t1', 't2'] }),
+            );
+            fireEvent.click(lockSwitch());
+            fireEvent.click(lockSwitch());
+            expect(onChange).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    lockedTabUuids: expect.arrayContaining(['t1', 't2']),
+                }),
+            );
+            expect(onChange.mock.lastCall?.[0].lockedTabUuids).toHaveLength(2);
         });
 
         it('unlocks every tab with the switch', () => {
@@ -518,6 +554,22 @@ describe('ViewerControls', () => {
                 }),
             );
             expect(onChangeOthers).not.toHaveBeenCalled();
+        });
+
+        it('leaves a filter with a default value as it was when switched on and off', () => {
+            const filter = makeRule('a', {
+                disabled: false,
+                values: ['completed'],
+            });
+            setContext(TABS, [filter]);
+            const onChange = renderControlled(filter);
+            fireEvent.click(requiredSwitch());
+            fireEvent.click(requiredSwitch());
+            expect(onChange).toHaveBeenLastCalledWith({
+                ...filter,
+                required: false,
+                requiredGroupId: undefined,
+            });
         });
 
         it('goes back into the rule it was saved in when switched on again', () => {

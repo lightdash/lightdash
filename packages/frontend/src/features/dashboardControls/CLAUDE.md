@@ -745,7 +745,10 @@ In `FilterConfiguration/`:
   - The switch is the shipped `getFilterRuleWithRequired`: on, a filter
     saved in a shared rule goes back into it, valueless, any other becomes
     required on its own and keeps its value as a temporary one; off, the
-    filter leaves its rule and loses its values, as in the shipped form.
+    filter leaves its rule and loses its values only if it was saved as
+    required (a temporary value), so on then off is a no-op.
+  - The lock switch, switched off then on, locks again the tabs it
+    unlocked; with none remembered it locks the tab in view.
   - Every write goes through the shipped disabled rule, like every edit of
     `FilterValueSettings`. The other filter an alternative adds goes through
     `onChangeOtherFilterRule`, which is the provider's `updateOtherFilters`,

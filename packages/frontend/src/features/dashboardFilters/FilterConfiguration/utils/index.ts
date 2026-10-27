@@ -388,7 +388,11 @@ export const getFilterRuleWithRequired = (
               requiredGroupId: undefined,
           };
 
-    return checked
+    // Off drops only a temporary value: one the filter had while saved as required
+    const wasSavedRequired =
+        !!originalFilterRule?.required || !!originalFilterRule?.requiredGroupId;
+
+    return checked || !wasSavedRequired
         ? newFilter
         : getFilterRuleWithDefaultValue(filterType, field, newFilter, null);
 };

@@ -67,6 +67,8 @@ export const ViewerControls: FC<Props> = ({
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     // Only "Some tabs" can be picked without changing the locked tabs
     const [isSomeTabsPicked, setIsSomeTabsPicked] = useState(false);
+    // The tabs the switch unlocked, locked again when it goes back on
+    const [unlockedKeys, setUnlockedKeys] = useState<string[]>([]);
 
     // Lock
     const hasTabs = dashboardTabs.length > 0;
@@ -111,6 +113,7 @@ export const ViewerControls: FC<Props> = ({
     };
     const unlockEverywhere = () => {
         setIsSomeTabsPicked(false);
+        setUnlockedKeys(lockedKeys);
         lockedKeys.forEach((key) => {
             const toggle = getLockToggle(rule, key);
             if (toggle !== null) track(toggle.event);
@@ -189,8 +192,16 @@ export const ViewerControls: FC<Props> = ({
                         onChange={(e) => {
                             if (!e.currentTarget.checked) unlockEverywhere();
                             else if (switchLockKey !== undefined) {
+                                const restoredKeys = unlockedKeys.filter(
+                                    (key) => lockKeys.includes(key),
+                                );
                                 setIsSomeTabsPicked(false);
-                                setLockedKeys([switchLockKey]);
+                                setUnlockedKeys([]);
+                                setLockedKeys(
+                                    restoredKeys.length > 0
+                                        ? restoredKeys
+                                        : [switchLockKey],
+                                );
                             }
                         }}
                     />

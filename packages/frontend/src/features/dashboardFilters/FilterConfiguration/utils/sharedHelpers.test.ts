@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
     getDefaultField,
     getFilterRuleWithDisabledState,
+    getFilterRuleWithRequired,
     getSqlColumnFilterType,
     getUniqueSqlColumns,
 } from './index';
@@ -142,5 +143,45 @@ describe('getFilterRuleWithDisabledState', () => {
             getFilterRuleWithDisabledState(rule({ required: true }), false)
                 .disabled,
         ).toBe(false);
+    });
+});
+
+describe('getFilterRuleWithRequired', () => {
+    const saved: DashboardFilterRule = {
+        id: 'filter-1',
+        label: undefined,
+        operator: FilterOperator.EQUALS,
+        target: { fieldId: 'orders_status', tableName: 'orders' },
+        disabled: false,
+        values: ['completed'],
+    };
+    const toggle = (from: DashboardFilterRule, checked: boolean) =>
+        getFilterRuleWithRequired(
+            FilterType.STRING,
+            undefined,
+            from,
+            saved,
+            checked,
+        );
+
+    it('leaves a filter with a default value as it was when switched on and off', () => {
+        expect(toggle(toggle(saved, true), false)).toEqual({
+            ...saved,
+            required: false,
+            requiredGroupId: undefined,
+        });
+    });
+
+    it('drops the temporary value of a filter saved as required', () => {
+        const savedRequired = { ...saved, required: true };
+        expect(
+            getFilterRuleWithRequired(
+                FilterType.STRING,
+                undefined,
+                savedRequired,
+                savedRequired,
+                false,
+            ).values,
+        ).toEqual([]);
     });
 });

@@ -2944,7 +2944,7 @@ describe('ControlsSidebarProvider', () => {
             expect(latest.changed).toBe(false);
         });
 
-        it('drops the default value when "Required" is switched off, as the shipped form does', () => {
+        it('keeps the default value when "Required" is switched on and off', () => {
             saved.filters = asSaved({
                 ...initialFilters,
                 dimensions: [
@@ -2955,13 +2955,14 @@ describe('ControlsSidebarProvider', () => {
             const required = switchRequired(savedA, savedA, true);
             expect(required.values).toEqual(['credit_card']);
             const notRequired = switchRequired(required, savedA, false);
-            expect(notRequired.values).toEqual([]);
+            expect(notRequired.values).toEqual(['credit_card']);
+            expect(notRequired.disabled).toBe(false);
 
             const { result } = setup();
             act(() => result.current.open('a'));
             act(() => result.current.updateFilter(required));
             act(() => result.current.updateFilter(notRequired));
-            expect(result.current.isDirty).toBe(true);
+            expect(result.current.isDirty).toBe(false);
         });
 
         // Tabs apply a rule with no tile targets everywhere, but one with empty
