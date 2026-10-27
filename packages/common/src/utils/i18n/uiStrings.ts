@@ -509,6 +509,10 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.nodeStatus.error': 'Failed',
     'aiAgent.composer.node.viewResults': 'View results',
     'aiAgent.composer.node.viewResultsOf': 'View results of {node}',
+    'aiAgent.composer.node.viewResultsCount.singular':
+        'View results ({count} row)',
+    'aiAgent.composer.node.viewResultsCount.plural':
+        'View results ({count} rows)',
     'aiAgent.composer.semanticNode.view': 'View metric query',
     'aiAgent.composer.semanticNode.hide': 'Hide metric query',
     'aiAgent.composer.semanticNode.viewSql': 'View SQL',

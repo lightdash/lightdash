@@ -13,6 +13,7 @@ import { type ComposerNodeStatus } from './composerNodeStatus';
 export type ComposerRunNodeStatus = {
     status: Exclude<ComposerNodeStatus, 'awaiting_approval'>;
     error: string | null;
+    totalRowCount: number | null;
 };
 
 const POLL_INTERVAL_MS = 1000;
@@ -91,6 +92,7 @@ export const useComposerRunNodeStatuses = ({
                               {
                                   status: toNodeStatus(status.status),
                                   error: status.error,
+                                  totalRowCount: status.totalRowCount,
                               },
                           ],
                       ]

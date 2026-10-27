@@ -137,12 +137,13 @@ describe('AiComposerPipelinePanel list mode', () => {
         renderPanel({
             defaultExpanded: true,
             nodeStatuses: {
-                orders: { status: 'success', error: null },
+                orders: { status: 'success', error: null, totalRowCount: 5 },
                 amounts: {
                     status: 'error',
                     error: 'column "amount" does not exist',
+                    totalRowCount: null,
                 },
-                joined: { status: 'pending', error: null },
+                joined: { status: 'pending', error: null, totalRowCount: null },
             },
         });
         const row = (nodeId: string) =>
@@ -196,6 +197,32 @@ describe('AiComposerPipelinePanel list mode', () => {
             }),
         );
         expect(onDisplayNode).toHaveBeenCalledWith('amounts');
+    });
+
+    it("labels View results with a finished node's row count", () => {
+        renderPanel({
+            defaultExpanded: true,
+            nodeStatuses: {
+                orders: { status: 'success', error: null, totalRowCount: 1 },
+                amounts: {
+                    status: 'success',
+                    error: null,
+                    totalRowCount: 1234,
+                },
+                joined: { status: 'running', error: null, totalRowCount: 0 },
+            },
+        });
+        const row = (nodeId: string) =>
+            within(
+                document.getElementById(`composer-pipeline-node-${nodeId}`)!,
+            );
+        expect(
+            row('orders').getByText('View results (1 row)'),
+        ).toBeInTheDocument();
+        expect(
+            row('amounts').getByText('View results (1,234 rows)'),
+        ).toBeInTheDocument();
+        expect(row('joined').getByText('View results')).toBeInTheDocument();
     });
 
     it('marks the displayed row and leaves legacy nodes without a button', () => {

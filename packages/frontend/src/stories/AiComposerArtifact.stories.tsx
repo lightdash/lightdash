@@ -390,9 +390,13 @@ export const Running: Story = {
     args: {
         ...DuckdbOverPython.args,
         nodeStatuses: {
-            orders: { status: 'success', error: null },
-            simulation: { status: 'running', error: null },
-            percentiles: { status: 'pending', error: null },
+            orders: { status: 'success', error: null, totalRowCount: 5 },
+            simulation: { status: 'running', error: null, totalRowCount: null },
+            percentiles: {
+                status: 'pending',
+                error: null,
+                totalRowCount: null,
+            },
         },
     },
 };
@@ -402,14 +406,16 @@ export const NodeFailed: Story = {
     args: {
         ...DuckdbOverPython.args,
         nodeStatuses: {
-            orders: { status: 'success', error: null },
+            orders: { status: 'success', error: null, totalRowCount: 5 },
             simulation: {
                 status: 'error',
                 error: 'ZeroDivisionError: division by zero',
+                totalRowCount: null,
             },
             percentiles: {
                 status: 'error',
                 error: 'A query this query reads failed',
+                totalRowCount: null,
             },
         },
         resultError: 'A query this query reads failed',

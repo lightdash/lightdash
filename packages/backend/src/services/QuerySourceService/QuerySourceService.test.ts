@@ -716,7 +716,7 @@ describe('QuerySourceService', () => {
             await expect(result).rejects.toThrow('revoked');
         });
 
-        it('returns the standard status per query uuid', async () => {
+        it('returns the standard status and row count per query uuid', async () => {
             const fakes = createRegistryWithFakes();
             const { service, mocks } = createService(fakes.registry);
             mocks.queryHistoryModel.get.mockImplementation(
@@ -727,6 +727,7 @@ describe('QuerySourceService', () => {
                             ? QueryHistoryStatus.ERROR
                             : QueryHistoryStatus.READY,
                     error: queryUuid === 'failed-uuid' ? 'boom' : null,
+                    totalRowCount: queryUuid === 'failed-uuid' ? null : 42,
                 }),
             );
 
@@ -741,11 +742,13 @@ describe('QuerySourceService', () => {
                     queryUuid: 'ok-uuid',
                     status: QueryHistoryStatus.READY,
                     error: null,
+                    totalRowCount: 42,
                 },
                 {
                     queryUuid: 'failed-uuid',
                     status: QueryHistoryStatus.ERROR,
                     error: 'boom',
+                    totalRowCount: null,
                 },
             ]);
         });
