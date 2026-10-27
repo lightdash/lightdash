@@ -7,7 +7,7 @@ import {
     type DashboardFilterRule,
     type DashboardTile,
 } from '@lightdash/common';
-import { act, screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -171,7 +171,6 @@ describe('FilterPills', () => {
     const open = vi.fn();
     const close = vi.fn();
     const removeFilterById = vi.fn();
-    const setHoveredFilterId = vi.fn();
     const tileHoverOwner: { current: string | null } = { current: null };
     const setDashboardFilters = vi.fn();
     const setHaveFiltersChanged = vi.fn();
@@ -241,7 +240,6 @@ describe('FilterPills', () => {
             open,
             close,
             removeFilterById,
-            setHoveredFilterId,
             tileHoverOwner,
         };
     });
@@ -1347,23 +1345,20 @@ describe('FilterPills', () => {
             await user.hover(pill(/^Region/));
             expect(hoveredTiles()).toEqual(['tile-1', 'tile-3']);
 
+            // A short grace on leave, so the gap between pills never flashes
             await user.unhover(pill(/^Region/));
-            expect(hoveredTiles()).toEqual([]);
+            expect(hoveredTiles()).toEqual(['tile-1', 'tile-3']);
+            await waitFor(() => expect(hoveredTiles()).toEqual([]));
         });
 
-        it('names the hovered filter for the tab badges and clears only its own', async () => {
+        it("keeps the next pill's marks when the last one's grace ends", async () => {
             const user = userEvent.setup();
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
             await user.hover(pill(/^Status/));
-            expect(setHoveredFilterId).toHaveBeenLastCalledWith('saved');
-
-            await user.unhover(pill(/^Status/));
-            const update = setHoveredFilterId.mock.lastCall?.[0] as (
-                id: string | null,
-            ) => string | null;
-            expect(update('saved')).toBeNull();
-            expect(update('no-default')).toBe('no-default');
+            await user.hover(pill(/^Region/));
+            await act(() => new Promise((resolve) => setTimeout(resolve, 400)));
+            expect(hoveredTiles()).toEqual(['tile-1', 'tile-3']);
         });
 
         it('leaving a pill keeps the marks another pill made since', async () => {
@@ -1375,8 +1370,8 @@ describe('FilterPills', () => {
             expect(hoveredTiles()).toEqual(['tile-1']);
 
             await user.unhover(pill(/^Region/));
+            await act(() => new Promise((resolve) => setTimeout(resolve, 400)));
             expect(hoveredTiles()).toEqual(['tile-1']);
-            expect(setHoveredFilterId).toHaveBeenLastCalledWith('saved');
         });
 
         it('re-renders no pill when the tiles change, and marks from the latest ones', async () => {
@@ -1428,7 +1423,6 @@ describe('FilterPills', () => {
 
             await user.hover(pill(/^Region/));
             expect(hoveredTiles()).toEqual([]);
-            expect(setHoveredFilterId).not.toHaveBeenCalledWith('no-default');
         });
     });
 });

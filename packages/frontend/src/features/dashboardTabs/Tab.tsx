@@ -25,6 +25,8 @@ type DraggableTabProps = {
     handleDeleteTab: (tabUuid: string) => void;
     handleDuplicateTab: (tabUuid: string) => void;
     handleToggleTabHidden: (tabUuid: string) => void;
+    /** In edit mode, show the grip and menu only on hover or focus (the active tab keeps its menu). */
+    hasQuietActions?: boolean;
 };
 
 const DraggableTab: FC<DraggableTabProps> = ({
@@ -38,8 +40,12 @@ const DraggableTab: FC<DraggableTabProps> = ({
     handleDuplicateTab,
     handleToggleTabHidden,
     setDeletingTab,
+    hasQuietActions = false,
 }) => {
-    const { ref, isTruncated } = useIsTruncated('span');
+    // The grip is the tab's first span in edit mode: a quiet tab reads its label
+    const { ref, isTruncated } = useIsTruncated(
+        hasQuietActions ? '.mantine-Tabs-tabLabel' : 'span',
+    );
 
     return (
         <Draggable key={tab.uuid} draggableId={tab.uuid} index={idx}>
@@ -48,6 +54,10 @@ const DraggableTab: FC<DraggableTabProps> = ({
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
+                    // On the wrapper: it is the tab's first focus stop
+                    data-quiet-actions={
+                        (isEditMode && hasQuietActions) || undefined
+                    }
                 >
                     <Tooltip
                         label={tab.name}

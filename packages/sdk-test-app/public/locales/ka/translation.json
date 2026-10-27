@@ -459,6 +459,7 @@
         "filters.rail.fieldCount.singular": "{count} ველი",
         "filters.rail.fieldCount.plural": "{count} ველი",
         "filters.rail.countOf": "{applied} / {total}",
+        "filters.rail.tabFraction": "{applied}/{total}",
         "filters.rail.searchFields": "ველების ძიება",
         "filters.rail.startHint": "აირჩიეთ ველი ფილების გასაფილტრად, ან აირჩიეთ ფილაზე.",
         "filters.rail.startHintColumns": "აირჩიეთ სვეტი ფილების გასაფილტრად.",

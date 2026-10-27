@@ -459,6 +459,7 @@
         "filters.rail.fieldCount.singular": "{count} campo",
         "filters.rail.fieldCount.plural": "{count} campos",
         "filters.rail.countOf": "{applied} de {total}",
+        "filters.rail.tabFraction": "{applied}/{total}",
         "filters.rail.searchFields": "Buscar campos",
         "filters.rail.startHint": "Selecciona el campo por el que filtrar los mosaicos, o elige uno en un mosaico.",
         "filters.rail.startHintColumns": "Selecciona la columna por la que filtrar los mosaicos.",

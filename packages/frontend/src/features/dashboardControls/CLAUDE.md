@@ -13,7 +13,7 @@ fields. User-facing copy says *tile*, never *chart*.
 - Saved data keeps today's `DashboardFilterRule` shape.
 
 - **Strings**: a viewer (and an embed) sees the rail, the tile cards, the
-  field bar and the tab badges, so their copy is in
+  field bar and the tab counts, so their copy is in
   `DEFAULT_UI_STRINGS` (`filters.rail.*`, `filters.tileCard.*`,
   `filters.fieldBar.*`, plus shipped keys where one fits) and read with
   `useUiStrings`; counts go through `formatTileCount` and
@@ -25,8 +25,9 @@ fields. User-facing copy says *tile*, never *chart*.
 ## Gated lines in shipped files
 
 - `features/dashboardTabs/index.tsx` picks `ControlsBar` instead of
-  `DashboardFiltersBar`, and puts the rail (`ControlSidebar`) first in the
-  grid's row, which gets `CONTROLS_RAIL_LAYOUT` as its class.
+  `DashboardFiltersBar`, puts the rail (`ControlSidebar`) first in the
+  grid's row, which gets `CONTROLS_RAIL_LAYOUT` as its class, and passes
+  `hasQuietActions` to each `DraggableTab`.
 - `pages/Dashboard.tsx` shows its `PageSpinner` until the flag's request
   has answered (`isInitialLoading`), so the page never swaps `Page` for
   `ControlsSidebarPage` and remounts the grid. The request runs alongside
@@ -60,6 +61,17 @@ behaviour. All but the first are in `features/dashboardFilters/`.
 - `dashboardTabs/Tab.tsx` and the embed's tabs in `EmbedDashboard.tsx`: the
   inline `maw` reads `--dashboard-tab-max-width` first, falling back to
   today's share of the viewport. Nothing sets it outside the tab counts.
+- `dashboardTabs/Tab.tsx`: `hasQuietActions` (default false). In edit mode
+  it puts `data-quiet-actions` on the tab's draggable wrapper (the tab's
+  first focus stop, outside `Tabs.Tab`), and `tabs.module.css` hides the
+  drag grip, and the ⋮ menu on every tab but the active one, with
+  `visibility` until the wrapper is hovered or holds focus
+  (`:focus-within`), so the keyboard reaches both; it reads truncation
+  from the tab's label (`.mantine-Tabs-tabLabel`), since the grip is the
+  tab's first span;
+  an open menu keeps its button shown (`aria-expanded`). Both keep their
+  space, so showing them moves no tab, and the whole tab still drags. The
+  menu is ordered last, after a tab count portalled into the tab.
 - `DashboardFiltersBar`: `filterArea`, which replaces the shipped filters and
   the requirements button (default: both, as today), and
   `isCompactDrawerSuppressed` (default false): on a narrow screen the bar is
@@ -469,9 +481,6 @@ In `FilterConfiguration/`:
   filter is the bar's own write and survives Cancel. A known limit: one the
   editor wrote (`touchedFilterIds`) and the bar then dragged to another
   section gets its snapshot's `sectionId` back on Cancel but keeps its new place.
-- `hoveredFilterId` is the pill hovered or focused on an editor's bar while
-  no filter is edited (`useTileHover` sets it and clears only its own id);
-  `TabCounts` reads it.
 - `haveFiltersChanged` is settled by every way out (`close()`, `discard()`,
   `removeEdited`, through `settleFiltersChanged`). It is on when the
   filters differ from the snapshot or it was on before
@@ -531,7 +540,7 @@ In `FilterConfiguration/`:
   field or the field of a live `fieldUndo`, else null. So a field that a
   clear took off its last tile stays clicked as long as its undo, and is no
   longer clicked once the undo ends or is hidden on another tab, for the
-  tiles, the tab badges, the bar and Escape alike. Nothing resets it in an
+  tiles, the tab counts, the bar and Escape alike. Nothing resets it in an
   effect.
 
 ## Dismissing (`useEditorDismiss`)
@@ -760,7 +769,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - A SQL column is never a field, even when its name is a field's id. A SQL
   column filter has one row, its column (`isSqlColumnRow`), and a tile is on a
   row only within its kind (`isTargetOnRow`). Counts, clearing, the highlight,
-  the scroll target, the tab badges and their tooltip all go through these;
+  the scroll target, the tab counts and their tooltip all go through these;
   a SQL column filter is never resolved in the fields map and never prompts a
   link. `useFieldTileActions().forSqlColumn` says the kind outright, for a
   column SQL chart tiles are on in a filter of any kind.
@@ -858,7 +867,7 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   counts `everyTabScope`; the bar acts on the scope in view.
 - A tile's tab is its effective one (`getEffectiveTabUuid`, `getTilesOnTab`
   in `peers.ts`): a missing or stale `tabUuid` is the first tab, as the grid
-  draws it. The scopes, the tab badges and the tile cards all use it.
+  draws it. The scopes, the tab counts and the tile cards all use it.
 - A `FieldScope` (`getFieldScope`; `getSqlColumnScope` for a SQL column row)
   is, of the tiles that offer the field or are on it (`possible`, so a tile
   on a field it no longer offers counts and `applied` never exceeds it, on
@@ -967,11 +976,29 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - A selected row keeps Mantine's `:focus-visible` ring; it only drops the
   outline it would get without keyboard focus.
 - A waiting field's row carries `data-waiting` and a dashed border.
-- A tab with a count badge keeps its natural width (`TabCounts.module.css`
-  sets `--dashboard-tab-max-width: none` on it), so the tab strip scrolls instead of
-  cutting the names. When the edited filter or the
-  active tab changes, `TabCounts` scrolls the tab strip, and only the strip,
-  horizontally until the active tab is in view.
+- An editor's tab keeps the shipped width cap: the count carries
+  `data-capped`, so the name truncates (with the shipped truncation
+  tooltip) and the count never shrinks. A floor on the quiet tab
+  (`tabs.module.css`: padding, grip, menu and a count of up to "10/10")
+  keeps the count unclipped when the cap is narrower, so on a narrow screen
+  or with many tabs the strip scrolls. A viewer's tab with a count keeps its
+  natural width instead (`TabCounts.module.css` sets
+  `--dashboard-tab-max-width: none` on it), so the strip scrolls rather
+  than cutting names. The count's width is reserved: an unseen `::before`
+  (`data-reserve`) holds the fraction of every tile on the tab ("9/9" in
+  `filters.rail.tabFraction`), the widest it can show, in the same grid
+  cell as the count, with tabular figures. So no count reflows the tabs
+  while a filter is open: not a hovered or clicked field row, not a switch
+  to another filter, not a tab with no tile. In edit mode the empty slots
+  are there whenever `TabCounts` is mounted on a dashboard with tabs, so
+  opening and closing the rail reflow no tab either; an editor's tab is at
+  most the slot and the hidden grip and menu wider than a viewer's. A
+  viewer's tabs (`isViewer`) get the slots only once their filter has a
+  field (none for a new filter still picking one), so they are not wider at
+  rest; that widens them once. `TabCounts` scrolls the tab strip, and only
+  the strip, horizontally until the active tab is in view when the slots
+  arrive (entering edit mode, a viewer's field picked) and when the active
+  tab changes; a switch between filters scrolls nothing.
 - The per-tile cards (`TileOverlay`) are memoised with `areTilePropsEqual`
   and read no context. The list component derives each
   tile's props, the highlight string included, and passes primitives, stable
@@ -1053,18 +1080,19 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   - The card gets it as two strings (`followUpLabel`, `followUpName`, null
     on every other tile) and one stable `onFollowUp`, so the memo holds.
 - `TileOverlays` portals a veil and a "This tile is filtered on" card into each
-  `[data-tile-uuid]` grid item on the active tab; `TabCounts` portals an
-  "x of N" badge into each tab node. Both resolve targets with
-  `usePortalTargets`. `TabCounts` renders nothing for a placeholder. With no
-  filter edited it shows the hovered pill's filter (`hoveredFilterId`, read
-  from the store with a selector, so a hover re-renders only the badges) as
-  the edited one at rest, no field active; an edit always wins. A badge
-  is grey: `light` on a tab the control reaches (`data-reached`), transparent
-  on the rest. While a field is active (hovered or clicked,
-  `data-field-active`), the tabs that field is on turn `color="blue"`, and
-  the tabs it is on no tile of stay grey and transparent. The badge's tooltip
-  names the active field from dimensions and metrics
-  (`useFilterableItemsMap`), a SQL column by its own name.
+  `[data-tile-uuid]` grid item on the active tab; `TabCounts` portals a
+  count into each tab node. Both resolve targets with `usePortalTargets`.
+  Counts show only while a filter is edited, never for a hovered pill: a
+  dimmed `xs` fraction after the tab name on every tab, "5/6", "6/6",
+  "0/4", "0/0" on a tab with no tile (`filters.rail.tabFraction`). The
+  fraction is `aria-hidden`; a `VisuallyHidden` "5 of 6"
+  (`filters.rail.countOf`) is what the tab's name reads. With no filter
+  open or a placeholder (edit mode), the slot is there but empty, with no
+  tooltip (a viewer's placeholder has no slot); a tab with no tile has no tooltip either. While a field
+  is active (hovered or clicked, `data-field-active`), the tabs that field
+  is on (`data-reached`) turn blue. The tooltip names the active field from
+  dimensions and metrics (`useFilterableItemsMap`), a SQL column by its own
+  name.
 - A veiled tile is locked three ways, and none of them stops an event. Every
   overlay root (`TileOverlay`, `LinkPrompts`) carries the
   grid's `draggableCancel` class `non-draggable` (`LOCKED_TILE_CLASS`), so no
@@ -1081,14 +1109,14 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   an editor's pill marks the tiles its filter is on (`getTileField`, minus a
   missing field, as the overlays' "on the control") with the `mapped`
   hairline and no tint: without the veil around them, tinted tiles read as
-  dimmed. The tab badges show its counts too (`hoveredFilterId`), so tiles
-  on other tabs are seen.
+  dimmed. Nothing else follows the hover: the tabs never change.
   `useTileHover` sets `data-controls-hovered` on those `[data-tile-uuid]`
   grid items and `TileOverlay.module.css` draws it as an `::after`, so no
-  tile re-renders, nothing is veiled, locked or scrolled. It clears on leave,
-  blur and pointer down (a press may start a drag; the focus a click brings
-  marks nothing), and when the editor opens or the pill unmounts; the badges
-  go with it. Only the pill that marked last clears (`tileHoverOwner`, a ref in the provider), and it
+  tile re-renders, nothing is veiled, locked or scrolled. It clears 150ms
+  after leave (`LEAVE_GRACE_MS`, so the gap between two pills never flashes;
+  the next pill's mark cancels it and takes the marks), at once on blur and
+  pointer down (a press may start a drag; the focus a click brings marks
+  nothing), and when the editor opens or the pill unmounts. Only the pill that marked last clears (`tileHoverOwner`, a ref in the provider), and it
   reads the tiles, their fields and SQL columns when it marks, so no pill
   re-renders with them.
 
@@ -1453,7 +1481,7 @@ Rules:
 - No React state, effects, refs, timers or context for motion. Things arrive
   with a mount animation; a replay is a `key` on a small leaf element (the
   `.confirm` line on a tile card). The editor's content remounts with the
-  filter's id, so a switch arrives again. The field bar rises from `translateY(6px)`. Tab badges do not replay: they change on every hover. The editor's
+  filter's id, so a switch arrives again. The field bar rises from `translateY(6px)`. Tab counts do not replay: they change as field rows are hovered. The editor's
   content arrives, not its panel, so the page never shows through. Closing is
   immediate.
 - Tile cards arrive in one wave: `data-wave` is the tile's index modulo

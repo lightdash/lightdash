@@ -1046,6 +1046,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                 setDeletingTab={
                                                                     setDeletingTab
                                                                 }
+                                                                hasQuietActions={
+                                                                    isDashboardControlsEnabled
+                                                                }
                                                             />
                                                         ),
                                                     )}

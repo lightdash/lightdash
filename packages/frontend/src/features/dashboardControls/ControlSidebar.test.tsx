@@ -134,8 +134,6 @@ const setSidebar = (overrides: Partial<ControlsSidebarContextValue>) => {
         clearHighlightedField: vi.fn(),
         hoveredFieldId: null,
         setHoveredFieldId: vi.fn(),
-        hoveredFilterId: null,
-        setHoveredFilterId: vi.fn(),
         tileHoverOwner: { current: null },
         activeFieldId: null,
         waitingFieldIds: [],

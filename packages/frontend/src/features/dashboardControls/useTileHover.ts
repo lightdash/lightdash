@@ -5,10 +5,8 @@ import {
 import {
     useEffect,
     useRef,
-    type Dispatch,
-    type MutableRefObject,
     type MouseEvent,
-    type SetStateAction,
+    type MutableRefObject,
 } from 'react';
 import { selectDashboardTiles, useDashboardStore } from '../dashboard/store';
 import { getMissingTileFieldId, getTileField } from './peers';
@@ -18,6 +16,8 @@ import { getSqlColumnsByTile } from './useSqlColumnsByTile';
 
 // Set on the grid items of the tiles a hovered pill's filter is on
 const TILE_HOVER_ATTRIBUTE = 'data-controls-hovered';
+// Bridges the gap between two pills, so the marks never flash off and on
+const LEAVE_GRACE_MS = 150;
 
 const clearTiles = () =>
     document
@@ -25,20 +25,15 @@ const clearTiles = () =>
         .forEach((element) => element.removeAttribute(TILE_HOVER_ATTRIBUTE));
 
 // Only the pill that made the marks takes them away
-const release = (
-    filterId: string,
-    owner: MutableRefObject<string | null>,
-    setHoveredFilterId: Dispatch<SetStateAction<string | null>>,
-) => {
+const release = (filterId: string, owner: MutableRefObject<string | null>) => {
     if (owner.current !== filterId) return;
     owner.current = null;
     clearTiles();
-    setHoveredFilterId((id) => (id === filterId ? null : id));
 };
 
-// Marks the tiles on the filter while its pill is hovered or keyboard-focused,
-// and names it as hovered for the tab badges. An attribute on the grid items,
-// so no tile re-renders; tiles and fields are read on mark, so no pill does
+// Marks the tiles on the filter while its pill is hovered or keyboard-focused.
+// An attribute on the grid items, so no tile re-renders; tiles and fields are
+// read on mark, so no pill does
 export const useTileHover = (
     rule: DashboardFilterRule,
     isEnabled: boolean,
@@ -47,31 +42,39 @@ export const useTileHover = (
         | undefined,
 ) => {
     const store = useDashboardStore();
-    const setHoveredFilterId = useControlsSidebarSelector(
-        (c) => c.setHoveredFilterId,
-    );
     const owner = useControlsSidebarSelector((c) => c.tileHoverOwner);
     const filterId = rule.id;
     const isMarking = useRef(false);
     // A press focuses the pill too, and may start a drag: that marks nothing
     const isPressed = useRef(false);
+    const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const cancelLeave = () => {
+        if (leaveTimer.current === null) return;
+        clearTimeout(leaveTimer.current);
+        leaveTimer.current = null;
+    };
 
     const clear = () => {
+        cancelLeave();
         if (!isMarking.current) return;
         isMarking.current = false;
-        release(filterId, owner, setHoveredFilterId);
+        release(filterId, owner);
     };
 
     useEffect(
         () => () => {
+            if (leaveTimer.current !== null) clearTimeout(leaveTimer.current);
+            leaveTimer.current = null;
             if (!isMarking.current) return;
             isMarking.current = false;
-            release(filterId, owner, setHoveredFilterId);
+            release(filterId, owner);
         },
-        [isEnabled, filterId, owner, setHoveredFilterId],
+        [isEnabled, filterId, owner],
     );
 
     const mark = () => {
+        cancelLeave();
         if (!isEnabled) return;
         clearTiles();
         const state = store.getState();
@@ -98,14 +101,16 @@ export const useTileHover = (
             );
         isMarking.current = true;
         owner.current = filterId;
-        setHoveredFilterId(filterId);
     };
 
     return {
         onMouseEnter: (event: MouseEvent) => {
             if (event.buttons === 0) mark();
         },
-        onMouseLeave: clear,
+        onMouseLeave: () => {
+            cancelLeave();
+            leaveTimer.current = setTimeout(clear, LEAVE_GRACE_MS);
+        },
         onFocus: () => {
             if (!isPressed.current) mark();
         },
