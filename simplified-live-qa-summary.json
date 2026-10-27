@@ -1,0 +1,113 @@
+{
+  "scope": "Isolated retained local lightdash-674d QA only; no production/shared service changes",
+  "seededChart": {
+    "queryUuid": "e8f191bb-58d3-4ca6-accb-075efb717955",
+    "orders": 151,
+    "amount": 4149.12
+  },
+  "concurrentQueues": {
+    "activeBackfillJob": "1060",
+    "queuedSecondBackfillJob": "1061",
+    "normalScopedCompactionJob": "1062",
+    "normalCompactionFinishedWhileBackfillActiveAt": "2026-10-27T11:36:30.247Z",
+    "controlledTableLockSeconds": 1.224,
+    "backfillQueue": "usage-history-backfill",
+    "backfillPriority": 2,
+    "maxObservedActiveBackfills": 1,
+    "mainDimensionsUnchangedETagAndModifiedTime": 7,
+    "allJobsCompletedAt": "2026-10-27T11:36:31.675Z"
+  },
+  "noOp": {
+    "dataObjectsWithUnchangedSHA256": 13,
+    "status": {
+      "running": false,
+      "completed": true
+    }
+  },
+  "actualResolver": {
+    "AIUniqueRows": 4,
+    "queryUniqueRows": 28,
+    "duplicateIdentities": 0,
+    "lateCapturedAITokens": 999,
+    "capturedAITokens": 500,
+    "lateCapturedQueryResponseMs": 888,
+    "lateCapturedQueryWarehouseMs": 999
+  },
+  "automaticCreation": {
+    "organizationUuid": "26107b40-6f2f-443d-9cd9-ffa218697101",
+    "createReturnedMs": 5037,
+    "returnedAt": "2026-10-27T11:38:52.783Z",
+    "ownBackfillActiveAtReturn": true,
+    "completedStatus": {
+      "running": false,
+      "completed": true
+    },
+    "normalProjectRead200": true,
+    "rowsPerDataset": {
+      "ai_usage": 1,
+      "historical_activity": 1,
+      "query_events": 1
+    },
+    "controlledTimeoutNote": "The first synthetic source hold exceeded its5s SELECT timeout; the new automatic job was active when creation returned. Lock was released after5.176s."
+  },
+  "UIRecovery": {
+    "controlledFailedJob": "1071",
+    "parentScreenshots": [
+      "20 retry-safe error and enabled action",
+      "22 completed and hidden after reload"
+    ],
+    "finalStatus": {
+      "running": false,
+      "completed": true
+    },
+    "storage": {
+      "unchangedObjects": 12,
+      "changedHistoryObject": [
+        "events/compacted/org_id=172a2270-000f-42be-9c68-c4752c23ae51/history=query_events/history.parquet"
+      ],
+      "previousHistoryRows": 12,
+      "afterHistoryRows": 14,
+      "addedOnlyExpectedLiveResolverQueries": [
+        "5a5f82d5-2d4e-4397-97a7-8b7d5ee931c8",
+        "80b70129-1ed5-475b-a26c-0bbfcb395484"
+      ],
+      "existingRowsExactlyPreserved": true,
+      "duplicateFallbackIdentities": 0,
+      "automaticHistoryRows": {
+        "ai_usage": 1,
+        "historical_activity": 1,
+        "query_events": 1
+      }
+    }
+  },
+  "cleanup": {
+    "taskPM2Apps": [],
+    "taskContainers": [],
+    "registryReleased": true,
+    "preservedVolumes": [
+      "ld-lightdash-674d_postgres_data",
+      "ld-lightdash-674d_postgres_data_snapshot"
+    ],
+    "sharedContainerIdsUnchanged": true,
+    "portListeners": {
+      "3050": "",
+      "8130": "",
+      "5932": "",
+      "57922": ""
+    },
+    "usageEndpoint": "http://localhost:9000",
+    "activeCountingProxy": false,
+    "bucketPreserved": "ld-lightdash-674d-prod12592-qa"
+  },
+  "evidence": [
+    "queue-concurrency-check.json",
+    "queue-automatic-return-check.json",
+    "simplified-noop-check.json",
+    "simplified-overlap-summary.json",
+    "simplified-final-storage-check.json",
+    "simplified-before-ui-retry.json",
+    "simplified-after-ui-retry.json",
+    "simplified-backfill-job-log.json",
+    "simplified-cleanup-verification.json"
+  ]
+}
