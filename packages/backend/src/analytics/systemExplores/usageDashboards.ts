@@ -397,21 +397,64 @@ export const buildUsageDashboards = (
                     (item) => item.chartConfig.type === ChartType.BIG_NUMBER,
                 );
                 const sectionY = y;
+                const hasSummaryTrend =
+                    sectionCharts[0]?.chartConfig.type ===
+                        ChartType.BIG_NUMBER &&
+                    sectionCharts[1]?.chartConfig.type === ChartType.CARTESIAN;
+                const isVisualPair =
+                    sectionCharts.length === 2 &&
+                    sectionCharts.every(
+                        (item) =>
+                            item.chartConfig.type === ChartType.CARTESIAN ||
+                            item.chartConfig.type === ChartType.PIE,
+                    );
+                let nextY = sectionY;
                 sectionCharts.forEach((item, index) => {
-                    const w = isKpiRow ? 36 / sectionCharts.length : 36;
+                    const summary = hasSummaryTrend && index < 2;
+                    let h = 7;
+                    if (isKpiRow) h = 3;
+                    // Compact breakdowns keep a short viewport; longer results
+                    // remain available through the table's existing scroll.
+                    else if (
+                        [
+                            'agent-retries-latency-and-consumption',
+                            'warehouse-versus-cached-demand',
+                        ].some((key) => item.slug.endsWith(`-${key}`))
+                    )
+                        h = 4;
+                    let w = 36;
+                    let x = 0;
+                    let tileY = nextY;
+                    if (isKpiRow) {
+                        w = 36 / sectionCharts.length;
+                        x = index * w;
+                        tileY = sectionY;
+                    } else if (summary) {
+                        w = index === 0 ? 9 : 27;
+                        x = index === 0 ? 0 : 9;
+                        tileY = sectionY;
+                    } else if (isVisualPair) {
+                        w = 18;
+                        x = index * w;
+                        tileY = sectionY;
+                    }
                     dashboard.tiles.push({
                         uuid: undefined,
                         type: DashboardTileTypes.SAVED_CHART,
                         tileSlug: `${tab.key}-${item.slug}`,
                         tabSlug: tab.key,
-                        x: isKpiRow ? index * w : 0,
-                        y: isKpiRow ? sectionY : sectionY + index * 6,
+                        x,
+                        y: tileY,
                         w,
-                        h: isKpiRow ? 3 : 6,
+                        h,
                         properties: { chartSlug: item.slug },
                     });
+                    if (!isKpiRow && !isVisualPair && (!summary || index === 1))
+                        nextY += h;
                 });
-                y += isKpiRow ? 3 : sectionCharts.length * 6;
+                if (isKpiRow) y = sectionY + 3;
+                else if (isVisualPair) y = sectionY + 7;
+                else y = nextY;
             }
         }
         return {

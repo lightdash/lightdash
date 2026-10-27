@@ -1,0 +1,44 @@
+diff --git a/build/index.js b/build/index.js
+index 350b41d8c722510548c1ef734d69c7b88ce1bde7..ccddd07e219d32376b49915fa3e06d173cd14391 100644
+--- a/build/index.js
++++ b/build/index.js
+@@ -83,9 +83,14 @@ function omit(obj, props) {
+ /**
+  * Monkey patch Set so that `stringify` produces a string representation of sets.
+  */
+-Set.prototype['toJSON'] = function () {
+-    return `Set(${[...this].map((x) => stringify(x)).join(',')})`;
+-};
++Object.defineProperty(Set.prototype, 'toJSON', {
++    configurable: true,
++    writable: true,
++    enumerable: false,
++    value: function () {
++        return `Set(${[...this].map((x) => stringify(x)).join(',')})`;
++    }
++});
+ /**
+  * Converts any object to a string of limited size, or a number.
+  */
+diff --git a/src/util.ts b/src/util.ts
+index 1c3e0cdc62aa764df5c8bcb4c13feee88104f8bb..2213ee1b2becefbe25e34827ef56362182aed679 100644
+--- a/src/util.ts
++++ b/src/util.ts
+@@ -39,9 +39,14 @@ export function omit<T extends object, K extends keyof T>(obj: T, props: readonl
+ /**
+  * Monkey patch Set so that `stringify` produces a string representation of sets.
+  */
+-(Set.prototype as any)['toJSON'] = function () {
+-  return `Set(${[...this].map((x) => stringify(x)).join(',')})`;
+-};
++Object.defineProperty(Set.prototype, 'toJSON', {
++  configurable: true,
++  writable: true,
++  enumerable: false,
++  value: function () {
++    return `Set(${[...this].map((x) => stringify(x)).join(',')})`;
++  }
++});
+ 
+ /**
+  * Converts any object to a string of limited size, or a number.

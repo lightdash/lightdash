@@ -37,7 +37,14 @@ export const contentHealthSql = `(WITH views AS (
     FROM ${contentReachSql} reach
     GROUP BY org_id, project_id, content_type, content_id
 ), queries AS (
-    SELECT * FROM query_events
+    SELECT * FROM query_events q
+    -- Projects outside the current inventory cannot contribute to this view.
+    -- Filter before deduplication to avoid retaining their query history, while
+    -- keeping every event in each remaining (org, project, query_id) identity.
+    WHERE EXISTS (
+        SELECT 1 FROM lightdash_content i
+        WHERE i.org_id = q.org_id AND i.project_id = q.project_id
+    )
     QUALIFY query_id IS NULL OR ROW_NUMBER() OVER (
         PARTITION BY org_id, project_id, query_id ORDER BY event_ts DESC
     ) = 1

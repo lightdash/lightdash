@@ -167,6 +167,203 @@ describe('internal Parquet projects', () => {
         );
     });
 
+    it('queues a third analytics session before allocating its instance or resolving its source', async () => {
+        const releases = new Map<number, () => void>();
+        const resolveSource = vi.fn(async () => source());
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource,
+        });
+        const callback = vi.fn(
+            async (id: number) =>
+                new Promise<void>((resolve) => {
+                    releases.set(id, resolve);
+                }),
+        );
+        const first = client['withEphemeralQuerySession'](() => callback(1));
+        const second = client['withEphemeralQuerySession'](() => callback(2));
+        const third = client['withEphemeralQuerySession'](() => callback(3));
+        await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(2));
+        expect(createInstanceMock).toHaveBeenCalledTimes(2);
+        expect(resolveSource).toHaveBeenCalledTimes(2);
+        releases.get(1)!();
+        await first;
+        await vi.waitFor(() => expect(callback).toHaveBeenCalledTimes(3));
+        releases.get(2)!();
+        releases.get(3)!();
+        await Promise.all([second, third]);
+    });
+
+    it('releases capacity when instance creation or connection fails', async () => {
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => source(),
+        });
+        createInstanceMock.mockRejectedValueOnce(new Error('create failed'));
+        await expect(
+            client['withEphemeralQuerySession'](async () => {}),
+        ).rejects.toThrow('create failed');
+        const instance = createMockConnection(vi.fn(), run);
+        instance.connect = vi
+            .fn()
+            .mockRejectedValueOnce(new Error('connect failed'));
+        createInstanceMock.mockResolvedValueOnce(instance);
+        await expect(
+            client['withEphemeralQuerySession'](async () => {}),
+        ).rejects.toThrow('connect failed');
+        expect(instance.closeSync).toHaveBeenCalledOnce();
+        await expect(
+            client['withEphemeralQuerySession'](async () => 42),
+        ).resolves.toBe(42);
+    });
+
+    it('keeps the primary error and releases capacity after close and directory cleanup failures', async () => {
+        const instance = createMockConnection(vi.fn(), run);
+        const connection = await instance.connect();
+        connection.closeSync.mockImplementation(() => {
+            throw new Error('close failed');
+        });
+        instance.connect = vi.fn(async () => connection);
+        createInstanceMock.mockResolvedValueOnce(instance);
+        const remove = fs.rm.bind(fs);
+        const rm = vi
+            .spyOn(fs, 'rm')
+            .mockRejectedValueOnce(new Error('cleanup failed'));
+        const logger = { info: vi.fn(), warn: vi.fn() };
+        const client = new DuckdbWarehouseClient(
+            { type: 'duckdb_parquet', resolveSource: async () => source() },
+            { logger },
+        );
+        try {
+            await expect(
+                client['withEphemeralQuerySession'](async () => {
+                    throw new Error('query failed');
+                }),
+            ).rejects.toThrow('query failed');
+            expect(connection.disconnectSync).toHaveBeenCalledOnce();
+            expect(instance.closeSync).toHaveBeenCalledOnce();
+            expect(rm).toHaveBeenCalledOnce();
+            expect(logger.warn).toHaveBeenCalledWith(
+                'DuckDB query cleanup failed',
+            );
+            await expect(
+                client['withEphemeralQuerySession'](async () => 42),
+            ).resolves.toBe(42);
+        } finally {
+            const failedDirectory = rm.mock.calls[0]?.[0];
+            rm.mockRestore();
+            if (failedDirectory)
+                await remove(failedDirectory, { recursive: true, force: true });
+        }
+    });
+
+    it('holds capacity through asynchronous directory cleanup', async () => {
+        const remove = fs.rm.bind(fs);
+        let finishCleanup!: () => void;
+        const cleaning = new Promise<void>((resolve) => {
+            finishCleanup = resolve;
+        });
+        const rm = vi
+            .spyOn(fs, 'rm')
+            .mockImplementationOnce(async (...args) => {
+                await cleaning;
+                await remove(...args);
+            });
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => source(),
+        });
+        let finishSecond!: () => void;
+        const first = client['withEphemeralQuerySession'](async () => 1);
+        const second = client['withEphemeralQuerySession'](
+            async () =>
+                new Promise<void>((resolve) => {
+                    finishSecond = resolve;
+                }),
+        );
+        await vi.waitFor(() => expect(rm).toHaveBeenCalledOnce());
+        const thirdCallback = vi.fn(async () => 3);
+        const third = client['withEphemeralQuerySession'](thirdCallback);
+        await new Promise<void>((resolve) => {
+            setImmediate(resolve);
+        });
+        expect(thirdCallback).not.toHaveBeenCalled();
+        finishCleanup();
+        await first;
+        await expect(third).resolves.toBe(3);
+        finishSecond();
+        await second;
+        rm.mockRestore();
+    });
+
+    it('interrupts active queries after 120 seconds, leaves queued queries untimed, and releases capacity', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        const interrupts: Mock[] = [];
+        let ready!: () => void;
+        const active = new Promise<void>((resolve) => {
+            ready = resolve;
+        });
+        createInstanceMock.mockImplementation(async () => {
+            const interrupt = vi.fn();
+            interrupts.push(interrupt);
+            return createMockConnection(vi.fn(), run, { interrupt });
+        });
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => source(),
+        });
+        let started = 0;
+        const blockNative = async (db: { interrupt: () => void }) =>
+            new Promise<void>((_, reject) => {
+                vi.mocked(db.interrupt).mockImplementation(() =>
+                    reject(new Error('native interrupted')),
+                );
+                started += 1;
+                if (started === 2) ready();
+            });
+        try {
+            const first = client['withSession'](blockNative);
+            const second = client['withSession'](blockNative);
+            const errors = Promise.allSettled([first, second]);
+            const third = client['withSession'](async () => 42);
+            await active;
+            expect(vi.getTimerCount()).toBe(2);
+            expect(createInstanceMock).toHaveBeenCalledTimes(2);
+            await vi.advanceTimersByTimeAsync(120_000);
+            expect(await errors).toEqual([
+                {
+                    status: 'rejected',
+                    reason: expect.objectContaining({
+                        message: expect.stringContaining(
+                            '120 second execution limit',
+                        ),
+                    }),
+                },
+                {
+                    status: 'rejected',
+                    reason: expect.objectContaining({
+                        message: expect.stringContaining(
+                            '120 second execution limit',
+                        ),
+                    }),
+                },
+            ]);
+            await expect(third).resolves.toBe(42);
+            expect(interrupts[0]).toHaveBeenCalledOnce();
+            expect(interrupts[1]).toHaveBeenCalledOnce();
+            expect(interrupts[2]).not.toHaveBeenCalled();
+            expect(vi.getTimerCount()).toBe(0);
+            await expect(
+                client['withSession'](async () => {
+                    throw new Error('query failed');
+                }),
+            ).rejects.toThrow('Internal analytics query failed');
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('binds trusted views, restricts external access and refreshes the manifest each session', async () => {
         const resolveSource = vi.fn(async () => source());
         const client = new DuckdbWarehouseClient({
@@ -179,7 +376,16 @@ describe('internal Parquet projects', () => {
         expect(createInstanceMock).toHaveBeenCalledTimes(4);
         expect(run).toHaveBeenCalledWith(`SET allowed_paths = ['${url}'];`);
         expect(run).toHaveBeenCalledWith('SET enable_external_access = false;');
-        expect(run).toHaveBeenCalledWith("SET temp_directory = '';");
+        expect(run).toHaveBeenCalledWith(
+            "SET max_temp_directory_size = '2GB';",
+        );
+        expect(run).toHaveBeenCalledWith(
+            expect.stringMatching(
+                /SET temp_directory = '.*lightdash-analytics-query-.*\/spill';/,
+            ),
+        );
+        expect(run).toHaveBeenCalledWith("SET allowed_configs = ['TimeZone'];");
+        expect(run).toHaveBeenCalledWith('SET lock_configuration = true;');
         expect(run).toHaveBeenCalledWith(
             expect.stringContaining(
                 'CREATE VIEW "query_events" AS SELECT * FROM read_parquet',
@@ -198,7 +404,7 @@ describe('internal Parquet projects', () => {
         const bind = statements.findIndex((sql) =>
             sql.startsWith('CREATE VIEW'),
         );
-        expect(run).toHaveBeenCalledWith('SET threads = 4;');
+        expect(run).toHaveBeenCalledWith('SET threads = 1;');
         expect(statements[bind]).toContain('union_by_name = true');
         const instance = await createInstanceMock.mock.results[0].value;
         expect(instance.closeSync).toHaveBeenCalledTimes(1);

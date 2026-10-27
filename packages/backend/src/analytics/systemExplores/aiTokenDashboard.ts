@@ -17,11 +17,11 @@ const tokens = 'ai_usage_total_tokens_used';
 const day = 'ai_usage_event_ts_day';
 const queryLimit = 5000;
 const colors = [
-    '#9775fa',
-    '#4dabf7',
-    '#38d9a9',
-    '#ffa94d',
-    '#f783ac',
+    '#4263eb',
+    '#0ca678',
+    '#7950f2',
+    '#e67700',
+    '#d6336c',
     '#868e96',
 ];
 const scopeDescription =
@@ -178,8 +178,19 @@ const vegaConfig = {
         gridOpacity: 0.18,
         labelColor: '#868e96',
         titleColor: '#868e96',
+        labelFontSize: 11,
+        titleFontSize: 12,
+        labelPadding: 6,
     },
-    legend: { title: null, orient: 'bottom', labelLimit: 250 },
+    legend: {
+        title: null,
+        orient: 'bottom',
+        columns: 2,
+        labelLimit: { expr: 'min(140, max(60, (width - 64) / 2))' },
+        labelFontSize: 11,
+        rowPadding: 6,
+        symbolType: 'square',
+    },
 };
 
 // Never show a partial top-five/Other total when the grouped query reaches its cap.
@@ -198,13 +209,40 @@ const limitWarning = {
         },
     },
 };
-const sourceRows = { joinaggregate: [{ op: 'count', as: 'source_rows' }] };
+const sourceRows = {
+    joinaggregate: [
+        { op: 'count', as: 'source_rows' },
+        { op: 'valid', field: tokens, as: 'reported_rows' },
+    ],
+};
 const preserveSourceRows = {
     op: 'max',
     field: 'source_rows',
     as: 'source_rows',
 };
-const completeRows = { filter: `datum.source_rows < ${queryLimit}` };
+const preserveReportedRows = {
+    op: 'max',
+    field: 'reported_rows',
+    as: 'reported_rows',
+};
+const completeRows = {
+    filter: `datum.source_rows < ${queryLimit} && datum.reported_rows > 0`,
+};
+const noReportedTokens = {
+    transform: [
+        {
+            filter: `datum.reported_rows === 0 && datum.source_rows < ${queryLimit}`,
+        },
+        { aggregate: [{ op: 'count', as: 'groups' }] },
+        { filter: 'datum.groups > 0' },
+    ],
+    mark: { type: 'text', align: 'center', color: '#868e96', fontSize: 12 },
+    encoding: {
+        x: { value: { expr: 'width / 2' } },
+        y: { value: { expr: 'height / 2' } },
+        text: { value: 'No reported token totals' },
+    },
+};
 
 const visualSpec = (
     breakdown: Breakdown,
@@ -214,10 +252,9 @@ const visualSpec = (
         ...(daily
             ? [
                   {
-                      field: day,
-                      type: 'temporal',
+                      field: 'utc_day_label',
+                      type: 'nominal',
                       title: 'UTC day',
-                      format: '%d %b %Y',
                   },
               ]
             : []),
@@ -249,7 +286,11 @@ const visualSpec = (
     };
     const transform = [
         sourceRows,
-        { filter: `isValid(datum.${tokens})` },
+        // Retain an all-null input only to render its missing-usage message.
+        // Those rows are excluded from every plotted mark by completeRows.
+        {
+            filter: `isValid(datum.${tokens}) || datum.reported_rows === 0`,
+        },
         { calculate: breakdown.identity, as: 'identity' },
         { calculate: breakdown.label, as: 'label' },
         {
@@ -267,6 +308,7 @@ const visualSpec = (
             aggregate: [
                 { op: 'sum', field: tokens, as: 'tokens' },
                 preserveSourceRows,
+                preserveReportedRows,
             ],
             groupby: [...(daily ? [day] : []), 'identity', 'display_label'],
         },
@@ -304,10 +346,19 @@ const visualSpec = (
                 { op: 'sum', field: 'tokens', as: 'tokens' },
                 { op: 'min', field: 'group_order', as: 'group_order' },
                 preserveSourceRows,
+                preserveReportedRows,
                 ...(!daily ? [{ op: 'max', field: 'total', as: 'total' }] : []),
             ],
             groupby: [...(daily ? [day] : []), 'group', 'group_name'],
         },
+        ...(daily
+            ? [
+                  {
+                      calculate: `utcFormat(toDate(datum.${day}), '%d %b %Y')`,
+                      as: 'utc_day_label',
+                  },
+              ]
+            : []),
         ...(!daily
             ? [
                   {
@@ -338,8 +389,11 @@ const visualSpec = (
         scale: { domain: [0, 1] },
         axis: null,
     };
-    const rankText = { type: 'text', dy: -15, fontSize: 12 };
+    const rankText = { type: 'text', dy: -11, fontSize: 12 };
     if (daily) {
+        const reportedAxisOpacity = {
+            expr: "length(domain('color')) ? 1 : 0",
+        };
         return {
             ...base,
             padding: { left: 8, right: 12, top: 8, bottom: 10 },
@@ -361,18 +415,49 @@ const visualSpec = (
                                 title: null,
                                 format: '%d %b',
                                 labelAngle: 0,
-                                tickCount: 10,
+                                tickCount: {
+                                    expr: 'max(3, floor(width / 90))',
+                                },
                             },
                         },
                         y: {
                             field: 'tokens',
                             type: 'quantitative',
                             stack: 'zero',
-                            axis: { title: 'Reported tokens', format: '.2~s' },
+                            axis: {
+                                title: 'Reported tokens',
+                                format: '.2~s',
+                                // Unknown totals must not look like a zero
+                                // observation behind the missing-usage message.
+                                labelOpacity: reportedAxisOpacity,
+                                labelExpr:
+                                    "length(domain('color')) ? datum.label : ''",
+                                titleOpacity: reportedAxisOpacity,
+                                tickOpacity: reportedAxisOpacity,
+                                domainOpacity: reportedAxisOpacity,
+                                gridOpacity: {
+                                    expr: "length(domain('color')) ? 0.18 : 0",
+                                },
+                            },
                         },
                         color: {
                             ...color,
-                            legend: { labelLimit: 250 },
+                            legend: {
+                                // An empty symbol legend collapses Vega's fit
+                                // height to zero. Keep a transparent layout
+                                // entry. Bars already expose each group and its
+                                // value to assistive technology.
+                                aria: false,
+                                values: {
+                                    expr: "length(domain('color')) ? domain('color') : ['']",
+                                },
+                                symbolOpacity: {
+                                    expr: "length(domain('color')) ? 1 : 0",
+                                },
+                                labelLimit: {
+                                    expr: 'min(140, max(60, (width - 64) / 2))',
+                                },
+                            },
                         },
                         order: {
                             field: 'group_order',
@@ -383,12 +468,13 @@ const visualSpec = (
                     },
                 },
                 limitWarning,
+                noReportedTokens,
             ],
         };
     }
     return {
         ...base,
-        padding: { left: 16, right: 16, top: 30, bottom: 18 },
+        padding: { left: 16, right: 16, top: 20, bottom: 20 },
         encoding: {
             y: {
                 field: 'group',
@@ -402,7 +488,7 @@ const visualSpec = (
             layer(
                 {
                     type: 'bar',
-                    height: 6,
+                    height: 8,
                     color: '#868e96',
                     opacity: 0.15,
                     cornerRadius: 3,
@@ -410,7 +496,7 @@ const visualSpec = (
                 { x: { datum: 0, ...shareScale }, x2: { datum: 1 } },
             ),
             layer(
-                { type: 'bar', height: 6, cornerRadius: 3 },
+                { type: 'bar', height: 8, cornerRadius: 3 },
                 { x: { field: 'share', ...shareScale }, color, tooltip },
             ),
             layer(
@@ -418,12 +504,13 @@ const visualSpec = (
                     ...rankText,
                     color: 'currentColor',
                     align: 'left',
-                    limit: 360,
+                    fontWeight: 500,
+                    limit: { expr: 'max(80, width - 16)' },
                 },
                 { x: { value: 0 }, text: { field: 'group_name' }, tooltip },
             ),
             layer(
-                { ...rankText, align: 'right', color: '#868e96' },
+                { ...rankText, dy: 12, align: 'right', color: '#868e96' },
                 {
                     x: { value: 'width' },
                     text: { field: 'value_label' },
@@ -431,6 +518,7 @@ const visualSpec = (
                 },
             ),
             limitWarning,
+            noReportedTokens,
         ],
     };
 };
@@ -620,9 +708,9 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                         1,
                         '**Current month through yesterday UTC.** Billing-scope tokens include unpriced models. Credit accounting and allowance are separate measures.',
                     ),
-                    row(2, 'eligible', 'total', 'records'),
-                    row(4, `${key}-daily`),
-                    row(6, `${key}-rank`),
+                    row(3, 'eligible', 'total', 'records'),
+                    row(7, `${key}-daily`),
+                    row(8, `${key}-rank`),
                     note(
                         3,
                         `${scopeDescription} **Top five groups + Other**; bars show share of scope, not remaining allowance. Data updates with the usage-processing refresh; today is excluded.${attributionNotes[key] ?? ''}`,
@@ -637,15 +725,15 @@ export const buildAiTokenDashboard = (): AnalyticsContentBundle => {
                     2,
                     '### All recorded AI usage\nIncludes billing-scope, excluded/background and self-managed consumption. **Current month through yesterday UTC**; captured usage is not a provider invoice or a count of human questions.',
                 ),
-                row(2, 'total', 'input', 'output'),
-                row(2, 'cache-read', 'cache-write', 'reasoning'),
+                row(3, 'total', 'input', 'output'),
+                row(3, 'cache-read', 'cache-write', 'reasoning'),
                 note(
                     1,
                     '**Do not add all six categories.** Cache reads/writes are included in input; reasoning may be included in output. Missing provider usage is unknown, not zero.',
                 ),
-                row(4, 'model-daily'),
-                row(6, 'model-rank'),
-                row(4, 'key-daily', 'outcome-daily'),
+                row(7, 'model-daily'),
+                row(8, 'model-rank'),
+                row(7, 'key-daily', 'outcome-daily'),
                 row(7, 'quality'),
                 note(
                     5,

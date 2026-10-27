@@ -539,8 +539,9 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
             { value: 50, min: 0, max: 100, expected: 50 },
             { value: 100, min: 0, max: 100, expected: 100 },
             { value: 25, min: 0, max: 100, expected: 25 },
-            { value: 150, min: 100, max: 200, expected: 50 }, // Offset range
-            { value: 75, min: 50, max: 100, expected: 50 }, // Offset range
+            { value: 150, min: 100, max: 200, expected: 75 }, // Includes zero
+            { value: 75, min: 50, max: 100, expected: 75 }, // Includes zero
+            { value: 50, min: 50, max: 100, expected: 50 }, // Minimum retains magnitude
         ];
 
         testCases.forEach(({ value, min, max, expected }) => {
@@ -577,7 +578,7 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         });
     });
 
-    test('should handle edge case when range is zero', () => {
+    test('renders a full bar when all positive values are equal', () => {
         const context = createMockCellContext({
             columnId: 'revenue',
             value: {
@@ -595,11 +596,11 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         const result = getFormattedValueCell(context);
         const { container } = renderWithMantine(result as React.ReactElement);
 
-        const barElement = container.querySelector('div[style*="width: 0%"]');
-        // Should render with 0% width when range is zero
+        const barElement = container.querySelector('div[style*="width: 100%"]');
+        // Equal positive values still have a meaningful range from zero
         expect(barElement).toBeTruthy();
         const style = barElement?.getAttribute('style') || '';
-        expect(style).toContain('width: 0%');
+        expect(style).toContain('width: 100%');
         // Should have background color
         expect(style).toContain('background');
     });

@@ -500,8 +500,14 @@ describe('built-in usage dashboards', () => {
             expect(compile(chart).warnings).toEqual([]);
             expect(chart.metricQuery.limit).toBeLessThanOrEqual(5000);
             expect(
-                chart.metricQuery.dimensions.every((field) =>
-                    field.startsWith(`${chart.tableName}_`),
+                chart.metricQuery.dimensions.every(
+                    (field) =>
+                        field.startsWith(`${chart.tableName}_`) ||
+                        chart.metricQuery.customDimensions?.some(
+                            (dimension) =>
+                                dimension.id === field &&
+                                dimension.table === chart.tableName,
+                        ),
                 ),
             ).toBe(true);
         },
