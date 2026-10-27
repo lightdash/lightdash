@@ -141,6 +141,19 @@ describe('ControlsBar', () => {
         ).not.toBeInTheDocument();
     });
 
+    it("centres the flat view bar's items on each line, the funnel's centre; the sectioned flow centres its own", () => {
+        const { unmount } = renderWithProviders(<ControlsBar {...baseProps} />);
+        expect(screen.getByTestId('filter-pills').parentElement).toHaveStyle(
+            '--group-align: center',
+        );
+        unmount();
+
+        renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
+        expect(
+            screen.getByTestId('sectioned-filters').parentElement,
+        ).toHaveStyle('--group-align: flex-start');
+    });
+
     it('renders the sectioned filters in view mode once the dashboard has sections', () => {
         const store = createDashboardTestStore();
         seedDashboardEditState(store, {

@@ -76,7 +76,7 @@ import { FilterPills } from './FilterPills';
 import pillClasses from './FilterPills.module.css';
 import classes from './SectionedFilters.module.css';
 import { SectionMenu } from './SectionMenu';
-import { SectionNameInput } from './SectionNameInput';
+import { SectionNameInput, type NameExit } from './SectionNameInput';
 import {
     BAR_SPACE_TARGET_ID,
     countFilters,
@@ -108,23 +108,28 @@ const ADD_FILTER_SELECTOR =
 const NEW_SECTION_SELECTOR = '[data-new-section]';
 const pillSelector = (id: string) => `[data-controls-pill="${id}"]`;
 const sectionNameSelector = (id: string) => `[data-section-name="${id}"]`;
+const sectionAddSelector = (id: string) => `[data-section-add="${id}"]`;
 
-// Focus goes back to `ref` once an input unmounts with focus (Enter or
-// Escape), never away from what a blur clicked
+// Moves focus once naming ended, unless a blur took it to another element
+// (Tab, a click on a control); no ring after a pointer
+const focusAfterNaming = (target: HTMLElement | null, exit: NameExit) => {
+    if (exit === 'elsewhere') return;
+    if (exit === 'pointer') target?.focus({ focusVisible: false });
+    else target?.focus();
+};
+
+// Focus goes back to `ref` once the input unmounts (Enter, Escape, the
+// check or X), never away from where a blur went
 const useRefocusAfter = (isEditing: boolean) => {
     const ref = useRef<HTMLButtonElement>(null);
+    const exit = useRef<NameExit>('keyboard');
     const wasEditing = useRef(isEditing);
     useEffect(() => {
-        if (
-            wasEditing.current &&
-            !isEditing &&
-            (document.activeElement === null ||
-                document.activeElement === document.body)
-        )
-            ref.current?.focus();
+        if (wasEditing.current && !isEditing)
+            focusAfterNaming(ref.current, exit.current);
         wasEditing.current = isEditing;
     }, [isEditing]);
-    return ref;
+    return { ref, exit };
 };
 
 /** An editor's capsule controls; a viewer's capsule has none. */
@@ -173,7 +178,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
     const getUiString = useUiStrings();
     const summaryId = useId();
     const [isRenaming, setIsRenaming] = useState(false);
-    const nameRef = useRefocusAfter(isRenaming);
+    const { ref: nameRef, exit: renameExit } = useRefocusAfter(isRenaming);
     const changedCount = visibleRules.filter(isChanged).length;
     // A drop anywhere on the outline joins the section: a line after its
     // last pill (`data-over`, a pseudo-element, so nothing changes size);
@@ -276,12 +281,16 @@ const SectionCapsule: FC<CapsuleProps> = ({
                     {isRenaming ? (
                         <SectionNameInput
                             name={section.name}
-                            onCommit={(name) => {
+                            onCommit={(name, exit) => {
+                                renameExit.current = exit;
                                 setIsRenaming(false);
                                 if (name !== section.name)
                                     actions.onRename(name);
                             }}
-                            onCancel={() => setIsRenaming(false)}
+                            onCancel={(exit) => {
+                                renameExit.current = exit;
+                                setIsRenaming(false);
+                            }}
                         />
                     ) : (
                         <Button
@@ -351,6 +360,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                             size="sm"
                             radius="xl"
                             aria-label={`Add filter to ${section.name}`}
+                            data-section-add={section.id}
                             onClick={actions.onAddFilter}
                         >
                             <MantineIcon icon={IconPlus} size={14} />
@@ -377,20 +387,19 @@ const SectionCapsule: FC<CapsuleProps> = ({
 // A new section named in place, first, after "Add filter". A cancel hands
 // focus to `cancelFocusSelector`; a commit leaves it to the bar
 const NewSection: FC<{
-    onAdd: (name: string) => void;
+    onAdd: (name: string, exit: NameExit) => void;
     onCancel: () => void;
     cancelFocusSelector: string;
 }> = ({ onAdd, onCancel, cancelFocusSelector }) => {
-    const isCancelled = useRef(false);
+    const cancelExit = useRef<NameExit | null>(null);
     useEffect(
         () => () => {
-            const active = document.activeElement;
-            if (!isCancelled.current) return;
-            if (active !== null && active !== document.body) return;
-            (
+            if (cancelExit.current === null) return;
+            focusAfterNaming(
                 document.querySelector<HTMLElement>(cancelFocusSelector) ??
-                document.querySelector<HTMLElement>(ADD_FILTER_SELECTOR)
-            )?.focus();
+                    document.querySelector<HTMLElement>(ADD_FILTER_SELECTOR),
+                cancelExit.current,
+            );
         },
         [cancelFocusSelector],
     );
@@ -399,8 +408,8 @@ const NewSection: FC<{
             <SectionNameInput
                 name=""
                 onCommit={onAdd}
-                onCancel={() => {
-                    isCancelled.current = true;
+                onCancel={(exit) => {
+                    cancelExit.current = exit;
                     onCancel();
                 }}
             />
@@ -455,8 +464,9 @@ const NewSectionGhost: FC<{ isDisabled: boolean; onClick: () => void }> = ({
 // on the loose item it would land after (`data-loose-end`)
 const BarSpace: FC<{
     leavingKindOf: (id: string) => FilterGroup | null;
+    isSectioned: boolean;
     children: ReactNode;
-}> = ({ leavingKindOf, children }) => {
+}> = ({ leavingKindOf, isSectioned, children }) => {
     const { setNodeRef, isOver, active } = useDroppable({
         id: BAR_SPACE_TARGET_ID,
     });
@@ -464,6 +474,7 @@ const BarSpace: FC<{
         <Box
             ref={setNodeRef}
             className={classes.flow}
+            data-sectioned={isSectioned || undefined}
             data-over={
                 (isOver &&
                     active !== null &&
@@ -534,19 +545,26 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
         focusAfter.current = null;
         element?.focus();
     });
-    // A new section's name takes focus once it is on screen, unless the
-    // naming blurred to something that kept it
-    const focusNewSection = useRef<string | null>(null);
+    // A new section's + (its next step) takes focus once it is on screen,
+    // unless the naming blurred to another element or moved pills (the
+    // first moved pill has focus then)
+    const focusNewSection = useRef<{ id: string; exit: NameExit } | null>(null);
     useLayoutEffect(() => {
-        const id = focusNewSection.current;
-        if (id === null) return;
+        const pending = focusNewSection.current;
+        if (pending === null) return;
         focusNewSection.current = null;
         const active = document.activeElement;
         if (active !== null && active !== document.body) return;
-        (
-            document.querySelector<HTMLElement>(sectionNameSelector(id)) ??
-            document.querySelector<HTMLElement>(ADD_FILTER_SELECTOR)
-        )?.focus();
+        focusAfterNaming(
+            document.querySelector<HTMLElement>(
+                sectionAddSelector(pending.id),
+            ) ??
+                document.querySelector<HTMLElement>(
+                    sectionNameSelector(pending.id),
+                ) ??
+                document.querySelector<HTMLElement>(ADD_FILTER_SELECTOR),
+            pending.exit,
+        );
     });
     const dispatch = useDashboardDispatch();
     const { track } = useTracking();
@@ -838,9 +856,9 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     // started, so nothing before it moves
     const newSection = naming !== null && (
         <NewSection
-            onAdd={(name) => {
+            onAdd={(name, exit) => {
                 const section = { id: uuidv4(), name };
-                focusNewSection.current = section.id;
+                focusNewSection.current = { id: section.id, exit };
                 dispatch(dashboardEditActions.addControlSection(section));
                 const filtersMoved =
                     naming.moveIds.length > 0
@@ -876,7 +894,10 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
 
     if (isViewer) {
         return (
-            <Box className={classes.flow}>
+            <Box
+                className={classes.flow}
+                data-sectioned={sections.length > 0 || undefined}
+            >
                 <AddControl />
                 {pills}
                 {capsules}
@@ -1071,7 +1092,10 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                 onDragEnd={handleDragEnd}
                 onDragCancel={() => setDraggedId(null)}
             >
-                <BarSpace leavingKindOf={leavingKindOf}>
+                <BarSpace
+                    leavingKindOf={leavingKindOf}
+                    isSectioned={sections.length > 0}
+                >
                     <UnsectionTarget
                         looseEnd={isViewer ? undefined : looseEnds[LOOSE_START]}
                     >

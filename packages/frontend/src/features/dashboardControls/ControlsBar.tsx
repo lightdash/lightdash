@@ -1,4 +1,3 @@
-import { Box } from '@mantine/core';
 import { type ComponentProps, type FC } from 'react';
 import {
     selectControlSections,
@@ -8,7 +7,6 @@ import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { AddControl } from './AddControl';
 import { FilterPills } from './FilterPills';
 import { SectionedFilters } from './SectionedFilters';
-import sectionedClasses from './SectionedFilters.module.css';
 import { SectionsTip } from './SectionsTip';
 import { SettledFilterFields } from './SettledFilterFields';
 import { useControlsSidebarSelector } from './useControlsSidebar';
@@ -32,6 +30,11 @@ export const ControlsBar: FC<Props> = (props) => {
                 {...props}
                 // The rail is on the page: a drawer over it would hide it
                 isCompactDrawerSuppressed={isSidebarOpen}
+                // The flat bar's items share each line's centre with the
+                // 30px funnel; the sectioned flow centres its own lines
+                filtersAlign={
+                    hasSections || props.isEditMode ? 'flex-start' : 'center'
+                }
                 filterArea={
                     <SettledFilterFields>
                         {/* An editor's bar is always sectioned: its selection starts the first section */}
@@ -40,13 +43,12 @@ export const ControlsBar: FC<Props> = (props) => {
                                 activeTabUuid={props.activeTabUuid}
                             />
                         ) : (
-                            // The sectioned bar's flow, so its line is centred alike
-                            <Box className={sectionedClasses.flow}>
+                            <>
                                 <AddControl />
                                 <FilterPills
                                     activeTabUuid={props.activeTabUuid}
                                 />
-                            </Box>
+                            </>
                         )}
                     </SettledFilterFields>
                 }

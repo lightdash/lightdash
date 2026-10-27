@@ -4,10 +4,14 @@ import { useRef, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import classes from './SectionedFilters.module.css';
 
+/** How naming ended: a key, a pointer, or a blur that took focus to
+ * another element (which keeps it). */
+export type NameExit = 'keyboard' | 'pointer' | 'elsewhere';
+
 type NameInputProps = {
     name: string;
-    onCommit: (name: string) => void;
-    onCancel: () => void;
+    onCommit: (name: string, exit: NameExit) => void;
+    onCancel: (exit: NameExit) => void;
 };
 
 const PLACEHOLDER = 'Section name';
@@ -22,12 +26,12 @@ export const SectionNameInput: FC<NameInputProps> = ({
 }) => {
     const isDone = useRef(false);
     const [value, setValue] = useState(name);
-    const finish = (text: string) => {
+    const finish = (text: string, exit: NameExit) => {
         if (isDone.current) return;
         isDone.current = true;
         const trimmed = text.trim();
-        if (trimmed === '') onCancel();
-        else onCommit(trimmed);
+        if (trimmed === '') onCancel(exit);
+        else onCommit(trimmed, exit);
     };
     return (
         <Box className={classes.nameSizer} data-size-to={value || PLACEHOLDER}>
@@ -36,12 +40,13 @@ export const SectionNameInput: FC<NameInputProps> = ({
                 placeholder={PLACEHOLDER}
                 size="xs"
                 classNames={{ input: classes.nameInputField }}
-                rightSectionWidth={44}
+                rightSectionWidth={48}
                 rightSectionPointerEvents="all"
                 rightSection={
-                    // A press keeps focus in the input, so no blur commits first
+                    // A press keeps focus in the input, so no blur commits
+                    // first; out of the tab order, as Enter and Escape do the same
                     <Group
-                        gap={2}
+                        gap={4}
                         wrap="nowrap"
                         onMouseDown={(event) => event.preventDefault()}
                     >
@@ -49,8 +54,14 @@ export const SectionNameInput: FC<NameInputProps> = ({
                             size="xs"
                             radius="xl"
                             aria-label="Keep name"
+                            tabIndex={-1}
                             disabled={value.trim() === ''}
-                            onClick={() => finish(value)}
+                            onClick={(event) =>
+                                finish(
+                                    value,
+                                    event.detail > 0 ? 'pointer' : 'keyboard',
+                                )
+                            }
                         >
                             <MantineIcon icon={IconCheck} size={14} />
                         </ActionIcon>
@@ -58,7 +69,13 @@ export const SectionNameInput: FC<NameInputProps> = ({
                             size="xs"
                             radius="xl"
                             aria-label="Discard"
-                            onClick={() => finish('')}
+                            tabIndex={-1}
+                            onClick={(event) =>
+                                finish(
+                                    '',
+                                    event.detail > 0 ? 'pointer' : 'keyboard',
+                                )
+                            }
                         >
                             <MantineIcon icon={IconX} size={14} />
                         </ActionIcon>
@@ -68,14 +85,22 @@ export const SectionNameInput: FC<NameInputProps> = ({
                 onChange={(event) => setValue(event.currentTarget.value)}
                 autoFocus
                 data-own-escape
-                onBlur={(event) => finish(event.currentTarget.value)}
+                onBlur={(event) =>
+                    finish(
+                        event.currentTarget.value,
+                        event.relatedTarget instanceof HTMLElement &&
+                            event.relatedTarget !== document.body
+                            ? 'elsewhere'
+                            : 'pointer',
+                    )
+                }
                 onKeyDown={(event) => {
                     if (event.key === 'Enter') {
                         event.preventDefault();
-                        finish(event.currentTarget.value);
+                        finish(event.currentTarget.value, 'keyboard');
                     } else if (event.key === 'Escape') {
                         event.preventDefault();
-                        finish('');
+                        finish('', 'keyboard');
                     }
                 }}
             />

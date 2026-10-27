@@ -82,7 +82,8 @@ behaviour. All but the first are in `features/dashboardFilters/`.
   shown in place, as in edit mode, instead of behind its drawer button, and
   the drawer is closed (state adjusted during render, no effect). `ControlsBar`
   sets it while the rail is open, so a viewer's rail is never under the
-  drawer.
+  drawer. `filtersAlign` (default `flex-start`) is the filter row's
+  `align`; `ControlsBar` sets `center` for the flat view bar only.
 - `AddFilterButton`: `editModeAction` (default: the shipped eye), shown in
   the eye's place in edit mode, after the same divider. `AddControl` passes
   `FilterBarMenu` there.
@@ -183,22 +184,29 @@ In `FilterConfiguration/`:
   `AddControl`), and `SectionsTip` renders before the shipped bar as
   its full-width first row (`ControlsBar` returns both, so the bar's own
   layout is untouched); in view mode `AddControl` and `FilterPills` only, as
-  the shipped view bar has no requirements button, in a box carrying
-  `SectionedFilters`' `.flow` so its line is centred as the sectioned bar's,
-  or `SectionedFilters` once the dashboard has sections (see "Sections"). The
+  the shipped view bar has no requirements button, laid out as the shipped
+  bar (parameters right after the last pill, wrapped rows from the bar's
+  left) with `filtersAlign="center"`, so each line's items share the 30px
+  funnel's centre, or `SectionedFilters` once the dashboard has sections
+  (see "Sections"). The
   bar is the list of filters: it stays on screen while a filter is edited,
   and `isCompactDrawerSuppressed` is set then, so a narrow screen shows it in
   place rather than behind its drawer. `SectionedFilters`' `.flow` is one
   flex item beside the shipped funnel with a zero basis (`flex: 1 1 0`), so
   it stays on the funnel's line and wraps inside itself rather than
   dropping below it and leaving the funnel alone. The shipped bar aligns its
-  items to the top, so the flow centres its own first line on the 30px
-  funnel's (and the right side's) centre line, whatever is on it: a
-  zero-width 36px strut (`.flow::before`, its gap cancelled) makes that line
-  always a capsule's height, and `margin-block: -3px` lifts it onto the
-  funnel's centre. Starting the first section (a 36px capsule) then moves
-  nothing. Every line centres its items (`align-items: center`). In the
-  narrow container (no funnel, 44px buttons) the strut and margin are off. Separators, parameters, date zoom,
+  items to the top, so the flow centres its own lines on the 30px funnel's
+  (and the right side's) centre line, whatever is on them: a capsule's
+  `margin-block: -4px` makes every line a 28px line box (the outline
+  overhangs it), each line centres its items, and the flow's `margin-top:
+  1px` puts the first line's centre on the funnel's. Lines are spaced
+  evenly: 36px apart (the 8px row gap), and 44px once the dashboard has a
+  section (`data-sectioned`, a 16px row gap, so capsule outlines stay 8px
+  apart; a capsule whose pills wrap inside it is a taller line). Naming the
+  first section does not set it, so naming moves nothing; the commit does
+  (wrapped rows move 8px each). In wide containers, starting a section
+  moves nothing on its line. In the narrow container (no funnel, 44px
+  buttons) the top margin is off. Separators, parameters, date zoom,
   the hide button and the `data-tour-*` anchors are the shipped bar's own.
 - While a filter is edited (`isSidebarOpen`) the bar's controls that would
   start something else are inert: `InertWhileEditing` (in `AddControl.tsx`,
@@ -1292,13 +1300,19 @@ the language map, as tab names are.
   which turns into `SectionNameInput` (`SectionNameInput.tsx`, `TextInput
   size="xs"`) in place, as wide as its text: `.nameSizer` is a one-cell
   grid sized by a hidden copy of the text (`data-size-to`, the placeholder
-  when empty), drawn with the name button's padding and type plus the 44px
+  when empty), drawn with the name button's padding and type plus the 48px
   of its actions (the input's right padding is 2px less, given to the
   text, so a caret at the end never scrolls it). The actions are the
-  input's `rightSection`: two subtle `xs` `ActionIcon`s, a check "Keep
-  name" (as Enter, disabled while the text is empty) and an X "Discard" (as
-  Escape); their `Group` prevents the mouse down, so the input never blurs
-  (and commits) before the click. The input is the title's font and height
+  input's `rightSection`: two subtle `xs` (20px) `ActionIcon`s 4px apart
+  (centres 24px apart), a check "Keep name" (as Enter, disabled while the
+  text is empty) and an X "Discard" (as Escape), both `tabIndex={-1}` so
+  Tab leaves the input (and commits) to the next control; their `Group`
+  prevents the mouse down, so the input never blurs (and commits) before
+  the click. The input reports how naming ended (`NameExit`): `keyboard`,
+  `pointer` (the check or X clicked, or a blur to nothing) or `elsewhere`
+  (a blur to another element, as Tab); the bar moves focus only when it is
+  not `elsewhere`, with no ring after `pointer` (`focus({ focusVisible:
+  false })`). The input is the title's font and height
   and wider by its actions only, so starting or ending a rename moves
   nothing before the capsule's end: Enter, blur or the check with a name
   dispatches `renameControlSection` (an unchanged name writes nothing);
@@ -1352,16 +1366,15 @@ the language map, as tab names are.
   new uuid, last of the sections) and moves the picked pills in (the
   capsule with nothing picked makes an empty section), Escape, an empty
   name or the X drops it. The "..." on "Add filter" starts no section. Focus after naming:
-  - A rename: back to the name button (`useRefocusAfter`), only when focus
-    fell to `body`.
-  - A committed new section with no pills: its name button
-    (`data-section-name`), only when focus fell to `body`, so a blur by
-    click keeps where it went.
+  - A rename: back to the name button (`useRefocusAfter`).
+  - A committed new section with no pills: its "+" (`data-section-add`),
+    adding a filter being the next step, only when focus fell to `body`.
   - A committed new section that took pills: the first moved pill, through
-    the bar's `focusAfter`, which does not check for `body` focus; the name
-    button then stays unfocused. Either way focus is in the new section.
-  - A cancelled name: "Add filter" ("New section" when it started it),
-    only when focus fell to `body`.
+    the bar's `focusAfter`, which does not check for `body` focus. Either
+    way focus is in the new section.
+  - A cancelled name: "Add filter" ("New section" when it started it).
+  - None of them after an `elsewhere` exit: Tab or a click on a control
+    keeps where focus went.
   While a filter is edited the name and the `.actions` group carry `inert`
   (the group dimmed by the shared `.inert` rule); the chevron still folds.
 - `SectionsTip` teaches that gesture: an editor's first row above the bar

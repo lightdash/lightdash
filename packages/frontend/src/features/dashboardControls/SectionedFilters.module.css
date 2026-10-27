@@ -1,5 +1,7 @@
-/* The feature's own flow inside the shipped bar: pills and capsules centred
-   per line, 8px between lines (the bar itself aligns to the top) */
+/* The feature's own flow inside the shipped bar, which aligns to the top:
+   every line is a 28px line box (a capsule's outline overhangs it by 4px
+   each way), centred on the 30px funnel's line by 1px at the top, so naming
+   a first section moves nothing on its line */
 .flow {
     display: flex;
     /* A zero basis keeps the flow on the funnel's line and wraps inside it */
@@ -8,18 +10,13 @@
     align-items: center;
     gap: 8px 6px;
     min-width: 0;
-    /* Its first line is always a capsule's height (see `::before`), pulled up
-       so that line's centre is the 30px funnel's, like the bar's other
-       controls; naming a first section then moves nothing */
-    margin-block: -3px;
+    margin-top: 1px;
 }
 
-/* A zero-width strut on the first line, its gap cancelled */
-.flow::before {
-    content: '';
-    flex: 0 0 0;
-    height: 36px;
-    margin-right: -6px;
+/* Wrapped lines with capsules keep 8px between outlines, and every line the
+   same spacing */
+.flow[data-sectioned] {
+    row-gap: 16px;
 }
 
 /* A section on the bar: an outlined, pill-shaped capsule with no fill
@@ -32,6 +29,7 @@
     flex-wrap: wrap;
     gap: 8px 6px;
     min-height: 36px;
+    margin-block: -4px;
     padding: 3px 4px 3px 3px;
     /* One step darker than the default border: visible next to blue pills */
     border: 1px solid var(--mantine-color-ldGray-3);
@@ -179,7 +177,7 @@
     visibility: hidden;
     white-space: pre;
     /* The name button's padding, and the check and X on the right */
-    padding-inline: rem(6px) rem(46px);
+    padding-inline: rem(6px) rem(50px);
     border: 1px solid transparent;
     font-size: var(--mantine-font-size-xs);
     font-weight: 600;
@@ -193,9 +191,9 @@
 .nameSizer .nameInputField {
     width: 0;
     min-width: 100%;
-    /* The name button's padding, then the check and X (44px), 2px less
+    /* The name button's padding, then the check and X (48px), 2px less
        than the sizer's so a caret at the end never scrolls the text */
-    padding-inline: rem(6px) rem(44px);
+    padding-inline: rem(6px) rem(48px);
     font-size: var(--mantine-font-size-xs);
     font-weight: 600;
     border-radius: var(--mantine-radius-xl);
@@ -204,13 +202,9 @@
 /* The shipped bar's narrow layout makes its buttons 44px tall
    (`DashboardFiltersBar.module.css`): the input matches the name button */
 @container (width < 600px) {
-    /* No funnel here and 44px buttons: the lines centre themselves */
+    /* No funnel here */
     .flow {
-        margin-block: 0;
-    }
-
-    .flow::before {
-        display: none;
+        margin-top: 0;
     }
 
     .nameSizer .nameInputField {

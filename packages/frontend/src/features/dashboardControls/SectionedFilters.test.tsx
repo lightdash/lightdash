@@ -1519,26 +1519,71 @@ describe('SectionedFilters', () => {
 
             await user.click(addSection() as HTMLElement);
             await user.keyboard('Late');
+            const focus = vi.spyOn(HTMLElement.prototype, 'focus');
             await user.click(screen.getByRole('button', { name: 'Keep name' }));
             expect(sectionsOf(store).map((s) => s.name)).toContain('Late');
             expect(sectionsOf(store)).toHaveLength(4);
-            expect(screen.getByRole('button', { name: 'Late' })).toHaveFocus();
+            const add = screen.getByRole('button', {
+                name: 'Add filter to Late',
+            });
+            expect(add).toHaveFocus();
+            // A pointer kept the name: no keyboard ring on the +
+            expect(
+                focus.mock.contexts.indexOf(add) >= 0 &&
+                    focus.mock.calls[focus.mock.contexts.indexOf(add)][0],
+            ).toEqual({ focusVisible: false });
+            focus.mockRestore();
         });
 
-        it("hands focus to the new section's name after Enter, or a blur to the page", async () => {
+        it("hands focus to the new section's + after Enter, or a blur to the page", async () => {
             const user = userEvent.setup();
             renderSectioned([rule('one', undefined)], 'tab-1');
 
             await user.click(addSection() as HTMLElement);
-            await user.keyboard('Late{Enter}');
-            expect(screen.getByRole('button', { name: 'Late' })).toHaveFocus();
+            await user.keyboard('Late');
+            const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+            await user.keyboard('{Enter}');
+            const add = screen.getByRole('button', {
+                name: 'Add filter to Late',
+            });
+            expect(add).toHaveFocus();
+            expect(
+                focus.mock.calls[focus.mock.contexts.indexOf(add)][0],
+            ).toBeUndefined();
+            focus.mockRestore();
 
             await user.click(addSection() as HTMLElement);
             await user.keyboard('Later');
             act(() =>
                 screen.getByRole('textbox', { name: 'Section name' }).blur(),
             );
-            expect(screen.getByRole('button', { name: 'Later' })).toHaveFocus();
+            expect(
+                screen.getByRole('button', { name: 'Add filter to Later' }),
+            ).toHaveFocus();
+        });
+
+        it('moves on in tab order from a new name: Tab commits and skips the check and X', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(
+                [rule('one', undefined)],
+                'tab-1',
+            );
+
+            // What follows the bar on the page (date zoom and the rest)
+            const next = document.body.appendChild(
+                document.createElement('button'),
+            );
+
+            await user.click(addSection() as HTMLElement);
+            await user.keyboard('Late');
+            await user.tab();
+            expect(sectionsOf(store).map((s) => s.name)).toContain('Late');
+            // Natural order: no pull back to the new section
+            expect(next).toHaveFocus();
+            next.remove();
+            expect(
+                screen.queryByRole('button', { name: 'Keep name' }),
+            ).not.toBeInTheDocument();
         });
 
         it('hands focus to the first moved pill when the new section takes pills', async () => {
@@ -1841,6 +1886,26 @@ describe('SectionedFilters', () => {
             await user.click(screen.getByRole('button', { name: 'Keep name' }));
             expect(sectionsOf(store)[0].name).toBe('When');
             expect(screen.getByRole('button', { name: 'When' })).toHaveFocus();
+        });
+
+        it('moves on in tab order from a rename: Tab commits and skips the check and X', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const user = userEvent.setup();
+
+            await user.click(screen.getByRole('button', { name: 'Dates' }));
+            await user.type(
+                screen.getByRole('textbox', { name: 'Section name' }),
+                ' later',
+            );
+            await user.tab();
+            expect(sectionsOf(store)[0].name).toBe('Dates later');
+            expect(document.activeElement).not.toBe(document.body);
+            expect(
+                screen.getByRole('button', { name: 'Dates later' }),
+            ).not.toHaveFocus();
+            expect(
+                screen.queryByRole('button', { name: 'Discard' }),
+            ).not.toBeInTheDocument();
         });
 
         it('sizes the rename input to its text, the placeholder when empty', async () => {
