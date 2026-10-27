@@ -84,15 +84,12 @@ const nodeTitleSchema = z
 
 const nodeDescriptionSchema = z
     .string()
-    .nullable()
     .describe(
-        'One sentence on what this query does, only when the title is not enough. Null otherwise.',
+        'One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node\'s heading in the pipeline list.',
     );
 
-const nodeMetaSchema = {
-    title: nodeTitleSchema,
-    description: nodeDescriptionSchema,
-};
+// Calls persisted before the description was required may carry null or none.
+const persistedNodeDescriptionSchema = z.string().nullish().default(null);
 
 // runQuery's filter-expression contract, minus table calculations: a node has
 // none, DuckDB nodes do that work downstream.
@@ -128,13 +125,22 @@ type CreateToolComposerQueriesArgsSchemaOptions = {
     defaultLimit?: number;
     /** Offers the python node; only when python queries are enabled for the org. */
     enablePythonNodes?: boolean;
+    /** Persisted calls predate the required description; only new input requires it. */
+    persisted?: boolean;
 };
 
 export const createToolComposerQueriesArgsSchemaV1 = ({
     maxLimit = DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
     defaultLimit = DEFAULT_COMPOSER_QUERY_LIMIT,
     enablePythonNodes = false,
+    persisted = false,
 }: CreateToolComposerQueriesArgsSchemaOptions = {}) => {
+    const nodeMetaSchema = {
+        title: nodeTitleSchema,
+        description: persisted
+            ? persistedNodeDescriptionSchema
+            : nodeDescriptionSchema,
+    };
     const limitSchema = z.coerce
         .number()
         .int()
@@ -315,6 +321,7 @@ export const toolComposerQueriesArgsSchemaPersisted = z.preprocess(
     createToolComposerQueriesArgsSchemaV1({
         enablePythonNodes: true,
         maxLimit: Number.MAX_SAFE_INTEGER,
+        persisted: true,
     }),
 );
 

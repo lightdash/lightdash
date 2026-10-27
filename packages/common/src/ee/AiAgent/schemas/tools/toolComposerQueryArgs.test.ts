@@ -15,7 +15,7 @@ describe('toolComposerQueriesArgsSchema node titles', () => {
         sourceType: QuerySourceType.SQL,
         nodeId: 'signups',
         title: 'Signups by month',
-        description: null,
+        description: 'Counts new signups per calendar month.',
         sql: 'SELECT 1',
     };
     const args = (node: object) => ({
@@ -35,9 +35,16 @@ describe('toolComposerQueriesArgsSchema node titles', () => {
         ).toBe(true);
     });
 
-    it('accepts a null description', () => {
-        const parsed = toolComposerQueriesArgsSchema.parse(args(sqlNode));
-        expect(parsed.queries[0].description).toBeNull();
+    it('requires a description on every node', () => {
+        const { description, ...undescribed } = sqlNode;
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(args(undescribed)).success,
+        ).toBe(false);
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                args({ ...sqlNode, description: null }),
+            ).success,
+        ).toBe(false);
     });
 });
 
@@ -202,7 +209,7 @@ describe('python composer nodes', () => {
         sourceType: QuerySourceType.PYTHON,
         nodeId: 'forecast',
         title: 'Revenue forecast',
-        description: null,
+        description: 'Test node.',
         code: 'def run(inputs, params):\n    return inputs["revenue"]',
         references: ['revenue'],
     };
@@ -244,7 +251,7 @@ describe('python composer nodes', () => {
             sourceType: QuerySourceType.PYTHON,
             nodeId: 'forecast',
             title: 'Revenue forecast',
-            description: undefined,
+            description: 'Test node.',
             code: pythonNode.code,
             references: ['revenue'],
             limit: DEFAULT_COMPOSER_QUERY_LIMIT,
@@ -286,7 +293,7 @@ describe('composer node references', () => {
                 sourceType: QuerySourceType.DUCKDB,
                 nodeId: 'summary',
                 title: 'Spend summary',
-                description: null,
+                description: 'Test node.',
                 sql: 'SELECT * FROM o',
                 references,
             },
@@ -330,7 +337,7 @@ describe('semanticLayer node filters', () => {
                 sourceType: QuerySourceType.SEMANTIC_LAYER,
                 nodeId: 'revenue',
                 title: 'Revenue by customer',
-                description: null,
+                description: 'Test node.',
                 exploreName: 'orders',
                 dimensions: ['orders_customer_name'],
                 metrics: ['orders_total_revenue'],
@@ -464,6 +471,27 @@ describe('toolComposerQueriesArgsSchemaPersisted', () => {
         );
         expect(parsed.queries[0]).toMatchObject({ parameters: null });
     });
+
+    it('parses nodes persisted with a null or missing description', () => {
+        const sqlNode = {
+            sourceType: QuerySourceType.SQL,
+            nodeId: 'signups',
+            title: 'Signups',
+            sql: 'SELECT 1',
+            limit: 500,
+        };
+        const parsed = toolComposerQueriesArgsSchemaPersisted.parse({
+            ...args(sqlNode),
+            queries: [
+                { ...sqlNode, description: null },
+                { ...sqlNode, nodeId: 'legacy' },
+            ],
+        });
+        expect(parsed.queries.map((node) => node.description)).toEqual([
+            null,
+            null,
+        ]);
+    });
 });
 
 describe('semanticLayer node parameters', () => {
@@ -471,7 +499,7 @@ describe('semanticLayer node parameters', () => {
         sourceType: QuerySourceType.SEMANTIC_LAYER as const,
         nodeId: 'orders',
         title: 'Orders',
-        description: null,
+        description: 'Test node.',
         exploreName: 'orders',
         dimensions: ['orders_status'],
         metrics: ['orders_count'],
