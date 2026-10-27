@@ -1,8 +1,9 @@
 import { type HomepageContentLayout } from '@lightdash/common';
-import { Box, SegmentedControl, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Tooltip } from '@mantine/core';
 import { IconLayoutGrid, IconLayoutList } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import classes from './blockStyles.module.css';
 
 const OPTIONS = [
     { value: 'card', label: 'Cards', icon: IconLayoutGrid },
@@ -16,19 +17,22 @@ export const ContentLayoutControl: FC<{
     value: HomepageContentLayout;
     onChange: (layout: HomepageContentLayout) => void;
 }> = ({ value, onChange }) => (
-    <SegmentedControl
-        size="xs"
-        value={value}
-        onChange={(next) => onChange(next as HomepageContentLayout)}
-        data={OPTIONS.map((option) => ({
-            value: option.value,
-            label: (
-                <Tooltip label={option.label} openDelay={200}>
-                    <Box component="span" lh={0} display="inline-block">
-                        <MantineIcon icon={option.icon} />
-                    </Box>
-                </Tooltip>
-            ),
-        }))}
-    />
+    <Group gap={2} wrap="nowrap" role="group" aria-label="Layout">
+        {OPTIONS.map((option) => (
+            <Tooltip key={option.value} label={option.label} openDelay={200}>
+                <ActionIcon
+                    size={24}
+                    variant="subtle"
+                    color="gray"
+                    className={classes.layoutToggle}
+                    aria-label={option.label}
+                    aria-pressed={value === option.value}
+                    data-active={value === option.value}
+                    onClick={() => onChange(option.value)}
+                >
+                    <MantineIcon icon={option.icon} size={15} />
+                </ActionIcon>
+            </Tooltip>
+        ))}
+    </Group>
 );

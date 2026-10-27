@@ -277,7 +277,12 @@ const ThemeSwatches: FC<{
                 return (
                     <Tooltip
                         key={option.value}
-                        label={option.label}
+                        label={
+                            option.value === 'brand' ||
+                            option.value === 'accent'
+                                ? `${option.label}, from Settings > Appearance`
+                                : option.label
+                        }
                         openDelay={200}
                     >
                         <button
@@ -342,85 +347,14 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
             : config.target.type;
     return (
         <Stack gap="sm">
-            <CtaBanner
-                config={config}
-                projectUuid={projectUuid}
-                interactive={false}
-            />
-            <Group gap="xs" align="flex-end" wrap="nowrap">
-                <TextInput
-                    size="xs"
-                    label="Title"
-                    placeholder="Optional — leave empty for a button-only banner"
-                    fw={600}
-                    flex={1}
-                    value={config.title ?? ''}
-                    onChange={(e) =>
-                        patch({ title: e.currentTarget.value || undefined })
-                    }
-                />
-            </Group>
-            <TextInput
-                size="xs"
-                label="Supporting line"
-                placeholder="Optional"
-                value={config.description ?? ''}
-                onChange={(e) =>
-                    patch({ description: e.currentTarget.value || undefined })
-                }
-            />
-            <Group gap="xs" align="flex-end" wrap="nowrap">
-                <TextInput
-                    size="xs"
-                    label="Button label"
-                    w={180}
-                    value={config.buttonLabel}
-                    onChange={(e) =>
-                        patch({ buttonLabel: e.currentTarget.value })
-                    }
-                />
-                <Select
-                    size="xs"
-                    label="Button leads to"
-                    flex={1}
-                    data={TARGET_OPTIONS}
-                    value={targetChoice}
-                    allowDeselect={false}
-                    onChange={(next) => {
-                        if (!next) return;
-                        patch({
-                            target:
-                                next === 'link'
-                                    ? { type: 'link', url: '' }
-                                    : {
-                                          type: next as Exclude<
-                                              TargetChoice,
-                                              'link'
-                                          >,
-                                      },
-                        });
-                    }}
-                />
-            </Group>
-            {config.target.type === 'link' && (
-                <TextInput
-                    size="xs"
-                    label="URL"
-                    placeholder="https://…"
-                    value={config.target.url}
-                    onChange={(e) =>
-                        patch({
-                            target: {
-                                type: 'link',
-                                url: e.currentTarget.value,
-                            },
-                        })
-                    }
-                />
-            )}
-            <Group gap="lg" align="flex-end">
-                <Stack gap={4}>
-                    <Text size="xs" fw={500}>
+            <Group
+                gap="lg"
+                align="center"
+                className={classes.styleToolbar}
+                data-block-settings
+            >
+                <Group gap={8} wrap="nowrap">
+                    <Text size="xs" c="dimmed">
                         Theme
                     </Text>
                     <ThemeSwatches
@@ -435,9 +369,9 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
                             )
                         }
                     />
-                </Stack>
-                <Stack gap={4}>
-                    <Text size="xs" fw={500}>
+                </Group>
+                <Group gap={8} wrap="nowrap">
+                    <Text size="xs" c="dimmed">
                         Background
                     </Text>
                     <SegmentedControl
@@ -454,10 +388,10 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
                             { value: 'theme', label: 'Themed' },
                         ]}
                     />
-                </Stack>
+                </Group>
                 {(config.title ?? '').trim() === '' && (
-                    <Stack gap={4}>
-                        <Text size="xs" fw={500}>
+                    <Group gap={8} wrap="nowrap">
+                        <Text size="xs" c="dimmed">
                             Align
                         </Text>
                         <SegmentedControl
@@ -472,13 +406,89 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
                                 { value: 'right', label: 'Right' },
                             ]}
                         />
-                    </Stack>
+                    </Group>
                 )}
             </Group>
-            <Text size="xs" c="dimmed">
-                Brand, Accent, and the gradients use your organization's brand
-                colors from Settings → Appearance.
-            </Text>
+            <CtaBanner
+                config={config}
+                projectUuid={projectUuid}
+                interactive={false}
+            />
+            <Stack gap="sm" data-block-settings>
+                <Group gap="xs" align="flex-end" wrap="nowrap">
+                    <TextInput
+                        size="xs"
+                        label="Title"
+                        placeholder="Optional. Leave empty for a button-only banner"
+                        fw={600}
+                        flex={1}
+                        value={config.title ?? ''}
+                        onChange={(e) =>
+                            patch({ title: e.currentTarget.value || undefined })
+                        }
+                    />
+                </Group>
+                <TextInput
+                    size="xs"
+                    label="Supporting line"
+                    placeholder="Optional"
+                    value={config.description ?? ''}
+                    onChange={(e) =>
+                        patch({
+                            description: e.currentTarget.value || undefined,
+                        })
+                    }
+                />
+                <Group gap="xs" align="flex-end" wrap="nowrap">
+                    <TextInput
+                        size="xs"
+                        label="Button label"
+                        w={180}
+                        value={config.buttonLabel}
+                        onChange={(e) =>
+                            patch({ buttonLabel: e.currentTarget.value })
+                        }
+                    />
+                    <Select
+                        size="xs"
+                        label="Button leads to"
+                        flex={1}
+                        data={TARGET_OPTIONS}
+                        value={targetChoice}
+                        allowDeselect={false}
+                        onChange={(next) => {
+                            if (!next) return;
+                            patch({
+                                target:
+                                    next === 'link'
+                                        ? { type: 'link', url: '' }
+                                        : {
+                                              type: next as Exclude<
+                                                  TargetChoice,
+                                                  'link'
+                                              >,
+                                          },
+                            });
+                        }}
+                    />
+                </Group>
+                {config.target.type === 'link' && (
+                    <TextInput
+                        size="xs"
+                        label="URL"
+                        placeholder="https://…"
+                        value={config.target.url}
+                        onChange={(e) =>
+                            patch({
+                                target: {
+                                    type: 'link',
+                                    url: e.currentTarget.value,
+                                },
+                            })
+                        }
+                    />
+                )}
+            </Stack>
         </Stack>
     );
 };

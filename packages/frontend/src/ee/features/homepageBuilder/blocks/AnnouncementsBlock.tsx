@@ -936,8 +936,8 @@ const AnnouncementFormModal: FC<{
                 {!isPublished && <SchedulePicker schedule={schedule} />}
                 {bodyTooLong && (
                     <Text size="xs" c="red">
-                        Body is {body.trim().length.toLocaleString()} characters
-                        — trim it to{' '}
+                        Body is {body.trim().length.toLocaleString()}{' '}
+                        characters. Trim it to{' '}
                         {ANNOUNCEMENT_BODY_MAX_LENGTH.toLocaleString()} or
                         fewer.
                     </Text>
@@ -987,6 +987,9 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
             <BlockHeader
                 icon={IconSpeakerphone}
                 title={block.config.title}
+                onTitleChange={(title) =>
+                    onChange({ ...block, config: { ...block.config, title } })
+                }
                 actions={
                     announcements.length > 0 ? (
                         <Button
@@ -1018,20 +1021,22 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
                 />
             )}
             {announcements.length > 1 && (
-                <Switch
-                    size="xs"
-                    label="Collapse older announcements"
-                    checked={collapseAfterFirst}
-                    onChange={(e) =>
-                        onChange({
-                            ...block,
-                            config: {
-                                ...block.config,
-                                collapseAfterFirst: e.currentTarget.checked,
-                            },
-                        })
-                    }
-                />
+                <div data-block-settings>
+                    <Switch
+                        size="xs"
+                        label="Collapse older announcements"
+                        checked={collapseAfterFirst}
+                        onChange={(e) =>
+                            onChange({
+                                ...block,
+                                config: {
+                                    ...block.config,
+                                    collapseAfterFirst: e.currentTarget.checked,
+                                },
+                            })
+                        }
+                    />
+                </div>
             )}
             {(creating || editing !== null) && (
                 <AnnouncementFormModal
