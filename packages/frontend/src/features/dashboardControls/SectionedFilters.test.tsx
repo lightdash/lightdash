@@ -2101,8 +2101,31 @@ describe('SectionedFilters', () => {
             expect(selectHaveControlSectionsChanged(store.getState())).toBe(
                 true,
             );
+            // Back to the size rule's value with nothing saved: it follows the rule again
             await userEvent.click(foldOf('Dates'));
             expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'true');
+            expect(sectionsOf(store)[0]).not.toHaveProperty('collapsed');
+        });
+
+        it('keeps an explicit value when the saved section has one', async () => {
+            const saved = [{ id: 'a', name: 'Dates', collapsed: false }];
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboard: {
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: saved,
+                    },
+                },
+            };
+            const { store } = renderSectioned(
+                [rule('one', 'a')],
+                'tab-1',
+                saved,
+            );
+            await userEvent.click(foldOf('Dates'));
+            expect(sectionsOf(store)[0].collapsed).toBe(true);
+            await userEvent.click(foldOf('Dates'));
             expect(sectionsOf(store)[0].collapsed).toBe(false);
         });
 
@@ -2115,6 +2138,28 @@ describe('SectionedFilters', () => {
             expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
             await userEvent.click(foldOf('Dates'));
             expect(sectionsOf(store)[0].collapsed).toBe(false);
+            await userEvent.click(foldOf('Dates'));
+            expect(sectionsOf(store)[0]).not.toHaveProperty('collapsed');
+        });
+
+        it("forgets a viewer's flips on a mode change, so view mode starts as saved", async () => {
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            const { switchTab } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const viewerToggle = () =>
+                screen.getByRole('button', { name: 'Dates' });
+            // Open by default; the viewer folds it for this visit
+            await userEvent.click(viewerToggle());
+            expect(viewerToggle()).toHaveAttribute('aria-expanded', 'false');
+
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+            switchTab('tab-1');
+            // The editor folds it: saved collapsed
+            await userEvent.click(foldOf('Dates'));
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
+
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            switchTab('tab-1');
+            expect(viewerToggle()).toHaveAttribute('aria-expanded', 'false');
         });
 
         it("keeps a viewer's fold off the saved state, and opens edit mode as saved", async () => {

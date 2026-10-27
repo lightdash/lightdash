@@ -1299,9 +1299,11 @@ the language map, as tab names are.
   by `filters.rail.collapseSection` / `expandSection` with the same
   tooltip, `aria-expanded`, the fold summary's `aria-describedby`). Its fold
   is the section's saved way to start: a click dispatches
-  `setControlSectionCollapsed` with the opposite of what shows, always an
-  explicit value, so a size-folded section gets `collapsed: false` once
-  opened. It marks the dashboard changed (`haveControlSectionsChanged`), so
+  `setControlSectionCollapsed` with the opposite of what shows, as an
+  explicit value (a size-folded section gets `collapsed: false` once
+  opened), except that a section with no saved `collapsed` that is put
+  back to the size rule's value gets `undefined`, so it keeps following
+  the rule. It marks the dashboard changed (`haveControlSectionsChanged`), so
   Save keeps it and Cancel's `syncControlSections` puts it back; what the
   editor sees is what viewers get. Then the name, a `Button size="xs"` subtle at `xs` 600 with 6px
   side padding (`.name`: the text cursor and `--button-padding-x-xs`),

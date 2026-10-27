@@ -771,12 +771,26 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
             isChanged={isChanged}
             isOpen={isOpen(section, rules.length)}
             onToggle={() => {
-                // An editor's fold is the saved way to start, made explicit
+                // An editor's fold is the saved way to start; back at the size
+                // rule's value with nothing saved, it follows the rule again
                 if (!isViewer) {
+                    const collapsed = isOpen(section, rules.length);
+                    const isSizeDefault =
+                        collapsed ===
+                        isCollapsedByDefault(
+                            { id: section.id, name: section.name },
+                            rules.length,
+                        );
+                    const savedCollapsed = savedSections?.find(
+                        ({ id }) => id === section.id,
+                    )?.collapsed;
                     dispatch(
                         dashboardEditActions.setControlSectionCollapsed({
                             id: section.id,
-                            collapsed: isOpen(section, rules.length),
+                            collapsed:
+                                isSizeDefault && savedCollapsed === undefined
+                                    ? undefined
+                                    : collapsed,
                         }),
                     );
                     return;
