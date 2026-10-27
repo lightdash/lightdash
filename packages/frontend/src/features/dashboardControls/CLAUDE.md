@@ -86,7 +86,8 @@ behaviour. All but the first are in `features/dashboardFilters/`.
   the field's icon) is shown in place of the field icon, `onClick`
   receives the click event (callers that ignore it are unchanged), and
   `isLockSpaceReserved` (default false: the hidden lock grows in on hover)
-  keeps the hidden lock's width (`data-reserved`), so it only fades in.
+  shows the lock at all times (`data-reserved`), so the pill never changes
+  width.
   The requirement icon carries `data-requirement-icon`, a marker with no
   behaviour of its own.
 - `FilterRequirements/RequiredFilterCard`: `onChangeOtherFilterRule`
@@ -736,10 +737,8 @@ In `FilterConfiguration/`:
   while that would leave a locked, required filter with no value.
   Tab-less dashboards have the switch alone.
 - `FilterPills` carries the shipped lock toggle (`lockSlot` / `lockSlotActive`),
-  with its space reserved (`isLockSpaceReserved`), so hovering a pill never
-  changes its width. On a device without hover (`@media (hover: none)`)
-  the reserved lock is always shown, so a tap never toggles a lock no one
-  sees; with hover it fades in on hover and `:focus-within` as before.
+  always shown (`isLockSpaceReserved`), so hovering a pill never changes
+  its width and a tap never toggles a lock no one sees.
   While the pointer is on the lock, the X (a button inside the pill other
   than the pill) or the requirement icon of an unmet pill
   (`data-requirement-icon` inside `data-requirement-unmet`; a met one has
