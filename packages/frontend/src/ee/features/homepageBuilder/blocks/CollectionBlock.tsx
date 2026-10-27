@@ -47,6 +47,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconFolder,
+    IconGripVertical,
     IconLayoutGrid,
     IconPin,
     IconPlus,
@@ -665,6 +666,9 @@ const SortableTile: FC<{
                 onRemove={onRemove}
                 isStatic
             />
+            <span className={classes.sortableGrip} aria-hidden>
+                <MantineIcon icon={IconGripVertical} size={14} />
+            </span>
         </div>
     );
 };
@@ -882,6 +886,9 @@ const SortableContentGrid: FC<{
                             variant={layout === 'list' ? 'compact' : 'tile'}
                             isStatic
                         />
+                        <span className={classes.sortableGrip} aria-hidden>
+                            <MantineIcon icon={IconGripVertical} size={14} />
+                        </span>
                     </div>
                 ) : null}
             </DragOverlay>

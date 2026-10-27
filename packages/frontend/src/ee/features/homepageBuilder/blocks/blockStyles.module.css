@@ -556,11 +556,44 @@ a .hoverCard:hover,
 
 /* Single-cell grid so the wrapped card keeps its block box inside SimpleGrid */
 .sortableTile {
+    position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     min-width: 0;
     cursor: grab;
     transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sortableGrip {
+    position: absolute;
+    top: 50%;
+    left: 6px;
+    display: flex;
+    color: var(--mantine-color-ldGray-5);
+    opacity: 0;
+    transform: translateY(-50%);
+    transition: opacity 150ms ease-out;
+    pointer-events: none;
+}
+
+.sortableTile:hover .sortableGrip,
+.sortableTile:focus-visible .sortableGrip,
+.dragOverlay .sortableGrip {
+    opacity: 1;
+}
+
+/* Room for the grip, so it never crowds the type icon. */
+.sortableTile > :first-child,
+.dragOverlay > :first-child {
+    padding-left: 24px;
+}
+
+.sortableTile:hover > :first-child {
+    border-color: var(--mantine-color-ldGray-3);
+}
+
+.sortableTile[data-dragging='true'] .sortableGrip {
+    opacity: 0;
 }
 
 .sortableTile:focus-visible {
@@ -574,6 +607,7 @@ a .hoverCard:hover,
 }
 
 .dragOverlay {
+    position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     min-width: 0;
