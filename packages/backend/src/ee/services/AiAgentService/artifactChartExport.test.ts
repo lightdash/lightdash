@@ -90,6 +90,9 @@ const setup = (runtimeOptions?: EmbedAiAgentRuntimeOptions) => {
     const service = new AiAgentService({
         aiAgentModel,
         lightdashConfig: { ai: { copilot: { maxQueryLimit: 5000 } } },
+        aiOrganizationSettingsService: {
+            getMaxQueryLimit: vi.fn().mockResolvedValue(5000),
+        },
         featureFlagService: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
         },

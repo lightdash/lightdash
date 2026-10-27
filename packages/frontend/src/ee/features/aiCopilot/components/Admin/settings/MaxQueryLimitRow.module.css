@@ -1,0 +1,19 @@
+.row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-md);
+
+    @media (min-width: $mantine-breakpoint-sm) {
+        flex-direction: row;
+    }
+}
+
+.input {
+    width: 100%;
+
+    @media (min-width: $mantine-breakpoint-sm) {
+        width: 160px;
+    }
+}

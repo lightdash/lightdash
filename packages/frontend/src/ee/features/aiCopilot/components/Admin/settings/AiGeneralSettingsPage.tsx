@@ -44,6 +44,7 @@ import { DeprecatedModelNotice } from '../../DeprecatedModelNotice';
 import { AiProvidersCard } from './AiProvidersCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { AiSurfacesCard } from './AiSurfacesCard';
+import { MaxQueryLimitRow } from './MaxQueryLimitRow';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
 import { ThreadRetentionRow } from './ThreadRetentionRow';
 
@@ -341,6 +342,14 @@ export const AiGeneralSettingsPage = () => {
                                         />
                                     </>
                                 )}
+
+                                <Divider />
+                                <MaxQueryLimitRow
+                                    current={settings.maxQueryLimit}
+                                    instanceDefault={
+                                        settings.instanceMaxQueryLimit
+                                    }
+                                />
                             </Stack>
                         </SettingsCard>
                     </Section>

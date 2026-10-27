@@ -681,6 +681,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiAgentToolsService: ({ models, repository, context }) =>
                 new AiAgentToolsService({
+                    aiOrganizationSettingsService:
+                        repository.getAiOrganizationSettingsService(),
                     agentPermissionService:
                         repository.getAgentPermissionService(),
                     agentActionLogModel: models.getAgentActionLogModel(),

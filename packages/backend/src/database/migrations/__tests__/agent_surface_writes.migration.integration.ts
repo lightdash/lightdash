@@ -240,6 +240,9 @@ describe('trusted surface to persisted chart identity', () => {
             },
         } as unknown as ConstructorParameters<typeof CoderService>[0]);
         const tools = new AiAgentToolsService({
+            aiOrganizationSettingsService: {
+                getMaxQueryLimit: async () => config.ai.copilot.maxQueryLimit,
+            },
             lightdashConfig: config,
             coderService,
             spaceModel,

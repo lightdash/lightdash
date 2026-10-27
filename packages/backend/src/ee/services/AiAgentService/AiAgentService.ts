@@ -4225,6 +4225,17 @@ export class AiAgentService extends BaseService {
         return prompt ? querySurfaceFromPrompt(prompt) : QuerySurface.APP;
     }
 
+    private async getMaxQueryLimit(
+        organizationUuid: string | undefined,
+    ): Promise<number> {
+        if (!organizationUuid) {
+            return this.lightdashConfig.ai.copilot.maxQueryLimit;
+        }
+        return this.aiOrganizationSettingsService.getMaxQueryLimit(
+            organizationUuid,
+        );
+    }
+
     private async executeAsyncAiMetricQuery(
         user: SessionUser,
         projectUuid: string,
@@ -4272,7 +4283,7 @@ export class AiAgentService extends BaseService {
         const webAiChartConfig = getWebAiChartConfig({
             vizConfig,
             metricQuery: metricQueryWithCustomMetrics,
-            maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
+            maxQueryLimit: await this.getMaxQueryLimit(user.organizationUuid),
             fieldsMap: fields,
         });
         const groupByDimensions = getGroupByDimensions(webAiChartConfig);
@@ -4337,7 +4348,7 @@ export class AiAgentService extends BaseService {
         return buildAiMergeQuery({
             toolArgs,
             getExplore: (exploreName) => exploreByName[exploreName],
-            maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
+            maxQueryLimit: await this.getMaxQueryLimit(user.organizationUuid),
         });
     }
 
@@ -10519,7 +10530,7 @@ export class AiAgentService extends BaseService {
 
         const parsedVizConfig = parseVizConfig(
             artifactChartConfig.config,
-            this.lightdashConfig.ai.copilot.maxQueryLimit,
+            await this.getMaxQueryLimit(organizationUuid),
         );
         if (!parsedVizConfig) {
             throw new ParameterError('Could not generate a visualization');
@@ -10683,7 +10694,7 @@ export class AiAgentService extends BaseService {
         const chartConfig = visualizations[chartIndex];
         const parsedVizConfig = parseVizConfig(
             chartConfig,
-            this.lightdashConfig.ai.copilot.maxQueryLimit,
+            await this.getMaxQueryLimit(organizationUuid),
         );
         if (!parsedVizConfig) {
             throw new ParameterError(
@@ -13871,8 +13882,9 @@ Use your existing tools to inspect them when relevant to the user's question (re
                 );
                 return prepareArtifactChartAsCode({
                     artifact,
-                    maxQueryLimit:
-                        this.lightdashConfig.ai.copilot.maxQueryLimit,
+                    maxQueryLimit: await this.getMaxQueryLimit(
+                        user.organizationUuid,
+                    ),
                     getExplore,
                     getCustomSchemaFields: (uuid, version) =>
                         this.getDataAppVizSchemaFields(
@@ -16159,6 +16171,14 @@ Use your existing tools to inspect them when relevant to the user's question (re
             );
 
         const { organizationUuid } = user;
+        const [orgMaxQueryLimit, orgRunSqlMaxLimit] = await Promise.all([
+            this.aiOrganizationSettingsService.getMaxQueryLimit(
+                organizationUuid,
+            ),
+            this.aiOrganizationSettingsService.getRunSqlMaxLimit(
+                organizationUuid,
+            ),
+        ]);
         const agentSettings = await this.getAgentSettings(user, prompt);
         const slackInstallation = isSlackPrompt(prompt)
             ? await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
@@ -17312,18 +17332,17 @@ Use your existing tools to inspect them when relevant to the user's question (re
                     maxQueryLimit:
                         responseExecution.mode === 'deep_research'
                             ? Math.min(
-                                  this.lightdashConfig.ai.copilot.maxQueryLimit,
+                                  orgMaxQueryLimit,
                                   responseExecution.budget.maxResultRows,
                               )
-                            : this.lightdashConfig.ai.copilot.maxQueryLimit,
+                            : orgMaxQueryLimit,
                     runSqlMaxLimit:
                         responseExecution.mode === 'deep_research'
                             ? Math.min(
-                                  this.lightdashConfig.ai.copilot
-                                      .runSqlMaxLimit,
+                                  orgRunSqlMaxLimit,
                                   responseExecution.budget.maxResultRows,
                               )
-                            : this.lightdashConfig.ai.copilot.runSqlMaxLimit,
+                            : orgRunSqlMaxLimit,
                     // Keep full result sets server-side and tell the model explicitly
                     // when its context is truncated.
                     maxContextRows:
@@ -18444,7 +18463,7 @@ Use your existing tools to inspect them when relevant to the user's question (re
         const exploreBlocks = await getModernArtifactCardBlocks(
             slackPrompt,
             this.lightdashConfig.siteUrl,
-            this.lightdashConfig.ai.copilot.maxQueryLimit,
+            await this.getMaxQueryLimit(slackPrompt.organizationUuid),
             createShareUrl,
             (exploreName) =>
                 this.getExplore(

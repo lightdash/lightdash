@@ -53,6 +53,7 @@ const settingsWithKeys: AiOrganizationSettings = {
     },
     bedrockConfig: null,
     providerBaseUrls: { anthropic: null, google: null, openai: null },
+    maxQueryLimit: null,
 };
 
 describe('validateDeepResearchLimits', () => {
@@ -555,6 +556,28 @@ describe('upsertSettings model validation', () => {
         ).rejects.toThrow(ForbiddenError);
         expect(upsert).not.toHaveBeenCalled();
     });
+
+    it.each([0, -5, 1.5, 100_001])(
+        'rejects maxQueryLimit=%s outside the allowed range',
+        async (maxQueryLimit) => {
+            const { service, upsert } = buildService();
+            await expect(
+                service.upsertSettings(user, { maxQueryLimit }),
+            ).rejects.toThrow(ParameterError);
+            expect(upsert).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([1, 5000, 100_000, null])(
+        'writes maxQueryLimit=%s',
+        async (maxQueryLimit) => {
+            const { service, upsert } = buildService();
+            await service.upsertSettings(user, { maxQueryLimit });
+            expect(upsert).toHaveBeenCalledExactlyOnceWith('org-uuid', {
+                maxQueryLimit,
+            });
+        },
+    );
 
     it('does not write preferences when the saved AI settings cannot be read', async () => {
         const { service, upsert, findAiOrganizationSettings } = buildService({
@@ -1764,4 +1787,39 @@ describe('isDataAppRuntimeAiEnabled', () => {
             ).resolves.toBe(expected);
         },
     );
+});
+
+describe('getMaxQueryLimit', () => {
+    const buildService = (settings: AiOrganizationSettings | null) =>
+        new AiOrganizationSettingsService({
+            aiOrganizationSettingsModel: {
+                findByOrganizationUuid: vi.fn().mockResolvedValue(settings),
+            },
+            lightdashConfig: {
+                ai: { copilot: { maxQueryLimit: 5000, runSqlMaxLimit: 2000 } },
+            },
+        } as never);
+
+    it('falls back to the instance caps without a settings row', async () => {
+        const service = buildService(null);
+        await expect(service.getMaxQueryLimit('org-uuid')).resolves.toBe(5000);
+        await expect(service.getRunSqlMaxLimit('org-uuid')).resolves.toBe(2000);
+    });
+
+    it('falls back to the instance caps when the org has not set one', async () => {
+        const service = buildService({
+            ...settingsWithKeys,
+            maxQueryLimit: null,
+        });
+        await expect(service.getMaxQueryLimit('org-uuid')).resolves.toBe(5000);
+    });
+
+    it('applies the org cap to both query and SQL limits', async () => {
+        const service = buildService({
+            ...settingsWithKeys,
+            maxQueryLimit: 250,
+        });
+        await expect(service.getMaxQueryLimit('org-uuid')).resolves.toBe(250);
+        await expect(service.getRunSqlMaxLimit('org-uuid')).resolves.toBe(250);
+    });
 });

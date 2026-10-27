@@ -197,6 +197,7 @@ const makeService = ({
     dashboardModel?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
+        aiOrganizationSettingsService: { getMaxQueryLimit: async () => 500 },
         agentPermissionService,
         agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         builtInSkills: {

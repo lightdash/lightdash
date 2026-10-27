@@ -1125,7 +1125,10 @@ export class McpService extends BaseService {
             projectParameterDefinitions,
         );
 
-        const maxLimit = this.lightdashConfig.ai.copilot.maxQueryLimit;
+        const maxLimit =
+            await this.aiOrganizationSettingsService.getMaxQueryLimit(
+                McpService.getAccount(ctx).organizationUuid,
+            );
 
         const additionalMetrics = populateCustomMetricsSQL(
             queryTool.queryConfig.customMetrics,

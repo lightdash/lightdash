@@ -688,6 +688,7 @@ export type DbAiOrganizationSettings = {
     // Gateway base URL per key provider; not secret, so stored beside the blob.
     provider_base_urls: Partial<AiProviderBaseUrls> | null;
     thread_retention_hours: number | null;
+    max_query_limit: number | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -718,6 +719,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
                 | 'provider_api_key_hints'
                 | 'provider_base_urls'
                 | 'thread_retention_hours'
+                | 'max_query_limit'
             >
         >,
     Partial<
@@ -743,6 +745,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'provider_api_key_hints'
             | 'provider_base_urls'
             | 'thread_retention_hours'
+            | 'max_query_limit'
             | 'updated_at'
         >
     >
