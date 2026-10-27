@@ -1,3 +1,15 @@
+# [3.70.0](https://github.com/lightdash/lightdash/compare/3.69.3...3.70.0) (2026-10-27)
+
+
+### Bug Fixes
+
+* **dashboards:** keep the value and locked tabs when toggling Required or Lock back ([#31670](https://github.com/lightdash/lightdash/issues/31670)) ([fe9ff08](https://github.com/lightdash/lightdash/commit/fe9ff089b1dc86290b1f8e2f317aaeca78698fda))
+
+
+### Features
+
+* **embed:** show filter sections on embedded dashboards ([#31671](https://github.com/lightdash/lightdash/issues/31671)) ([48e054d](https://github.com/lightdash/lightdash/commit/48e054de96685f6b16dd8274a5bde12f9b35bf5a))
+
 ## [3.69.3](https://github.com/lightdash/lightdash/compare/3.69.2...3.69.3) (2026-10-27)
 
 
