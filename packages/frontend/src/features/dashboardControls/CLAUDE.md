@@ -176,7 +176,8 @@ In `FilterConfiguration/`:
   a `display: contents` box carrying `inert`; `.inert` in
   `FilterPills.module.css` is the one dimming rule, shared with the capsule
   actions and the header guard)
-  wraps the "Add filter" group ("..." included) and "Add section"; each
+  wraps the "Add filter" group ("..." included), "Add section" and the
+  "New section" capsule; each
   capsule's name, + and menu carry `inert`
   themselves.
   The multi-select is off; the sectioned bar's pills still drag (see
@@ -1235,8 +1236,10 @@ the language map, as tab names are.
   `data-editable` drops the collapsed capsule's 10px right padding), two
   `sm` `xl`-radius icons, each with a tooltip of its name: `+` "Add filter
   to {name}" (`openNew(section.id)`) and `SectionMenu` named "{name} menu"
-  ("Collapsed by default" and the
-  two-click "Remove section · N filters": the box is
+  ("Collapsed by default", then one neutral item with a folder-minus icon (the mirror of Add section's folder-plus) that
+  removes in one click: "Remove, keep filters" on a section with members
+  (on any tab), "Remove section" on an empty one; never red, no trash can,
+  nothing asks twice. The box is
   `isCollapsedByDefault`, a toggle saves the opposite; remove dispatches
   `removeControlSection` and, with members, one `setDashboardFilters` over
   `removeSectionFromRules` plus `setHaveFiltersChanged(true)`; focus then
@@ -1245,8 +1248,23 @@ the language map, as tab names are.
   section": a subtle `md` (28px, the pill line) `ActionIcon` with the
   folder-plus icon and its tooltip, right after "Add filter" (its
   `UnsectionTarget`) and before the capsules, shown once the dashboard has
-  a filter, hidden while a section is named and inert while a filter is
-  edited (`InertWhileEditing`). The bar ends on the unsectioned pills:
+  a section (before that the capsule below stands in for it),
+  hidden while a section is named and inert while a filter is
+  edited (`InertWhileEditing`). While the dashboard has no section and at
+  least one filter (dimensions and metrics), the "New
+  section" capsule takes the icon's place instead (`NewSectionGhost`,
+  `data-new-section`): an `UnstyledButton` drawn by `.newSectionGhost`,
+  28px tall (44px in the shipped bar's narrow container, as its buttons),
+  `xl` radius, a 1px dashed outline in the default button's border colours
+  (`gray-3`/`dark-4`, as Add filter's dashed border), no fill, a 14px `+`
+  and "New section" in `xs` 500, dimmed (text colour and the button's
+  hover border on hover). A click starts the same naming as the icon; it is
+  also a `useDroppable` (`NEW_SECTION_TARGET_ID`, disabled while a filter
+  is edited, and a drop then writes nothing): a pill dropped on it starts
+  the naming with that pill to move in (the selection, when it carries
+  one). Under a pill it carries `data-over`: a `blue-5` dashed outline
+  over `blue-light`, no size change. Once a section exists the icon is
+  back; view mode never shows it. The bar ends on the unsectioned pills:
   nothing follows them. Every way of starting a section puts `NewSection`
   in that one slot, in the button's place, where the section lands. It is
   a capsule holding a focused, empty `SectionNameInput` ("Section
@@ -1262,8 +1280,8 @@ the language map, as tab names are.
   - A committed new section that took pills: the first moved pill, through
     the bar's `focusAfter`, which does not check for `body` focus; the name
     button then stays unfocused. Either way focus is in the new section.
-  - A cancelled name: "Add filter" ("Add section" when it started it), only
-    when focus fell to `body`.
+  - A cancelled name: "Add filter" ("Add section" or "New section" when it
+    started it), only when focus fell to `body`.
   While a filter is edited the name and the `.actions` group carry `inert`
   (the group dimmed by the shared `.inert` rule); the chevron still folds.
 - `SectionsTip` teaches that gesture: an editor's first row above the bar
@@ -1299,7 +1317,8 @@ the language map, as tab names are.
   targets are every saved pill, each capsule (`useDroppable` with the
   section id on the outline, folded or not; it does not unfold), the
   first button (`UnsectionTarget`, a `useDroppable` with
-  `UNSECTIONED_TARGET_ID` around `AddControl`) and the bar's empty space
+  `UNSECTIONED_TARGET_ID` around `AddControl`), the "New section" capsule
+  while it shows (see above) and the bar's empty space
   (`BarSpace`, a `useDroppable` with `BAR_SPACE_TARGET_ID` on `.flow`
   itself, every wrapped row's end and the gaps between capsules included).
   The space holds everything else, so it counts only where no other target
@@ -1417,8 +1436,9 @@ never a filter or section name, label, value or field id.
   the shown section: a dangling `sectionId` is none, so dropping such a rule
   among the unsectioned (which drops the id) is a reorder.
 - `dashboard_section.created`: `NewSection`'s commit in `SectionedFilters`,
-  with `source` (`add_section_icon`, or `selection_bar` / `move_to_menu` from
-  `SelectionActions`), `filtersMoved` and `wasTipShown` (`useSectionsTip`,
+  with `source` (`add_section_icon`, `new_section_capsule` (its click),
+  `new_section_drop` (a pill dropped on it), or `selection_bar` /
+  `move_to_menu` from `SelectionActions`), `filtersMoved` and `wasTipShown` (`useSectionsTip`,
   the tip's own reading). It is the only event for that action: the picked
   pills it moves send no `dashboard_filters.moved`.
 - `dashboard_sections_tip.dismissed`: the tip's X.

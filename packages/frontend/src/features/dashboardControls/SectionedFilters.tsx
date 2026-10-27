@@ -87,6 +87,7 @@ import {
     isRuleInSection,
     moveRuleToSection,
     moveRulesToSection,
+    NEW_SECTION_TARGET_ID,
     rangeBetween,
     UNSECTIONED_TARGET_ID,
     type SectionRule,
@@ -105,6 +106,7 @@ import { type PillPopoverState } from './ViewerSavedPills';
 const ADD_FILTER_SELECTOR =
     '[data-filter-actions] > button[data-dashboard-filter-control]';
 const ADD_SECTION_SELECTOR = '[data-add-section]';
+const NEW_SECTION_SELECTOR = '[data-new-section]';
 const pillSelector = (id: string) => `[data-controls-pill="${id}"]`;
 const sectionNameSelector = (id: string) => `[data-section-name="${id}"]`;
 
@@ -357,10 +359,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                     </Tooltip>
                     <SectionMenu
                         label={`${section.name} menu`}
-                        countLabel={formatSectionCount(
-                            getUiString,
-                            rules.length,
-                        )}
+                        hasMembers={rules.length > 0}
                         isCollapsedByDefault={isCollapsedByDefault(
                             section,
                             rules.length,
@@ -421,6 +420,30 @@ const UnsectionTarget: FC<{ children: ReactNode }> = ({ children }) => {
         >
             {children}
         </Box>
+    );
+};
+
+// A dashboard with no section yet: a dashed capsule that starts the first
+// one, on a click or with a pill dropped on it
+const NewSectionGhost: FC<{ isDisabled: boolean; onClick: () => void }> = ({
+    isDisabled,
+    onClick,
+}) => {
+    const { setNodeRef, isOver } = useDroppable({
+        id: NEW_SECTION_TARGET_ID,
+        disabled: isDisabled,
+    });
+    return (
+        <UnstyledButton
+            ref={setNodeRef}
+            className={`${classes.newSectionGhost} mantine-focus-auto`}
+            data-new-section
+            data-over={isOver || undefined}
+            onClick={onClick}
+        >
+            <MantineIcon icon={IconPlus} size={14} />
+            New section
+        </UnstyledButton>
     );
 };
 
@@ -824,7 +847,10 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
             cancelFocusSelector={
                 naming.source === 'add_section_icon'
                     ? ADD_SECTION_SELECTOR
-                    : ADD_FILTER_SELECTOR
+                    : naming.source === 'new_section_capsule' ||
+                        naming.source === 'new_section_drop'
+                      ? NEW_SECTION_SELECTOR
+                      : ADD_FILTER_SELECTOR
             }
         />
     );
@@ -842,6 +868,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     const allRules = groupRulesBySection(dashboardFilters, sections).flatMap(
         ({ rules }) => rules,
     );
+    // Until the first section, a capsule that says how to start one
+    const isGhostShown = sections.length === 0 && allRules.length > 0;
     const fieldOf = ({ rule, group }: SectionRule) =>
         getDashboardFilterField<DashboardFilterableField>(
             group === 'metrics'
@@ -853,6 +881,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     const nameOf = (id: string) => {
         if (id === UNSECTIONED_TARGET_ID || id === BAR_SPACE_TARGET_ID)
             return 'the space outside any section';
+        if (id === NEW_SECTION_TARGET_ID) return 'a new section';
         const section = sections.find((s) => s.id === id);
         if (section)
             return `section ${section.name || getUiString('filters.rail.untitledSection')}`;
@@ -943,6 +972,19 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
             moveSection(activeId, over ? String(over.id) : undefined);
             return;
         }
+        // Onto the New section capsule: name it, then the pill (or the
+        // selection it carries) moves in; no section starts during an edit
+        if (over && String(over.id) === NEW_SECTION_TARGET_ID) {
+            if (isEditing) return;
+            setNaming({
+                moveIds:
+                    selected.length > 1 && selected.includes(activeId)
+                        ? selected
+                        : [activeId],
+                source: 'new_section_drop',
+            });
+            return;
+        }
         // A picked pill carries the selection: all of them join the target's section
         if (over && selected.length > 1 && selected.includes(activeId)) {
             const overId = String(over.id);
@@ -1011,7 +1053,20 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                     <UnsectionTarget>
                         <AddControl />
                     </UnsectionTarget>
-                    {naming === null && allRules.length > 0 && (
+                    {naming === null && isGhostShown && (
+                        <InertWhileEditing>
+                            <NewSectionGhost
+                                isDisabled={isEditing}
+                                onClick={() =>
+                                    setNaming({
+                                        moveIds: selected,
+                                        source: 'new_section_capsule',
+                                    })
+                                }
+                            />
+                        </InertWhileEditing>
+                    )}
+                    {naming === null && sections.length > 0 && (
                         <InertWhileEditing>
                             <Tooltip label="Add section">
                                 <ActionIcon

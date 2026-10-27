@@ -783,6 +783,8 @@ type DashboardControlsEventBase = {
 
 export type DashboardSectionCreatedSource =
     | 'add_section_icon'
+    | 'new_section_capsule'
+    | 'new_section_drop'
     | 'selection_bar'
     | 'move_to_menu';
 

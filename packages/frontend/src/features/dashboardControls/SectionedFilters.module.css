@@ -76,6 +76,44 @@
     border-radius: var(--mantine-radius-xl);
 }
 
+/* Before the first section: a lighter, bracketed capsule (dashed outline
+   in Add filter's border colours, no fill, dimmed text) that starts one;
+   under a dragged pill its outline
+   turns blue over a light blue tint, so nothing changes size */
+.newSectionGhost {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 var(--mantine-spacing-sm) 0 var(--mantine-spacing-xs);
+    border: 1px dashed
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+    border-radius: var(--mantine-radius-xl);
+    background-color: transparent;
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    white-space: nowrap;
+    transition:
+        border-color 0.12s ease-in-out,
+        color 0.12s ease-in-out;
+}
+
+.newSectionGhost:hover {
+    border-color: light-dark(
+        var(--mantine-color-gray-4),
+        var(--mantine-color-dark-3)
+    );
+    color: var(--mantine-color-text);
+}
+
+.newSectionGhost[data-over] {
+    border-color: var(--mantine-color-blue-5);
+    background-color: var(--mantine-color-blue-light);
+    color: var(--mantine-color-blue-light-color);
+}
+
 /* The dragged pill's copy, above the capsules */
 .dragPreview {
     height: 28px;
@@ -152,6 +190,10 @@
 @container (width < 600px) {
     .nameSizer .nameInputField {
         min-height: 44px;
+    }
+
+    .newSectionGhost {
+        height: 44px;
     }
 }
 
@@ -240,5 +282,9 @@
 @media (prefers-reduced-motion: reduce) {
     .pillsEnter > * {
         animation: none;
+    }
+
+    .newSectionGhost {
+        transition: none;
     }
 }
