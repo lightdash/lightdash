@@ -64,6 +64,8 @@ type Props = {
      * of behind its drawer button, and closes the drawer (default false).
      */
     isCompactDrawerSuppressed?: boolean;
+    /** How the filter row aligns its items (default `flex-start`). */
+    filtersAlign?: 'flex-start' | 'center';
 };
 
 export const DashboardFiltersBar: FC<Props> = ({
@@ -86,6 +88,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     onCollapse,
     filterArea,
     isCompactDrawerSuppressed = false,
+    filtersAlign = 'flex-start',
 }) => {
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
@@ -156,7 +159,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                     {hasTilesThatSupportFilters && (
                         <Group
                             className={classes.filters}
-                            align="flex-start"
+                            align={filtersAlign}
                             gap="xs"
                             wrap="wrap"
                         >

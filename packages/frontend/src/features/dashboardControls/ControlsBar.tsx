@@ -30,6 +30,11 @@ export const ControlsBar: FC<Props> = (props) => {
                 {...props}
                 // The rail is on the page: a drawer over it would hide it
                 isCompactDrawerSuppressed={isSidebarOpen}
+                // The flat bar's items share each line's centre with the
+                // 30px funnel; the sectioned flow centres its own lines
+                filtersAlign={
+                    hasSections || props.isEditMode ? 'flex-start' : 'center'
+                }
                 filterArea={
                     <SettledFilterFields>
                         {/* An editor's bar is always sectioned: its selection starts the first section */}
