@@ -279,6 +279,11 @@ const rolesModelWithoutExtraRoles = {
     })),
 };
 
+const licensedConfigMock: LightdashConfig = {
+    ...lightdashConfigMock,
+    license: { licenseKey: 'license-key', licenseCertificate: null },
+};
+
 const createUserService = (
     lightdashConfig: LightdashConfig,
     overrides: UserServiceTestOverrides = {},
@@ -794,9 +799,23 @@ describe('UserService', () => {
             expect(account.isServiceAccount()).toBe(false);
         });
 
+        test('should not look up service accounts on an unlicensed instance', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                license: { licenseKey: null, licenseCertificate: null },
+            });
+
+            const account = await service.getAccountByUserUuid('userUuid');
+
+            expect(
+                userModel.findServiceAccountByUserUuid,
+            ).not.toHaveBeenCalled();
+            expect(account.isSessionUser()).toBe(true);
+        });
+
         test('should return a service account when the user backs a service account', async () => {
             // No env var or feature flag is needed: the licence is the gate.
-            const service = createUserService(lightdashConfigMock, {
+            const service = createUserService(licensedConfigMock, {
                 featureFlagModel: {
                     get: vi.fn(async ({ featureFlagId }) => ({
                         id: featureFlagId,
@@ -841,7 +860,7 @@ describe('UserService', () => {
         });
 
         test('should preserve service-account authentication', async () => {
-            const service = createUserService(lightdashConfigMock);
+            const service = createUserService(licensedConfigMock);
             (
                 userModel.findServiceAccountByUserUuid as import('vitest').Mock
             ).mockResolvedValueOnce({

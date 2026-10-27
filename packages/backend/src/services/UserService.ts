@@ -2405,6 +2405,11 @@ export class UserService extends BaseService {
     private async getAccountForSessionUser(
         sessionUser: SessionUser,
     ): Promise<RegisteredAccount> {
+        // The service_accounts table only exists on licensed instances (EE migrations).
+        if (this.lightdashConfig.license.licenseKey === null) {
+            return AccountFactory.fromSession(sessionUser);
+        }
+
         const serviceAccount =
             await this.userModel.findServiceAccountByUserUuid(
                 sessionUser.userUuid,
