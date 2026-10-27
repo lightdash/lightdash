@@ -33,7 +33,7 @@ Don't verify your own output. **After you Write or Edit a file, do not Read it b
 
 ### Approved packages
 
-`react`, `react-dom`, `@lightdash/query-sdk`, `recharts`, `d3`, `d3-sankey`, `d3-cloud`, `@tanstack/react-query`, `@tanstack/react-table`, `@tanstack/react-virtual`, `react-resizable-panels`, `date-fns`, `html-to-image`, `jspdf`, `lodash-es`, `lucide-react`, `clsx`, `tailwind-merge`, `class-variance-authority`
+`react`, `react-dom`, `@lightdash/query-sdk`, `recharts`, `d3`, `d3-sankey`, `d3-cloud`, `three`, `@tanstack/react-query`, `@tanstack/react-table`, `@tanstack/react-virtual`, `react-resizable-panels`, `date-fns`, `html-to-image`, `jspdf`, `lodash-es`, `lucide-react`, `clsx`, `tailwind-merge`, `class-variance-authority`
 
 ### Pre-installed shadcn/ui components
 
@@ -1269,6 +1269,10 @@ Only when the user asks for adjustable panel sizing (or two sibling areas genuin
 If a Recharts component covers it, **use Recharts** — even if a D3 version would be marginally prettier. The cost of D3 is more code, more chances for memory leaks, and harder integration with the action menu.
 
 When you do need D3, **read `/app/references/d3.md` first.** It contains the React-19 + D3 integration pattern, five worked examples (bar, sankey, sunburst, word cloud, geo choropleth/globe), the cross-cutting rules (`CHART_COLORS`, `filtersFor`, action menu, no-cross-refetch animation), and a common-mistakes table. Don't try to wire D3 from memory — load the reference.
+
+## When to use Three.js
+
+`three` is available for genuinely 3D visualizations **only when the user explicitly asks for 3D** — 3D scatter/surface plots, point clouds, globes with extruded data. Never pick it over Recharts/D3 for a chart that works in 2D. Rules when you do use it: create the renderer/scene in a `useEffect`, drive data updates through refs rather than re-creating the scene, and dispose of geometries, materials, and the renderer in the effect cleanup — leaked WebGL contexts crash the tab after a few remounts. Cap `devicePixelRatio` at 2 and stop the animation loop when the canvas is off-screen.
 
 ## `drillDown()` Reference
 
