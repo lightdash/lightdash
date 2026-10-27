@@ -54,15 +54,14 @@ describe('retained query history for Analytics backfill', () => {
         await database.destroy();
     });
 
-    it('selects successful queries and execution errors, excluding unfinished and expired work', async () => {
+    it('selects successful and failed queries, including errors without execution timing', async () => {
         tracker.on.select('query_history').response([]);
         await collect();
         const { sql: rawSql, bindings } = tracker.history.select[0];
         const sql = normalizeSql(rawSql);
-        // Errors need evidence that execution actually happened; a queued
-        // timeout or pre-execution failure is not historical query usage.
-        expect(sql).toContain(
-            '("q"."status" = ? or ("q"."status" = ? and "q"."warehouse_execution_time_ms" is not null))',
+        expect(sql).toContain('"q"."status" in (?, ?)');
+        expect(sql).not.toContain(
+            '"q"."warehouse_execution_time_ms" is not null',
         );
         expect(bindings).toContain(QueryHistoryStatus.READY);
         expect(bindings).toContain(QueryHistoryStatus.ERROR);
@@ -97,7 +96,7 @@ describe('retained query history for Analytics backfill', () => {
         expect(sql).not.toContain(untrustedOrg);
     });
 
-    it('exports the complete stream schema without SQL, error text or invented timing and identity', async () => {
+    it('exports the complete stream schema with error text but without SQL or invented timing and identity', async () => {
         tracker.on.select('query_history').responseOnce([
             queryRow({
                 compiled_sql: 'SELECT private_business_data FROM customer',
@@ -109,9 +108,9 @@ describe('retained query history for Analytics backfill', () => {
                 status: QueryHistoryStatus.ERROR,
                 created_by_user_uuid: null,
                 total_row_count: null,
-                warehouse_execution_time_ms: 0,
+                warehouse_execution_time_ms: null,
                 compiled_sql: 'SELECT other_private_data',
-                error: 'secret error detail',
+                error: 'column orders missing',
                 created_by_account: 'another-external-person@example.com',
             }),
         ]);
@@ -131,6 +130,7 @@ describe('retained query history for Analytics backfill', () => {
             event_ts: '2026-10-01T15:04:05.123456Z',
             context: QueryExecutionContext.EXPLORE,
             status: 'success',
+            error: null,
             explore_name: 'orders',
             chart_id: 'chart',
             dashboard_id: 'dashboard',
@@ -143,8 +143,9 @@ describe('retained query history for Analytics backfill', () => {
         });
         expect(rows[1]).toMatchObject({
             status: 'error',
+            error: 'column orders missing',
             user_id: null,
-            warehouse_execution_time_ms: 0,
+            warehouse_execution_time_ms: null,
             total_row_count: null,
         });
         expect(JSON.stringify(rows)).not.toMatch(
@@ -152,7 +153,7 @@ describe('retained query history for Analytics backfill', () => {
         );
         const selected = tracker.history.select[0].sql;
         expect(selected).not.toContain('"q"."compiled_sql"');
-        expect(selected).not.toContain('"q"."error"');
+        expect(selected).toContain('"q"."error"');
         expect(selected).not.toContain('"q"."created_by_account"');
         expect(selected).not.toMatch(/select\s+(?:"q"\.)?\*/i);
         expect(selected).toContain(

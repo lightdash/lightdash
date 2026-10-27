@@ -24,21 +24,17 @@ export class UsageQueryHistoryModel {
                 .where('o.organization_uuid', organizationUuid)
                 .whereNot('p.project_type', ProjectType.PREVIEW)
                 .where('q.created_at', '<', before)
-                .where((qb) =>
-                    qb
-                        .where('q.status', QueryHistoryStatus.READY)
-                        .orWhere((errors) =>
-                            errors
-                                .where('q.status', QueryHistoryStatus.ERROR)
-                                .whereNotNull('q.warehouse_execution_time_ms'),
-                        ),
-                )
+                .whereIn('q.status', [
+                    QueryHistoryStatus.READY,
+                    QueryHistoryStatus.ERROR,
+                ])
                 .select(
                     'q.query_uuid',
                     'q.project_uuid',
                     'q.created_by_user_uuid',
                     'q.context',
                     'q.status',
+                    'q.error',
                     'q.warehouse_execution_time_ms',
                     'q.total_row_count',
                 )
@@ -94,6 +90,10 @@ export class UsageQueryHistoryModel {
                         row.status === QueryHistoryStatus.READY
                             ? 'success'
                             : 'error',
+                    error:
+                        row.status === QueryHistoryStatus.ERROR
+                            ? (row.error ?? null)
+                            : null,
                     context: row.context,
                     explore_name: row.explore_name,
                     chart_id: row.chart_id,
