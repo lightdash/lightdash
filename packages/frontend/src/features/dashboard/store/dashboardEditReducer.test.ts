@@ -299,6 +299,23 @@ describe('tile selectors', () => {
             ).toBe(sections);
         });
 
+        it('prepends a section before the others, marking the change', () => {
+            const seeded = reducer(
+                initialDashboardEditState,
+                actions.syncControlSections(sections),
+            );
+            const state = reducer(
+                seeded,
+                actions.prependControlSection({ id: 'c', name: 'New' }),
+            );
+            expect(state.controlSections.map((s) => s.id)).toEqual([
+                'c',
+                'a',
+                'b',
+            ]);
+            expect(state.haveControlSectionsChanged).toBe(true);
+        });
+
         it('renames, moves and removes a section, marking the change', () => {
             const seeded = reducer(
                 initialDashboardEditState,

@@ -388,7 +388,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
     );
 };
 
-// A new section named in place, after the last capsule. Focus goes back to
+// A new section named in place, first, after "Add filter". Focus goes back to
 // "Add filter" once it is settled, or to `cancelFocusSelector` if cancelled
 const NewSection: FC<{
     onAdd: (name: string) => void;
@@ -440,11 +440,10 @@ const UnsectionTarget: FC<{ children: ReactNode }> = ({ children }) => {
 
 type Props = {
     activeTabUuid: string | undefined;
-    /** Rendered last in the flow: the edit bar's requirements button. */
-    children?: ReactNode;
 };
 
-// The filter area of a dashboard with sections: Add, then one outlined
+// The filter area of a dashboard with sections: Add (an editor's then Add
+// section, or the new section's name), then one outlined
 // capsule per section with a member on this tab (its toggle, then its pills
 // inline), then the unsectioned pass (the unsectioned saved pills, the
 // viewer's own). Collapsing is local state keyed by section id, as the
@@ -452,7 +451,7 @@ type Props = {
 // every pass. In edit mode one drag context spans the passes: a pill dropped
 // on a pill takes its place and section, on a capsule joins that section
 // last, on the first button leaves its section
-export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
+export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
     const [openPopoverId, setOpenPopoverId] = useState<string>();
     const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -746,16 +745,16 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
         />
     );
 
-    // Named where it was started: in the button's place, or after the capsules
+    // Named first, in "Add section"'s place, wherever it was started
     const newSection = naming !== null && (
         <NewSection
             onAdd={(name) => {
                 const section = { id: uuidv4(), name };
-                dispatch(dashboardEditActions.addControlSection(section));
+                dispatch(dashboardEditActions.prependControlSection(section));
                 if (naming.moveIds.length > 0)
                     moveToSection(naming.moveIds, section.id, [
-                        ...sections,
                         section,
+                        ...sections,
                     ]);
                 setNaming(null);
             }}
@@ -775,7 +774,6 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
                 <AddControl />
                 {capsules}
                 {pills}
-                {children}
             </Box>
         );
     }
@@ -917,10 +915,6 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
                     <UnsectionTarget>
                         <AddControl />
                     </UnsectionTarget>
-                    {capsules}
-                    {naming !== null && !naming.isFromAddSection && newSection}
-                    {pills}
-                    {naming?.isFromAddSection && newSection}
                     {naming === null && allRules.length > 0 && (
                         <InertWhileEditing>
                             <Tooltip label="Add section">
@@ -944,7 +938,9 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
                             </Tooltip>
                         </InertWhileEditing>
                     )}
-                    {children}
+                    {newSection}
+                    {capsules}
+                    {pills}
                 </Box>
                 {/* On the body, so the bar's overflow doesn't clip the copy */}
                 {createPortal(

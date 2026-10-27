@@ -2,6 +2,7 @@ import { Box } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import AddFilterButton from '../dashboardFilters/AddFilterButton';
+import { FilterBarMenu } from './FilterBarMenu';
 import classes from './FilterPills.module.css';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
@@ -32,8 +33,8 @@ type Props = {
 };
 
 // The bar's shipped "Add filter" button, which starts a new filter in the
-// rail. An editor's carries the shipped eye that hides it from viewers; a
-// viewer's is the shipped view-mode one, with the reset button. Its popover
+// rail. An editor's carries the "..." menu (`FilterBarMenu`) in place of the
+// shipped eye; a viewer's is the shipped view-mode one, with the reset button. Its popover
 // is never given an id to open on, so a click only calls `onPopoverOpen`
 export const AddControl: FC<Props> = ({
     triggerClassName,
@@ -52,6 +53,7 @@ export const AddControl: FC<Props> = ({
                 isEditMode={!isViewer}
                 triggerClassName={triggerClassName}
                 unsavedFiltersTooltip={unsavedFiltersTooltip}
+                editModeAction={isViewer ? undefined : <FilterBarMenu />}
                 activeTabUuid={undefined}
                 openPopoverId={undefined}
                 onPopoverOpen={() => openNew()}

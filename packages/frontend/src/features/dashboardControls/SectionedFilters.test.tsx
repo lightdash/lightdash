@@ -12,7 +12,6 @@ import {
 } from '@lightdash/common';
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
@@ -262,14 +261,13 @@ const renderSectioned = (
         { id: 'b', name: 'Regions' },
         { id: 'c', name: 'Empty' },
     ],
-    trailing?: ReactNode,
 ) => {
     const store = createDashboardTestStore({
         dashboardFilters: { dimensions, metrics: [], tableCalculations: [] },
     });
     const onTab = (tab: string | undefined) => (
         <DashboardStoreTestProvider store={store}>
-            <SectionedFilters activeTabUuid={tab}>{trailing}</SectionedFilters>
+            <SectionedFilters activeTabUuid={tab} />
         </DashboardStoreTestProvider>
     );
     seedDashboardEditState(store, {
@@ -341,22 +339,31 @@ describe('SectionedFilters', () => {
         expect(document.querySelectorAll('[class*="capsule"]')).toHaveLength(2);
     });
 
-    it('keeps Add, the capsules, the pills and what follows in one flow', () => {
-        renderSectioned(
-            [rule('one', 'a')],
-            'tab-1',
-            undefined,
-            <button>Required</button>,
-        );
-        const required = screen.getByRole('button', { name: 'Required' });
+    it('keeps Add, Add section, the capsules and the pills in one flow, in that order, ending on the pills', () => {
+        renderSectioned([rule('one', 'a')], 'tab-1');
         // In edit mode Add sits in its drop-target wrapper inside the flow
-        const flow = screen
-            .getByRole('button', { name: 'Add' })
-            .closest('[class*="flow"]');
+        const add = screen.getByRole('button', { name: 'Add' });
+        const flow = add.closest('[class*="flow"]');
         expect(flow).not.toBeNull();
-        expect(flow).toContainElement(required);
-        expect(flow?.lastElementChild).toBe(required);
-        expect(flow).toContainElement(screen.getByTestId('pills-unsectioned'));
+        const inOrder = [
+            add,
+            screen.getByRole('button', { name: 'Add section' }),
+            screen.getByTestId('pills-a'),
+            screen.getByTestId('pills-unsectioned'),
+        ];
+        inOrder.slice(1).forEach((node, i) => {
+            expect(flow).toContainElement(node);
+            expect(
+                inOrder[i].compareDocumentPosition(node) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+        });
+        expect(flow?.lastElementChild).toContainElement(
+            screen.getByTestId('pills-unsectioned'),
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Filter rules' }),
+        ).not.toBeInTheDocument();
     });
 
     it('renders a capsule only for the sections that have a visible member', () => {
@@ -1026,7 +1033,7 @@ describe('SectionedFilters', () => {
                 screen.getByRole('textbox', { name: 'Section name' }),
                 'Misc{Enter}',
             );
-            const added = sectionsOf(store).at(-1);
+            const added = sectionsOf(store)[0];
             expect(added?.name).toBe('Misc');
             expect(
                 sectionIdsOf(setDashboardFilters.mock.calls[0][0])[0],
@@ -1124,7 +1131,7 @@ describe('SectionedFilters', () => {
             mockSidebar.current = { isViewer: false, isSidebarOpen: false };
         });
 
-        it('adds a section last from a selection, and drops it on Escape or an empty name', async () => {
+        it('adds a section first from a selection, named in the Add section slot, and drops it on Escape or an empty name', async () => {
             const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
             const user = userEvent.setup();
             const addFilter = () => screen.getByRole('button', { name: 'Add' });
@@ -1146,6 +1153,18 @@ describe('SectionedFilters', () => {
             const input = screen.getByRole('textbox', { name: 'Section name' });
             expect(input).toHaveFocus();
             expect(input).toHaveAttribute('placeholder', 'Section name');
+            // In Add section's slot: after Add, before the first capsule
+            expect(
+                screen.queryByRole('button', { name: 'Add section' }),
+            ).not.toBeInTheDocument();
+            expect(
+                addFilter().compareDocumentPosition(input) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+            expect(
+                input.compareDocumentPosition(capsuleOf('Dates')) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
             await user.type(input, 'Late{Escape}');
             expect(sectionsOf(store)).toHaveLength(3);
             expect(addFilter()).toHaveFocus();
@@ -1157,12 +1176,12 @@ describe('SectionedFilters', () => {
 
             await moveToNewSection();
             await user.keyboard('Late{Enter}');
-            const added = sectionsOf(store).at(-1);
+            const added = sectionsOf(store)[0];
             expect(sectionsOf(store).map((s) => s.name)).toEqual([
+                'Late',
                 'Dates',
                 'Regions',
                 'Empty',
-                'Late',
             ]);
             expect(
                 (
@@ -1192,28 +1211,23 @@ describe('SectionedFilters', () => {
             };
         });
 
-        it('shows at the end of the bar once there is a filter', () => {
+        it('shows right after Add filter once there is a filter', () => {
             const empty = renderSectioned([], 'tab-1', []);
             expect(addSection()).not.toBeInTheDocument();
             empty.unmount();
 
-            renderSectioned(
-                [rule('one', undefined)],
-                'tab-1',
-                [],
-                <button>Rules after</button>,
-            );
+            renderSectioned([rule('one', undefined)], 'tab-1', []);
             const button = addSection();
             expect(button).toBeInTheDocument();
             expect(
                 screen
-                    .getByTestId('pills-unsectioned')
+                    .getByRole('button', { name: 'Add' })
                     .compareDocumentPosition(button as Element) &
                     Node.DOCUMENT_POSITION_FOLLOWING,
             ).toBeTruthy();
             expect(
                 (button as Element).compareDocumentPosition(
-                    screen.getByRole('button', { name: 'Rules after' }),
+                    screen.getByTestId('pills-unsectioned'),
                 ) & Node.DOCUMENT_POSITION_FOLLOWING,
             ).toBeTruthy();
         });
@@ -1229,11 +1243,9 @@ describe('SectionedFilters', () => {
             expect(addSection()).not.toBeInTheDocument();
             const input = screen.getByRole('textbox', { name: 'Section name' });
             expect(input).toHaveFocus();
-            // In the button's place, after the pills
+            // In the button's place, before the capsules
             expect(
-                screen
-                    .getByTestId('pills-unsectioned')
-                    .compareDocumentPosition(input) &
+                input.compareDocumentPosition(capsuleOf('Dates')) &
                     Node.DOCUMENT_POSITION_FOLLOWING,
             ).toBeTruthy();
             await user.type(input, 'Late{Escape}');
@@ -1243,10 +1255,10 @@ describe('SectionedFilters', () => {
             await user.click(addSection() as HTMLElement);
             await user.keyboard('Late{Enter}');
             expect(sectionsOf(store).map((s) => s.name)).toEqual([
+                'Late',
                 'Dates',
                 'Regions',
                 'Empty',
-                'Late',
             ]);
             expect(setDashboardFilters).not.toHaveBeenCalled();
             expect(addSection()).toBeInTheDocument();
@@ -1262,7 +1274,7 @@ describe('SectionedFilters', () => {
 
             await user.click(addSection() as HTMLElement);
             await user.keyboard('Misc{Enter}');
-            const added = sectionsOf(store).at(-1);
+            const added = sectionsOf(store)[0];
             expect(added?.name).toBe('Misc');
             expect(
                 (

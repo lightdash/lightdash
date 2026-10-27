@@ -1,6 +1,6 @@
 import { FilterOperator } from '@lightdash/common';
 import { screen } from '@testing-library/react';
-import { type ComponentProps, type ReactElement, type ReactNode } from 'react';
+import { type ComponentProps, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
@@ -65,9 +65,7 @@ vi.mock('./FilterPills', () => ({
     FilterPills: () => <div data-testid="filter-pills" />,
 }));
 vi.mock('./SectionedFilters', () => ({
-    SectionedFilters: ({ children }: { children?: ReactNode }) => (
-        <div data-testid="sectioned-filters">{children}</div>
-    ),
+    SectionedFilters: () => <div data-testid="sectioned-filters" />,
 }));
 
 vi.mock('../dateZoom', () => ({
@@ -149,7 +147,7 @@ describe('ControlsBar', () => {
         expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
     });
 
-    it('renders the sections and the Required button in edit mode when the dashboard has sections', () => {
+    it('renders the sections in edit mode when the dashboard has sections, with no Required button', () => {
         const store = createDashboardTestStore();
         seedDashboardEditState(store, {
             dashboard: {
@@ -167,18 +165,19 @@ describe('ControlsBar', () => {
 
         expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
         expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
-        // Inside the sections' own flow, so it ends the same line
-        expect(screen.getByTestId('sectioned-filters')).toContainElement(
-            screen.getByRole('button', { name: 'Required' }),
-        );
+        // Filter rules open from the menu on "Add filter"
+        expect(
+            screen.queryByRole('button', { name: 'Required' }),
+        ).not.toBeInTheDocument();
     });
 
     it('renders the sectioned bar in edit mode with no sections yet, so a selection can start the first', () => {
         renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
-        expect(screen.getByTestId('sectioned-filters')).toContainElement(
-            screen.getByRole('button', { name: 'Required' }),
-        );
+        expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Required' }),
+        ).not.toBeInTheDocument();
         expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
         expect(
             screen.getByRole('button', {
@@ -224,14 +223,11 @@ describe('ControlsBar', () => {
         },
     );
 
-    it('keeps the bar and Required while a filter is edited, Required inert', () => {
+    it('keeps the bar while a filter is edited', () => {
         mockSidebar.current = { isSidebarOpen: true };
         renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
         expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
-        expect(
-            screen.getByRole('button', { name: 'Required' }).closest('[inert]'),
-        ).not.toBeNull();
         expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
     });
 

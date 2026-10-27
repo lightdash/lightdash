@@ -66,3 +66,17 @@
     right: 0;
     transform: translate(25%, -25%);
 }
+
+/* The "..." joined to "Add filter", drawn as the shipped eye it replaces */
+.joinedMenuTrigger {
+    border-left: 0;
+    border-style: dashed;
+    border-radius: 0 100px 100px 0;
+}
+
+/* On the "..." while the dashboard has filter rules: the shipped rules
+   badge's yellow, on `ChangedDot`'s corner */
+.rulesDot {
+    composes: changedDot;
+    background-color: var(--mantine-color-yellow-filled);
+}
