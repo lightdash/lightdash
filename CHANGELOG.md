@@ -1,3 +1,10 @@
+## [3.68.2](https://github.com/lightdash/lightdash/compare/3.68.1...3.68.2) (2026-10-27)
+
+
+### Bug Fixes
+
+* skip service account lookup on unlicensed instances ([#31639](https://github.com/lightdash/lightdash/issues/31639)) ([fac4adc](https://github.com/lightdash/lightdash/commit/fac4adcca71cbec36afed17872781d60b485b60a)), closes [#31638](https://github.com/lightdash/lightdash/issues/31638)
+
 ## [3.68.1](https://github.com/lightdash/lightdash/compare/3.68.0...3.68.1) (2026-10-27)
 
 
