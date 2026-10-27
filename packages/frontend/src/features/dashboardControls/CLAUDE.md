@@ -106,6 +106,10 @@ behaviour. All but the first are in `features/dashboardFilters/`.
   width.
   The requirement icon carries `data-requirement-icon`, a marker with no
   behaviour of its own.
+  `areActionsHidden` (default false) keeps the grip and lock in place but
+  `visibility: hidden` (`.hiddenAction`), the lock slot `inert`.
+  `Filter`: `openFieldIconOverride` (default none), passed as the button's
+  `fieldIconOverride` while its popover is open.
 - `FilterRequirements/RequiredFilterCard`: `onChangeOtherFilterRule`
   (default: the other filter is written to the dashboard filters, and this
   one too), `disabledReason` (default none: the switch is enabled) and
@@ -230,15 +234,23 @@ In `FilterConfiguration/`:
   to it by `[data-filter-actions] > button[data-dashboard-filter-control]`.
 - `FilterPills`: a click calls `open(id)`, the X ("Remove filter") calls
   `removeFilterById`, on the edited filter too, which ends the edit. The
-  edited pill has the selected look (`.selectedPill`): Mantine's light blue
-  (`blue-light`, `blue-light-hover` on hover) with a 1px `blue-outline`
-  border and the name in the text colour, so it reads as open and never as
-  picked (solid `blue-filled`, white text, a check). A pill is disabled
+  edited pill (`aria-pressed`) shows `EditBadge` in place of its field icon
+  (`fieldIconOverride`): a filled blue 16px `ThemeIcon`, radius `xl`, with
+  a white 10px `IconPencil`, and `margin-inline-end: -4px` (`.editBadge`)
+  so it takes the 12px icon's footprint (the overlap comes out of the 6px
+  before the label, leaving 2px, and the 4px gap to a requirement icon
+  stays) and the pill keeps its width. Nothing else changes: the fill and border stay what the pill
+  would have closed (default, the shipped "has a value" tint, the
+  required-unset yellow, the orphaned dashed), so it never reads as picked
+  (solid `blue-filled`, white text, a check). A pill is disabled
   until the filterable fields exist (`allFilterableFields`), as the shipped
   pill is; a SQL column filter waits for none. Dimension rules and metric
   rules are two dnd-kit contexts, reordered within their own list (the
-  shipped `moveFilterRule`); the grip and the lock toggle are off while a
-  filter is edited, and so is this flat bar's drag.
+  shipped `moveFilterRule`). While a filter is edited the grip and the lock
+  stay in place but hidden and inert (`areActionsHidden` on
+  `FilterPillButton`), so no pill changes width as the rail opens or
+  closes; nothing can be grabbed or locked then, and this flat bar's drag
+  is off.
 - In edit mode a pill whose rule differs from the saved dashboard
   (`dashboard.filters`, through `isFilterRuleDirty` over
   `withoutDefaultTileTargets`, the provider's own reading of "changed",
@@ -246,7 +258,9 @@ In `FilterConfiguration/`:
   `ChangedDot` (`ChangedDot.tsx`, one `.changedDot` rule in
   `FilterPills.module.css`): a `blue-filled` dot the size of the `xs`
   spacing, `role="img"` named "Changed", on the pill's top right corner
-  (`isCorner`). Blue, never yellow: it is state, not a warning. A pill that
+  (`isCorner`), with a 2px halo in the bar's `--ld-color-page`
+  (`box-shadow`), so it stays visible on a solid blue picked pill. Blue,
+  never yellow: it is state, not a warning. A pill that
   is not saved yet has one. The dots say what Save will keep; see
   "Sections" for the capsule's.
 - One saved rule is one `FilterPill` (memoised; pass it primitives, the rule
@@ -286,7 +300,9 @@ In `FilterConfiguration/`:
   Apply (`update*DashboardFilter(rule, index, false, false)`, which keeps
   the `filters` URL override), Escape or a click outside cancels, the
   required guard, the field description and "Reset to original value"; a
-  pill locked on this tab is read-only with its tooltip. An embed passes
+  pill locked on this tab is read-only with its tooltip. While its popover
+  is open the pill shows `EditBadge` (the shipped `Filter`'s
+  `openFieldIconOverride`), as the edited pill does. An embed passes
   `dropdownClassName` (`ld-dashboard-filter-dropdown`) for its popover, as
   the shipped embed bar does. The start of week is the project's, none in
   an embed (`useFiltersStartOfWeek`). The viewer's own filters (the
@@ -1407,7 +1423,7 @@ the language map, as tab names are.
   `.pickedPill`: solid `blue-filled` with white text (`--mantine-color-dimmed`
   is white at 75% inside it) and a check (`fieldIconOverride`, an opening
   on `FilterPillButton`) in place of the field icon, apart from the edited
-  `.selectedPill`'s light blue and a hover. On that bar the pill's own tooltip (the orphaned one's)
+  edited pill's badge and a hover. On that bar the pill's own tooltip (the orphaned one's)
   reads "Click to edit · ⌘ click to select" ("Ctrl click" off mac,
   `useOs`) after 500ms, and the tables tooltip on the name is off so only
   one shows. Escape clears it through a document capture listener mounted

@@ -155,6 +155,11 @@
     transition: none;
 }
 
+/* In place but unseen and unreachable (`areActionsHidden`) */
+.hiddenAction {
+    visibility: hidden;
+}
+
 .lockSlotActive {
     display: inline-flex;
     align-items: center;

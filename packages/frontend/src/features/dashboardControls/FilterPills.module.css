@@ -3,23 +3,16 @@
     display: inline-flex;
 }
 
-/* The edited pill: Mantine's light blue with the outline variant's border,
-   name in the text colour, so it reads as open but never as picked. Doubled
-   so it outranks the theme's border on a default button, hovered too */
-.pill > .selectedPill.selectedPill[aria-pressed='true']:not(:disabled) {
-    background-color: var(--mantine-color-blue-light);
-    border-color: var(--mantine-color-blue-outline);
-    border-width: 1px;
-    color: var(--mantine-color-text);
-}
-
-.pill > .selectedPill.selectedPill[aria-pressed='true']:not(:disabled):hover {
-    background-color: var(--mantine-color-blue-light-hover);
+/* `EditBadge`: a 16px circle in the 12px field icon's place, its 4px
+   overlap taken from the 6px before the label, so the gap to a requirement
+   icon stays; a pill that opens or closes keeps its width */
+.editBadge {
+    margin-inline-end: -4px;
 }
 
 /* Picked on the sectioned bar to move or remove: solid blue with white
    text, a check in place of the field icon, never mistaken for the edited
-   pill's ring or a hover */
+   pill (its own look plus a pencil badge) or a hover */
 .pill > .pickedPill.pickedPill[aria-pressed='true']:not(:disabled) {
     --mantine-color-dimmed: color-mix(
         in srgb,
@@ -57,6 +50,8 @@
     height: var(--mantine-spacing-xs);
     border-radius: 50%;
     background-color: var(--mantine-color-blue-filled);
+    /* A halo in the bar's colour, so it shows on a solid blue picked pill */
+    box-shadow: 0 0 0 2px var(--ld-color-page);
     pointer-events: none;
 }
 
