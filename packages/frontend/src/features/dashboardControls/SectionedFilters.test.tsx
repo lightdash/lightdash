@@ -23,6 +23,7 @@ import { EventName } from '../../types/Events';
 import {
     dashboardFiltersActions,
     selectControlSections,
+    selectHaveControlSectionsChanged,
 } from '../dashboard/store';
 import type * as AddControlModule from './AddControl';
 import { SectionedFilters } from './SectionedFilters';
@@ -2089,29 +2090,110 @@ describe('SectionedFilters', () => {
             expect(mockOpenNew).toHaveBeenCalledWith('b');
         });
 
-        it('saves the opposite of how the bar starts it from the menu', async () => {
+        it("saves the editor's fold as the way the section starts", async () => {
             const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            expect(selectHaveControlSectionsChanged(store.getState())).toBe(
+                false,
+            );
+            await userEvent.click(foldOf('Dates'));
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
+            expect(sectionsOf(store)[0].collapsed).toBe(true);
+            expect(selectHaveControlSectionsChanged(store.getState())).toBe(
+                true,
+            );
+            // Back to the size rule's value with nothing saved: it follows the rule again
+            await userEvent.click(foldOf('Dates'));
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'true');
+            expect(sectionsOf(store)[0]).not.toHaveProperty('collapsed');
+        });
+
+        it('keeps an explicit value when the saved section has one', async () => {
+            const saved = [{ id: 'a', name: 'Dates', collapsed: false }];
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboard: {
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: saved,
+                    },
+                },
+            };
+            const { store } = renderSectioned(
+                [rule('one', 'a')],
+                'tab-1',
+                saved,
+            );
+            await userEvent.click(foldOf('Dates'));
+            expect(sectionsOf(store)[0].collapsed).toBe(true);
+            await userEvent.click(foldOf('Dates'));
+            expect(sectionsOf(store)[0].collapsed).toBe(false);
+        });
+
+        it('gives a section folded by its size an explicit value once toggled', async () => {
+            const members = Array.from({ length: 7 }, (_, i) =>
+                rule(`a-${i}`, 'a'),
+            );
+            const { store } = renderSectioned(members, 'tab-1');
+            expect(sectionsOf(store)[0].collapsed).toBeUndefined();
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
+            await userEvent.click(foldOf('Dates'));
+            expect(sectionsOf(store)[0].collapsed).toBe(false);
+            await userEvent.click(foldOf('Dates'));
+            expect(sectionsOf(store)[0]).not.toHaveProperty('collapsed');
+        });
+
+        it("forgets a viewer's flips on a mode change, so view mode starts as saved", async () => {
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            const { switchTab } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const viewerToggle = () =>
+                screen.getByRole('button', { name: 'Dates' });
+            // Open by default; the viewer folds it for this visit
+            await userEvent.click(viewerToggle());
+            expect(viewerToggle()).toHaveAttribute('aria-expanded', 'false');
+
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+            switchTab('tab-1');
+            // The editor folds it: saved collapsed
+            await userEvent.click(foldOf('Dates'));
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
+
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            switchTab('tab-1');
+            expect(viewerToggle()).toHaveAttribute('aria-expanded', 'false');
+        });
+
+        it("keeps a viewer's fold off the saved state, and opens edit mode as saved", async () => {
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            const { store, switchTab } = renderSectioned(
+                [rule('one', 'a')],
+                'tab-1',
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Dates' }),
+            );
+            expect(
+                screen.getByRole('button', { name: 'Dates' }),
+            ).toHaveAttribute('aria-expanded', 'false');
+            expect(sectionsOf(store)[0].collapsed).toBeUndefined();
+            expect(selectHaveControlSectionsChanged(store.getState())).toBe(
+                false,
+            );
+
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+            switchTab('tab-1');
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'true');
+        });
+
+        it('has only the remove item in the section menu', async () => {
+            renderSectioned([rule('one', 'a')], 'tab-1');
             await userEvent.click(
                 screen.getByRole('button', { name: 'Dates menu' }),
             );
-            const item = await screen.findByRole('menuitem', {
-                name: 'Collapsed by default',
+            await screen.findByRole('menuitem', {
+                name: 'Remove, keep filters',
             });
-            expect(within(item).getByRole('checkbox')).not.toBeChecked();
-            await userEvent.click(item);
-            expect(sectionsOf(store)[0].collapsed).toBe(true);
-            // The menu stays, showing the change
-            expect(
-                within(
-                    screen.getByRole('menuitem', {
-                        name: 'Collapsed by default',
-                    }),
-                ).getByRole('checkbox'),
-            ).toBeChecked();
-            await userEvent.click(
-                screen.getByRole('menuitem', { name: 'Collapsed by default' }),
-            );
-            expect(sectionsOf(store)[0].collapsed).toBe(false);
+            expect(screen.getAllByRole('menuitem')).toHaveLength(1);
+            expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
         });
 
         it('removes a section with members in one click, keeping them on the bar in one write', async () => {
