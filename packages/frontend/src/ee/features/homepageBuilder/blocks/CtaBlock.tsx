@@ -267,26 +267,12 @@ const ThemeSwatches: FC<{
     const { data: brand } = useOrganizationBrand();
     return (
         <Group gap={6} wrap="nowrap">
-            {THEME_OPTIONS.map((option, index) => {
+            {THEME_OPTIONS.map((option) => {
                 const paint = resolveCtaPaint(
                     option.value,
                     brand?.colors,
                     undefined,
                 );
-                // Brand and Accent fall back to the same colour when the org has one or none.
-                const isDuplicate = THEME_OPTIONS.slice(0, index).some(
-                    (earlier) => {
-                        const other = resolveCtaPaint(
-                            earlier.value,
-                            brand?.colors,
-                            undefined,
-                        );
-                        return paint.kind === 'solid' && other.kind === 'solid'
-                            ? other.hex === paint.hex
-                            : paint.kind === other.kind;
-                    },
-                );
-                if (isDuplicate && value !== option.value) return null;
                 const style = paintStyle(paint, 'cta');
                 return (
                     <Tooltip
