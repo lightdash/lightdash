@@ -94,6 +94,7 @@ import {
 import { MessageTimingIndicator } from './MessageTimingIndicator';
 import { isContentType, rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { rehypeMemoryCitationIndices } from './rehypeMemoryCitations';
+import { rehypeQueryNodeReferences } from './rehypeQueryNodeReferences';
 import { StreamRecoveryAlert } from './StreamRecoveryAlert';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
@@ -337,6 +338,7 @@ const AssistantBubbleContent: FC<{
     isLastMessage: boolean;
     mcpServers?: AiMcpServer[];
     onDashboardLinkClick?: (url: string) => void;
+    hasPreviewPane: boolean;
 }> = ({
     message,
     projectUuid,
@@ -344,6 +346,7 @@ const AssistantBubbleContent: FC<{
     isLastMessage,
     mcpServers,
     onDashboardLinkClick,
+    hasPreviewPane,
 }) => {
     const threadStreamingState = useAiAgentThreadStreamQuery(
         message.threadUuid,
@@ -630,6 +633,7 @@ const AssistantBubbleContent: FC<{
                             rehypePlugins={[
                                 rehypeAiAgentContentLinks,
                                 rehypeMemoryCitationIndices,
+                                rehypeQueryNodeReferences,
                             ]}
                             plugins={markdownPlugins}
                             components={{
@@ -655,6 +659,7 @@ const AssistantBubbleContent: FC<{
                                             onDashboardLinkClick={
                                                 onDashboardLinkClick
                                             }
+                                            hasPreviewPane={hasPreviewPane}
                                         >
                                             {children}
                                         </ContentLink>
@@ -788,6 +793,7 @@ const AssistantBubbleContent: FC<{
                                     rehypePlugins={[
                                         rehypeAiAgentContentLinks,
                                         rehypeMemoryCitationIndices,
+                                        rehypeQueryNodeReferences,
                                     ]}
                                     plugins={markdownPlugins}
                                     components={{
@@ -813,6 +819,9 @@ const AssistantBubbleContent: FC<{
                                                     }
                                                     onDashboardLinkClick={
                                                         onDashboardLinkClick
+                                                    }
+                                                    hasPreviewPane={
+                                                        hasPreviewPane
                                                     }
                                                 >
                                                     {children}
@@ -1097,6 +1106,7 @@ export const AssistantBubble: FC<Props> = memo(
                     isLastMessage={isLastMessage}
                     mcpServers={mcpServers}
                     onDashboardLinkClick={onDashboardLinkClick}
+                    hasPreviewPane={!renderArtifactsInline}
                 />
 
                 {isArtifactAvailable && projectUuid && agentUuid && (
