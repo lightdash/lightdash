@@ -66,8 +66,7 @@ export const MODEL_PRESETS: {
             provider: 'openai',
             modelId: 'gpt-6.1-terra',
             displayName: 'GPT-6.1 Terra',
-            description:
-                'Fast, efficient model for visual reasoning and writing',
+            description: 'Balances speed and intelligence',
             contextWindowTokens: 1050000,
             supportsReasoning: true,
             callOptions: {},
