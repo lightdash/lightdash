@@ -1165,4 +1165,85 @@ describe('FilterPills', () => {
             expect(open).not.toHaveBeenCalled();
         });
     });
+
+    describe('tile hover', () => {
+        const gridItems: HTMLElement[] = [];
+        const hoveredTiles = () =>
+            gridItems
+                .filter((item) => item.hasAttribute('data-controls-hovered'))
+                .map((item) => item.dataset.tileUuid);
+
+        beforeEach(() => {
+            gridItems.splice(0).forEach((item) => item.remove());
+            ['tile-1', 'tile-2', 'tile-3'].forEach((uuid) => {
+                const item = document.createElement('div');
+                item.dataset.tileUuid = uuid;
+                document.body.appendChild(item);
+                gridItems.push(item);
+            });
+            setContext({
+                dashboardFilters: {
+                    ...filters,
+                    dimensions: [
+                        { ...savedRule, tileTargets: { 'tile-2': false } },
+                        noDefaultRule,
+                    ],
+                },
+                dashboardTiles: [
+                    tile('tile-1'),
+                    tile('tile-2'),
+                    tile('tile-3'),
+                ],
+                filterableFieldsByTileUuid: {
+                    'tile-1': [statusField, regionField],
+                    'tile-2': [statusField],
+                    'tile-3': [regionField],
+                },
+            });
+        });
+
+        it("marks the tiles the hovered pill's filter is on and clears on leave", async () => {
+            const user = userEvent.setup();
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.hover(pill(/^Status/));
+            expect(hoveredTiles()).toEqual(['tile-1']);
+
+            await user.hover(pill(/^Region/));
+            expect(hoveredTiles()).toEqual(['tile-1', 'tile-3']);
+
+            await user.unhover(pill(/^Region/));
+            expect(hoveredTiles()).toEqual([]);
+        });
+
+        it('marks on keyboard focus and clears on blur', () => {
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            act(() => pill(/^Status/).focus());
+            expect(hoveredTiles()).toEqual(['tile-1']);
+
+            act(() => pill(/^Status/).blur());
+            expect(hoveredTiles()).toEqual([]);
+        });
+
+        it('clears when the editor opens and marks nothing while a filter is edited', async () => {
+            const user = userEvent.setup();
+            const { rerender } = renderWithProviders(
+                <FilterPills activeTabUuid={undefined} />,
+            );
+            await user.hover(pill(/^Status/));
+            expect(hoveredTiles()).toEqual(['tile-1']);
+
+            mockSidebar.current = {
+                ...mockSidebar.current,
+                editing: { filterId: 'no-default' },
+                isSidebarOpen: true,
+            };
+            rerender(<FilterPills activeTabUuid={undefined} />);
+            expect(hoveredTiles()).toEqual([]);
+
+            await user.hover(pill(/^Region/));
+            expect(hoveredTiles()).toEqual([]);
+        });
+    });
 });

@@ -63,6 +63,18 @@
     opacity: 1;
 }
 
+/* A tile the hovered pill's filter is on: the same blue hairline with no
+   tint, which would read as dimmed without the veil around it */
+:global([data-tile-uuid][data-controls-hovered])::after {
+    box-shadow: inset 0 0 0 1px var(--mantine-color-blue-5);
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    border-radius: var(--mantine-radius-xs);
+    pointer-events: none;
+}
+
 /* Filtered with no field selected, or by another field than the selected
    one: a neutral solid hairline with no fill */
 .ring::after {

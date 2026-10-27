@@ -1001,6 +1001,16 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   `pointer-events: none` on the siblings stays. Never call `stopPropagation`
   on an overlay: Mantine closes lists on a `mousedown` that reaches
   `document`.
+- Pill hover: in edit mode with no filter open, hovering or keyboard-focusing
+  an editor's pill marks the tiles its filter is on (`getTileField`, minus a
+  missing field, as the overlays' "on the control") with the `mapped`
+  hairline and no tint: without the veil around them, tinted tiles read as
+  dimmed.
+  `useTileHover` sets `data-controls-hovered` on those `[data-tile-uuid]`
+  grid items and `TileOverlay.module.css` draws it as an `::after`, so no
+  tile re-renders, nothing is veiled, locked or scrolled. It clears on leave,
+  blur and pointer down (a press may start a drag; the focus a click brings
+  marks nothing), and when the editor opens or the pill unmounts.
 
 ## Link prompts
 

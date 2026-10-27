@@ -22,6 +22,7 @@ import { ChangedDot } from './ChangedDot';
 import classes from './FilterPills.module.css';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useTileHover } from './useTileHover';
 
 // An editor's pill, or a viewer's on a filter of their own (outline, with an X)
 export type FilterPillKind = 'editor' | 'viewerOwn';
@@ -83,6 +84,10 @@ export const FilterPill: FC<Props> = memo(
             selection !== null && kind === 'editor' && !isSidebarOpen;
         const isPicked =
             isSelectable && selection.selectedIds.includes(filter.id);
+        const tileHover = useTileHover(
+            filter,
+            kind === 'editor' && !isSidebarOpen,
+        );
         const isLocked = isFilterLockedOnTab(filter, activeTabUuid, hasTabs);
         const lockKey = getFilterLockKey({
             hasTabs,
@@ -132,6 +137,7 @@ export const FilterPill: FC<Props> = memo(
             >
                 <Box className={classes.pill}>
                     <FilterPillButton
+                        {...tileHover}
                         field={field}
                         filterRule={filter}
                         isOrphaned={isOrphaned}
