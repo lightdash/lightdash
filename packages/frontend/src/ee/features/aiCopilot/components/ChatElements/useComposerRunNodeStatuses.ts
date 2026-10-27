@@ -92,7 +92,8 @@ export const useComposerRunNodeStatuses = ({
                               {
                                   status: toNodeStatus(status.status),
                                   error: status.error,
-                                  totalRowCount: status.totalRowCount,
+                                  // Older backends omit the count.
+                                  totalRowCount: status.totalRowCount ?? null,
                               },
                           ],
                       ]
