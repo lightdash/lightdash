@@ -11,6 +11,7 @@ import {
     SandboxCommandError,
     SandboxOutputLimitError,
     SandboxTimeoutError,
+    type AzureSandboxesConfig,
     type CloudRunSandboxesConfig,
     type SandboxHandle,
     type SandboxLogger,
@@ -119,7 +120,10 @@ export class PythonSandboxRunner {
                 e2bApiKey: appRuntime.e2bApiKey,
                 dockerImage: appRuntime.sandboxPythonDockerImage,
                 lambdaMicroVm: null,
-                azureSandboxes: null,
+                azureSandboxes:
+                    provider === 'azure-sandboxes'
+                        ? this.getAzureSandboxesConfig()
+                        : null,
                 gcpCloudRun:
                     provider === 'gcp-cloud-run'
                         ? this.getCloudRunConfig()
@@ -127,7 +131,7 @@ export class PythonSandboxRunner {
                 // One-shot sandboxes are never suspended; Docker and Cloud Run
                 // still require a store at construction.
                 snapshotStore:
-                    provider === 'e2b'
+                    provider === 'e2b' || provider === 'azure-sandboxes'
                         ? null
                         : new S3SnapshotStore({
                               lightdashConfig: this.lightdashConfig,
@@ -140,14 +144,14 @@ export class PythonSandboxRunner {
 
     private static getSupportedProvider(
         provider: LightdashConfig['appRuntime']['sandboxProvider'],
-    ): 'e2b' | 'docker' | 'gcp-cloud-run' {
+    ): 'e2b' | 'docker' | 'gcp-cloud-run' | 'azure-sandboxes' {
         switch (provider) {
             case 'e2b':
             case 'docker':
             case 'gcp-cloud-run':
+            case 'azure-sandboxes':
                 return provider;
             case 'lambda-microvm':
-            case 'azure-sandboxes':
                 throw new MissingConfigError(
                     `Python queries are not supported on the ${provider} sandbox provider yet`,
                 );
@@ -170,16 +174,58 @@ export class PythonSandboxRunner {
         return { sandboxUrl, sandboxSecret };
     }
 
+    private getAzureSandboxesConfig(): AzureSandboxesConfig {
+        const {
+            azureSandboxes,
+            azureSandboxesPythonGroup,
+            sandboxIdleTimeoutMs,
+        } = this.lightdashConfig.appRuntime;
+        if (
+            !azureSandboxes.subscriptionId ||
+            !azureSandboxes.resourceGroup ||
+            !azureSandboxesPythonGroup
+        ) {
+            throw new MissingConfigError(
+                'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_PYTHON_GROUP)',
+            );
+        }
+        return {
+            subscriptionId: azureSandboxes.subscriptionId,
+            resourceGroup: azureSandboxes.resourceGroup,
+            region: azureSandboxes.region,
+            sandboxGroup: azureSandboxesPythonGroup,
+            apiVersion: azureSandboxes.apiVersion,
+            tokenScope: azureSandboxes.tokenScope,
+            resourceTier: azureSandboxes.resourceTier,
+            autoSuspendIdleSeconds: Math.floor(sandboxIdleTimeoutMs / 1000),
+        };
+    }
+
     private getTemplateRef(): string {
         const { appRuntime } = this.lightdashConfig;
-        switch (appRuntime.sandboxProvider) {
+        const provider = PythonSandboxRunner.getSupportedProvider(
+            appRuntime.sandboxProvider,
+        );
+        switch (provider) {
             case 'e2b':
                 return `${appRuntime.e2bPythonTemplateName}:${appRuntime.e2bPythonTemplateTag}`;
+            case 'docker':
+                return appRuntime.sandboxPythonDockerImage;
             // The gateway bakes in its image; the ref only feeds `version`.
             case 'gcp-cloud-run':
                 return CLOUD_RUN_PYTHON_TEMPLATE_REF;
+            case 'azure-sandboxes':
+                if (!appRuntime.azureSandboxesPythonDiskImage) {
+                    throw new MissingConfigError(
+                        'Azure python sandbox disk image is not configured (AZURE_SANDBOXES_PYTHON_DISK_IMAGE)',
+                    );
+                }
+                return appRuntime.azureSandboxesPythonDiskImage;
             default:
-                return appRuntime.sandboxPythonDockerImage;
+                return assertUnreachable(
+                    provider,
+                    `Unknown sandbox provider ${provider}`,
+                );
         }
     }
 

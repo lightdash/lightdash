@@ -554,6 +554,8 @@ export const lightdashConfigMock: LightdashConfig = {
         azureSandboxesDataAppDiskImage: null,
         azureSandboxesAiWritebackGroup: null,
         azureSandboxesAiWritebackDiskImage: null,
+        azureSandboxesPythonGroup: null,
+        azureSandboxesPythonDiskImage: null,
         gcpCloudRun: {
             sandboxUrl: null,
             sandboxSecret: null,

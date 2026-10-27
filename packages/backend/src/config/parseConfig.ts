@@ -2298,6 +2298,14 @@ export type AppRuntimeConfig = {
      * image). Required only when `azure-sandboxes`. */
     azureSandboxesAiWritebackDiskImage: string | null;
     /**
+     * Sandbox group python query nodes run one-shot sandboxes in (decoupled from
+     * the data-app/writeback groups). Required only when `sandboxProvider === 'azure-sandboxes'`.
+     */
+    azureSandboxesPythonGroup: string | null;
+    /** Disk image the python runner launches (built from `sandboxes/python-runner`).
+     * Required only when `azure-sandboxes`. */
+    azureSandboxesPythonDiskImage: string | null;
+    /**
      * Config for the `gcp-cloud-run` provider: URL + shared secret of the
      * sandbox gateway Cloud Run service (deployed with `--sandbox-launcher`,
      * data-app toolchain image baked in). Required only when
@@ -2877,6 +2885,10 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             process.env.AZURE_SANDBOXES_AI_WRITEBACK_GROUP || null,
         azureSandboxesAiWritebackDiskImage:
             process.env.AZURE_SANDBOXES_AI_WRITEBACK_DISK_IMAGE || null,
+        azureSandboxesPythonGroup:
+            process.env.AZURE_SANDBOXES_PYTHON_GROUP || null,
+        azureSandboxesPythonDiskImage:
+            process.env.AZURE_SANDBOXES_PYTHON_DISK_IMAGE || null,
         e2bAgentOnboardingTemplateName:
             process.env.E2B_AGENT_ONBOARDING_TEMPLATE_NAME ||
             'lightdash-agent-onboarding',
