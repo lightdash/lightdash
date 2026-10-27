@@ -5385,7 +5385,7 @@ export class McpService extends BaseService {
         const scopeContext = options.req.user
             ? getOAuthScopeContext(options.req.user.ability)
             : null;
-        if (scopeContext?.mode === 'enforce') {
+        if (scopeContext !== null) {
             const registerTool = newServer.registerTool.bind(newServer);
             newServer.registerTool = (name, config, handler) => {
                 const tool = registerTool(name, config, handler);

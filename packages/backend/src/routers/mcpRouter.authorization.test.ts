@@ -32,9 +32,16 @@ import mcpRouter, {
     extractMcpProjectUuid,
 } from './mcpRouter';
 
-vi.mock('../auth/oauthScopes/scopedAbility', () => ({
-    getOAuthScopeContext: vi.fn().mockReturnValue(null),
-}));
+vi.mock('../auth/oauthScopes/scopedAbility', async (importOriginal) => {
+    const actual =
+        await importOriginal<
+            typeof import('../auth/oauthScopes/scopedAbility')
+        >();
+    return {
+        ...actual,
+        getOAuthScopeContext: vi.fn(actual.getOAuthScopeContext),
+    };
+});
 
 const PROJECT_UUID = 'd15384cb-8326-433a-a9e9-6f6bb22718f6';
 const AGENT_UUID = '3f1c2a9e-7b4d-4c8e-9a1f-2d6b5e8c4a71';
@@ -222,6 +229,7 @@ const requestMcp = async ({
         request.account = account;
         request.user = {
             ...defaultSessionUser,
+            ability: account.user.ability,
             email: 'test@lightdash.com',
             userUuid: 'user-uuid',
             organizationUuid: 'organization-uuid',
@@ -249,7 +257,12 @@ const requestMcp = async ({
 
 afterEach(async () => {
     vi.clearAllMocks();
-    vi.mocked(getOAuthScopeContext).mockReturnValue(null);
+    const actual = await vi.importActual<
+        typeof import('../auth/oauthScopes/scopedAbility')
+    >('../auth/oauthScopes/scopedAbility');
+    vi.mocked(getOAuthScopeContext).mockImplementation(
+        actual.getOAuthScopeContext,
+    );
     await Promise.all(
         servers.splice(0).map(
             (server) =>
@@ -729,45 +742,46 @@ describe('project-scoped MCP route', () => {
 
 describe('MCP call-time OAuth scope enforcement', () => {
     it.each([
-        { mode: null, name: 'create_content', status: 200, records: 0 },
         {
-            mode: 'log' as const,
+            scopes: ['mcp:write'],
             name: 'create_content',
             status: 200,
-            records: 1,
+            records: 0,
         },
         {
-            mode: 'enforce' as const,
+            scopes: ['mcp:read'],
             name: 'create_content',
             status: 403,
             records: 1,
         },
         {
-            mode: 'enforce' as const,
+            scopes: ['mcp:read'],
             name: 'get_context',
             status: 200,
             records: 0,
         },
         {
-            mode: 'enforce' as const,
+            scopes: ['mcp:read'],
             name: 'unknown_tool',
             status: 403,
             records: 1,
         },
     ])(
-        'checks $name in mode=$mode',
-        async ({ mode, name, status, records }) => {
+        'checks $name with scopes=$scopes',
+        async ({ scopes, name, status, records }) => {
             const record = vi.fn();
-            vi.mocked(getOAuthScopeContext).mockReturnValue(
-                mode === null ? null : { mode, scopes: ['mcp:read'], record },
-            );
+            vi.mocked(getOAuthScopeContext).mockReturnValue({
+                clientId: 'client',
+                scopes,
+                record,
+            });
             transport.handleRequest.mockImplementation(
                 async (_request, response) => {
                     response.status(200).json({ status: 'ok' });
                 },
             );
             const { response, mcpService } = await requestMcp({
-                account: createAccount({ type: 'oauth', scopes: ['mcp:read'] }),
+                account: createAccount({ type: 'oauth', scopes }),
                 method: 'POST',
                 requestBody: {
                     jsonrpc: '2.0',

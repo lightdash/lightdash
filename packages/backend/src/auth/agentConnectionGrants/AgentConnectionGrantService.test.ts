@@ -23,6 +23,7 @@ const setup = () => {
     };
     const token = {
         accessToken: 'token',
+        scope: ['read', 'write'],
         agentConnectionGrantUuid: grant.grantUuid,
         familyUuid: grant.refreshFamilyUuid,
         resource: grant.resource,
@@ -134,7 +135,7 @@ it('resolves only the project consumed by the handler', async () => {
     const account = fromOauth(
         user,
         token,
-        null,
+        undefined,
         await service.authenticate(token, user),
     );
     await expect(
@@ -170,7 +171,7 @@ it.each(['target', 'sourceUuid'])(
         const account = fromOauth(
             user,
             token,
-            null,
+            undefined,
             await service.authenticate(token, user),
         );
         await expect(
@@ -198,7 +199,7 @@ it('resolves a resource slug using its explicit project scope', async () => {
     const account = fromOauth(
         user,
         token,
-        null,
+        undefined,
         await service.authenticate(token, user),
     );
     await expect(
@@ -226,7 +227,7 @@ it('cannot hide a resource slug behind an injected body project', async () => {
     const account = fromOauth(
         user,
         token,
-        null,
+        undefined,
         await service.authenticate(token, user),
     );
     await expect(
@@ -250,7 +251,7 @@ it('refuses promotions even when both projects are approved', async () => {
     const account = fromOauth(
         user,
         token,
-        null,
+        undefined,
         await service.authenticate(token, user),
     );
     await expect(
@@ -272,7 +273,7 @@ it('does not accept fake project fields on an organization-wide content listing'
     const account = fromOauth(
         user,
         token,
-        null,
+        undefined,
         await service.authenticate(token, user),
     );
     await expect(
@@ -309,7 +310,7 @@ it('refuses content moves without reviewed source and destination contracts', as
     const account = fromOauth(
         user,
         token,
-        null,
+        undefined,
         await service.authenticate(token, user),
     );
     await expect(
@@ -364,7 +365,7 @@ it.each([
     const account = fromOauth(
         user,
         token,
-        null,
+        undefined,
         await service.authenticate(token, user),
     );
     await expect(
@@ -389,7 +390,7 @@ it.each([
     const account = fromOauth(
         user,
         token,
-        null,
+        undefined,
         await service.authenticate(token, user),
     );
     await expect(
@@ -413,7 +414,7 @@ it.each([null, 'sourceUuid', 'targetDatabase', 'targetRegion'])(
         const account = fromOauth(
             user,
             token,
-            null,
+            undefined,
             await service.authenticate(token, user),
         );
         const result = service.assertRestOperation(
@@ -437,7 +438,7 @@ it.each(['sql', 'duckdb', 'external'])(
         const account = fromOauth(
             user,
             token,
-            null,
+            undefined,
             await service.authenticate(token, user),
         );
         await expect(
@@ -460,7 +461,7 @@ it('requires raw SQL for warehouse schema scans and allows explicit approval', a
     const account = fromOauth(
         user,
         token,
-        null,
+        undefined,
         await service.authenticate(token, user),
     );
     const req = {
@@ -509,7 +510,7 @@ it.each([
     const account = fromOauth(
         user,
         token,
-        null,
+        undefined,
         await service.authenticate(token, user),
     );
     await expect(
@@ -534,7 +535,7 @@ it('refuses saved PNG export even with export approval', async () => {
     const account = fromOauth(
         user,
         token,
-        null,
+        undefined,
         await service.authenticate(token, user),
     );
     await expect(
@@ -577,7 +578,7 @@ it.each([
         const account = fromOauth(
             user,
             token,
-            null,
+            undefined,
             await service.authenticate(token, user),
         );
         expect(getRequiredAgentCapabilities('rest', operation)).toEqual([
@@ -614,7 +615,7 @@ it('known pairing: running a query needs Query data; reading its stored results 
         const account = fromOauth(
             user,
             token,
-            null,
+            undefined,
             await service.authenticate(token, user),
         );
         return service.assertRestOperation(
@@ -674,7 +675,7 @@ it.each(
         const account = fromOauth(
             user,
             token,
-            null,
+            undefined,
             await service.authenticate(token, user),
         );
         deps.resourceResolver.resolveDeploySession.mockResolvedValue({
@@ -715,7 +716,7 @@ it.each([
         const account = fromOauth(
             user,
             token,
-            null,
+            undefined,
             await service.authenticate(token, user),
         );
         await Promise.all(
@@ -751,7 +752,7 @@ it('refuses refresh content sync but allows compile-only refresh', async () => {
     const account = fromOauth(
         user,
         token,
-        null,
+        undefined,
         await service.authenticate(token, user),
     );
     const req = {
@@ -1019,7 +1020,7 @@ it('checks every project resolved by a multi-project REST contract', async () =>
     const account = fromOauth(
         f.user,
         f.token,
-        null,
+        undefined,
         await f.service.authenticate(f.token, f.user),
     );
     const run = (projects: string[]) =>

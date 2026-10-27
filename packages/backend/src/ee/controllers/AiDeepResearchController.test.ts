@@ -67,6 +67,7 @@ describe('AiDeepResearchController.createRun', () => {
         [
             'OAuth',
             fromOauth(defaultSessionUser, {
+                scope: ['read', 'write'],
                 accessToken: 'oauth-token',
                 client: { id: 'oauth-client' },
             }),

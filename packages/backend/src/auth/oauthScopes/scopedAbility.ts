@@ -5,16 +5,15 @@ import {
     PossibleAbilities,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
-import { OAuthScopeMode, scopesForOAuthRecord } from './mode';
+import { scopesForOAuthRecord } from './mode';
 import { OAUTH_OPERATIONS, oauthScopeAllows } from './scopeMap';
 
 export type OAuthScopePolicy = {
-    mode: OAuthScopeMode;
     getRequest: () => { method: string | null; routeTemplate: string | null };
 };
 
 export type OAuthScopeContext = {
-    mode: OAuthScopeMode;
+    clientId: string;
     scopes: string[];
     record: (
         action: string,
@@ -23,11 +22,26 @@ export type OAuthScopeContext = {
     ) => void;
 };
 
-const contexts = new WeakMap<MemberAbility, OAuthScopeContext>();
+type OAuthRequestContext = {
+    scope: OAuthScopeContext;
+    recordOnce: (key: (string | null)[], record: () => void) => void;
+};
+
+const contexts = new WeakMap<MemberAbility, OAuthRequestContext>();
 
 export const getOAuthScopeContext = (
     ability: MemberAbility,
-): OAuthScopeContext | null => contexts.get(ability) ?? null;
+): OAuthScopeContext | null => contexts.get(ability)?.scope ?? null;
+
+export const recordOAuthRefusalOnce = (
+    ability: MemberAbility,
+    key: (string | null)[],
+    record: () => void,
+): void => {
+    const context = contexts.get(ability);
+    if (context) context.recordOnce(key, record);
+    else record();
+};
 
 const buildScopedRules = (
     base: MemberAbility,
@@ -70,12 +84,7 @@ class OAuthScopedAbility extends Ability<PossibleAbilities> {
         private readonly scoped: MemberAbility,
         private readonly context: OAuthScopeContext,
     ) {
-        super(context.mode === 'log' ? base.rules : scoped.rules, {
-            anyAction:
-                context.mode === 'log'
-                    ? 'manage'
-                    : '__oauth_wildcard_disabled__',
-        });
+        super(scoped.rules, { anyAction: '__oauth_wildcard_disabled__' });
     }
 
     relevantRuleFor(...args: Parameters<MemberAbility['relevantRuleFor']>) {
@@ -92,38 +101,45 @@ class OAuthScopedAbility extends Ability<PossibleAbilities> {
                 null,
             );
         }
-        return this.context.mode === 'log' ? baseRule : scopedRule;
+        return scopedRule;
     }
 }
 
 export const createOAuthScopedAbility = (
     base: MemberAbility,
     {
-        mode,
         scopes,
         clientId,
         getRequest,
     }: OAuthScopePolicy & { scopes: string[]; clientId: string },
 ): MemberAbility => {
     const recorded = new Set<string>();
+    const recordOnce: OAuthRequestContext['recordOnce'] = (key, record) => {
+        const serialized = JSON.stringify(key);
+        if (recorded.has(serialized)) return;
+        recorded.add(serialized);
+        record();
+    };
     const context: OAuthScopeContext = {
-        mode,
+        clientId,
         scopes: [...scopes],
         record: (action, subjectType, toolName) => {
-            const key = JSON.stringify([action, subjectType, toolName]);
-            if (recorded.has(key)) return;
-            recorded.add(key);
-            const { method, routeTemplate } = getRequest();
-            Logger.warn('oauth_scope_refusal', {
-                mode,
-                clientId,
-                scopes: scopesForOAuthRecord(context.scopes),
-                method,
-                routeTemplate: toolName === null ? routeTemplate : null,
-                toolName,
-                action,
-                subjectType,
-            });
+            recordOnce(
+                ['oauth_scope_refusal', action, subjectType, toolName],
+                () => {
+                    const { method, routeTemplate } = getRequest();
+                    Logger.warn('oauth_scope_refusal', {
+                        mode: 'enforce',
+                        clientId,
+                        scopes: scopesForOAuthRecord(context.scopes),
+                        method,
+                        routeTemplate: toolName === null ? routeTemplate : null,
+                        toolName,
+                        action,
+                        subjectType,
+                    });
+                },
+            );
         },
     };
     const scoped = new Ability<PossibleAbilities>(
@@ -133,6 +149,6 @@ export const createOAuthScopedAbility = (
         },
     );
     const ability = new OAuthScopedAbility(base, scoped, context);
-    contexts.set(ability, context);
+    contexts.set(ability, { scope: context, recordOnce });
     return ability;
 };

@@ -98,10 +98,6 @@ export class OAuthService extends BaseService {
                 ) as unknown as typeof OAuth2Server.AbstractGrantType,
                 refresh_token: createScopeCheckedRefreshTokenGrant(
                     (user) =>
-                        this.oauthModel.getScopeMode(
-                            user as UserWithOrganizationUuid,
-                        ),
-                    (user) =>
                         this.oauthModel.isSecurityStrictForOAuthUser(
                             user as UserWithOrganizationUuid,
                         ),

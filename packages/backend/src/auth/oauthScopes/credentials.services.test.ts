@@ -24,22 +24,22 @@ const user = {
     ]),
 };
 
-const build = (mode: 'log' | 'enforce') => {
+const build = (scopes: string[] = ['write', 'mcp:write']) => {
     const account = fromOauth(
         user,
         {
             accessToken: 'secret',
             client: { id: 'client' },
-            scope: ['write', 'mcp:write'],
+            scope: scopes,
         },
         {
-            mode,
             getRequest: () => ({
                 method: 'POST',
                 routeTemplate: '/credentials',
             }),
         },
     );
+    account.requestContext = { userAgent: 'cli-agent', cliVersion: '3.56.0' };
     const write = vi.fn().mockRejectedValue(new Error('Mutation reached'));
     const read = vi.fn().mockRejectedValue(new Error('Read reached'));
     const analytics = { track: vi.fn() };
@@ -164,25 +164,45 @@ const operations = [
     'deleteOAuthClient',
 ] as const;
 
-describe.each(['log', 'enforce'] as const)(
-    'Credential services in %s mode',
-    (mode) => {
-        beforeEach(() => {
-            vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
-        });
-        afterEach(() => vi.restoreAllMocks());
-        it.each(operations)(
-            'refuses %s before model reads, writes or analytics',
-            async (operation) => {
-                const { calls, write, read, analytics } = build(mode);
-                await expect(calls[operation]()).rejects.toBeInstanceOf(
-                    ForbiddenError,
-                );
-                expect(write).not.toHaveBeenCalled();
-                expect(read).not.toHaveBeenCalled();
-                expect(analytics.track).not.toHaveBeenCalled();
-                expect(Logger.warn).toHaveBeenCalledTimes(1);
-            },
+describe('Credential services', () => {
+    beforeEach(() => {
+        vi.spyOn(Logger, 'warn').mockImplementation(() => Logger);
+    });
+    afterEach(() => vi.restoreAllMocks());
+    it('refuses PAT creation with only write scope before touching the model', async () => {
+        const { calls, write, read, analytics } = build(['write']);
+        await expect(calls.createPersonalAccessToken()).rejects.toBeInstanceOf(
+            ForbiddenError,
         );
-    },
-);
+        expect(write).not.toHaveBeenCalled();
+        expect(read).not.toHaveBeenCalled();
+        expect(analytics.track).not.toHaveBeenCalled();
+    });
+
+    it.each(operations)(
+        'refuses %s before model reads, writes or analytics',
+        async (operation) => {
+            const { calls, write, read, analytics } = build();
+            await expect(calls[operation]()).rejects.toBeInstanceOf(
+                ForbiddenError,
+            );
+            expect(write).not.toHaveBeenCalled();
+            expect(read).not.toHaveBeenCalled();
+            expect(analytics.track).not.toHaveBeenCalled();
+            expect(Logger.warn).toHaveBeenCalledExactlyOnceWith(
+                'oauth_credential_mint_refused',
+                {
+                    operation,
+                    clientId: 'client',
+                    scopes: ['write', 'mcp:write'],
+                    userAgent: 'cli-agent',
+                    cliVersion: '3.56.0',
+                    organizationUuid: user.organizationUuid,
+                },
+            );
+            expect(
+                JSON.stringify(vi.mocked(Logger.warn).mock.calls),
+            ).not.toContain('secret');
+        },
+    );
+});

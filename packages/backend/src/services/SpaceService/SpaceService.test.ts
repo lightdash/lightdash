@@ -2141,7 +2141,6 @@ describe('managed space updates', () => {
             }) as SessionUser;
             if (mode !== 'pat' && mode !== 'session')
                 user.ability = createOAuthScopedAbility(user.ability, {
-                    mode: 'enforce',
                     scopes: ['read', 'write'],
                     clientId: 'agent',
                     getRequest: () => ({
@@ -2231,7 +2230,6 @@ describe('space metadata updates after a human revocation', () => {
             }) as SessionUser;
             if (mode !== 'pat' && mode !== 'session' && mode !== 'agent') {
                 user.ability = createOAuthScopedAbility(user.ability, {
-                    mode: 'enforce',
                     scopes: ['read', 'write'],
                     clientId: 'agent',
                     getRequest: () => ({

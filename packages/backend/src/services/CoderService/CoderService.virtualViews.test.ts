@@ -470,8 +470,12 @@ it('refuses access policies on bound virtual-view uploads before writes', async 
     const grant = grantFixture();
     const account = fromOauth(
         user,
-        { accessToken: 'token', client: { id: grant.clientId } },
-        null,
+        {
+            scope: ['read', 'write'],
+            accessToken: 'token',
+            client: { id: grant.clientId },
+        },
+        undefined,
         { ...grant, revision: 1 },
     );
     await Promise.all(

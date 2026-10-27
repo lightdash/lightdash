@@ -2,6 +2,7 @@ import { type Request, type RequestHandler } from 'express';
 import { validate as isUuid } from 'uuid';
 import { AGENT_CONNECTION_OWNER_OPERATIONS } from '../agentConnectionGrants/operationContracts';
 import { OAUTH_CASL_CHECKED_ROUTES } from './caslCheckedRoutes';
+import { OAUTH_CREDENTIAL_ROUTE_OPERATIONS } from './credentials';
 import {
     getOAuthScopeOperation,
     OAUTH_UNCHECKED_OPERATIONS,
@@ -9,6 +10,7 @@ import {
 
 const operations = new Set([
     ...AGENT_CONNECTION_OWNER_OPERATIONS,
+    ...Object.keys(OAUTH_CREDENTIAL_ROUTE_OPERATIONS),
     ...OAUTH_CASL_CHECKED_ROUTES,
     ...Object.keys(OAUTH_UNCHECKED_OPERATIONS),
 ]);

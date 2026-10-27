@@ -163,6 +163,7 @@ export type AccountOrganization = Partial<
  * to record the IP, user agent and request id alongside permission checks.
  */
 export type AccountRequestContext = {
+    cliVersion: string | null;
     ip?: string;
     userAgent?: string;
     requestId?: string;

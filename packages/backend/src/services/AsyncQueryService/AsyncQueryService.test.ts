@@ -6159,7 +6159,6 @@ describe('AsyncQueryService', () => {
                         client: { id: grant.clientId },
                     },
                     {
-                        mode: 'enforce',
                         getRequest: () => ({
                             method: 'POST',
                             routeTemplate: null,
@@ -9855,6 +9854,7 @@ describe('AsyncQueryService', () => {
                     );
                 } else if (oauthClientId) {
                     account = fromOauth(defaultSessionUser, {
+                        scope: ['read', 'write'],
                         accessToken: 'test-token',
                         client: { id: oauthClientId },
                     });
@@ -13528,7 +13528,6 @@ describe('AsyncQueryService', () => {
                               client: { id: grant.clientId },
                           },
                           {
-                              mode: 'enforce',
                               getRequest: () => ({
                                   method: 'POST',
                                   routeTemplate: null,
@@ -25397,6 +25396,7 @@ describe('fresh execution producer to result reader', () => {
                 break;
             case 'oauth':
                 account = fromOauth(defaultSessionUser, {
+                    scope: ['read', 'write'],
                     accessToken: 'test-oauth',
                     client: { id: 'oauth-client' },
                 });
@@ -27452,6 +27452,7 @@ describe('fresh execution producer to result reader', () => {
                     },
                 });
                 const person = fromOauth(auth.user, {
+                    scope: ['read', 'write'],
                     accessToken: 'ordinary',
                     client: { id: 'lightdash-cli' },
                 });
@@ -27510,6 +27511,7 @@ describe('fresh execution producer to result reader', () => {
                     readerKind === 'connection'
                         ? auth.req.account!
                         : fromOauth(auth.user, {
+                              scope: ['read', 'write'],
                               accessToken: 'ordinary',
                               client: { id: 'lightdash-cli' },
                           });
@@ -27541,6 +27543,7 @@ describe('fresh execution producer to result reader', () => {
                     enabled,
                 });
                 const person = fromOauth(auth.user, {
+                    scope: ['read', 'write'],
                     accessToken: 'ordinary',
                     client: { id: 'lightdash-cli' },
                 });
@@ -28015,6 +28018,7 @@ describe('fresh execution producer to result reader', () => {
                 { grantUuid: 'grant', revision: 1 },
             );
             const person = fromOauth(auth.user, {
+                scope: ['read', 'write'],
                 accessToken: 'ordinary',
                 client: { id: 'lightdash-cli' },
             });
@@ -28132,6 +28136,7 @@ describe('fresh execution producer to result reader', () => {
             error: undefined,
         });
         const person = fromOauth(auth.user, {
+            scope: ['read', 'write'],
             accessToken: 'ordinary',
             client: { id: 'lightdash-cli' },
         });
@@ -28200,6 +28205,7 @@ describe('fresh execution producer to result reader', () => {
             const account =
                 method === 'oauth'
                     ? fromOauth(defaultSessionUser, {
+                          scope: ['read', 'write'],
                           accessToken: 'test-oauth',
                           client: { id: 'lightdash-cli' },
                       })
