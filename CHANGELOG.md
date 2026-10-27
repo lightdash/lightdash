@@ -1,3 +1,10 @@
+# [3.66.0](https://github.com/lightdash/lightdash/compare/3.65.2...3.66.0) (2026-10-27)
+
+
+### Features
+
+* **ai-agent:** show row count on composer View results button ([#31629](https://github.com/lightdash/lightdash/issues/31629)) ([a90f6ee](https://github.com/lightdash/lightdash/commit/a90f6eed7c2c5c14707d70b1e875ec72c2154a0f))
+
 ## [3.65.2](https://github.com/lightdash/lightdash/compare/3.65.1...3.65.2) (2026-10-27)
 
 
