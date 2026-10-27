@@ -89,6 +89,7 @@ import {
     NEW_SECTION_TARGET_ID,
     rangeBetween,
     UNSECTIONED_TARGET_ID,
+    type FilterGroup,
     type SectionRule,
     isCollapsedByDefault,
     removeSectionFromRules,
@@ -425,8 +426,8 @@ const UnsectionTarget: FC<{
     );
 };
 
-// A dashboard with no section yet: a dashed capsule that starts the first
-// one, on a click or with a pill dropped on it
+// The bar's last item in edit mode: a dashed capsule that starts a section,
+// on a click or with a pill dropped on it
 const NewSectionGhost: FC<{ isDisabled: boolean; onClick: () => void }> = ({
     isDisabled,
     onClick,
@@ -479,7 +480,6 @@ type Props = {
     activeTabUuid: string | undefined;
 };
 
-type FilterGroup = 'dimensions' | 'metrics';
 const LOOSE_START = 'loose-start';
 
 // The filter area of a dashboard with sections: Add, then the unsectioned
@@ -1072,7 +1072,9 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                 onDragCancel={() => setDraggedId(null)}
             >
                 <BarSpace leavingKindOf={leavingKindOf}>
-                    <UnsectionTarget looseEnd={looseEnds[LOOSE_START]}>
+                    <UnsectionTarget
+                        looseEnd={isViewer ? undefined : looseEnds[LOOSE_START]}
+                    >
                         <AddControl />
                     </UnsectionTarget>
                     {pills}

@@ -272,9 +272,10 @@ const renderSectioned = (
         { id: 'b', name: 'Regions' },
         { id: 'c', name: 'Empty' },
     ],
+    metrics: DashboardFilterRule[] = [],
 ) => {
     const store = createDashboardTestStore({
-        dashboardFilters: { dimensions, metrics: [], tableCalculations: [] },
+        dashboardFilters: { dimensions, metrics, tableCalculations: [] },
     });
     const onTab = (tab: string | undefined) => (
         <DashboardStoreTestProvider store={store}>
@@ -867,6 +868,61 @@ describe('SectionedFilters', () => {
                 'data-loose-end',
                 'dimensions metrics',
             );
+        });
+
+        it('marks the two kinds on their own pills once a loose metric exists', () => {
+            const looseEndsOf = () =>
+                pillsProps.current.findLast((p) => p.sectionId === null)
+                    ?.looseEnds;
+            const addTarget = () =>
+                screen
+                    .getByRole('button', { name: 'Add' })
+                    .closest('[data-loose-end]');
+            const sections = [
+                { id: 'a', name: 'Dates' },
+                { id: 'b', name: 'Regions' },
+            ];
+            const { unmount } = renderSectioned(
+                [rule('one', 'a'), rule('dim', undefined)],
+                'tab-1',
+                sections,
+                [rule('m1', undefined), rule('m2', undefined), rule('m3', 'b')],
+            );
+            expect(looseEndsOf()).toEqual({ dim: 'dimensions', m2: 'metrics' });
+            expect(addTarget()).toBeNull();
+            unmount();
+
+            // Only loose metrics: a dimension lands first, after Add
+            pillsProps.current = [];
+            renderSectioned([rule('one', 'a')], 'tab-1', sections, [
+                rule('m1', undefined),
+            ]);
+            expect(looseEndsOf()).toEqual({
+                'loose-start': 'dimensions',
+                m1: 'metrics',
+            });
+            expect(addTarget()).toHaveAttribute('data-loose-end', 'dimensions');
+        });
+
+        it('names a metric leaving its section by its kind on the empty space', () => {
+            mockDroppable.current = {
+                activeId: 'm3',
+                overId: 'bar-space-target',
+            };
+            renderSectioned(
+                [rule('one', 'a')],
+                'tab-1',
+                [
+                    { id: 'a', name: 'Dates' },
+                    { id: 'b', name: 'Regions' },
+                ],
+                [rule('m1', undefined), rule('m3', 'b')],
+            );
+            expect(capsuleOf('Dates').parentElement).toHaveAttribute(
+                'data-over',
+                'metrics',
+            );
+            mockDroppable.current = null;
         });
 
         it('writes nothing for a drop on its own capsule, or on the first button while unsectioned', () => {
@@ -2026,7 +2082,6 @@ describe('SectionedFilters', () => {
         const expectNoNames = () => {
             const allowed = new Set([
                 'dash-1',
-                'add_section_icon',
                 'new_section_capsule',
                 'new_section_drop',
                 'selection_bar',

@@ -78,8 +78,9 @@
     border-radius: var(--mantine-radius-xl);
 }
 
-/* Before the first section: a lighter, bracketed capsule (dashed outline
-   in Add filter's border colours, no fill, dimmed text) that starts one;
+/* The bar's entry, with or without sections: a lighter, bracketed capsule
+   (dashed outline in Add filter's border colours, no fill, dimmed text)
+   that starts a section;
    under a dragged pill its outline
    turns blue over a light blue tint, so nothing changes size */
 .newSectionGhost {
