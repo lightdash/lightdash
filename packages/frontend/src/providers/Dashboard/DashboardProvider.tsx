@@ -351,8 +351,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }
     }, [store, dashboard?.config?.parameterOrder, dashboard?.config]);
 
-    const isDashboardLoaded = dashboard !== undefined;
-    const savedControlSections = dashboard?.config?.controlSections;
+    const isDashboardLoaded = (dashboard ?? embedDashboard) !== undefined;
+    const savedControlSections = currentDashboardConfig?.controlSections;
     useEffect(() => {
         if (!isDashboardLoaded) return;
         store.dispatch(

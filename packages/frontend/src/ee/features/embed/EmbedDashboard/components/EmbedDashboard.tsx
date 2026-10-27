@@ -570,8 +570,16 @@ const EmbedDashboard: FC<{
         [dashboard, languageMap],
     );
     const filterLabelOverrides = dashboardContentOverrides?.filters;
-    const sectionNameOverrides =
-        dashboardContentOverrides?.config?.controlSections;
+    // Keyed on content: an SDK host may pass a new contentOverrides object
+    // every render, which would otherwise re-seed the store each time
+    const sectionNameOverridesKey = JSON.stringify(
+        dashboardContentOverrides?.config?.controlSections ?? null,
+    );
+    const sectionNameOverrides = useMemo(
+        () => dashboardContentOverrides?.config?.controlSections,
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [sectionNameOverridesKey],
+    );
 
     // Translated filter labels and section names are applied before the
     // dashboard seeds the provider so every viewer surface (pills, sections,

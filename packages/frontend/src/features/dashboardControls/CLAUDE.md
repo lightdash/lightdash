@@ -381,7 +381,9 @@ In `FilterConfiguration/`:
 - Section names are translated before the dashboard seeds the provider
   (`translatedDashboard` in `EmbedDashboard`, `translateControlSections`):
   the store holds the translated names, while an embed editor's Save sends
-  the loaded, untranslated `dashboard.config`, so sections survive it.
+  the loaded, untranslated `dashboard.config`, so sections survive it. The section overrides are memoised
+  on their content, so a host's inline `contentOverrides` does not re-seed
+  the store every render.
 
 ## Provider contract (`useControlsSidebar`)
 
@@ -1241,7 +1243,8 @@ still applies by position.
 
 - State: `controlSections` and `haveControlSectionsChanged` in the store's
   `edit` slice (`syncControlSections` seeds from the saved config unless
-  edits are staged, from `DashboardProvider` and the page's Cancel; `add`
+  edits are staged, from `DashboardProvider`, which reads the query's
+  dashboard or an embed's (`setEmbedDashboard`), and the page's Cancel; `add`
   (appends, the bar's too, so a new section is last, saved and shown),
   `rename`, `remove`, `moveControlSection` and `setControlSectionCollapsed`
   mark the change; every reducer spreads the section, so `collapsed`
