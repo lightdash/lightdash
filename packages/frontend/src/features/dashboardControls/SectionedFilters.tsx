@@ -31,7 +31,6 @@ import {
     IconChevronDown,
     IconChevronRight,
     IconFilter,
-    IconFolderPlus,
     IconPlus,
 } from '@tabler/icons-react';
 import {
@@ -105,7 +104,6 @@ import { type PillPopoverState } from './ViewerSavedPills';
 
 const ADD_FILTER_SELECTOR =
     '[data-filter-actions] > button[data-dashboard-filter-control]';
-const ADD_SECTION_SELECTOR = '[data-add-section]';
 const NEW_SECTION_SELECTOR = '[data-new-section]';
 const pillSelector = (id: string) => `[data-controls-pill="${id}"]`;
 const sectionNameSelector = (id: string) => `[data-section-name="${id}"]`;
@@ -157,8 +155,6 @@ type CapsuleProps = {
     actions: CapsuleActions | null;
     /** The sections in bar order: which side a dragged capsule lands on. */
     sectionOrder: string[];
-    /** The first section: the loose pills end just before it. */
-    isFirst: boolean;
 };
 
 const SectionCapsule: FC<CapsuleProps> = ({
@@ -172,7 +168,6 @@ const SectionCapsule: FC<CapsuleProps> = ({
     popover,
     actions,
     sectionOrder,
-    isFirst,
 }) => {
     const getUiString = useUiStrings();
     const summaryId = useId();
@@ -226,7 +221,6 @@ const SectionCapsule: FC<CapsuleProps> = ({
             data-over={isForeignOver || undefined}
             data-section-drop={sectionDropSide}
             data-dragging={head.isDragging || undefined}
-            data-first={isFirst || undefined}
         >
             {actions === null ? (
                 <UnstyledButton
@@ -414,13 +408,17 @@ const NewSection: FC<{
 };
 
 // The bar's first button takes a pill out of its section
-const UnsectionTarget: FC<{ children: ReactNode }> = ({ children }) => {
+const UnsectionTarget: FC<{
+    looseEnd: string | undefined;
+    children: ReactNode;
+}> = ({ looseEnd, children }) => {
     const { setNodeRef, isOver } = useDroppable({ id: UNSECTIONED_TARGET_ID });
     return (
         <Box
             ref={setNodeRef}
             className={classes.unsectionTarget}
             data-over={isOver || undefined}
+            data-loose-end={looseEnd}
         >
             {children}
         </Box>
@@ -452,11 +450,12 @@ const NewSectionGhost: FC<{ isDisabled: boolean; onClick: () => void }> = ({
 };
 
 // The bar's space outside every capsule and pill also takes a pill out of
-// its section: a line after the bar's last item while one would leave
+// its section: `data-over` names the leaving pill's kind, and the line shows
+// on the loose item it would land after (`data-loose-end`)
 const BarSpace: FC<{
-    isLeaving: (id: string) => boolean;
+    leavingKindOf: (id: string) => FilterGroup | null;
     children: ReactNode;
-}> = ({ isLeaving, children }) => {
+}> = ({ leavingKindOf, children }) => {
     const { setNodeRef, isOver, active } = useDroppable({
         id: BAR_SPACE_TARGET_ID,
     });
@@ -465,7 +464,9 @@ const BarSpace: FC<{
             ref={setNodeRef}
             className={classes.flow}
             data-over={
-                (isOver && active !== null && isLeaving(String(active.id))) ||
+                (isOver &&
+                    active !== null &&
+                    leavingKindOf(String(active.id))) ||
                 undefined
             }
         >
@@ -478,11 +479,14 @@ type Props = {
     activeTabUuid: string | undefined;
 };
 
-// The filter area of a dashboard with sections: Add (an editor's then Add
-// section, or the new section's name), then one outlined
+type FilterGroup = 'dimensions' | 'metrics';
+const LOOSE_START = 'loose-start';
+
+// The filter area of a dashboard with sections: Add, then the unsectioned
+// pass (the unsectioned saved pills, the viewer's own), then one outlined
 // capsule per section with a member on this tab (its toggle, then its pills
-// inline), then the unsectioned pass (the unsectioned saved pills, the
-// viewer's own). Collapsing is local state keyed by section id, as the
+// inline), then an editor's entry (Add section, the New section capsule, or
+// the new section's name). Collapsing is local state keyed by section id, as the
 // ids whose state differs from their default; one saved popover is open across
 // every pass. In edit mode one drag context spans the passes: a pill dropped
 // on a pill takes its place and section, on a capsule joins that section
@@ -650,17 +654,28 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     // The pills on screen in bar order: each open capsule's, then the
     // unsectioned ones; a folded capsule's are left out. Read when a pill is
     // picked, so the selection does not change with it
+    const looseOnTab = groupRulesBySection(dashboardFilters, sections)
+        .filter(({ section }) => section === null)
+        .flatMap(({ rules }) => rules)
+        .filter(
+            ({ rule }) =>
+                !isFilterHiddenOnTab(getTabsUsingFilter(rule), activeTabUuid),
+        );
+    // Where a pill leaving its section lands, by kind: after the last loose
+    // pill of its kind; a metric with none after the last loose dimension;
+    // else first, after "Add filter"
+    const lastLooseOf = (group: FilterGroup) =>
+        looseOnTab.filter((entry) => entry.group === group).at(-1)?.rule.id;
+    const dimensionsEnd = lastLooseOf('dimensions') ?? LOOSE_START;
+    const metricsEnd =
+        lastLooseOf('metrics') ?? lastLooseOf('dimensions') ?? LOOSE_START;
+    const looseEnds: Record<string, string> = {};
+    looseEnds[dimensionsEnd] = 'dimensions';
+    looseEnds[metricsEnd] = [looseEnds[metricsEnd], 'metrics']
+        .filter(Boolean)
+        .join(' ');
     const barOrder = [
-        ...groupRulesBySection(dashboardFilters, sections)
-            .filter(({ section }) => section === null)
-            .flatMap(({ rules }) => rules.map(({ rule }) => rule))
-            .filter(
-                (rule) =>
-                    !isFilterHiddenOnTab(
-                        getTabsUsingFilter(rule),
-                        activeTabUuid,
-                    ),
-            ),
+        ...looseOnTab.map(({ rule }) => rule),
         ...groups.flatMap(({ section, rules, visibleRules }) =>
             isOpen(section, rules.length) ? visibleRules : [],
         ),
@@ -729,10 +744,9 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
         if (overId === undefined || overId === id) return;
         dispatch(dashboardEditActions.moveControlSection({ id, overId }));
     };
-    const capsules = groups.map(({ section, rules, visibleRules }, index) => (
+    const capsules = groups.map(({ section, rules, visibleRules }) => (
         <SectionCapsule
             key={section.id}
-            isFirst={index === 0}
             section={section}
             rules={rules}
             visibleRules={visibleRules}
@@ -816,6 +830,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
             activeTabUuid={activeTabUuid}
             sectionId={null}
             popover={popover}
+            looseEnds={isViewer ? undefined : looseEnds}
         />
     );
 
@@ -851,12 +866,10 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
             // A cancelled name moves nothing and keeps the selection
             onCancel={() => setNaming(null)}
             cancelFocusSelector={
-                naming.source === 'add_section_icon'
-                    ? ADD_SECTION_SELECTOR
-                    : naming.source === 'new_section_capsule' ||
-                        naming.source === 'new_section_drop'
-                      ? NEW_SECTION_SELECTOR
-                      : ADD_FILTER_SELECTOR
+                naming.source === 'new_section_capsule' ||
+                naming.source === 'new_section_drop'
+                    ? NEW_SECTION_SELECTOR
+                    : ADD_FILTER_SELECTOR
             }
         />
     );
@@ -874,8 +887,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     const allRules = groupRulesBySection(dashboardFilters, sections).flatMap(
         ({ rules }) => rules,
     );
-    // Until the first section, a capsule that says how to start one
-    const isGhostShown = sections.length === 0 && allRules.length > 0;
+    // The bar's end: a capsule that starts a section, once there is a filter
+    const isGhostShown = allRules.length > 0;
     const fieldOf = ({ rule, group }: SectionRule) =>
         getDashboardFilterField<DashboardFilterableField>(
             group === 'metrics'
@@ -962,10 +975,13 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     };
     const isUnsectionTarget = (id: string) =>
         id === UNSECTIONED_TARGET_ID || id === BAR_SPACE_TARGET_ID;
-    const isLeaving = (id: string) => {
-        if (selected.length > 1 && selected.includes(id)) return true;
+    const leavingKindOf = (id: string): FilterGroup | null => {
         const found = allRules.find(({ rule }) => rule.id === id);
-        return found !== undefined && sectionOfRule(found.rule) !== null;
+        if (found === undefined) return null;
+        return (selected.length > 1 && selected.includes(id)) ||
+            sectionOfRule(found.rule) !== null
+            ? found.group
+            : null;
     };
     const isSelectionDragged =
         draggedId !== null &&
@@ -1055,8 +1071,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                 onDragEnd={handleDragEnd}
                 onDragCancel={() => setDraggedId(null)}
             >
-                <BarSpace isLeaving={isLeaving}>
-                    <UnsectionTarget>
+                <BarSpace leavingKindOf={leavingKindOf}>
+                    <UnsectionTarget looseEnd={looseEnds[LOOSE_START]}>
                         <AddControl />
                     </UnsectionTarget>
                     {pills}
@@ -1072,29 +1088,6 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                                     })
                                 }
                             />
-                        </InertWhileEditing>
-                    )}
-                    {naming === null && sections.length > 0 && (
-                        <InertWhileEditing>
-                            <Tooltip label="Add section">
-                                <ActionIcon
-                                    size="md"
-                                    radius="xl"
-                                    aria-label="Add section"
-                                    data-add-section
-                                    onClick={() =>
-                                        setNaming({
-                                            moveIds: selected,
-                                            source: 'add_section_icon',
-                                        })
-                                    }
-                                >
-                                    <MantineIcon
-                                        icon={IconFolderPlus}
-                                        size={14}
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
                         </InertWhileEditing>
                     )}
                     {newSection}

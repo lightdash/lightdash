@@ -57,6 +57,9 @@ type Props = {
     triggerClassName?: string;
     /** An embed's class contract hook on a saved pill's popover (default none). */
     dropdownClassName?: string;
+    /** The sectioned bar's loose pass: rule id to the kinds (space separated)
+     * a pill leaving its section lands after (default none). */
+    looseEnds?: Record<string, string>;
 };
 
 type FilterPillGroup = 'dimensions' | 'metrics';
@@ -67,8 +70,9 @@ const GROUPS: FilterPillGroup[] = ['dimensions', 'metrics'];
 // It drags while a filter is edited too: only the edited one is the editor's
 const BarDraggable: FC<{
     id: string;
+    looseEnd: string | undefined;
     children: ReactNode;
-}> = ({ id, children }) => {
+}> = ({ id, looseEnd, children }) => {
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id,
     });
@@ -77,6 +81,7 @@ const BarDraggable: FC<{
             ref={setNodeRef}
             className={classes.barDraggable}
             data-dragging={isDragging || undefined}
+            data-loose-end={looseEnd}
             {...listeners}
             {...attributes}
         >
@@ -91,6 +96,7 @@ export const FilterPills: FC<Props> = ({
     popover,
     triggerClassName,
     dropdownClassName,
+    looseEnds,
 }) => {
     const editingFilterId = useControlsSidebarSelector(
         (c) => c.editing?.filterId ?? null,
@@ -249,7 +255,10 @@ export const FilterPills: FC<Props> = ({
                                             {pill}
                                         </DraggableItem>
                                     ) : (
-                                        <BarDraggable id={filter.id}>
+                                        <BarDraggable
+                                            id={filter.id}
+                                            looseEnd={looseEnds?.[filter.id]}
+                                        >
                                             {pill}
                                         </BarDraggable>
                                     )}

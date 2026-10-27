@@ -197,8 +197,8 @@ In `FilterConfiguration/`:
   a `display: contents` box carrying `inert`; `.inert` in
   `FilterPills.module.css` is the one dimming rule, shared with the capsule
   actions and the header guard)
-  wraps the "Add filter" group ("..." included), "Add section" and the
-  "New section" capsule; each
+  wraps the "Add filter" group ("..." included) and the "New section"
+  capsule; each
   capsule's name, + and menu carry `inert`
   themselves.
   The multi-select is off; the sectioned bar's pills still drag (see
@@ -238,7 +238,10 @@ In `FilterConfiguration/`:
   edited pill (`aria-pressed`) shows `EditBadge` as its first icon, in the
   grip's slot (`leadingIcon`), before the requirement icon and its own field
   icon: a filled blue 16px `ThemeIcon`, radius `xl`, with a white 10px
-  `IconPencil`, and `margin-inline-start: -4px` (`.editBadge`), so it takes
+  `IconPencil`, `role="img"` named `filters.rail.editingBadge` ("Editing",
+  in the registry since a viewer's popover pill shows it too, so the pill
+  announces "Editing" before its name), and `margin-inline-start: -4px`
+  (`.editBadge`), so it takes
   the 12px grip's footprint out of the pill's left padding (about 4px from
   the pill's edge), keeps the 4px gap to the next icon, and the pill keeps
   its width. Nothing else changes: the fill and border stay what the pill
@@ -260,7 +263,9 @@ In `FilterConfiguration/`:
   `ChangedDot` (`ChangedDot.tsx`, one `.changedDot` rule in
   `FilterPills.module.css`): a `blue-filled` dot the size of the `xs`
   spacing, `role="img"` named "Changed", on the pill's top right corner
-  (`data-corner`, absolute, so it adds no width), with a 2px halo in the bar's `--ld-color-page`
+  (`data-corner`, absolute, so it adds no width), placed as the tile
+  comments' Mantine `Indicator` with `offset={3}`: its centre 3px in from
+  the corner (`top`/`right` 3px, `translate(50%, -50%)`), with a 2px halo in the bar's `--ld-color-page`
   (`box-shadow`), so it stays visible on a solid blue picked pill. Blue,
   never yellow: it is state, not a warning. A pill that
   is not saved yet has one. The dots say what Save will keep; see
@@ -1226,8 +1231,8 @@ the language map, as tab names are.
   (the unsectioned saved pills and the viewer's own pills, which are never
   in a section), then one capsule per section in `controlSections` order
   that has a saved member visible on this tab, and in edit mode last the
-  entry slot ("Add section", the "New section" capsule, or the new
-  section's name input), so creating a section moves nothing before it;
+  entry slot (the "New section" capsule, or the new section's name
+  input), so creating a section moves nothing before it;
   the sections are
   visible on this tab (`groupRulesBySection`, `useFilterTabPlacement` /
   `isFilterHiddenOnTab`); for a viewer a section with none renders nothing,
@@ -1297,7 +1302,7 @@ the language map, as tab names are.
   `data-editable` drops the collapsed capsule's 10px right padding), two
   `sm` `xl`-radius icons, each with a tooltip of its name: `+` "Add filter
   to {name}" (`openNew(section.id)`) and `SectionMenu` named "{name} menu"
-  ("Collapsed by default", then one neutral item with a folder-minus icon (the mirror of Add section's folder-plus) that
+  ("Collapsed by default", then one neutral item with a folder-minus icon that
   removes in one click: "Remove, keep filters" on a section with members
   (on any tab), "Remove section" on an empty one; never red, no trash can,
   nothing asks twice. The box is
@@ -1305,35 +1310,31 @@ the language map, as tab names are.
   `removeControlSection` and, with members, one `setDashboardFilters` over
   `removeSectionFromRules` plus `setHaveFiltersChanged(true)`; focus then
   goes to "Add filter"). A section starts from "Move to new section" on
-  the selection bar (or "New section" in its "Move to"), or from "Add
-  section": a subtle `md` (28px, the pill line) `ActionIcon` with the
-  folder-plus icon and its tooltip, last on the bar, after the capsules,
-  shown once the dashboard has
-  a section (before that the capsule below stands in for it),
-  hidden while a section is named and inert while a filter is
-  edited (`InertWhileEditing`). While the dashboard has no section and at
-  least one filter (dimensions and metrics), the "New
-  section" capsule takes the icon's place instead (`NewSectionGhost`,
+  the selection bar (or "New section" in its "Move to"), or from the
+  "New section" capsule, the bar's one entry, last after the capsules:
+  shown in edit mode whenever the dashboard has a filter (dimensions and
+  metrics), sections or not, hidden while a section is named (the name
+  input takes its slot) and inert while a filter is edited
+  (`InertWhileEditing`). There is no folder icon (`NewSectionGhost`,
   `data-new-section`): an `UnstyledButton` drawn by `.newSectionGhost`,
   28px tall (44px in the shipped bar's narrow container, as its buttons),
   `xl` radius, a 1px dashed outline in the default button's border colours
   (`gray-3`/`dark-4`, as Add filter's dashed border), no fill, a 14px `+`
   and "New section" in `xs` 500, dimmed (text colour and the button's
-  hover border on hover). A click starts the same naming as the icon; it is
+  hover border on hover). A click starts the naming; it is
   also a `useDroppable` (`NEW_SECTION_TARGET_ID`, disabled while a filter
   is edited, and a drop then writes nothing): a pill dropped on it starts
   the naming with that pill to move in (the selection, when it carries
   one). Under a pill it carries `data-over`: a `blue-5` dashed outline
-  over `blue-light`, no size change. Once a section exists the icon is
-  back; view mode never shows it. The bar ends on that entry: nothing
+  over `blue-light`, no size change. View mode never shows it. The bar ends on that entry: nothing
   follows it. Every way of starting a section (the entry, "Move to new
   section", "Move to" then "New section", a pill dropped on the capsule)
   puts `NewSection` in that one end slot, in the entry's place, where the
   section lands, after the last capsule. It is
   a capsule holding a focused, empty `SectionNameInput` ("Section
   name"); Enter or blur with a name dispatches `addControlSection` (a
-  new uuid, last of the sections) and moves the picked pills in ("Add section" with
-  nothing picked makes an empty section), Escape or an empty name drops
+  new uuid, last of the sections) and moves the picked pills in (the
+  capsule with nothing picked makes an empty section), Escape or an empty name drops
   it. The "..." on "Add filter" starts no section. Focus after naming:
   - A rename: back to the name button (`useRefocusAfter`), only when focus
     fell to `body`.
@@ -1343,8 +1344,8 @@ the language map, as tab names are.
   - A committed new section that took pills: the first moved pill, through
     the bar's `focusAfter`, which does not check for `body` focus; the name
     button then stays unfocused. Either way focus is in the new section.
-  - A cancelled name: "Add filter" ("Add section" or "New section" when it
-    started it), only when focus fell to `body`.
+  - A cancelled name: "Add filter" ("New section" when it started it),
+    only when focus fell to `body`.
   While a filter is edited the name and the `.actions` group carry `inert`
   (the group dimmed by the shared `.inert` rule); the chevron still folds.
 - `SectionsTip` teaches that gesture: an editor's first row above the bar
@@ -1399,19 +1400,21 @@ the language map, as tab names are.
   `DragOverlay` is portalled to the body so the bar never clips the copy. The first button under a sectioned pill carries `data-over` with
   a hover fill and inset `blue-5` ring, since nothing there can
   carry a line. The empty space under a pill that would leave its section
-  (a sectioned pill, or a carried selection) carries `data-over` on `.flow`,
-  which draws the same line as an `::after` on the first capsule
-  (`data-first`), in the gap before it: where the loose pills end and the
-  pill lands (at the start of the next row when that capsule wrapped). A
-  pill leaving a capsule grows nothing: the line beside the unsectioned
-  pill under the pointer, the line before the first capsule, or the first
-  button's ring, is the feedback. The drop
+  (a sectioned pill, or a carried selection) carries `data-over` on `.flow`
+  set to the dragged pill's kind (`dimensions` or `metrics`), which draws
+  the same line as an `::after`, in the gap after the loose item marked
+  for that kind (`data-loose-end`, space separated kinds): the last loose
+  pill of its kind (`looseEnds` on the loose `FilterPills` pass, on its
+  `BarDraggable`); for a metric with none, the last loose dimension; with
+  neither, "Add filter"'s `UnsectionTarget`. That is where the pill lands,
+  on whatever row it is. A pill leaving a capsule grows nothing: the line
+  beside the unsectioned pill under the pointer, that landing line, or the
+  first button's ring, is the feedback. The drop
   goes through `moveRuleToSection`: on a pill, that pill's section and
   place; on a capsule, that section after its last member of the same kind;
   on the first button or the empty space, no section, after the last
   unsectioned pill of its kind, as a section is joined (a dimension lands
-  before the unsectioned metrics, so the line before the first capsule is
-  then one place late). A drop on its own capsule, on the first button or the empty
+  before the unsectioned metrics, and the line says so). A drop on its own capsule, on the first button or the empty
   space while unsectioned, on itself or nowhere writes nothing; otherwise
   `setDashboardFilters` and `setHaveFiltersChanged(true)`. While a filter is
   edited, a drag of the edited pill goes through `moveEditedFilter` instead
@@ -1435,7 +1438,7 @@ the language map, as tab names are.
   `.pickedPill`: solid `blue-filled` with white text (`--mantine-color-dimmed`
   is white at 75% inside it) and a check (`fieldIconOverride`, an opening
   on `FilterPillButton`) in place of the field icon, apart from the edited
-  edited pill's badge and a hover. On that bar the pill's own tooltip (the orphaned one's)
+  pill's badge and a hover. On that bar the pill's own tooltip (the orphaned one's)
   reads "Click to edit · ⌘ click to select" ("Ctrl click" off mac,
   `useOs`) after 500ms, and the tables tooltip on the name is off so only
   one shows. Escape clears it through a document capture listener mounted
@@ -1503,9 +1506,11 @@ never a filter or section name, label, value or field id.
   the shown section: a dangling `sectionId` is none, so dropping such a rule
   among the unsectioned (which drops the id) is a reorder.
 - `dashboard_section.created`: `NewSection`'s commit in `SectionedFilters`,
-  with `source` (`add_section_icon`, `new_section_capsule` (its click),
+  with `source` (`new_section_capsule` (its click),
   `new_section_drop` (a pill dropped on it), or `selection_bar` /
-  `move_to_menu` from `SelectionActions`), `filtersMoved` and `wasTipShown` (`useSectionsTip`,
+  `move_to_menu` from `SelectionActions`; `add_section_icon`, the removed
+  folder icon's, stays in the type for past events and is no longer
+  sent), `filtersMoved` and `wasTipShown` (`useSectionsTip`,
   the tip's own reading). It is the only event for that action: the picked
   pills it moves send no `dashboard_filters.moved`.
 - `dashboard_sections_tip.dismissed`: the tip's X.

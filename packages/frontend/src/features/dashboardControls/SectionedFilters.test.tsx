@@ -31,7 +31,10 @@ const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 const pillsProps = vi.hoisted(() => ({
-    current: [] as { sectionId: string | null | undefined }[],
+    current: [] as {
+        sectionId: string | null | undefined;
+        looseEnds?: Record<string, string>;
+    }[],
 }));
 const mockSidebar = vi.hoisted(() => ({
     current: { isViewer: false, isSidebarOpen: false } as {
@@ -164,14 +167,16 @@ vi.mock('./FilterPills', async () => {
         FilterPills: ({
             sectionId,
             popover,
+            looseEnds,
         }: {
             sectionId: string | null | undefined;
+            looseEnds?: Record<string, string>;
             popover: {
                 openPopoverId: string | undefined;
                 onPopoverOpen: (id: string) => void;
             };
         }) => {
-            pillsProps.current.push({ sectionId });
+            pillsProps.current.push({ sectionId, looseEnds });
             const sections = useDashboardSelector(selectControlSections);
             const rules = useDashboardSelector(
                 selectDashboardFilters,
@@ -346,7 +351,7 @@ describe('SectionedFilters', () => {
         expect(document.querySelectorAll('[class*="capsule"]')).toHaveLength(2);
     });
 
-    it('keeps Add, the loose pills, the capsules and Add section in one flow, in that order, ending on Add section', () => {
+    it('keeps Add, the loose pills, the capsules and New section in one flow, in that order, ending on New section', () => {
         renderSectioned([rule('one', 'a')], 'tab-1');
         // In edit mode Add sits in its drop-target wrapper inside the flow
         const add = screen.getByRole('button', { name: 'Add' });
@@ -356,7 +361,7 @@ describe('SectionedFilters', () => {
             add,
             screen.getByTestId('pills-unsectioned'),
             screen.getByTestId('pills-a'),
-            screen.getByRole('button', { name: 'Add section' }),
+            screen.getByRole('button', { name: 'New section' }),
         ];
         inOrder.slice(1).forEach((node, i) => {
             expect(flow).toContainElement(node);
@@ -366,12 +371,10 @@ describe('SectionedFilters', () => {
             ).toBeTruthy();
         });
         expect(flow?.lastElementChild).toContainElement(
-            screen.getByRole('button', { name: 'Add section' }),
+            screen.getByRole('button', { name: 'New section' }),
         );
-        // The first capsule carries the line a pill leaving its section
-        // lands on: after the loose pills
-        expect(capsuleOf('Dates')).toHaveAttribute('data-first');
-        expect(capsuleOf('Regions')).not.toHaveAttribute('data-first');
+        // The capsule is the only entry: no folder icon
+        expect(document.querySelector('[data-add-section]')).toBeNull();
         expect(
             screen.queryByRole('button', { name: 'Filter rules' }),
         ).not.toBeInTheDocument();
@@ -822,7 +825,8 @@ describe('SectionedFilters', () => {
             );
             const flowOf = () =>
                 capsuleOf('Dates').parentElement as HTMLElement;
-            expect(flowOf()).toHaveAttribute('data-over');
+            // Named by the leaving pill's kind, for the line on its landing
+            expect(flowOf()).toHaveAttribute('data-over', 'dimensions');
             unmount();
 
             mockDroppable.current = {
@@ -834,6 +838,35 @@ describe('SectionedFilters', () => {
                 'tab-1',
             );
             expect(flowOf()).not.toHaveAttribute('data-over');
+        });
+
+        it('marks where a pill leaving its section lands: the last loose pill of its kind, else after Add', () => {
+            const looseEndsOf = () =>
+                pillsProps.current.findLast((p) => p.sectionId === null)
+                    ?.looseEnds;
+            const addTarget = () =>
+                screen
+                    .getByRole('button', { name: 'Add' })
+                    .closest('[data-loose-end]');
+            const { unmount } = renderSectioned(
+                [
+                    rule('one', 'a'),
+                    rule('loose', undefined),
+                    rule('last', undefined),
+                ],
+                'tab-1',
+            );
+            // No loose metric: a metric lands after the last loose dimension
+            expect(looseEndsOf()).toEqual({ last: 'dimensions metrics' });
+            expect(addTarget()).toBeNull();
+            unmount();
+
+            pillsProps.current = [];
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            expect(addTarget()).toHaveAttribute(
+                'data-loose-end',
+                'dimensions metrics',
+            );
         });
 
         it('writes nothing for a drop on its own capsule, or on the first button while unsectioned', () => {
@@ -1264,7 +1297,7 @@ describe('SectionedFilters', () => {
             mockSidebar.current = { isViewer: false, isSidebarOpen: false };
         });
 
-        it('adds a section first from a selection, named in the Add section slot, and drops it on Escape or an empty name', async () => {
+        it('adds a section last from a selection, named in the New section slot, and drops it on Escape or an empty name', async () => {
             const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
             const user = userEvent.setup();
             const addFilter = () => screen.getByRole('button', { name: 'Add' });
@@ -1286,9 +1319,9 @@ describe('SectionedFilters', () => {
             const input = screen.getByRole('textbox', { name: 'Section name' });
             expect(input).toHaveFocus();
             expect(input).toHaveAttribute('placeholder', 'Section name');
-            // In Add section's slot: the bar's end, after the last capsule
+            // In New section's slot: the bar's end, after the last capsule
             expect(
-                screen.queryByRole('button', { name: 'Add section' }),
+                screen.queryByRole('button', { name: 'New section' }),
             ).not.toBeInTheDocument();
             expect(
                 capsuleOf('Empty').compareDocumentPosition(input) &
@@ -1324,11 +1357,11 @@ describe('SectionedFilters', () => {
         });
     });
 
-    describe('Add section in edit mode', () => {
+    describe('New section entry with sections, in edit mode', () => {
         const setDashboardFilters = vi.fn();
         const setHaveFiltersChanged = vi.fn();
         const addSection = () =>
-            screen.queryByRole('button', { name: 'Add section' });
+            screen.queryByRole('button', { name: 'New section' });
         const sectionsOf = (store: { getState: () => unknown }) =>
             selectControlSections(
                 store.getState() as Parameters<typeof selectControlSections>[0],
@@ -1344,14 +1377,10 @@ describe('SectionedFilters', () => {
             };
         });
 
-        it('shows last on the bar once there is a section', () => {
+        it('shows last on the bar once there is a filter, sections or not', () => {
             const empty = renderSectioned([], 'tab-1', []);
             expect(addSection()).not.toBeInTheDocument();
             empty.unmount();
-
-            const one = renderSectioned([rule('one', undefined)], 'tab-1', []);
-            expect(addSection()).not.toBeInTheDocument();
-            one.unmount();
 
             renderSectioned([rule('one', undefined)], 'tab-1');
             const button = addSection() as HTMLElement;
@@ -1453,7 +1482,7 @@ describe('SectionedFilters', () => {
             renderSectioned([rule('one', undefined)], 'tab-1');
             expect(
                 screen
-                    .getByRole('button', { name: 'Add section', hidden: true })
+                    .getByRole('button', { name: 'New section', hidden: true })
                     .closest('[inert]'),
             ).not.toBeNull();
         });
@@ -1464,8 +1493,7 @@ describe('SectionedFilters', () => {
         const setHaveFiltersChanged = vi.fn();
         const ghost = () =>
             screen.queryByRole('button', { name: 'New section' });
-        const addSection = () =>
-            screen.queryByRole('button', { name: 'Add section' });
+        const folderIcon = () => document.querySelector('[data-add-section]');
         const sectionsOf = (store: { getState: () => unknown }) =>
             selectControlSections(
                 store.getState() as Parameters<typeof selectControlSections>[0],
@@ -1482,23 +1510,22 @@ describe('SectionedFilters', () => {
             };
         });
 
-        it('replaces the folder icon at the bar end from the first filter while there is no section', () => {
+        it('is the bar end from the first filter, with sections or without, and never a folder icon', () => {
             const empty = renderSectioned([], 'tab-1', []);
             expect(ghost()).not.toBeInTheDocument();
             empty.unmount();
 
             const one = renderSectioned([rule('one', undefined)], 'tab-1', []);
             expect(ghost()).toBeInTheDocument();
-            expect(addSection()).not.toBeInTheDocument();
+            expect(folderIcon()).toBeNull();
             one.unmount();
 
             const sectioned = renderSectioned(twoLoose(), 'tab-1');
-            expect(ghost()).not.toBeInTheDocument();
-            expect(addSection()).toBeInTheDocument();
+            expect(ghost()).toBeInTheDocument();
+            expect(folderIcon()).toBeNull();
             sectioned.unmount();
 
             renderSectioned(twoLoose(), 'tab-1', []);
-            expect(addSection()).not.toBeInTheDocument();
             const button = ghost() as HTMLElement;
             expect(button).toBeInTheDocument();
             // After the loose pills, the bar's last item
@@ -1519,7 +1546,7 @@ describe('SectionedFilters', () => {
             expect(ghost()).not.toBeInTheDocument();
         });
 
-        it('starts a section named in its place, then gives way to the folder icon', async () => {
+        it('starts a section named in its place, and stays the entry after it', async () => {
             const user = userEvent.setup();
             const { store } = renderSectioned(twoLoose(), 'tab-1', []);
             await user.click(ghost() as HTMLElement);
@@ -1534,8 +1561,8 @@ describe('SectionedFilters', () => {
             await user.keyboard('Late{Enter}');
             expect(sectionsOf(store).map((s) => s.name)).toEqual(['Late']);
             expect(setDashboardFilters).not.toHaveBeenCalled();
-            expect(ghost()).not.toBeInTheDocument();
-            expect(addSection()).toBeInTheDocument();
+            expect(ghost()).toBeInTheDocument();
+            expect(folderIcon()).toBeNull();
             expect(mockTrack).toHaveBeenCalledWith(
                 expect.objectContaining({
                     name: EventName.DASHBOARD_SECTION_CREATED,
@@ -1952,7 +1979,7 @@ describe('SectionedFilters', () => {
                 screen.queryByRole('button', { name: /Add filter to|menu$/ }),
             ).not.toBeInTheDocument();
             expect(
-                screen.queryByRole('button', { name: 'Add section' }),
+                screen.queryByRole('button', { name: 'New section' }),
             ).not.toBeInTheDocument();
             expect(
                 screen.queryByRole('button', { name: /^(Expand|Collapse)/ }),
@@ -2073,7 +2100,7 @@ describe('SectionedFilters', () => {
             const user = userEvent.setup();
             renderSectioned([rule('one', undefined)], 'tab-1');
             await user.click(
-                screen.getByRole('button', { name: 'Add section' }),
+                screen.getByRole('button', { name: 'New section' }),
             );
             await user.keyboard('{Escape}');
             expect(mockTrack).not.toHaveBeenCalled();

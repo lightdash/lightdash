@@ -154,10 +154,15 @@ const tile = (uuid: string, tabUuid?: string) =>
 const dragEvent = (activeId: string, overId: string) =>
     ({ active: { id: activeId }, over: { id: overId } }) as DragEndEvent;
 
+// An open pill's name starts with its badge's "Editing"
+const allowEditing = (name: RegExp | string) =>
+    name instanceof RegExp && name.source.startsWith('^')
+        ? new RegExp(`^(Editing )?${name.source.slice(1)}`, name.flags)
+        : name;
 // A draggable wrapper is announced as a button too; the pill is the real one
 const pill = (name: RegExp | string) => {
     const match = screen
-        .getAllByRole('button', { name })
+        .getAllByRole('button', { name: allowEditing(name) })
         .find((element) => element.tagName === 'BUTTON');
     if (!match) throw new Error(`No pill named ${name}`);
     return match;
@@ -172,7 +177,7 @@ const isFieldIcon = (element: Element | undefined) =>
     /statusIcon/.test(element?.getAttribute('class') ?? '');
 const queryPill = (name: RegExp) =>
     screen
-        .queryAllByRole('button', { name })
+        .queryAllByRole('button', { name: allowEditing(name) })
         .find((element) => element.tagName === 'BUTTON') ?? null;
 
 describe('FilterPills', () => {
@@ -354,16 +359,24 @@ describe('FilterPills', () => {
             <FilterPills activeTabUuid={undefined} />,
         );
 
+        // Announced as being edited: the badge leads its name
         expect(
-            screen.getByRole('button', { name: /^Status/, pressed: true }),
+            screen.getByRole('button', {
+                name: /^Editing Status/,
+                pressed: true,
+            }),
         ).toBeInTheDocument();
         expect(
             screen.getByRole('button', { name: /^Region/, pressed: false }),
         ).toBeInTheDocument();
         // A pencil badge first, in the grip's slot, then the field icon; the
         // fill and border stay the pill's own, never the picked pill's
-        const [first, second] = leadingIconsOf(pill(/^Status/));
+        const [first, second] = leadingIconsOf(pill(/Status/));
         expect(first).toHaveAttribute('data-edit-badge');
+        // Named, so the open pill announces it
+        expect(
+            within(pill(/Status/)).getByRole('img', { name: 'Editing' }),
+        ).toBe(first);
         expect(isFieldIcon(second)).toBe(true);
         expect(pill(/^Status/).querySelector('svg[cursor="grab"]')).toBeNull();
         expect(editBadgeIn(pill(/^Region/))).toBeNull();
@@ -383,6 +396,21 @@ describe('FilterPills', () => {
         ).not.toBeNull();
         // Open or not, the pill keeps the same look: only the grip slot changes
         expect(pill(/^Status/).className).toBe(openClassName);
+    });
+
+    it("marks the loose pass's landing pill for the bar's leave line", () => {
+        renderWithProviders(
+            <FilterPills
+                activeTabUuid={undefined}
+                sectionId={null}
+                looseEnds={{ saved: 'dimensions metrics' }}
+            />,
+        );
+        expect(pill(/^Status/).closest('[data-loose-end]')).toHaveAttribute(
+            'data-loose-end',
+            'dimensions metrics',
+        );
+        expect(pill(/^Region/).closest('[data-loose-end]')).toBeNull();
     });
 
     it("keeps the sectioned bar's drag on while a filter is edited", () => {

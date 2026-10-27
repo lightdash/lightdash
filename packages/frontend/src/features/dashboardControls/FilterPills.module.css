@@ -56,11 +56,13 @@
     pointer-events: none;
 }
 
+/* Placed as the tile comments' Mantine `Indicator` (offset 3): its centre
+   3px in from the corner, so it sits on the rounded edge */
 .changedDot[data-corner] {
     position: absolute;
-    top: 0;
-    right: 0;
-    transform: translate(25%, -25%);
+    top: 3px;
+    right: 3px;
+    transform: translate(50%, -50%);
 }
 
 /* The "..." joined to "Add filter", drawn as the shipped eye it replaces */
