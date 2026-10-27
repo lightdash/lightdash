@@ -647,7 +647,7 @@ describe('getModel', () => {
     });
 });
 
-describe('GPT Sol and Luna model lifecycle', () => {
+describe('GPT Sol, Terra and Luna model lifecycle', () => {
     it.each(['gpt-6-sol', 'gpt-5.6-sol'])(
         'upgrades new threads using %s to GPT-6.1 Sol',
         (modelName) => {
@@ -700,6 +700,7 @@ describe('GPT Sol and Luna model lifecycle', () => {
 
     it.each([
         ['gpt-6.1-sol', 'GPT-6.1 Sol'],
+        ['gpt-6.1-terra', 'GPT-6.1 Terra'],
         ['gpt-6-luna', 'GPT-6 Luna'],
     ])('offers %s for agent selection', (modelName, displayName) => {
         const options = instanceOptions(baseCopilotConfig);
