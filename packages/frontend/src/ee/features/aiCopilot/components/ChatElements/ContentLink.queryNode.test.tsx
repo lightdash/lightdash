@@ -113,6 +113,16 @@ describe('Query node references', () => {
         });
     });
 
+    it('numbers a second message from its own text, across paragraphs', () => {
+        renderAnswer('Revenue was $404 [revenue](#query-node-revenue).', true);
+        renderAnswer(
+            'Orders were 12 [orders](#query-node-orders).\n\nRevenue was $404 [revenue](#query-node-revenue).',
+            true,
+        );
+        const chips = screen.getAllByRole('button', { name: /Open query/ });
+        expect(chips.map((chip) => chip.textContent)).toEqual(['1', '1', '2']);
+    });
+
     it('renders a static chip without a preview pane', () => {
         renderAnswer('Revenue was $404 [revenue](#query-node-revenue).', false);
         expect(screen.queryByRole('button')).not.toBeInTheDocument();

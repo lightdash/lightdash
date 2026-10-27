@@ -58,10 +58,7 @@ describe('rehypeQueryNodeReferences', () => {
         const indices = getQueryNodeReferenceIndices(
             'Revenue $404 [revenue](#query-node-revenue).\n\nOrders 12 [orders](#query-node-orders) and [again](#query-node-revenue).',
         );
-        expect([...indices]).toEqual([
-            ['revenue', 1],
-            ['orders', 2],
-        ]);
+        expect(indices).toEqual({ revenue: 1, orders: 2 });
     });
 
     it.each([
