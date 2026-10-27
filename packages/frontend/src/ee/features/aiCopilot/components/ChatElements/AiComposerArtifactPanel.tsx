@@ -155,8 +155,11 @@ export const AiComposerArtifactPanel: FC<Props> = ({
             ? (config.vizConfig ?? null)
             : null;
     // v2 draws the presented node through the runQuery chart builders; nothing to edit.
+    // Tables draw like every other node's table.
     const runQueryVizConfig =
-        config.schemaVersion === 2 && isTerminalDisplayed
+        config.schemaVersion === 2 &&
+        isTerminalDisplayed &&
+        config.vizConfig?.type !== 'table'
             ? config.vizConfig
             : null;
     const metadata = useMemo(
@@ -295,7 +298,6 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 onRerun={onRerun}
                 vizConfig={value}
                 headerContent={head}
-                flush
             />
         );
 

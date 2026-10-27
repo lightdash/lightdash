@@ -3,12 +3,14 @@ import {
     AiAccessRefusalReason,
     AiResultType,
     FeatureFlags,
+    getItemLabelWithoutTableName,
     QuerySourceType,
     QueryHistoryStatus,
     ChartKind,
     VizAggregationOptions,
     VizIndexType,
     type AiComposerChartArtifactConfig,
+    type ComposerRunQueryChart,
     type ToolRunQueryArgs,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
@@ -103,6 +105,27 @@ vi.mock(
 );
 vi.mock('../../../../../hooks/appearance/useProjectColorPalette', () => ({
     useProjectColorPalette: () => ({ data: undefined }),
+}));
+// The headers the Lightdash table would draw.
+vi.mock('./AiComposerRunQueryChart', () => ({
+    AiComposerRunQueryChart: ({ chart }: { chart: ComposerRunQueryChart }) => (
+        <table>
+            <thead>
+                <tr>
+                    {[
+                        ...chart.metricQuery.dimensions,
+                        ...chart.metricQuery.metrics,
+                    ].map((fieldId) => (
+                        <th key={fieldId}>
+                            {getItemLabelWithoutTableName(
+                                chart.fields[fieldId],
+                            )}
+                        </th>
+                    ))}
+                </tr>
+            </thead>
+        </table>
+    ),
 }));
 vi.mock('./AiVisualizationRenderer', () => ({
     AiVisualizationRenderer: ({
@@ -422,7 +445,7 @@ describe('composer artifact', () => {
     it('renders the results with a collapsed pipeline bar', () => {
         renderComposer(composerConfig);
         expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
-        expect(screen.getByRole('columnheader')).toHaveTextContent('status');
+        expect(screen.getByRole('columnheader')).toHaveTextContent('Status');
         expect(screen.getByText('3 steps')).toBeInTheDocument();
         expect(screen.queryByText('Sources')).not.toBeInTheDocument();
     });
@@ -489,7 +512,7 @@ describe('composer viz config panel', () => {
         expect(offeredKinds()).toEqual(['table', 'bar', 'line', 'pie']);
         expect(selectedKind()).toBe('table');
         expect(
-            screen.getByRole('columnheader', { name: 'status' }),
+            screen.getByRole('columnheader', { name: 'Status' }),
         ).toBeInTheDocument();
         chooseKind('bar');
         expect(chartBar()).toHaveTextContent('Bar · status × n');
@@ -523,7 +546,7 @@ describe('composer viz config panel', () => {
         chooseKind('bar');
         chooseKind('table');
         expect(
-            screen.getByRole('columnheader', { name: 'status' }),
+            screen.getByRole('columnheader', { name: 'Status' }),
         ).toBeInTheDocument();
         // Only the terminal node of the run is read: kinds are built from its rows.
         const readQueryUuids = mocks.rows.mock.calls
@@ -578,7 +601,7 @@ describe('composer viz config panel', () => {
             screen.queryByRole('button', { name: /^chart/i }),
         ).not.toBeInTheDocument();
         expect(kindButtons()).toHaveLength(0);
-        expect(screen.getByRole('columnheader')).toHaveTextContent('status');
+        expect(screen.getByRole('columnheader')).toHaveTextContent('Status');
     });
 
     it.skip('opens on the stored viz config and writes an edit back', async () => {
@@ -704,7 +727,7 @@ describe('composer displayed node', () => {
             screen.getByRole('button', { name: 'Display Average amount' }),
         );
         expect(
-            screen.getByRole('columnheader', { name: 'avg_amount' }),
+            screen.getByRole('columnheader', { name: 'Avg amount' }),
         ).toBeInTheDocument();
         // Header and pipeline row both name the node.
         expect(screen.getAllByText('Average amount')).toHaveLength(2);
@@ -716,7 +739,7 @@ describe('composer displayed node', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Back to result' }));
         expect(screen.getByText('Orders vs amounts')).toBeInTheDocument();
         expect(
-            screen.getByRole('columnheader', { name: 'status' }),
+            screen.getByRole('columnheader', { name: 'Status' }),
         ).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Back to result' }),
@@ -729,7 +752,7 @@ describe('composer displayed node', () => {
         fireEvent.click(screen.getByRole('radio', { name: 'Graph' }));
         fireEvent.click(screen.getByLabelText('Display Orders by status'));
         expect(
-            screen.getByRole('columnheader', { name: 'status' }),
+            screen.getByRole('columnheader', { name: 'Status' }),
         ).toBeInTheDocument();
         expect(
             screen.getByLabelText('Display Orders by status'),
