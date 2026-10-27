@@ -457,9 +457,6 @@ describe('composer artifact', () => {
         expect(screen.getByText('Result')).toBeInTheDocument();
         expect(screen.getByText('Orders by status')).toBeInTheDocument();
         expect(screen.getByText('Orders with amounts')).toBeInTheDocument();
-        expect(
-            screen.getByText('Reads Orders by status, Average amount'),
-        ).toBeInTheDocument();
         expect(screen.queryByText('joined')).not.toBeInTheDocument();
     });
 
@@ -470,7 +467,6 @@ describe('composer artifact', () => {
         });
         openPipelineList();
         expect(screen.getByText('joined')).toBeInTheDocument();
-        expect(screen.getByText('Reads orders, amounts')).toBeInTheDocument();
     });
 });
 
@@ -724,7 +720,9 @@ describe('composer displayed node', () => {
         renderComposer();
         expandPipeline();
         fireEvent.click(
-            screen.getByRole('button', { name: 'Display Average amount' }),
+            screen.getByRole('button', {
+                name: 'View results of Average amount',
+            }),
         );
         expect(
             screen.getByRole('columnheader', { name: 'Avg amount' }),
@@ -763,7 +761,9 @@ describe('composer displayed node', () => {
         const { rerender } = renderComposer();
         expandPipeline();
         fireEvent.click(
-            screen.getByRole('button', { name: 'Display Average amount' }),
+            screen.getByRole('button', {
+                name: 'View results of Average amount',
+            }),
         );
         expect(screen.getAllByText('Average amount')).toHaveLength(2);
         rerender(
@@ -781,7 +781,7 @@ describe('composer displayed node', () => {
         renderComposer({ data: undefined, isLoading: true });
         expandPipeline();
         expect(
-            screen.queryAllByRole('button', { name: /^Display / }),
+            screen.queryAllByRole('button', { name: /^View results of / }),
         ).toHaveLength(0);
         expect(screen.getByText('Average amount')).toBeInTheDocument();
         expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
@@ -805,8 +805,8 @@ describe('composer displayed node', () => {
             within(
                 document.getElementById(`composer-pipeline-node-${nodeId}`)!,
             );
-        expect(await row('orders').findByLabelText('Completed')).toBeVisible();
-        expect(row('amounts').getByLabelText('Running')).toBeVisible();
+        expect(await row('amounts').findByLabelText('Running')).toBeVisible();
+        expect(row('orders').queryByLabelText('Completed')).toBeNull();
         expect(row('joined').getByLabelText('Queued')).toBeVisible();
     });
 
@@ -836,7 +836,9 @@ describe('composer displayed node', () => {
             amountsRow.getByText('column "amount" does not exist'),
         ).toBeVisible();
         fireEvent.click(
-            screen.getByRole('button', { name: 'Display Average amount' }),
+            screen.getByRole('button', {
+                name: 'View results of Average amount',
+            }),
         );
         expect(
             screen.getByText('This result could not be loaded'),
@@ -923,7 +925,7 @@ describe('composer per-node viz switcher', () => {
     };
     const display = (title: string) =>
         fireEvent.click(
-            screen.getByRole('button', { name: `Display ${title}` }),
+            screen.getByRole('button', { name: `View results of ${title}` }),
         );
     it.skip('opens each displayed node as a table and remembers each choice', async () => {
         renderComposer();

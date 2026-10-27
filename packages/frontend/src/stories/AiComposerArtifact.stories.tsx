@@ -117,6 +117,27 @@ const duckdbOverPythonQueries: SourceQuery[] = [
     },
 ];
 
+/** Every node type in one pipeline; the warehouse SQL node predates descriptions. */
+const allNodeTypesQueries: SourceQuery[] = [
+    fanInQueries[0],
+    {
+        sourceType: QuerySourceType.SQL,
+        nodeId: 'orders',
+        title: 'Order amounts',
+        sql: 'SELECT order_id, amount FROM jaffle.orders',
+    },
+    simulationNode,
+    fanInQueries[2],
+    {
+        sourceType: QuerySourceType.DUCKDB,
+        nodeId: 'summary',
+        title: 'Simulation vs target',
+        description: 'Simulated revenue next to order counts and targets.',
+        sql: 'SELECT * FROM order_counts JOIN targets USING (status) CROSS JOIN (SELECT median(total_amount) AS p50 FROM simulation)',
+        references: ['order_counts', 'simulation', 'targets'],
+    },
+];
+
 type ResultTable = {
     title: string;
     description: string;
@@ -318,6 +339,15 @@ export const DuckdbOverPython: Story = {
 
 export const DuckdbOverPythonGraph: Story = {
     args: { ...DuckdbOverPython.args, defaultMode: 'graph' },
+};
+
+export const AllNodeTypes: Story = {
+    args: {
+        queries: allNodeTypesQueries,
+        terminalNodeId: 'summary',
+        defaultExpanded: true,
+        defaultMode: 'list',
+    },
 };
 
 /** A semantic-layer node with filters, sorts, a limit and parameters. */

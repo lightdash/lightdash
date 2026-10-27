@@ -76,6 +76,7 @@ const renderDetails = (
     renderWithProviders(
         <MemoryRouter>
             <SemanticNodeDetails
+                exploreLabel="Users"
                 metricQuery={query}
                 fieldsMap={fields}
                 parameters={{ region: 'EMEA' }}
@@ -84,8 +85,13 @@ const renderDetails = (
     );
 
 describe('SemanticNodeDetails', () => {
-    it('shows fields, filters, parameters and sorts', () => {
+    it('shows the explore, fields, filters, parameters and sorts, each icon labelled', () => {
         renderDetails();
+
+        expect(screen.getByText('Users')).toBeInTheDocument();
+        ['Explore', 'Fields', 'Filters', 'Parameters', 'Sorts'].forEach(
+            (label) => expect(screen.getByLabelText(label)).toBeInTheDocument(),
+        );
 
         expect(screen.getByText('Is deleted')).toBeInTheDocument();
         expect(screen.getByText('False')).toBeInTheDocument();

@@ -5,13 +5,14 @@ import {
     type MetricQuery,
     type ParametersValuesMap,
 } from '@lightdash/common';
-import { Badge, Box, Group, Stack } from '@mantine/core';
+import { Badge, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowsSort,
     IconArrowUp,
     IconColumns3,
     IconFilter,
+    IconTable,
     IconVariable,
     type Icon,
 } from '@tabler/icons-react';
@@ -35,14 +36,22 @@ const semanticItemLabel = (fieldsMap: ItemsMap, fieldId: string) => {
     return item ? getItemLabelWithoutTableName(item) : friendlyName(fieldId);
 };
 
-const DetailsRow: FC<{ icon: Icon; children: ReactNode }> = ({
+const DetailsRow: FC<{ icon: Icon; label: string; children: ReactNode }> = ({
     icon,
+    label,
     children,
 }) => (
     <Group gap="xs" wrap="nowrap" align="flex-start">
-        <Box className={styles.rowIcon}>
-            <MantineIcon icon={icon} size={13} color="ldGray.5" />
-        </Box>
+        <Tooltip label={label} position="left">
+            <Box className={styles.rowIcon}>
+                <MantineIcon
+                    icon={icon}
+                    size={13}
+                    color="ldGray.5"
+                    aria-label={label}
+                />
+            </Box>
+        </Tooltip>
         <Box flex={1} miw={0}>
             {children}
         </Box>
@@ -98,63 +107,100 @@ const Sorts: FC<{
 };
 
 type Props = {
+    exploreLabel: string;
     metricQuery: SemanticNodeQuery;
     fieldsMap: ItemsMap;
     parameters: ParametersValuesMap;
 };
 
-/** Fields, then filters, parameters and sorts, each row marked by its icon. */
+/** Explore, fields, then filters, parameters and sorts, each row marked by its icon. */
 export const SemanticNodeDetails: FC<Props> = ({
+    exploreLabel,
     metricQuery,
     fieldsMap,
     parameters,
-}) => (
-    <Stack gap={6}>
-        <ErrorBoundary>
-            {metricQuery.dimensions.length + metricQuery.metrics.length > 0 && (
-                <DetailsRow icon={IconColumns3}>
-                    <Group gap={4}>
-                        {metricQuery.dimensions.map((fieldId) => (
-                            <FieldChip
-                                key={fieldId}
-                                fieldId={fieldId}
-                                type="dimension"
-                                fieldsMap={fieldsMap}
-                            />
-                        ))}
-                        {metricQuery.metrics.map((fieldId) => (
-                            <FieldChip
-                                key={fieldId}
-                                fieldId={fieldId}
-                                type="metric"
-                                fieldsMap={fieldsMap}
-                            />
-                        ))}
-                    </Group>
+}) => {
+    const getUiString = useUiStrings();
+    return (
+        <Stack gap={6}>
+            <ErrorBoundary>
+                <DetailsRow
+                    icon={IconTable}
+                    label={getUiString('aiAgent.composer.semanticNode.explore')}
+                >
+                    <Text fz="xs" fw={500} lh="22px">
+                        {exploreLabel}
+                    </Text>
                 </DetailsRow>
-            )}
-            {getVisualizationFiltersCount(metricQuery.filters) > 0 && (
-                <DetailsRow icon={IconFilter}>
-                    <AgentVisualizationFilters
-                        filters={metricQuery.filters}
-                        fieldsMap={fieldsMap}
-                        compact
-                    />
-                </DetailsRow>
-            )}
-            {Object.keys(parameters).length > 0 && (
-                <DetailsRow icon={IconVariable}>
-                    <AgentVisualizationParameters
-                        parameterValues={parameters}
-                        compact
-                    />
-                </DetailsRow>
-            )}
-            {metricQuery.sorts.length > 0 && (
-                <DetailsRow icon={IconArrowsSort}>
-                    <Sorts sorts={metricQuery.sorts} fieldsMap={fieldsMap} />
-                </DetailsRow>
-            )}
-        </ErrorBoundary>
-    </Stack>
-);
+                {metricQuery.dimensions.length + metricQuery.metrics.length >
+                    0 && (
+                    <DetailsRow
+                        icon={IconColumns3}
+                        label={getUiString(
+                            'aiAgent.composer.semanticNode.fields',
+                        )}
+                    >
+                        <Group gap={4}>
+                            {metricQuery.dimensions.map((fieldId) => (
+                                <FieldChip
+                                    key={fieldId}
+                                    fieldId={fieldId}
+                                    type="dimension"
+                                    fieldsMap={fieldsMap}
+                                />
+                            ))}
+                            {metricQuery.metrics.map((fieldId) => (
+                                <FieldChip
+                                    key={fieldId}
+                                    fieldId={fieldId}
+                                    type="metric"
+                                    fieldsMap={fieldsMap}
+                                />
+                            ))}
+                        </Group>
+                    </DetailsRow>
+                )}
+                {getVisualizationFiltersCount(metricQuery.filters) > 0 && (
+                    <DetailsRow
+                        icon={IconFilter}
+                        label={getUiString(
+                            'aiAgent.composer.semanticNode.filters',
+                        )}
+                    >
+                        <AgentVisualizationFilters
+                            filters={metricQuery.filters}
+                            fieldsMap={fieldsMap}
+                            compact
+                        />
+                    </DetailsRow>
+                )}
+                {Object.keys(parameters).length > 0 && (
+                    <DetailsRow
+                        icon={IconVariable}
+                        label={getUiString(
+                            'aiAgent.composer.semanticNode.parameters',
+                        )}
+                    >
+                        <AgentVisualizationParameters
+                            parameterValues={parameters}
+                            compact
+                        />
+                    </DetailsRow>
+                )}
+                {metricQuery.sorts.length > 0 && (
+                    <DetailsRow
+                        icon={IconArrowsSort}
+                        label={getUiString(
+                            'aiAgent.composer.semanticNode.sorts',
+                        )}
+                    >
+                        <Sorts
+                            sorts={metricQuery.sorts}
+                            fieldsMap={fieldsMap}
+                        />
+                    </DetailsRow>
+                )}
+            </ErrorBoundary>
+        </Stack>
+    );
+};

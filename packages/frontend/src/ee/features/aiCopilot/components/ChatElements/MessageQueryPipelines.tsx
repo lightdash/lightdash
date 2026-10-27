@@ -45,17 +45,10 @@ export const MessageQueriesToggle: FC<{
 );
 
 const pipelineSummary = ({ nodes }: AiAgentMessageQueryPipeline): string => {
-    const sourceLabels = [
-        ...new Set(
-            nodes.flatMap((node) => {
-                const label = nodeTypeLabelOf(node);
-                return label ? [label] : [];
-            }),
-        ),
-    ];
+    const typeLabels = [...new Set(nodes.map(nodeTypeLabelOf))];
     return [
         `${nodes.length} step${nodes.length === 1 ? '' : 's'}`,
-        ...(sourceLabels.length > 0 ? [sourceLabels.join(', ')] : []),
+        ...(typeLabels.length > 0 ? [typeLabels.join(', ')] : []),
     ].join(' · ');
 };
 
@@ -71,8 +64,7 @@ export const MessageQueriesList: FC<{
             const terminal = pipeline.nodes.find(
                 (node) => node.nodeId === pipeline.terminalNodeId,
             );
-            // DuckDB has no type in the Queries tab; it is a transformation there
-            const icon = (terminal && nodeTypeIcon(terminal)) ?? IconTransform;
+            const icon = terminal ? nodeTypeIcon(terminal) : IconTransform;
             const content = (
                 <Group gap="sm" wrap="nowrap" align="flex-start">
                     <Box className={styles.iconChip} flex="0 0 auto">
