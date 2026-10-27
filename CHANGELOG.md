@@ -1,3 +1,18 @@
+# [3.64.0](https://github.com/lightdash/lightdash/compare/3.63.1...3.64.0) (2026-10-27)
+
+
+### Bug Fixes
+
+* **ai:** read only a preview page of composer terminal results ([#31616](https://github.com/lightdash/lightdash/issues/31616)) ([03dcbd9](https://github.com/lightdash/lightdash/commit/03dcbd943df9296cdc72b132f2067fba7ca0bc97))
+* **dashboards:** the rail adds from the end of its list and opens collapsed ([#31591](https://github.com/lightdash/lightdash/issues/31591)) ([15f972d](https://github.com/lightdash/lightdash/commit/15f972d194c87198ead205f3afc80ab773b0f175))
+
+
+### Features
+
+* **dashboards:** edit one filter at a time in a docked editor ([#31601](https://github.com/lightdash/lightdash/issues/31601)) ([0066439](https://github.com/lightdash/lightdash/commit/0066439de85784a8761d02bbea967d298f737b70))
+* **dashboards:** manage sections in place on the filter bar ([#31599](https://github.com/lightdash/lightdash/issues/31599)) ([74d1a74](https://github.com/lightdash/lightdash/commit/74d1a74d4444d203bf42913f1935a03d786b369d))
+* **dashboards:** select several filters on the bar to move or remove ([#31600](https://github.com/lightdash/lightdash/issues/31600)) ([951bb2d](https://github.com/lightdash/lightdash/commit/951bb2dcf9e628175f233a0eb19881d2a3c05c92))
+
 ## [3.63.1](https://github.com/lightdash/lightdash/compare/3.63.0...3.63.1) (2026-10-27)
 
 
