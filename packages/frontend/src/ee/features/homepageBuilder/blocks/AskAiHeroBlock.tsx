@@ -14,6 +14,7 @@ import { DEFAULT_GREETING_SUBTITLE, getGreeting } from '../greeting';
 import layout from '../homepageLayout.module.css';
 import { useHomepageAiState } from '../hooks/useHomepageAiState';
 import { useHomepageConfigFacts } from '../hooks/useHomepageConfigFacts';
+import classes from './blockStyles.module.css';
 import { GreetingHero } from './GreetingHero';
 import { getDefaultQuickActions } from './quickActionDefaults';
 import { QuickActionCards } from './QuickActionsBlock';
@@ -87,13 +88,12 @@ export const HeroDensityControl: FC<{
     value: HomepageHeroDensity | undefined;
     onChange: (density: HomepageHeroDensity | undefined) => void;
 }> = ({ value, onChange }) => (
-    <Stack gap={4}>
+    <div className={classes.settingsRow}>
         <Text size="xs" fw={500}>
             Opening size
         </Text>
         <SegmentedControl
             size="xs"
-            w="fit-content"
             value={value ?? 'auto'}
             onChange={(next) =>
                 onChange(
@@ -106,12 +106,12 @@ export const HeroDensityControl: FC<{
                 { value: 'full', label: 'Full screen' },
             ]}
         />
-        <Text size="xs" c="dimmed">
+        <Text size="xs" c="dimmed" truncate>
             {value === 'full'
-                ? 'Fills the opening view — content below starts under the fold.'
-                : 'Sized to its own content, so what you add below stays visible.'}
+                ? 'Fills the first screen; content below starts under the fold.'
+                : 'Sized to its content, so blocks below stay in view.'}
         </Text>
-    </Stack>
+    </div>
 );
 
 export const AskAiHeroBlockView: FC<BlockComponentProps> = ({
