@@ -50,7 +50,6 @@ const renderDocumentLink = () => {
                         message={message}
                         projectUuid="project-1"
                         agentUuid="agent-1"
-                        hasPreviewPane
                         onDashboardLinkClick={onDashboardLinkClick}
                     >
                         Hello World
