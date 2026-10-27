@@ -6,6 +6,7 @@ import {
     AiAgent,
     AiAgentDocument,
     AiAgentDocumentContent,
+    AiAgentDocumentListItem,
     AiAgentDocumentSummary,
     ApiCreateAgentDocument,
     ApiCreateAiAgentDocument,
@@ -26,8 +27,15 @@ import {
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { type ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
+import {
+    AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+    getKnowledgeDocumentSnapshotSlug,
+    type ContentAsCodeSnapshotModel,
+} from '../../models/ContentAsCodeSnapshotModel';
 import { BaseService } from '../../services/BaseService';
 import { AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
+import { type AiAgentModel } from '../models/AiAgentModel';
 import {
     createFallbackDocumentSummary,
     generateDocumentSummary,
@@ -73,12 +81,19 @@ export type AiAgentDocumentScope = {
     agentUuid: string;
 };
 
+// 'repo' is the content-as-code upload, the one writer a Git-backed document
+// still accepts. Everything else, including API calls, is 'ui'.
+export type AiAgentDocumentWriteSource = 'ui' | 'repo';
+
 type AiAgentDocumentServiceDependencies = {
     analytics: LightdashAnalytics;
     aiAgentDocumentModel: AiAgentDocumentModel;
     aiAgentService: AiAgentService;
     lightdashConfig: LightdashConfig;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+    contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+    aiAgentModel: AiAgentModel;
 };
 
 export class AiAgentDocumentService extends BaseService {
@@ -92,6 +107,12 @@ export class AiAgentDocumentService extends BaseService {
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
+    private readonly contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+
+    private readonly contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+
+    private readonly aiAgentModel: AiAgentModel;
+
     constructor(dependencies: AiAgentDocumentServiceDependencies) {
         super();
         this.analytics = dependencies.analytics;
@@ -100,6 +121,46 @@ export class AiAgentDocumentService extends BaseService {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
+        this.contentAsCodeProjectSettingsModel =
+            dependencies.contentAsCodeProjectSettingsModel;
+        this.contentAsCodeSnapshotModel =
+            dependencies.contentAsCodeSnapshotModel;
+        this.aiAgentModel = dependencies.aiAgentModel;
+    }
+
+    /**
+     * A document the repo last applied is the repo's to change: once the
+     * project opts into content_as_code.sync, only an upload may edit or
+     * delete it, whoever the user is. Documents nobody uploaded stay
+     * editable, so one agent can mix repo-managed and UI-managed documents.
+     */
+    private async assertNotGitBacked(
+        source: AiAgentDocumentWriteSource,
+        organizationUuid: string,
+        projectUuid: string,
+        agentUuid: string,
+        documentName: string,
+    ): Promise<void> {
+        if (source === 'repo') return;
+        const settings =
+            await this.contentAsCodeProjectSettingsModel.get(projectUuid);
+        if (!settings?.syncEnabled) return;
+        const [agent] = await this.aiAgentModel.findAgentsForCode({
+            organizationUuid,
+            projectUuid,
+            agentUuids: [agentUuid],
+        });
+        if (!agent) return;
+        const snapshot = await this.contentAsCodeSnapshotModel.get(
+            projectUuid,
+            AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+            getKnowledgeDocumentSnapshotSlug(agent.slug, documentName),
+        );
+        if (snapshot === undefined) return;
+        throw new ForbiddenError(
+            'This knowledge document is managed by Content as Code and can only be changed from the repository.',
+            { contentAsCodeManaged: true },
+        );
     }
 
     /**
@@ -217,18 +278,57 @@ export class AiAgentDocumentService extends BaseService {
     async listDocuments(
         user: SessionUser,
         { projectUuid, agentUuid }: AiAgentDocumentScope,
-    ): Promise<AiAgentDocumentSummary[]> {
+    ): Promise<AiAgentDocumentListItem[]> {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
         this.assertCanViewDocuments(user, organizationUuid, projectUuid);
         // Throws if the agent does not exist in this project
         await this.aiAgentService.getAgent(user, agentUuid, projectUuid);
 
-        return this.aiAgentDocumentModel.findAllForAgent({
+        const documents = await this.aiAgentDocumentModel.findAllForAgent({
             organizationUuid,
             agentUuid,
             projectUuid,
         });
+        const managedNames = await this.findGitBackedDocumentNames(
+            organizationUuid,
+            projectUuid,
+            agentUuid,
+            documents.map(({ name }) => name),
+        );
+        return documents.map((document) => ({
+            ...document,
+            managedByContentAsCode: managedNames.has(document.name),
+        }));
+    }
+
+    private async findGitBackedDocumentNames(
+        organizationUuid: string,
+        projectUuid: string,
+        agentUuid: string,
+        names: string[],
+    ): Promise<Set<string>> {
+        const settings =
+            await this.contentAsCodeProjectSettingsModel.get(projectUuid);
+        if (!settings?.syncEnabled) return new Set();
+        const [agent] = await this.aiAgentModel.findAgentsForCode({
+            organizationUuid,
+            projectUuid,
+            agentUuids: [agentUuid],
+        });
+        if (!agent) return new Set();
+        const slugs = await this.contentAsCodeSnapshotModel.findSlugs(
+            projectUuid,
+            AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+            names.map((name) =>
+                getKnowledgeDocumentSnapshotSlug(agent.slug, name),
+            ),
+        );
+        return new Set(
+            names.filter((name) =>
+                slugs.has(getKnowledgeDocumentSnapshotSlug(agent.slug, name)),
+            ),
+        );
     }
 
     async createDocument(
@@ -285,6 +385,7 @@ export class AiAgentDocumentService extends BaseService {
         { projectUuid, agentUuid }: AiAgentDocumentScope,
         documentUuid: string,
         body: ApiUpdateAgentDocumentContent,
+        source: AiAgentDocumentWriteSource = 'ui',
     ): Promise<AiAgentDocument> {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
@@ -313,6 +414,13 @@ export class AiAgentDocumentService extends BaseService {
             user,
             organizationUuid,
             existing.projectUuid,
+        );
+        await this.assertNotGitBacked(
+            source,
+            organizationUuid,
+            projectUuid,
+            agentUuid,
+            existing.name,
         );
 
         const name = body.name.trim();
@@ -418,6 +526,7 @@ export class AiAgentDocumentService extends BaseService {
         { projectUuid, agentUuid }: AiAgentDocumentScope,
         documentUuid: string,
         body: ApiUpdateAgentDocument,
+        source: AiAgentDocumentWriteSource = 'ui',
     ): Promise<void> {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
@@ -441,6 +550,13 @@ export class AiAgentDocumentService extends BaseService {
             user,
             organizationUuid,
             existing.projectUuid,
+        );
+        await this.assertNotGitBacked(
+            source,
+            organizationUuid,
+            projectUuid,
+            agentUuid,
+            existing.name,
         );
 
         await this.aiAgentDocumentModel.updateAlwaysIncludeInContext({
@@ -563,6 +679,7 @@ export class AiAgentDocumentService extends BaseService {
         user: SessionUser,
         { projectUuid, agentUuid }: AiAgentDocumentScope,
         documentUuid: string,
+        source: AiAgentDocumentWriteSource = 'ui',
     ): Promise<void> {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
@@ -588,6 +705,13 @@ export class AiAgentDocumentService extends BaseService {
             organizationUuid,
             existing.projectUuid,
         );
+        await this.assertNotGitBacked(
+            source,
+            organizationUuid,
+            projectUuid,
+            agentUuid,
+            existing.name,
+        );
 
         await this.aiAgentDocumentModel.delete(documentUuid);
 
@@ -608,7 +732,7 @@ export class AiAgentDocumentService extends BaseService {
     async listOrganizationDocuments(
         user: SessionUser,
         { projectUuid }: { projectUuid?: string | null } = {},
-    ): Promise<AiAgentDocumentSummary[]> {
+    ): Promise<AiAgentDocumentListItem[]> {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
         this.assertCanViewDocuments(
@@ -616,10 +740,17 @@ export class AiAgentDocumentService extends BaseService {
             organizationUuid,
             projectUuid ?? null,
         );
-        return this.aiAgentDocumentModel.findAllForOrganization({
-            organizationUuid,
-            projectUuid,
-        });
+        // This route predates Content as Code management; the agent-scoped
+        // list is the one that reports it.
+        const documents =
+            await this.aiAgentDocumentModel.findAllForOrganization({
+                organizationUuid,
+                projectUuid,
+            });
+        return documents.map((document) => ({
+            ...document,
+            managedByContentAsCode: false,
+        }));
     }
 
     /**

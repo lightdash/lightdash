@@ -1,6 +1,7 @@
 import {
     AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
     assertUnreachable,
+    type AiAgentDocumentListItem,
     type AiAgentDocumentSummary,
 } from '@lightdash/common';
 import {
@@ -33,6 +34,7 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import Callout from '../../../../components/common/Callout';
 import { EmptyState } from '../../../../components/common/EmptyState';
 import EmptyStateLoader from '../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -265,7 +267,7 @@ export const AiAgentKnowledgeFilesSection = ({
         null,
     );
     const [viewingDocument, setViewingDocument] =
-        useState<AiAgentDocumentSummary | null>(null);
+        useState<AiAgentDocumentListItem | null>(null);
 
     const effectiveSelectedId = useMemo(() => {
         if (selectedId && pendingUploads.some((p) => p.tempId === selectedId)) {
@@ -646,30 +648,34 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 >
                                                     Preview
                                                 </Button>
-                                                <Tooltip label="Delete document">
-                                                    <ActionIcon
-                                                        variant="default"
-                                                        size="input-xs"
-                                                        aria-label="Delete document"
-                                                        loading={
-                                                            deleteDocument.isLoading &&
-                                                            deleteDocument.variables ===
-                                                                selectedDocument.uuid
-                                                        }
-                                                        onClick={() =>
-                                                            setPendingAction({
-                                                                type: 'delete',
-                                                                document:
-                                                                    selectedDocument,
-                                                            })
-                                                        }
-                                                    >
-                                                        <MantineIcon
-                                                            icon={IconTrash}
-                                                            color="red"
-                                                        />
-                                                    </ActionIcon>
-                                                </Tooltip>
+                                                {!selectedDocument.managedByContentAsCode && (
+                                                    <Tooltip label="Delete document">
+                                                        <ActionIcon
+                                                            variant="default"
+                                                            size="input-xs"
+                                                            aria-label="Delete document"
+                                                            loading={
+                                                                deleteDocument.isLoading &&
+                                                                deleteDocument.variables ===
+                                                                    selectedDocument.uuid
+                                                            }
+                                                            onClick={() =>
+                                                                setPendingAction(
+                                                                    {
+                                                                        type: 'delete',
+                                                                        document:
+                                                                            selectedDocument,
+                                                                    },
+                                                                )
+                                                            }
+                                                        >
+                                                            <MantineIcon
+                                                                icon={IconTrash}
+                                                                color="red"
+                                                            />
+                                                        </ActionIcon>
+                                                    </Tooltip>
+                                                )}
                                             </Group>
                                         )}
                                     </Group>
@@ -724,6 +730,14 @@ export const AiAgentKnowledgeFilesSection = ({
                                         )}
                                     </Stack>
 
+                                    {selectedDocument?.managedByContentAsCode && (
+                                        <Callout variant="info">
+                                            Managed by Content as Code. Change
+                                            this document in your repository and
+                                            upload it again.
+                                        </Callout>
+                                    )}
+
                                     {selectedDocument && (
                                         <>
                                             <AiAgentDocumentRelevanceCard
@@ -757,7 +771,8 @@ export const AiAgentKnowledgeFilesSection = ({
                                                             title="Retrieve when relevant"
                                                             description="Searched only when a question needs it."
                                                             disabled={
-                                                                updateDocument.isLoading
+                                                                updateDocument.isLoading ||
+                                                                selectedDocument.managedByContentAsCode
                                                             }
                                                             checked={
                                                                 !selectedDocument.alwaysIncludeInContext
@@ -768,7 +783,8 @@ export const AiAgentKnowledgeFilesSection = ({
                                                             title="Always include"
                                                             description="Full document added to every session. Uses more tokens."
                                                             disabled={
-                                                                updateDocument.isLoading
+                                                                updateDocument.isLoading ||
+                                                                selectedDocument.managedByContentAsCode
                                                             }
                                                             checked={
                                                                 selectedDocument.alwaysIncludeInContext

@@ -2,7 +2,7 @@ import {
     AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
     AI_AGENT_DOCUMENT_MAX_NAME_LENGTH,
     assertUnreachable,
-    type AiAgentDocumentSummary,
+    type AiAgentDocumentListItem,
 } from '@lightdash/common';
 import {
     Box,
@@ -42,7 +42,7 @@ const MARKDOWN_REMARK_PLUGINS = [remarkFrontmatter];
 type LoadedDocumentModalProps = {
     agentUuid: string;
     content: string;
-    document: AiAgentDocumentSummary;
+    document: AiAgentDocumentListItem;
     onClose: () => void;
     projectUuid: string;
 };
@@ -138,13 +138,15 @@ const LoadedDocumentModal = ({
                         >
                             Download
                         </Button>
-                        <Button
-                            size="xs"
-                            leftSection={<MantineIcon icon={IconEdit} />}
-                            onClick={() => setMode('edit')}
-                        >
-                            Edit
-                        </Button>
+                        {!document.managedByContentAsCode && (
+                            <Button
+                                size="xs"
+                                leftSection={<MantineIcon icon={IconEdit} />}
+                                onClick={() => setMode('edit')}
+                            >
+                                Edit
+                            </Button>
+                        )}
                     </Group>
                 );
             case 'edit':
@@ -279,7 +281,7 @@ const LoadedDocumentModal = ({
 
 type Props = {
     agentUuid: string;
-    document: AiAgentDocumentSummary | null;
+    document: AiAgentDocumentListItem | null;
     onClose: () => void;
     projectUuid: string;
 };

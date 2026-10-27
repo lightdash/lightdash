@@ -94,6 +94,11 @@ import {
     type ContentAsCodeOutputVariant,
 } from '../terminal/contentAsCodeOutput';
 import {
+    readAgentKnowledgeDocuments,
+    toAgentAsCodeFile,
+    writeAgentKnowledgeDocuments,
+} from './aiAgentKnowledgeDocuments';
+import {
     applySdkMirrorToTemplateDeps,
     attachDependenciesToCode,
     buildDepsWarningLines,
@@ -1775,12 +1780,22 @@ const downloadAiAgents = async (
             total = results.total;
         } while (offset < total);
 
+        const basePath = getDownloadFolder(customPath);
         await writeCodeResourceDocuments({
             definition: AI_AGENT_CODE_RESOURCE,
-            basePath: getDownloadFolder(customPath),
-            documents: agents,
+            basePath,
+            documents: agents.map(toAgentAsCodeFile),
             pruneOtherDocuments: ids.length === 0,
         });
+        const agentsFolder = path.join(
+            basePath,
+            AI_AGENT_CODE_RESOURCE.folderName,
+        );
+        await Promise.all(
+            agents.map((agent) =>
+                writeAgentKnowledgeDocuments(agentsFolder, agent),
+            ),
+        );
     } catch (error) {
         if (implicit && isAiAgentsUnavailableError(error)) {
             GlobalState.log(
@@ -1807,7 +1822,11 @@ const readAiAgentFiles = async (
         basePath: getDownloadFolder(customPath),
     });
     assertCodeResourceFilesValid(result);
-    return result.files.map(({ document }) => document);
+    return Promise.all(
+        result.files.map(({ filePath, document }) =>
+            readAgentKnowledgeDocuments(filePath, document),
+        ),
+    );
 };
 
 class AiAgentAsCodeUploadError extends Error {

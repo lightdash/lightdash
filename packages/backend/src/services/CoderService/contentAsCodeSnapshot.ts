@@ -1,4 +1,5 @@
 import {
+    type AgentAsCodeKnowledgeDocument,
     type ChartAsCode,
     type DashboardAsCode,
     type SqlChartAsCode,
@@ -54,7 +55,7 @@ const canonicalize = (value: unknown): CanonicalJsonValue => {
 };
 
 export const buildContentAsCodeSnapshot = (
-    content: SnapshotAsCodeContent,
+    content: SnapshotAsCodeContent | AgentAsCodeKnowledgeDocument,
 ): {
     snapshot: Record<string, CanonicalJsonValue>;
     snapshotHash: string;

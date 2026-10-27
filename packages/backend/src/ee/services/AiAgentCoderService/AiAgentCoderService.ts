@@ -10,6 +10,7 @@ import {
     RETENTION_WINDOW_HOURS_ERROR,
     type AgentAsCode,
     type AgentAsCodeEvaluation,
+    type AgentAsCodeKnowledgeDocument,
     type AgentAsCodeUpsertChanges,
     type SessionUser,
 } from '@lightdash/common';
@@ -17,12 +18,24 @@ import isEqual from 'lodash/isEqual';
 import { validate as isValidUuid } from 'uuid';
 import { fromSession } from '../../../auth/account';
 import { type LightdashConfig } from '../../../config/parseConfig';
+import { type ContentAsCodeProjectSettingsModel } from '../../../models/ContentAsCodeProjectSettingsModel';
+import {
+    AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+    getKnowledgeDocumentSnapshotSlug,
+    type ContentAsCodeSnapshotModel,
+} from '../../../models/ContentAsCodeSnapshotModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
+import { buildContentAsCodeSnapshot } from '../../../services/CoderService/contentAsCodeSnapshot';
 import { paginateAsCode } from '../../../services/CoderService/pagination';
+import {
+    type AiAgentDocumentModel,
+    type AiAgentOwnedDocument,
+} from '../../models/AiAgentDocumentModel';
 import { type AiAgentModel } from '../../models/AiAgentModel';
 import { type AiAgentSkillModel } from '../../models/AiAgentSkillModel';
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
+import { type AiAgentDocumentService } from '../AiAgentDocumentService';
 import { type AiAgentSkillService } from '../AiAgentSkillService';
 import { type AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 
@@ -61,10 +74,19 @@ const groupEvaluationsByAgentUuid = (
         return grouped;
     }, new Map());
 
+const toKnowledgeDocumentAsCode = (
+    document: AiAgentOwnedDocument,
+): AgentAsCodeKnowledgeDocument => ({
+    name: document.name,
+    alwaysIncludeInContext: document.alwaysIncludeInContext,
+    content: document.content,
+});
+
 const toAgentAsCode = (
     agent: AgentForCode,
     evaluations: EvaluationForCode[],
     skills: string[] | null,
+    knowledgeDocuments: AgentAsCodeKnowledgeDocument[] | null,
 ): AgentAsCode => ({
     contentType: ContentAsCodeType.AI_AGENT,
     version: AGENT_AS_CODE_VERSION,
@@ -87,6 +109,7 @@ const toAgentAsCode = (
     threadRetentionHours: agent.threadRetentionHours ?? undefined,
     modelConfig: agent.modelConfig,
     ...(skills !== null ? { skills: [...skills].sort() } : {}),
+    ...(knowledgeDocuments !== null ? { knowledgeDocuments } : {}),
     evaluations: [...evaluations]
         .sort((left, right) => left.title.localeCompare(right.title))
         .map(normalizeEvaluation),
@@ -124,6 +147,10 @@ type Dependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentSkillModel: AiAgentSkillModel;
     aiAgentSkillService: AiAgentSkillService;
+    aiAgentDocumentModel: AiAgentDocumentModel;
+    aiAgentDocumentService: AiAgentDocumentService;
+    contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+    contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
     projectModel: ProjectModel;
     lightdashConfig: LightdashConfig;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
@@ -136,6 +163,14 @@ export class AiAgentCoderService extends BaseService {
 
     private readonly aiAgentSkillService: AiAgentSkillService;
 
+    private readonly aiAgentDocumentModel: AiAgentDocumentModel;
+
+    private readonly aiAgentDocumentService: AiAgentDocumentService;
+
+    private readonly contentAsCodeProjectSettingsModel: ContentAsCodeProjectSettingsModel;
+
+    private readonly contentAsCodeSnapshotModel: ContentAsCodeSnapshotModel;
+
     private readonly projectModel: ProjectModel;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -146,6 +181,10 @@ export class AiAgentCoderService extends BaseService {
         aiAgentModel,
         aiAgentSkillModel,
         aiAgentSkillService,
+        aiAgentDocumentModel,
+        aiAgentDocumentService,
+        contentAsCodeProjectSettingsModel,
+        contentAsCodeSnapshotModel,
         projectModel,
         lightdashConfig,
         aiOrganizationSettingsService,
@@ -154,6 +193,11 @@ export class AiAgentCoderService extends BaseService {
         this.aiAgentModel = aiAgentModel;
         this.aiAgentSkillModel = aiAgentSkillModel;
         this.aiAgentSkillService = aiAgentSkillService;
+        this.aiAgentDocumentModel = aiAgentDocumentModel;
+        this.aiAgentDocumentService = aiAgentDocumentService;
+        this.contentAsCodeProjectSettingsModel =
+            contentAsCodeProjectSettingsModel;
+        this.contentAsCodeSnapshotModel = contentAsCodeSnapshotModel;
         this.projectModel = projectModel;
         this.lightdashConfig = lightdashConfig;
         this.aiOrganizationSettingsService = aiOrganizationSettingsService;
@@ -276,6 +320,26 @@ export class AiAgentCoderService extends BaseService {
             ),
         );
 
+        const knowledgeDocumentsByAgentUuid = new Map(
+            await Promise.all(
+                page.page.map(
+                    async ({ uuid }) =>
+                        [
+                            uuid,
+                            (
+                                await this.aiAgentDocumentModel.findOwnedByAgent(
+                                    {
+                                        organizationUuid,
+                                        projectUuid,
+                                        agentUuid: uuid,
+                                    },
+                                )
+                            ).map(toKnowledgeDocumentAsCode),
+                        ] as const,
+                ),
+            ),
+        );
+
         return {
             agents: page.page.map((agent) =>
                 toAgentAsCode(
@@ -284,6 +348,7 @@ export class AiAgentCoderService extends BaseService {
                     skillsEnabled
                         ? (skillNamesByAgentUuid.get(agent.uuid) ?? [])
                         : null,
+                    knowledgeDocumentsByAgentUuid.get(agent.uuid) ?? [],
                 ),
             ),
             missingIds,
@@ -349,6 +414,149 @@ export class AiAgentCoderService extends BaseService {
         };
     }
 
+    /**
+     * Makes the agent's own documents match the declared list, by name.
+     * Unchanged content is left alone so a repeat upload neither rewrites
+     * storage nor regenerates summaries. Under content_as_code.sync every
+     * applied document is stamped as Git-backed, which locks it in the UI.
+     */
+    private async syncKnowledgeDocuments({
+        user,
+        organizationUuid,
+        projectUuid,
+        agent,
+        agentUuid,
+        force,
+        syncEnabled,
+    }: {
+        user: SessionUser;
+        organizationUuid: string;
+        projectUuid: string;
+        agent: AgentAsCode;
+        agentUuid: string;
+        force: boolean;
+        syncEnabled: boolean;
+    }): Promise<boolean> {
+        const declared = (agent.knowledgeDocuments ?? []).map((document) => ({
+            ...document,
+            name: document.name.trim(),
+        }));
+        const scope = { projectUuid, agentUuid };
+        const existingByName = new Map(
+            (
+                await this.aiAgentDocumentModel.findOwnedByAgent({
+                    organizationUuid,
+                    projectUuid,
+                    agentUuid,
+                })
+            ).map((document) => [document.name, document]),
+        );
+        let changed = false;
+
+        const stamp = async (
+            document: AgentAsCodeKnowledgeDocument,
+        ): Promise<void> => {
+            if (!syncEnabled) return;
+            const { snapshot, snapshotHash } =
+                buildContentAsCodeSnapshot(document);
+            await this.contentAsCodeSnapshotModel.upsert({
+                projectUuid,
+                contentType: AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+                slug: getKnowledgeDocumentSnapshotSlug(
+                    agent.slug,
+                    document.name,
+                ),
+                snapshot,
+                snapshotHash,
+                appliedByUserUuid: user.userUuid,
+                filePath: null,
+            });
+        };
+
+        for (const document of declared) {
+            const existing = existingByName.get(document.name);
+            if (!existing) {
+                // eslint-disable-next-line no-await-in-loop
+                const created =
+                    await this.aiAgentDocumentService.createDocument(
+                        user,
+                        scope,
+                        {
+                            name: document.name,
+                            originalFilename: `${document.name}.md`,
+                            mimeType: 'text/markdown',
+                            content: document.content,
+                        },
+                    );
+                if (document.alwaysIncludeInContext) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.aiAgentDocumentService.updateDocument(
+                        user,
+                        scope,
+                        created.uuid,
+                        { alwaysIncludeInContext: true },
+                        'repo',
+                    );
+                }
+                changed = true;
+            } else {
+                if (force || existing.content !== document.content) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.aiAgentDocumentService.updateDocumentContent(
+                        user,
+                        scope,
+                        existing.uuid,
+                        { name: document.name, content: document.content },
+                        'repo',
+                    );
+                    changed = true;
+                }
+                if (
+                    existing.alwaysIncludeInContext !==
+                    document.alwaysIncludeInContext
+                ) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.aiAgentDocumentService.updateDocument(
+                        user,
+                        scope,
+                        existing.uuid,
+                        {
+                            alwaysIncludeInContext:
+                                document.alwaysIncludeInContext,
+                        },
+                        'repo',
+                    );
+                    changed = true;
+                }
+            }
+            // eslint-disable-next-line no-await-in-loop
+            await stamp(document);
+        }
+
+        const declaredNames = new Set(declared.map(({ name }) => name));
+        const removed = [...existingByName.values()].filter(
+            (existing) => !declaredNames.has(existing.name),
+        );
+        for (const existing of removed) {
+            // eslint-disable-next-line no-await-in-loop
+            await this.aiAgentDocumentService.deleteDocument(
+                user,
+                scope,
+                existing.uuid,
+                'repo',
+            );
+            // eslint-disable-next-line no-await-in-loop
+            await this.contentAsCodeSnapshotModel.delete(
+                projectUuid,
+                AI_AGENT_KNOWLEDGE_DOCUMENT_SNAPSHOT_TYPE,
+                getKnowledgeDocumentSnapshotSlug(agent.slug, existing.name),
+            );
+            changed = true;
+        }
+
+        return changed;
+    }
+
     async upsertAgents(
         user: SessionUser,
         projectUuid: string,
@@ -401,6 +609,24 @@ export class AiAgentCoderService extends BaseService {
                 throw new ParameterError(
                     `Duplicate evaluation titles for AI agent '${agent.slug}': ${[
                         ...new Set(duplicateEvaluationTitles),
+                    ].join(', ')}`,
+                );
+            }
+            const documentNames = (agent.knowledgeDocuments ?? []).map(
+                ({ name }) => name.trim(),
+            );
+            if (documentNames.some((name) => name.length === 0)) {
+                throw new ParameterError(
+                    `AI agent '${agent.slug}' has a knowledge document with an empty name`,
+                );
+            }
+            const duplicateDocumentNames = documentNames.filter(
+                (name, index, names) => names.indexOf(name) !== index,
+            );
+            if (duplicateDocumentNames.length > 0) {
+                throw new ParameterError(
+                    `Duplicate knowledge document names for AI agent '${agent.slug}': ${[
+                        ...new Set(duplicateDocumentNames),
                     ].join(', ')}`,
                 );
             }
@@ -522,6 +748,12 @@ export class AiAgentCoderService extends BaseService {
             unchanged: [],
             deleted: [],
         };
+        const syncEnabled = agents.some(
+            (agent) => agent.knowledgeDocuments !== undefined,
+        )
+            ? (await this.contentAsCodeProjectSettingsModel.get(projectUuid))
+                  ?.syncEnabled === true
+            : false;
 
         const upsertOne = async (agent: AgentAsCode): Promise<void> => {
             const existing = existingBySlug.get(agent.slug);
@@ -554,7 +786,7 @@ export class AiAgentCoderService extends BaseService {
                     !force &&
                     isEqual(
                         getComparableAgent(
-                            toAgentAsCode(existing, [], null),
+                            toAgentAsCode(existing, [], null, null),
                             retentionDeclared,
                         ),
                         getComparableAgent(agent, retentionDeclared),
@@ -685,6 +917,30 @@ export class AiAgentCoderService extends BaseService {
                         return;
                     }
                     agentChanged = true;
+                }
+            }
+
+            if (agent.knowledgeDocuments !== undefined) {
+                try {
+                    const documentsChanged = await this.syncKnowledgeDocuments({
+                        user,
+                        organizationUuid,
+                        projectUuid,
+                        agent,
+                        agentUuid,
+                        force,
+                        syncEnabled,
+                    });
+                    agentChanged = agentChanged || documentsChanged;
+                } catch (error) {
+                    changes.failed = [
+                        ...(changes.failed ?? []),
+                        {
+                            slug: agent.slug,
+                            message: `AI agent '${agent.slug}': knowledge documents could not be applied — ${getErrorMessage(error)}`,
+                        },
+                    ];
+                    return;
                 }
             }
 

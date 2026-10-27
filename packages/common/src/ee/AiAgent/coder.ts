@@ -11,6 +11,14 @@ export type AgentAsCodeEvaluation = {
     prompts: AgentAsCodeEvaluationPrompt[];
 };
 
+// Markdown or plain text, 20 KB max. The CLI stores it in its own file
+// beside the agent YAML and inlines it for transport.
+export type AgentAsCodeKnowledgeDocument = {
+    name: string;
+    alwaysIncludeInContext: boolean;
+    content: string;
+};
+
 export type AgentAsCode = {
     contentType: ContentAsCodeType.AI_AGENT;
     version: number;
@@ -36,6 +44,11 @@ export type AgentAsCode = {
     // unchanged; present = authoritative (bind these, unbind the rest).
     skills?: string[];
     evaluations?: AgentAsCodeEvaluation[];
+    // Knowledge documents owned by this agent alone. Omitted = leave them
+    // unchanged; present = authoritative (create, update, delete the rest).
+    // Documents shared with other agents or the whole organization are
+    // never included and never touched.
+    knowledgeDocuments?: AgentAsCodeKnowledgeDocument[];
     updatedAt?: Date;
     downloadedAt?: Date;
 };

@@ -44,6 +44,10 @@ const mapRowToSummary = (row: DbDocumentWithAccess): AiAgentDocumentSummary => {
     return data;
 };
 
+export type AiAgentOwnedDocument = AiAgentDocumentSummary & {
+    content: string;
+};
+
 const mapRowToContext = (
     row: DbDocumentWithAccess,
 ): AiAgentDocumentContext => ({
@@ -338,6 +342,54 @@ export class AiAgentDocumentModel {
             .orderBy(`${AiAgentDocumentTableName}.created_at`, 'desc');
 
         return rows.map(mapRowToSummary);
+    }
+
+    /**
+     * Documents that belong to this agent alone: in its project and granted
+     * to no other agent. Org-wide and shared documents are excluded so a
+     * caller can rewrite the result set without touching anything shared.
+     */
+    async findOwnedByAgent(args: {
+        organizationUuid: string;
+        agentUuid: string;
+        projectUuid: string;
+    }): Promise<AiAgentOwnedDocument[]> {
+        const rows = await this.baseSelect()
+            .where(
+                `${AiAgentDocumentTableName}.organization_uuid`,
+                args.organizationUuid,
+            )
+            .andWhere(
+                `${AiAgentDocumentTableName}.project_uuid`,
+                args.projectUuid,
+            )
+            .andWhere(
+                AiAgentDocumentModel.agentAccessSubquery(
+                    this.database,
+                    args.agentUuid,
+                ),
+            )
+            .andWhere(
+                this.database.raw(
+                    `NOT EXISTS (
+                        SELECT 1 FROM ?? AS other
+                        WHERE other.ai_agent_document_uuid = ??.ai_agent_document_uuid
+                          AND other.ai_agent_uuid <> ?
+                    )`,
+                    [
+                        AiAgentDocumentAccessTableName,
+                        AiAgentDocumentTableName,
+                        args.agentUuid,
+                    ],
+                ),
+            )
+            .orderBy(`${AiAgentDocumentTableName}.name`, 'asc');
+
+        return rows.flatMap((row) =>
+            row.content === null
+                ? []
+                : [{ ...mapRowToSummary(row), content: row.content }],
+        );
     }
 
     async findAllContextForAgent(args: {

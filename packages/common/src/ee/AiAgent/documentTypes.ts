@@ -86,9 +86,15 @@ export type ApiAiAgentDocumentResponse = {
     results: AiAgentDocument;
 };
 
+// Content as Code last applied this document and the project syncs with
+// its repo, so the UI cannot change it.
+export type AiAgentDocumentListItem = AiAgentDocumentSummary & {
+    managedByContentAsCode: boolean;
+};
+
 export type ApiAiAgentDocumentSummaryListResponse = {
     status: 'ok';
-    results: AiAgentDocumentSummary[];
+    results: AiAgentDocumentListItem[];
 };
 
 export type ApiAiAgentDocumentContentResponse = {
