@@ -1,4 +1,9 @@
-import { type Announcements } from '@dnd-kit/core';
+import {
+    closestCenter,
+    pointerWithin,
+    type Announcements,
+    type CollisionDetection,
+} from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import {
     type DashboardControlSection,
@@ -90,8 +95,8 @@ const findRule = (
 
 /**
  * Drops the rule `activeId` on `over`: on a rule, it takes that rule's
- * section and, within its own list, that rule's place; on a section, it
- * joins that section after its last member of the same kind.
+ * section and, within its own list, that rule's place; on a section (or
+ * none), it joins it after its last member of the same kind.
  */
 // A pill's drop: on another pill (its section and place) or a section (null: none)
 export type RuleDropTarget = { ruleId: string } | { sectionId: string | null };
@@ -132,17 +137,27 @@ export const moveRuleToSection = (
     if (overIndex !== -1) {
         to = overIndex;
     } else {
-        // Joining a section: after its last member of this kind, else in place
+        // Joining a section (none included): after its last member of this
+        // kind, else in place; a member already after it stays
         const last = list.reduce(
             (found, rule, index) =>
                 rule.id !== activeId &&
-                (rule.sectionId ?? null) === sectionId &&
-                sectionId !== null
+                isRuleInSection(rule, sectionId, sections)
                     ? index
                     : found,
             -1,
         );
-        to = last === -1 ? active.index : active.index > last ? last + 1 : last;
+        const isMember = isRuleInSection(
+            filters[group][active.index],
+            sectionId,
+            sections,
+        );
+        to =
+            last === -1 || (isMember && active.index > last)
+                ? active.index
+                : active.index > last
+                  ? last + 1
+                  : last;
     }
     // Nothing moved: the same object, so nothing is marked changed
     if (
@@ -209,6 +224,9 @@ export const isCollapsedByDefault = (
 /** The droppable id of the rail's header, which takes a filter out of its section */
 export const UNSECTIONED_TARGET_ID = 'unsectioned-target';
 
+/** The droppable id of the bar's space outside every capsule and pill */
+export const BAR_SPACE_TARGET_ID = 'bar-space-target';
+
 /** Screen reader wording for a drag; dnd-kit only knows the ids */
 export const getDragAnnouncements = (
     nameOf: (id: string) => string,
@@ -225,3 +243,43 @@ export const getDragAnnouncements = (
     onDragCancel: ({ active }) =>
         `Dragging ${nameOf(String(active.id))} was cancelled`,
 });
+
+// The target is what is under the pointer; anywhere else a pointer is (the
+// bar's empty space, beside or below the bar) is outside every section. The
+// keyboard sensor has no pointer, so it falls back to the nearest centre
+const underPointer: CollisionDetection = (args) => {
+    const within = pointerWithin(args);
+    const covered = within.filter(({ id }) => id !== BAR_SPACE_TARGET_ID);
+    if (covered.length > 0) return covered;
+    const barSpace = args.droppableContainers.find(
+        ({ id }) => id === BAR_SPACE_TARGET_ID,
+    );
+    if (args.pointerCoordinates !== null && barSpace !== undefined)
+        return [
+            {
+                id: BAR_SPACE_TARGET_ID,
+                data: { droppableContainer: barSpace, value: 0 },
+            },
+        ];
+    return closestCenter({
+        ...args,
+        droppableContainers: args.droppableContainers.filter(
+            ({ id }) => id !== BAR_SPACE_TARGET_ID,
+        ),
+    });
+};
+
+// A dragged capsule lands only on another capsule
+export const SECTION_DRAG = 'section';
+export const underPointerFor: CollisionDetection = (args) =>
+    underPointer(
+        args.active.data?.current?.kind === SECTION_DRAG
+            ? {
+                  ...args,
+                  droppableContainers: args.droppableContainers.filter(
+                      (container) =>
+                          container.data?.current?.kind === SECTION_DRAG,
+                  ),
+              }
+            : args,
+    );

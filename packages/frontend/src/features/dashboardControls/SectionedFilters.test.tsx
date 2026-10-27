@@ -742,6 +742,81 @@ describe('SectionedFilters', () => {
             expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
         });
 
+        it("takes a pill out of its section on the bar's empty space, after the last unsectioned pill", () => {
+            renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
+            act(() =>
+                mockDragEnd.handlers[0](dragEvent('one', 'bar-space-target')),
+            );
+            expect(setDashboardFilters).toHaveBeenCalledTimes(1);
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['one', null],
+                ['two', 'b'],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+        });
+
+        it('lands a pill dropped on the empty space after the last unsectioned pill of its kind', () => {
+            renderSectioned(
+                [
+                    rule('one', 'a'),
+                    rule('loose', undefined),
+                    rule('two', 'b'),
+                    rule('last', undefined),
+                ],
+                'tab-1',
+            );
+            act(() =>
+                mockDragEnd.handlers[0](dragEvent('one', 'bar-space-target')),
+            );
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['loose', null],
+                ['two', 'b'],
+                ['last', null],
+                ['one', null],
+            ]);
+        });
+
+        it('still moves a pill into a capsule, and writes nothing for an unsectioned pill on the empty space', () => {
+            renderSectioned(
+                [rule('one', 'a'), rule('loose', undefined)],
+                'tab-1',
+            );
+            act(() =>
+                mockDragEnd.handlers[0](dragEvent('loose', 'bar-space-target')),
+            );
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            act(() => mockDragEnd.handlers[0](dragEvent('loose', 'a')));
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['one', 'a'],
+                ['loose', 'a'],
+            ]);
+        });
+
+        it('draws the drop line on the empty space only for a pill that would leave its section', () => {
+            mockDroppable.current = {
+                activeId: 'one',
+                overId: 'bar-space-target',
+            };
+            const { unmount } = renderSectioned(
+                [rule('one', 'a'), rule('loose', undefined)],
+                'tab-1',
+            );
+            const flowOf = () =>
+                capsuleOf('Dates').parentElement as HTMLElement;
+            expect(flowOf()).toHaveAttribute('data-over');
+            unmount();
+
+            mockDroppable.current = {
+                activeId: 'loose',
+                overId: 'bar-space-target',
+            };
+            renderSectioned(
+                [rule('one', 'a'), rule('loose', undefined)],
+                'tab-1',
+            );
+            expect(flowOf()).not.toHaveAttribute('data-over');
+        });
+
         it('writes nothing for a drop on its own capsule, or on the first button while unsectioned', () => {
             renderSectioned(
                 [rule('one', 'a'), rule('loose', undefined)],
@@ -771,6 +846,22 @@ describe('SectionedFilters', () => {
             const ids = sectionIdsOf(setDashboardFilters.mock.calls[0][0]);
             expect(ids.at(-1)).toEqual(['two', 'a']);
             expect(ids.every(([, section]) => section === 'a')).toBe(true);
+        });
+
+        it("moves the edited filter out through the editor on the bar's empty space", () => {
+            mockSidebar.current = {
+                isViewer: false,
+                isSidebarOpen: true,
+                editing: { filterId: 'one' },
+            };
+            renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
+            act(() =>
+                mockDragEnd.handlers[0](dragEvent('one', 'bar-space-target')),
+            );
+            expect(mockMoveEditedFilter.mock.calls).toEqual([
+                [{ sectionId: null }, expect.any(Array)],
+            ]);
+            expect(setDashboardFilters).not.toHaveBeenCalled();
         });
 
         it('moves the edited filter through the editor while it is edited', () => {
@@ -964,10 +1055,11 @@ describe('SectionedFilters', () => {
             await user.click(
                 screen.getByRole('menuitem', { name: 'No section' }),
             );
+            // After the last unsectioned rule, as joining a section
             expect(sectionIdsOf(setDashboardFilters.mock.calls[1][0])).toEqual([
                 ['loose', null],
-                ['one', 'a'],
                 ['two', null],
+                ['one', 'a'],
                 ['three', 'b'],
             ]);
         });
@@ -1085,6 +1177,28 @@ describe('SectionedFilters', () => {
                 ['loose', 'b'],
                 ['one', 'b'],
             ]);
+            expect(pickedIds()).toEqual([]);
+        });
+
+        it("takes the whole selection out of its sections on the bar's empty space", () => {
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            fireEvent.click(pillOf('three'), { metaKey: true });
+
+            act(() =>
+                mockDragEnd.handlers.at(-1)!({
+                    active: { id: 'three' },
+                    over: { id: 'bar-space-target' },
+                } as DragEndEvent),
+            );
+            expect(setDashboardFilters).toHaveBeenCalledTimes(1);
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['loose', null],
+                ['one', null],
+                ['three', null],
+                ['two', 'a'],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
             expect(pickedIds()).toEqual([]);
         });
 
