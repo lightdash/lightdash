@@ -148,6 +148,13 @@
     opacity: 1;
 }
 
+/* Reserved: the lock is always shown, so the pill never changes width */
+.button .lockSlot[data-reserved] {
+    max-width: none;
+    opacity: 1;
+    transition: none;
+}
+
 .lockSlotActive {
     display: inline-flex;
     align-items: center;

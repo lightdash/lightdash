@@ -18,6 +18,7 @@ import {
 } from '../../../../../features/dashboard/store';
 import { AddControl } from '../../../../../features/dashboardControls/AddControl';
 import { FilterPills } from '../../../../../features/dashboardControls/FilterPills';
+import { SettledFilterFields } from '../../../../../features/dashboardControls/SettledFilterFields';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
 import { getDateZoomSummaryLabel } from '../../../../../features/dateZoom/utils';
@@ -47,8 +48,9 @@ const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
 }) => {
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const getUiString = useUiStrings();
+    // A tile added or removed keeps the pills, as on the app's bar
     return (
-        <>
+        <SettledFilterFields>
             <AddControl
                 triggerClassName={embedContractClass('ld-dashboard-add-filter')}
                 unsavedFiltersTooltip={getUiString(
@@ -63,7 +65,7 @@ const ControlsFilterArea: FC<{ canAddFilters: boolean }> = ({
                     'ld-dashboard-filter-dropdown',
                 )}
             />
-        </>
+        </SettledFilterFields>
     );
 };
 

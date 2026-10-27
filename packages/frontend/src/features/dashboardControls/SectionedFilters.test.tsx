@@ -498,8 +498,16 @@ describe('SectionedFilters', () => {
         ).toBeInTheDocument();
     });
 
-    it('renders no capsule while the filters load', () => {
+    it('keeps the capsules through a background refetch of the filters', () => {
         mockDashboardContext.current.isFetchingDashboardFilters = true;
+        renderSectioned([rule('one', 'a')], 'tab-1');
+
+        expect(screen.getByTestId('pills-a')).toBeInTheDocument();
+        expect(screen.getByTestId('pills-unsectioned')).toBeInTheDocument();
+    });
+
+    it('renders no capsule while the filters first load', () => {
+        mockDashboardContext.current.isLoadingDashboardFilters = true;
         renderSectioned([rule('one', 'a')], 'tab-1');
 
         expect(screen.getByTestId('pills-unsectioned')).toBeInTheDocument();
@@ -1384,6 +1392,35 @@ describe('SectionedFilters', () => {
             expect(addSection()).toBeInTheDocument();
         });
 
+        it("hands focus to the new section's name after Enter, or a blur to the page", async () => {
+            const user = userEvent.setup();
+            renderSectioned([rule('one', undefined)], 'tab-1');
+
+            await user.click(addSection() as HTMLElement);
+            await user.keyboard('Late{Enter}');
+            expect(screen.getByRole('button', { name: 'Late' })).toHaveFocus();
+
+            await user.click(addSection() as HTMLElement);
+            await user.keyboard('Later');
+            act(() =>
+                screen.getByRole('textbox', { name: 'Section name' }).blur(),
+            );
+            expect(screen.getByRole('button', { name: 'Later' })).toHaveFocus();
+        });
+
+        it('hands focus to the first moved pill when the new section takes pills', async () => {
+            const user = userEvent.setup();
+            renderSectioned(
+                [rule('one', undefined), rule('two', 'a')],
+                'tab-1',
+            );
+            fireEvent.click(screen.getByText('pill one'), { metaKey: true });
+
+            await user.click(addSection() as HTMLElement);
+            await user.keyboard('Misc{Enter}');
+            expect(screen.getByText('pill one')).toHaveFocus();
+        });
+
         it('makes a section holding the picked pills', async () => {
             const user = userEvent.setup();
             const { store } = renderSectioned(
@@ -1461,6 +1498,20 @@ describe('SectionedFilters', () => {
             );
             await user.keyboard('{Enter}');
             expect(sectionsOf(store)[0].name).toBe('When');
+        });
+
+        it('sizes the rename input to its text, the placeholder when empty', async () => {
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            const user = userEvent.setup();
+
+            await user.click(screen.getByRole('button', { name: 'Dates' }));
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            const sizer = input.closest('[data-size-to]');
+            expect(sizer).toHaveAttribute('data-size-to', 'Dates');
+            await user.type(input, ' and times');
+            expect(sizer).toHaveAttribute('data-size-to', 'Dates and times');
+            await user.clear(input);
+            expect(sizer).toHaveAttribute('data-size-to', 'Section name');
         });
 
         it('keeps the chevron to folding alone', async () => {

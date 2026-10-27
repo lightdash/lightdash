@@ -460,6 +460,83 @@ describe('FilterPills', () => {
             ).toBeInTheDocument();
         });
 
+        it("shows only the lock's tooltip while the lock is hovered", async () => {
+            const user = userEvent.setup();
+            renderSelectable([]);
+
+            await user.hover(
+                within(pill(/^Status/)).getByRole('button', {
+                    name: 'Lock filter',
+                }),
+            );
+
+            expect(
+                await screen.findByRole('tooltip', { name: 'Lock filter' }),
+            ).toBeInTheDocument();
+            // Past the pill tooltip's 500ms delay
+            await act(() => new Promise((resolve) => setTimeout(resolve, 700)));
+            expect(
+                screen.queryByText('Click to edit · Ctrl click to select'),
+            ).not.toBeInTheDocument();
+        });
+
+        it("shows only the requirement icon's tooltip while it is hovered", async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboardFilters: {
+                    ...filters,
+                    dimensions: [
+                        {
+                            ...savedRule,
+                            values: [],
+                            disabled: true,
+                            required: true,
+                        },
+                        noDefaultRule,
+                    ],
+                },
+            });
+            renderSelectable([]);
+
+            const icon = pill(/^Status/).querySelector(
+                '[data-requirement-icon]',
+            );
+            expect(icon).not.toBeNull();
+            await user.hover(icon as Element);
+
+            expect(await screen.findByRole('tooltip')).not.toHaveTextContent(
+                'Click to edit',
+            );
+            await act(() => new Promise((resolve) => setTimeout(resolve, 700)));
+            expect(
+                screen.queryByText('Click to edit · Ctrl click to select'),
+            ).not.toBeInTheDocument();
+        });
+
+        it("keeps the pill's tooltip on a met requirement icon, which has none", async () => {
+            const user = userEvent.setup();
+            setContext({
+                dashboardFilters: {
+                    ...filters,
+                    dimensions: [
+                        { ...savedRule, required: true },
+                        noDefaultRule,
+                    ],
+                },
+            });
+            renderSelectable([]);
+
+            const icon = pill(/^Status/).querySelector(
+                '[data-requirement-icon]',
+            );
+            expect(icon).not.toBeNull();
+            await user.hover(icon as Element);
+
+            expect(
+                await screen.findByText('Click to edit · Ctrl click to select'),
+            ).toBeInTheDocument();
+        });
+
         it('picks nothing on a bar without a selection, as on the flat bar', async () => {
             const user = userEvent.setup();
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
@@ -536,6 +613,19 @@ describe('FilterPills', () => {
             expect(lock.parentElement?.className).not.toContain(
                 'lockSlotActive',
             );
+        });
+
+        it('always shows the lock, so a hover never widens the pill', () => {
+            setContext({
+                dashboardTabs: tabs,
+                dashboardTiles: [tile('tile-1', 't1')],
+            });
+            renderWithProviders(<FilterPills activeTabUuid="t1" />);
+
+            const lock = screen.getAllByRole('button', {
+                name: 'Lock filter on this tab',
+            })[0];
+            expect(lock.parentElement).toHaveAttribute('data-reserved');
         });
 
         it('locks on the dashboard uuid when the dashboard has no tabs', async () => {
@@ -746,7 +836,7 @@ describe('FilterPills', () => {
                 },
                 allFilterableFields: undefined,
                 allFilterableFieldsMap: {},
-                isLoadingDashboardFilters: true,
+                isFetchingDashboardFilters: true,
             });
             const user = userEvent.setup({ pointerEventsCheck: 0 });
             const { rerender } = renderWithProviders(
@@ -762,11 +852,23 @@ describe('FilterPills', () => {
             setContext({
                 allFilterableFields: [statusField, regionField],
                 allFilterableFieldsMap: { orders_status: statusField },
-                isLoadingDashboardFilters: false,
+                isFetchingDashboardFilters: false,
             });
             rerender(<FilterPills activeTabUuid={undefined} />);
             await user.click(pill(/^Status/));
             expect(open).toHaveBeenCalledWith('saved');
+        });
+
+        it('shows an editor the skeletons while the filters first load, so the bar settles once', () => {
+            setContext({ isLoadingDashboardFilters: true });
+            const { container } = renderWithProviders(
+                <FilterPills activeTabUuid={undefined} sectionId={null} />,
+            );
+
+            expect(queryPill(/^Status/)).toBeNull();
+            expect(
+                container.querySelectorAll('.mantine-Skeleton-root'),
+            ).toHaveLength(5);
         });
 
         it('keeps an ordinary pill while the fields are loading', () => {

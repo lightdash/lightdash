@@ -41,6 +41,8 @@ type Props = Omit<
     /** The lock action's label; null leaves the action out. */
     lockLabel: string | null;
     onLockToggle: (e: MouseEvent) => void;
+    /** Shows the lock at all times, so hovering never widens the pill; default false. */
+    isLockSpaceReserved?: boolean;
     /** The label of the read-only lock icon; null leaves it out. */
     readOnlyLockLabel: string | null;
     /** Null leaves the X out. */
@@ -66,6 +68,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
             isLocked,
             lockLabel,
             onLockToggle,
+            isLockSpaceReserved = false,
             readOnlyLockLabel,
             onRemove,
             removeLabel,
@@ -167,6 +170,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                                         size="sm"
                                         color={statusColor}
                                         className={classes.statusIcon}
+                                        data-requirement-icon
                                     />
                                 </Tooltip>
                             )}
@@ -191,6 +195,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                                         ? classes.lockSlotActive
                                         : classes.lockSlot
                                 }
+                                data-reserved={isLockSpaceReserved || undefined}
                             >
                                 <Tooltip fz="xs" label={lockLabel}>
                                     <ActionIcon

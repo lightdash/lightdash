@@ -1,47 +1,53 @@
-import { TextInput } from '@mantine/core';
-import { useRef, type FC } from 'react';
+import { Box, TextInput } from '@mantine/core';
+import { useRef, useState, type FC } from 'react';
+import classes from './SectionedFilters.module.css';
 
 type NameInputProps = {
     name: string;
     onCommit: (name: string) => void;
     onCancel: () => void;
-    inputClassName: string;
 };
 
-// Enter or blur with a name commits; Escape or an empty name cancels
+const PLACEHOLDER = 'Section name';
+
+// Enter or blur with a name commits; Escape or an empty name cancels. The
+// input is as wide as its text (`data-size-to`), so the bar does not move
 export const SectionNameInput: FC<NameInputProps> = ({
     name,
     onCommit,
     onCancel,
-    inputClassName,
 }) => {
     const isDone = useRef(false);
-    const finish = (value: string) => {
+    const [value, setValue] = useState(name);
+    const finish = (text: string) => {
         if (isDone.current) return;
         isDone.current = true;
-        const trimmed = value.trim();
+        const trimmed = text.trim();
         if (trimmed === '') onCancel();
         else onCommit(trimmed);
     };
     return (
-        <TextInput
-            aria-label="Section name"
-            placeholder="Section name"
-            size="xs"
-            classNames={{ input: inputClassName }}
-            defaultValue={name}
-            autoFocus
-            data-own-escape
-            onBlur={(event) => finish(event.currentTarget.value)}
-            onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    finish(event.currentTarget.value);
-                } else if (event.key === 'Escape') {
-                    event.preventDefault();
-                    finish('');
-                }
-            }}
-        />
+        <Box className={classes.nameSizer} data-size-to={value || PLACEHOLDER}>
+            <TextInput
+                aria-label={PLACEHOLDER}
+                placeholder={PLACEHOLDER}
+                size="xs"
+                classNames={{ input: classes.nameInputField }}
+                value={value}
+                onChange={(event) => setValue(event.currentTarget.value)}
+                autoFocus
+                data-own-escape
+                onBlur={(event) => finish(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        finish(event.currentTarget.value);
+                    } else if (event.key === 'Escape') {
+                        event.preventDefault();
+                        finish('');
+                    }
+                }}
+            />
+        </Box>
     );
 };

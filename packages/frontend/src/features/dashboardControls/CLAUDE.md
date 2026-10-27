@@ -27,6 +27,11 @@ fields. User-facing copy says *tile*, never *chart*.
 - `features/dashboardTabs/index.tsx` picks `ControlsBar` instead of
   `DashboardFiltersBar`, and puts the rail (`ControlSidebar`) first in the
   grid's row, which gets `CONTROLS_RAIL_LAYOUT` as its class.
+- `pages/Dashboard.tsx` shows its `PageSpinner` until the flag's request
+  has answered (`isInitialLoading`), so the page never swaps `Page` for
+  `ControlsSidebarPage` and remounts the grid. The request runs alongside
+  the dashboard's, so it only waits when the flag is the slower one; a
+  cached or failed flag waits for nothing.
 - `pages/Dashboard.tsx` picks `ControlsSidebarPage` instead of `Page` and
   renders the header through `DashboardHeaderGuard`: the shipped header,
   inert as a whole, Save and Cancel included, while an editor's filter is
@@ -78,8 +83,13 @@ behaviour. All but the first are in `features/dashboardFilters/`.
   lock tinted by status, requirement icon, lock action, read-only lock and
   X, each passed or left out by the caller. `removeLabel` (default none)
   names the X and gives it a tooltip, `fieldIconOverride` (default none:
-  the field's icon) is shown in place of the field icon, and `onClick`
-  receives the click event (callers that ignore it are unchanged).
+  the field's icon) is shown in place of the field icon, `onClick`
+  receives the click event (callers that ignore it are unchanged), and
+  `isLockSpaceReserved` (default false: the hidden lock grows in on hover)
+  shows the lock at all times (`data-reserved`), so the pill never changes
+  width.
+  The requirement icon carries `data-requirement-icon`, a marker with no
+  behaviour of its own.
 - `FilterRequirements/RequiredFilterCard`: `onChangeOtherFilterRule`
   (default: the other filter is written to the dashboard filters, and this
   one too), `disabledReason` (default none: the switch is enabled) and
@@ -124,7 +134,13 @@ In `FilterConfiguration/`:
   `ControlSidebar.module.css`) undoes the equal split of `grow`: no wrap, the
   rail `300px`, the grid the rest. Below the `sm` breakpoint the row wraps
   and the rail goes full width above the grid, in the flow. Opening the rail
-  only narrows the grid, as the page sidebar did.
+  only narrows the grid, as the page sidebar did. Below `sm` a scrolled page
+  would put that rail behind the stuck tabs and filter bar, so
+  `useRailIntoView` (on `EditorShell`, when it mounts) scrolls it to just
+  under them, from the bar's measured stuck bottom (its computed `top` plus
+  its height); a rail already below the bar is left alone. Closing puts the
+  page back where it was, unless it was scrolled meanwhile. The tiles still
+  move down by the rail's height.
 - The rail is sticky under the dashboard's tabs and filter bar, which stick
   under the header. `useRailTop` measures where the rail itself sits in the
   page (its rect top plus `scrollY`, read with `position: static` for a
@@ -236,9 +252,16 @@ In `FilterConfiguration/`:
   pills in edit mode, inside the shipped `FiltersProvider` its popover needs:
   outline pill, its own popover and an X. They are never opened in the
   rail in edit mode.
+- In both modes `FilterPills` renders the shipped `FilterPillSkeletons`
+  (moved out of `ActiveFilters/index.tsx`) in place of every pill while the
+  filters first load (`isLoadingDashboardFilters`), so the bar settles in
+  one step; a background refetch keeps the pills. `SettledFilterFields`
+  (around the bar's filter area in `ControlsBar`) re-provides the
+  dashboard context with the fields it last had while a new set of tiles
+  (one removed or added, a new query key) reloads them, read as a refetch,
+  so that reload is not a first load for the bar.
 - For a viewer (`isViewer`) `FilterPills` renders no grip, lock toggle or
-  drag, and the shipped `FilterPillSkeletons` (moved out of
-  `ActiveFilters/index.tsx`) in place of every pill while the filters load.
+  drag.
   The saved filters are the shipped view mode, never the rail:
   `ViewerSavedPills` renders the shipped `Filter` (or `UnresolvedFilter`)
   per saved rule with `isEditMode={false}`, inside the shipped
@@ -272,8 +295,9 @@ In `FilterConfiguration/`:
   and `FilterPills` with the embed class contract (`ld-dashboard-add-filter`
   on "Add filter", `ld-dashboard-filter` on each pill), the shipped reset
   button (`EmbedResetFiltersButton`, moved out of `EmbedDashboardFilters`)
-  where viewers may not add filters. The bar stays while a filter is
-  edited, as the app's does. `AddControl` renders nothing while
+  where viewers may not add filters, all inside `SettledFilterFields`, so a
+  tile added or removed keeps the pills as on the app's bar. The bar stays
+  while a filter is edited, as the app's does. `AddControl` renders nothing while
   `canAddFilters` is false. URL
   sync, and its skip in SDK mode, stay the shipped `DashboardFiltersSync`.
 - The rail's part of the class contract comes in through the provider's
@@ -590,8 +614,9 @@ In `FilterConfiguration/`:
   Apply, Cancel and Escape see it. The editor is mounted with
   the control id as `key`, so the draft restarts and a pending commit is
   dropped when another control opens.
-- Focus: the label input has `autoFocus`, so it takes focus whenever the keyed
-  editor mounts (from a pill); a new filter's field search
+- Focus: the label input focuses itself on mount (a ref, with
+  `preventScroll`, as every focus the editor makes on mount), so it takes
+  focus whenever the keyed editor mounts (from a pill); a new filter's field search
   (`[data-controls-start]`) takes it instead, on the next frame
   (`useFocusLabelOnMount`). The first field of a
   filter keeps the same editor mounted: the id is the placeholder's. So the
@@ -711,7 +736,14 @@ In `FilterConfiguration/`:
   whose lock changes. A segment or tab that would lock more is disabled
   while that would leave a locked, required filter with no value.
   Tab-less dashboards have the switch alone.
-- `FilterPills` carries the shipped lock toggle (`lockSlot` / `lockSlotActive`).
+- `FilterPills` carries the shipped lock toggle (`lockSlot` / `lockSlotActive`),
+  always shown (`isLockSpaceReserved`), so hovering a pill never changes
+  its width and a tap never toggles a lock no one sees.
+  While the pointer is on the lock, the X (a button inside the pill other
+  than the pill) or the requirement icon of an unmet pill
+  (`data-requirement-icon` inside `data-requirement-unmet`; a met one has
+  no tooltip, so the pill's stays),
+  the pill's own tooltip is disabled, so only theirs shows.
 
 ## Fields and tiles
 
@@ -1141,7 +1173,8 @@ the language map, as tab names are.
   section with no member on this tab shows, in place of its pills or fold
   summary, the dimmed count of all its members from `formatSectionCount`
   ("0 filters" when empty, the plain total when they are all hidden here),
-  the toggle described by it. No capsule renders while the filters load. A capsule (`.capsule` in
+  the toggle described by it. No capsule renders while the filters first
+  load (`isLoadingDashboardFilters`); a background refetch keeps them. A capsule (`.capsule` in
   `SectionedFilters.module.css`: no fill, a `default-border` outline, `xl`
   radius, 36px tall at one line with `3px 4px` padding, an `8px 6px` gap so
   wrapped lines keep the bar's row spacing, and `margin-block: -4px` so it
@@ -1165,8 +1198,9 @@ the language map, as tab names are.
   keyed by section id
   (`flippedIds`: the ids whose state differs from that default), nothing
   saved and nothing in the URL. The shared popover id is dropped while its
-  pill's section is collapsed or off the tab. `FilterPills` threads `sectionId` (`undefined`: every
-  saved rule, the default; `null`; a string) and a shared `popover` state to
+  pill's section is collapsed or off the tab. `FilterPills` threads
+  `sectionId` (`undefined`: every saved rule, the default; `null`; a
+  string) and a shared `popover` state to
   `ViewerSavedPills`, which filters with `isRuleInSection` and keeps the
   saved index for remove and update (the editor's pills filter the same way,
   per group, and the temporary pills render once, in the unsectioned pass);
@@ -1179,8 +1213,12 @@ the language map, as tab names are.
   tooltip, `aria-expanded`, the fold summary's `aria-describedby`; it only
   folds) and the name, a `Button size="xs"` subtle at `sm` 600 (`.name`
   only sets the text cursor), which turns into `SectionNameInput`
-  (`SectionNameInput.tsx`, `TextInput size="xs"`, `.nameInputField` sets
-  the weight) in place: Enter or blur with a name dispatches
+  (`SectionNameInput.tsx`, `TextInput size="xs"`) in place, as wide as its
+  text: `.nameSizer` is a one-cell grid sized by a hidden copy of the text
+  (`data-size-to`, the placeholder when empty), drawn with the name
+  button's padding and type (2px of the input's right padding go to the
+  text, so a caret at the end never scrolls it), so starting or ending a
+  rename moves nothing: Enter or blur with a name dispatches
   `renameControlSection` (an unchanged name writes nothing); Escape or an
   empty name keeps the old one. Alt with Left or Right on the name moves
   the section one place (`moveControlSection` with the neighbour's id).
@@ -1215,12 +1253,19 @@ the language map, as tab names are.
   name"); Enter or blur with a name dispatches `prependControlSection` (a
   new uuid, first of the sections) and moves the picked pills in ("Add section" with
   nothing picked makes an empty section), Escape or an empty name drops
-  it. The "..." on "Add filter" starts no section. Focus returns to the name button
-  after a rename (`useRefocusAfter`), and to "Add filter" once `NewSection`
-  unmounts (to "Add section" after a cancelled name it started), both only
-  when focus fell to `body`, so a blur by click keeps where it went. While a filter is edited the name and the `.actions` group
-  carry `inert` (the group dimmed by the shared `.inert` rule); the chevron
-  still folds.
+  it. The "..." on "Add filter" starts no section. Focus after naming:
+  - A rename: back to the name button (`useRefocusAfter`), only when focus
+    fell to `body`.
+  - A committed new section with no pills: its name button
+    (`data-section-name`), only when focus fell to `body`, so a blur by
+    click keeps where it went.
+  - A committed new section that took pills: the first moved pill, through
+    the bar's `focusAfter`, which does not check for `body` focus; the name
+    button then stays unfocused. Either way focus is in the new section.
+  - A cancelled name: "Add filter" ("Add section" when it started it), only
+    when focus fell to `body`.
+  While a filter is edited the name and the `.actions` group carry `inert`
+  (the group dimmed by the shared `.inert` rule); the chevron still folds.
 - `SectionsTip` teaches that gesture: an editor's first row above the bar
   (`px="lg"` as the bar), a dimmed bulb, `xs` dimmed "Tip: ⌘ click filters
   to select them, then Move to new section to group them." ("Ctrl" off

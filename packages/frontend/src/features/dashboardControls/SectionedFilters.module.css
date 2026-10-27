@@ -109,10 +109,50 @@
     cursor: text;
 }
 
-/* The rename input at the name's weight; its size is `xs`'s */
-.nameInputField {
+/* The rename input takes the width of its text, drawn as the name button
+   (`xs` padding, `sm` 600), so starting or ending a rename moves nothing:
+   a hidden copy of the text sizes one grid cell that the input fills */
+.nameSizer {
+    display: inline-grid;
+    max-width: 100%;
+}
+
+.nameSizer::after {
+    content: attr(data-size-to);
+    grid-area: 1 / 1;
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    white-space: pre;
+    /* The theme's `xs` button padding */
+    padding-inline: rem(10px);
+    border: 1px solid transparent;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+}
+
+.nameSizer > * {
+    grid-area: 1 / 1;
+    min-width: 0;
+}
+
+.nameSizer .nameInputField {
+    width: 0;
+    min-width: 100%;
+    /* The theme's `xs` button padding, 2px of it on the right given to the
+       text, so a caret at the end never scrolls it */
+    padding-inline: rem(10px) calc(rem(10px) - 2px);
+    font-size: var(--mantine-font-size-sm);
     font-weight: 600;
     border-radius: var(--mantine-radius-xl);
+}
+
+/* The shipped bar's narrow layout makes its buttons 44px tall
+   (`DashboardFiltersBar.module.css`): the input matches the name button */
+@container (width < 600px) {
+    .nameSizer .nameInputField {
+        min-height: 44px;
+    }
 }
 
 /* A dragged capsule stays in place, faded; another one under it draws the

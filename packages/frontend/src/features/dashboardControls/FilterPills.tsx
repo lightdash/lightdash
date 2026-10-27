@@ -121,6 +121,8 @@ export const FilterPills: FC<Props> = ({
     const areFieldsLoading = useDashboardContext(
         (c) => c.isLoadingDashboardFilters || c.isFetchingDashboardFilters,
     );
+    // The first load, with nothing to place the pills by yet
+    const isFirstLoad = useDashboardContext((c) => c.isLoadingDashboardFilters);
     // As the shipped pill: no editor until the fields exist
     const areFieldsLoaded = useDashboardContext(
         (c) => c.allFilterableFields !== undefined,
@@ -208,8 +210,9 @@ export const FilterPills: FC<Props> = ({
         );
     };
 
-    // The shipped view bar's placeholders while the filters load
-    if (isViewer && areFieldsLoading) return <FilterPillSkeletons />;
+    // The shipped placeholders on the first load, in both modes, so the bar
+    // settles once; a refetch keeps the pills where they are
+    if (isFirstLoad) return <FilterPillSkeletons />;
 
     return (
         <>

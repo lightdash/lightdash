@@ -2,6 +2,7 @@ import { Paper } from '@mantine/core';
 import { useRef, type FC, type ReactNode } from 'react';
 import classes from './ControlSidebar.module.css';
 import { useRailContractClasses } from './railContractClasses';
+import { useRailIntoView } from './useRailIntoView';
 import { useRailTop } from './useRailTop';
 
 // The rail: a card next to the grid, stuck under the tabs and filter bar. Its
@@ -13,6 +14,7 @@ export const EditorShell: FC<{
 }> = ({ labelId, children }) => {
     const ref = useRef<HTMLDivElement>(null);
     useRailTop(ref);
+    useRailIntoView(ref);
     const contractClasses = useRailContractClasses();
     return (
         <Paper

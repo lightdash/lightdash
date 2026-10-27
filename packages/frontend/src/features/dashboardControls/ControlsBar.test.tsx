@@ -2,6 +2,8 @@ import { FilterOperator } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { type ComponentProps, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import DashboardContext from '../../providers/Dashboard/context';
+import { type DashboardContextType } from '../../providers/Dashboard/types';
 import {
     createDashboardTestStore,
     seedDashboardEditState,
@@ -64,9 +66,25 @@ vi.mock('./AddControl', async (importOriginal) => ({
 vi.mock('./FilterPills', () => ({
     FilterPills: () => <div data-testid="filter-pills" />,
 }));
-vi.mock('./SectionedFilters', () => ({
-    SectionedFilters: () => <div data-testid="sectioned-filters" />,
-}));
+// Reads the context the bar provides, as the real one does: no capsules on a first load
+vi.mock('./SectionedFilters', async () => {
+    const { useContextSelector } = await import('use-context-selector');
+    const { default: DashboardContext } =
+        await import('../../providers/Dashboard/context');
+    return {
+        SectionedFilters: () => {
+            const isFirstLoad = useContextSelector(
+                DashboardContext,
+                (c) => c?.isLoadingDashboardFilters,
+            );
+            return (
+                <div data-testid="sectioned-filters">
+                    {!isFirstLoad && <div data-testid="capsules" />}
+                </div>
+            );
+        },
+    };
+});
 
 vi.mock('../dateZoom', () => ({
     DateZoom: () => <div data-testid="date-zoom" />,
@@ -291,5 +309,42 @@ describe('ControlsBar', () => {
         expect(
             screen.queryByRole('button', { name: 'Filters and parameters' }),
         ).not.toBeInTheDocument();
+    });
+
+    it('keeps the capsules while a tile change reloads the filter fields', () => {
+        const loaded = {
+            ...mockDashboardContext.current,
+            isLoadingDashboardFilters: false,
+            isFetchingDashboardFilters: false,
+            filterableFieldsByTileUuid: { 'tile-1': [] },
+            allFilterableFields: [],
+        };
+        mockDashboardContext.current = loaded;
+        const store = createDashboardTestStore();
+        // The page's provider, which the bar's filter area reads below it
+        const bar = () => (
+            <DashboardContext.Provider
+                value={
+                    mockDashboardContext.current as unknown as DashboardContextType
+                }
+            >
+                <DashboardStoreTestProvider store={store}>
+                    <ControlsBar {...baseProps} isEditMode />
+                </DashboardStoreTestProvider>
+            </DashboardContext.Provider>
+        );
+        const { rerender } = renderWithAppProviders(bar());
+        expect(screen.getByTestId('capsules')).toBeInTheDocument();
+
+        // A tile added or removed is a new query key: a first load again
+        mockDashboardContext.current = {
+            ...loaded,
+            isLoadingDashboardFilters: true,
+            isFetchingDashboardFilters: true,
+            filterableFieldsByTileUuid: undefined,
+            allFilterableFields: undefined,
+        };
+        rerender(bar());
+        expect(screen.getByTestId('capsules')).toBeInTheDocument();
     });
 });

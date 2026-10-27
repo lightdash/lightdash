@@ -52,7 +52,7 @@ export const useFocusLabelOnMount = () => {
             if (input === null) return;
             if (document.activeElement?.closest('[data-controls-editor]'))
                 return;
-            input.focus();
+            input.focus({ preventScroll: true });
             if (document.activeElement === input || tries >= 20) return;
             tries += 1;
             frame = requestAnimationFrame(attempt);

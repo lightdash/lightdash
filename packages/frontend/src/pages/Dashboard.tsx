@@ -1273,7 +1273,10 @@ const Dashboard: FC = () => {
         dashboardTabs,
     ]);
 
-    if (isDashboardLoading) {
+    // Until the controls flag answers the page could not pick its bar and
+    // would swap it, remounting the grid; the request runs alongside the
+    // dashboard's, so it only waits when the flag is slower
+    if (isDashboardLoading || dashboardControlsFlag.isInitialLoading) {
         return <PageSpinner />;
     }
 
