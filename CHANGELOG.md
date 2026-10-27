@@ -1,3 +1,11 @@
+## [3.68.5](https://github.com/lightdash/lightdash/compare/3.68.4...3.68.5) (2026-10-27)
+
+
+### Bug Fixes
+
+* a visible New section capsule and clearer section removal ([#31647](https://github.com/lightdash/lightdash/issues/31647)) ([3be46fc](https://github.com/lightdash/lightdash/commit/3be46fc130bfb4cec983561f944f1d037b32068c))
+* **ai-agent:** response footer cleanup, reasoning inside activity card ([#31643](https://github.com/lightdash/lightdash/issues/31643)) ([552cc98](https://github.com/lightdash/lightdash/commit/552cc98d7db22ebbd8fb5da105cd07abeef1431d))
+
 ## [3.68.4](https://github.com/lightdash/lightdash/compare/3.68.3...3.68.4) (2026-10-27)
 
 
