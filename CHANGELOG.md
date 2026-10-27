@@ -1,3 +1,10 @@
+## [3.65.1](https://github.com/lightdash/lightdash/compare/3.65.0...3.65.1) (2026-10-27)
+
+
+### Bug Fixes
+
+* **dashboards:** drag a filter out of a section onto the bar's empty space ([#31628](https://github.com/lightdash/lightdash/issues/31628)) ([dba3e59](https://github.com/lightdash/lightdash/commit/dba3e59cd5d0e1a61df1b6b5647b847b3d13c4e1))
+
 # [3.65.0](https://github.com/lightdash/lightdash/compare/3.64.0...3.65.0) (2026-10-27)
 
 

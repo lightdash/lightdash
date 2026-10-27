@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.65.0",
-  "previousVersion": "3.64.0",
-  "releaseDate": "2026-10-27T11:07:15.921Z",
+  "version": "3.65.1",
+  "previousVersion": "3.65.0",
+  "releaseDate": "2026-10-27T11:16:08.317Z",
   "migrations": {
     "present": false,
     "count": 0,
