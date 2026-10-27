@@ -39,7 +39,9 @@ describe('MessageQueriesList', () => {
             />,
         );
 
-        expect(screen.getByText('2 steps · Semantic layer')).toBeVisible();
+        expect(
+            screen.getByText('2 steps · Semantic layer, DuckDB'),
+        ).toBeVisible();
         fireEvent.click(
             screen.getByRole('button', { name: 'Show query Net orders' }),
         );

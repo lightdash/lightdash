@@ -45,17 +45,10 @@ export const MessageQueriesToggle: FC<{
 );
 
 const pipelineSummary = ({ nodes }: AiAgentMessageQueryPipeline): string => {
-    const sourceLabels = [
-        ...new Set(
-            nodes.flatMap((node) => {
-                const label = nodeTypeLabelOf(node);
-                return label ? [label] : [];
-            }),
-        ),
-    ];
+    const typeLabels = [...new Set(nodes.map(nodeTypeLabelOf))];
     return [
         `${nodes.length} step${nodes.length === 1 ? '' : 's'}`,
-        ...(sourceLabels.length > 0 ? [sourceLabels.join(', ')] : []),
+        ...(typeLabels.length > 0 ? [typeLabels.join(', ')] : []),
     ].join(' · ');
 };
 

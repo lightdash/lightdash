@@ -4,7 +4,7 @@ import { nodeTypeLabelOf, type PipelineLayer } from './groupPipeline';
 
 type PipelineFlowNodeData = {
     title: string;
-    typeLabel: string | null;
+    typeLabel: string;
     isTerminal: boolean;
     isDisplayed: boolean;
     isDisplayable: boolean;

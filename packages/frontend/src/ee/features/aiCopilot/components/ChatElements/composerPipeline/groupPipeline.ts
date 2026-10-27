@@ -25,8 +25,8 @@ export type PipelineLayer = {
     nodes: PipelineNode[];
 };
 
-/** User-facing node type: where a source reads from, or Python; null for DuckDB transformations. */
-export const nodeTypeLabelOf = (query: SourceQuery): string | null => {
+/** User-facing node type: where a source reads from, or the transformation engine. */
+export const nodeTypeLabelOf = (query: SourceQuery): string => {
     switch (query.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER:
             return 'Semantic layer';
@@ -37,7 +37,7 @@ export const nodeTypeLabelOf = (query: SourceQuery): string | null => {
         case QuerySourceType.PYTHON:
             return 'Python';
         case QuerySourceType.DUCKDB:
-            return null;
+            return 'DuckDB';
         default:
             return assertUnreachable(query, 'Unknown source type');
     }

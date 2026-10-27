@@ -160,9 +160,9 @@ describe('groupPipeline', () => {
 });
 
 describe('nodeTypeLabelOf', () => {
-    it('labels sources and python nodes, not duckdb transformations', () => {
+    it('labels sources and transformation engines', () => {
         expect(nodeTypeLabelOf(sql('a'))).toBe('Warehouse SQL');
         expect(nodeTypeLabelOf(python('p', ['a']))).toBe('Python');
-        expect(nodeTypeLabelOf(duckdb('d', ['a']))).toBeNull();
+        expect(nodeTypeLabelOf(duckdb('d', ['a']))).toBe('DuckDB');
     });
 });

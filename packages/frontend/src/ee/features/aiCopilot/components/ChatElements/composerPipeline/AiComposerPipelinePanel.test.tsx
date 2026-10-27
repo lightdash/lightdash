@@ -318,9 +318,7 @@ describe('AiComposerPipelinePanel query details', () => {
         });
         const row = document.getElementById('composer-pipeline-node-orders')!;
         expect(compiledSql).not.toHaveBeenCalled();
-        fireEvent.click(
-            within(row).getByRole('button', { name: 'View query' }),
-        );
+        fireEvent.click(within(row).getByRole('button', { name: 'View SQL' }));
         expect(compiledSql).toHaveBeenCalledWith(
             expect.objectContaining({
                 tableName: 'orders',

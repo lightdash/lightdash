@@ -59,7 +59,7 @@ describe('toPipelineFlow', () => {
         expect(nodes.map((node) => [node.id, node.data.typeLabel])).toEqual([
             ['orders', 'Warehouse SQL'],
             ['sim', 'Python'],
-            ['summary', null],
+            ['summary', 'DuckDB'],
         ]);
         expect(edges.map((edge) => edge.id)).toEqual([
             'orders->sim',
@@ -88,7 +88,7 @@ describe('toPipelineFlow', () => {
             },
             {
                 title: 'Orders with amounts',
-                typeLabel: null,
+                typeLabel: 'DuckDB',
                 isTerminal: true,
                 isDisplayed: false,
                 isDisplayable: false,

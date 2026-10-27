@@ -119,10 +119,20 @@ const queryCodeOf = (
     }
 };
 
-const queryToggleLabel = (query: SourceQuery, open: boolean) => {
-    const noun = query.sourceType === QuerySourceType.PYTHON ? 'code' : 'query';
-    return open ? `Hide ${noun}` : `View ${noun}`;
+const queryNounOf = (query: SourceQuery) => {
+    switch (query.sourceType) {
+        case QuerySourceType.PYTHON:
+            return 'code';
+        // "query" would read as the metric query next to it
+        case QuerySourceType.SEMANTIC_LAYER:
+            return 'SQL';
+        default:
+            return 'query';
+    }
 };
+
+const queryToggleLabel = (query: SourceQuery, open: boolean) =>
+    `${open ? 'Hide' : 'View'} ${queryNounOf(query)}`;
 
 const DisclosureToggle: FC<{
     open: boolean;
@@ -213,15 +223,11 @@ const SemanticNodeSummary: FC<{
     );
 };
 
-const NodeType: FC<{ query: SourceQuery }> = ({ query }) => {
-    const label = nodeTypeLabelOf(query);
-    if (!label) return null;
-    return (
-        <Text component="span" className={styles.nodeType}>
-            {label}
-        </Text>
-    );
-};
+const NodeType: FC<{ query: SourceQuery }> = ({ query }) => (
+    <Text component="span" className={styles.nodeType}>
+        {nodeTypeLabelOf(query)}
+    </Text>
+);
 
 // Completed is the norm, so the type shows unless the node is queued, running or failed.
 const NodeMarker: FC<{
@@ -374,6 +380,13 @@ const PipelineNodeRow: FC<
                 <Text className={styles.nodeError}>{nodeStatus.error}</Text>
             )}
             <Box className={styles.details}>
+                {displayable && (
+                    <ViewResultButton
+                        nodeTitle={node.title}
+                        displayed={displayed}
+                        onClick={() => onDisplayNode(node.nodeId)}
+                    />
+                )}
                 {node.query.sourceType === QuerySourceType.SEMANTIC_LAYER && (
                     <SemanticNodeSummary
                         query={node.query}
@@ -382,13 +395,6 @@ const PipelineNodeRow: FC<
                 )}
                 {canViewSql && (
                     <QueryCode query={node.query} projectUuid={projectUuid} />
-                )}
-                {displayable && (
-                    <ViewResultButton
-                        nodeTitle={node.title}
-                        displayed={displayed}
-                        onClick={() => onDisplayNode(node.nodeId)}
-                    />
                 )}
             </Box>
         </Box>
@@ -458,11 +464,9 @@ const PipelineFlowNodeView: FC<NodeProps<PipelineFlowNode>> = ({ data }) => (
             <Text component="span" className={styles.graphNodeTitle} truncate>
                 {data.title}
             </Text>
-            {data.typeLabel && (
-                <Text component="span" className={styles.graphNodeType}>
-                    {data.typeLabel}
-                </Text>
-            )}
+            <Text component="span" className={styles.graphNodeType}>
+                {data.typeLabel}
+            </Text>
         </Box>
         <Handle
             type="source"
