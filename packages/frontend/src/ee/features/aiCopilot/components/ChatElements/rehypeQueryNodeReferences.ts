@@ -1,27 +1,51 @@
+import { COMPOSER_NODE_ID_PATTERN } from '@lightdash/common';
 import { type Element, type Root } from 'hast';
 import { visit } from 'unist-util-visit';
 
-// Node ids follow the composer `query` tool's nodeId schema
-const QUERY_NODE_HREF = /^#query-node-([a-zA-Z_][a-zA-Z0-9_]{0,62})$/;
+const QUERY_NODE_HREF = new RegExp(
+    `^#query-node-(${COMPOSER_NODE_ID_PATTERN})$`,
+);
+const QUERY_NODE_MARKDOWN_LINK = new RegExp(
+    `\\]\\(#query-node-(${COMPOSER_NODE_ID_PATTERN})\\)`,
+    'g',
+);
 
-/** Marks `[label](#query-node-<nodeId>)` links, numbered per message by first appearance. */
-export const rehypeQueryNodeReferences = () => (tree: Root) => {
+export type QueryNodeReferenceIndices = ReadonlyMap<string, number>;
+
+/** Numbers nodes by first appearance across the whole message; Streamdown
+ *  renders each Markdown block on its own, so a per-tree count would restart. */
+export const getQueryNodeReferenceIndices = (
+    markdown: string,
+): QueryNodeReferenceIndices => {
     const indices = new Map<string, number>();
-
-    visit(tree, 'element', (node: Element) => {
-        if (node.tagName !== 'a') return;
-        const href = node.properties?.href;
-        const nodeId =
-            typeof href === 'string' ? QUERY_NODE_HREF.exec(href)?.[1] : null;
-        if (!nodeId) return;
-
-        const index = indices.get(nodeId) ?? indices.size + 1;
-        indices.set(nodeId, index);
-        node.properties = {
-            ...node.properties,
-            'data-content-type': 'query-node-link',
-            'data-node-id': nodeId,
-            'data-reference-index': index,
-        };
-    });
+    for (const match of markdown.matchAll(QUERY_NODE_MARKDOWN_LINK)) {
+        const nodeId = match[1];
+        if (!indices.has(nodeId)) indices.set(nodeId, indices.size + 1);
+    }
+    return indices;
 };
+
+/** Marks `[label](#query-node-<nodeId>)` links with their message-wide index. */
+export const rehypeQueryNodeReferences =
+    ({ indices }: { indices: QueryNodeReferenceIndices }) =>
+    (tree: Root) => {
+        visit(tree, 'element', (node: Element) => {
+            if (node.tagName !== 'a') return;
+            const href = node.properties?.href;
+            const nodeId =
+                typeof href === 'string'
+                    ? QUERY_NODE_HREF.exec(href)?.[1]
+                    : null;
+            if (!nodeId) return;
+
+            const index = indices.get(nodeId);
+            node.properties = {
+                ...node.properties,
+                'data-content-type': 'query-node-link',
+                'data-node-id': nodeId,
+                ...(index === undefined
+                    ? {}
+                    : { 'data-reference-index': index }),
+            };
+        });
+    };

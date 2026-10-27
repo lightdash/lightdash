@@ -1,7 +1,10 @@
-// `[label](#query-node-<nodeId>)`, nodeId as the composer `query` tool's schema allows
-const QUERY_NODE_REFERENCE_REGEX =
-    /[ \t]*\[[^\]\n]*\]\(#query-node-[a-zA-Z_][a-zA-Z0-9_]{0,62}\)/g;
+import { COMPOSER_NODE_ID_PATTERN } from '@lightdash/common';
 
-/** Drops query node references, label included, where they cannot open. */
+const QUERY_NODE_REFERENCE_REGEX = new RegExp(
+    `[ \\t]*\\[[^\\]\\n]*\\]\\(#query-node-${COMPOSER_NODE_ID_PATTERN}\\)`,
+    'g',
+);
+
+/** Drops `[label](#query-node-<nodeId>)` references, label included, where they cannot open. */
 export const stripQueryNodeReferences = (value: string): string =>
     value.replace(QUERY_NODE_REFERENCE_REGEX, '');

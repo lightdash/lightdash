@@ -1,5 +1,7 @@
+import { interpolateUiString } from '@lightdash/common';
 import { Box, Stack, Text, Tooltip, UnstyledButton } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
+import { useUiString } from '../../../../providers/Embed/useUiStrings';
 import styles from './QueryNodeReference.module.css';
 
 type Props = {
@@ -19,33 +21,36 @@ export const QueryNodeReference: FC<Props> = ({
     label,
     isActive,
     onOpen,
-}) => (
-    <Tooltip
-        withinPortal
-        label={
-            <Stack gap={2}>
-                <Text fz="xs" fw={500}>
-                    {label}
-                </Text>
-                <Text fz="xs" ff="monospace" c="dimmed">
-                    {nodeId}
-                </Text>
-            </Stack>
-        }
-    >
-        {onOpen ? (
-            <UnstyledButton
-                className={styles.marker}
-                aria-label={`Open query ${nodeId}`}
-                data-active={isActive || undefined}
-                onClick={onOpen}
-            >
-                {index ?? '·'}
-            </UnstyledButton>
-        ) : (
-            <Box component="span" className={styles.marker}>
-                {index ?? '·'}
-            </Box>
-        )}
-    </Tooltip>
-);
+}) => {
+    const openLabel = useUiString('aiAgent.queryReference.open');
+    return (
+        <Tooltip
+            withinPortal
+            label={
+                <Stack gap={2}>
+                    <Text fz="xs" fw={500}>
+                        {label}
+                    </Text>
+                    <Text fz="xs" ff="monospace" c="dimmed">
+                        {nodeId}
+                    </Text>
+                </Stack>
+            }
+        >
+            {onOpen ? (
+                <UnstyledButton
+                    className={styles.marker}
+                    aria-label={interpolateUiString(openLabel, { nodeId })}
+                    data-active={isActive || undefined}
+                    onClick={onOpen}
+                >
+                    {index ?? '·'}
+                </UnstyledButton>
+            ) : (
+                <Box component="span" className={styles.marker}>
+                    {index ?? '·'}
+                </Box>
+            )}
+        </Tooltip>
+    );
+};
