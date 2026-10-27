@@ -53,6 +53,7 @@ import {
     withAgentActionScope,
 } from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import { CoderService } from '../../../services/CoderService/CoderService';
+import { validatePagination } from '../../../services/ProjectService/resultsPagination';
 import { PromoteService } from '../../../services/PromoteService/PromoteService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
 import { getDescribeWarehouseTable } from '../ai/tools/describeWarehouseTable';
@@ -158,6 +159,8 @@ const makeService = ({
     appModel = {},
     savedChartModel = {},
     dashboardModel = {},
+    maxQueryLimit = 500,
+    maxPageSize = 2500,
 }: {
     agentPermissionService?: Pick<
         import('../../../services/AgentPermissionService/AgentPermissionService').AgentPermissionService,
@@ -195,6 +198,8 @@ const makeService = ({
     appModel?: Record<string, unknown>;
     savedChartModel?: Record<string, unknown>;
     dashboardModel?: Record<string, unknown>;
+    maxQueryLimit?: number;
+    maxPageSize?: number;
 } = {}) =>
     new AiAgentToolsService({
         agentPermissionService,
@@ -210,7 +215,8 @@ const makeService = ({
         },
         lightdashConfig: {
             siteUrl: 'https://lightdash.example',
-            ai: { copilot: { maxQueryLimit: 500 } },
+            ai: { copilot: { maxQueryLimit } },
+            query: { maxPageSize },
         },
         projectModel: {
             findExploresFromCache: vi.fn(
@@ -3962,6 +3968,55 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 terminalNodeId: 'joined',
             }),
         ).rejects.toThrow(/"orders" \(relation does not exist\)/);
+    });
+
+    it('returns every terminal row when the node limit exceeds the results page cap', async () => {
+        const totalRows = 3000;
+        const getAsyncQueryResults = vi.fn(
+            async ({ page, pageSize }: { page: number; pageSize: number }) => {
+                validatePagination({
+                    page,
+                    pageSize,
+                    queryMaxLimit: 2500,
+                    totalRowCount: totalRows,
+                });
+                const start = (page - 1) * pageSize;
+                const end = Math.min(start + pageSize, totalRows);
+                return {
+                    ...readyResults,
+                    rows: Array.from({ length: end - start }, (_, i) => ({
+                        orders_total: { value: { raw: start + i } },
+                    })),
+                    nextPage: end < totalRows ? page + 1 : undefined,
+                };
+            },
+        );
+        const service = makeService({
+            maxQueryLimit: 5000,
+            maxPageSize: 2500,
+            querySourceService: {
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
+            },
+            asyncQueryService: { getAsyncQueryResults },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries.map((query) =>
+                    query.nodeId === 'joined'
+                        ? { ...query, limit: totalRows }
+                        : query,
+                ),
+                terminalNodeId: 'joined',
+            });
+
+        expect(result.terminal.rowCount).toBe(totalRows);
+        expect(result.terminal.rows.at(-1)).toEqual({
+            orders_total: totalRows - 1,
+        });
     });
 });
 

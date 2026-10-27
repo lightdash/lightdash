@@ -3,6 +3,7 @@ import {
     Account,
     AgentActorSurface,
     AnyType,
+    ApiGetAsyncQueryResults,
     AppVizBuildContext,
     assertRegisteredAccount,
     assertUnreachable,
@@ -526,6 +527,7 @@ type AiAgentToolsServiceDependencies = {
     lightdashConfig: {
         siteUrl: string;
         ai: { copilot: { maxQueryLimit: number } };
+        query: { maxPageSize: number };
     };
 };
 
@@ -4518,6 +4520,51 @@ export class AiAgentToolsService extends BaseService {
         }
     }
 
+    // Results reads cap each page at query.maxPageSize, below the AI row limit,
+    // so read pages until `limit` rows are collected.
+    private async getAiQueryResults(
+        context: AiAgentToolsRuntimeContext,
+        queryUuid: string,
+        limit: number,
+    ): Promise<ApiGetAsyncQueryResults> {
+        const pageSize = Math.min(
+            limit,
+            this.lightdashConfig.query.maxPageSize,
+        );
+        const getPage = (page: number) =>
+            this.asyncQueryService.getAsyncQueryResults({
+                account: context.account,
+                reader: buildResultReader(
+                    context.account,
+                    context.defaultQueryExecutionContext,
+                    context.querySurface ?? null,
+                ),
+                projectUuid: context.projectUuid,
+                queryUuid,
+                page,
+                aiAccessOnly: true,
+                pageSize,
+            });
+        const firstPage = await getPage(1);
+        if (firstPage.status !== QueryHistoryStatus.READY) return firstPage;
+
+        const rows = [...firstPage.rows];
+        let { nextPage } = firstPage;
+        while (nextPage !== undefined && rows.length < limit) {
+            // eslint-disable-next-line no-await-in-loop
+            const page = await getPage(nextPage);
+            if (page.status !== QueryHistoryStatus.READY) return page;
+            rows.push(...page.rows);
+            nextPage = page.nextPage;
+        }
+        const limitedRows = rows.slice(0, limit);
+        return {
+            ...firstPage,
+            rows: limitedRows,
+            pageSize: limitedRows.length,
+        };
+    }
+
     private async waitForSqlResults(
         context: AiAgentToolsRuntimeContext,
         queryUuid: string,
@@ -4535,19 +4582,7 @@ export class AiAgentToolsService extends BaseService {
 
             const queryResults =
                 // eslint-disable-next-line no-await-in-loop
-                await this.asyncQueryService.getAsyncQueryResults({
-                    account: context.account,
-                    reader: buildResultReader(
-                        context.account,
-                        context.defaultQueryExecutionContext,
-                        context.querySurface ?? null,
-                    ),
-                    projectUuid: context.projectUuid,
-                    queryUuid,
-                    page: 1,
-                    aiAccessOnly: true,
-                    pageSize: limit,
-                });
+                await this.getAiQueryResults(context, queryUuid, limit);
 
             if (queryResults.status === QueryHistoryStatus.READY) {
                 const wrappedRows = (queryResults.rows ?? []) as Record<
@@ -4734,7 +4769,7 @@ export class AiAgentToolsService extends BaseService {
                 const terminalQuery = queries.find(
                     (query) => query.nodeId === terminalNodeId,
                 );
-                const pageSize = Math.min(
+                const limit = Math.min(
                     terminalQuery?.limit ??
                         this.lightdashConfig.ai.copilot.maxQueryLimit,
                     this.lightdashConfig.ai.copilot.maxQueryLimit,
@@ -4771,7 +4806,7 @@ export class AiAgentToolsService extends BaseService {
                         context,
                         submissions,
                         terminalSubmission,
-                        pageSize,
+                        limit,
                         maxWaitMs,
                         startTime,
                         emitNodeStatus,
@@ -4789,7 +4824,7 @@ export class AiAgentToolsService extends BaseService {
         context,
         submissions,
         terminalSubmission,
-        pageSize,
+        limit,
         maxWaitMs,
         startTime,
         emitNodeStatus,
@@ -4802,7 +4837,7 @@ export class AiAgentToolsService extends BaseService {
         terminalSubmission: Awaited<
             ReturnType<QuerySourceService['executeSourceQueries']>
         >['queries'][number];
-        pageSize: number;
+        limit: number;
         maxWaitMs: number;
         startTime: number;
         emitNodeStatus: (update: ComposerNodeStatusUpdate) => void;
@@ -4819,19 +4854,11 @@ export class AiAgentToolsService extends BaseService {
 
             const queryResults =
                 // eslint-disable-next-line no-await-in-loop
-                await this.asyncQueryService.getAsyncQueryResults({
-                    account: context.account,
-                    reader: buildResultReader(
-                        context.account,
-                        context.defaultQueryExecutionContext,
-                        context.querySurface ?? null,
-                    ),
-                    projectUuid: context.projectUuid,
-                    queryUuid: terminalSubmission.queryUuid,
-                    page: 1,
-                    aiAccessOnly: true,
-                    pageSize,
-                });
+                await this.getAiQueryResults(
+                    context,
+                    terminalSubmission.queryUuid,
+                    limit,
+                );
 
             if (queryResults.status === QueryHistoryStatus.READY) {
                 // Terminal ready implies every upstream node finished.
