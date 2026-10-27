@@ -250,8 +250,10 @@ knowledgeDocuments:
       alwaysIncludeInContext: false
 ```
 
-`file` is relative to the YAML's directory and must stay inside it. The CLI
-inlines the content for the API; the server never sees file paths. Download
+`file` is relative to the YAML's directory and must stay inside it; `.md`
+files are markdown documents and `.txt` files plain text, and download writes
+each document back with the matching extension. The CLI inlines the content
+for the API; the server never sees file paths. Download
 writes only the documents the agent owns alone: documents shared with other
 agents or with the whole organization are not exported and an upload never
 touches them.

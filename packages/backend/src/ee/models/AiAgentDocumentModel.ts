@@ -488,6 +488,7 @@ export class AiAgentDocumentModel {
         organizationUuid: string;
         name: string;
         content: string;
+        mimeType?: string;
         summary: AiAgentDocumentStructuredSummary;
         updatedByUserUuid: string;
     }): Promise<AiAgentDocument> {
@@ -496,6 +497,9 @@ export class AiAgentDocumentModel {
             .andWhere('organization_uuid', args.organizationUuid)
             .update({
                 name: args.name,
+                ...(args.mimeType !== undefined
+                    ? { mime_type: args.mimeType }
+                    : {}),
                 content: args.content,
                 content_size_bytes: Buffer.byteLength(args.content, 'utf8'),
                 summary: args.summary,

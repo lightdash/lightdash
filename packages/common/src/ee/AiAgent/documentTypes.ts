@@ -4,6 +4,8 @@ export const AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES = 5 * 1024 * 1024;
 
 export type AiAgentDocumentRelevance = 'high' | 'medium' | 'low' | 'none';
 
+export type AiAgentDocumentMimeType = 'text/markdown' | 'text/plain';
+
 export type AiAgentDocumentStructuredSummary = {
     description: string;
     definedTerms: string[];
@@ -79,6 +81,8 @@ export type ApiUpdateAgentDocument = {
 export type ApiUpdateAgentDocumentContent = {
     name: string;
     content: string;
+    // Omitted = keep the stored type
+    mimeType?: AiAgentDocumentMimeType;
 };
 
 export type ApiAiAgentDocumentResponse = {

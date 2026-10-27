@@ -32,6 +32,7 @@ const agent = (
 const glossary = {
     name: 'Revenue definitions',
     alwaysIncludeInContext: true,
+    mimeType: 'text/markdown' as const,
     content: '# Revenue\n\nNet of refunds.\n',
 };
 
@@ -79,6 +80,7 @@ describe('agent knowledge documents as files', () => {
             {
                 name: 'Refund policy',
                 alwaysIncludeInContext: false,
+                mimeType: 'text/plain' as const,
                 content: 'x',
             },
         ]);
@@ -90,6 +92,11 @@ describe('agent knowledge documents as files', () => {
         );
 
         expect(uploaded).toEqual(downloaded);
+        await expect(
+            fs.readdir(
+                path.join(agentsFolder, 'revenue-agent/knowledge-documents'),
+            ),
+        ).resolves.toEqual(['refund-policy.txt', 'revenue-definitions.md']);
     });
 
     it('removes document files the agent no longer declares', async () => {

@@ -12,9 +12,11 @@ export const KNOWLEDGE_DOCUMENTS_FOLDER_NAME = 'knowledge-documents';
 
 const ACCEPTED_EXTENSIONS = ['.md', '.txt'];
 
+// The file's extension carries the type, so neither content nor mimeType is
+// written to the YAML.
 export type AgentAsCodeKnowledgeDocumentFile = Omit<
     AgentAsCodeKnowledgeDocument,
-    'content'
+    'content' | 'mimeType'
 > & {
     // Relative to the agent YAML's directory
     file: string;
@@ -34,14 +36,22 @@ const toPosix = (filePath: string): string =>
 const getDocumentsFolder = (agentSlug: string): string =>
     path.join(agentSlug, KNOWLEDGE_DOCUMENTS_FOLDER_NAME);
 
+const getExtension = (
+    mimeType: AgentAsCodeKnowledgeDocument['mimeType'],
+): string => (mimeType === 'text/plain' ? '.txt' : '.md');
+
+const getMimeType = (file: string): AgentAsCodeKnowledgeDocument['mimeType'] =>
+    file.endsWith('.txt') ? 'text/plain' : 'text/markdown';
+
 /** Deterministic file names from document names; a slug clash within one agent gets a numeric suffix. */
 const allocateFileNames = (
     documents: AgentAsCodeKnowledgeDocument[],
 ): string[] =>
     documents.reduce<string[]>((taken, document) => {
         const base = generateSlug(document.name);
+        const extension = getExtension(document.mimeType);
         const candidate = (index: number) =>
-            `${index === 0 ? base : `${base}-${index + 1}`}.md`;
+            `${index === 0 ? base : `${base}-${index + 1}`}${extension}`;
         let index = 0;
         while (taken.includes(candidate(index))) index += 1;
         return [...taken, candidate(index)];
@@ -164,6 +174,7 @@ export const readAgentKnowledgeDocuments = async (
                     name: document.name,
                     alwaysIncludeInContext:
                         document.alwaysIncludeInContext === true,
+                    mimeType: getMimeType(document.file),
                     content,
                 };
             },

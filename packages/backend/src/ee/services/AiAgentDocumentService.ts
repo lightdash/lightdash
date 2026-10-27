@@ -502,6 +502,9 @@ export class AiAgentDocumentService extends BaseService {
             organizationUuid,
             name,
             content: body.content,
+            ...(body.mimeType !== undefined
+                ? { mimeType: normalizeMimeType(body.mimeType, '') }
+                : {}),
             summary,
             updatedByUserUuid: user.userUuid,
         });

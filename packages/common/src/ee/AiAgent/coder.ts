@@ -1,4 +1,5 @@
 import type { ContentAsCodeType } from '../../types/coder';
+import type { AiAgentDocumentMimeType } from './documentTypes';
 import type { AiAgentModelConfig } from './requestTypes';
 
 export type AgentAsCodeEvaluationPrompt = {
@@ -16,6 +17,8 @@ export type AgentAsCodeEvaluation = {
 export type AgentAsCodeKnowledgeDocument = {
     name: string;
     alwaysIncludeInContext: boolean;
+    // Decides the file extension in the repo: .md or .txt
+    mimeType: AiAgentDocumentMimeType;
     content: string;
 };
 

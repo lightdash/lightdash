@@ -81,8 +81,13 @@ const toKnowledgeDocumentAsCode = (
 ): AgentAsCodeKnowledgeDocument => ({
     name: document.name,
     alwaysIncludeInContext: document.alwaysIncludeInContext,
+    mimeType:
+        document.mimeType === 'text/plain' ? 'text/plain' : 'text/markdown',
     content: document.content,
 });
+
+const getFileExtension = (mimeType: AgentAsCodeKnowledgeDocument['mimeType']) =>
+    mimeType === 'text/plain' ? 'txt' : 'md';
 
 const toAgentAsCode = (
     agent: AgentForCode,
@@ -485,8 +490,8 @@ export class AiAgentCoderService extends BaseService {
                         scope,
                         {
                             name: document.name,
-                            originalFilename: `${document.name}.md`,
-                            mimeType: 'text/markdown',
+                            originalFilename: `${document.name}.${getFileExtension(document.mimeType)}`,
+                            mimeType: document.mimeType,
                             content: document.content,
                         },
                     );
@@ -502,13 +507,21 @@ export class AiAgentCoderService extends BaseService {
                 }
                 changed = true;
             } else {
-                if (force || existing.content !== document.content) {
+                if (
+                    force ||
+                    existing.content !== document.content ||
+                    existing.mimeType !== document.mimeType
+                ) {
                     // eslint-disable-next-line no-await-in-loop
                     await this.aiAgentDocumentService.updateDocumentContent(
                         user,
                         scope,
                         existing.uuid,
-                        { name: document.name, content: document.content },
+                        {
+                            name: document.name,
+                            content: document.content,
+                            mimeType: document.mimeType,
+                        },
                         'repo',
                     );
                     changed = true;

@@ -102,6 +102,7 @@ const ownedDocument = {
     uuid: 'document-uuid',
     name: 'Revenue definitions',
     alwaysIncludeInContext: false,
+    mimeType: 'text/markdown',
     content: '# Revenue\n\nNet of refunds.',
 };
 
@@ -852,6 +853,7 @@ describe('AiAgentCoderService', () => {
         const declared = {
             name: ownedDocument.name,
             alwaysIncludeInContext: ownedDocument.alwaysIncludeInContext,
+            mimeType: 'text/markdown' as const,
             content: ownedDocument.content,
         };
 
@@ -944,7 +946,11 @@ describe('AiAgentCoderService', () => {
                 user,
                 scope,
                 ownedDocument.uuid,
-                { name: declared.name, content: 'Gross of refunds.' },
+                {
+                    name: declared.name,
+                    content: 'Gross of refunds.',
+                    mimeType: 'text/markdown',
+                },
                 'repo',
             );
             expect(
@@ -957,6 +963,47 @@ describe('AiAgentCoderService', () => {
                 'repo',
             );
             expect(result.updated).toEqual(['revenue-agent']);
+        });
+
+        it('keeps a plain-text document plain and rewrites it when only the type changes', async () => {
+            const { service, aiAgentDocumentService } = buildService({
+                ownedDocuments: [ownedDocument],
+            });
+            await service.upsertAgents(user, projectUuid, [
+                {
+                    ...agentAsCode,
+                    knowledgeDocuments: [
+                        { ...declared, mimeType: 'text/plain' },
+                        {
+                            name: 'Notes',
+                            alwaysIncludeInContext: false,
+                            mimeType: 'text/plain',
+                            content: 'plain',
+                        },
+                    ],
+                },
+            ]);
+            expect(
+                aiAgentDocumentService.updateDocumentContent,
+            ).toHaveBeenCalledExactlyOnceWith(
+                user,
+                scope,
+                ownedDocument.uuid,
+                {
+                    name: declared.name,
+                    content: declared.content,
+                    mimeType: 'text/plain',
+                },
+                'repo',
+            );
+            expect(
+                aiAgentDocumentService.createDocument,
+            ).toHaveBeenCalledExactlyOnceWith(user, scope, {
+                name: 'Notes',
+                originalFilename: 'Notes.txt',
+                mimeType: 'text/plain',
+                content: 'plain',
+            });
         });
 
         it('treats an empty list as authoritative and deletes the agent-owned rest', async () => {
