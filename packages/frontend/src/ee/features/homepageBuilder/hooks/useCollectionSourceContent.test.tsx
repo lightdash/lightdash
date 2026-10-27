@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
     api: vi.fn(),
     toggle: vi.fn(),
     documentsEnabled: true,
+    canManagePins: false,
     popular: [] as Array<{
         uuid: string;
         contentType?: ContentType.DATA_APP;
@@ -72,6 +73,12 @@ vi.mock('../../../../hooks/favorites/useFavoriteMutation', () => ({
 }));
 vi.mock('../../../../hooks/pinning/usePinnedItems', () => ({
     usePinnedItems: () => ({ data: favorites, isInitialLoading: false }),
+    useReorder: () => ({ mutate: vi.fn() }),
+}));
+vi.mock('../../../../providers/App/useApp', () => ({
+    default: () => ({
+        user: { data: { ability: { can: () => mocks.canManagePins } } },
+    }),
 }));
 vi.mock('../../../../hooks/useProject', () => ({
     useMostPopularAndRecentlyUpdated: () => ({
@@ -354,6 +361,38 @@ describe('Document collections', () => {
             },
         });
     });
+
+    it.each([
+        [
+            true,
+            "Drag to reorder. This saves the project's pin order right away.",
+        ],
+        [false, 'Updates on its own as the project changes.'],
+    ])(
+        'offers pin reordering in the Pinned preview only to pin managers (%s)',
+        async (canManagePins, hint) => {
+            mocks.canManagePins = canManagePins;
+            render(
+                <CollectionBlockBuild
+                    block={{
+                        id: 'pinned',
+                        type: 'collection',
+                        config: {
+                            title: 'Pinned',
+                            source: 'pinned',
+                            items: [],
+                        },
+                    }}
+                    projectUuid="project"
+                    itemSpan={null}
+                    onChange={vi.fn()}
+                />,
+                { wrapper: wrapper() },
+            );
+            expect(await screen.findByText(hint)).toBeInTheDocument();
+            mocks.canManagePins = false;
+        },
+    );
 
     it('keeps scoped results out of the generic collection cache', async () => {
         const { result } = renderHook(

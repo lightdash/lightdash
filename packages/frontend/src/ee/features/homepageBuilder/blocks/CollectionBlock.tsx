@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     closestCenter,
     DndContext,
@@ -57,11 +58,15 @@ import {
     ResourceIcon,
 } from '../../../../components/common/ResourceIcon';
 import SpaceSelector from '../../../../components/common/SpaceSelector/SpaceSelector';
-import { usePinnedItems } from '../../../../hooks/pinning/usePinnedItems';
+import {
+    usePinnedItems,
+    useReorder,
+} from '../../../../hooks/pinning/usePinnedItems';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import { useProject } from '../../../../hooks/useProject';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
-import { reorderCollectionItems } from '../configOps';
+import useApp from '../../../../providers/App/useApp';
+import { reorderCollectionItems, reorderPinnedItems } from '../configOps';
 import layoutClasses from '../homepageLayout.module.css';
 import { useCollectionItems } from '../hooks/useCollectionContent';
 import { useCollectionSourceContent } from '../hooks/useCollectionSourceContent';
@@ -614,7 +619,7 @@ const SortableTile: FC<{
     content: SummaryContent;
     projectUuid: string;
     layout: HomepageContentLayout;
-    onRemove: () => void;
+    onRemove?: () => void;
 }> = ({ content, projectUuid, layout, onRemove }) => {
     const {
         attributes,
@@ -792,6 +797,71 @@ const CollectionSourceControls: FC<{
     );
 };
 
+const SortableContentGrid: FC<{
+    layout: HomepageContentLayout;
+    itemSpan: number | null;
+    contents: SummaryContent[];
+    projectUuid: string;
+    onMove: (activeUuid: string, overUuid: string) => void;
+}> = ({ layout, itemSpan, contents, projectUuid, onMove }) => {
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    );
+    const tiles = contents.map((content) => (
+        <SortableTile
+            key={content.uuid}
+            content={content}
+            projectUuid={projectUuid}
+            layout={layout}
+        />
+    ));
+    return (
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={({ active, over }: DragEndEvent) => {
+                if (over && active.id !== over.id)
+                    onMove(String(active.id), String(over.id));
+            }}
+        >
+            <SortableContext
+                items={contents.map((content) => content.uuid)}
+                strategy={rectSortingStrategy}
+            >
+                {layout === 'list' ? (
+                    <div className={classes.resTileGrid}>{tiles}</div>
+                ) : (
+                    <PageGrid itemSpan={itemSpan} elastic>
+                        {tiles}
+                    </PageGrid>
+                )}
+            </SortableContext>
+        </DndContext>
+    );
+};
+
+// Pin order is project state, not homepage draft state, so a drop saves at once.
+const usePinReorder = (projectUuid: string) => {
+    const { user } = useApp();
+    const { data: project } = useProject(projectUuid);
+    const { data: pinnedItems } = usePinnedItems(
+        projectUuid,
+        project?.pinnedListUuid,
+    );
+    const { mutate } = useReorder(projectUuid, project?.pinnedListUuid ?? '');
+    const canManage =
+        user.data?.ability?.can(
+            'manage',
+            subject('PinnedItems', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false;
+    if (!canManage || !pinnedItems) return null;
+    return (activeUuid: string, overUuid: string) =>
+        mutate(reorderPinnedItems(pinnedItems, activeUuid, overUuid));
+};
+
 // The editor shows what the rule resolves to *for the editing admin*, which is
 // the honest preview for project-wide sources. Per-viewer sources say so
 // instead of implying everyone sees the admin's favourites.
@@ -804,7 +874,10 @@ const DynamicSourcePreview: FC<{
         projectUuid,
         config,
     );
-    const isPersonal = isPersonalCollectionSource(collectionSourceOf(config));
+    const source = collectionSourceOf(config);
+    const isPersonal = isPersonalCollectionSource(source);
+    const movePin = usePinReorder(projectUuid);
+    const onMovePin = source === 'pinned' ? movePin : null;
     if (isLoading) {
         return <SkeletonGrid itemSpan={itemSpan} />;
     }
@@ -815,6 +888,14 @@ const DynamicSourcePreview: FC<{
                     Nothing matches this rule yet. The block won't render until
                     it does.
                 </div>
+            ) : onMovePin ? (
+                <SortableContentGrid
+                    layout={collectionLayoutOf(config)}
+                    itemSpan={itemSpan}
+                    contents={items}
+                    projectUuid={projectUuid}
+                    onMove={onMovePin}
+                />
             ) : (
                 <CollectionContentGrid
                     layout={collectionLayoutOf(config)}
@@ -826,7 +907,9 @@ const DynamicSourcePreview: FC<{
             <div className={classes.buildHint}>
                 {isPersonal
                     ? 'Showing your own items as a sample — every viewer sees their own.'
-                    : 'Updates on its own as the project changes.'}
+                    : onMovePin
+                      ? "Drag to reorder. This saves the project's pin order right away."
+                      : 'Updates on its own as the project changes.'}
             </div>
         </Stack>
     );
