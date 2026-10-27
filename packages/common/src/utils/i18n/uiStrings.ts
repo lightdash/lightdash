@@ -519,7 +519,10 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.node.expand': 'Expand step',
     'aiAgent.composer.node.addToChat': 'Add to chat',
     'aiAgent.composer.node.exploreFromHere': 'Explore from here',
-    'aiAgent.composer.node.readBy': 'Read by',
+    'aiAgent.composer.node.references': 'References',
+    'aiAgent.composer.node.finalResult': 'Final result',
+    'aiAgent.composer.semanticNode.queryDetails':
+        'Filters, sorts and parameters',
     'aiAgent.composer.node.running': 'Running…',
     'aiAgent.composer.node.queued': 'Queued, waiting on the steps it reads',
     'aiAgent.composer.semanticNode.compiledSql': 'Compiled SQL',

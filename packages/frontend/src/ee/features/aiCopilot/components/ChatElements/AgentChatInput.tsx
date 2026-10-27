@@ -730,6 +730,16 @@ export const AgentChatInput = ({
         });
     }, [editor, threadUuid]);
 
+    // A step added from the Queries panel puts the cursor here to ask about it.
+    const composerNodeCount = composerNodes.length;
+    const prevComposerNodeCount = useRef(composerNodeCount);
+    useEffect(() => {
+        if (editor && composerNodeCount > prevComposerNodeCount.current) {
+            editor.commands.focus('end');
+        }
+        prevComposerNodeCount.current = composerNodeCount;
+    }, [editor, composerNodeCount]);
+
     const isAgentActive = threadStream
         ? isAiAgentThreadStreamActive(threadStream.connection)
         : false;

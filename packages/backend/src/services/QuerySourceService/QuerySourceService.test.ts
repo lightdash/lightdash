@@ -728,6 +728,8 @@ describe('QuerySourceService', () => {
                             : QueryHistoryStatus.READY,
                     error: queryUuid === 'failed-uuid' ? 'boom' : null,
                     totalRowCount: queryUuid === 'failed-uuid' ? null : 42,
+                    warehouseExecutionTimeMs:
+                        queryUuid === 'failed-uuid' ? null : 120,
                 }),
             );
 
@@ -743,12 +745,14 @@ describe('QuerySourceService', () => {
                     status: QueryHistoryStatus.READY,
                     error: null,
                     totalRowCount: 42,
+                    warehouseExecutionTimeMs: 120,
                 },
                 {
                     queryUuid: 'failed-uuid',
                     status: QueryHistoryStatus.ERROR,
                     error: 'boom',
                     totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
                 },
             ]);
         });

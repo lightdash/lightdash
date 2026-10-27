@@ -47,6 +47,7 @@ import {
     toPipelineFlow,
     type PipelineFlowNode,
 } from './pipelineGraph';
+import { SHOW_PIPELINE_MODE_SWITCH } from './pipelineModeSwitch';
 
 export type PipelineMode = 'list' | 'graph';
 
@@ -215,7 +216,7 @@ const PipelineBar: FC<{
                 Queries
             </Text>
         </UnstyledButton>
-        {expanded && (
+        {expanded && SHOW_PIPELINE_MODE_SWITCH && (
             <SegmentedControl
                 size="xs"
                 value={mode}
@@ -311,10 +312,20 @@ export const AiComposerPipelinePanel: FC<Props> = ({
             handleLabel="Resize results and pipeline"
             classNames={{ handle: styles.splitHandle }}
         >
-            <ResizableSplitter.Pane id="results" defaultSize={55} min={15}>
+            <ResizableSplitter.Pane
+                id="results"
+                defaultSize={33}
+                min={15}
+                className={styles.resultsPaneOpening}
+            >
                 <Box className={styles.results}>{children}</Box>
             </ResizableSplitter.Pane>
-            <ResizableSplitter.Pane id="pipeline" defaultSize={45} min={10}>
+            <ResizableSplitter.Pane
+                id="pipeline"
+                defaultSize={67}
+                min={10}
+                className={styles.pipelinePaneOpening}
+            >
                 <Box className={styles.root}>
                     {bar}
                     {mode === 'graph' ? (

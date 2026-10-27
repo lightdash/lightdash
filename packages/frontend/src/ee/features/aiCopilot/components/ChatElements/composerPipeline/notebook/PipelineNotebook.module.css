@@ -49,8 +49,15 @@
     line-height: 1.5;
 }
 
+.queryHeader {
+    flex-wrap: nowrap;
+    padding: 6px var(--mantine-spacing-sm) 6px var(--mantine-spacing-md);
+}
+
 .fields {
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md)
+        var(--mantine-spacing-sm);
+    border-top: 1px solid var(--mantine-color-default-border);
 }
 
 .cellError {
@@ -61,14 +68,20 @@
     overflow-wrap: anywhere;
 }
 
-.result {
+/* The table draws its own top border. */
+.cellFrame > .result {
     overflow: hidden;
+    border-top: 0;
 }
 
 .cellFooter {
     padding: 6px var(--mantine-spacing-md);
     font-size: var(--mantine-font-size-xs);
     color: var(--mantine-color-dimmed);
+}
+
+.facts {
+    font-variant-numeric: tabular-nums;
 }
 
 .disclosure {
@@ -85,11 +98,11 @@
     color: var(--mantine-color-text);
 }
 
-.readerIcon {
+.referencesIcon {
     color: var(--mantine-color-ldGray-5);
 }
 
-.readerPill {
+.referencePill {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -104,7 +117,7 @@
     cursor: pointer;
 }
 
-.readerPill:hover {
+.referencePill:hover {
     background: var(--mantine-color-ldGray-2);
     color: var(--mantine-color-text);
 }

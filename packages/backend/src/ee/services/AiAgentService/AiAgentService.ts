@@ -12477,7 +12477,7 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     return `- Element reference ${elementReferenceToWireString(item)} in data app "${name}" (appSlug: ${slugText}, version ${item.version}) — the app's source is not readable in this thread; copy the bracketed reference verbatim into the iterateDataApp brief so the coding agent can locate the element.`;
                 }
                 case 'composer_node':
-                    return `- Pipeline node "${item.title}" (nodeId: ${item.nodeId}) of chart artifact ${item.artifactUuid}, version ${item.versionUuid} — the node the user is pointing at. Node ids are thread-scoped: to build on it, read "${item.nodeId}" in references without resubmitting it.`;
+                    return `- Pipeline node "${item.title}" (nodeId: ${item.nodeId}) — the step of this thread's pipeline the user is pointing at.`;
                 case 'data_app_restore': {
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.appSlug ?? '(slug unavailable)';
@@ -12511,13 +12511,32 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                       )
                       .join('\n')}`;
 
+        // Each closing sentence renders only when an item it covers is attached.
+        const guidance = [
+            context.some(
+                (item) =>
+                    item.type === 'chart' ||
+                    item.type === 'dashboard' ||
+                    item.type === 'data_app',
+            )
+                ? "Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps)."
+                : null,
+            context.some(
+                (item) =>
+                    (item.type === 'chart' || item.type === 'dashboard') &&
+                    item.runtimeOverrides !== null,
+            )
+                ? "When runtime overrides are listed, apply them on top of the chart's saved state when querying."
+                : null,
+        ].filter((sentence): sentence is string => sentence !== null);
+        const guidanceSection =
+            guidance.length === 0 ? '' : `\n\n${guidance.join(' ')}`;
+
         return {
             role: 'user',
             content: `\
 The user attached the following to this message as context:
-${lines.join('\n')}
-
-Use your existing tools to inspect them when relevant to the user's question (readContent for charts, dashboards, and data apps). When runtime overrides are listed, apply them on top of the chart's saved state when querying.${inlinedSection}`,
+${lines.join('\n')}${guidanceSection}${inlinedSection}`,
         } satisfies UserModelMessage;
     }
 

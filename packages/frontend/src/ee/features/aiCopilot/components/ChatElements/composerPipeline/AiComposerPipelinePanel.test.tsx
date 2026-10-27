@@ -13,6 +13,9 @@ import { type ComposerRunNodeStatus } from '../useComposerRunNodeStatuses';
 import { AiComposerPipelinePanel } from './AiComposerPipelinePanel';
 import { type PipelineNode } from './groupPipeline';
 
+// The switch is hidden in the app; graph mode keeps its coverage.
+vi.mock('./pipelineModeSwitch', () => ({ SHOW_PIPELINE_MODE_SWITCH: true }));
+
 vi.mock('../../../../../../hooks/useCompiledSql', () => ({
     useCompiledSqlFromMetricQuery: vi.fn(() => ({ data: undefined })),
 }));
@@ -140,13 +143,24 @@ describe('AiComposerPipelinePanel list mode', () => {
         renderPanel({
             defaultExpanded: true,
             nodeStatuses: {
-                orders: { status: 'success', error: null, totalRowCount: null },
+                orders: {
+                    status: 'success',
+                    error: null,
+                    totalRowCount: null,
+                    durationMs: null,
+                },
                 amounts: {
                     status: 'error',
                     error: 'column "amount" does not exist',
                     totalRowCount: null,
+                    durationMs: null,
                 },
-                joined: { status: 'pending', error: null, totalRowCount: null },
+                joined: {
+                    status: 'pending',
+                    error: null,
+                    totalRowCount: null,
+                    durationMs: null,
+                },
             },
         });
         expect(cell('orders').queryByLabelText('Completed')).toBeNull();
@@ -182,37 +196,79 @@ describe('AiComposerPipelinePanel list mode', () => {
         ).toHaveTextContent(/select\s+2/i);
     });
 
-    it('renders the rows of nodes with a result only, never those still running or failed', () => {
+    it('renders the rows of nodes with a result only, never those still running or failed', async () => {
         renderPanel({
             defaultExpanded: true,
             displayableNodeIds: new Set(['orders', 'amounts']),
             nodeStatuses: {
-                orders: { status: 'success', error: null, totalRowCount: null },
+                orders: {
+                    status: 'success',
+                    error: null,
+                    totalRowCount: null,
+                    durationMs: null,
+                },
                 amounts: {
                     status: 'running',
                     error: null,
                     totalRowCount: null,
+                    durationMs: null,
                 },
             },
         });
-        expect(cell('orders').getByText('rows of orders')).toBeInTheDocument();
+        expect(
+            await cell('orders').findByText('rows of orders'),
+        ).toBeInTheDocument();
         expect(cell('amounts').queryByText('rows of amounts')).toBeNull();
         expect(cell('joined').queryByText('rows of joined')).toBeNull();
     });
 
-    it('collapses the whole cell, and jumping to a collapsed reader expands it', () => {
+    it("shows a finished node's row count and run time under its rows", async () => {
+        renderPanel({
+            defaultExpanded: true,
+            nodeStatuses: {
+                orders: {
+                    status: 'success',
+                    error: null,
+                    totalRowCount: 1200,
+                    durationMs: 1500,
+                },
+                amounts: {
+                    status: 'success',
+                    error: null,
+                    totalRowCount: 1,
+                    durationMs: null,
+                },
+            },
+        });
+        expect(
+            await cell('orders').findByText('1,200 rows · 1.5 s'),
+        ).toBeInTheDocument();
+        expect(cell('amounts').getByText('1 row')).toBeInTheDocument();
+    });
+
+    it('collapses a cell, and jumping to a collapsed reference expands it', async () => {
         renderPanel({ defaultExpanded: true });
         const toggle = (nodeId: string) =>
             cell(nodeId).getAllByRole('button', { name: /step$/ })[0];
-        fireEvent.click(toggle('joined'));
-        expect(toggle('joined')).toHaveAccessibleName('Expand step');
-        expect(cell('joined').queryByText('rows of joined')).toBeNull();
+        fireEvent.click(toggle('orders'));
+        expect(toggle('orders')).toHaveAccessibleName('Expand step');
+        expect(cell('orders').queryByText('rows of orders')).toBeNull();
 
         fireEvent.click(
-            cell('orders').getByRole('button', { name: 'Orders with amounts' }),
+            await cell('joined').findByRole('button', {
+                name: 'Orders by status',
+            }),
         );
-        expect(toggle('joined')).toHaveAccessibleName('Collapse step');
-        expect(cell('joined').getByText('rows of joined')).toBeInTheDocument();
+        expect(toggle('orders')).toHaveAccessibleName('Collapse step');
+        expect(
+            await cell('orders').findByText('rows of orders'),
+        ).toBeInTheDocument();
+    });
+
+    it('marks only the terminal node as the final result', () => {
+        renderPanel({ defaultExpanded: true });
+        expect(cell('joined').getByText('Final result')).toBeInTheDocument();
+        expect(cell('orders').queryByText('Final result')).toBeNull();
     });
 
     it('adds a node to the chat until it is attached', () => {
@@ -266,18 +322,27 @@ describe('AiComposerPipelinePanel semantic nodes', () => {
         },
     };
 
-    it("shows a semantic node's filters and sort inline", () => {
+    it('heads a semantic node with its explore and opens its filters and sort on demand', async () => {
         renderPanel({
             defaultExpanded: true,
             queries: [semanticOrders, queries[1], queries[2]],
         });
-        expect(cell('orders').getByText('completed')).toBeInTheDocument();
+        const details = await cell('orders').findByRole('button', {
+            name: 'Filters, sorts and parameters',
+        });
+        expect(details).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.click(details);
+        expect(details).toHaveAttribute('aria-expanded', 'true');
+        expect(
+            await cell('orders').findByText('completed'),
+        ).toBeInTheDocument();
+        expect(cell('orders').queryByLabelText('Explore')).toBeNull();
         expect(
             cell('orders').getByTestId('semantic-node-sort'),
         ).toHaveTextContent('Orders count');
     });
 
-    it('compiles a semantic node query only once Compiled SQL is opened', () => {
+    it('compiles a semantic node query only once Compiled SQL is opened', async () => {
         compiledSql.mockReturnValue({
             data: { query: 'SELECT status FROM orders' },
         } as unknown as ReturnType<typeof useCompiledSqlFromMetricQuery>);
@@ -287,7 +352,7 @@ describe('AiComposerPipelinePanel semantic nodes', () => {
         });
         expect(compiledSql).not.toHaveBeenCalled();
         fireEvent.click(
-            cell('orders').getByRole('button', { name: 'Compiled SQL' }),
+            await cell('orders').findByRole('button', { name: 'Compiled SQL' }),
         );
         expect(compiledSql).toHaveBeenCalledWith(
             expect.objectContaining({

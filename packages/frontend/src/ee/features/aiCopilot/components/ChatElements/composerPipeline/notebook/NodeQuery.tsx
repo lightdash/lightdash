@@ -9,10 +9,23 @@ import {
     type SemanticLayerSourceQuery,
     type SourceQuery,
 } from '@lightdash/common';
-import { Box, Group, Loader, Text, UnstyledButton } from '@mantine/core';
-import { IconChevronRight } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Box,
+    Collapse,
+    Group,
+    Loader,
+    Text,
+    Tooltip,
+    UnstyledButton,
+} from '@mantine/core';
+import {
+    createReactComponent,
+    IconChevronRight,
+    IconTable,
+} from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { useMemo, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import InlineErrorState from '../../../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
@@ -21,6 +34,7 @@ import { useExploreByProjectUuid } from '../../../../../../../hooks/useExplore';
 import { useUiStrings } from '../../../../../../providers/Embed/useUiStrings';
 import { SemanticNodeDetails } from '../SemanticNodeDetails';
 import styles from './PipelineNotebook.module.css';
+import { hasQueryDetails } from './semanticQueryOf';
 
 const codeOf = (
     query: Exclude<SourceQuery, SemanticLayerSourceQuery>,
@@ -81,31 +95,56 @@ export const CompiledSql: FC<{
     );
 };
 
+const Disclosure: FC<{
+    label: string;
+    open: boolean;
+    onToggle: () => void;
+}> = ({ label, open, onToggle }) => (
+    <UnstyledButton
+        className={styles.disclosure}
+        onClick={onToggle}
+        aria-expanded={open}
+    >
+        <MantineIcon
+            icon={IconChevronRight}
+            size={12}
+            className={clsx(styles.chevron, open && styles.chevronOpen)}
+        />
+        {label}
+    </UnstyledButton>
+);
+
 export const CompiledSqlToggle: FC<{ open: boolean; onToggle: () => void }> = ({
     open,
     onToggle,
 }) => {
     const getUiString = useUiStrings();
     return (
-        <UnstyledButton
-            className={styles.disclosure}
-            onClick={onToggle}
-            aria-expanded={open}
-        >
-            <MantineIcon
-                icon={IconChevronRight}
-                size={12}
-                className={clsx(styles.chevron, open && styles.chevronOpen)}
-            />
-            {getUiString('aiAgent.composer.semanticNode.compiledSql')}
-        </UnstyledButton>
+        <Disclosure
+            label={getUiString('aiAgent.composer.semanticNode.compiledSql')}
+            open={open}
+            onToggle={onToggle}
+        />
     );
 };
+
+// Tabler 2 has no filter-lines icon: three lines narrowing to a point.
+const IconFilterLines = createReactComponent(
+    'filter-lines',
+    'IconFilterLines',
+    [
+        ['path', { d: 'M4 6h16', key: 'svg-0' }],
+        ['path', { d: 'M7 12h10', key: 'svg-1' }],
+        ['path', { d: 'M10 18h4', key: 'svg-2' }],
+    ],
+);
 
 const SemanticQuery: FC<{
     query: SemanticLayerSourceQuery;
     projectUuid: string;
 }> = ({ query, projectUuid }) => {
+    const getUiString = useUiStrings();
+    const [open, setOpen] = useState(false);
     // Labels fall back to field ids, so a failed explore load stays silent.
     const { data: explore } = useExploreByProjectUuid(
         query.exploreName,
@@ -128,20 +167,49 @@ const SemanticQuery: FC<{
         () => metricQueryOfSemanticNode(query),
         [query],
     );
+    const exploreLabel = explore?.label ?? friendlyName(query.exploreName);
+    const detailsLabel = getUiString(
+        'aiAgent.composer.semanticNode.queryDetails',
+    );
     return (
-        <Box className={styles.fields}>
-            <SemanticNodeDetails
-                exploreLabel={explore?.label ?? friendlyName(query.exploreName)}
-                metricQuery={metricQuery}
-                fieldsMap={fieldsMap}
-                parameters={query.parameters ?? {}}
-                mutedFields
-            />
+        <Box>
+            <Group justify="space-between" className={styles.queryHeader}>
+                <Group gap={6} wrap="nowrap" miw={0}>
+                    <MantineIcon icon={IconTable} size={14} color="ldGray.5" />
+                    <Text fz="xs" fw={500} truncate>
+                        {exploreLabel}
+                    </Text>
+                </Group>
+                {hasQueryDetails(query) && (
+                    <Tooltip label={detailsLabel}>
+                        <ActionIcon
+                            size="sm"
+                            variant={open ? 'light' : 'subtle'}
+                            aria-label={detailsLabel}
+                            aria-expanded={open}
+                            onClick={() => setOpen((current) => !current)}
+                        >
+                            <MantineIcon icon={IconFilterLines} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
+            </Group>
+            <Collapse expanded={open}>
+                <Box className={styles.fields}>
+                    <SemanticNodeDetails
+                        exploreLabel={exploreLabel}
+                        metricQuery={metricQuery}
+                        fieldsMap={fieldsMap}
+                        parameters={query.parameters ?? {}}
+                        showExploreAndFields={false}
+                    />
+                </Box>
+            </Collapse>
         </Box>
     );
 };
 
-/** Semantic nodes: explore, fields, filters, sorts. Others: their code. */
+/** Semantic nodes: their explore, then filters, sorts and parameters on demand. Others: their code. */
 export const NodeQuery: FC<{ query: SourceQuery; projectUuid: string }> = ({
     query,
     projectUuid,

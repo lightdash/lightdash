@@ -5,10 +5,6 @@
     height: 22px;
 }
 
-.sortChip {
-    max-width: 100%;
-}
-
 .fieldChip {
     display: inline-flex;
     align-items: center;

@@ -40,6 +40,10 @@ const mocks = vi.hoisted(() => ({
     saveVizConfig: vi.fn(),
 }));
 vi.mock('../../../../../api');
+// The switch is hidden in the app; graph mode keeps its coverage.
+vi.mock('./composerPipeline/pipelineModeSwitch', () => ({
+    SHOW_PIPELINE_MODE_SWITCH: true,
+}));
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: mocks.featureFlag,
 }));
@@ -350,6 +354,7 @@ const nodeStatusesResponse = (
                       ...status,
                       error: error ?? null,
                       totalRowCount: null,
+                      warehouseExecutionTimeMs: null,
                   })),
               }
             : undefined) as unknown as typeof sharedLightdashApi);
@@ -735,10 +740,12 @@ describe('composer displayed node', () => {
         renderComposer();
         expandPipeline();
         expect(
-            cellOf('amounts').getByRole('columnheader', { name: 'Avg amount' }),
+            await cellOf('amounts').findByRole('columnheader', {
+                name: 'Avg amount',
+            }),
         ).toBeInTheDocument();
         expect(
-            cellOf('orders').getByRole('columnheader', { name: 'N' }),
+            await cellOf('orders').findByRole('columnheader', { name: 'N' }),
         ).toBeInTheDocument();
     });
 

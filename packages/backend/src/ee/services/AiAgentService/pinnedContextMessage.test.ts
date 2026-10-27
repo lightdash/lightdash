@@ -329,7 +329,7 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         );
     });
 
-    it('renders a pipeline node with its node id, artifact and version', () => {
+    it('renders a pipeline node by its node id, without content guidance', () => {
         const content = buildMessage([
             {
                 type: 'composer_node',
@@ -341,9 +341,11 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         ]);
 
         expect(content).toContain(
-            '- Pipeline node "Revenue by month" (nodeId: revenue_by_month) of chart artifact artifact-1, version version-2',
+            '- Pipeline node "Revenue by month" (nodeId: revenue_by_month)',
         );
-        expect(content).toContain('read "revenue_by_month" in references');
+        expect(content).not.toContain('artifact-1');
+        expect(content).not.toContain('readContent');
+        expect(content).not.toContain('runtime overrides');
     });
 
     it('renders a data app restore as one line naming both versions', () => {

@@ -1,6 +1,7 @@
-import { type SourceQuery } from '@lightdash/common';
+import { interpolateUiString, type SourceQuery } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Collapse,
     Group,
@@ -12,7 +13,7 @@ import {
 import { useInViewport } from '@mantine/hooks';
 import {
     IconChevronRight,
-    IconCornerDownRight,
+    IconHash,
     IconMessagePlus,
     IconTelescope,
 } from '@tabler/icons-react';
@@ -38,6 +39,9 @@ import { semanticQueryOf } from './semanticQueryOf';
 import { useExploreFromHere } from './useExploreFromHere';
 
 const FLASH_MS = 1200;
+
+const formatDuration = (ms: number) =>
+    ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
 
 export type PipelineNotebookProps = {
     nodes: PipelineNode[];
@@ -89,7 +93,8 @@ const CellStatus: FC<{
 
 type CellProps = Omit<PipelineNotebookProps, 'nodes' | 'chatNodeIds'> & {
     node: PipelineNode;
-    readers: PipelineNode[];
+    /** The nodes this one reads. */
+    references: PipelineNode[];
     inChat: boolean;
     flashing: boolean;
     open: boolean;
@@ -99,7 +104,7 @@ type CellProps = Omit<PipelineNotebookProps, 'nodes' | 'chatNodeIds'> & {
 
 const NotebookCell: FC<CellProps> = ({
     node,
-    readers,
+    references,
     projectUuid,
     nodeStatuses,
     displayableNodeIds,
@@ -123,6 +128,24 @@ const NotebookCell: FC<CellProps> = ({
         (status === undefined || status.status === 'success');
     const waiting =
         status?.status === 'pending' || status?.status === 'running';
+    const facts =
+        status?.status === 'success'
+            ? [
+                  status.totalRowCount === null
+                      ? null
+                      : interpolateUiString(
+                            getUiString(
+                                status.totalRowCount === 1
+                                    ? 'aiAgent.composer.semanticNode.rows.singular'
+                                    : 'aiAgent.composer.semanticNode.rows.plural',
+                            ),
+                            { count: status.totalRowCount.toLocaleString() },
+                        ),
+                  status.durationMs === null
+                      ? null
+                      : formatDuration(status.durationMs),
+              ].filter((fact): fact is string => fact !== null)
+            : [];
     const exploreLabel = getUiString('aiAgent.composer.node.exploreFromHere');
     const addToChatLabel = getUiString('aiAgent.composer.node.addToChat');
 
@@ -150,17 +173,25 @@ const NotebookCell: FC<CellProps> = ({
                     />
                 </ActionIcon>
                 <CellStatus query={node.query} status={status} />
-                <Text fz="sm" lh="20px" flex={1} miw={0}>
-                    <Text span fw={500} inherit>
-                        {node.title}
-                    </Text>
+                <Stack gap={2} flex={1} miw={0}>
+                    <Group gap={6} wrap="nowrap" miw={0}>
+                        <Text fz="sm" fw={500} lh="20px" truncate>
+                            {node.title}
+                        </Text>
+                        {node.isTerminal && (
+                            <Badge size="xs" flex="0 0 auto">
+                                {getUiString(
+                                    'aiAgent.composer.node.finalResult',
+                                )}
+                            </Badge>
+                        )}
+                    </Group>
                     {node.description && (
-                        <Text span c="dimmed" inherit>
-                            {' · '}
+                        <Text fz="xs" c="dimmed" lineClamp={2}>
                             {node.description}
                         </Text>
                     )}
-                </Text>
+                </Stack>
                 <Group gap={2} wrap="nowrap">
                     {onAddToChat && !inChat && (
                         <Tooltip label={addToChatLabel}>
@@ -216,13 +247,23 @@ const NotebookCell: FC<CellProps> = ({
                                 {renderNodeResult(node.nodeId)}
                             </LazyResult>
                         )}
-                        {semanticQuery && canViewSql && (
-                            <Box className={styles.cellFooter}>
-                                <CompiledSqlToggle
-                                    open={sqlOpen}
-                                    onToggle={() => setSqlOpen((v) => !v)}
-                                />
-                            </Box>
+                        {(facts.length > 0 ||
+                            (semanticQuery && canViewSql)) && (
+                            <Group
+                                justify="space-between"
+                                wrap="nowrap"
+                                className={styles.cellFooter}
+                            >
+                                <Text inherit className={styles.facts}>
+                                    {facts.join(' · ')}
+                                </Text>
+                                {semanticQuery && canViewSql && (
+                                    <CompiledSqlToggle
+                                        open={sqlOpen}
+                                        onToggle={() => setSqlOpen((v) => !v)}
+                                    />
+                                )}
+                            </Group>
                         )}
                         {semanticQuery && canViewSql && sqlOpen && (
                             <Box className={styles.cellSql}>
@@ -233,31 +274,30 @@ const NotebookCell: FC<CellProps> = ({
                             </Box>
                         )}
                     </Box>
-                    {readers.length > 0 && (
-                        <Group
-                            gap={4}
-                            pl={2}
-                            aria-label={getUiString(
-                                'aiAgent.composer.node.readBy',
-                            )}
-                        >
+                    {references.length > 0 && (
+                        <Group gap={4} pl={2}>
                             <MantineIcon
-                                icon={IconCornerDownRight}
-                                size={14}
-                                className={styles.readerIcon}
+                                icon={IconHash}
+                                size={13}
+                                className={styles.referencesIcon}
                             />
-                            {readers.map((reader) => (
+                            <Text component="span" fz="xs" c="dimmed">
+                                {getUiString(
+                                    'aiAgent.composer.node.references',
+                                )}
+                            </Text>
+                            {references.map((reference) => (
                                 <UnstyledButton
-                                    key={reader.nodeId}
-                                    className={styles.readerPill}
-                                    onClick={() => onJump(reader.nodeId)}
+                                    key={reference.nodeId}
+                                    className={styles.referencePill}
+                                    onClick={() => onJump(reference.nodeId)}
                                 >
                                     <MantineIcon
-                                        icon={nodeTypeIcon(reader.query)}
+                                        icon={nodeTypeIcon(reference.query)}
                                         size={12}
                                         stroke={1.6}
                                     />
-                                    {reader.title}
+                                    {reference.title}
                                 </UnstyledButton>
                             ))}
                         </Group>
@@ -268,7 +308,7 @@ const NotebookCell: FC<CellProps> = ({
     );
 };
 
-/** Pipeline order, one cell per node: its query, then its rows; each links to the cells that read it. */
+/** Pipeline order, one cell per node: its query, then its rows; each links to the cells it reads. */
 export const PipelineNotebook: FC<PipelineNotebookProps> = ({
     nodes,
     chatNodeIds,
@@ -279,15 +319,10 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
     const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
         () => new Set(),
     );
-    const readersOf = useMemo(() => {
-        const readers = new Map<string, PipelineNode[]>();
-        nodes.forEach((node) =>
-            node.readNodeIds.forEach((readId) =>
-                readers.set(readId, [...(readers.get(readId) ?? []), node]),
-            ),
-        );
-        return readers;
-    }, [nodes]);
+    const nodesById = useMemo(
+        () => new Map(nodes.map((node) => [node.nodeId, node])),
+        [nodes],
+    );
     const toggle = (nodeId: string) =>
         setCollapsed((current) => {
             const next = new Set(current);
@@ -325,7 +360,10 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
                 >
                     <NotebookCell
                         node={node}
-                        readers={readersOf.get(node.nodeId) ?? []}
+                        references={node.readNodeIds.flatMap((readId) => {
+                            const reference = nodesById.get(readId);
+                            return reference ? [reference] : [];
+                        })}
                         inChat={chatNodeIds.has(node.nodeId)}
                         flashing={flashNodeId === node.nodeId}
                         open={!collapsed.has(node.nodeId)}

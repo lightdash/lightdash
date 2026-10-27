@@ -5,7 +5,7 @@ import {
     type MetricQuery,
     type ParametersValuesMap,
 } from '@lightdash/common';
-import { Badge, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
+import { Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowsSort,
@@ -24,6 +24,7 @@ import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import AgentVisualizationFilters from '../AgentVisualizationFilters';
 import AgentVisualizationParameters from '../AgentVisualizationParameters';
 import { getVisualizationFiltersCount } from '../AiVisualizationRenderer.utils';
+import chipClasses from '../QueryChip.module.css';
 import styles from './SemanticNodeDetails.module.css';
 
 export type SemanticNodeQuery = Pick<
@@ -87,26 +88,26 @@ const Sorts: FC<{
     return (
         <Group gap={4}>
             {sorts.map((sort) => (
-                <Badge
+                <Box
                     key={sort.fieldId}
-                    variant="default"
-                    className={styles.sortChip}
+                    component="span"
+                    className={chipClasses.chip}
                     data-testid="semantic-node-sort"
-                    leftSection={
-                        <MantineIcon
-                            icon={sort.descending ? IconArrowDown : IconArrowUp}
-                            aria-label={getUiString(
-                                sort.descending
-                                    ? 'aiAgent.composer.semanticNode.descending'
-                                    : 'aiAgent.composer.semanticNode.ascending',
-                            )}
-                            size={12}
-                            color="ldGray.6"
-                        />
-                    }
                 >
-                    {semanticItemLabel(fieldsMap, sort.fieldId)}
-                </Badge>
+                    <MantineIcon
+                        icon={sort.descending ? IconArrowDown : IconArrowUp}
+                        aria-label={getUiString(
+                            sort.descending
+                                ? 'aiAgent.composer.semanticNode.descending'
+                                : 'aiAgent.composer.semanticNode.ascending',
+                        )}
+                        size={12}
+                        color="ldGray.6"
+                    />
+                    <Text fz="xs" fw={600} truncate>
+                        {semanticItemLabel(fieldsMap, sort.fieldId)}
+                    </Text>
+                </Box>
             ))}
         </Group>
     );
@@ -119,6 +120,8 @@ type Props = {
     parameters: ParametersValuesMap;
     /** Neutral field chips, for the pipeline notebook cells. */
     mutedFields?: boolean;
+    /** Off where the rows already show the explore and its fields. */
+    showExploreAndFields?: boolean;
 };
 
 /** Explore, fields, then filters, parameters and sorts, each row marked by its icon. */
@@ -128,49 +131,55 @@ export const SemanticNodeDetails: FC<Props> = ({
     fieldsMap,
     parameters,
     mutedFields = false,
+    showExploreAndFields = true,
 }) => {
     const getUiString = useUiStrings();
     return (
         <Stack gap={6}>
             <ErrorBoundary>
-                <DetailsRow
-                    icon={IconTable}
-                    label={getUiString('aiAgent.composer.semanticNode.explore')}
-                >
-                    <Text fz="xs" fw={500} lh="22px">
-                        {exploreLabel}
-                    </Text>
-                </DetailsRow>
-                {metricQuery.dimensions.length + metricQuery.metrics.length >
-                    0 && (
+                {showExploreAndFields && (
                     <DetailsRow
-                        icon={IconColumns3}
+                        icon={IconTable}
                         label={getUiString(
-                            'aiAgent.composer.semanticNode.fields',
+                            'aiAgent.composer.semanticNode.explore',
                         )}
                     >
-                        <Group gap={4}>
-                            {metricQuery.dimensions.map((fieldId) => (
-                                <FieldChip
-                                    key={fieldId}
-                                    fieldId={fieldId}
-                                    type="dimension"
-                                    fieldsMap={fieldsMap}
-                                    muted={mutedFields}
-                                />
-                            ))}
-                            {metricQuery.metrics.map((fieldId) => (
-                                <FieldChip
-                                    key={fieldId}
-                                    fieldId={fieldId}
-                                    type="metric"
-                                    fieldsMap={fieldsMap}
-                                    muted={mutedFields}
-                                />
-                            ))}
-                        </Group>
+                        <Text fz="xs" fw={500} lh="22px">
+                            {exploreLabel}
+                        </Text>
                     </DetailsRow>
                 )}
+                {showExploreAndFields &&
+                    metricQuery.dimensions.length + metricQuery.metrics.length >
+                        0 && (
+                        <DetailsRow
+                            icon={IconColumns3}
+                            label={getUiString(
+                                'aiAgent.composer.semanticNode.fields',
+                            )}
+                        >
+                            <Group gap={4}>
+                                {metricQuery.dimensions.map((fieldId) => (
+                                    <FieldChip
+                                        key={fieldId}
+                                        fieldId={fieldId}
+                                        type="dimension"
+                                        fieldsMap={fieldsMap}
+                                        muted={mutedFields}
+                                    />
+                                ))}
+                                {metricQuery.metrics.map((fieldId) => (
+                                    <FieldChip
+                                        key={fieldId}
+                                        fieldId={fieldId}
+                                        type="metric"
+                                        fieldsMap={fieldsMap}
+                                        muted={mutedFields}
+                                    />
+                                ))}
+                            </Group>
+                        </DetailsRow>
+                    )}
                 {getVisualizationFiltersCount(metricQuery.filters) > 0 && (
                     <DetailsRow
                         icon={IconFilter}
