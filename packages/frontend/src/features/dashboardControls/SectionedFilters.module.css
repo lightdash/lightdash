@@ -8,6 +8,18 @@
     align-items: center;
     gap: 8px 6px;
     min-width: 0;
+    /* Its first line is always a capsule's height (see `::before`), pulled up
+       so that line's centre is the 30px funnel's, like the bar's other
+       controls; naming a first section then moves nothing */
+    margin-block: -3px;
+}
+
+/* A zero-width strut on the first line, its gap cancelled */
+.flow::before {
+    content: '';
+    flex: 0 0 0;
+    height: 36px;
+    margin-right: -6px;
 }
 
 /* A section on the bar: an outlined, pill-shaped capsule with no fill
@@ -20,7 +32,7 @@
     flex-wrap: wrap;
     gap: 8px 6px;
     min-height: 36px;
-    padding: 3px 4px;
+    padding: 3px 4px 3px 3px;
     /* One step darker than the default border: visible next to blue pills */
     border: 1px solid var(--mantine-color-ldGray-3);
     /* A pill at one line (36px), a soft panel once the pills wrap */
@@ -132,9 +144,9 @@
 .toggle {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     height: 28px;
-    padding: 0 var(--mantine-spacing-xs) 0 6px;
+    padding: 0 var(--mantine-spacing-xs) 0 4px;
     border-radius: var(--mantine-radius-xl);
     cursor: pointer;
 }
@@ -145,13 +157,14 @@
     touch-action: none;
 }
 
-/* The name renames on a click: a text cursor, the button's own metrics */
+/* The name renames on a click: a text cursor and 6px side padding */
 .name {
+    --button-padding-x-xs: rem(6px);
     cursor: text;
 }
 
 /* The rename input takes the width of its text, drawn as the name button
-   (`xs` padding, `sm` 600), so starting or ending a rename moves nothing:
+   (6px padding, `xs` 600), so starting or ending a rename moves nothing:
    a hidden copy of the text sizes one grid cell that the input fills */
 .nameSizer {
     display: inline-grid;
@@ -165,10 +178,10 @@
     overflow: hidden;
     visibility: hidden;
     white-space: pre;
-    /* The theme's `xs` button padding */
-    padding-inline: rem(10px);
+    /* The name button's padding, and the check and X on the right */
+    padding-inline: rem(6px) rem(46px);
     border: 1px solid transparent;
-    font-size: var(--mantine-font-size-sm);
+    font-size: var(--mantine-font-size-xs);
     font-weight: 600;
 }
 
@@ -180,10 +193,10 @@
 .nameSizer .nameInputField {
     width: 0;
     min-width: 100%;
-    /* The theme's `xs` button padding, 2px of it on the right given to the
-       text, so a caret at the end never scrolls it */
-    padding-inline: rem(10px) calc(rem(10px) - 2px);
-    font-size: var(--mantine-font-size-sm);
+    /* The name button's padding, then the check and X (44px), 2px less
+       than the sizer's so a caret at the end never scrolls the text */
+    padding-inline: rem(6px) rem(44px);
+    font-size: var(--mantine-font-size-xs);
     font-weight: 600;
     border-radius: var(--mantine-radius-xl);
 }
@@ -191,6 +204,15 @@
 /* The shipped bar's narrow layout makes its buttons 44px tall
    (`DashboardFiltersBar.module.css`): the input matches the name button */
 @container (width < 600px) {
+    /* No funnel here and 44px buttons: the lines centre themselves */
+    .flow {
+        margin-block: 0;
+    }
+
+    .flow::before {
+        display: none;
+    }
+
     .nameSizer .nameInputField {
         min-height: 44px;
     }

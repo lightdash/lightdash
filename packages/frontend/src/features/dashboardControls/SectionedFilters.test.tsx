@@ -553,6 +553,23 @@ describe('SectionedFilters', () => {
         expect(screen.queryByText('2 filters')).not.toBeInTheDocument();
     });
 
+    it('sets the title and its fold summary in xs, like the pills, with a small chevron', async () => {
+        const xs = { fontSize: 'var(--mantine-font-size-xs)' };
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+        const { unmount } = renderSectioned([rule('one', 'a')], 'tab-1');
+        expect(screen.getByText('Dates')).toHaveStyle(xs);
+        await userEvent.click(screen.getByRole('button', { name: 'Dates' }));
+        expect(screen.getByText('1 filter')).toHaveStyle(xs);
+        unmount();
+
+        mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+        renderSectioned([rule('one', 'a')], 'tab-1');
+        expect(screen.getByRole('button', { name: 'Dates' })).toHaveStyle(xs);
+        expect(foldOf('Dates')).toHaveAttribute('data-size', 'sm');
+        await userEvent.click(foldOf('Dates'));
+        expect(screen.getByText('1 filter')).toHaveStyle(xs);
+    });
+
     it('folds to its member count while nothing differs from its default', async () => {
         renderSectioned(
             [
@@ -1482,6 +1499,32 @@ describe('SectionedFilters', () => {
             expect(addSection()).toBeInTheDocument();
         });
 
+        it('keeps a new name with the check and drops it with the X, without a blur commit', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(
+                [rule('one', undefined)],
+                'tab-1',
+            );
+
+            await user.click(addSection() as HTMLElement);
+            const keep = screen.getByRole('button', { name: 'Keep name' });
+            expect(keep).toBeDisabled();
+            await user.type(
+                screen.getByRole('textbox', { name: 'Section name' }),
+                'Late',
+            );
+            await user.click(screen.getByRole('button', { name: 'Discard' }));
+            expect(sectionsOf(store)).toHaveLength(3);
+            expect(addSection()).toHaveFocus();
+
+            await user.click(addSection() as HTMLElement);
+            await user.keyboard('Late');
+            await user.click(screen.getByRole('button', { name: 'Keep name' }));
+            expect(sectionsOf(store).map((s) => s.name)).toContain('Late');
+            expect(sectionsOf(store)).toHaveLength(4);
+            expect(screen.getByRole('button', { name: 'Late' })).toHaveFocus();
+        });
+
         it("hands focus to the new section's name after Enter, or a blur to the page", async () => {
             const user = userEvent.setup();
             renderSectioned([rule('one', undefined)], 'tab-1');
@@ -1774,6 +1817,30 @@ describe('SectionedFilters', () => {
             );
             await user.keyboard('{Enter}');
             expect(sectionsOf(store)[0].name).toBe('When');
+        });
+
+        it('renames with the check and keeps the old name with the X; an empty name disables the check', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const user = userEvent.setup();
+
+            await user.click(screen.getByRole('button', { name: 'Dates' }));
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            await user.type(input, ' later');
+            await user.click(screen.getByRole('button', { name: 'Discard' }));
+            expect(sectionsOf(store)[0].name).toBe('Dates');
+            expect(screen.getByRole('button', { name: 'Dates' })).toHaveFocus();
+
+            await user.click(screen.getByRole('button', { name: 'Dates' }));
+            await user.clear(
+                screen.getByRole('textbox', { name: 'Section name' }),
+            );
+            expect(
+                screen.getByRole('button', { name: 'Keep name' }),
+            ).toBeDisabled();
+            await user.keyboard('When');
+            await user.click(screen.getByRole('button', { name: 'Keep name' }));
+            expect(sectionsOf(store)[0].name).toBe('When');
+            expect(screen.getByRole('button', { name: 'When' })).toHaveFocus();
         });
 
         it('sizes the rename input to its text, the placeholder when empty', async () => {

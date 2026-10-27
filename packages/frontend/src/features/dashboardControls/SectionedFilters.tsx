@@ -237,7 +237,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                         size={14}
                         color="dimmed"
                     />
-                    <Text span fz="sm" fw={600}>
+                    <Text span fz="xs" fw={600}>
                         {section.name}
                     </Text>
                 </UnstyledButton>
@@ -256,7 +256,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                     {/* An editor's chevron only folds; the name renames */}
                     <Tooltip label={chevronLabel}>
                         <ActionIcon
-                            size="md"
+                            size="sm"
                             radius="xl"
                             aria-label={chevronLabel}
                             aria-expanded={isOpen}
@@ -290,7 +290,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                             variant="subtle"
                             color="gray"
                             radius="xl"
-                            fz="sm"
+                            fz="xs"
                             fw={600}
                             className={classes.name}
                             data-section-name={section.id}
@@ -317,7 +317,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
             {/* Mounted on expand, so its pills arrive; `contents` keeps them
                 in the capsule's own flow */}
             {!hasVisible ? (
-                <Text span id={summaryId} fz="sm" c="dimmed">
+                <Text span id={summaryId} fz="xs" c="dimmed">
                     {formatSectionCount(getUiString, rules.length)}
                 </Text>
             ) : isOpen ? (
@@ -329,7 +329,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                     />
                 </Box>
             ) : (
-                <Text span id={summaryId} fz="sm" c="dimmed">
+                <Text span id={summaryId} fz="xs" c="dimmed">
                     {changedCount > 0
                         ? interpolateUiString(
                               getUiString('filters.sectionChanged'),
@@ -485,8 +485,8 @@ const LOOSE_START = 'loose-start';
 // The filter area of a dashboard with sections: Add, then the unsectioned
 // pass (the unsectioned saved pills, the viewer's own), then one outlined
 // capsule per section with a member on this tab (its toggle, then its pills
-// inline), then an editor's entry (Add section, the New section capsule, or
-// the new section's name). Collapsing is local state keyed by section id, as the
+// inline), then an editor's entry (the New section capsule, or the new
+// section's name). Collapsing is local state keyed by section id, as the
 // ids whose state differs from their default; one saved popover is open across
 // every pass. In edit mode one drag context spans the passes: a pill dropped
 // on a pill takes its place and section, on a capsule joins that section
