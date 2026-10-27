@@ -9,7 +9,17 @@ export const classification = {
 };
 
 // Standard USD prices converted at 20 credits per dollar; cache writes use 30m retention.
-const ROWS = [
+type Tier = 'fast' | 'standard' | 'premium';
+type RateRow = {
+    model_key: string;
+    tier: Tier;
+    input_credits_per_mtok: number;
+    output_credits_per_mtok: number;
+    cache_read_credits_per_mtok: number;
+    cache_write_credits_per_mtok: number;
+};
+
+const ROWS: RateRow[] = [
     {
         model_key: 'gpt-6.1-sol',
         tier: 'premium',
