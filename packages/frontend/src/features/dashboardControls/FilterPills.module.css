@@ -3,23 +3,17 @@
     display: inline-flex;
 }
 
-/* The edited pill: Mantine's light blue with the outline variant's border,
-   name in the text colour, so it reads as open but never as picked. Doubled
-   so it outranks the theme's border on a default button, hovered too */
-.pill > .selectedPill.selectedPill[aria-pressed='true']:not(:disabled) {
-    background-color: var(--mantine-color-blue-light);
-    border-color: var(--mantine-color-blue-outline);
-    border-width: 1px;
-    color: var(--mantine-color-text);
-}
-
-.pill > .selectedPill.selectedPill[aria-pressed='true']:not(:disabled):hover {
-    background-color: var(--mantine-color-blue-light-hover);
+/* `EditBadge`: a 16px circle, the pill's first icon. On an editor's pill
+   it takes the 12px grip's slot, its 4px overlap taken from the pill's
+   left padding, so the gap to the next icon stays and the pill keeps its
+   width */
+.editBadge {
+    margin-inline-start: -4px;
 }
 
 /* Picked on the sectioned bar to move or remove: solid blue with white
    text, a check in place of the field icon, never mistaken for the edited
-   pill's ring or a hover */
+   pill (its own look plus a pencil badge) or a hover */
 .pill > .pickedPill.pickedPill[aria-pressed='true']:not(:disabled) {
     --mantine-color-dimmed: color-mix(
         in srgb,
@@ -57,14 +51,18 @@
     height: var(--mantine-spacing-xs);
     border-radius: 50%;
     background-color: var(--mantine-color-blue-filled);
+    /* A halo in the bar's colour, so it shows on a solid blue picked pill */
+    box-shadow: 0 0 0 2px var(--ld-color-page);
     pointer-events: none;
 }
 
+/* Placed as the tile comments' Mantine `Indicator` (offset 3): its centre
+   3px in from the corner, so it sits on the rounded edge */
 .changedDot[data-corner] {
     position: absolute;
-    top: 0;
-    right: 0;
-    transform: translate(25%, -25%);
+    top: 3px;
+    right: 3px;
+    transform: translate(50%, -50%);
 }
 
 /* The "..." joined to "Add filter", drawn as the shipped eye it replaces */

@@ -6,7 +6,13 @@ import {
 } from '@lightdash/common';
 import { Popover, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
-import { useCallback, useMemo, type FC, type MouseEvent } from 'react';
+import {
+    useCallback,
+    useMemo,
+    type FC,
+    type MouseEvent,
+    type ReactNode,
+} from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -35,6 +41,8 @@ type Props = {
     onPopoverClose: () => void;
     onUpdate: (filter: DashboardFilterRule) => void;
     onRemove: () => void;
+    /** Shown as the pill's first icon while the popover is open; default none. */
+    openLeadingIcon?: ReactNode;
 };
 
 const Filter: FC<Props> = ({
@@ -51,6 +59,7 @@ const Filter: FC<Props> = ({
     onPopoverClose,
     onUpdate,
     onRemove,
+    openLeadingIcon,
 }) => {
     const popoverId = useId();
 
@@ -208,6 +217,9 @@ const Filter: FC<Props> = ({
                             }
                             isTablesTooltipDisabled={isPopoverOpen}
                             triggerClassName={triggerClassName}
+                            leadingIcon={
+                                isPopoverOpen ? openLeadingIcon : undefined
+                            }
                             onClick={() => {
                                 if (isReadOnlyLocked) return;
                                 if (isPopoverOpen) {

@@ -43,6 +43,8 @@ type Props = Omit<
     onLockToggle: (e: MouseEvent) => void;
     /** Shows the lock at all times, so hovering never widens the pill; default false. */
     isLockSpaceReserved?: boolean;
+    /** Keeps the grip and lock in place but hidden and inert; default false. */
+    areActionsHidden?: boolean;
     /** The label of the read-only lock icon; null leaves it out. */
     readOnlyLockLabel: string | null;
     /** Null leaves the X out. */
@@ -53,6 +55,8 @@ type Props = Omit<
     triggerClassName?: string;
     /** Shown in place of the field icon (default: the field's icon). */
     fieldIconOverride?: ReactNode;
+    /** The first icon, in the grip's place when there is one (default none). */
+    leadingIcon?: ReactNode;
     onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 };
 
@@ -69,12 +73,14 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
             lockLabel,
             onLockToggle,
             isLockSpaceReserved = false,
+            areActionsHidden = false,
             readOnlyLockLabel,
             onRemove,
             removeLabel,
             isTablesTooltipDisabled,
             triggerClassName,
             fieldIconOverride,
+            leadingIcon,
             className,
             onClick,
             ...others
@@ -146,13 +152,19 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                     (isDraggable ||
                         showRequirementIcon ||
                         field ||
-                        fieldIconOverride) && (
+                        fieldIconOverride ||
+                        leadingIcon) && (
                         <Group gap={4} wrap="nowrap">
-                            {isDraggable && (
+                            {leadingIcon}
+                            {isDraggable && !leadingIcon && (
                                 <MantineIcon
                                     icon={IconGripVertical}
                                     cursor="grab"
                                     size="sm"
+                                    {...(areActionsHidden && {
+                                        className: classes.hiddenAction,
+                                        'aria-hidden': true,
+                                    })}
                                 />
                             )}
                             {showRequirementIcon && (
@@ -190,12 +202,13 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                     <Group gap={2} wrap="nowrap">
                         {lockLabel !== null && (
                             <span
-                                className={
+                                className={`${
                                     isLocked
                                         ? classes.lockSlotActive
                                         : classes.lockSlot
-                                }
+                                }${areActionsHidden ? ` ${classes.hiddenAction}` : ''}`}
                                 data-reserved={isLockSpaceReserved || undefined}
+                                inert={areActionsHidden || undefined}
                             >
                                 <Tooltip fz="xs" label={lockLabel}>
                                     <ActionIcon

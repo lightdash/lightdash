@@ -486,6 +486,7 @@
         "filters.rail.discard": "Descartar",
         "filters.rail.newBadge": "Nuevo",
         "filters.rail.editedBadge": "Editado",
+        "filters.rail.editingBadge": "Editando",
         "filters.rail.applyBeforeOpening": "¿Aplicar antes de abrir {filter}?",
         "filters.rail.createBeforeOpening": "¿Crear antes de abrir {filter}?",
         "filters.tileCard.locked": "Los mosaicos están bloqueados mientras se edita un filtro",

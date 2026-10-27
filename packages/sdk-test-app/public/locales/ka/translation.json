@@ -486,6 +486,7 @@
         "filters.rail.discard": "გაუქმება",
         "filters.rail.newBadge": "ახალი",
         "filters.rail.editedBadge": "შეცვლილი",
+        "filters.rail.editingBadge": "რედაქტირდება",
         "filters.rail.applyBeforeOpening": "გამოვიყენოთ {filter}-ის გახსნამდე?",
         "filters.rail.createBeforeOpening": "შევქმნათ {filter}-ის გახსნამდე?",
         "filters.tileCard.locked": "ფილები დაბლოკილია ფილტრის რედაქტირებისას",

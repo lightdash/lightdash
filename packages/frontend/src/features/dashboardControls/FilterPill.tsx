@@ -25,6 +25,7 @@ import {
 import { FilterPillButton } from '../dashboardFilters/ActiveFilters/FilterPillButton';
 import { useBarSelection } from './barSelection';
 import { ChangedDot } from './ChangedDot';
+import { EditBadge } from './EditBadge';
 import classes from './FilterPills.module.css';
 import { replaceFilterRule } from './sidebarState';
 import { useControlsSidebarSelector } from './useControlsSidebar';
@@ -46,7 +47,7 @@ type Props = {
     isDraft: boolean;
     /** Edit mode: the rule differs from the saved dashboard. */
     isChanged: boolean;
-    /** While a filter is edited the pill has no grip or lock. */
+    /** While a filter is edited the grip and lock are hidden and inert. */
     isSidebarOpen: boolean;
     activeTabUuid: string | undefined;
     hasTabs: boolean;
@@ -169,13 +170,16 @@ export const FilterPill: FC<Props> = memo(
                         filterRule={filter}
                         isOrphaned={isOrphaned}
                         isTemporary={kind === 'viewerOwn'}
-                        isDraggable={kind === 'editor' && !isSidebarOpen}
+                        // While a filter is edited the grip and lock stay in
+                        // place, hidden and inert, so no pill changes width
+                        isDraggable={kind === 'editor'}
                         isLocked={isLocked}
                         lockLabel={
-                            kind === 'editor' && !isSidebarOpen && lockKey
+                            kind === 'editor' && lockKey
                                 ? getFilterLockLabel(isLocked, hasTabs)
                                 : null
                         }
+                        areActionsHidden={isSidebarOpen}
                         onLockToggle={(e) => {
                             e.stopPropagation();
                             toggleLock();
@@ -194,7 +198,6 @@ export const FilterPill: FC<Props> = memo(
                         data-controls-pill={filter.id}
                         disabled={isDisabled}
                         className={[
-                            isSelected ? classes.selectedPill : '',
                             isDraft ? classes.draftPill : '',
                             isPicked ? classes.pickedPill : '',
                         ]
@@ -205,9 +208,11 @@ export const FilterPill: FC<Props> = memo(
                                 <MantineIcon icon={IconCheck} size="sm" />
                             ) : undefined
                         }
+                        // The open pill's pencil takes the grip's slot
+                        leadingIcon={isSelected ? <EditBadge /> : undefined}
                         onClick={handleClick}
                     />
-                    {isChanged && <ChangedDot isCorner />}
+                    {isChanged && <ChangedDot />}
                 </Box>
             </Tooltip>
         );

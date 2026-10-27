@@ -48,12 +48,14 @@
 }
 
 /* A pill leaving its section over the bar's empty space: the drop line
-   after the bar's last item, in the gap, so nothing moves */
-.flow[data-over] > :last-child {
+   where it lands, after the loose item marked for its kind
+   (`data-loose-end`), in the gap, so nothing moves */
+.flow [data-loose-end] {
     position: relative;
 }
 
-.flow[data-over] > :last-child::after {
+.flow[data-over='dimensions'] [data-loose-end~='dimensions']::after,
+.flow[data-over='metrics'] [data-loose-end~='metrics']::after {
     content: '';
     position: absolute;
     top: 2px;
@@ -76,8 +78,9 @@
     border-radius: var(--mantine-radius-xl);
 }
 
-/* Before the first section: a lighter, bracketed capsule (dashed outline
-   in Add filter's border colours, no fill, dimmed text) that starts one;
+/* The bar's entry, with or without sections: a lighter, bracketed capsule
+   (dashed outline in Add filter's border colours, no fill, dimmed text)
+   that starts a section;
    under a dragged pill its outline
    turns blue over a light blue tint, so nothing changes size */
 .newSectionGhost {

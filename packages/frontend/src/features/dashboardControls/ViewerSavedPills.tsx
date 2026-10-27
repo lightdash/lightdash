@@ -20,6 +20,7 @@ import {
     isFilterHiddenOnTab,
     useFilterTabPlacement,
 } from '../dashboardFilters/ActiveFilters/useFilterTabPlacement';
+import { EditBadge } from './EditBadge';
 import { isRuleInSection } from './sections';
 import { useFiltersStartOfWeek } from './useFiltersStartOfWeek';
 
@@ -142,6 +143,7 @@ export const ViewerSavedPills: FC<Props> = ({
                             openPopoverId={openPopoverId}
                             onPopoverOpen={onPopoverOpen}
                             onPopoverClose={onPopoverClose}
+                            openLeadingIcon={<EditBadge />}
                             onRemove={remove}
                             onUpdate={(value) =>
                                 (group === 'metrics'
