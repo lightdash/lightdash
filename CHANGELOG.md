@@ -1,3 +1,10 @@
+## [3.63.1](https://github.com/lightdash/lightdash/compare/3.63.0...3.63.1) (2026-10-27)
+
+
+### Bug Fixes
+
+* **ai-agent:** render composer result tables one way ([#31615](https://github.com/lightdash/lightdash/issues/31615)) ([cad2040](https://github.com/lightdash/lightdash/commit/cad204059c4c231d960fc55ddfa9b13363d7eced))
+
 # [3.63.0](https://github.com/lightdash/lightdash/compare/3.62.0...3.63.0) (2026-10-27)
 
 
