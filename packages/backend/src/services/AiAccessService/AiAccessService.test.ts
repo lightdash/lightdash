@@ -87,6 +87,7 @@ import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionM
 import { getWarehouseIdentityFingerprint } from '../../utils/queryResultProducer';
 import { withNewWarehouseCredentialVersion } from '../../utils/warehouseCredentialVersion';
 import { sessionUser } from '../UserService.mock';
+import { aiServiceAccountCredentialResolvers } from '../WarehouseClientFactory/aiServiceAccountCredentialResolvers';
 import { connectionContextFromAccount } from '../WarehouseClientFactory/ConnectionContext';
 import {
     credentialResolution,
@@ -5245,7 +5246,7 @@ describe('Databricks AI service account runtime', () => {
     } as const;
     const databricksConnection: CreateWarehouseCredentials = {
         type: WarehouseTypes.DATABRICKS,
-        serverHostName: 'workspace.example.com',
+        serverHostName: 'adb-123.4.azuredatabricks.net',
         httpPath: '/sql/preview',
         database: 'schema',
         personalAccessToken: 'project-pat',
@@ -5301,7 +5302,7 @@ describe('Databricks AI service account runtime', () => {
             expect(
                 exchangeDatabricksOAuthCredentials,
             ).toHaveBeenCalledExactlyOnceWith(
-                'workspace.example.com',
+                'adb-123.4.azuredatabricks.net',
                 'slot-id',
                 'slot-secret',
             );
@@ -6485,6 +6486,41 @@ describe('preview ClickHouse AI service account inheritance', () => {
         );
         return f;
     };
+    test('refuses a mismatched execution destination before reading or combining any secrets', async () => {
+        const f = previewSetup();
+        const materialize = vi.spyOn(
+            aiServiceAccountCredentialResolvers,
+            'resolveCredentialSelection',
+        );
+        try {
+            await expect(
+                f.service.resolvePlan({
+                    ...args,
+                    connection: {
+                        ...clickhouseConnection,
+                        host: 'other.example.com',
+                    },
+                }),
+            ).rejects.toMatchObject({
+                inheritedFromProjectUuid: 'parent',
+                refusal: {
+                    reason: AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+                },
+            });
+            expect(
+                f.projects.getWarehouseCredentialsForBinding,
+            ).toHaveBeenCalledExactlyOnceWith('parent', {
+                kind: 'connection',
+                warehouseConnectionUuid: null,
+            });
+            expect(f.slots.getSecrets).not.toHaveBeenCalled();
+            expect(f.slots.getSlot).not.toHaveBeenCalled();
+            expect(materialize).not.toHaveBeenCalled();
+            expect(f.provider.mint).not.toHaveBeenCalled();
+        } finally {
+            materialize.mockRestore();
+        }
+    });
     test('carries parent generation and keeps preview settings and actor', async () => {
         const f = previewSetup();
         expect(
@@ -6492,7 +6528,7 @@ describe('preview ClickHouse AI service account inheritance', () => {
                 ...args,
                 connection: {
                     ...clickhouseConnection,
-                    host: 'preview.internal',
+                    host: clickhouseConnection.host,
                     schema: 'preview_analytics',
                 },
             }),
@@ -6502,7 +6538,7 @@ describe('preview ClickHouse AI service account inheritance', () => {
             sourceProjectUuid: 'parent',
             inheritedFromProjectUuid: 'parent',
             credentials: {
-                host: 'preview.internal',
+                host: clickhouseConnection.host,
                 schema: 'preview_analytics',
                 password: clickhouseSecrets.password,
             },

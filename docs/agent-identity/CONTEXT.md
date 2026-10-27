@@ -44,6 +44,8 @@ _Avoid_: separate agent sign-in, agent connection
 One warehouse account that a project admin adds to a project. All agents on
 that project run as it. Code value `ai_service_account`.
 A preview with a parent project uses the parent's shared agent account.
+The preview must point at the same warehouse destination as the parent (same
+host, account or server, and SSH tunnel); otherwise it has no shared agent account.
 _Avoid_: AI service account. Do not confuse with Lightdash **service
 accounts**, which are API tokens for automation, not warehouse accounts.
 
