@@ -9,6 +9,16 @@
     border-width: 1px;
 }
 
+/* Picked on the sectioned bar to move or remove: the drag's blue, filled */
+.pill > .pickedPill.pickedPill[aria-pressed='true']:not(:disabled) {
+    background-color: var(--mantine-color-blue-light);
+    border-color: var(--mantine-color-blue-5);
+}
+
+.pill > .pickedPill.pickedPill[aria-pressed='true']:not(:disabled):hover {
+    background-color: var(--mantine-color-blue-light-hover);
+}
+
 .draftPill {
     border-style: dashed;
 }

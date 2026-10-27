@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest';
 import {
     groupRulesBySection,
     moveRuleToSection,
+    moveRulesToSection,
+    rangeBetween,
     removeSectionFromRules,
     getDragAnnouncements,
 } from './sections';
@@ -188,6 +190,29 @@ describe('moveRuleToSection', () => {
                 sections,
             ),
         ).toBe(dashboardFilters);
+    });
+});
+
+describe('moveRulesToSection', () => {
+    it('moves each rule in the given order to the end of the section, and returns the same object when nothing moves', () => {
+        const before = filters([rule('x', 'a'), rule('y'), rule('z')]);
+        const moved = moveRulesToSection(before, ['z', 'y'], 'a', sections);
+        expect(moved.dimensions.map((r) => [r.id, r.sectionId])).toEqual([
+            ['x', 'a'],
+            ['z', 'a'],
+            ['y', 'a'],
+        ]);
+        expect(moveRulesToSection(before, ['x'], 'a', sections)).toBe(before);
+    });
+});
+
+describe('rangeBetween', () => {
+    it('returns the ids between two listed ids either way, else null', () => {
+        const ids = ['a', 'b', 'c', 'd'];
+        expect(rangeBetween(ids, 'b', 'd')).toEqual(['b', 'c', 'd']);
+        expect(rangeBetween(ids, 'd', 'b')).toEqual(['b', 'c', 'd']);
+        expect(rangeBetween(ids, null, 'b')).toBeNull();
+        expect(rangeBetween(ids, 'gone', 'b')).toBeNull();
     });
 });
 

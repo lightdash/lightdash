@@ -1248,11 +1248,12 @@ the language map, as tab names are.
   selecting"), and finishing an action; none closes the rail. The footer is
   "Cancel" at the left and, at the right, "Move to" (a menu: "New section"
   first, then each section with a dimmed "· n" member count, then "No
-  section" under a divider; `moveRules`: `moveRuleToSection` for each
-  selected id in display order, one `setDashboardFilters` write and
+  section" under a divider; `moveRules`: `moveRulesToSection` over the
+  selected ids in display order, one `setDashboardFilters` write and
   `setHaveFiltersChanged(true)`, focus to the first moved row) and "Remove"
   (`ConfirmDeleteButton`, "Click again to remove n filters", one write over
-  `removeFilterRule`, focus to the add row), both disabled at 0.
+  `removeFilterRule`, focus to the add row), both disabled at 0; the menu
+  and Remove are `SelectionActions`, shared with the bar's selection bar.
   "New section" there opens the name input with the selection as the
   `nameEdit`'s `moveIds`: a committed name adds the section and moves them
   in, leaving the mode; a cancelled name moves nothing and stays in the
@@ -1361,6 +1362,41 @@ the language map, as tab names are.
   carries a 28px pill-shaped copy (`.dragPreview`: field icon and name) and
   announcements come from `getDragAnnouncements` with the rail's `nameOf`
   wording.
+- The sectioned bar's selection, edit mode only (a viewer's bar and the flat
+  bar have none): `SectionedFilters` holds `selectedIds` and the pill picked
+  last, and hands them to the pills through `BarSelectionContext`
+  (`barSelection.ts`, null elsewhere). A `FilterPill` that reads a
+  selection catches its click in capture (`onClickCapture` on its box, only
+  for a click on the pill button itself, never its X or lock): Cmd or Ctrl
+  toggles it, Shift selects from the pill picked last to this one in bar
+  order (each open capsule's visible pills in section order, then the
+  unsectioned ones; a folded capsule's are left out; `rangeBetween`), and
+  none of them opens the editor; a plain click clears the selection and
+  opens the filter as before. A picked pill has `aria-pressed` and
+  `.pickedPill` (`blue-light` fill, `blue-5` border), apart from the edited
+  `.selectedPill`. On that bar the pill's own tooltip (the orphaned one's)
+  reads "Click to edit · ⌘ click to select" ("Ctrl click" off mac,
+  `useOs`) after 500ms, and the tables tooltip on the name is off so only
+  one shows. Escape clears it through a document capture listener mounted
+  while something is picked, which yields to `[data-own-escape]` and an open
+  layer (`hasOpenLayer`, shared with `useEditorDismiss`). The rail is closed
+  whenever the bar renders `SectionedFilters`, so opening it any way
+  unmounts the state: the selection goes with it. While something is
+  picked, `SelectionBar` floats where the field bar does (`useBarHost.ts`, moved out of `FieldTilesBar`, and
+  the `.bar` surface from `FieldTilesBar`): "{n} selected", a dimmed "Shift
+  click for a range", then `SelectionActions`, the rail footer's "Move to"
+  menu and two-click "Remove" (shared, see select mode), and an X ("Clear
+  selection"). Moves go through `moveRulesToSection` in display order, one
+  write plus `setHaveFiltersChanged(true)`; "New section" opens the bar's
+  `AddSection` name input (its state is lifted into `SectionedFilters` as
+  `naming`, with the ids to move): a committed name adds the section and
+  moves them in, a cancelled one moves nothing and keeps the selection.
+  Remove is one write over `removeFilterRule`. Every finished action clears
+  the selection. Dragging a picked pill while more than one is picked
+  carries the selection: the overlay reads "{n} filters" and a drop on a
+  capsule, a pill (its section) or the first button moves all of them
+  there through the same helper; dragging an unpicked pill moves it alone
+  and keeps the selection. The strings are editor-only and literal.
 
 ## Motion
 

@@ -1,5 +1,4 @@
 import { useDroppable } from '@dnd-kit/core';
-import { type DashboardControlSection } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -15,32 +14,20 @@ import {
     Tooltip,
     VisuallyHidden,
 } from '@mantine/core';
-import {
-    IconDots,
-    IconFolderPlus,
-    IconListCheck,
-    IconX,
-} from '@tabler/icons-react';
+import { IconDots, IconListCheck, IconX } from '@tabler/icons-react';
 import { useRef, type FC, type ReactNode } from 'react';
-import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import classes from './ControlSidebar.module.css';
 import { useRailContractClasses } from './railContractClasses';
 import { UNSECTIONED_TARGET_ID } from './sections';
+import {
+    SelectionActions,
+    type SelectionActionsProps,
+} from './SelectionActions';
 import { useRailTop } from './useRailTop';
 
-export type SelectMode = {
-    count: number;
-    /** Each section with how many filters it holds. */
-    sections: (DashboardControlSection & { count: number })[];
-    onExit: () => void;
-    /** Null takes the selected filters out of their sections. */
-    onMove: (sectionId: string | null) => void;
-    /** Names a new section, then moves the selection into it. */
-    onMoveToNewSection: () => void;
-    onRemove: () => void;
-};
+export type SelectMode = SelectionActionsProps & { onExit: () => void };
 
 type Props = {
     /** The dashboard's filters, listed in the rail. */
@@ -245,78 +232,10 @@ export const EditorShell: FC<Props> = ({
                             >
                                 {getUiString('filters.actions.cancel')}
                             </Button>
-                            {/* Focus must stay on the name input New section opens */}
-                            <Menu position="top-end" returnFocus={false}>
-                                <Menu.Target>
-                                    <Button
-                                        variant="subtle"
-                                        color="gray"
-                                        size="xs"
-                                        flex="0 0 auto"
-                                        disabled={selectMode.count === 0}
-                                    >
-                                        Move to
-                                    </Button>
-                                </Menu.Target>
-                                <Menu.Dropdown>
-                                    <Menu.Item
-                                        fz="xs"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconFolderPlus}
-                                                size={14}
-                                            />
-                                        }
-                                        onClick={selectMode.onMoveToNewSection}
-                                    >
-                                        New section
-                                    </Menu.Item>
-                                    <Menu.Divider />
-                                    {selectMode.sections.map((section) => (
-                                        <Menu.Item
-                                            key={section.id}
-                                            fz="xs"
-                                            onClick={() =>
-                                                selectMode.onMove(section.id)
-                                            }
-                                        >
-                                            {section.name ||
-                                                getUiString(
-                                                    'filters.rail.untitledSection',
-                                                )}
-                                            <Text span inherit c="dimmed">
-                                                {` · ${section.count}`}
-                                            </Text>
-                                        </Menu.Item>
-                                    ))}
-                                    {selectMode.sections.length > 0 && (
-                                        <Menu.Divider />
-                                    )}
-                                    <Menu.Item
-                                        fz="xs"
-                                        onClick={() => selectMode.onMove(null)}
-                                    >
-                                        No section
-                                    </Menu.Item>
-                                </Menu.Dropdown>
-                            </Menu>
-                            <ConfirmDeleteButton
-                                size="sm"
-                                w="auto"
-                                px="xs"
-                                fz="xs"
-                                data-own-escape
-                                aria-label="Remove"
-                                tooltip={`Click again to remove ${selectMode.count} ${
-                                    selectMode.count === 1
-                                        ? 'filter'
-                                        : 'filters'
-                                }`}
-                                disabled={selectMode.count === 0}
-                                onConfirm={selectMode.onRemove}
-                            >
-                                Remove
-                            </ConfirmDeleteButton>
+                            <SelectionActions
+                                {...selectMode}
+                                menuPosition="top-end"
+                            />
                         </>
                     ) : onCancel ? (
                         <>

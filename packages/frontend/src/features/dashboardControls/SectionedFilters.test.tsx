@@ -13,7 +13,7 @@ import {
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
     seedDashboardEditState,
@@ -92,16 +92,24 @@ vi.mock('./FilterPills', async () => {
         useDashboardSelector,
     } = await import('../dashboard/store');
     const { isRuleInSection } = await import('./sections');
+    const { useBarSelection } = await import('./barSelection');
+    // A modified click picks, as the real pill does
     const Draggable = ({ id }: { id: string }) => {
         const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
             id,
         });
+        const selection = useBarSelection();
         return (
             <div
                 ref={setNodeRef}
                 data-dragging={isDragging || undefined}
                 {...listeners}
                 {...attributes}
+                aria-pressed={selection?.selectedIds.includes(id) ?? false}
+                onClick={(event) => {
+                    if (event.metaKey || event.ctrlKey || event.shiftKey)
+                        selection?.pick(id, event.shiftKey);
+                }}
             >
                 pill {id}
             </div>
@@ -734,6 +742,238 @@ describe('SectionedFilters', () => {
                 ['one', 'b'],
                 ['three', 'b'],
             ]);
+        });
+    });
+
+    describe('selection in edit mode', () => {
+        const setDashboardFilters = vi.fn();
+        const setHaveFiltersChanged = vi.fn();
+        const grid = document.createElement('div');
+        grid.className = 'react-grid-layout';
+        const pillOf = (id: string) => screen.getByText(`pill ${id}`);
+        const pickedIds = () =>
+            screen
+                .queryAllByText(/^pill /)
+                .filter((el) => el.getAttribute('aria-pressed') === 'true')
+                .map((el) => el.textContent?.replace('pill ', ''));
+        const bar = () =>
+            screen.queryByRole('region', { name: 'Selected filters' });
+        const sectionIdsOf = (filters: DashboardFilters) =>
+            filters.dimensions.map((r) => [r.id, r.sectionId ?? null]);
+        const sectionsOf = (store: { getState: () => unknown }) =>
+            selectControlSections(
+                store.getState() as Parameters<typeof selectControlSections>[0],
+            );
+        const rules = () => [
+            rule('loose', undefined),
+            rule('one', 'a'),
+            rule('two', 'a'),
+            rule('three', 'b'),
+        ];
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+            mockDroppable.current = null;
+            document.body.appendChild(grid);
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                setDashboardFilters,
+                setHaveFiltersChanged,
+            };
+        });
+        afterEach(() => grid.remove());
+
+        it('toggles with Cmd or Ctrl and shows the selection bar', async () => {
+            renderSectioned(rules(), 'tab-1');
+            expect(bar()).not.toBeInTheDocument();
+
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            fireEvent.click(pillOf('three'), { ctrlKey: true });
+            expect(pickedIds()).toEqual(['one', 'three']);
+            expect(await screen.findByText('2 selected')).toBeInTheDocument();
+            expect(
+                within(bar()!).getByText('Shift click for a range'),
+            ).toBeInTheDocument();
+
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            expect(pickedIds()).toEqual(['three']);
+        });
+
+        it('selects a Shift range in bar order, leaving out a folded capsule', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+
+            // Capsules come first on the bar, then the unsectioned pills
+            fireEvent.click(pillOf('two'), { metaKey: true });
+            fireEvent.click(pillOf('loose'), { shiftKey: true });
+            expect(pickedIds()).toEqual(['two', 'three', 'loose']);
+
+            await user.click(
+                screen.getByRole('button', { name: 'Clear selection' }),
+            );
+            expect(pickedIds()).toEqual([]);
+            await user.click(foldOf('Regions'));
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            fireEvent.click(pillOf('loose'), { shiftKey: true });
+            expect(pickedIds()).toEqual(['one', 'two', 'loose']);
+        });
+
+        it('clears on Escape', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            expect(await screen.findByText('1 selected')).toBeInTheDocument();
+
+            await user.keyboard('{Escape}');
+            expect(pickedIds()).toEqual([]);
+            expect(bar()).not.toBeInTheDocument();
+        });
+
+        it('moves the selection to a section or out of its section, then clears', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+
+            await user.click(
+                await screen.findByRole('button', { name: 'Move to' }),
+            );
+            await user.click(
+                screen.getByRole('menuitem', { name: 'Regions · 1' }),
+            );
+            // In display order: the unsectioned rule first
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['two', 'a'],
+                ['three', 'b'],
+                ['loose', 'b'],
+                ['one', 'b'],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+            expect(bar()).not.toBeInTheDocument();
+
+            fireEvent.click(pillOf('two'), { metaKey: true });
+            await user.click(
+                await screen.findByRole('button', { name: 'Move to' }),
+            );
+            await user.click(
+                screen.getByRole('menuitem', { name: 'No section' }),
+            );
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[1][0])).toEqual([
+                ['loose', null],
+                ['one', 'a'],
+                ['two', null],
+                ['three', 'b'],
+            ]);
+        });
+
+        it('names a new section on the bar and moves the selection in on commit', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+
+            await user.click(
+                await screen.findByRole('button', { name: 'Move to' }),
+            );
+            await user.click(
+                screen.getByRole('menuitem', { name: 'New section' }),
+            );
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            expect(input).toHaveFocus();
+            await user.type(input, '{Escape}');
+            // A cancelled name moves nothing and keeps the selection
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(pickedIds()).toEqual(['loose']);
+
+            await user.click(screen.getByRole('button', { name: 'Move to' }));
+            await user.click(
+                screen.getByRole('menuitem', { name: 'New section' }),
+            );
+            await user.type(
+                screen.getByRole('textbox', { name: 'Section name' }),
+                'Misc{Enter}',
+            );
+            const added = sectionsOf(store).at(-1);
+            expect(added?.name).toBe('Misc');
+            expect(
+                sectionIdsOf(setDashboardFilters.mock.calls[0][0])[0],
+            ).toEqual(['loose', added?.id]);
+            expect(bar()).not.toBeInTheDocument();
+        });
+
+        it('removes the selection on the second click', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            fireEvent.click(pillOf('three'), { metaKey: true });
+
+            const remove = await screen.findByRole('button', {
+                name: 'Remove',
+            });
+            await user.click(remove);
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(
+                await screen.findByText('Click again to remove 2 filters'),
+            ).toBeInTheDocument();
+            await user.click(remove);
+            const write = setDashboardFilters.mock.calls[0][0] as (
+                filters: DashboardFilters,
+            ) => DashboardFilters;
+            expect(
+                write({
+                    dimensions: rules(),
+                    metrics: [],
+                    tableCalculations: [],
+                }).dimensions.map((r) => r.id),
+            ).toEqual(['loose', 'two']);
+            expect(bar()).not.toBeInTheDocument();
+        });
+
+        it('drags the whole selection when a picked pill is dragged', () => {
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+            fireEvent.click(pillOf('one'), { metaKey: true });
+
+            act(() =>
+                mockDragEnd.handlers.at(-1)!({
+                    active: { id: 'one' },
+                    over: { id: 'b' },
+                } as DragEndEvent),
+            );
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['two', 'a'],
+                ['three', 'b'],
+                ['loose', 'b'],
+                ['one', 'b'],
+            ]);
+            expect(pickedIds()).toEqual([]);
+        });
+
+        it('drags an unpicked pill alone', () => {
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+
+            act(() =>
+                mockDragEnd.handlers.at(-1)!({
+                    active: { id: 'one' },
+                    over: { id: 'b' },
+                } as DragEndEvent),
+            );
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['loose', null],
+                ['two', 'a'],
+                ['three', 'b'],
+                ['one', 'b'],
+            ]);
+            expect(pickedIds()).toEqual(['loose']);
+        });
+
+        it("gives a viewer's bar no selection", () => {
+            mockSidebar.current = { isViewer: true };
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            expect(pickedIds()).toEqual([]);
+            expect(bar()).not.toBeInTheDocument();
+            mockSidebar.current = { isViewer: false };
         });
     });
 

@@ -97,6 +97,8 @@ import {
     groupRulesBySection,
     isCollapsedByDefault,
     moveRuleToSection,
+    moveRulesToSection,
+    rangeBetween,
     removeSectionFromRules,
     getDragAnnouncements,
     UNSECTIONED_TARGET_ID,
@@ -583,10 +585,11 @@ const OpenControlSidebar: FC = () => {
     // Each rule, in display order, joins the section at its end; the first
     // moved row takes focus once the footer's menu is gone with the mode
     const moveRules = (ids: string[], sectionId: string | null) => {
-        const moved = ids.reduce(
-            (filters, id) =>
-                moveRuleToSection(filters, id, { sectionId }, controlSections),
+        const moved = moveRulesToSection(
             dashboardFilters,
+            ids,
+            sectionId,
+            controlSections,
         );
         if (moved !== dashboardFilters) {
             setDashboardFilters(moved);
@@ -633,15 +636,12 @@ const OpenControlSidebar: FC = () => {
         ]);
     // A click toggles the row; a shift-click selects from the row toggled last
     const toggleRow = (ruleId: string, isRange: boolean) => {
-        const rowIds = shownRowIds();
-        const from = lastToggledId.current;
+        const range = isRange
+            ? rangeBetween(shownRowIds(), lastToggledId.current, ruleId)
+            : null;
         lastToggledId.current = ruleId;
-        if (isRange && from !== null && rowIds.includes(from)) {
-            const [start, end] = [
-                rowIds.indexOf(from),
-                rowIds.indexOf(ruleId),
-            ].sort((a, b) => a - b);
-            selectRows(rowIds.slice(start, end + 1));
+        if (range !== null) {
+            selectRows(range);
             return;
         }
         setSelectedIds((current) =>
