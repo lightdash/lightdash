@@ -557,6 +557,8 @@ a .hoverCard:hover,
 /* Single-cell grid so the wrapped card keeps its block box inside SimpleGrid */
 .sortableTile {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
     cursor: grab;
     transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -573,6 +575,8 @@ a .hoverCard:hover,
 
 .dragOverlay {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
     height: 100%;
     cursor: grabbing;
     border-radius: 10px;
