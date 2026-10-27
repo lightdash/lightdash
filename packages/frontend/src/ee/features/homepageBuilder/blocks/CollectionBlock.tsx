@@ -47,7 +47,6 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconFolder,
-    IconGripVertical,
     IconLayoutGrid,
     IconPin,
     IconPlus,
@@ -664,11 +663,8 @@ const SortableTile: FC<{
                 projectUuid={projectUuid}
                 variant={layout === 'list' ? 'compact' : 'tile'}
                 onRemove={onRemove}
-                isStatic
+                isSortable
             />
-            <span className={classes.sortableGrip} aria-hidden>
-                <MantineIcon icon={IconGripVertical} size={14} />
-            </span>
         </div>
     );
 };
@@ -691,7 +687,7 @@ const SOURCE_OPTIONS: {
     {
         value: 'pinned',
         label: 'Pinned',
-        hint: "Follows the project's pin list — new pins appear here.",
+        hint: "Follows the project's pin list, so new pins appear here.",
     },
     {
         value: 'favorites',
@@ -729,9 +725,14 @@ const CONTENT_TYPE_OPTIONS: {
 const CollectionSourceControls: FC<{
     config: HomepageCollectionBlock['config'];
     onChange: (config: HomepageCollectionBlock['config']) => void;
-}> = ({ config, onChange }) => {
+    canReorderPins: boolean;
+}> = ({ config, onChange, canReorderPins }) => {
     const source = collectionSourceOf(config);
-    const hint = SOURCE_OPTIONS.find((o) => o.value === source)?.hint;
+    const sourceHint = SOURCE_OPTIONS.find((o) => o.value === source)?.hint;
+    const hint =
+        source === 'pinned' && canReorderPins
+            ? `${sourceHint} Drag to reorder; changes save right away.`
+            : sourceHint;
     return (
         <Stack gap={6}>
             <Group gap="xs" align="flex-end" wrap="nowrap">
@@ -787,7 +788,7 @@ const CollectionSourceControls: FC<{
                                 key={value}
                                 value={value}
                                 size="xs"
-                                variant="light"
+                                variant="outline"
                             >
                                 {label}
                             </Chip>
@@ -800,7 +801,7 @@ const CollectionSourceControls: FC<{
                 {source !== 'verified' && (
                     <Chip
                         size="xs"
-                        variant="light"
+                        variant="outline"
                         color="green"
                         checked={config.verifiedOnly === true}
                         onChange={(checked) =>
@@ -884,11 +885,8 @@ const SortableContentGrid: FC<{
                             content={activeContent}
                             projectUuid={projectUuid}
                             variant={layout === 'list' ? 'compact' : 'tile'}
-                            isStatic
+                            isSortable
                         />
-                        <span className={classes.sortableGrip} aria-hidden>
-                            <MantineIcon icon={IconGripVertical} size={14} />
-                        </span>
                     </div>
                 ) : null}
             </DragOverlay>
@@ -897,22 +895,27 @@ const SortableContentGrid: FC<{
 };
 
 // Pin order is project state, not homepage draft state, so a drop saves at once.
-const usePinReorder = (projectUuid: string) => {
+const useCanManagePins = (projectUuid: string): boolean => {
     const { user } = useApp();
-    const { data: project } = useProject(projectUuid);
-    const { data: pinnedItems, refetch } = usePinnedItems(
-        projectUuid,
-        project?.pinnedListUuid,
-    );
-    const { mutate } = useReorder(projectUuid, project?.pinnedListUuid ?? '');
-    const canManage =
+    return (
         user.data?.ability?.can(
             'manage',
             subject('PinnedItems', {
                 organizationUuid: user.data?.organizationUuid,
                 projectUuid,
             }),
-        ) ?? false;
+        ) ?? false
+    );
+};
+
+const usePinReorder = (projectUuid: string) => {
+    const canManage = useCanManagePins(projectUuid);
+    const { data: project } = useProject(projectUuid);
+    const { data: pinnedItems, refetch } = usePinnedItems(
+        projectUuid,
+        project?.pinnedListUuid,
+    );
+    const { mutate } = useReorder(projectUuid, project?.pinnedListUuid ?? '');
     if (!canManage || !pinnedItems) return null;
     return (activeUuid: string, overUuid: string) =>
         mutate(reorderPinnedItems(pinnedItems, activeUuid, overUuid), {
@@ -963,13 +966,12 @@ const DynamicSourcePreview: FC<{
                     projectUuid={projectUuid}
                 />
             )}
-            <div className={classes.buildHint}>
-                {isPersonal
-                    ? 'Showing your own items as a sample — every viewer sees their own.'
-                    : onMovePin
-                      ? "Drag to reorder. This saves the project's pin order right away."
-                      : 'Updates on its own as the project changes.'}
-            </div>
+            {isPersonal && (
+                <div className={classes.buildHint}>
+                    Showing your own items as a sample. Every viewer sees their
+                    own.
+                </div>
+            )}
         </Stack>
     );
 };
@@ -981,6 +983,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
     onChange,
 }) => {
     const [isPickerOpen, setIsPickerOpen] = useState(false);
+    const canManagePins = useCanManagePins(projectUuid);
     const { data: contents } = useCollectionItems(
         projectUuid,
         block.type === 'collection' ? block.config.items : [],
@@ -1042,6 +1045,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
             <CollectionSourceControls
                 config={block.config}
                 onChange={(config) => onChange({ ...block, config })}
+                canReorderPins={canManagePins}
             />
             {source !== 'manual' ? (
                 <DynamicSourcePreview

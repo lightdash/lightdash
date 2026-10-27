@@ -556,58 +556,54 @@ a .hoverCard:hover,
 
 /* Single-cell grid so the wrapped card keeps its block box inside SimpleGrid */
 .sortableTile {
-    position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     min-width: 0;
+    border-radius: 10px;
     cursor: grab;
+    outline: none;
     transition: opacity 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.sortableGrip {
-    position: absolute;
-    top: 50%;
-    left: 6px;
+.sortGrip {
     display: flex;
+    flex-shrink: 0;
     color: var(--mantine-color-ldGray-5);
     opacity: 0;
-    transform: translateY(-50%);
     transition: opacity 150ms ease-out;
-    pointer-events: none;
 }
 
-.sortableTile:hover .sortableGrip,
-.sortableTile:focus-visible .sortableGrip,
-.dragOverlay .sortableGrip {
+.sortableTile:hover .sortGrip,
+.sortableTile:focus-visible .sortGrip,
+.dragOverlay .sortGrip {
     opacity: 1;
-}
-
-/* Room for the grip, so it never crowds the type icon. */
-.sortableTile > :first-child,
-.dragOverlay > :first-child {
-    padding-left: 24px;
 }
 
 .sortableTile:hover > :first-child {
     border-color: var(--mantine-color-ldGray-3);
 }
 
-.sortableTile[data-dragging='true'] .sortableGrip {
-    opacity: 0;
-}
-
-.sortableTile:focus-visible {
-    outline: 1.5px solid var(--mantine-color-ldGray-5);
-    outline-offset: 2px;
-    border-radius: 12px;
+/* One line, on the card's own border, instead of a second box around it. */
+.sortableTile:focus-visible > :first-child {
+    border-color: var(--mantine-color-ldGray-5);
+    box-shadow: 0 0 0 2px var(--mantine-color-ldGray-2);
 }
 
 .sortableTile[data-dragging='true'] {
     opacity: 0.45;
 }
 
+.sortableTile[data-dragging='true'] .sortGrip {
+    opacity: 0;
+}
+
+.tileActions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
 .dragOverlay {
-    position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     min-width: 0;

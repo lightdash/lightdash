@@ -365,9 +365,9 @@ describe('Document collections', () => {
     it.each([
         [
             true,
-            "Drag to reorder. This saves the project's pin order right away.",
+            "Follows the project's pin list, so new pins appear here. Drag to reorder; changes save right away.",
         ],
-        [false, 'Updates on its own as the project changes.'],
+        [false, "Follows the project's pin list, so new pins appear here."],
     ])(
         'offers pin reordering in the Pinned preview only to pin managers (%s)',
         async (canManagePins, hint) => {
