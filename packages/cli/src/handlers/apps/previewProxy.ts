@@ -3,6 +3,7 @@ import {
     extractAppSdkRouteProjectUuid,
     extractExploreBaseTable,
     isAllowedAppSdkRoute,
+    isAppSdkMetricQueryRoute,
     isAppSdkScheduleDownloadRoute,
     LightdashSignedDownloadHeader,
     parseAppSdkExploreBaseTableRequest,
@@ -66,6 +67,15 @@ export type PreviewProxyHandle = {
     close: () => Promise<void>;
 };
 
+/** What --show-sql reports for each metric query the previewed app runs. */
+export type CompiledQueryLogEntry = {
+    exploreName: string;
+    dimensions: string[];
+    metrics: string[];
+    compiledSql: string | null;
+    compilationErrors: string[];
+};
+
 const sendJsonError = (
     res: http.ServerResponse,
     status: number,
@@ -118,6 +128,9 @@ export const startPreviewProxy = (args: {
     proxyAuthorization?: string;
     projectUuid: string;
     nonce: string;
+    // When set, each metric query the app runs is compiled upstream and
+    // reported here (--show-sql). Never blocks or alters the query itself.
+    onCompiledQuery?: (entry: CompiledQueryLogEntry) => void;
 }): Promise<PreviewProxyHandle> => {
     refuseAgentConnection();
     const upstream = new URL(args.upstreamUrl);
@@ -165,6 +178,90 @@ export const startPreviewProxy = (args: {
             upstreamReq.on('error', () => resolve(null));
             upstreamReq.end();
         });
+
+    // Resolves the parsed body of a successful upstream POST, or null.
+    const postUpstreamJson = (path: string, body: string): Promise<unknown> =>
+        new Promise((resolve) => {
+            const payload = Buffer.from(body, 'utf-8');
+            const upstreamReq = requestFn(
+                {
+                    protocol: upstream.protocol,
+                    hostname: upstream.hostname,
+                    port: upstream.port || undefined,
+                    path,
+                    method: 'POST',
+                    headers: withUpstreamCredentials({
+                        accept: 'application/json',
+                        'content-type': 'application/json',
+                        'content-length': payload.length,
+                    }),
+                },
+                (upstreamRes) => {
+                    readBody(upstreamRes).then(
+                        (text) => {
+                            const status = upstreamRes.statusCode ?? 502;
+                            resolve(
+                                status >= 200 && status < 300
+                                    ? parseJson(text)
+                                    : null,
+                            );
+                        },
+                        () => resolve(null),
+                    );
+                },
+            );
+            upstreamReq.on('error', () => resolve(null));
+            upstreamReq.end(payload);
+        });
+
+    // --show-sql: compile the metric query the app just ran (same payload the
+    // customer-facing compileQuery endpoint takes) and report the SQL.
+    const compileAndReport = async (requestBody: string): Promise<void> => {
+        const report = args.onCompiledQuery;
+        if (report === undefined) return;
+        const parsed = parseJson(requestBody);
+        if (typeof parsed !== 'object' || parsed === null) return;
+        const { query, parameters } = parsed as {
+            query?: unknown;
+            parameters?: unknown;
+        };
+        if (typeof query !== 'object' || query === null) return;
+        const metricQuery = query as {
+            exploreName?: unknown;
+            dimensions?: unknown;
+            metrics?: unknown;
+        };
+        if (typeof metricQuery.exploreName !== 'string') return;
+        const toStrings = (value: unknown): string[] =>
+            Array.isArray(value)
+                ? value.filter(
+                      (item): item is string => typeof item === 'string',
+                  )
+                : [];
+        const entry: CompiledQueryLogEntry = {
+            exploreName: metricQuery.exploreName,
+            dimensions: toStrings(metricQuery.dimensions),
+            metrics: toStrings(metricQuery.metrics),
+            compiledSql: null,
+            compilationErrors: [],
+        };
+        const compiled = await postUpstreamJson(
+            `/api/v1/projects/${encodeURIComponent(args.projectUuid)}/explores/${encodeURIComponent(metricQuery.exploreName)}/compileQuery`,
+            JSON.stringify({ ...query, parameters }),
+        );
+        if (typeof compiled === 'object' && compiled !== null) {
+            const { results } = compiled as { results?: unknown };
+            if (typeof results === 'object' && results !== null) {
+                const { query: sql, compilationErrors } = results as {
+                    query?: unknown;
+                    compilationErrors?: unknown;
+                };
+                if (typeof sql === 'string') entry.compiledSql = sql;
+                entry.compilationErrors = toStrings(compilationErrors);
+            }
+        }
+        report(entry);
+    };
 
     // Host-answered virtual route: replies with only the explore's base
     // table, never the explore itself.
@@ -291,7 +388,21 @@ export const startPreviewProxy = (args: {
                 res.destroy();
             }
         });
-        req.pipe(upstreamReq);
+        if (
+            args.onCompiledQuery !== undefined &&
+            isAppSdkMetricQueryRoute(method, pathname)
+        ) {
+            // Buffer so the same bytes are both forwarded and compiled.
+            readBody(req).then(
+                (body) => {
+                    upstreamReq.end(body);
+                    compileAndReport(body).catch(() => {});
+                },
+                () => upstreamReq.destroy(),
+            );
+        } else {
+            req.pipe(upstreamReq);
+        }
     });
 
     return new Promise((resolve, reject) => {

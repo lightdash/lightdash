@@ -16,7 +16,7 @@ import { checkLightdashVersion } from '../dbt/apiClient';
 import { resolveProjectFlag } from '../resolveProjectFlag';
 import { getAuthHeader } from '../utils';
 import { readManifestFromDir } from './appCodeFiles';
-import { startPreviewProxy } from './previewProxy';
+import { startPreviewProxy, type CompiledQueryLogEntry } from './previewProxy';
 
 /**
  * Environment passed to the `npm run dev` child process. Only the small set of
@@ -430,8 +430,32 @@ type AppsPreviewOptions = {
     url?: string;
     token?: string;
     port?: string;
+    showSql: boolean;
     assumeYes: boolean;
     verbose: boolean;
+};
+
+export const formatCompiledQueryLog = (
+    entry: CompiledQueryLogEntry,
+): string => {
+    const fields = [
+        entry.dimensions.length > 0
+            ? `dimensions: ${entry.dimensions.join(', ')}`
+            : null,
+        entry.metrics.length > 0
+            ? `metrics: ${entry.metrics.join(', ')}`
+            : null,
+    ].filter((line): line is string => line !== null);
+    const sql =
+        entry.compiledSql !== null
+            ? entry.compiledSql.trim()
+            : 'Could not compile this query (see any errors above, or check your access to the explore).';
+    return [
+        styles.title(`\n— Query against explore '${entry.exploreName}'`),
+        ...fields.map((line) => styles.secondary(`  ${line}`)),
+        ...entry.compilationErrors.map((error) => styles.warning(`  ${error}`)),
+        sql,
+    ].join('\n');
 };
 
 export const resolvePreviewPort = (
@@ -545,6 +569,9 @@ export const appsPreviewHandler = async (
         proxyAuthorization,
         projectUuid: target.projectUuid,
         nonce: proxyNonce,
+        onCompiledQuery: options.showSql
+            ? (entry) => GlobalState.log(formatCompiledQueryLog(entry))
+            : undefined,
     });
 
     GlobalState.log(
