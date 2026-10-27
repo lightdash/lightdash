@@ -475,14 +475,19 @@ const BlockCard: FC<BlockCardProps> = ({
                     {...listeners}
                     aria-label={`Drag ${definition.label} block`}
                 >
-                    <span className={classes.blockHandle}>
-                        <MantineIcon icon={IconGripVertical} color="dimmed" />
-                    </span>
                     <span className={classes.blockTypeLabel}>
                         {definition.label}
                     </span>
                 </div>
                 <Group gap={2} className={classes.blockActions} wrap="nowrap">
+                    <Tooltip label="Drag to move">
+                        <span className={classes.blockHandle} {...listeners}>
+                            <MantineIcon
+                                icon={IconGripVertical}
+                                color="dimmed"
+                            />
+                        </span>
+                    </Tooltip>
                     <Tooltip label="Move up">
                         <ActionIcon disabled={!canUp} onClick={onUp}>
                             <MantineIcon icon={IconArrowUp} />
