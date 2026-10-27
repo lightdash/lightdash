@@ -119,20 +119,10 @@ const queryCodeOf = (
     }
 };
 
-const queryNounOf = (query: SourceQuery) => {
-    switch (query.sourceType) {
-        case QuerySourceType.PYTHON:
-            return 'code';
-        // "query" would read as the metric query next to it
-        case QuerySourceType.SEMANTIC_LAYER:
-            return 'SQL';
-        default:
-            return 'query';
-    }
+const queryToggleLabel = (query: SourceQuery, open: boolean) => {
+    const noun = query.sourceType === QuerySourceType.PYTHON ? 'code' : 'query';
+    return open ? `Hide ${noun}` : `View ${noun}`;
 };
-
-const queryToggleLabel = (query: SourceQuery, open: boolean) =>
-    `${open ? 'Hide' : 'View'} ${queryNounOf(query)}`;
 
 const DisclosureToggle: FC<{
     open: boolean;
@@ -287,13 +277,23 @@ const QueryCode: FC<{ query: SourceQuery; projectUuid: string }> = ({
     projectUuid,
 }) => {
     const [queryOpen, setQueryOpen] = useState(false);
+    const getUiString = useUiStrings();
+    // "View query" would read as the metric query next to it
+    const label =
+        query.sourceType === QuerySourceType.SEMANTIC_LAYER
+            ? getUiString(
+                  queryOpen
+                      ? 'aiAgent.composer.semanticNode.hideSql'
+                      : 'aiAgent.composer.semanticNode.viewSql',
+              )
+            : queryToggleLabel(query, queryOpen);
     return (
         <>
             <DisclosureToggle
                 open={queryOpen}
                 onToggle={() => setQueryOpen((value) => !value)}
             >
-                {queryToggleLabel(query, queryOpen)}
+                {label}
             </DisclosureToggle>
             <Collapse
                 expanded={queryOpen}

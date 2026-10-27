@@ -505,6 +505,8 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.node.viewResultOf': 'View result of {node}',
     'aiAgent.composer.semanticNode.view': 'View metric query',
     'aiAgent.composer.semanticNode.hide': 'Hide metric query',
+    'aiAgent.composer.semanticNode.viewSql': 'View SQL',
+    'aiAgent.composer.semanticNode.hideSql': 'Hide SQL',
     'aiAgent.composer.semanticNode.ascending': 'ascending',
     'aiAgent.composer.semanticNode.descending': 'descending',
     'aiAgent.composer.semanticNode.rows.singular': '{count} row',
