@@ -24,6 +24,7 @@ import {
 } from '@mantine/core';
 import {
     IconAlertTriangle,
+    IconEditOff,
     IconEye,
     IconFileText,
     IconFolderOpen,
@@ -34,7 +35,6 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import Callout from '../../../../components/common/Callout';
 import { EmptyState } from '../../../../components/common/EmptyState';
 import EmptyStateLoader from '../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -648,7 +648,25 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 >
                                                     Preview
                                                 </Button>
-                                                {!selectedDocument.managedByContentAsCode && (
+                                                {selectedDocument.managedByContentAsCode ? (
+                                                    <Tooltip
+                                                        label="Managed by Content as Code. Change it in your repository and upload it again."
+                                                        multiline
+                                                        w={260}
+                                                    >
+                                                        <Box
+                                                            component="span"
+                                                            aria-label="Managed by Content as Code"
+                                                        >
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconEditOff
+                                                                }
+                                                                color="ldGray.5"
+                                                            />
+                                                        </Box>
+                                                    </Tooltip>
+                                                ) : (
                                                     <Tooltip label="Delete document">
                                                         <ActionIcon
                                                             variant="default"
@@ -729,14 +747,6 @@ export const AiAgentKnowledgeFilesSection = ({
                                             </Text>
                                         )}
                                     </Stack>
-
-                                    {selectedDocument?.managedByContentAsCode && (
-                                        <Callout variant="info">
-                                            Managed by Content as Code. Change
-                                            this document in your repository and
-                                            upload it again.
-                                        </Callout>
-                                    )}
 
                                     {selectedDocument && (
                                         <>
