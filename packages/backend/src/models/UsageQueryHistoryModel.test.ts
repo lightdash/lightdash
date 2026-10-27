@@ -96,6 +96,22 @@ describe('retained query history for Analytics backfill', () => {
         expect(sql).not.toContain(untrustedOrg);
     });
 
+    it('limits error text in exported history', async () => {
+        tracker.on.select('query_history').responseOnce([
+            queryRow({
+                status: QueryHistoryStatus.ERROR,
+                error: 'x'.repeat(1500),
+            }),
+        ]);
+        tracker.on.select('query_history').response([]);
+        const rows = await collect();
+        expect(rows[0].error).toBe(`${'x'.repeat(987)}… [truncated]`);
+        expect(normalizeSql(tracker.history.select[0].sql)).toContain(
+            'LEFT("q"."error", ?) AS "error"',
+        );
+        expect(tracker.history.select[0].bindings).toContain(1001);
+    });
+
     it('exports the complete stream schema with error text but without SQL or invented timing and identity', async () => {
         tracker.on.select('query_history').responseOnce([
             queryRow({

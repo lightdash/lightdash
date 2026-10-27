@@ -1,5 +1,6 @@
 import type { QueryCompletedEvent } from '../LightdashAnalytics';
 import { buildEnvelope, ProjectionResult } from './projection';
+import { truncateQueryError } from './queryError';
 import type { CompactedStreamColumn } from './types';
 
 /**
@@ -71,7 +72,7 @@ const projectQueryCompletedEvent = (
             status: properties.status,
             error:
                 properties.status === 'error'
-                    ? (properties.errorMessage ?? null)
+                    ? truncateQueryError(properties.errorMessage)
                     : null,
             context: properties.context,
             explore_name: properties.exploreName,

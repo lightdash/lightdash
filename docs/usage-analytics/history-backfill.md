@@ -48,7 +48,9 @@ window. A whole-day cutoff would miss gaps within partially captured days.
 
 - **Query Events:** `READY` and `ERROR` queries from `query_history`, excluding
   preview projects and unfinished work. Failed queries include their retained
-  error message, even when execution time is missing. Identity is
+  error message, even when execution time is missing. Analytics error messages
+  are limited to 1,000 characters, including `… [truncated]` when shortened;
+  the original database error is unchanged. Identity is
   `(org_id, project_id, query_id)`. Dates use submission time. Missing timing or
   event metadata stays null. Retained fields include the actor, context,
   Explore/chart/dashboard references, status, error message, warehouse execution

@@ -174,6 +174,21 @@ describe('EventStreamSink', () => {
         });
     });
 
+    it('limits captured error text without changing the original event', () => {
+        const writer = createWriterMock();
+        const sink = new EventStreamSink(eventStreamRegistry, writer);
+        const properties = {
+            ...queryCompletedEvent.properties,
+            status: 'error' as const,
+            errorMessage: 'x'.repeat(1500),
+        };
+        sink.handle({ ...queryCompletedEvent, properties });
+        expect(writer.push.mock.calls[0][1].error).toBe(
+            `${'x'.repeat(987)}… [truncated]`,
+        );
+        expect(properties.errorMessage).toHaveLength(1500);
+    });
+
     it('drops events from preview projects', () => {
         const writer = createWriterMock();
         const sink = new EventStreamSink(eventStreamRegistry, writer);

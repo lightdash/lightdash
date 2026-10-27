@@ -322,7 +322,7 @@ const sharedDimensions: Record<string, string> = {
 const modelDimensions: Record<string, Record<string, string>> = {
     query_events: {
         status: 'Recorded query outcome, such as success or error. Queries failing before the captured execution path are absent.',
-        error: 'Recorded query error message. Empty for successful queries and historical events that did not capture the message.',
+        error: 'Recorded query error message, limited to 1,000 characters including a truncation marker. Empty for successful queries and historical events that did not capture the message.',
         event_name:
             'The captured query.completed event, emitted when a query reaches a recorded outcome. Includes cache hits and execution errors.',
     },
