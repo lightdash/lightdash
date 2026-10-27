@@ -421,7 +421,7 @@
 .gapAddBtn:hover {
     color: var(--mantine-color-ldGray-9);
     border-color: var(--mantine-color-ldGray-5);
-    box-shadow: var(--mantine-shadow-heavy);
+    box-shadow: var(--mantine-shadow-sm);
 }
 
 .endZone {

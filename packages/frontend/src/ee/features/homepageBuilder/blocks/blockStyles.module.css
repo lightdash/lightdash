@@ -100,7 +100,7 @@
 
 a .hoverCard:hover,
 .hoverCard.clickable:hover {
-    box-shadow: var(--mantine-shadow-heavy);
+    box-shadow: var(--mantine-shadow-sm);
 }
 
 .listCard {
@@ -199,7 +199,7 @@ a .hoverCard:hover,
 }
 
 .ctaBanner[data-theme].clickable:hover {
-    box-shadow: var(--mantine-shadow-heavy);
+    box-shadow: var(--mantine-shadow-sm);
     text-decoration: none;
 }
 
@@ -296,7 +296,7 @@ a .hoverCard:hover,
 }
 
 .resTile.clickable:hover {
-    box-shadow: var(--mantine-shadow-heavy);
+    box-shadow: var(--mantine-shadow-sm);
     text-decoration: none;
     color: inherit;
 }
@@ -432,7 +432,7 @@ a .hoverCard:hover,
 }
 
 .favPill:hover {
-    box-shadow: var(--mantine-shadow-heavy);
+    box-shadow: var(--mantine-shadow-sm);
     text-decoration: none;
 }
 
@@ -575,7 +575,8 @@ a .hoverCard:hover,
     display: grid;
     height: 100%;
     cursor: grabbing;
-    filter: drop-shadow(0 16px 26px rgb(20 25 35 / 28%));
+    border-radius: 10px;
+    box-shadow: var(--mantine-shadow-md);
 }
 
 .addContentTile {
@@ -699,7 +700,7 @@ a .hoverCard:hover,
 }
 
 .mediaCard.clickable:hover {
-    box-shadow: var(--mantine-shadow-heavy);
+    box-shadow: var(--mantine-shadow-sm);
     text-decoration: none;
     color: inherit;
 }
