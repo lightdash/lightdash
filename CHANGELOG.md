@@ -1,3 +1,12 @@
+## [3.69.3](https://github.com/lightdash/lightdash/compare/3.69.2...3.69.3) (2026-10-27)
+
+
+### Bug Fixes
+
+* a section saves the fold state it was left in ([#31666](https://github.com/lightdash/lightdash/issues/31666)) ([254f3bd](https://github.com/lightdash/lightdash/commit/254f3bd092254a005cc7022e7b62284c114e6bae))
+* align the filter bar rows and tighten section heads ([#31665](https://github.com/lightdash/lightdash/issues/31665)) ([96daf24](https://github.com/lightdash/lightdash/commit/96daf2418b06b7f7a1471c3a0d97e1be38ddb8f9))
+* mark the filter being edited with a pencil badge ([#31653](https://github.com/lightdash/lightdash/issues/31653)) ([ab22b6e](https://github.com/lightdash/lightdash/commit/ab22b6e554b694e94701a04881acbf3ab43c61d6))
+
 ## [3.69.2](https://github.com/lightdash/lightdash/compare/3.69.1...3.69.2) (2026-10-27)
 
 
