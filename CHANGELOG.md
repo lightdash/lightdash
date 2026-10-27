@@ -1,3 +1,10 @@
+## [3.68.4](https://github.com/lightdash/lightdash/compare/3.68.3...3.68.4) (2026-10-27)
+
+
+### Bug Fixes
+
+* **data-apps:** show analysis loading feedback as soon as the view changes ([#31644](https://github.com/lightdash/lightdash/issues/31644)) ([06bc06a](https://github.com/lightdash/lightdash/commit/06bc06a7631c3e7c06ee997aaa94cdf3cf700981))
+
 ## [3.68.3](https://github.com/lightdash/lightdash/compare/3.68.2...3.68.3) (2026-10-27)
 
 
