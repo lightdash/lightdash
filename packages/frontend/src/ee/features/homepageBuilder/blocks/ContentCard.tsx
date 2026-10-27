@@ -26,6 +26,8 @@ type Props = {
     content: SummaryContent;
     projectUuid: string;
     onRemove?: () => void;
+    /** Build-mode tiles are drag surfaces, so they must not navigate. */
+    isStatic?: boolean;
     star?: HomepageFavorite;
     /** `row`/`tile` are card-chrome variants; `compact` is a slim
      * single-line tile for dense grids. */
@@ -199,6 +201,7 @@ export const ContentCard: FC<Props> = ({
     content,
     projectUuid,
     onRemove,
+    isStatic = false,
     star,
     variant = 'row',
     tourAnchor,
@@ -213,13 +216,14 @@ export const ContentCard: FC<Props> = ({
               'data-tour-value': content.name,
           }
         : undefined;
-    const to = onRemove
-        ? null
-        : getResourceUrl(
-              projectUuid,
-              contentToResourceViewItem(content),
-              projectUrlIdentifier,
-          );
+    const to =
+        onRemove || isStatic
+            ? null
+            : getResourceUrl(
+                  projectUuid,
+                  contentToResourceViewItem(content),
+                  projectUrlIdentifier,
+              );
     const cardClass = `${classes.hoverCard}${to ? ` ${classes.clickable}` : ''}`;
 
     // A single dense line — visibly lighter than the two-line card variant.

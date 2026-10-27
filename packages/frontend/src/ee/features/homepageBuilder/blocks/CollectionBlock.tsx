@@ -650,6 +650,7 @@ const SortableTile: FC<{
                 projectUuid={projectUuid}
                 variant={layout === 'list' ? 'compact' : 'tile'}
                 onRemove={onRemove}
+                isStatic
             />
         </div>
     );
