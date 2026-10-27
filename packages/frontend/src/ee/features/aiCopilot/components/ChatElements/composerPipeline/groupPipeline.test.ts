@@ -55,7 +55,7 @@ describe('groupPipeline', () => {
         expect(layers[2].nodes[0].isTerminal).toBe(true);
     });
 
-    it('resolves reads to titles, keeps unknown array references and falls back to node ids', () => {
+    it('resolves reads to node ids, drops unknown array references and falls back to node ids', () => {
         const layers = groupPipeline(
             [
                 sql('orders', 'Orders by status'),
@@ -66,11 +66,6 @@ describe('groupPipeline', () => {
         );
         const joined = layers[1].nodes[0];
         expect(joined.title).toBe('joined');
-        expect(joined.reads).toEqual([
-            'Orders by status',
-            'amounts',
-            'query-uuid-1',
-        ]);
         expect(joined.readNodeIds).toEqual(['orders', 'amounts']);
         expect(layers[0].nodes.map((node) => node.title)).toEqual([
             'Orders by status',
@@ -85,7 +80,6 @@ describe('groupPipeline', () => {
         expect(only.nodes[0]).toMatchObject({
             nodeId: 'a',
             isTerminal: true,
-            reads: [],
             readNodeIds: [],
             description: null,
         });
@@ -157,11 +151,9 @@ describe('groupPipeline', () => {
             ['result', ['summary']],
         ]);
         expect(layers[1].nodes[0]).toMatchObject({
-            reads: ['Orders'],
             readNodeIds: ['orders'],
         });
         expect(layers[2].nodes[0]).toMatchObject({
-            reads: ['Simulated amounts'],
             readNodeIds: ['simulated'],
         });
     });

@@ -133,7 +133,7 @@ describe('AiComposerPipelinePanel graph mode', () => {
 });
 
 describe('AiComposerPipelinePanel list mode', () => {
-    it("shows each node's status in the run and a failed node's error on its row", () => {
+    it("shows a node's status only while queued or on error, with the error on its row", () => {
         renderPanel({
             defaultExpanded: true,
             nodeStatuses: {
@@ -149,7 +149,7 @@ describe('AiComposerPipelinePanel list mode', () => {
             within(
                 document.getElementById(`composer-pipeline-node-${nodeId}`)!,
             );
-        expect(row('orders').getByLabelText('Completed')).toBeInTheDocument();
+        expect(row('orders').queryByLabelText('Completed')).toBeNull();
         expect(row('amounts').getByLabelText('Failed')).toBeInTheDocument();
         expect(
             row('amounts').getByText('column "amount" does not exist'),
@@ -166,11 +166,34 @@ describe('AiComposerPipelinePanel list mode', () => {
         expect(screen.queryByLabelText('Completed')).toBeNull();
     });
 
-    it('displays a node when its title is clicked', () => {
+    it('leads each row with the description, falling back to the title', () => {
+        renderPanel({
+            defaultExpanded: true,
+            queries: [
+                { ...queries[0], description: 'Order count per status.' },
+                queries[1],
+                queries[2],
+            ],
+        });
+        const row = within(
+            document.getElementById('composer-pipeline-node-orders')!,
+        );
+        expect(row.getByText('Order count per status.')).toBeInTheDocument();
+        expect(row.queryByText('Orders by status')).toBeNull();
+        expect(screen.getByText('Average amount')).toBeInTheDocument();
+        expect(screen.queryByText(/^Reads /)).toBeNull();
+    });
+
+    it('displays a node from its View result button, not the row', () => {
         const onDisplayNode = vi.fn();
         renderPanel({ defaultExpanded: true, onDisplayNode });
+        const row = document.getElementById('composer-pipeline-node-amounts')!;
+        fireEvent.click(row);
+        expect(onDisplayNode).not.toHaveBeenCalled();
         fireEvent.click(
-            screen.getByRole('button', { name: 'Display Average amount' }),
+            within(row).getByRole('button', {
+                name: 'View result of Average amount',
+            }),
         );
         expect(onDisplayNode).toHaveBeenCalledWith('amounts');
     });
@@ -185,10 +208,14 @@ describe('AiComposerPipelinePanel list mode', () => {
             document.getElementById('composer-pipeline-node-amounts'),
         ).toHaveAttribute('data-displayed', 'true');
         expect(
-            screen.getByRole('button', { name: 'Display Average amount' }),
+            screen.getByRole('button', {
+                name: 'View result of Average amount',
+            }),
         ).toHaveAttribute('aria-pressed', 'true');
         expect(
-            screen.queryByRole('button', { name: 'Display Orders by status' }),
+            screen.queryByRole('button', {
+                name: 'View result of Orders by status',
+            }),
         ).not.toBeInTheDocument();
         expect(screen.getByText('Orders by status')).toBeInTheDocument();
     });
@@ -209,16 +236,6 @@ describe('AiComposerPipelinePanel query details', () => {
         expect(onDisplayNode).not.toHaveBeenCalled();
         fireEvent.click(toggle('Hide query'));
         expect(toggle('View query')).toHaveAttribute('aria-expanded', 'false');
-    });
-
-    it('displays a node from the keyboard', () => {
-        const onDisplayNode = vi.fn();
-        renderPanel({ defaultExpanded: true, onDisplayNode });
-        fireEvent.keyDown(
-            screen.getByRole('button', { name: 'Display Average amount' }),
-            { key: 'Enter' },
-        );
-        expect(onDisplayNode).toHaveBeenCalledWith('amounts');
     });
 
     it("summarises a semantic node's filters, sort and parameters without displaying the node", () => {
@@ -256,14 +273,12 @@ describe('AiComposerPipelinePanel query details', () => {
         });
         const row = document.getElementById('composer-pipeline-node-orders')!;
         const toggle = within(row).getByRole('button', {
-            name: 'View metric query · Orders · 500 rows',
+            name: 'View metric query · Orders',
         });
         fireEvent.click(toggle);
 
         expect(toggle).toHaveAttribute('aria-expanded', 'true');
-        expect(toggle).toHaveAccessibleName(
-            'Hide metric query · Orders · 500 rows',
-        );
+        expect(toggle).toHaveAccessibleName('Hide metric query · Orders');
         expect(within(row).getByText('completed')).toBeInTheDocument();
         expect(within(row).getByTestId('semantic-node-sort')).toHaveTextContent(
             'Orders count',
@@ -376,16 +391,10 @@ describe('AiComposerPipelinePanel python nodes', () => {
         expect(
             within(row).getByText('Monte Carlo draws per status.'),
         ).toBeInTheDocument();
-        expect(within(row).getByText('Reads Orders by status')).toBeVisible();
         fireEvent.click(within(row).getByRole('button', { name: 'View code' }));
         expect(row.querySelector('code')).toHaveTextContent(
             /def run\(inputs, params\):/,
         );
-        expect(
-            within(
-                document.getElementById('composer-pipeline-node-summary')!,
-            ).getByText('Reads Simulated amounts'),
-        ).toBeInTheDocument();
     });
 
     it('labels a python node in graph mode', () => {

@@ -1,5 +1,5 @@
 .root {
-    --node-indent: calc(6px + var(--mantine-spacing-xs));
+    --node-indent: calc(14px + var(--mantine-spacing-xs));
 
     display: flex;
     flex-direction: column;
@@ -115,22 +115,7 @@
     transition: background-color 120ms ease;
 }
 
-.node.clickable {
-    cursor: pointer;
-}
-
-.node.clickable:hover,
-.node.clickable:focus-visible {
-    background-color: var(--mantine-color-ldGray-0);
-}
-
-.node.clickable:focus-visible {
-    outline: 2px solid var(--mantine-color-ldGray-4);
-    outline-offset: -2px;
-}
-
-.node.displayed,
-.node.displayed:hover {
+.node.displayed {
     background-color: var(--mantine-color-default-hover);
 }
 
@@ -140,7 +125,7 @@
 
 .nodeHead {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: var(--mantine-spacing-xs);
     min-width: 0;
 }
@@ -153,6 +138,16 @@
     background: var(--mantine-color-green-6);
 }
 
+.nodeMarker {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 19px;
+    color: var(--mantine-color-ldGray-6);
+}
+
 .nodeTitle {
     flex: 1;
     min-width: 0;
@@ -160,35 +155,17 @@
     line-height: 1.45;
     letter-spacing: -0.005em;
     color: var(--mantine-color-ldGray-9);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
 }
 
 .nodeType {
     flex-shrink: 0;
-    display: inline-flex;
-    align-items: center;
-    gap: var(--mantine-spacing-xxs);
     font-size: 10px;
+    line-height: 19px;
     font-weight: 500;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--mantine-color-dimmed);
-}
-
-.nodeDescription {
-    font-size: var(--mantine-font-size-xs);
-    line-height: 1.4;
-    color: var(--mantine-color-ldGray-6);
-    padding-left: var(--node-indent);
-}
-
-.nodeReads {
-    padding-left: var(--node-indent);
-    font-size: 11.5px;
-    line-height: 1.4;
-    color: var(--mantine-color-ldGray-5);
 }
 
 .nodeError {
@@ -204,12 +181,19 @@
     padding: 6px 0 4px 16px;
 }
 
+/* Toggles share one row; each body takes a full line below them. */
 .details {
     display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    margin-left: var(--node-indent);
-    cursor: default;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 2px;
+    margin-left: calc(var(--node-indent) - 6px);
+}
+
+.disclosureBody {
+    order: 1;
+    flex-basis: 100%;
+    padding-left: 6px;
 }
 
 /* Same quiet disclosure as the chat's tool-call rows. */
@@ -218,7 +202,6 @@
     align-items: center;
     align-self: flex-start;
     gap: 5px;
-    margin-left: -6px;
     padding: 3px 6px;
     border-radius: var(--mantine-radius-sm);
     font-size: 11px;
@@ -228,7 +211,8 @@
 }
 
 .queryToggle:hover,
-.queryToggle[aria-expanded='true'] {
+.queryToggle[aria-expanded='true'],
+.queryToggle[aria-pressed='true'] {
     color: var(--mantine-color-ldGray-9);
 }
 
@@ -237,7 +221,7 @@
     opacity: 1;
 }
 
-.queryToggle + * .code {
+.disclosureBody .code {
     margin-top: 4px;
 }
 

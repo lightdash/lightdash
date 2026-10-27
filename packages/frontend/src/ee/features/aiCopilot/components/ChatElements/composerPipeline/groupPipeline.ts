@@ -12,8 +12,6 @@ export type PipelineNode = {
     isTerminal: boolean;
     /** Longest path from a source; 0 for nodes that read nothing. */
     depth: number;
-    /** Titles of the nodes this one reads; unknown references stay as-is. */
-    reads: string[];
     /** Node ids this one reads that resolve to nodes in the pipeline. */
     readNodeIds: string[];
     query: SourceQuery;
@@ -66,18 +64,8 @@ export const groupPipeline = (
     }));
     const byId = new Map(entries.map((entry) => [entry.nodeId, entry]));
 
-    const resolveRead = (value: string) => {
-        const entry = byId.get(value);
-        return entry
-            ? { nodeId: value, title: entry.query.title ?? value }
-            : { nodeId: null, title: value };
-    };
-    const readsOf = (query: SourceQuery) =>
-        referencesOf(query).map(resolveRead);
     const readNodeIdsOf = (query: SourceQuery) =>
-        readsOf(query).flatMap(({ nodeId }) =>
-            nodeId === null ? [] : [nodeId],
-        );
+        referencesOf(query).filter((value) => byId.has(value));
 
     const depths = new Map<string, number>();
     const depthOf = (nodeId: string, seen: Set<string>): number => {
@@ -106,7 +94,6 @@ export const groupPipeline = (
         description: query.description ?? null,
         isTerminal: nodeId === terminalNodeId,
         depth: depths.get(nodeId)!,
-        reads: readsOf(query).map(({ title }) => title),
         readNodeIds: readNodeIdsOf(query),
         query,
     }));

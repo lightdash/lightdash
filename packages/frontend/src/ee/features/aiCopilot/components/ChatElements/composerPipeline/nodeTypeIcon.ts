@@ -8,9 +8,10 @@ import {
     IconDatabase,
     IconFileSpreadsheet,
     IconSitemap,
+    IconTransform,
 } from '@tabler/icons-react';
 
-/** Icon for a node's type in the Queries tab; null for DuckDB transformations. */
+/** Icon for a node's type in the Queries tab. */
 export const nodeTypeIcon = (query: SourceQuery) => {
     switch (query.sourceType) {
         case QuerySourceType.SEMANTIC_LAYER:
@@ -22,7 +23,7 @@ export const nodeTypeIcon = (query: SourceQuery) => {
         case QuerySourceType.PYTHON:
             return IconBrandPython;
         case QuerySourceType.DUCKDB:
-            return null;
+            return IconTransform;
         default:
             return assertUnreachable(query, 'Unknown source type');
     }

@@ -501,6 +501,8 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.nodeStatus.running': 'Running',
     'aiAgent.composer.nodeStatus.success': 'Completed',
     'aiAgent.composer.nodeStatus.error': 'Failed',
+    'aiAgent.composer.node.viewResult': 'View result',
+    'aiAgent.composer.node.viewResultOf': 'View result of {node}',
     'aiAgent.composer.semanticNode.view': 'View metric query',
     'aiAgent.composer.semanticNode.hide': 'Hide metric query',
     'aiAgent.composer.semanticNode.ascending': 'ascending',

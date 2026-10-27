@@ -23,7 +23,11 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
-import { IconChevronRight, IconHelpCircle } from '@tabler/icons-react';
+import {
+    IconChevronRight,
+    IconHelpCircle,
+    IconTable,
+} from '@tabler/icons-react';
 import {
     Background,
     Handle,
@@ -44,7 +48,6 @@ import {
     useRef,
     useState,
     type FC,
-    type KeyboardEvent,
     type ReactNode,
 } from 'react';
 import '@xyflow/react/dist/style.css';
@@ -146,6 +149,7 @@ const disclosureCollapse = {
     transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
 } as const;
 
+// Toggles sit in one row; their bodies wrap below it, see .disclosureBody.
 const SemanticNodeSummary: FC<{
     query: SemanticLayerSourceQuery;
     projectUuid: string;
@@ -179,14 +183,6 @@ const SemanticNodeSummary: FC<{
         [query],
     );
     const getUiString = useUiStrings();
-    const rowsLabel = interpolateUiString(
-        getUiString(
-            metricQuery.limit === 1
-                ? 'aiAgent.composer.semanticNode.rows.singular'
-                : 'aiAgent.composer.semanticNode.rows.plural',
-        ),
-        { count: metricQuery.limit },
-    );
     const parts = [
         getUiString(
             open
@@ -194,17 +190,17 @@ const SemanticNodeSummary: FC<{
                 : 'aiAgent.composer.semanticNode.view',
         ),
         explore?.label ?? friendlyName(query.exploreName),
-        rowsLabel,
     ];
     return (
-        <Box
-            className={styles.details}
-            onClick={(event) => event.stopPropagation()}
-        >
+        <>
             <DisclosureToggle open={open} onToggle={() => setOpen((v) => !v)}>
                 {parts.join(' · ')}
             </DisclosureToggle>
-            <Collapse expanded={open} {...disclosureCollapse}>
+            <Collapse
+                expanded={open}
+                className={styles.disclosureBody}
+                {...disclosureCollapse}
+            >
                 <Box className={styles.summaryBody}>
                     <SemanticNodeDetails
                         metricQuery={metricQuery}
@@ -213,21 +209,38 @@ const SemanticNodeSummary: FC<{
                     />
                 </Box>
             </Collapse>
-        </Box>
+        </>
     );
 };
 
 const NodeType: FC<{ query: SourceQuery }> = ({ query }) => {
     const label = nodeTypeLabelOf(query);
-    const icon = nodeTypeIcon(query);
-    if (!label || !icon) return null;
+    if (!label) return null;
     return (
         <Text component="span" className={styles.nodeType}>
-            <MantineIcon icon={icon} size={11} />
             {label}
         </Text>
     );
 };
+
+// Completed is the norm, so the type shows unless the node is queued, running or failed.
+const NodeMarker: FC<{
+    query: SourceQuery;
+    nodeStatus: ComposerRunNodeStatus | undefined;
+}> = ({ query, nodeStatus }) => (
+    <Box className={styles.nodeMarker}>
+        {nodeStatus && nodeStatus.status !== 'success' ? (
+            <NodeStatusIndicator status={nodeStatus.status} />
+        ) : (
+            <MantineIcon
+                icon={nodeTypeIcon(query)}
+                size={14}
+                stroke={1.6}
+                aria-hidden
+            />
+        )}
+    </Box>
+);
 
 // Semantic nodes carry no SQL; the query is compiled once View query opens.
 const SemanticQuerySql: FC<{
@@ -263,47 +276,60 @@ const SemanticQuerySql: FC<{
     );
 };
 
-const QueryDetails: FC<{ query: SourceQuery; projectUuid: string }> = ({
+const QueryCode: FC<{ query: SourceQuery; projectUuid: string }> = ({
     query,
     projectUuid,
 }) => {
     const [queryOpen, setQueryOpen] = useState(false);
-    const canViewSql = useCanViewAiAgentSql();
     return (
         <>
-            {query.sourceType === QuerySourceType.SEMANTIC_LAYER && (
-                <SemanticNodeSummary query={query} projectUuid={projectUuid} />
-            )}
-            {/* Reading or copying the query must not display the node. */}
-            {canViewSql && (
-                <Box
-                    className={styles.details}
-                    onClick={(event) => event.stopPropagation()}
-                >
-                    <DisclosureToggle
-                        open={queryOpen}
-                        onToggle={() => setQueryOpen((value) => !value)}
-                    >
-                        {queryToggleLabel(query, queryOpen)}
-                    </DisclosureToggle>
-                    <Collapse expanded={queryOpen} {...disclosureCollapse}>
-                        <Box className={styles.code}>
-                            {query.sourceType ===
-                            QuerySourceType.SEMANTIC_LAYER ? (
-                                queryOpen && (
-                                    <SemanticQuerySql
-                                        query={query}
-                                        projectUuid={projectUuid}
-                                    />
-                                )
-                            ) : (
-                                <CodeBlock {...queryCodeOf(query)} />
-                            )}
-                        </Box>
-                    </Collapse>
+            <DisclosureToggle
+                open={queryOpen}
+                onToggle={() => setQueryOpen((value) => !value)}
+            >
+                {queryToggleLabel(query, queryOpen)}
+            </DisclosureToggle>
+            <Collapse
+                expanded={queryOpen}
+                className={styles.disclosureBody}
+                {...disclosureCollapse}
+            >
+                <Box className={styles.code}>
+                    {query.sourceType === QuerySourceType.SEMANTIC_LAYER ? (
+                        queryOpen && (
+                            <SemanticQuerySql
+                                query={query}
+                                projectUuid={projectUuid}
+                            />
+                        )
+                    ) : (
+                        <CodeBlock {...queryCodeOf(query)} />
+                    )}
                 </Box>
-            )}
+            </Collapse>
         </>
+    );
+};
+
+const ViewResultButton: FC<{
+    nodeTitle: string;
+    displayed: boolean;
+    onClick: () => void;
+}> = ({ nodeTitle, displayed, onClick }) => {
+    const getUiString = useUiStrings();
+    return (
+        <UnstyledButton
+            className={styles.queryToggle}
+            onClick={onClick}
+            aria-pressed={displayed}
+            aria-label={interpolateUiString(
+                getUiString('aiAgent.composer.node.viewResultOf'),
+                { node: nodeTitle },
+            )}
+        >
+            <MantineIcon icon={IconTable} size={11} stroke={1.6} />
+            {getUiString('aiAgent.composer.node.viewResult')}
+        </UnstyledButton>
     );
 };
 
@@ -329,64 +355,42 @@ const PipelineNodeRow: FC<
     const displayed = node.nodeId === displayedNodeId;
     const displayable = displayableNodeIds.has(node.nodeId);
     const nodeStatus = nodeStatuses[node.nodeId];
-    const head = (
-        <>
-            {nodeStatus ? (
-                <NodeStatusIndicator status={nodeStatus.status} />
-            ) : (
-                <Box className={styles.dot} />
-            )}
-            <Text component="span" className={styles.nodeTitle}>
-                {node.title}
-            </Text>
-            <NodeType query={node.query} />
-        </>
-    );
-    // The whole card is the click target; it holds other controls, so it is
-    // a div with a button role rather than a native button.
-    const clickable = displayable
-        ? {
-              role: 'button',
-              tabIndex: 0,
-              onClick: () => onDisplayNode(node.nodeId),
-              onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
-                  if (event.target !== event.currentTarget) return;
-                  if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      onDisplayNode(node.nodeId);
-                  }
-              },
-              'aria-pressed': displayed,
-              'aria-label': `Display ${node.title}`,
-          }
-        : {};
+    const canViewSql = useCanViewAiAgentSql();
     return (
         <Box
-            className={clsx(
-                styles.node,
-                displayable && styles.clickable,
-                displayed && styles.displayed,
-            )}
+            className={clsx(styles.node, displayed && styles.displayed)}
             id={pipelineNodeRowId(node.nodeId)}
             data-node-id={node.nodeId}
             data-displayed={displayed}
-            {...clickable}
         >
-            <Box className={styles.nodeHead}>{head}</Box>
-            {node.description && (
-                <Text className={styles.nodeDescription}>
-                    {node.description}
+            <Box className={styles.nodeHead}>
+                <NodeMarker query={node.query} nodeStatus={nodeStatus} />
+                <Text component="span" className={styles.nodeTitle}>
+                    {node.description ?? node.title}
                 </Text>
-            )}
-            {node.reads.length > 0 && (
-                <Text className={styles.nodeReads}>
-                    Reads {node.reads.join(', ')}
-                </Text>
-            )}
+                <NodeType query={node.query} />
+            </Box>
             {nodeStatus?.status === 'error' && nodeStatus.error && (
                 <Text className={styles.nodeError}>{nodeStatus.error}</Text>
             )}
-            <QueryDetails query={node.query} projectUuid={projectUuid} />
+            <Box className={styles.details}>
+                {node.query.sourceType === QuerySourceType.SEMANTIC_LAYER && (
+                    <SemanticNodeSummary
+                        query={node.query}
+                        projectUuid={projectUuid}
+                    />
+                )}
+                {canViewSql && (
+                    <QueryCode query={node.query} projectUuid={projectUuid} />
+                )}
+                {displayable && (
+                    <ViewResultButton
+                        nodeTitle={node.title}
+                        displayed={displayed}
+                        onClick={() => onDisplayNode(node.nodeId)}
+                    />
+                )}
+            </Box>
         </Box>
     );
 };
@@ -623,7 +627,7 @@ type Props = NodeDisplay & {
 };
 
 // The displayed node result on top, the pipeline underneath: a bar when
-// collapsed, a draggable splitter when expanded. Clicking a node displays it.
+// collapsed, a draggable splitter when expanded. Clicking a graph node or a row's View result displays it.
 export const AiComposerPipelinePanel: FC<Props> = ({
     projectUuid,
     queries,

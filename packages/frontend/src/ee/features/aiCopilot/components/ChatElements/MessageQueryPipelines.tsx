@@ -71,8 +71,7 @@ export const MessageQueriesList: FC<{
             const terminal = pipeline.nodes.find(
                 (node) => node.nodeId === pipeline.terminalNodeId,
             );
-            // DuckDB has no type in the Queries tab; it is a transformation there
-            const icon = (terminal && nodeTypeIcon(terminal)) ?? IconTransform;
+            const icon = terminal ? nodeTypeIcon(terminal) : IconTransform;
             const content = (
                 <Group gap="sm" wrap="nowrap" align="flex-start">
                     <Box className={styles.iconChip} flex="0 0 auto">
