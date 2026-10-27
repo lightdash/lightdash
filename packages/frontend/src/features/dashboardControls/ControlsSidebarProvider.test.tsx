@@ -2907,7 +2907,7 @@ describe('ControlsSidebarProvider', () => {
             expect(latest.changed).toBe(false);
         });
 
-        // The shipped "Required" switch, with the shipped disabled rule
+        // The rail's "Required" switch, with the shipped disabled rule
         const switchRequired = (
             from: DashboardFilterRule,
             savedRule: DashboardFilterRule,
@@ -2920,6 +2920,7 @@ describe('ControlsSidebarProvider', () => {
                     from,
                     savedRule,
                     checked,
+                    savedRule,
                 ),
                 true,
             );

@@ -497,6 +497,35 @@ describe('FilterConfiguration', () => {
         );
     });
 
+    it('drops the default value when required is toggled on and off', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const defaultValueRule: DashboardFilterRule = {
+            ...anyValueRule,
+            disabled: false,
+            values: ['Ada'],
+        };
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={defaultValueRule}
+                originalFilterRule={defaultValueRule}
+                onSave={vi.fn()}
+            />,
+        );
+
+        expect(screen.getAllByText('Ada').length).toBeGreaterThan(0);
+        const requiredSwitch = screen.getByLabelText('Required');
+        await user.click(requiredSwitch);
+        await user.click(requiredSwitch);
+        expect(requiredSwitch).not.toBeChecked();
+        expect(screen.queryByText('Ada')).not.toBeInTheDocument();
+    });
+
     it('allows applying when required is toggled on a filter with default value enabled but no value set', async () => {
         const user = userEvent.setup({ pointerEventsCheck: 0 });
         const onSave = vi.fn();

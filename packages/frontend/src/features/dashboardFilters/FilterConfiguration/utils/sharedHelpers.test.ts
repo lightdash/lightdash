@@ -155,33 +155,50 @@ describe('getFilterRuleWithRequired', () => {
         disabled: false,
         values: ['completed'],
     };
-    const toggle = (from: DashboardFilterRule, checked: boolean) =>
+    const off = (
+        from: DashboardFilterRule,
+        savedDefaultRule: DashboardFilterRule | undefined,
+    ) =>
         getFilterRuleWithRequired(
             FilterType.STRING,
             undefined,
             from,
-            saved,
-            checked,
+            savedDefaultRule ?? saved,
+            false,
+            savedDefaultRule,
         );
+    const required = { ...saved, required: true };
 
-    it('leaves a filter with a default value as it was when switched on and off', () => {
-        expect(toggle(toggle(saved, true), false)).toEqual({
+    it('drops the value when switched off, without a saved default to restore', () => {
+        expect(off(required, undefined).values).toEqual([]);
+    });
+
+    it('puts the saved default back when switched off', () => {
+        expect(off(required, saved)).toEqual({
             ...saved,
             required: false,
             requiredGroupId: undefined,
+            settings: undefined,
         });
     });
 
-    it('drops the temporary value of a filter saved as required', () => {
-        const savedRequired = { ...saved, required: true };
+    it('drops a value typed while required for the saved default', () => {
+        expect(off({ ...required, values: ['typed'] }, saved).values).toEqual([
+            'completed',
+        ]);
+    });
+
+    it('drops the value of a filter saved as required', () => {
+        expect(off(required, required).values).toEqual([]);
         expect(
-            getFilterRuleWithRequired(
-                FilterType.STRING,
-                undefined,
-                savedRequired,
-                savedRequired,
-                false,
-            ).values,
+            off(required, { ...saved, requiredGroupId: 'g' }).values,
+        ).toEqual([]);
+    });
+
+    it('drops the value once the operator has changed from the saved one', () => {
+        expect(
+            off({ ...required, operator: FilterOperator.NOT_EQUALS }, saved)
+                .values,
         ).toEqual([]);
     });
 });

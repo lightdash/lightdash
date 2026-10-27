@@ -67,8 +67,10 @@ export const ViewerControls: FC<Props> = ({
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     // Only "Some tabs" can be picked without changing the locked tabs
     const [isSomeTabsPicked, setIsSomeTabsPicked] = useState(false);
-    // The tabs the switch unlocked, locked again when it goes back on
-    const [unlockedKeys, setUnlockedKeys] = useState<string[]>([]);
+    // The rule as the dashboard was last saved, as the shipped popover reads it
+    const savedRule = savedFilters
+        ? (findFilterRule(savedFilters, rule.id) ?? undefined)
+        : undefined;
 
     // Lock
     const hasTabs = dashboardTabs.length > 0;
@@ -113,7 +115,6 @@ export const ViewerControls: FC<Props> = ({
     };
     const unlockEverywhere = () => {
         setIsSomeTabsPicked(false);
-        setUnlockedKeys(lockedKeys);
         lockedKeys.forEach((key) => {
             const toggle = getLockToggle(rule, key);
             if (toggle !== null) track(toggle.event);
@@ -150,10 +151,6 @@ export const ViewerControls: FC<Props> = ({
 
     // Required, as the shipped form switches it
     const isRequired = isRuleRequired(rule);
-    // The rule as the dashboard was last saved, as the shipped popover reads it
-    const savedRule = savedFilters
-        ? (findFilterRule(savedFilters, rule.id) ?? undefined)
-        : undefined;
     const getRequiredRule = (checked: boolean) =>
         getFilterRuleWithDisabledState(
             getFilterRuleWithRequired(
@@ -162,6 +159,7 @@ export const ViewerControls: FC<Props> = ({
                 rule,
                 savedRule,
                 checked,
+                savedRule,
             ),
             true,
         );
@@ -192,11 +190,11 @@ export const ViewerControls: FC<Props> = ({
                         onChange={(e) => {
                             if (!e.currentTarget.checked) unlockEverywhere();
                             else if (switchLockKey !== undefined) {
-                                const restoredKeys = unlockedKeys.filter(
-                                    (key) => lockKeys.includes(key),
-                                );
+                                // Back on, the tabs the filter was saved locked on
+                                const restoredKeys = (
+                                    savedRule?.lockedTabUuids ?? []
+                                ).filter((key) => lockKeys.includes(key));
                                 setIsSomeTabsPicked(false);
-                                setUnlockedKeys([]);
                                 setLockedKeys(
                                     restoredKeys.length > 0
                                         ? restoredKeys
