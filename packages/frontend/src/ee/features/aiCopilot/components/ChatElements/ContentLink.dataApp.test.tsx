@@ -45,7 +45,6 @@ const renderDataAppChip = () =>
                     message={message}
                     projectUuid="project-1"
                     agentUuid="agent-1"
-                    hasPreviewPane
                 >
                     Revenue explorer
                 </ContentLink>

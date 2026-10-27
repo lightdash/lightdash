@@ -10,7 +10,6 @@ const CONTENT_TYPES = [
     'sql-runner-link',
     'settings-link',
     'scheduled-delivery-link',
-    'query-node-link',
 ] as const;
 
 export type ContentType = (typeof CONTENT_TYPES)[number];

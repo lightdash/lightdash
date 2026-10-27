@@ -38,9 +38,9 @@ export interface DocumentPreviewData {
     agentUuid: string;
 }
 
-/** The pipeline of a message's `query` call that ran a node, shown without an artifact. */
+/** A pipeline a message's `query` call ran, shown without an artifact. */
 export interface QueryPipelinePreviewData {
-    nodeId: string;
+    queryUuid: string;
     messageUuid: string;
     threadUuid: string;
     projectUuid: string;

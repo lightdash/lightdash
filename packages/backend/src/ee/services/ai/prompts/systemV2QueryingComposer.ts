@@ -41,11 +41,6 @@ export const getQueryingComposerSection = ({
         slackChannelId
             ? '- After query, call visualize on the node your answer rests on when the user asks for a chart or when its rows materially help: with the chart type the user asked for; otherwise with a chart that fits the result (a line for a trend over time, a bar to compare categories), or a table. Skip visualize when a sentence answers the question.'
             : '- After query, call visualize on the node your answer rests on: with the chart type the user asked for; otherwise with a chart that fits the result (a line for a trend over time, a bar to compare categories), or a table when the user wants an interactive or downloadable table or the rows are too many for a Markdown table. Skip visualize when a sentence or a small Markdown table answers the question and the user asked for no chart.',
-        ...(slackChannelId
-            ? []
-            : [
-                  "- In an answer without visualize, follow each figure or claim that rests on a node from this turn's query call with a reference link `[label](#query-node-<nodeId>)`, as in `$404 [revenue](#query-node-revenue)`, so the user can open the query behind the figure: the label names what the node measures in one to three words; one link per node per sentence.",
-              ]),
         '- Visualize a second node only when it adds a distinct view. To visualize an earlier result again, or as another chart, call visualize on its node rather than rerunning query.',
         '',
         '## Field usage',
