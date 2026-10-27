@@ -1,3 +1,10 @@
+## [3.68.1](https://github.com/lightdash/lightdash/compare/3.68.0...3.68.1) (2026-10-27)
+
+
+### Bug Fixes
+
+* sort group options alphabetically in group selectors ([#31635](https://github.com/lightdash/lightdash/issues/31635)) ([f4fa95a](https://github.com/lightdash/lightdash/commit/f4fa95a103ccfb0d941ce60a3b1696ad34b96ea9))
+
 # [3.68.0](https://github.com/lightdash/lightdash/compare/3.67.0...3.68.0) (2026-10-27)
 
 
