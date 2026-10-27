@@ -1,3 +1,10 @@
+# [3.62.0](https://github.com/lightdash/lightdash/compare/3.61.0...3.62.0) (2026-10-27)
+
+
+### Features
+
+* **python:** run python query nodes on the azure-sandboxes provider ([#31611](https://github.com/lightdash/lightdash/issues/31611)) ([4c79164](https://github.com/lightdash/lightdash/commit/4c791640a5d1789c1731478504a0fbdef7eb13e6))
+
 # [3.61.0](https://github.com/lightdash/lightdash/compare/3.60.1...3.61.0) (2026-10-26)
 
 
