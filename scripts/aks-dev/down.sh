@@ -8,7 +8,7 @@ require_azure_identity
 API="2026-01-01"
 
 step "delete sandbox group(s) (releases sandbox billing)"
-for group in "$DATA_APP_SANDBOX_GROUP" "${WRITEBACK_SANDBOX_GROUP:-}"; do
+for group in "$DATA_APP_SANDBOX_GROUP" "${WRITEBACK_SANDBOX_GROUP:-}" "${PYTHON_SANDBOX_GROUP:-}"; do
   [ -n "$group" ] || continue
   arm delete "${RG_SCOPE}/providers/Microsoft.App/sandboxGroups/${group}?api-version=${API}" >/dev/null 2>&1 || true
 done
