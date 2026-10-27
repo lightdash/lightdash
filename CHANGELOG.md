@@ -1,3 +1,16 @@
+# [3.63.0](https://github.com/lightdash/lightdash/compare/3.62.0...3.63.0) (2026-10-27)
+
+
+### Bug Fixes
+
+* **ai-agent:** hide follow-up chips while artifact panel open (ZAP-1358) ([#31618](https://github.com/lightdash/lightdash/issues/31618)) ([8a8480f](https://github.com/lightdash/lightdash/commit/8a8480f75016d1e7d183c7421c78bc7bc14fabc0))
+
+
+### Features
+
+* **ai:** require composer node description in query tool (ZAP-1356) ([#31614](https://github.com/lightdash/lightdash/issues/31614)) ([98bc779](https://github.com/lightdash/lightdash/commit/98bc779482a07819568861211ca4b5886198127a))
+* **analytics:** polish built-in dashboard visualizations ([#31573](https://github.com/lightdash/lightdash/issues/31573)) ([50f30b9](https://github.com/lightdash/lightdash/commit/50f30b95ed92b1c49ea92a21960061fa0d9b4cff))
+
 # [3.62.0](https://github.com/lightdash/lightdash/compare/3.61.0...3.62.0) (2026-10-27)
 
 
