@@ -10,16 +10,13 @@ import {
     IconArrowDown,
     IconArrowsSort,
     IconArrowUp,
-    IconColumns3,
     IconFilter,
-    IconTable,
     IconVariable,
     type Icon,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import ErrorBoundary from '../../../../../../features/errorBoundary/ErrorBoundary';
-import { LD_FIELD_COLORS } from '../../../../../../theme/fieldColors';
 import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import AgentVisualizationFilters from '../AgentVisualizationFilters';
 import AgentVisualizationParameters from '../AgentVisualizationParameters';
@@ -27,10 +24,7 @@ import { getVisualizationFiltersCount } from '../AiVisualizationRenderer.utils';
 import chipClasses from '../QueryChip.module.css';
 import styles from './SemanticNodeDetails.module.css';
 
-export type SemanticNodeQuery = Pick<
-    MetricQuery,
-    'dimensions' | 'metrics' | 'filters' | 'sorts'
->;
+export type SemanticNodeQuery = Pick<MetricQuery, 'filters' | 'sorts'>;
 
 const semanticItemLabel = (fieldsMap: ItemsMap, fieldId: string) => {
     const item = fieldsMap[fieldId];
@@ -58,27 +52,6 @@ const DetailsRow: FC<{ icon: Icon; label: string; children: ReactNode }> = ({
         </Box>
     </Group>
 );
-
-const FieldChip: FC<{
-    fieldId: string;
-    type: 'dimension' | 'metric';
-    fieldsMap: ItemsMap;
-    muted: boolean;
-}> = ({ fieldId, type, fieldsMap, muted }) =>
-    muted ? (
-        <Box component="span" className={styles.fieldChipMuted}>
-            {semanticItemLabel(fieldsMap, fieldId)}
-        </Box>
-    ) : (
-        <Box
-            component="span"
-            className={styles.fieldChip}
-            bg={LD_FIELD_COLORS[type].bg}
-            c={LD_FIELD_COLORS[type].color}
-        >
-            {semanticItemLabel(fieldsMap, fieldId)}
-        </Box>
-    );
 
 const Sorts: FC<{
     sorts: SemanticNodeQuery['sorts'];
@@ -114,72 +87,21 @@ const Sorts: FC<{
 };
 
 type Props = {
-    exploreLabel: string;
     metricQuery: SemanticNodeQuery;
     fieldsMap: ItemsMap;
     parameters: ParametersValuesMap;
-    /** Neutral field chips, for the pipeline notebook cells. */
-    mutedFields?: boolean;
-    /** Off where the rows already show the explore and its fields. */
-    showExploreAndFields?: boolean;
 };
 
-/** Explore, fields, then filters, parameters and sorts, each row marked by its icon. */
+/** Filters, parameters and sorts, each row marked by its icon. */
 export const SemanticNodeDetails: FC<Props> = ({
-    exploreLabel,
     metricQuery,
     fieldsMap,
     parameters,
-    mutedFields = false,
-    showExploreAndFields = true,
 }) => {
     const getUiString = useUiStrings();
     return (
         <Stack gap={6}>
             <ErrorBoundary>
-                {showExploreAndFields && (
-                    <DetailsRow
-                        icon={IconTable}
-                        label={getUiString(
-                            'aiAgent.composer.semanticNode.explore',
-                        )}
-                    >
-                        <Text fz="xs" fw={500} lh="22px">
-                            {exploreLabel}
-                        </Text>
-                    </DetailsRow>
-                )}
-                {showExploreAndFields &&
-                    metricQuery.dimensions.length + metricQuery.metrics.length >
-                        0 && (
-                        <DetailsRow
-                            icon={IconColumns3}
-                            label={getUiString(
-                                'aiAgent.composer.semanticNode.fields',
-                            )}
-                        >
-                            <Group gap={4}>
-                                {metricQuery.dimensions.map((fieldId) => (
-                                    <FieldChip
-                                        key={fieldId}
-                                        fieldId={fieldId}
-                                        type="dimension"
-                                        fieldsMap={fieldsMap}
-                                        muted={mutedFields}
-                                    />
-                                ))}
-                                {metricQuery.metrics.map((fieldId) => (
-                                    <FieldChip
-                                        key={fieldId}
-                                        fieldId={fieldId}
-                                        type="metric"
-                                        fieldsMap={fieldsMap}
-                                        muted={mutedFields}
-                                    />
-                                ))}
-                            </Group>
-                        </DetailsRow>
-                    )}
                 {getVisualizationFiltersCount(metricQuery.filters) > 0 && (
                     <DetailsRow
                         icon={IconFilter}

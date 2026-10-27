@@ -51,8 +51,6 @@ const fieldsMap: ItemsMap = {
 };
 
 const metricQuery: SemanticNodeQuery = {
-    dimensions: ['users_last_active_at_day'],
-    metrics: [],
     filters: {
         dimensions: {
             id: 'root',
@@ -76,7 +74,6 @@ const renderDetails = (
     renderWithProviders(
         <MemoryRouter>
             <SemanticNodeDetails
-                exploreLabel="Users"
                 metricQuery={query}
                 fieldsMap={fields}
                 parameters={{ region: 'EMEA' }}
@@ -85,12 +82,11 @@ const renderDetails = (
     );
 
 describe('SemanticNodeDetails', () => {
-    it('shows the explore, fields, filters, parameters and sorts, each icon labelled', () => {
+    it('shows the filters, parameters and sorts, each icon labelled', () => {
         renderDetails();
 
-        expect(screen.getByText('Users')).toBeInTheDocument();
-        ['Explore', 'Fields', 'Filters', 'Parameters', 'Sorts'].forEach(
-            (label) => expect(screen.getByLabelText(label)).toBeInTheDocument(),
+        ['Filters', 'Parameters', 'Sorts'].forEach((label) =>
+            expect(screen.getByLabelText(label)).toBeInTheDocument(),
         );
 
         expect(screen.getByText('Is deleted')).toBeInTheDocument();
@@ -104,7 +100,7 @@ describe('SemanticNodeDetails', () => {
     });
 
     it('labels fields from their ids while the explore is unavailable', () => {
-        renderDetails({}, { ...metricQuery, filters: {}, sorts: [] });
+        renderDetails({}, { ...metricQuery, filters: {} });
 
         expect(
             screen.getByText('Users last active at day'),

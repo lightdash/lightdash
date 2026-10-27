@@ -197,11 +197,9 @@ const SemanticQuery: FC<{
             <Collapse expanded={open}>
                 <Box className={styles.fields}>
                     <SemanticNodeDetails
-                        exploreLabel={exploreLabel}
                         metricQuery={metricQuery}
                         fieldsMap={fieldsMap}
                         parameters={query.parameters ?? {}}
-                        showExploreAndFields={false}
                     />
                 </Box>
             </Collapse>
