@@ -3,7 +3,6 @@ import { DbtSourceError } from '../dbt/DbtSourceError';
 import Logger from '../logging/logger';
 import { type ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { CompileInterruptedError } from '../scheduler/compileShutdown';
-import { DbtSourceDiskError } from './DbtSourceDiskPool';
 import {
     SourceFailureIsolation,
     validateDbtSourceManifest,
@@ -87,7 +86,6 @@ it('leaves primary failures fatal', async () => {
 
 it.each([
     new CompileInterruptedError(),
-    new DbtSourceDiskError(),
     new DOMException('cancelled', 'AbortError'),
     new DOMException('timed out', 'TimeoutError'),
     new DbtError('Found a cycle: model.a -> model.b'),

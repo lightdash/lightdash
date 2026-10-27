@@ -193,7 +193,6 @@ describe('Enable multiple connections on the real schema', () => {
 
     const buildConnectionService = () =>
         new WarehouseConnectionService({
-            dbtSourceRefCatalogModel: { deleteForProject: vi.fn() },
             warehouseConnectionModel: connectionModel,
             projectModel,
             userWarehouseCredentialsModel: new UserWarehouseCredentialsModel({
