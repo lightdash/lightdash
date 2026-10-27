@@ -64,7 +64,7 @@ describe('LightdashAnalytics', () => {
                     projectId: 'project',
                     isPreviewProject: false,
                     status: 'error',
-                    errorMessage: 'column \"private_field\" does not exist',
+                    errorMessage: 'column "private_field" does not exist',
                     ...(withSemanticUsage
                         ? {
                               semanticUsage: {
@@ -107,7 +107,7 @@ describe('LightdashAnalytics', () => {
                     metricEvent.mock.calls[0][0].properties,
                 ).not.toHaveProperty('errorMessage');
                 expect(payload.properties.errorMessage).toBe(
-                    'column \"private_field\" does not exist',
+                    'column "private_field" does not exist',
                 );
                 expect(Boolean(payload.properties.semanticUsage)).toBe(
                     withSemanticUsage,
