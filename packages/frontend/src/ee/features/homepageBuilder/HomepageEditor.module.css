@@ -195,6 +195,12 @@
 }
 
 /* In-layout ghost while its clone rides the DragOverlay (Kanban-style) */
+/* Each block keeps its own height; a short block beside a tall one must
+ * not stretch into an empty card. */
+.rowColumns .blockChrome {
+    flex: 0 0 auto;
+}
+
 .blockChrome[data-dragging='true'] {
     opacity: 0.4;
     pointer-events: none;

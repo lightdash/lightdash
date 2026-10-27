@@ -98,6 +98,7 @@ type Props = {
     mentionProjectUuid?: string;
     /** Read-only render mode — no editing, no toolbar. Defaults to true. */
     editable?: boolean;
+    placeholder?: string;
 };
 
 export const TiptapMarkdownEditor: FC<Props> = ({
@@ -106,6 +107,7 @@ export const TiptapMarkdownEditor: FC<Props> = ({
     onImageUpload,
     mentionProjectUuid,
     editable = true,
+    placeholder = "Write something, or type '/' for commands…",
 }) => {
     const lightdashApi = useLightdashApi();
     const { showToastError } = useToaster();
@@ -132,7 +134,7 @@ export const TiptapMarkdownEditor: FC<Props> = ({
         ...(editable
             ? [
                   Placeholder.configure({
-                      placeholder: "Write something, or type '/' for commands…",
+                      placeholder,
                   }),
                   onImageUpload
                       ? SlashCommand.configure({

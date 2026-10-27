@@ -464,9 +464,9 @@ const DayOneAskInputInner: FC<Props> = ({
     if (hasNoAgents) {
         return (
             <div className={blockClasses.dashedEmpty}>
-                Set up an AI agent to enable Ask AI here —{' '}
+                Set up an AI agent to enable Ask AI here.{' '}
                 <Anchor size="xs" href="/generalSettings/ai/agents">
-                    go to settings
+                    Go to settings
                 </Anchor>
                 .
             </div>

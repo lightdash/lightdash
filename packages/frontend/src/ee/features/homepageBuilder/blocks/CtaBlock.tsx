@@ -267,17 +267,36 @@ const ThemeSwatches: FC<{
     const { data: brand } = useOrganizationBrand();
     return (
         <Group gap={6} wrap="nowrap">
-            {THEME_OPTIONS.map((option) => {
+            {THEME_OPTIONS.map((option, index) => {
                 const paint = resolveCtaPaint(
                     option.value,
                     brand?.colors,
                     undefined,
                 );
+                // Brand and Accent fall back to the same colour when the org has one or none.
+                const isDuplicate = THEME_OPTIONS.slice(0, index).some(
+                    (earlier) => {
+                        const other = resolveCtaPaint(
+                            earlier.value,
+                            brand?.colors,
+                            undefined,
+                        );
+                        return paint.kind === 'solid' && other.kind === 'solid'
+                            ? other.hex === paint.hex
+                            : paint.kind === other.kind;
+                    },
+                );
+                if (isDuplicate && value !== option.value) return null;
                 const style = paintStyle(paint, 'cta');
                 return (
                     <Tooltip
                         key={option.value}
-                        label={option.label}
+                        label={
+                            option.value === 'brand' ||
+                            option.value === 'accent'
+                                ? `${option.label}, from Settings > Appearance`
+                                : option.label
+                        }
                         openDelay={200}
                     >
                         <button
@@ -342,6 +361,63 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
             : config.target.type;
     return (
         <Stack gap="sm">
+            <Group gap="lg" align="center" className={classes.styleToolbar}>
+                <Group gap={8} wrap="nowrap">
+                    <Text size="xs" c="dimmed">
+                        Theme
+                    </Text>
+                    <ThemeSwatches
+                        value={config.theme ?? 'brand'}
+                        customColor={config.customColor}
+                        paletteSwatches={palette?.colors ?? []}
+                        onChange={(theme, customColor) =>
+                            patch(
+                                theme === 'custom'
+                                    ? { theme, customColor }
+                                    : { theme },
+                            )
+                        }
+                    />
+                </Group>
+                <Group gap={8} wrap="nowrap">
+                    <Text size="xs" c="dimmed">
+                        Background
+                    </Text>
+                    <SegmentedControl
+                        size="xs"
+                        value={config.background ?? 'none'}
+                        onChange={(next) =>
+                            patch({
+                                background: next as HomepageCtaBackground,
+                            })
+                        }
+                        data={[
+                            { value: 'none', label: 'None' },
+                            { value: 'card', label: 'Card' },
+                            { value: 'theme', label: 'Themed' },
+                        ]}
+                    />
+                </Group>
+                {(config.title ?? '').trim() === '' && (
+                    <Group gap={8} wrap="nowrap">
+                        <Text size="xs" c="dimmed">
+                            Align
+                        </Text>
+                        <SegmentedControl
+                            size="xs"
+                            value={config.align ?? 'center'}
+                            onChange={(next) =>
+                                patch({ align: next as HomepageCtaAlign })
+                            }
+                            data={[
+                                { value: 'left', label: 'Left' },
+                                { value: 'center', label: 'Middle' },
+                                { value: 'right', label: 'Right' },
+                            ]}
+                        />
+                    </Group>
+                )}
+            </Group>
             <CtaBanner
                 config={config}
                 projectUuid={projectUuid}
@@ -351,7 +427,7 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
                 <TextInput
                     size="xs"
                     label="Title"
-                    placeholder="Optional — leave empty for a button-only banner"
+                    placeholder="Optional. Leave empty for a button-only banner"
                     fw={600}
                     flex={1}
                     value={config.title ?? ''}
@@ -418,67 +494,6 @@ export const CtaBlockBuild: FC<BuildComponentProps> = ({
                     }
                 />
             )}
-            <Group gap="lg" align="flex-end">
-                <Stack gap={4}>
-                    <Text size="xs" fw={500}>
-                        Theme
-                    </Text>
-                    <ThemeSwatches
-                        value={config.theme ?? 'brand'}
-                        customColor={config.customColor}
-                        paletteSwatches={palette?.colors ?? []}
-                        onChange={(theme, customColor) =>
-                            patch(
-                                theme === 'custom'
-                                    ? { theme, customColor }
-                                    : { theme },
-                            )
-                        }
-                    />
-                </Stack>
-                <Stack gap={4}>
-                    <Text size="xs" fw={500}>
-                        Background
-                    </Text>
-                    <SegmentedControl
-                        size="xs"
-                        value={config.background ?? 'none'}
-                        onChange={(next) =>
-                            patch({
-                                background: next as HomepageCtaBackground,
-                            })
-                        }
-                        data={[
-                            { value: 'none', label: 'None' },
-                            { value: 'card', label: 'Card' },
-                            { value: 'theme', label: 'Themed' },
-                        ]}
-                    />
-                </Stack>
-                {(config.title ?? '').trim() === '' && (
-                    <Stack gap={4}>
-                        <Text size="xs" fw={500}>
-                            Align
-                        </Text>
-                        <SegmentedControl
-                            size="xs"
-                            value={config.align ?? 'center'}
-                            onChange={(next) =>
-                                patch({ align: next as HomepageCtaAlign })
-                            }
-                            data={[
-                                { value: 'left', label: 'Left' },
-                                { value: 'center', label: 'Middle' },
-                                { value: 'right', label: 'Right' },
-                            ]}
-                        />
-                    </Stack>
-                )}
-            </Group>
-            <Text size="xs" c="dimmed">
-                Brand, Accent, and the gradients use your organization's brand
-                colors from Settings → Appearance.
-            </Text>
         </Stack>
     );
 };

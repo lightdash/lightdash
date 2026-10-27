@@ -84,7 +84,8 @@ export const blockLibrary: BlockDefinition[] = [
     {
         type: 'quick-actions',
         label: 'Quick actions',
-        description: 'Primary CTA cards — tailor the main action per audience.',
+        description:
+            'Primary CTA cards that point each audience at its main action.',
         icon: IconBolt,
         create: () => ({
             id: uuidv4(),
@@ -143,7 +144,7 @@ export const blockLibrary: BlockDefinition[] = [
         type: 'resources',
         label: 'Resources',
         description:
-            'Rich cards — data apps, Claude artifacts, YouTube, docs, links.',
+            'Rich cards for data apps, Claude artifacts, YouTube, docs and links.',
         icon: IconBook,
         create: () => ({
             id: uuidv4(),

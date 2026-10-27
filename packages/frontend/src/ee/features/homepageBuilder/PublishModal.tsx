@@ -326,8 +326,8 @@ const PublishModalBody: FC<BodyProps> = ({
                                 <Text span fw={600} c="inherit">
                                     starting point
                                 </Text>{' '}
-                                everyone lands on — unless a group they’re in
-                                has its own homepage.
+                                everyone lands on, unless a group they’re in has
+                                its own homepage.
                             </Text>
                         </Group>
                     </Box>

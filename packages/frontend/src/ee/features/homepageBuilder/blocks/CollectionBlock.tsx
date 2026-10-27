@@ -937,7 +937,6 @@ const DynamicSourcePreview: FC<{
         config,
     );
     const source = collectionSourceOf(config);
-    const isPersonal = isPersonalCollectionSource(source);
     const movePin = usePinReorder(projectUuid);
     const onMovePin = source === 'pinned' ? movePin : null;
     if (isLoading) {
@@ -965,12 +964,6 @@ const DynamicSourcePreview: FC<{
                     contents={items}
                     projectUuid={projectUuid}
                 />
-            )}
-            {isPersonal && (
-                <div className={classes.buildHint}>
-                    Showing your own items as a sample. Every viewer sees their
-                    own.
-                </div>
             )}
         </Stack>
     );
@@ -1014,38 +1007,29 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
         });
 
     return (
-        <Stack gap="xs">
-            <Group gap="xs" align="flex-end" wrap="nowrap">
-                <TextInput
-                    label="Title"
-                    size="xs"
-                    fw={600}
-                    flex={1}
-                    value={block.config.title}
-                    onChange={(e) =>
-                        onChange({
-                            ...block,
-                            config: {
-                                ...block.config,
-                                title: e.currentTarget.value,
-                            },
-                        })
-                    }
-                />
-                <ContentLayoutControl
-                    value={layout}
-                    onChange={(nextLayout) =>
-                        onChange({
-                            ...block,
-                            config: { ...block.config, layout: nextLayout },
-                        })
-                    }
-                />
-            </Group>
-            <CollectionSourceControls
-                config={block.config}
-                onChange={(config) => onChange({ ...block, config })}
-                canReorderPins={canManagePins}
+        <Stack gap="sm">
+            <BlockHeader
+                icon={IconLayoutGrid}
+                title={block.config.title}
+                pill={
+                    isPersonalCollectionSource(source)
+                        ? 'Each viewer sees their own'
+                        : undefined
+                }
+                onTitleChange={(title) =>
+                    onChange({ ...block, config: { ...block.config, title } })
+                }
+                actions={
+                    <ContentLayoutControl
+                        value={layout}
+                        onChange={(nextLayout) =>
+                            onChange({
+                                ...block,
+                                config: { ...block.config, layout: nextLayout },
+                            })
+                        }
+                    />
+                }
             />
             {source !== 'manual' ? (
                 <DynamicSourcePreview
@@ -1106,6 +1090,13 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                         Import pinned items
                     </Button>
                 )}
+            <div className={classes.settingsSection}>
+                <CollectionSourceControls
+                    config={block.config}
+                    onChange={(config) => onChange({ ...block, config })}
+                    canReorderPins={canManagePins}
+                />
+            </div>
             <CollectionPickerModal
                 opened={isPickerOpen}
                 onClose={() => setIsPickerOpen(false)}

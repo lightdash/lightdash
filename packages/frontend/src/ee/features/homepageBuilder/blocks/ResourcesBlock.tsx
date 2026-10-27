@@ -5,10 +5,12 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Button,
     Group,
     Select,
     Stack,
     Switch,
+    Text,
     Textarea,
     TextInput,
     Tooltip,
@@ -628,37 +630,17 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
 
     return (
         <Stack gap="xs">
-            <Group
-                justify="space-between"
-                wrap="nowrap"
-                gap="xs"
-                align="flex-end"
-            >
-                <TextInput
-                    label="Title"
-                    size="xs"
-                    fw={600}
-                    flex={1}
-                    value={block.config.title}
-                    onChange={(e) =>
-                        patchConfig({ title: e.currentTarget.value })
-                    }
-                />
-                <ContentLayoutControl
-                    value={layout}
-                    onChange={(nextLayout) =>
-                        patchConfig({ layout: nextLayout })
-                    }
-                />
-            </Group>
-            <Switch
-                size="xs"
-                label="Show descriptions"
-                checked={block.config.showDescriptions ?? true}
-                onChange={(e) =>
-                    patchConfig({
-                        showDescriptions: e.currentTarget.checked,
-                    })
+            <BlockHeader
+                icon={IconBook}
+                title={block.config.title}
+                onTitleChange={(title) => patchConfig({ title })}
+                actions={
+                    <ContentLayoutControl
+                        value={layout}
+                        onChange={(nextLayout) =>
+                            patchConfig({ layout: nextLayout })
+                        }
+                    />
                 }
             />
 
@@ -724,33 +706,42 @@ export const ResourcesBlockBuild: FC<BuildComponentProps> = ({
                 onChange={(e) => setPasteValue(e.currentTarget.value)}
                 onPaste={handlePaste}
                 onKeyDown={handleKeyDown}
-                rightSectionWidth={64}
                 rightSection={
-                    <Group gap={2} wrap="nowrap">
-                        <Tooltip label="Add data app" openDelay={200}>
-                            <ActionIcon
-                                size="sm"
-                                aria-label="Add data app"
-                                onClick={() => setIsAppPickerOpen(true)}
-                            >
-                                <MantineIcon icon={IconAppWindow} />
-                            </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Add link" openDelay={200}>
-                            <ActionIcon
-                                size="sm"
-                                aria-label="Add resource"
-                                onClick={() => startResolving(pasteValue)}
-                            >
-                                <MantineIcon icon={IconPlus} />
-                            </ActionIcon>
-                        </Tooltip>
-                    </Group>
+                    <Tooltip label="Add link" openDelay={200}>
+                        <ActionIcon
+                            size="sm"
+                            aria-label="Add resource"
+                            onClick={() => startResolving(pasteValue)}
+                        >
+                            <MantineIcon icon={IconPlus} />
+                        </ActionIcon>
+                    </Tooltip>
                 }
             />
-            <div className={classes.buildHint}>
-                Paste multiple links (one per line) to add them all at once, or
-                add a data app with the app button.
+            <div className={classes.settingsRow}>
+                <Button
+                    variant="default"
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconAppWindow} />}
+                    onClick={() => setIsAppPickerOpen(true)}
+                >
+                    Add app
+                </Button>
+                {items.length > 0 && (
+                    <Switch
+                        size="xs"
+                        label="Show descriptions"
+                        checked={block.config.showDescriptions ?? true}
+                        onChange={(e) =>
+                            patchConfig({
+                                showDescriptions: e.currentTarget.checked,
+                            })
+                        }
+                    />
+                )}
+                <Text size="xs" c="dimmed" ml="auto" truncate>
+                    Paste several links, one per line, to add them all.
+                </Text>
             </div>
             <DataAppPickerModal
                 opened={isAppPickerOpen}

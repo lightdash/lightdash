@@ -143,6 +143,7 @@ export const RecentBlockView: FC<BlockComponentProps> = ({
 export const RecentBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
+    onChange,
 }) => {
     if (block.type !== 'recent') return null;
     return (
@@ -150,13 +151,12 @@ export const RecentBlockBuild: FC<BuildComponentProps> = ({
             <BlockHeader
                 icon={IconClock}
                 title={block.config.title}
-                pill="Personal per viewer"
+                pill="Each viewer sees their own"
+                onTitleChange={(title) =>
+                    onChange({ ...block, config: { ...block.config, title } })
+                }
             />
             <RecentList projectUuid={projectUuid} />
-            <div className={classes.buildHint}>
-                Showing your recent activity as a sample — every viewer sees
-                their own.
-            </div>
         </Stack>
     );
 };

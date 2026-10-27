@@ -323,7 +323,7 @@ const EndDropZone: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
                 className={classes.endZoneIcon}
             />
             {isEmpty
-                ? 'No blocks yet — click or drag one from the library.'
+                ? 'No blocks yet. Click or drag one from the library.'
                 : 'Drag a block here, or click one in the library.'}
         </div>
     );
@@ -475,9 +475,14 @@ const BlockCard: FC<BlockCardProps> = ({
                     {...listeners}
                     aria-label={`Drag ${definition.label} block`}
                 >
-                    <span className={classes.blockTypeLabel}>
-                        {definition.label}
-                    </span>
+                    {!(
+                        'title' in block.config &&
+                        block.config.title === definition.label
+                    ) && (
+                        <span className={classes.blockTypeLabel}>
+                            {definition.label}
+                        </span>
+                    )}
                 </div>
                 <Group gap={2} className={classes.blockActions} wrap="nowrap">
                     <Tooltip label="Drag to move">
@@ -899,7 +904,7 @@ export const HomepageEditor: FC<Props> = ({
             {hasConflict && (
                 <div className={classes.conflictBanner}>
                     <Text size="sm" fw={500}>
-                        This homepage was changed somewhere else — your latest
+                        This homepage was changed somewhere else, so your latest
                         edits here can’t be saved.
                     </Text>
                     <Button size="xs" onClick={onReload}>
