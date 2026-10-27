@@ -1481,8 +1481,19 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             // Keep every captured row, including its existing duplicate-delivery
             // semantics. Only historical fallback rows yield to captured identities,
             // regardless of completion date or nullable identity columns.
+            // Filter fallback rows before matching identities: a window over all
+            // captured events exceeds the query memory budget on larger histories.
             const viewQuery = fallbackRows
-                ? `SELECT * FROM (${sourceQuery}) AS parquet_source QUALIFY ${capturedRow} OR count(*) FILTER (WHERE ${capturedRow}) OVER (PARTITION BY ${fallbackRows.keyColumns.map((column) => `"${column}"`).join(', ')}) = 0`
+                ? `WITH parquet_source AS NOT MATERIALIZED (${sourceQuery})
+                   SELECT * FROM parquet_source WHERE ${capturedRow}
+                   UNION ALL
+                   SELECT history.* FROM parquet_source AS history
+                   WHERE NOT (history.${capturedRow})
+                   AND NOT EXISTS (
+                       SELECT 1 FROM parquet_source AS captured
+                       WHERE captured.${capturedRow}
+                       AND ${fallbackRows.keyColumns.map((column) => `captured."${column}" IS NOT DISTINCT FROM history."${column}"`).join(' AND ')}
+                   )`
                 : sourceQuery;
             // eslint-disable-next-line no-await-in-loop
             await db.run(`CREATE VIEW "${name}" AS ${viewQuery};`);

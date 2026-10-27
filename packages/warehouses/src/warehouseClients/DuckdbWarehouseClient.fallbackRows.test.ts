@@ -102,6 +102,54 @@ describe('historical fallback rows in trusted Parquet sources', () => {
 
     const allRows = 'SELECT * FROM query_events';
 
+    it('counts users by day at preview volume within the default query memory budget', async () => {
+        const instance = await DuckDBInstance.create(':memory:', {
+            memory_limit: '128MB',
+            threads: '1',
+        });
+        const db = await instance.connect();
+        try {
+            // Compressible UUIDs keep the fixture within the 8 MiB local-file
+            // budget while exercising the real reader with 770k identities.
+            for (const [name, start, count, marker] of [
+                ['volume-captured', 0, 769268, 'query.completed'],
+                ['volume-history', 769268, 352, markerValue],
+            ] as const) {
+                const file = path.join(directory, `${name}.parquet`);
+                // eslint-disable-next-line no-await-in-loop
+                await db.run(`COPY (SELECT
+                    '4002e1f4-c710-43ef-8b7b-29eeb2be0447' AS org_id,
+                    '3f20ca5f-22c7-4f5e-94d6-a5c2bfef6512' AS project_id,
+                    substr(md5((i + ${start})::VARCHAR), 1, 4) || '0000-0000-0000-0000-' || lpad((i + ${start})::VARCHAR, 12, '0') AS query_id,
+                    md5((i % 20000)::VARCHAR)::UUID::VARCHAR AS user_id,
+                    TIMESTAMP '2026-10-07' + INTERVAL '1 minute' * (i % 28800) AS event_ts,
+                    '${marker}' AS event_name
+                    FROM range(${count}) AS rows(i)
+                ) TO '${file}' (FORMAT PARQUET, COMPRESSION ZSTD)`);
+                // eslint-disable-next-line no-await-in-loop
+                files.set(name, await fs.readFile(file));
+            }
+        } finally {
+            db.closeSync();
+            instance.closeSync();
+        }
+        const manifest = source(['volume-captured', 'volume-history']);
+        const client = new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => manifest,
+        });
+        const { rows } = await client.runQuery(`SELECT
+            CAST(date_trunc('day', event_ts) AS DATE) AS day,
+            count(DISTINCT user_id) AS users,
+            count(*) AS queries
+            FROM query_events GROUP BY 1 ORDER BY 1`);
+        expect(rows).toHaveLength(20);
+        expect(rows.every((row) => Number(row.users) === 20000)).toBe(true);
+        expect(
+            rows.reduce((total, row) => total + Number(row.queries), 0),
+        ).toBe(769620);
+    });
+
     it('reconciles later captures across dates, keeping all captured deliveries and other identities', async () => {
         const manifest = source(['history']);
         const client = reader(manifest);
