@@ -18,6 +18,7 @@ import {
     IconPencil,
     IconSearch,
     IconSend,
+    IconSitemap,
     type Icon,
 } from '@tabler/icons-react';
 import {
@@ -37,6 +38,7 @@ type ContentReferenceKind =
     | 'document'
     | 'data_app'
     | 'data_app_element'
+    | 'composer_node'
     | 'design'
     | 'thread'
     | 'file'
@@ -100,6 +102,12 @@ const getIconMeta = ({
                 color: 'violet.7',
                 fill: 'violet.4',
                 icon: IconClick,
+            };
+        case 'composer_node':
+            return {
+                color: 'indigo.7',
+                fill: 'indigo.4',
+                icon: IconSitemap,
             };
         case 'design':
             return {

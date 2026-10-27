@@ -329,6 +329,23 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         );
     });
 
+    it('renders a pipeline node with its node id, artifact and version', () => {
+        const content = buildMessage([
+            {
+                type: 'composer_node',
+                artifactUuid: 'artifact-1',
+                versionUuid: 'version-2',
+                nodeId: 'revenue_by_month',
+                title: 'Revenue by month',
+            },
+        ]);
+
+        expect(content).toContain(
+            '- Pipeline node "Revenue by month" (nodeId: revenue_by_month) of chart artifact artifact-1, version version-2',
+        );
+        expect(content).toContain('read "revenue_by_month" in references');
+    });
+
     it('renders a data app restore as one line naming both versions', () => {
         const content = buildMessage([
             {

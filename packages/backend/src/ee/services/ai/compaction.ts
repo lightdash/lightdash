@@ -240,6 +240,8 @@ export class Compaction {
                 return `Document ${item.displayName ?? item.documentUuid} (${item.documentUuid}; read it with readContent)`;
             case 'data_app_element':
                 return `element reference ${elementReferenceToWireString(item)} in data app ${item.displayName ?? item.appUuid} (${item.appUuid}, version ${item.version}; copy it verbatim into the iterateDataApp brief)`;
+            case 'composer_node':
+                return `pipeline node "${item.title}" (nodeId: ${item.nodeId}) of chart artifact ${item.artifactUuid}, version ${item.versionUuid}`;
             case 'data_app_restore':
                 return `data app ${item.displayName ?? item.appUuid} (${item.appUuid}) restored version ${item.restoredFromVersion} as version ${item.version}`;
             case 'skill':

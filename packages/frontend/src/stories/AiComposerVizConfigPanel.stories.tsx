@@ -137,6 +137,9 @@ const PanelStory = ({
                         displayableNodeIds={new Set(['revenue', 'result'])}
                         onDisplayNode={() => {}}
                         nodeStatuses={{}}
+                        renderNodeResult={() => null}
+                        chatNodeIds={new Set()}
+                        onAddToChat={null}
                         expanded={isPipelineOpen}
                         onExpandedChange={(open) => {
                             setIsPipelineOpen(open);

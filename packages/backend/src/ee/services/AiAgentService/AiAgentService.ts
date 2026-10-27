@@ -83,6 +83,7 @@ import {
     buildAgentIdentityClaim,
     CatalogType,
     CommercialFeatureFlags,
+    composerNodeContextKey,
     ConflictError,
     ContentType,
     DATA_APP_VIZ_TEMPLATE,
@@ -1575,6 +1576,9 @@ export class AiAgentService extends BaseService {
                 case 'data_app_element':
                     key = dataAppElementContextKey(item);
                     break;
+                case 'composer_node':
+                    key = composerNodeContextKey(item);
+                    break;
                 case 'data_app_restore':
                     key = dataAppRestoreContextKey(item);
                     break;
@@ -1791,6 +1795,33 @@ export class AiAgentService extends BaseService {
                     if (!design) {
                         throw new NotFoundError('Theme not found');
                     }
+                    return;
+                }
+
+                if (item.type === 'composer_node') {
+                    if (allowedSpaces) {
+                        throw new ForbiddenError(
+                            'Pipeline nodes are not available in embedded AI',
+                        );
+                    }
+                    const artifact = await this.aiAgentModel.getArtifact(
+                        item.artifactUuid,
+                        item.versionUuid,
+                    );
+                    if (
+                        artifact.artifactUuid !== item.artifactUuid ||
+                        !isAiComposerChartArtifactConfig(
+                            artifact.chartConfig,
+                        ) ||
+                        !artifact.chartConfig.queries.some(
+                            (node) => node.nodeId === item.nodeId,
+                        )
+                    ) {
+                        throw new NotFoundError('Pipeline node not found');
+                    }
+                    await this.validateThreadContextAccess(user, {
+                        threadUuid: artifact.threadUuid,
+                    });
                     return;
                 }
 
@@ -12445,6 +12476,8 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     const slugText = item.appSlug ?? '(slug unavailable)';
                     return `- Element reference ${elementReferenceToWireString(item)} in data app "${name}" (appSlug: ${slugText}, version ${item.version}) — the app's source is not readable in this thread; copy the bracketed reference verbatim into the iterateDataApp brief so the coding agent can locate the element.`;
                 }
+                case 'composer_node':
+                    return `- Pipeline node "${item.title}" (nodeId: ${item.nodeId}) of chart artifact ${item.artifactUuid}, version ${item.versionUuid} — the node the user is pointing at. Node ids are thread-scoped: to build on it, read "${item.nodeId}" in references without resubmitting it.`;
                 case 'data_app_restore': {
                     const name = item.displayName ?? '(name unavailable)';
                     const slugText = item.appSlug ?? '(slug unavailable)';

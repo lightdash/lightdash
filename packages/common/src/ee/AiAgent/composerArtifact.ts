@@ -289,3 +289,14 @@ export type ApiAiAgentMessageQueryPipelinesResponse = {
     status: 'ok';
     results: AiAgentMessageQueryPipeline[];
 };
+
+/** Identity of a pinned composer pipeline node as prompt context. */
+export const composerNodeContextKey = ({
+    artifactUuid,
+    versionUuid,
+    nodeId,
+}: {
+    artifactUuid: string;
+    versionUuid: string;
+    nodeId: string;
+}): string => `composer_node:${artifactUuid}:${versionUuid}:${nodeId}`;

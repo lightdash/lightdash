@@ -62,16 +62,22 @@ const FieldChip: FC<{
     fieldId: string;
     type: 'dimension' | 'metric';
     fieldsMap: ItemsMap;
-}> = ({ fieldId, type, fieldsMap }) => (
-    <Box
-        component="span"
-        className={styles.fieldChip}
-        bg={LD_FIELD_COLORS[type].bg}
-        c={LD_FIELD_COLORS[type].color}
-    >
-        {semanticItemLabel(fieldsMap, fieldId)}
-    </Box>
-);
+    muted: boolean;
+}> = ({ fieldId, type, fieldsMap, muted }) =>
+    muted ? (
+        <Box component="span" className={styles.fieldChipMuted}>
+            {semanticItemLabel(fieldsMap, fieldId)}
+        </Box>
+    ) : (
+        <Box
+            component="span"
+            className={styles.fieldChip}
+            bg={LD_FIELD_COLORS[type].bg}
+            c={LD_FIELD_COLORS[type].color}
+        >
+            {semanticItemLabel(fieldsMap, fieldId)}
+        </Box>
+    );
 
 const Sorts: FC<{
     sorts: SemanticNodeQuery['sorts'];
@@ -111,6 +117,8 @@ type Props = {
     metricQuery: SemanticNodeQuery;
     fieldsMap: ItemsMap;
     parameters: ParametersValuesMap;
+    /** Neutral field chips, for the pipeline notebook cells. */
+    mutedFields?: boolean;
 };
 
 /** Explore, fields, then filters, parameters and sorts, each row marked by its icon. */
@@ -119,6 +127,7 @@ export const SemanticNodeDetails: FC<Props> = ({
     metricQuery,
     fieldsMap,
     parameters,
+    mutedFields = false,
 }) => {
     const getUiString = useUiStrings();
     return (
@@ -147,6 +156,7 @@ export const SemanticNodeDetails: FC<Props> = ({
                                     fieldId={fieldId}
                                     type="dimension"
                                     fieldsMap={fieldsMap}
+                                    muted={mutedFields}
                                 />
                             ))}
                             {metricQuery.metrics.map((fieldId) => (
@@ -155,6 +165,7 @@ export const SemanticNodeDetails: FC<Props> = ({
                                     fieldId={fieldId}
                                     type="metric"
                                     fieldsMap={fieldsMap}
+                                    muted={mutedFields}
                                 />
                             ))}
                         </Group>

@@ -11,6 +11,7 @@ import {
 import { type Meta, type StoryObj } from '@storybook/react-vite';
 import { IconX } from '@tabler/icons-react';
 import { clsx } from 'clsx';
+import { useState } from 'react';
 import MantineIcon from '../components/common/MantineIcon';
 import panelStyles from '../ee/features/aiCopilot/components/ChatElements/AiArtifactPanel.module.css';
 import { AiComposerResultError } from '../ee/features/aiCopilot/components/ChatElements/AiComposerResultError';
@@ -165,8 +166,15 @@ const fanInResult: ResultTable = {
     ],
 };
 
-const ResultsTable = ({ result }: { result: ResultTable }) => (
-    <Paper radius={0} bg="ldGray.0">
+const ResultsTable = ({
+    result,
+    withBorder = true,
+}: {
+    result: ResultTable;
+    /** Off inside a notebook cell, whose frame already draws the edges. */
+    withBorder?: boolean;
+}) => (
+    <Paper radius={0} bg="ldGray.0" withBorder={withBorder}>
         <Table fz="xs" highlightOnHover>
             <Table.Thead>
                 <Table.Tr>
@@ -218,61 +226,80 @@ const ComposerArtifact = ({
     defaultMode,
     nodeStatuses = {},
     resultError,
-}: ArtifactProps) => (
-    <Box w={760} h={900}>
-        <Box className={panelStyles.floatingPanel}>
-            <Box
-                className={clsx(
-                    panelStyles.floatingContent,
-                    panelStyles.flushContent,
-                )}
-            >
-                <AiComposerPipelinePanel
-                    projectUuid={STORY_PROJECT_UUID}
-                    queries={queries}
-                    terminalNodeId={terminalNodeId}
-                    displayedNodeId={terminalNodeId}
-                    displayableNodeIds={new Set(queries.map((q) => q.nodeId!))}
-                    onDisplayNode={() => {}}
-                    nodeStatuses={nodeStatuses}
-                    defaultExpanded={defaultExpanded}
-                    defaultMode={defaultMode}
+}: ArtifactProps) => {
+    const [chatNodeIds, setChatNodeIds] = useState<ReadonlySet<string>>(
+        () => new Set(),
+    );
+    return (
+        <Box w={760} h={900}>
+            <Box className={panelStyles.floatingPanel}>
+                <Box
+                    className={clsx(
+                        panelStyles.floatingContent,
+                        panelStyles.flushContent,
+                    )}
                 >
-                    <Stack gap="md" h="100%" mih={0}>
-                        <Box
-                            className={clsx(
-                                panelStyles.head,
-                                panelStyles.flushHead,
-                            )}
-                        >
-                            <Stack gap={0} flex={1} miw={0}>
-                                <Text fz="sm" fw={600}>
-                                    {result.title}
-                                </Text>
-                                <Text fz="xs" c="dimmed">
-                                    {result.description}
-                                </Text>
-                            </Stack>
-                            <Group gap={2} className={panelStyles.headRight}>
-                                <ActionIcon size="sm" aria-label="Close">
-                                    <MantineIcon icon={IconX} />
-                                </ActionIcon>
-                            </Group>
-                        </Box>
-                        {resultError === undefined ? (
-                            <ResultsTable result={result} />
-                        ) : (
-                            <AiComposerResultError
-                                headerContent={null}
-                                message={resultError}
-                            />
+                    <AiComposerPipelinePanel
+                        projectUuid={STORY_PROJECT_UUID}
+                        queries={queries}
+                        terminalNodeId={terminalNodeId}
+                        displayedNodeId={terminalNodeId}
+                        displayableNodeIds={
+                            new Set(queries.map((q) => q.nodeId!))
+                        }
+                        onDisplayNode={() => {}}
+                        nodeStatuses={nodeStatuses}
+                        defaultExpanded={defaultExpanded}
+                        defaultMode={defaultMode}
+                        renderNodeResult={() => (
+                            <ResultsTable result={result} withBorder={false} />
                         )}
-                    </Stack>
-                </AiComposerPipelinePanel>
+                        chatNodeIds={chatNodeIds}
+                        onAddToChat={(node) =>
+                            setChatNodeIds(
+                                (current) => new Set([...current, node.nodeId]),
+                            )
+                        }
+                    >
+                        <Stack gap="md" h="100%" mih={0}>
+                            <Box
+                                className={clsx(
+                                    panelStyles.head,
+                                    panelStyles.flushHead,
+                                )}
+                            >
+                                <Stack gap={0} flex={1} miw={0}>
+                                    <Text fz="sm" fw={600}>
+                                        {result.title}
+                                    </Text>
+                                    <Text fz="xs" c="dimmed">
+                                        {result.description}
+                                    </Text>
+                                </Stack>
+                                <Group
+                                    gap={2}
+                                    className={panelStyles.headRight}
+                                >
+                                    <ActionIcon size="sm" aria-label="Close">
+                                        <MantineIcon icon={IconX} />
+                                    </ActionIcon>
+                                </Group>
+                            </Box>
+                            {resultError === undefined ? (
+                                <ResultsTable result={result} />
+                            ) : (
+                                <AiComposerResultError
+                                    headerContent={null}
+                                    message={resultError}
+                                />
+                            )}
+                        </Stack>
+                    </AiComposerPipelinePanel>
+                </Box>
             </Box>
         </Box>
-    </Box>
-);
+    );
+};
 
 const meta = {
     component: ComposerArtifact,
