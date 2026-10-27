@@ -1,4 +1,9 @@
-import { DragDropContext, Droppable } from '@hello-pangea/dnd';
+import {
+    DragDropContext,
+    Droppable,
+    type DraggableProps,
+} from '@hello-pangea/dnd';
+import type * as DndModule from '@hello-pangea/dnd';
 import { type DashboardTab } from '@lightdash/common';
 import { Tabs } from '@mantine/core';
 import { screen } from '@testing-library/react';
@@ -6,6 +11,21 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import DraggableTab from './Tab';
+
+const draggableProps = vi.hoisted(() => ({
+    last: null as null | { disableInteractiveElementBlocking?: boolean },
+}));
+
+vi.mock('@hello-pangea/dnd', async () => {
+    const actual = await vi.importActual<typeof DndModule>('@hello-pangea/dnd');
+    return {
+        ...actual,
+        Draggable: (props: DraggableProps) => {
+            draggableProps.last = props;
+            return <actual.Draggable {...props} />;
+        },
+    };
+});
 
 const tabs: DashboardTab[] = [0, 1, 2, 3].map((order) => ({
     uuid: `tab-${order}`,
@@ -81,6 +101,23 @@ describe('DraggableTab', () => {
         expect(
             tab.querySelector("[data-position='right'] [aria-haspopup='menu']"),
         ).not.toBeNull();
+    });
+
+    // The tab is a button, which the drag library ignores as a drag start by default
+    it('starts a drag from anywhere on a quiet tab', () => {
+        renderTab({ isEditMode: true, hasQuietActions: true });
+
+        expect(draggableProps.last?.disableInteractiveElementBlocking).toBe(
+            true,
+        );
+    });
+
+    it('flag-off guard: keeps the shipped interactive element blocking', () => {
+        renderTab({ isEditMode: true });
+
+        expect(
+            draggableProps.last?.disableInteractiveElementBlocking,
+        ).toBeFalsy();
     });
 
     it('flag-off guard: keeps the shipped grip without the prop', () => {

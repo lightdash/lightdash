@@ -48,7 +48,13 @@ const DraggableTab: FC<DraggableTabProps> = ({
     );
 
     return (
-        <Draggable key={tab.uuid} draggableId={tab.uuid} index={idx}>
+        <Draggable
+            key={tab.uuid}
+            draggableId={tab.uuid}
+            index={idx}
+            // With no grip the tab, a button, is the handle
+            disableInteractiveElementBlocking={hasQuietActions}
+        >
             {(provided, snapshot) => (
                 <div
                     ref={provided.innerRef}
