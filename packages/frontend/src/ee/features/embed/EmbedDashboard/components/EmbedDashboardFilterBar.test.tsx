@@ -5,12 +5,15 @@ import {
     type Dashboard,
     type InteractivityOptions,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
-import { type ReactElement } from 'react';
+import { screen, within } from '@testing-library/react';
+import { type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DashboardContext from '../../../../../providers/Dashboard/context';
 import { type DashboardContextType } from '../../../../../providers/Dashboard/types';
-import { createDashboardTestStore } from '../../../../../testing/dashboardStore';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+} from '../../../../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../../../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import EmbedDashboardFilterBar from './EmbedDashboardFilterBar';
@@ -69,6 +72,25 @@ vi.mock('../../../../../features/dashboardControls/FilterPills', async () => {
         },
     };
 });
+vi.mock('../../../../../features/dashboardControls/SectionedFilters', () => ({
+    SectionedFilters: ({
+        viewerActions,
+        triggerClassName,
+        dropdownClassName,
+    }: {
+        viewerActions: ReactNode;
+        triggerClassName?: string;
+        dropdownClassName?: string;
+    }) => (
+        <div
+            data-testid="sectioned-filters"
+            className={triggerClassName}
+            data-dropdown-class={dropdownClassName}
+        >
+            {viewerActions}
+        </div>
+    ),
+}));
 vi.mock('./EmbedDashboardFilters', () => ({
     default: () => <div data-testid="shipped-filters" />,
     EmbedResetFiltersButton: () => <button type="button">Reset</button>,
@@ -88,35 +110,50 @@ const dashboard = (canAddFilters: boolean) =>
         parameterInteractivity: { enabled: false },
     }) as unknown as Dashboard & InteractivityOptions;
 
+const savedRule = {
+    id: 'saved',
+    label: undefined,
+    operator: FilterOperator.EQUALS,
+    target: { fieldId: 'orders_status', tableName: 'orders' },
+    values: ['done'],
+};
+
+const sectionedStore = () => {
+    const store = createDashboardTestStore({
+        dashboardFilters: {
+            dimensions: [{ ...savedRule, sectionId: 'a' }],
+            metrics: [],
+            tableCalculations: [],
+        },
+    });
+    seedDashboardEditState(store, {
+        dashboard: {
+            config: {
+                isDateZoomDisabled: false,
+                controlSections: [{ id: 'a', name: 'Dates' }],
+            },
+        },
+    });
+    return store;
+};
+
 const barElement = (
     canAddFilters: boolean,
     isControlsEnabled: boolean,
+    store = createDashboardTestStore({
+        dashboardFilters: {
+            dimensions: [savedRule],
+            metrics: [],
+            tableCalculations: [],
+        },
+    }),
 ): ReactElement => (
     // The page's provider, which the bar's filter area reads below it
     <DashboardContext.Provider
         value={mockDashboardContext.current as unknown as DashboardContextType}
     >
         {/* One saved filter, so the bar has something to show */}
-        <DashboardStoreTestProvider
-            store={createDashboardTestStore({
-                dashboardFilters: {
-                    dimensions: [
-                        {
-                            id: 'saved',
-                            label: undefined,
-                            operator: FilterOperator.EQUALS,
-                            target: {
-                                fieldId: 'orders_status',
-                                tableName: 'orders',
-                            },
-                            values: ['done'],
-                        },
-                    ],
-                    metrics: [],
-                    tableCalculations: [],
-                },
-            })}
-        >
+        <DashboardStoreTestProvider store={store}>
             <EmbedDashboardFilterBar
                 dashboard={dashboard(canAddFilters)}
                 shouldShowFilters
@@ -171,6 +208,32 @@ describe('EmbedDashboardFilterBar', () => {
         expect(
             screen.getByRole('button', { name: 'Reset' }),
         ).toBeInTheDocument();
+    });
+
+    it("shows a dashboard's sections as the app's viewer bar, with the class contract", () => {
+        renderWithProviders(barElement(false, true, sectionedStore()));
+        const sectioned = screen.getByTestId('sectioned-filters');
+        expect(sectioned).toHaveClass('ld-dashboard-filter');
+        expect(sectioned).toHaveAttribute(
+            'data-dropdown-class',
+            'ld-dashboard-filter-dropdown',
+        );
+        // "Add filter" and the reset lead the sectioned bar
+        expect(
+            within(sectioned).getByRole('button', { name: 'Rail add' }),
+        ).toHaveClass('ld-dashboard-add-filter');
+        expect(
+            within(sectioned).getByRole('button', { name: 'Reset' }),
+        ).toBeInTheDocument();
+        expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+    });
+
+    it('keeps the shipped filters for a dashboard with sections while the flag is off', () => {
+        renderWithProviders(barElement(true, false, sectionedStore()));
+        expect(screen.getByTestId('shipped-filters')).toBeInTheDocument();
+        expect(
+            screen.queryByTestId('sectioned-filters'),
+        ).not.toBeInTheDocument();
     });
 
     it('keeps the pills while a tile change reloads the filter fields', () => {

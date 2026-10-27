@@ -358,7 +358,12 @@ In `FilterConfiguration/`:
   on "Add filter", `ld-dashboard-filter` on each pill), the shipped reset
   button (`EmbedResetFiltersButton`, moved out of `EmbedDashboardFilters`)
   where viewers may not add filters, all inside `SettledFilterFields`, so a
-  tile added or removed keeps the pills as on the app's bar. The bar stays
+  tile added or removed keeps the pills as on the app's bar. A dashboard
+  with sections gets `SectionedFilters` in their place, as the app's viewer
+  bar: its `viewerActions` (default `AddControl`) are the embed's "Add
+  filter" and reset, and `triggerClassName` / `dropdownClassName` (default
+  none) carry the contract to every pass, loose and per capsule. Fold is the
+  viewer's, local. The bar stays
   while a filter is edited, as the app's does. `AddControl` renders nothing while
   `canAddFilters` is false. URL
   sync, and its skip in SDK mode, stay the shipped `DashboardFiltersSync`.
@@ -375,8 +380,12 @@ In `FilterConfiguration/`:
   `MantineThemeProvider` that gives `ComboboxDropdown` and `PopoverDropdown`
   a default `className`, so no shared input takes a prop for it. Outside an
   embed it renders its children alone.
-- An embed resolves the flag with no user (JWT), so only instance-wide
-  enablement reaches it, never a Console organisation override.
+- An embed resolves the flag for the JWT's organisation
+  (`FeatureFlagService.getForAccount`), so a Console organisation override
+  reaches it as instance-wide enablement does.
+- An embed editor's Save sends the loaded `dashboard.config` and the
+  store's rules as they are, so sections and each rule's `sectionId`
+  survive it.
 
 ## Provider contract (`useControlsSidebar`)
 
@@ -1235,12 +1244,13 @@ filter), `adoptPlaceholder` and the emptied placeholder in
 `ControlsSidebarProvider`, and `buildDashboardConfig`, which today carries
 `parameterSections` forward from the loaded config; `controlSections` is
 saved from the store once `haveControlSectionsChanged`, as `parameterOrder`.
-Section names are translatable through `config.controlSections[].name` in
-the language map, as tab names are.
+The language map accepts `config.controlSections[].name`, but embeds don't
+apply it yet: section names show untranslated.
 
 - State: `controlSections` and `haveControlSectionsChanged` in the store's
   `edit` slice (`syncControlSections` seeds from the saved config unless
-  edits are staged, from `DashboardProvider` and the page's Cancel; `add`
+  edits are staged, from `DashboardProvider`, which reads the query's
+  dashboard or an embed's (`setEmbedDashboard`), and the page's Cancel; `add`
   (appends, the bar's too, so a new section is last, saved and shown),
   `rename`, `remove`, `moveControlSection` and `setControlSectionCollapsed`
   mark the change; every reducer spreads the section, so `collapsed`

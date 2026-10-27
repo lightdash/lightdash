@@ -136,6 +136,23 @@ describe('restoreFilterLabelOverrides', () => {
         expect(result.dimensions[1].label).toBe('Region');
     });
 
+    it("keeps each rule's section through a save", () => {
+        const sectioned = {
+            ...dimensionRule('rule-a', 'Region'),
+            sectionId: 'section-1',
+        };
+        const restored = restoreFilterLabelOverrides(
+            applyFilterLabelOverrides(
+                { ...savedFilters, dimensions: [sectioned] },
+                overrides,
+            ),
+            { ...savedFilters, dimensions: [sectioned] },
+            overrides,
+        );
+
+        expect(restored.dimensions).toEqual([sectioned]);
+    });
+
     it('keeps a label renamed in the embed editor', () => {
         const renamed: DashboardFilters = {
             ...translated,

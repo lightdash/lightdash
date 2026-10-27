@@ -157,6 +157,8 @@ type CapsuleProps = {
     onToggle: () => void;
     activeTabUuid: string | undefined;
     popover: PillPopoverState;
+    triggerClassName: string | undefined;
+    dropdownClassName: string | undefined;
     actions: CapsuleActions | null;
     /** The sections in bar order: which side a dragged capsule lands on. */
     sectionOrder: string[];
@@ -171,6 +173,8 @@ const SectionCapsule: FC<CapsuleProps> = ({
     onToggle,
     activeTabUuid,
     popover,
+    triggerClassName,
+    dropdownClassName,
     actions,
     sectionOrder,
 }) => {
@@ -334,6 +338,8 @@ const SectionCapsule: FC<CapsuleProps> = ({
                         activeTabUuid={activeTabUuid}
                         sectionId={section.id}
                         popover={popover}
+                        triggerClassName={triggerClassName}
+                        dropdownClassName={dropdownClassName}
                     />
                 </Box>
             ) : (
@@ -481,6 +487,12 @@ const BarSpace: FC<{
 
 type Props = {
     activeTabUuid: string | undefined;
+    /** A viewer's bar before the pills (default: `AddControl`); an embed passes its own. */
+    viewerActions?: ReactNode;
+    /** An embed's class contract hook on each pill (default none). */
+    triggerClassName?: string;
+    /** An embed's class contract hook on a saved pill's popover (default none). */
+    dropdownClassName?: string;
 };
 
 const LOOSE_START = 'loose-start';
@@ -494,7 +506,12 @@ const LOOSE_START = 'loose-start';
 // every pass. In edit mode one drag context spans the passes: a pill dropped
 // on a pill takes its place and section, on a capsule joins that section
 // last, on the first button or the bar's empty space leaves its section
-export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
+export const SectionedFilters: FC<Props> = ({
+    activeTabUuid,
+    viewerActions = <AddControl />,
+    triggerClassName,
+    dropdownClassName,
+}) => {
     const [flippedIds, setFlippedIds] = useState<Set<string>>(() => new Set());
     const [openPopoverId, setOpenPopoverId] = useState<string>();
     const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -811,6 +828,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
             }}
             activeTabUuid={activeTabUuid}
             popover={popover}
+            triggerClassName={triggerClassName}
+            dropdownClassName={dropdownClassName}
             sectionOrder={sectionOrder}
             actions={
                 isViewer
@@ -857,6 +876,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
             sectionId={null}
             popover={popover}
             looseEnds={isViewer ? undefined : looseEnds}
+            triggerClassName={triggerClassName}
+            dropdownClassName={dropdownClassName}
         />
     );
 
@@ -906,7 +927,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                 className={classes.flow}
                 data-sectioned={sections.length > 0 || undefined}
             >
-                <AddControl />
+                {viewerActions}
                 {pills}
                 {capsules}
             </Box>
