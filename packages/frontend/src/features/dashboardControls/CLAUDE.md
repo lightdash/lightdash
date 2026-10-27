@@ -1233,8 +1233,8 @@ filter), `adoptPlaceholder` and the emptied placeholder in
 `ControlsSidebarProvider`, and `buildDashboardConfig`, which today carries
 `parameterSections` forward from the loaded config; `controlSections` is
 saved from the store once `haveControlSectionsChanged`, as `parameterOrder`.
-Section names are translatable through `config.controlSections[].name` in
-the language map, as tab names are.
+The language map accepts `config.controlSections[].name`, but embeds don't
+apply it yet: section names show untranslated.
 
 - State: `controlSections` and `haveControlSectionsChanged` in the store's
   `edit` slice (`syncControlSections` seeds from the saved config unless
