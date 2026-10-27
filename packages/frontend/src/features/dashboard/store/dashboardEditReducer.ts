@@ -162,10 +162,6 @@ export const dashboardEditActions = {
     addControlSection: createAction<DashboardControlSection>(
         'dashboardEdit/addControlSection',
     ),
-    /** Adds a section first, before every other */
-    prependControlSection: createAction<DashboardControlSection>(
-        'dashboardEdit/prependControlSection',
-    ),
     renameControlSection: createAction<DashboardControlSection>(
         'dashboardEdit/renameControlSection',
     ),
@@ -320,12 +316,6 @@ export const dashboardEditReducer = (
         return withControlSections(state, [
             ...state.controlSections,
             action.payload,
-        ]);
-    }
-    if (dashboardEditActions.prependControlSection.match(action)) {
-        return withControlSections(state, [
-            action.payload,
-            ...state.controlSections,
         ]);
     }
     if (dashboardEditActions.renameControlSection.match(action)) {

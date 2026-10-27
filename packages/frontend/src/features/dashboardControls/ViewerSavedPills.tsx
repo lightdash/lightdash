@@ -143,7 +143,7 @@ export const ViewerSavedPills: FC<Props> = ({
                             openPopoverId={openPopoverId}
                             onPopoverOpen={onPopoverOpen}
                             onPopoverClose={onPopoverClose}
-                            openFieldIconOverride={<EditBadge />}
+                            openLeadingIcon={<EditBadge />}
                             onRemove={remove}
                             onUpdate={(value) =>
                                 (group === 'metrics'

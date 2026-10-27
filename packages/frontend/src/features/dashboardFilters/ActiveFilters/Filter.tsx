@@ -41,8 +41,8 @@ type Props = {
     onPopoverClose: () => void;
     onUpdate: (filter: DashboardFilterRule) => void;
     onRemove: () => void;
-    /** Shown in place of the field icon while the popover is open; default none. */
-    openFieldIconOverride?: ReactNode;
+    /** Shown as the pill's first icon while the popover is open; default none. */
+    openLeadingIcon?: ReactNode;
 };
 
 const Filter: FC<Props> = ({
@@ -59,7 +59,7 @@ const Filter: FC<Props> = ({
     onPopoverClose,
     onUpdate,
     onRemove,
-    openFieldIconOverride,
+    openLeadingIcon,
 }) => {
     const popoverId = useId();
 
@@ -217,10 +217,8 @@ const Filter: FC<Props> = ({
                             }
                             isTablesTooltipDisabled={isPopoverOpen}
                             triggerClassName={triggerClassName}
-                            fieldIconOverride={
-                                isPopoverOpen
-                                    ? openFieldIconOverride
-                                    : undefined
+                            leadingIcon={
+                                isPopoverOpen ? openLeadingIcon : undefined
                             }
                             onClick={() => {
                                 if (isReadOnlyLocked) return;

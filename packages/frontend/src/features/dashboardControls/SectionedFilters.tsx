@@ -157,6 +157,8 @@ type CapsuleProps = {
     actions: CapsuleActions | null;
     /** The sections in bar order: which side a dragged capsule lands on. */
     sectionOrder: string[];
+    /** The first section: the loose pills end just before it. */
+    isFirst: boolean;
 };
 
 const SectionCapsule: FC<CapsuleProps> = ({
@@ -170,6 +172,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
     popover,
     actions,
     sectionOrder,
+    isFirst,
 }) => {
     const getUiString = useUiStrings();
     const summaryId = useId();
@@ -223,6 +226,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
             data-over={isForeignOver || undefined}
             data-section-drop={sectionDropSide}
             data-dragging={head.isDragging || undefined}
+            data-first={isFirst || undefined}
         >
             {actions === null ? (
                 <UnstyledButton
@@ -313,7 +317,6 @@ const SectionCapsule: FC<CapsuleProps> = ({
                             {section.name}
                         </Button>
                     )}
-                    {actions.isUnsaved && <ChangedDot isCorner={false} />}
                 </Group>
             )}
             {/* Mounted on expand, so its pills arrive; `contents` keeps them
@@ -340,6 +343,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                         : formatSectionCount(getUiString, visibleRules.length)}
                 </Text>
             )}
+            {actions?.isUnsaved && <ChangedDot />}
             {actions !== null && (
                 <Group
                     gap={2}
@@ -647,9 +651,6 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
     // unsectioned ones; a folded capsule's are left out. Read when a pill is
     // picked, so the selection does not change with it
     const barOrder = [
-        ...groups.flatMap(({ section, rules, visibleRules }) =>
-            isOpen(section, rules.length) ? visibleRules : [],
-        ),
         ...groupRulesBySection(dashboardFilters, sections)
             .filter(({ section }) => section === null)
             .flatMap(({ rules }) => rules.map(({ rule }) => rule))
@@ -660,6 +661,9 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                         activeTabUuid,
                     ),
             ),
+        ...groups.flatMap(({ section, rules, visibleRules }) =>
+            isOpen(section, rules.length) ? visibleRules : [],
+        ),
     ].map((rule) => rule.id);
     const latestBarOrder = useRef(barOrder);
     useLayoutEffect(() => {
@@ -725,9 +729,10 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
         if (overId === undefined || overId === id) return;
         dispatch(dashboardEditActions.moveControlSection({ id, overId }));
     };
-    const capsules = groups.map(({ section, rules, visibleRules }) => (
+    const capsules = groups.map(({ section, rules, visibleRules }, index) => (
         <SectionCapsule
             key={section.id}
+            isFirst={index === 0}
             section={section}
             rules={rules}
             visibleRules={visibleRules}
@@ -814,19 +819,20 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
         />
     );
 
-    // Named first, in "Add section"'s place, wherever it was started
+    // Named last, in the entry's place at the bar's end, wherever it was
+    // started, so nothing before it moves
     const newSection = naming !== null && (
         <NewSection
             onAdd={(name) => {
                 const section = { id: uuidv4(), name };
                 focusNewSection.current = section.id;
-                dispatch(dashboardEditActions.prependControlSection(section));
+                dispatch(dashboardEditActions.addControlSection(section));
                 const filtersMoved =
                     naming.moveIds.length > 0
                         ? moveToSection(
                               naming.moveIds,
                               section.id,
-                              [section, ...sections],
+                              [...sections, section],
                               // The creation is the event, with filtersMoved
                               null,
                           )
@@ -859,8 +865,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
         return (
             <Box className={classes.flow}>
                 <AddControl />
-                {capsules}
                 {pills}
+                {capsules}
             </Box>
         );
     }
@@ -1053,6 +1059,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                     <UnsectionTarget>
                         <AddControl />
                     </UnsectionTarget>
+                    {pills}
+                    {capsules}
                     {naming === null && isGhostShown && (
                         <InertWhileEditing>
                             <NewSectionGhost
@@ -1090,8 +1098,6 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
                         </InertWhileEditing>
                     )}
                     {newSection}
-                    {capsules}
-                    {pills}
                 </BarSpace>
                 {/* On the body, so the bar's overflow doesn't clip the copy */}
                 {createPortal(

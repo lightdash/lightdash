@@ -3,11 +3,12 @@
     display: inline-flex;
 }
 
-/* `EditBadge`: a 16px circle in the 12px field icon's place, its 4px
-   overlap taken from the 6px before the label, so the gap to a requirement
-   icon stays; a pill that opens or closes keeps its width */
+/* `EditBadge`: a 16px circle, the pill's first icon. On an editor's pill
+   it takes the 12px grip's slot, its 4px overlap taken from the pill's
+   left padding, so the gap to the next icon stays and the pill keeps its
+   width */
 .editBadge {
-    margin-inline-end: -4px;
+    margin-inline-start: -4px;
 }
 
 /* Picked on the sectioned bar to move or remove: solid blue with white

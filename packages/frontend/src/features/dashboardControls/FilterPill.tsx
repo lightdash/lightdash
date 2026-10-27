@@ -206,13 +206,13 @@ export const FilterPill: FC<Props> = memo(
                         fieldIconOverride={
                             isPicked ? (
                                 <MantineIcon icon={IconCheck} size="sm" />
-                            ) : isSelected ? (
-                                <EditBadge />
                             ) : undefined
                         }
+                        // The open pill's pencil takes the grip's slot
+                        leadingIcon={isSelected ? <EditBadge /> : undefined}
                         onClick={handleClick}
                     />
-                    {isChanged && <ChangedDot isCorner />}
+                    {isChanged && <ChangedDot />}
                 </Box>
             </Tooltip>
         );

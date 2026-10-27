@@ -164,6 +164,12 @@ const pill = (name: RegExp | string) => {
 };
 const editBadgeIn = (element: HTMLElement) =>
     element.querySelector('[data-edit-badge]');
+// The icons before a pill's name, in order
+const leadingIconsOf = (element: HTMLElement) => [
+    ...(element.querySelector('[data-position="left"] > div')?.children ?? []),
+];
+const isFieldIcon = (element: Element | undefined) =>
+    /statusIcon/.test(element?.getAttribute('class') ?? '');
 const queryPill = (name: RegExp) =>
     screen
         .queryAllByRole('button', { name })
@@ -354,9 +360,12 @@ describe('FilterPills', () => {
         expect(
             screen.getByRole('button', { name: /^Region/, pressed: false }),
         ).toBeInTheDocument();
-        // A pencil badge in place of the field icon; the fill and border
-        // stay the pill's own, never the picked pill's solid one
-        expect(editBadgeIn(pill(/^Status/))).not.toBeNull();
+        // A pencil badge first, in the grip's slot, then the field icon; the
+        // fill and border stay the pill's own, never the picked pill's
+        const [first, second] = leadingIconsOf(pill(/^Status/));
+        expect(first).toHaveAttribute('data-edit-badge');
+        expect(isFieldIcon(second)).toBe(true);
+        expect(pill(/^Status/).querySelector('svg[cursor="grab"]')).toBeNull();
         expect(editBadgeIn(pill(/^Region/))).toBeNull();
         expect(pill(/^Status/)).not.toHaveClass(/pickedPill/);
         const openClassName = pill(/^Status/).className;
@@ -369,7 +378,10 @@ describe('FilterPills', () => {
         };
         rerender(<FilterPills activeTabUuid={undefined} />);
         expect(editBadgeIn(pill(/^Status/))).toBeNull();
-        // Open or not, the pill keeps the same look: only the icon changes
+        expect(
+            pill(/^Status/).querySelector('svg[cursor="grab"]'),
+        ).not.toBeNull();
+        // Open or not, the pill keeps the same look: only the grip slot changes
         expect(pill(/^Status/).className).toBe(openClassName);
     });
 
@@ -405,9 +417,10 @@ describe('FilterPills', () => {
             expect(lock.closest('[inert]')).not.toBeNull();
             expect(lock.closest('[class*="hiddenAction"]')).not.toBeNull();
         });
-        // The grip, hidden (its class replaces the icon's own)
+        // The grip of a pill that is not open, hidden (its class replaces
+        // the icon's own)
         expect(
-            pill(/^Status/).querySelector('svg[cursor="grab"]'),
+            pill(/^Region/).querySelector('svg[cursor="grab"]'),
         ).toHaveAttribute('class', expect.stringMatching(/hiddenAction/));
         await user.click(
             screen.getAllByRole('button', { name: 'Remove filter' })[0],
@@ -1189,7 +1202,10 @@ describe('FilterPills', () => {
             expect(editBadgeIn(pill(/^Status/))).toBeNull();
             await user.click(pill(/^Status/));
             await screen.findByRole('dialog');
-            expect(editBadgeIn(pill(/^Status/))).not.toBeNull();
+            // First, before the field icon, which stays
+            const [first, second] = leadingIconsOf(pill(/^Status/));
+            expect(first).toHaveAttribute('data-edit-badge');
+            expect(isFieldIcon(second)).toBe(true);
             expect(editBadgeIn(pill(/^Region/))).toBeNull();
         });
 

@@ -48,17 +48,14 @@
 }
 
 /* A pill leaving its section over the bar's empty space: the drop line
-   after the bar's last item, in the gap, so nothing moves */
-.flow[data-over] > :last-child {
-    position: relative;
-}
-
-.flow[data-over] > :last-child::after {
+   where it lands, after the loose pills, in the gap before the first
+   capsule, so nothing moves */
+.flow[data-over] > .capsule[data-first]::after {
     content: '';
     position: absolute;
     top: 2px;
     bottom: 2px;
-    right: -4px;
+    left: -5px;
     width: 2px;
     border-radius: 1px;
     background-color: var(--mantine-color-blue-4);

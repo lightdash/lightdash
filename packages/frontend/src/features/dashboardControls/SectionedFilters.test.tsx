@@ -314,7 +314,7 @@ describe('SectionedFilters', () => {
         };
     });
 
-    it('renders Add, then a capsule per section in order, then the unsectioned pass', () => {
+    it('renders Add, then the unsectioned pass, then a capsule per section in order', () => {
         // A viewer's bar: only the sections with a member on this tab
         mockSidebar.current = { isViewer: true, isSidebarOpen: false };
         renderSectioned([rule('two', 'b'), rule('one', 'a')], 'tab-1');
@@ -322,16 +322,17 @@ describe('SectionedFilters', () => {
         const order = screen
             .getAllByTestId(/^pills-/)
             .map((node) => node.getAttribute('data-testid'));
-        expect(order).toEqual(['pills-a', 'pills-b', 'pills-unsectioned']);
+        expect(order).toEqual(['pills-unsectioned', 'pills-a', 'pills-b']);
         expect(pillsProps.current.map((p) => p.sectionId)).toEqual([
+            null,
             'a',
             'b',
-            null,
         ]);
         const add = screen.getByRole('button', { name: 'Add' });
         expect(
-            add.compareDocumentPosition(screen.getByTestId('pills-a')) &
-                Node.DOCUMENT_POSITION_FOLLOWING,
+            add.compareDocumentPosition(
+                screen.getByTestId('pills-unsectioned'),
+            ) & Node.DOCUMENT_POSITION_FOLLOWING,
         ).toBeTruthy();
         // One capsule per section, its toggle and its pills inside it
         const dates = screen.getByRole('button', { name: 'Dates' });
@@ -345,7 +346,7 @@ describe('SectionedFilters', () => {
         expect(document.querySelectorAll('[class*="capsule"]')).toHaveLength(2);
     });
 
-    it('keeps Add, Add section, the capsules and the pills in one flow, in that order, ending on the pills', () => {
+    it('keeps Add, the loose pills, the capsules and Add section in one flow, in that order, ending on Add section', () => {
         renderSectioned([rule('one', 'a')], 'tab-1');
         // In edit mode Add sits in its drop-target wrapper inside the flow
         const add = screen.getByRole('button', { name: 'Add' });
@@ -353,9 +354,9 @@ describe('SectionedFilters', () => {
         expect(flow).not.toBeNull();
         const inOrder = [
             add,
-            screen.getByRole('button', { name: 'Add section' }),
-            screen.getByTestId('pills-a'),
             screen.getByTestId('pills-unsectioned'),
+            screen.getByTestId('pills-a'),
+            screen.getByRole('button', { name: 'Add section' }),
         ];
         inOrder.slice(1).forEach((node, i) => {
             expect(flow).toContainElement(node);
@@ -365,8 +366,12 @@ describe('SectionedFilters', () => {
             ).toBeTruthy();
         });
         expect(flow?.lastElementChild).toContainElement(
-            screen.getByTestId('pills-unsectioned'),
+            screen.getByRole('button', { name: 'Add section' }),
         );
+        // The first capsule carries the line a pill leaving its section
+        // lands on: after the loose pills
+        expect(capsuleOf('Dates')).toHaveAttribute('data-first');
+        expect(capsuleOf('Regions')).not.toHaveAttribute('data-first');
         expect(
             screen.queryByRole('button', { name: 'Filter rules' }),
         ).not.toBeInTheDocument();
@@ -997,19 +1002,19 @@ describe('SectionedFilters', () => {
             const user = userEvent.setup();
             renderSectioned(rules(), 'tab-1');
 
-            // Capsules come first on the bar, then the unsectioned pills
-            fireEvent.click(pillOf('two'), { metaKey: true });
-            fireEvent.click(pillOf('loose'), { shiftKey: true });
-            expect(pickedIds()).toEqual(['two', 'three', 'loose']);
+            // The unsectioned pills come first on the bar, then the capsules
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+            fireEvent.click(pillOf('two'), { shiftKey: true });
+            expect(pickedIds()).toEqual(['loose', 'one', 'two']);
 
             await user.click(
                 screen.getByRole('button', { name: 'Clear selection' }),
             );
             expect(pickedIds()).toEqual([]);
-            await user.click(foldOf('Regions'));
-            fireEvent.click(pillOf('one'), { metaKey: true });
-            fireEvent.click(pillOf('loose'), { shiftKey: true });
-            expect(pickedIds()).toEqual(['one', 'two', 'loose']);
+            await user.click(foldOf('Dates'));
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+            fireEvent.click(pillOf('three'), { shiftKey: true });
+            expect(pickedIds()).toEqual(['loose', 'three']);
         });
 
         it('clears on Escape', async () => {
@@ -1139,7 +1144,7 @@ describe('SectionedFilters', () => {
                 screen.getByRole('textbox', { name: 'Section name' }),
                 'Misc{Enter}',
             );
-            const added = sectionsOf(store)[0];
+            const added = sectionsOf(store).at(-1);
             expect(added?.name).toBe('Misc');
             expect(
                 sectionIdsOf(setDashboardFilters.mock.calls[0][0])[0],
@@ -1228,7 +1233,7 @@ describe('SectionedFilters', () => {
                 } as DragEndEvent),
             );
             expect(setDashboardFilters).not.toHaveBeenCalled();
-            expect(pickedIds()).toEqual(['one', 'loose']);
+            expect(pickedIds()).toEqual(['loose', 'one']);
         });
 
         it('drags an unpicked pill alone', () => {
@@ -1281,18 +1286,17 @@ describe('SectionedFilters', () => {
             const input = screen.getByRole('textbox', { name: 'Section name' });
             expect(input).toHaveFocus();
             expect(input).toHaveAttribute('placeholder', 'Section name');
-            // In Add section's slot: after Add, before the first capsule
+            // In Add section's slot: the bar's end, after the last capsule
             expect(
                 screen.queryByRole('button', { name: 'Add section' }),
             ).not.toBeInTheDocument();
             expect(
-                addFilter().compareDocumentPosition(input) &
+                capsuleOf('Empty').compareDocumentPosition(input) &
                     Node.DOCUMENT_POSITION_FOLLOWING,
             ).toBeTruthy();
             expect(
-                input.compareDocumentPosition(capsuleOf('Dates')) &
-                    Node.DOCUMENT_POSITION_FOLLOWING,
-            ).toBeTruthy();
+                input.closest('[class*="flow"]')?.lastElementChild,
+            ).toContainElement(input);
             await user.type(input, 'Late{Escape}');
             expect(sectionsOf(store)).toHaveLength(3);
             expect(addFilter()).toHaveFocus();
@@ -1304,12 +1308,13 @@ describe('SectionedFilters', () => {
 
             await moveToNewSection();
             await user.keyboard('Late{Enter}');
-            const added = sectionsOf(store)[0];
+            const added = sectionsOf(store).at(-1);
+            // Appended, so saved and shown order agree
             expect(sectionsOf(store).map((s) => s.name)).toEqual([
-                'Late',
                 'Dates',
                 'Regions',
                 'Empty',
+                'Late',
             ]);
             expect(
                 (
@@ -1339,7 +1344,7 @@ describe('SectionedFilters', () => {
             };
         });
 
-        it('shows right after Add filter once there is a section', () => {
+        it('shows last on the bar once there is a section', () => {
             const empty = renderSectioned([], 'tab-1', []);
             expect(addSection()).not.toBeInTheDocument();
             empty.unmount();
@@ -1349,19 +1354,15 @@ describe('SectionedFilters', () => {
             one.unmount();
 
             renderSectioned([rule('one', undefined)], 'tab-1');
-            const button = addSection();
+            const button = addSection() as HTMLElement;
             expect(button).toBeInTheDocument();
             expect(
-                screen
-                    .getByRole('button', { name: 'Add' })
-                    .compareDocumentPosition(button as Element) &
+                capsuleOf('Empty').compareDocumentPosition(button) &
                     Node.DOCUMENT_POSITION_FOLLOWING,
             ).toBeTruthy();
             expect(
-                (button as Element).compareDocumentPosition(
-                    screen.getByTestId('pills-unsectioned'),
-                ) & Node.DOCUMENT_POSITION_FOLLOWING,
-            ).toBeTruthy();
+                button.closest('[class*="flow"]')?.lastElementChild,
+            ).toContainElement(button);
         });
 
         it('names an empty section with nothing picked, hiding meanwhile; a cancel returns to it', async () => {
@@ -1375,9 +1376,9 @@ describe('SectionedFilters', () => {
             expect(addSection()).not.toBeInTheDocument();
             const input = screen.getByRole('textbox', { name: 'Section name' });
             expect(input).toHaveFocus();
-            // In the button's place, before the capsules
+            // In the button's place, after the capsules
             expect(
-                input.compareDocumentPosition(capsuleOf('Dates')) &
+                capsuleOf('Empty').compareDocumentPosition(input) &
                     Node.DOCUMENT_POSITION_FOLLOWING,
             ).toBeTruthy();
             await user.type(input, 'Late{Escape}');
@@ -1387,10 +1388,10 @@ describe('SectionedFilters', () => {
             await user.click(addSection() as HTMLElement);
             await user.keyboard('Late{Enter}');
             expect(sectionsOf(store).map((s) => s.name)).toEqual([
-                'Late',
                 'Dates',
                 'Regions',
                 'Empty',
+                'Late',
             ]);
             expect(setDashboardFilters).not.toHaveBeenCalled();
             expect(addSection()).toBeInTheDocument();
@@ -1435,7 +1436,7 @@ describe('SectionedFilters', () => {
 
             await user.click(addSection() as HTMLElement);
             await user.keyboard('Misc{Enter}');
-            const added = sectionsOf(store)[0];
+            const added = sectionsOf(store).at(-1);
             expect(added?.name).toBe('Misc');
             expect(
                 (
@@ -1481,7 +1482,7 @@ describe('SectionedFilters', () => {
             };
         });
 
-        it('replaces the folder icon right after Add filter from the first filter while there is no section', () => {
+        it('replaces the folder icon at the bar end from the first filter while there is no section', () => {
             const empty = renderSectioned([], 'tab-1', []);
             expect(ghost()).not.toBeInTheDocument();
             empty.unmount();
@@ -1500,17 +1501,16 @@ describe('SectionedFilters', () => {
             expect(addSection()).not.toBeInTheDocument();
             const button = ghost() as HTMLElement;
             expect(button).toBeInTheDocument();
+            // After the loose pills, the bar's last item
             expect(
                 screen
-                    .getByRole('button', { name: 'Add' })
+                    .getByTestId('pills-unsectioned')
                     .compareDocumentPosition(button) &
                     Node.DOCUMENT_POSITION_FOLLOWING,
             ).toBeTruthy();
             expect(
-                button.compareDocumentPosition(
-                    screen.getByTestId('pills-unsectioned'),
-                ) & Node.DOCUMENT_POSITION_FOLLOWING,
-            ).toBeTruthy();
+                button.closest('[class*="flow"]')?.lastElementChild,
+            ).toContainElement(button);
         });
 
         it('is never on a viewer bar', () => {
@@ -1772,6 +1772,10 @@ describe('SectionedFilters', () => {
             // Renamed, and not saved at all
             expect(dotIn('Regions')).not.toBeNull();
             expect(dotIn('Empty')).not.toBeNull();
+            // On the capsule's top right corner, as a pill's, not in its head
+            const dot = dotIn('Regions') as HTMLElement;
+            expect(dot).toHaveAttribute('data-corner');
+            expect(dot.parentElement).toBe(capsuleOf('Regions'));
         });
 
         it('reorders sections by dragging a capsule onto another, and with Alt and an arrow on the name', async () => {

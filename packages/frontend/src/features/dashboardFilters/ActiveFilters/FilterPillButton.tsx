@@ -55,6 +55,8 @@ type Props = Omit<
     triggerClassName?: string;
     /** Shown in place of the field icon (default: the field's icon). */
     fieldIconOverride?: ReactNode;
+    /** The first icon, in the grip's place when there is one (default none). */
+    leadingIcon?: ReactNode;
     onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 };
 
@@ -78,6 +80,7 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
             isTablesTooltipDisabled,
             triggerClassName,
             fieldIconOverride,
+            leadingIcon,
             className,
             onClick,
             ...others
@@ -149,9 +152,11 @@ export const FilterPillButton = forwardRef<HTMLButtonElement, Props>(
                     (isDraggable ||
                         showRequirementIcon ||
                         field ||
-                        fieldIconOverride) && (
+                        fieldIconOverride ||
+                        leadingIcon) && (
                         <Group gap={4} wrap="nowrap">
-                            {isDraggable && (
+                            {leadingIcon}
+                            {isDraggable && !leadingIcon && (
                                 <MantineIcon
                                     icon={IconGripVertical}
                                     cursor="grab"
