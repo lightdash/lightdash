@@ -20,7 +20,7 @@ import {
     IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
-import { useRef, useState, type FC } from 'react';
+import { useRef, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import classes from './ControlSidebar.module.css';
@@ -54,11 +54,17 @@ type NameInputProps = {
     name: string;
     onCommit: (name: string) => void;
     onCancel: () => void;
+    classNames: { root: string; input: string };
 };
 
 // Enter or blur with a name commits; Escape, an empty name or the footer's
 // Cancel (which the blur lets through) cancels
-const SectionNameInput: FC<NameInputProps> = ({ name, onCommit, onCancel }) => {
+export const SectionNameInput: FC<NameInputProps> = ({
+    name,
+    onCommit,
+    onCancel,
+    classNames,
+}) => {
     const isDone = useRef(false);
     const finish = (value: string) => {
         if (isDone.current) return;
@@ -72,8 +78,8 @@ const SectionNameInput: FC<NameInputProps> = ({ name, onCommit, onCancel }) => {
             aria-label="Section name"
             placeholder="Section name"
             size="xs"
-            className={classes.nameInput}
-            classNames={{ input: classes.nameInputField }}
+            className={classNames.root}
+            classNames={{ input: classNames.input }}
             defaultValue={name}
             autoFocus
             data-own-escape
@@ -95,6 +101,90 @@ const SectionNameInput: FC<NameInputProps> = ({ name, onCommit, onCancel }) => {
                 }
             }}
         />
+    );
+};
+
+type MenuProps = {
+    /** The "..." button's accessible name. */
+    label: string;
+    targetClassName?: string;
+    countLabel: string;
+    /** How the bar starts this section: the saved choice, else its size. */
+    isCollapsedByDefault: boolean;
+    /** Flips the saved default, `section.collapsed`. */
+    onToggleCollapsedByDefault: () => void;
+    onRemove: () => void;
+    /** Items before "Collapsed by default". */
+    children?: ReactNode;
+};
+
+// A section's "..." menu, the rail header's and the bar capsule's: the
+// caller's items, "Collapsed by default", then "Remove section"
+export const SectionMenu: FC<MenuProps> = ({
+    label,
+    targetClassName,
+    countLabel,
+    isCollapsedByDefault,
+    onToggleCollapsedByDefault,
+    onRemove,
+    children,
+}) => {
+    // "Remove section" asks twice; the menu stays open in between
+    const [isRemoveArmed, setIsRemoveArmed] = useState(false);
+    return (
+        <Menu
+            position="bottom-end"
+            returnFocus={false}
+            onClose={() => setIsRemoveArmed(false)}
+        >
+            <Menu.Target>
+                <ActionIcon
+                    variant="subtle"
+                    size="sm"
+                    className={targetClassName}
+                    aria-label={label}
+                    data-controls-section-menu
+                >
+                    <MantineIcon icon={IconDots} size={14} />
+                </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+                {children}
+                {/* A checkbox item, as the date zoom menu: the item and the
+                    box both toggle, the menu stays so the change shows */}
+                <Menu.Item
+                    fz="xs"
+                    closeMenuOnClick={false}
+                    leftSection={
+                        <Checkbox
+                            size="xs"
+                            checked={isCollapsedByDefault}
+                            onChange={onToggleCollapsedByDefault}
+                            onClick={(event) => event.stopPropagation()}
+                        />
+                    }
+                    onClick={onToggleCollapsedByDefault}
+                >
+                    Collapsed by default
+                </Menu.Item>
+                <Menu.Divider />
+                <Menu.Item
+                    fz="xs"
+                    color="red"
+                    leftSection={<MantineIcon icon={IconTrash} size={14} />}
+                    closeMenuOnClick={isRemoveArmed}
+                    aria-pressed={isRemoveArmed}
+                    onClick={() => {
+                        if (isRemoveArmed) onRemove();
+                        else setIsRemoveArmed(true);
+                    }}
+                >
+                    {isRemoveArmed
+                        ? `Remove section · ${countLabel}`
+                        : 'Remove section'}
+                </Menu.Item>
+            </Menu.Dropdown>
+        </Menu>
     );
 };
 
@@ -156,8 +246,6 @@ export const SectionHeader: FC<Props> = ({
     } = useSortable({ id: section.id, disabled: isDragDisabled });
     const getUiString = useUiStrings();
     const name = section.name || getUiString('filters.rail.untitledSection');
-    // "Remove section" asks twice; the menu stays open in between
-    const [isRemoveArmed, setIsRemoveArmed] = useState(false);
     return (
         <Box
             ref={setNodeRef}
@@ -203,6 +291,10 @@ export const SectionHeader: FC<Props> = ({
                         name={section.name}
                         onCommit={onCommitName}
                         onCancel={onCancelName}
+                        classNames={{
+                            root: classes.nameInput,
+                            input: classes.nameInputField,
+                        }}
                     />
                 ) : (
                     <Text fz="sm" fw={600} truncate miw={0}>
@@ -229,83 +321,33 @@ export const SectionHeader: FC<Props> = ({
                 )}
                 {/* Focus must stay on the name input Rename opens */}
                 {!isReadOnly && !isNew && (
-                    <Menu
-                        position="bottom-end"
-                        returnFocus={false}
-                        onClose={() => setIsRemoveArmed(false)}
+                    <SectionMenu
+                        label={`Section ${name} actions`}
+                        targetClassName={classes.sectionMenu}
+                        countLabel={countLabel}
+                        isCollapsedByDefault={isCollapsedByDefault}
+                        onToggleCollapsedByDefault={onToggleCollapsedByDefault}
+                        onRemove={onRemove}
                     >
-                        <Menu.Target>
-                            <ActionIcon
-                                variant="subtle"
-                                size="sm"
-                                className={classes.sectionMenu}
-                                aria-label={`Section ${name} actions`}
-                                data-controls-section-menu
-                            >
-                                <MantineIcon icon={IconDots} size={14} />
-                            </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Item
-                                fz="xs"
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconFilterPlus}
-                                        size={14}
-                                    />
-                                }
-                                onClick={onAddFilter}
-                            >
-                                Add filter
-                            </Menu.Item>
-                            <Menu.Item
-                                fz="xs"
-                                leftSection={
-                                    <MantineIcon icon={IconPencil} size={14} />
-                                }
-                                onClick={onRename}
-                            >
-                                Rename
-                            </Menu.Item>
-                            {/* A checkbox item, as the date zoom menu: the
-                                item and the box both toggle, the menu stays
-                                so the change shows */}
-                            <Menu.Item
-                                fz="xs"
-                                closeMenuOnClick={false}
-                                leftSection={
-                                    <Checkbox
-                                        size="xs"
-                                        checked={isCollapsedByDefault}
-                                        onChange={onToggleCollapsedByDefault}
-                                        onClick={(event) =>
-                                            event.stopPropagation()
-                                        }
-                                    />
-                                }
-                                onClick={onToggleCollapsedByDefault}
-                            >
-                                Collapsed by default
-                            </Menu.Item>
-                            <Menu.Item
-                                fz="xs"
-                                color="red"
-                                leftSection={
-                                    <MantineIcon icon={IconTrash} size={14} />
-                                }
-                                closeMenuOnClick={isRemoveArmed}
-                                aria-pressed={isRemoveArmed}
-                                onClick={() => {
-                                    if (isRemoveArmed) onRemove();
-                                    else setIsRemoveArmed(true);
-                                }}
-                            >
-                                {isRemoveArmed
-                                    ? `Remove section · ${countLabel}`
-                                    : 'Remove section'}
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
+                        <Menu.Item
+                            fz="xs"
+                            leftSection={
+                                <MantineIcon icon={IconFilterPlus} size={14} />
+                            }
+                            onClick={onAddFilter}
+                        >
+                            Add filter
+                        </Menu.Item>
+                        <Menu.Item
+                            fz="xs"
+                            leftSection={
+                                <MantineIcon icon={IconPencil} size={14} />
+                            }
+                            onClick={onRename}
+                        >
+                            Rename
+                        </Menu.Item>
+                    </SectionMenu>
                 )}
             </Box>
         </Box>
