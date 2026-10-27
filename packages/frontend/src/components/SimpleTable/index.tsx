@@ -38,6 +38,8 @@ type SimpleTableProps = {
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
     enableContextMenu?: boolean;
+    /** Edge to edge: no padding, side borders or radius. */
+    flush?: boolean;
 };
 
 const SimpleTable: FC<SimpleTableProps> = ({
@@ -49,6 +51,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     onScreenshotReady,
     onScreenshotError,
     enableContextMenu = true,
+    flush = false,
     ...rest
 }) => {
     const {
@@ -429,9 +432,14 @@ const SimpleTable: FC<SimpleTableProps> = ({
     }
 
     return (
-        <Box p={isDashboard ? 0 : 'xs'} pb="md" miw="100%" h="100%">
+        <Box
+            p={isDashboard || flush ? 0 : 'xs'}
+            pb={flush ? 0 : 'md'}
+            miw="100%"
+            h="100%"
+        >
             <Table
-                isDashboard={isDashboard}
+                isDashboard={isDashboard || flush}
                 minimal={minimal}
                 $shouldExpand={$shouldExpand}
                 className={className}

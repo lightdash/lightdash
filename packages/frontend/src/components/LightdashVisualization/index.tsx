@@ -89,6 +89,8 @@ interface LightdashVisualizationProps {
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
     enableContextMenu?: boolean;
+    /** Tables only: edge to edge, no padding, side borders or radius. */
+    flush?: boolean;
 }
 
 const LightdashVisualization = memo(
@@ -103,6 +105,7 @@ const LightdashVisualization = memo(
                 onScreenshotReady,
                 onScreenshotError,
                 enableContextMenu = true,
+                flush = false,
                 ...props
             },
             ref,
@@ -188,6 +191,7 @@ const LightdashVisualization = memo(
                             tileUuid={tileUuid}
                             minimal={minimal}
                             isDashboard={!!isDashboard}
+                            flush={flush}
                             $shouldExpand
                             enableContextMenu={enableContextMenu}
                             onScreenshotReady={onScreenshotReady}

@@ -1,21 +1,15 @@
 import {
-    ECHARTS_DEFAULT_COLORS,
     FeatureFlags,
     getComposerRunQueryChart,
     toComposerResultRows,
     type ApiAiAgentComposerArtifactChartStage,
-    type ChartConfig,
     type ComposerCustomChartTypeSlot,
     type ComposerRunQueryChart,
     type ComposerStoredChartVizConfig,
 } from '@lightdash/common';
 import { Box, Center, Loader, Stack, Text } from '@mantine/core';
-import { useEffect, useMemo, useState, type FC, type ReactNode } from 'react';
-import LightdashVisualization from '../../../../../components/LightdashVisualization';
-import VisualizationProvider from '../../../../../components/LightdashVisualization/VisualizationProvider';
-import MetricQueryDataProvider from '../../../../../components/MetricQueryData/MetricQueryDataProvider';
+import { useEffect, useMemo, type FC, type ReactNode } from 'react';
 import { useDataAppVizRenderMetadata } from '../../../../../features/chartTypes/hooks/useDataAppVizRender';
-import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
 import {
     useInfiniteQueryResults,
     type InfiniteQueryResults,
@@ -23,6 +17,7 @@ import {
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
+import { AiComposerRunQueryChart } from './AiComposerRunQueryChart';
 
 const DATA_APP_VIZ_RENDER_TARGET = {
     isEmbedded: false,
@@ -63,9 +58,6 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
         () => Object.values(nodeResults.columns ?? {}),
         [nodeResults.columns],
     );
-    const { data: palette } = useProjectColorPalette(projectUuid);
-    const colorPalette = palette?.colors ?? ECHARTS_DEFAULT_COLORS;
-
     const customChartType = vizConfig.type === 'custom' ? vizConfig : null;
     const { data: renderMetadata } = useDataAppVizRenderMetadata(
         projectUuid,
@@ -97,9 +89,6 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
     }, [columns, customChartType, slots, vizConfig, metadata]);
     const readyChart = chart instanceof Error ? null : chart;
     const stage = chartStage !== null;
-    // The provider expands pivoted series; fed back so series colors resolve.
-    const [expandedChartConfig, setExpandedChartConfig] =
-        useState<ChartConfig | null>(null);
 
     const isEmbed = useIsEmbedded();
     const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
@@ -142,19 +131,12 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
         if (errorMessage) onScreenshotError?.();
     }, [errorMessage, onScreenshotError]);
 
-    const resultsData = useMemo(
+    const rows = useMemo(
         () =>
-            readyChart
-                ? {
-                      ...results,
-                      rows: stage
-                          ? results.rows
-                          : toComposerResultRows(readyChart, results.rows),
-                      metricQuery: readyChart.metricQuery,
-                      fields: readyChart.fields,
-                  }
-                : null,
-        [results, readyChart, stage],
+            readyChart && !stage
+                ? toComposerResultRows(readyChart, results.rows)
+                : results.rows,
+        [results.rows, readyChart, stage],
     );
 
     const body = (() => {
@@ -167,49 +149,22 @@ export const AiComposerRunQueryVisualization: FC<Props> = ({
                 </Center>
             );
         }
-        if (!readyChart || !resultsData || !results.hasFetchedAllRows) {
+        if (!readyChart || !results.hasFetchedAllRows) {
             return (
                 <Center h="100%">
                     <Loader type="dots" />
                 </Center>
             );
         }
-        const { metricQuery } = readyChart;
         return (
-            <MetricQueryDataProvider
-                metricQuery={metricQuery}
-                tableName={metricQuery.exploreName}
-                explore={undefined}
-                queryUuid={results.queryUuid}
-            >
-                <VisualizationProvider
-                    hasExplorerStore={false}
-                    minimal
-                    resultsData={resultsData}
-                    chartConfig={expandedChartConfig ?? readyChart.chartConfig}
-                    onChartConfigChange={setExpandedChartConfig}
-                    columnOrder={[
-                        ...metricQuery.dimensions,
-                        ...metricQuery.metrics,
-                    ]}
-                    initialPivotDimensions={
-                        readyChart.pivotColumns.length > 0
-                            ? readyChart.pivotColumns
-                            : undefined
-                    }
-                    colorPalette={colorPalette}
-                    isLoading={results.isFetchingRows}
-                    unsavedMetricQuery={metricQuery}
-                >
-                    <LightdashVisualization
-                        className="sentry-block ph-no-capture"
-                        data-testid="ai-composer-runquery-visualization"
-                        enableContextMenu={false}
-                        onScreenshotReady={onScreenshotReady}
-                        onScreenshotError={onScreenshotError}
-                    />
-                </VisualizationProvider>
-            </MetricQueryDataProvider>
+            <AiComposerRunQueryChart
+                projectUuid={projectUuid}
+                chart={readyChart}
+                results={results}
+                rows={rows}
+                onScreenshotReady={onScreenshotReady}
+                onScreenshotError={onScreenshotError}
+            />
         );
     })();
 
