@@ -1,3 +1,4 @@
+import { OrganizationMemberRole } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
 import { randomUUID } from 'node:crypto';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
@@ -37,10 +38,15 @@ const fixture = async (legacy: boolean, strict = true) => {
     const { database } = migrated;
     const [organization] = await database('organizations')
         .insert({ organization_name: 'OAuth rotation' })
-        .returning('organization_uuid');
+        .returning('*');
     const [user] = await database('users')
         .insert({ first_name: 'OAuth', last_name: 'User' } as never)
         .returning('user_id');
+    await database('organization_memberships').insert({
+        organization_id: organization.organization_id,
+        user_id: user.user_id,
+        role: OrganizationMemberRole.MEMBER,
+    });
     const clientId = randomUUID();
     await database('oauth2_clients').insert({
         client_id: clientId,

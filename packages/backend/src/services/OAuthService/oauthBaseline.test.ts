@@ -102,7 +102,9 @@ const exchange = (
 beforeEach(() => {
     flags.get.mockReset();
     codes.clear();
-    getTracker().on.select('users').response({ user_uuid: 'user' });
+    getTracker()
+        .on.select(/from "users"/)
+        .response({ user_uuid: 'user' });
     vi.spyOn(model, 'getClient').mockImplementation(async (id) => {
         if (id === client.id) return client;
         if (id === otherClient.id) return otherClient;

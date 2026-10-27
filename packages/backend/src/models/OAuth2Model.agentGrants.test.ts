@@ -52,7 +52,15 @@ beforeEach(() => {
     flags.get.mockResolvedValue({ enabled: true });
     getTracker()
         .on.select(/from "users"/)
-        .response(() => storedPerson);
+        .response(({ sql }) => {
+            if (sql.includes('for share')) {
+                return storedPerson?.is_active &&
+                    storedPerson.organization_uuid === 'org'
+                    ? { user_id: 42 }
+                    : undefined;
+            }
+            return storedPerson;
+        });
     vi.spyOn(
         AgentConnectionGrantModel.prototype,
         'findActive',
@@ -796,9 +804,14 @@ it.each(
     );
     expect(personQueries).toHaveLength(1);
     for (const query of personQueries) {
-        expect(query.sql).toContain('inner join "organization_memberships"');
+        expect(query.sql).toContain('"organization_memberships"');
         expect(query.sql).toContain('"organizations"."organization_uuid" =');
-        expect(query.bindings).toEqual([42, 'org', 1]);
+        if (kind.startsWith('save_')) {
+            expect(query.sql).toContain('for share');
+            expect(query.bindings).toEqual([42, true, true, 42, 'org', 1]);
+        } else {
+            expect(query.bindings).toEqual([42, 'org', 1]);
+        }
     }
     expect(tracker.history.insert).toHaveLength(0);
 });
