@@ -482,6 +482,114 @@ describe('ControlsSidebarProvider', () => {
         expect(latest.filters).toEqual(initialFilters);
     });
 
+    describe("the bar's drag while a filter is edited", () => {
+        const sections = [{ id: 's', name: 'Dates' }];
+        const ids = () =>
+            latest.filters.dimensions.map((r) => [r.id, r.sectionId ?? null]);
+
+        it('moves the edited filter as an edit, and Cancel puts back its section and place', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.moveEditedFilter({ ruleId: 'b' }, sections),
+            );
+            expect(ids()).toEqual([
+                ['b', null],
+                ['a', null],
+            ]);
+            expect(result.current.isDirty).toBe(true);
+            expect(latest.changed).toBe(true);
+
+            act(() =>
+                result.current.moveEditedFilter({ sectionId: 's' }, sections),
+            );
+            expect(ids()).toEqual([
+                ['b', null],
+                ['a', 's'],
+            ]);
+
+            act(() => result.current.discard());
+            expect(latest.filters).toEqual(initialFilters);
+            expect(latest.changed).toBe(false);
+        });
+
+        it('keeps a move of the edited filter on Apply', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.moveEditedFilter({ ruleId: 'b' }, sections),
+            );
+            act(() => result.current.close());
+            expect(ids()).toEqual([
+                ['b', null],
+                ['a', null],
+            ]);
+        });
+
+        it('another pill asks first after a move of the edited filter alone', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.moveEditedFilter({ ruleId: 'b' }, sections),
+            );
+            act(() => result.current.open('b'));
+            expect(result.current.editing).toEqual({ filterId: 'a' });
+            expect(result.current.pendingRule?.id).toBe('b');
+        });
+
+        it("the edited pill's click keeps a move of it alone open", () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.moveEditedFilter({ ruleId: 'b' }, sections),
+            );
+            act(() => result.current.open('a'));
+            expect(result.current.editing).toEqual({ filterId: 'a' });
+            expect(result.current.isSidebarOpen).toBe(true);
+            expect(result.current.pendingRule).toBeNull();
+        });
+
+        it('is no edit once the edited filter is back in its place', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.moveEditedFilter({ ruleId: 'b' }, sections),
+            );
+            act(() =>
+                result.current.moveEditedFilter({ ruleId: 'b' }, sections),
+            );
+            expect(ids()).toEqual([
+                ['a', null],
+                ['b', null],
+            ]);
+            expect(result.current.isDirty).toBe(false);
+        });
+
+        it("keeps another filter's move on Cancel, and the edited one stays clean", () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['9'])));
+            // The bar moves another filter as it always does
+            writeOutsideTheEditor((filters) => ({
+                ...filters,
+                dimensions: [
+                    { ...filters.dimensions[1], sectionId: 's' },
+                    filters.dimensions[0],
+                ],
+            }));
+
+            act(() => result.current.discard());
+            expect(ids()).toEqual([
+                ['b', 's'],
+                ['a', null],
+            ]);
+            expect(latest.filters.dimensions[1]).toBe(
+                initialFilters.dimensions[0],
+            );
+            expect(latest.changed).toBe(true);
+        });
+    });
+
     it('closing a placeholder discards it', () => {
         const { result } = setup();
         act(() => result.current.openNew());
@@ -2350,8 +2458,10 @@ describe('ControlsSidebarProvider', () => {
                 ),
             );
         const initial = callbacks();
-        expect(Object.keys(initial)).toHaveLength(21);
+        expect(Object.keys(initial)).toHaveLength(23);
         expect(initial).toHaveProperty('updateOtherFilters');
+        expect(initial).toHaveProperty('moveEditedFilter');
+        expect(initial).toHaveProperty('setHoveredFilterId');
         expect(initial).toHaveProperty('removeLastField');
         expect(initial).toHaveProperty('addFirstSqlColumn');
         expect(initial).toHaveProperty('clearHighlightedField');
@@ -2362,6 +2472,8 @@ describe('ControlsSidebarProvider', () => {
         act(() => result.current.updateFilter(rule('a', ['9'])));
         act(() => result.current.updateOtherFilters([rule('b', ['8'])]));
         act(() => result.current.setHoveredFieldId('orders_a'));
+        act(() => result.current.setHoveredFilterId('b'));
+        act(() => result.current.moveEditedFilter({ ruleId: 'b' }, []));
         act(() => result.current.setHighlightedFieldId('orders_a'));
         act(() => result.current.clearHighlightedField());
 

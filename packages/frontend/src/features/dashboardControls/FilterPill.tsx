@@ -46,6 +46,10 @@ type Props = {
     hasTabs: boolean;
     dashboardUuid: string | undefined;
     triggerClassName: string | undefined;
+    /** Stable: the tile fields, read when the pill is hovered. */
+    getFieldsByTile: () =>
+        | Record<string, DashboardFilterableField[]>
+        | undefined;
 };
 
 export const FilterPill: FC<Props> = memo(
@@ -64,6 +68,7 @@ export const FilterPill: FC<Props> = memo(
         hasTabs,
         dashboardUuid,
         triggerClassName,
+        getFieldsByTile,
     }) => {
         const { track } = useTracking();
         const getUiString = useUiStrings();
@@ -87,6 +92,7 @@ export const FilterPill: FC<Props> = memo(
         const tileHover = useTileHover(
             filter,
             kind === 'editor' && !isSidebarOpen,
+            getFieldsByTile,
         );
         const isLocked = isFilterLockedOnTab(filter, activeTabUuid, hasTabs);
         const lockKey = getFilterLockKey({

@@ -6,12 +6,14 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectActiveTabUuid,
+    selectDashboardFilters,
     selectDashboardTabs,
     selectDashboardTiles,
     useDashboardSelector,
 } from '../dashboard/store';
 import { useFilterableItemsMap } from '../dashboardFilters/FilterRequirements/useFilterableItemsMap';
 import { getTabCounts, getTabCountsForField, isSqlColumnRow } from './peers';
+import { findFilterRule } from './sidebarState';
 import classes from './TabCounts.module.css';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { toDashboardFilterableField } from './useFilterRuleField';
@@ -42,7 +44,18 @@ export const TabCounts: FC = () => {
     const getUiString = useUiStrings();
     const editingRule = useControlsSidebarSelector((c) => c.editingRule);
     const isPlaceholder = useControlsSidebarSelector((c) => c.isPlaceholder);
-    const activeFieldId = useControlsSidebarSelector((c) => c.activeFieldId);
+    const editedFieldId = useControlsSidebarSelector((c) => c.activeFieldId);
+    const hoveredFilterId = useControlsSidebarSelector(
+        (c) => c.hoveredFilterId,
+    );
+    // A hovered pill shows its filter's counts at rest, only while none is edited
+    const hoveredRule = useDashboardSelector((state) =>
+        editingRule !== null || hoveredFilterId === null
+            ? null
+            : findFilterRule(selectDashboardFilters(state), hoveredFilterId),
+    );
+    const rule = editingRule ?? hoveredRule;
+    const activeFieldId = editingRule === null ? null : editedFieldId;
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const fieldsByTile = useDashboardContext(
@@ -50,7 +63,7 @@ export const TabCounts: FC = () => {
     );
     // Dimensions and metrics: a filter can be on either
     const fieldsMap = useFilterableItemsMap();
-    const sqlColumnsByTile = useSqlColumnsByTile(editingRule);
+    const sqlColumnsByTile = useSqlColumnsByTile(rule);
 
     const tabUuids = useMemo(
         () => dashboardTabs.map((tab) => tab.uuid),
@@ -58,7 +71,9 @@ export const TabCounts: FC = () => {
     );
     // A placeholder reaches no tile, so "0 of N" would only mislead
     const isEnabled =
-        editingRule !== null && !isPlaceholder && dashboardTabs.length > 0;
+        rule !== null &&
+        (editingRule === null || !isPlaceholder) &&
+        dashboardTabs.length > 0;
     const targets = usePortalTargets(
         tabUuids,
         getTabSelector,
@@ -80,17 +95,17 @@ export const TabCounts: FC = () => {
 
     const counts = useMemo(() => {
         const tiles = dashboardTiles ?? [];
-        if (editingRule === null) return {};
+        if (rule === null) return {};
         return activeFieldId === null
             ? getTabCounts(
-                  editingRule,
+                  rule,
                   tiles,
                   dashboardTabs,
                   fieldsByTile,
                   sqlColumnsByTile,
               )
             : getTabCountsForField(
-                  editingRule,
+                  rule,
                   activeFieldId,
                   tiles,
                   dashboardTabs,
@@ -98,7 +113,7 @@ export const TabCounts: FC = () => {
                   sqlColumnsByTile,
               );
     }, [
-        editingRule,
+        rule,
         activeFieldId,
         dashboardTiles,
         dashboardTabs,
@@ -112,7 +127,7 @@ export const TabCounts: FC = () => {
     const subject =
         activeFieldId === null
             ? getUiString('filters.rail.thisFilter')
-            : isSqlColumnRow(editingRule, activeFieldId)
+            : isSqlColumnRow(rule, activeFieldId)
               ? activeFieldId
               : (toDashboardFilterableField(fieldsMap[activeFieldId])?.label ??
                 activeFieldId);

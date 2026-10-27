@@ -115,6 +115,21 @@ export const haveOtherFilterRulesChanged = (
         );
     });
 
+const indexOfFilterRule = (filters: DashboardFilters, filterId: string) =>
+    Math.max(
+        filters.dimensions.findIndex((rule) => rule.id === filterId),
+        filters.metrics.findIndex((rule) => rule.id === filterId),
+    );
+
+// The rule sits at another place in its list than the snapshot holds it
+export const isFilterRuleMoved = (
+    snapshot: DashboardFilters,
+    current: DashboardFilters,
+    filterId: string,
+): boolean =>
+    indexOfFilterRule(snapshot, filterId) !==
+    indexOfFilterRule(current, filterId);
+
 // Puts a rule of the snapshot back in the list the snapshot holds it in: in
 // place when it is still there, else out of any other list and at its index
 const putBackFilterRule = (

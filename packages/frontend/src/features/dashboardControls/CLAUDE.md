@@ -150,7 +150,8 @@ In `FilterConfiguration/`:
   wraps the "Add filter" group (eye included) and the
   requirements button; each capsule's name, + and menu carry `inert`
   themselves.
-  Dragging and the multi-select are off. The pills stay live (see
+  The multi-select is off; the sectioned bar's pills still drag (see
+  "Sections"). The pills stay live (see
   "Switching filters" under the provider contract), and so does a capsule's
   fold.
 - `AddControl` is the shipped `AddFilterButton`: the dashed button with its
@@ -166,12 +167,15 @@ In `FilterConfiguration/`:
   to it by `[data-filter-actions] > button[data-dashboard-filter-control]`.
 - `FilterPills`: a click calls `open(id)`, the X ("Remove filter") calls
   `removeFilterById`, on the edited filter too, which ends the edit. The
-  edited pill keeps the selected look (`.selectedPill`). A pill is disabled
+  edited pill has the selected look (`.selectedPill`): Mantine's light blue
+  (`blue-light`, `blue-light-hover` on hover) with a 1px `blue-outline`
+  border and the name in the text colour, so it reads as open and never as
+  picked (solid `blue-filled`, white text, a check). A pill is disabled
   until the filterable fields exist (`allFilterableFields`), as the shipped
   pill is; a SQL column filter waits for none. Dimension rules and metric
   rules are two dnd-kit contexts, reordered within their own list (the
-  shipped `moveFilterRule`); dragging, the grip and the lock toggle are off
-  while a filter is edited.
+  shipped `moveFilterRule`); the grip and the lock toggle are off while a
+  filter is edited, and so is this flat bar's drag.
 - In edit mode a pill whose rule differs from the saved dashboard
   (`dashboard.filters`, through `isFilterRuleDirty` over
   `withoutDefaultTileTargets`, the provider's own reading of "changed",
@@ -394,7 +398,8 @@ In `FilterConfiguration/`:
   it, section included (`restoreFilterRule`: in the list and at the place the
   snapshot holds it, when it has left the filters or came back in the other
   list, as after `removeLastField` and a field of the other kind), or takes it
-  out when it was new; removing takes it out. Both also put back the other rules the editor itself wrote
+  out when it was new; removing takes it out. After the bar dragged it
+  (`isMoved`) it is first taken out, so it goes back at the snapshot's place. Both also put back the other rules the editor itself wrote
   (`restoreFilterRules` over `touchedFilterIds`). Every rule written from
   outside the editor keeps that write (a duplicated tile, a tab, a lock on
   another pill). Saving to the server stays with the dashboard's own Save.
@@ -403,6 +408,16 @@ In `FilterConfiguration/`:
   than the edited one (a required alternative added or removed in
   `ViewerControls`). It records the ids it wrote since the control was
   opened; never call the dashboard's `setDashboardFilters` from the editor.
+- `moveEditedFilter(over, sections)` is the bar's drag of the edited filter
+  (`moveRuleToSection` from `latest`): an edit, like the Section select. It
+  sets `isMoved` on the edit; `isDirty` counts the move while the rule is
+  not at its snapshot's index (`isFilterRuleMoved`). Dragging any other
+  filter is the bar's own write and survives Cancel. A known limit: one the
+  editor wrote (`touchedFilterIds`) and the bar then dragged to another
+  section gets its snapshot's `sectionId` back on Cancel but keeps its new place.
+- `hoveredFilterId` is the pill hovered or focused on an editor's bar while
+  no filter is edited (`useTileHover` sets it and clears only its own id);
+  `TabCounts` reads it.
 - `haveFiltersChanged` is settled by every way out (`close()`, `discard()`,
   `removeEdited`, through `settleFiltersChanged`). It is on when the
   filters differ from the snapshot or it was on before
@@ -429,7 +444,8 @@ In `FilterConfiguration/`:
   `isDirty` (the rail's Edited or New badge, and the switch question) also
   counts the other rules the editor wrote (`haveOtherFilterRulesChanged`
   over `touchedFilterIds`). It counts `sectionId`: the editor's Section
-  select writes it like any edit, and Cancel puts it back. Nothing on the bar
+  select and the bar's drag of the edited pill write it like any edit, and
+  Cancel puts it back. Nothing on the bar
   moves or removes a section while a filter is edited, so the snapshot's
   section still exists then. A new filter with no field yet is never dirty:
   it has nothing to lose.
@@ -977,7 +993,10 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
 - `TileOverlays` portals a veil and a "This tile is filtered on" card into each
   `[data-tile-uuid]` grid item on the active tab; `TabCounts` portals an
   "x of N" badge into each tab node. Both resolve targets with
-  `usePortalTargets`. `TabCounts` renders nothing for a placeholder. A badge
+  `usePortalTargets`. `TabCounts` renders nothing for a placeholder. With no
+  filter edited it shows the hovered pill's filter (`hoveredFilterId`, read
+  from the store with a selector, so a hover re-renders only the badges) as
+  the edited one at rest, no field active; an edit always wins. A badge
   is grey: `light` on a tab the control reaches (`data-reached`), transparent
   on the rest. While a field is active (hovered or clicked,
   `data-field-active`), the tabs that field is on turn `color="blue"`, and
@@ -1000,12 +1019,16 @@ A filter control can hold several fields, on today's saved shape (`peers.ts`):
   an editor's pill marks the tiles its filter is on (`getTileField`, minus a
   missing field, as the overlays' "on the control") with the `mapped`
   hairline and no tint: without the veil around them, tinted tiles read as
-  dimmed.
+  dimmed. The tab badges show its counts too (`hoveredFilterId`), so tiles
+  on other tabs are seen.
   `useTileHover` sets `data-controls-hovered` on those `[data-tile-uuid]`
   grid items and `TileOverlay.module.css` draws it as an `::after`, so no
   tile re-renders, nothing is veiled, locked or scrolled. It clears on leave,
   blur and pointer down (a press may start a drag; the focus a click brings
-  marks nothing), and when the editor opens or the pill unmounts.
+  marks nothing), and when the editor opens or the pill unmounts; the badges
+  go with it. Only the pill that marked last clears (`tileHoverOwner`, a ref in the provider), and it
+  reads the tiles, their fields and SQL columns when it marks, so no pill
+  re-renders with them.
 
 ## Link prompts
 
@@ -1163,8 +1186,9 @@ the language map, as tab names are.
   still folds.
 - `SectionsTip` teaches that gesture: an editor's first row above the bar
   (`px="lg"` as the bar), a dimmed bulb, `xs` dimmed "Tip: ⌘ click filters
-  to select them, then Move to new section to put them in a section."
-  ("Ctrl" off mac, `useOs`, as the pill's tooltip) and an X ("Dismiss
+  to select them, then Move to new section to group them." ("Ctrl" off
+  mac, `useOs`, as the pill's tooltip; "group" is the verb, the noun
+  stays "section") and an X ("Dismiss
   tip"). It shows while the dashboard has no section and at least two
   filters (dimensions and metrics) and has not been dismissed; the
   dismissal is Mantine's `useLocalStorage`
@@ -1181,7 +1205,7 @@ the language map, as tab names are.
   `DndContext` in `SectionedFilters` over every pass. A `FilterPills` pass with a `sectionId` (`null` or a string)
   opens no context of its own and wraps each pill in `BarDraggable`
   (`useDraggable`, the whole pill is the handle, `data-dragging` fades it to
-  0.3 and nothing moves; `disabled` while a filter is edited) inside the shipped `DroppableArea`, whose
+  0.3 and nothing moves; it drags while a filter is edited too) inside the shipped `DroppableArea`, whose
   indicator is a 2px `blue-4` line (`.dropLine`, `DndHelpers.module.css`)
   in the middle of the bar's 8px gap on the side the pill would land; only
   the flat bar (`sectionId` undefined, now a viewer's only) keeps the
@@ -1206,7 +1230,10 @@ the language map, as tab names are.
   capsule, that section after its last member of the same kind; on the first
   button, no section. A drop on its own capsule, on the first button while
   unsectioned, on itself or nowhere writes nothing; otherwise
-  `setDashboardFilters` and `setHaveFiltersChanged(true)`. A `DragOverlay`
+  `setDashboardFilters` and `setHaveFiltersChanged(true)`. While a filter is
+  edited, a drag of the edited pill goes through `moveEditedFilter` instead
+  (Cancel puts it back); any other pill is written as above and Cancel keeps
+  it. The capsules' drag stays off then. A `DragOverlay`
   carries a 28px pill-shaped copy (`.dragPreview`: field icon and name) and
   announcements come from `getDragAnnouncements` with a `nameOf` of its
   own.
@@ -1225,7 +1252,7 @@ the language map, as tab names are.
   `.pickedPill`: solid `blue-filled` with white text (`--mantine-color-dimmed`
   is white at 75% inside it) and a check (`fieldIconOverride`, an opening
   on `FilterPillButton`) in place of the field icon, apart from the edited
-  `.selectedPill`'s ring and a hover. On that bar the pill's own tooltip (the orphaned one's)
+  `.selectedPill`'s light blue and a hover. On that bar the pill's own tooltip (the orphaned one's)
   reads "Click to edit · ⌘ click to select" ("Ctrl click" off mac,
   `useOs`) after 500ms, and the tables tooltip on the name is off so only
   one shows. Escape clears it through a document capture listener mounted

@@ -20,6 +20,8 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import { EventName } from '../../types/Events';
+import { dashboardEditActions } from '../dashboard/store';
+import type * as FilterPillButtonModule from '../dashboardFilters/ActiveFilters/FilterPillButton';
 import { BarSelectionContext } from './barSelection';
 import { FilterPills } from './FilterPills';
 
@@ -42,6 +44,7 @@ const renderWithProviders = (ui: ReactElement) => {
     const result = renderWithAppProviders(withStore(ui));
     return {
         ...result,
+        store,
         rerender: (node: ReactElement) => result.rerender(withStore(node)),
     };
 };
@@ -52,6 +55,7 @@ const mockSidebar = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
 }));
 const mockTrack = vi.hoisted(() => vi.fn());
+const pillRenders = vi.hoisted(() => ({ count: 0 }));
 const mockDragEnd = vi.hoisted(() => ({
     handlers: [] as ((event: DragEndEvent) => void)[],
 }));
@@ -76,6 +80,23 @@ vi.mock('./useControlsSidebar', () => ({
         selector: (value: Record<string, unknown>) => unknown,
     ) => selector(mockSidebar.current),
 }));
+vi.mock(
+    '../dashboardFilters/ActiveFilters/FilterPillButton',
+    async (importOriginal) => {
+        const actual = await importOriginal<typeof FilterPillButtonModule>();
+        const { forwardRef } = await import('react');
+        type Props = Parameters<typeof actual.FilterPillButton>[0];
+        return {
+            ...actual,
+            FilterPillButton: forwardRef<HTMLButtonElement, Props>(
+                (props, ref) => {
+                    pillRenders.count += 1;
+                    return <actual.FilterPillButton {...props} ref={ref} />;
+                },
+            ),
+        };
+    },
+);
 // The drag gesture is dnd-kit's; the handlers are captured, in render order
 vi.mock('@dnd-kit/core', async (importOriginal) => {
     const actual = await importOriginal<typeof DndKitCore>();
@@ -150,6 +171,8 @@ describe('FilterPills', () => {
     const open = vi.fn();
     const close = vi.fn();
     const removeFilterById = vi.fn();
+    const setHoveredFilterId = vi.fn();
+    const tileHoverOwner: { current: string | null } = { current: null };
     const setDashboardFilters = vi.fn();
     const setHaveFiltersChanged = vi.fn();
     const removeDimensionDashboardFilter = vi.fn();
@@ -218,6 +241,8 @@ describe('FilterPills', () => {
             open,
             close,
             removeFilterById,
+            setHoveredFilterId,
+            tileHoverOwner,
         };
     });
 
@@ -327,10 +352,18 @@ describe('FilterPills', () => {
         expect(
             screen.getByRole('button', { name: /^Region/, pressed: false }),
         ).toBeInTheDocument();
+        // The light blue look, never the picked pill's solid one
+        expect(pill(/^Status/)).toHaveClass(/selectedPill/);
+        expect(pill(/^Status/)).not.toHaveClass(/pickedPill/);
+        expect(pill(/^Region/)).not.toHaveClass(/selectedPill/);
     });
 
-    it("turns the sectioned bar's drag off while a filter is edited", () => {
-        mockSidebar.current = { ...mockSidebar.current, isSidebarOpen: true };
+    it("keeps the sectioned bar's drag on while a filter is edited", () => {
+        mockSidebar.current = {
+            ...mockSidebar.current,
+            editing: { filterId: 'saved' },
+            isSidebarOpen: true,
+        };
         const { container } = renderWithProviders(
             <FilterPills activeTabUuid={undefined} sectionId={null} />,
         );
@@ -338,7 +371,7 @@ describe('FilterPills', () => {
         const draggables = container.querySelectorAll('[aria-roledescription]');
         expect(draggables.length).toBeGreaterThan(0);
         draggables.forEach((draggable) =>
-            expect(draggable).toHaveAttribute('aria-disabled', 'true'),
+            expect(draggable).toHaveAttribute('aria-disabled', 'false'),
         );
     });
 
@@ -1216,6 +1249,55 @@ describe('FilterPills', () => {
             expect(hoveredTiles()).toEqual([]);
         });
 
+        it('names the hovered filter for the tab badges and clears only its own', async () => {
+            const user = userEvent.setup();
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.hover(pill(/^Status/));
+            expect(setHoveredFilterId).toHaveBeenLastCalledWith('saved');
+
+            await user.unhover(pill(/^Status/));
+            const update = setHoveredFilterId.mock.lastCall?.[0] as (
+                id: string | null,
+            ) => string | null;
+            expect(update('saved')).toBeNull();
+            expect(update('no-default')).toBe('no-default');
+        });
+
+        it('leaving a pill keeps the marks another pill made since', async () => {
+            const user = userEvent.setup();
+            renderWithProviders(<FilterPills activeTabUuid={undefined} />);
+
+            await user.hover(pill(/^Region/));
+            act(() => pill(/^Status/).focus());
+            expect(hoveredTiles()).toEqual(['tile-1']);
+
+            await user.unhover(pill(/^Region/));
+            expect(hoveredTiles()).toEqual(['tile-1']);
+            expect(setHoveredFilterId).toHaveBeenLastCalledWith('saved');
+        });
+
+        it('re-renders no pill when the tiles change, and marks from the latest ones', async () => {
+            const user = userEvent.setup();
+            const { store } = renderWithProviders(
+                <FilterPills activeTabUuid={undefined} />,
+            );
+            const rendered = pillRenders.count;
+
+            act(() => {
+                store.dispatch(
+                    dashboardEditActions.setTiles([
+                        tile('tile-1'),
+                        tile('tile-2'),
+                    ]),
+                );
+            });
+            expect(pillRenders.count).toBe(rendered);
+
+            await user.hover(pill(/^Region/));
+            expect(hoveredTiles()).toEqual(['tile-1']);
+        });
+
         it('marks on keyboard focus and clears on blur', () => {
             renderWithProviders(<FilterPills activeTabUuid={undefined} />);
 
@@ -1244,6 +1326,7 @@ describe('FilterPills', () => {
 
             await user.hover(pill(/^Region/));
             expect(hoveredTiles()).toEqual([]);
+            expect(setHoveredFilterId).not.toHaveBeenCalledWith('no-default');
         });
     });
 });

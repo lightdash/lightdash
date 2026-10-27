@@ -3,10 +3,18 @@
     display: inline-flex;
 }
 
-/* Doubled so it outranks the theme's border on a default button, hovered too */
+/* The edited pill: Mantine's light blue with the outline variant's border,
+   name in the text colour, so it reads as open but never as picked. Doubled
+   so it outranks the theme's border on a default button, hovered too */
 .pill > .selectedPill.selectedPill[aria-pressed='true']:not(:disabled) {
-    border-color: var(--mantine-color-ldGray-5);
+    background-color: var(--mantine-color-blue-light);
+    border-color: var(--mantine-color-blue-outline);
     border-width: 1px;
+    color: var(--mantine-color-text);
+}
+
+.pill > .selectedPill.selectedPill[aria-pressed='true']:not(:disabled):hover {
+    background-color: var(--mantine-color-blue-light-hover);
 }
 
 /* Picked on the sectioned bar to move or remove: solid blue with white

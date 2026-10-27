@@ -456,6 +456,12 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
     const getUiString = useUiStrings();
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const isEditing = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    const editingFilterId = useControlsSidebarSelector(
+        (c) => c.editing?.filterId ?? null,
+    );
+    const moveEditedFilter = useControlsSidebarSelector(
+        (c) => c.moveEditedFilter,
+    );
     const openNew = useControlsSidebarSelector((c) => c.openNew);
     // Any edit, however it starts, ends the selection: adjusted in render
     const [wasEditing, setWasEditing] = useState(isEditing);
@@ -837,6 +843,11 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid, children }) => {
                   : { ruleId: overId };
         if ('sectionId' in target && target.sectionId === currentSectionId)
             return;
+        // The edited filter moves through the editor, so Cancel puts it back
+        if (isEditing && activeId === editingFilterId) {
+            moveEditedFilter(target, sections);
+            return;
+        }
         const moved = moveRuleToSection(
             dashboardFilters,
             activeId,

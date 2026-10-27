@@ -16,6 +16,7 @@ import {
     DroppableArea,
 } from '../../components/common/DndHelpers';
 import { useDndSensors } from '../../hooks/useDndSensors';
+import { useStableCallback } from '../../hooks/useStableCallback';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectControlSections,
@@ -63,14 +64,13 @@ type FilterPillGroup = 'dimensions' | 'metrics';
 const GROUPS: FilterPillGroup[] = ['dimensions', 'metrics'];
 
 // A pill in the bar's one drag context: the overlay moves, the source fades
+// It drags while a filter is edited too: only the edited one is the editor's
 const BarDraggable: FC<{
     id: string;
-    isDisabled: boolean;
     children: ReactNode;
-}> = ({ id, isDisabled, children }) => {
+}> = ({ id, children }) => {
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id,
-        disabled: isDisabled,
     });
     return (
         <Box
@@ -133,6 +133,7 @@ export const FilterPills: FC<Props> = ({
     );
     const savedFilters = useDashboardContext((c) => c.dashboard?.filters);
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
+    const getFieldsByTile = useStableCallback(() => filterableFieldsByTileUuid);
     const { getTabsUsingFilter, getOrphanedState } = useFilterTabPlacement();
     // What Save would keep: the rule differs from the saved dashboard
     const isChanged = (filter: DashboardFilterRule) =>
@@ -202,6 +203,7 @@ export const FilterPills: FC<Props> = ({
                 activeTabUuid={activeTabUuid}
                 hasTabs={hasTabs}
                 dashboardUuid={dashboardUuid}
+                getFieldsByTile={getFieldsByTile}
             />
         );
     };
@@ -244,10 +246,7 @@ export const FilterPills: FC<Props> = ({
                                             {pill}
                                         </DraggableItem>
                                     ) : (
-                                        <BarDraggable
-                                            id={filter.id}
-                                            isDisabled={isSidebarOpen}
-                                        >
+                                        <BarDraggable id={filter.id}>
                                             {pill}
                                         </BarDraggable>
                                     )}

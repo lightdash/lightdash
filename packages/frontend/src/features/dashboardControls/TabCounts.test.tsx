@@ -91,6 +91,7 @@ const setSidebar = (overrides: Record<string, unknown> = {}) => {
         editingRule: rule(),
         isPlaceholder: false,
         activeFieldId: null,
+        hoveredFilterId: null,
         ...overrides,
     };
 };
@@ -403,6 +404,60 @@ describe('TabCounts', () => {
         renderWithProviders(<TabCounts />);
 
         TAB_UUIDS.forEach((tabUuid) => expect(badgeText(tabUuid)).toBe(''));
+    });
+
+    describe("a hovered pill's filter while none is edited", () => {
+        beforeEach(() => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboardFilters: {
+                    dimensions: [rule({ id: 'hovered' })],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            };
+        });
+
+        it('shows its counts as the editor does at rest', () => {
+            setSidebar({
+                editingRule: null,
+                hoveredFilterId: 'hovered',
+                activeFieldId: 'orders_region',
+            });
+            renderWithProviders(<TabCounts />);
+
+            expect(badgeText('tab-1')).toBe('2 of 3');
+            expect(badgeText('tab-2')).toBe('0 of 1');
+            expect(isBadgeReached('tab-1')).toBe('true');
+            expect(badge('tab-1')).toHaveAttribute(
+                'data-field-active',
+                'false',
+            );
+            expect(isBadgeBlue('tab-1')).toBe(false);
+        });
+
+        it('clears once the hover ends', () => {
+            setSidebar({ editingRule: null, hoveredFilterId: 'hovered' });
+            const { rerender } = renderWithProviders(<TabCounts />);
+            expect(badgeText('tab-1')).toBe('2 of 3');
+
+            setSidebar({ editingRule: null, hoveredFilterId: null });
+            rerender(<TabCounts />);
+            TAB_UUIDS.forEach((tabUuid) => expect(badgeText(tabUuid)).toBe(''));
+        });
+
+        it('never shows while a filter is edited', () => {
+            setSidebar({
+                editingRule: rule({
+                    target: { fieldId: 'orders_region', tableName: 'orders' },
+                }),
+                hoveredFilterId: 'hovered',
+            });
+            renderWithProviders(<TabCounts />);
+
+            expect(badgeText('tab-1')).toBe('1 of 3');
+            expect(badgeText('tab-2')).toBe('1 of 1');
+        });
     });
 
     describe('the active tab past the strip', () => {
