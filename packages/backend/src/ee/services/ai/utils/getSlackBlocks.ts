@@ -29,6 +29,7 @@ import { partition } from 'lodash';
 import type { SlackStreamChunk } from '../../../../clients/Slack/SlackClient';
 import { stripMemoryCitations } from './memoryCitation';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
+import { stripQueryNodeReferences } from './queryNodeReference';
 import {
     deduplicateSlackArtifacts,
     getLegacySlackArtifactImage,
@@ -187,7 +188,7 @@ export const getTextBlocks = (
  * Pass the agent's raw markdown response here — no slackifyMarkdown needed.
  */
 export const getMarkdownBlocks = (text: string): (Block | KnownBlock)[] =>
-    chunkSlackText(stripMemoryCitations(text)).map(
+    chunkSlackText(stripQueryNodeReferences(stripMemoryCitations(text))).map(
         (chunk) =>
             ({
                 type: 'markdown',

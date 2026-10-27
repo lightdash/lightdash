@@ -15,13 +15,18 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
 import { useIsAiAgentNavigationDisabled } from '../../hooks/useIsAiAgentNavigationDisabled';
-import { selectPreview, setPreview } from '../../store/aiArtifactSlice';
+import {
+    clearPreview,
+    selectPreview,
+    setPreview,
+} from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import styles from './ContentLink.module.css';
 import { ContentReferenceLink } from './ContentReferenceLink';
+import { QueryNodeReference } from './QueryNodeReference';
 import { type ContentType } from './rehypeContentLinks';
 import {
     isPlainLeftClick,
@@ -42,6 +47,8 @@ type ContentLinkProps = {
     agentUuid: string;
     sqlRunnerLinkState?: SqlRunnerLinkState | null;
     onDashboardLinkClick?: (url: string) => void;
+    /** False where previews have no pane (launcher, inline artifacts). */
+    hasPreviewPane: boolean;
 };
 
 export const ContentLink: FC<ContentLinkProps> = ({
@@ -53,6 +60,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
     agentUuid,
     sqlRunnerLinkState,
     onDashboardLinkClick,
+    hasPreviewPane,
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -443,6 +451,46 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 >
                     {children}
                 </Button>
+            );
+        }
+
+        case 'query-node-link': {
+            const nodeId =
+                typeof props['data-node-id'] === 'string'
+                    ? props['data-node-id']
+                    : '';
+            const index =
+                typeof props['data-reference-index'] === 'number'
+                    ? props['data-reference-index']
+                    : null;
+            const isActive =
+                currentPreview?.type === 'queryPipeline' &&
+                currentPreview.messageUuid === message.uuid &&
+                currentPreview.nodeId === nodeId;
+            return (
+                <QueryNodeReference
+                    nodeId={nodeId}
+                    index={index}
+                    label={children}
+                    isActive={isActive}
+                    onOpen={
+                        hasPreviewPane
+                            ? () =>
+                                  dispatch(
+                                      isActive
+                                          ? clearPreview()
+                                          : setPreview({
+                                                type: 'queryPipeline',
+                                                nodeId,
+                                                messageUuid: message.uuid,
+                                                threadUuid: message.threadUuid,
+                                                projectUuid,
+                                                agentUuid,
+                                            }),
+                                  )
+                            : null
+                    }
+                />
             );
         }
 
