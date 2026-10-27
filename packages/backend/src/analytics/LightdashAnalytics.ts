@@ -1533,6 +1533,9 @@ type UpdatedDashboardEvent = BaseTrack & {
         dimensionFilterCount: number;
         metricFilterCount: number;
         lockedFilterCount: number;
+        sectionsCount: number;
+        sectionedFiltersCount: number;
+        collapsedByDefaultSectionsCount: number;
     };
 };
 
@@ -1559,6 +1562,9 @@ export type CreateDashboardOrVersionEvent = BaseTrack & {
         defaultDateZoomGranularity: string | null;
         dateZoomControlsCount: number;
         dateZoomTileTargetsCount: number;
+        sectionsCount: number;
+        sectionedFiltersCount: number;
+        collapsedByDefaultSectionsCount: number;
     };
 };
 

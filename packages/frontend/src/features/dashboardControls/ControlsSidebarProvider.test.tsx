@@ -10,14 +10,14 @@ import {
     type DashboardTile,
     type ResultColumn,
 } from '@lightdash/common';
-import { act, render, renderHook } from '@testing-library/react';
+import { act, fireEvent, render, renderHook } from '@testing-library/react';
 import {
     useState,
     type FC,
     type PropsWithChildren,
     type SetStateAction,
 } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
     type DashboardEditTestValues,
@@ -78,6 +78,49 @@ const mockTrack = vi.hoisted(() => vi.fn());
 vi.mock('../../providers/Tracking/useTracking', () => ({
     default: () => ({ track: mockTrack }),
 }));
+// The shipped event: the controls' own events are asserted on their own
+const addFilterTracks = () =>
+    mockTrack.mock.calls
+        .map(([event]) => event)
+        .filter(({ name }) => name === EventName.ADD_FILTER_CLICKED);
+const CONTROLS_EVENTS: string[] = [
+    EventName.DASHBOARD_FILTERS_MOVED,
+    EventName.DASHBOARD_FILTER_EDITOR_OPENED,
+    EventName.DASHBOARD_FILTER_EDITOR_CLOSED,
+    EventName.DASHBOARD_FILTER_EDITOR_SWITCH_ANSWERED,
+];
+const controlsTracks = () =>
+    mockTrack.mock.calls
+        .map(([event]) => event)
+        .filter(({ name }) => CONTROLS_EVENTS.includes(name));
+const tracksOf = (name: EventName) =>
+    mockTrack.mock.calls
+        .map(([event]) => event)
+        .filter((event) => event.name === name);
+// Fixed values only: no filter name, label, value, field id or section name
+const ALLOWED_STRINGS = new Set([
+    'dash-1',
+    'pill',
+    'add_filter',
+    'section_add',
+    'apply',
+    'cancel',
+    'switch',
+    'remove',
+    'mode_change',
+    'discard',
+    'withdrawn',
+    'drag',
+    'editor_section_select',
+]);
+const expectNoNames = () =>
+    controlsTracks().forEach(({ properties }) =>
+        Object.values(properties).forEach((value) => {
+            if (typeof value === 'string')
+                expect(ALLOWED_STRINGS.has(value)).toBe(true);
+            else expect(['number', 'boolean']).toContain(typeof value);
+        }),
+    );
 
 const rule = (id: string, values: string[]): DashboardFilterRule => ({
     id,
@@ -194,7 +237,7 @@ const DashboardState: FC<
     mockDashboardContext.current = {
         ...setters,
         filterableFieldsByTileUuid: mockFieldsByTile.current,
-        dashboard: { tiles: mockTiles.saved },
+        dashboard: { uuid: 'dash-1', tiles: mockTiles.saved },
     };
     latest.filters = dashboardFilters;
     latest.temporaryFilters = temporaryFilters;
@@ -349,7 +392,7 @@ describe('ControlsSidebarProvider', () => {
             act(() => result.current.open('b'));
             expect(result.current.editing).toEqual({ filterId: 'b' });
             expect(latest.filters).toEqual(initialFilters);
-            expect(mockTrack).not.toHaveBeenCalled();
+            expect(addFilterTracks()).toHaveLength(0);
         });
 
         it('a new filter with a field asks first, as Create', () => {
@@ -361,7 +404,7 @@ describe('ControlsSidebarProvider', () => {
             expect(result.current.pendingRule?.id).toBe('b');
             act(() => result.current.resolvePending(true));
             expect(latest.filters.dimensions).toHaveLength(3);
-            expect(mockTrack).toHaveBeenCalledTimes(1);
+            expect(addFilterTracks()).toHaveLength(1);
             expect(result.current.editing).toEqual({ filterId: 'b' });
         });
 
@@ -714,7 +757,7 @@ describe('ControlsSidebarProvider', () => {
         const { result } = setup();
         act(() => result.current.openNew());
         act(() => result.current.addFirstField(statusField));
-        expect(mockTrack).not.toHaveBeenCalled();
+        expect(addFilterTracks()).toHaveLength(0);
 
         // Discarded, removed, or closed with no field: nothing was created
         act(() => result.current.discard());
@@ -727,21 +770,21 @@ describe('ControlsSidebarProvider', () => {
         );
         act(() => result.current.openNew());
         act(() => result.current.close());
-        expect(mockTrack).not.toHaveBeenCalled();
+        expect(addFilterTracks()).toHaveLength(0);
 
         // Kept with Done, the X or the pill
         act(() => result.current.openNew());
         act(() => result.current.addFirstField(statusField));
         act(() => result.current.close());
-        expect(mockTrack).toHaveBeenCalledTimes(1);
-        expect(mockTrack).toHaveBeenLastCalledWith(event);
+        expect(addFilterTracks()).toHaveLength(1);
+        expect(addFilterTracks().at(-1)).toEqual(event);
 
         // Kept by opening another control, from a tile or on a SQL column
         mockFieldsByTile.current = { t1: [statusField] };
         act(() => result.current.openNew());
         act(() => result.current.addFirstFieldOnTile(statusField, 't1'));
         act(() => result.current.openNew());
-        expect(mockTrack).toHaveBeenCalledTimes(2);
+        expect(addFilterTracks()).toHaveLength(2);
         act(() =>
             result.current.addFirstSqlColumn(
                 { reference: 'total', type: DimensionType.NUMBER },
@@ -749,14 +792,190 @@ describe('ControlsSidebarProvider', () => {
             ),
         );
         act(() => result.current.close());
-        expect(mockTrack).toHaveBeenCalledTimes(3);
-        expect(mockTrack).toHaveBeenLastCalledWith(event);
+        expect(addFilterTracks()).toHaveLength(3);
+        expect(addFilterTracks().at(-1)).toEqual(event);
 
         // Reopening and closing a filter that already existed tracks nothing
         const kept = latest.filters.dimensions[2];
         act(() => result.current.open(kept.id));
         act(() => result.current.close());
-        expect(mockTrack).toHaveBeenCalledTimes(3);
+        expect(addFilterTracks()).toHaveLength(3);
+    });
+
+    describe('controls events', () => {
+        const base = { dashboardUuid: 'dash-1', filtersCount: 2 };
+        const sections = [{ id: 's1', name: 'Dates' }];
+        afterEach(() => expectNoNames());
+
+        it('tracks the editor opening from a pill, Add filter and a section', () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.close());
+            act(() => result.current.openNew());
+            act(() => result.current.discard());
+            act(() => result.current.openNew('s1'));
+            expect(tracksOf(EventName.DASHBOARD_FILTER_EDITOR_OPENED)).toEqual([
+                {
+                    name: EventName.DASHBOARD_FILTER_EDITOR_OPENED,
+                    properties: { ...base, source: 'pill', isNew: false },
+                },
+                {
+                    name: EventName.DASHBOARD_FILTER_EDITOR_OPENED,
+                    properties: { ...base, source: 'add_filter', isNew: true },
+                },
+                {
+                    name: EventName.DASHBOARD_FILTER_EDITOR_OPENED,
+                    properties: { ...base, source: 'section_add', isNew: true },
+                },
+            ]);
+        });
+
+        it('tracks every way out of the editor once, with its changes', () => {
+            const closed = (outcome: string, hadChanges: boolean) => ({
+                name: EventName.DASHBOARD_FILTER_EDITOR_CLOSED,
+                properties: { ...base, outcome, hadChanges },
+            });
+            const { result, rerender } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['9'])));
+            act(() => result.current.close());
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['8'])));
+            act(() => result.current.discard());
+            act(() => result.current.open('a'));
+            act(() => result.current.open('b'));
+            act(() => result.current.removeFilterById('b'));
+            act(() => result.current.open('a'));
+            mockParams.current = { mode: 'view' };
+            rerender();
+            const events = tracksOf(EventName.DASHBOARD_FILTER_EDITOR_CLOSED);
+            expect(events).toEqual([
+                closed('apply', true),
+                closed('cancel', true),
+                closed('switch', false),
+                closed('remove', false),
+                {
+                    ...closed('mode_change', false),
+                    // b was removed meanwhile
+                    properties: {
+                        ...closed('mode_change', false).properties,
+                        filtersCount: 1,
+                    },
+                },
+            ]);
+        });
+
+        it('tracks the switch question once per answer, and Escape withdrawing it', () => {
+            const answered = (choice: string) => ({
+                name: EventName.DASHBOARD_FILTER_EDITOR_SWITCH_ANSWERED,
+                properties: { ...base, choice },
+            });
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() => result.current.updateFilter(rule('a', ['9'])));
+            act(() => result.current.open('b'));
+            act(() => result.current.resolvePending(true));
+            act(() => result.current.updateFilter(rule('b', ['9'])));
+            act(() => result.current.open('a'));
+            act(() => result.current.resolvePending(false));
+            act(() => result.current.updateFilter(rule('a', ['7'])));
+            act(() => result.current.open('b'));
+
+            const editor = document.createElement('div');
+            editor.setAttribute('data-controls-editor', '');
+            document.body.appendChild(editor);
+            act(() => {
+                fireEvent.keyDown(editor, { key: 'Escape' });
+            });
+            editor.remove();
+
+            expect(result.current.editing).toEqual({ filterId: 'a' });
+            expect(
+                tracksOf(EventName.DASHBOARD_FILTER_EDITOR_SWITCH_ANSWERED),
+            ).toEqual([
+                answered('apply'),
+                answered('discard'),
+                answered('withdrawn'),
+            ]);
+            // Both answers closed the edit as a switch; Escape closed nothing
+            expect(
+                tracksOf(EventName.DASHBOARD_FILTER_EDITOR_CLOSED).map(
+                    ({ properties }) => properties.outcome,
+                ),
+            ).toEqual(['switch', 'switch']);
+        });
+
+        it("tracks the Section select's move once applied, never on preview or Cancel", () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.updateFilter({
+                    ...rule('a', ['1']),
+                    sectionId: 's1',
+                }),
+            );
+            act(() => result.current.discard());
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([]);
+
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.updateFilter({
+                    ...rule('a', ['1']),
+                    sectionId: 's1',
+                }),
+            );
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([]);
+            act(() => result.current.close());
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([
+                {
+                    name: EventName.DASHBOARD_FILTERS_MOVED,
+                    properties: {
+                        ...base,
+                        method: 'editor_section_select',
+                        count: 1,
+                        whileEditing: true,
+                    },
+                },
+            ]);
+        });
+
+        it("tracks the edited pill's drag as a move once applied, and a reorder as none", () => {
+            const { result } = setup();
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.moveEditedFilter({ ruleId: 'b' }, sections),
+            );
+            act(() => result.current.close());
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([]);
+
+            act(() => result.current.open('a'));
+            act(() =>
+                result.current.moveEditedFilter({ sectionId: 's1' }, sections),
+            );
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([]);
+            // A switch that applies counts too
+            act(() => result.current.open('b'));
+            act(() => result.current.resolvePending(true));
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([
+                {
+                    name: EventName.DASHBOARD_FILTERS_MOVED,
+                    properties: {
+                        ...base,
+                        method: 'drag',
+                        count: 1,
+                        whileEditing: true,
+                    },
+                },
+            ]);
+        });
+
+        it('a new filter created in a section is no move', () => {
+            const { result } = setup();
+            act(() => result.current.openNew('s1'));
+            act(() => result.current.addFirstField(statusField));
+            act(() => result.current.close());
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([]);
+        });
     });
 
     describe('a first field', () => {
@@ -1555,7 +1774,7 @@ describe('ControlsSidebarProvider', () => {
             expect(picked.disabled).toBe(true);
             expect(picked.singleValue).toBeUndefined();
             // The control existed already, so nothing was created
-            expect(mockTrack).not.toHaveBeenCalled();
+            expect(addFilterTracks()).toHaveLength(0);
         });
 
         it('picking a field on a tile keeps the id and label too', () => {
@@ -1773,7 +1992,7 @@ describe('ControlsSidebarProvider', () => {
 
             act(() => result.current.addFirstField(statusField));
             expect(latest.filters.dimensions[2].id).toBe(id);
-            expect(mockTrack).not.toHaveBeenCalled();
+            expect(addFilterTracks()).toHaveLength(0);
 
             act(() => result.current.removeLastField('A'));
             act(() => result.current.close());
@@ -2838,6 +3057,24 @@ describe('ControlsSidebarProvider in view mode', () => {
         });
     });
 
+    it("tracks none of the editor's events for a viewer", () => {
+        const { result } = setup();
+        act(() => result.current.openNew());
+        act(() => result.current.addFirstField(statusField));
+        act(() =>
+            result.current.updateFilter(
+                withValue(latest.temporaryFilters.dimensions[0]),
+            ),
+        );
+        act(() => result.current.close());
+        act(() =>
+            result.current.open(latest.temporaryFilters.dimensions[0].id),
+        );
+        act(() => result.current.discard());
+        expect(controlsTracks()).toEqual([]);
+        expect(addFilterTracks()).toHaveLength(1);
+    });
+
     it("drops a viewer's new filter left with no value on Apply, as the shipped Apply", () => {
         const { result } = setup();
         act(() => result.current.openNew());
@@ -2848,7 +3085,7 @@ describe('ControlsSidebarProvider in view mode', () => {
         expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
         expect(latest.changed).toBe(false);
         expect(result.current.editing).toBeNull();
-        expect(mockTrack).not.toHaveBeenCalled();
+        expect(addFilterTracks()).toHaveLength(0);
     });
 
     it("adds a viewer's filter on a SQL column to the temporary filters", () => {
@@ -2889,7 +3126,7 @@ describe('ControlsSidebarProvider in view mode', () => {
         expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
         expect(latest.changed).toBe(false);
         expect(result.current.isSidebarOpen).toBe(false);
-        expect(mockTrack).not.toHaveBeenCalled();
+        expect(addFilterTracks()).toHaveLength(0);
     });
 
     const seedOwn = (rules: DashboardFilterRule[]) =>
@@ -3004,7 +3241,7 @@ describe('ControlsSidebarProvider in view mode', () => {
             expect(result.current.editingRule).toBeNull();
             expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
             expect(latest.filters).toEqual(initialFilters);
-            expect(mockTrack).not.toHaveBeenCalled();
+            expect(addFilterTracks()).toHaveLength(0);
 
             mockParams.current = { mode: 'view' };
             rerender();
@@ -3019,7 +3256,7 @@ describe('ControlsSidebarProvider in view mode', () => {
             rerender();
             expect(result.current.isSidebarOpen).toBe(false);
             expect(latest.temporaryFilters).toEqual(NO_TEMPORARY_FILTERS);
-            expect(mockTrack).not.toHaveBeenCalled();
+            expect(addFilterTracks()).toHaveLength(0);
         });
 
         it('keeps and tracks a new viewer filter with a value, as temporary', () => {

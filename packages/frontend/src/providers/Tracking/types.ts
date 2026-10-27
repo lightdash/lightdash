@@ -775,6 +775,84 @@ type DashboardFilterLockToggledEvent = {
     };
 };
 
+// Dashboard controls: counts, booleans and fixed values only, never names
+type DashboardControlsEventBase = {
+    dashboardUuid: string | undefined;
+    filtersCount: number;
+};
+
+export type DashboardSectionCreatedSource =
+    | 'add_section_icon'
+    | 'selection_bar'
+    | 'move_to_menu';
+
+export type DashboardFiltersMovedMethod =
+    | 'drag'
+    | 'selection_bar'
+    | 'editor_section_select';
+
+export type DashboardFilterEditorCloseOutcome =
+    | 'apply'
+    | 'cancel'
+    | 'switch'
+    | 'remove'
+    | 'mode_change';
+
+type DashboardSectionCreatedEvent = {
+    name: EventName.DASHBOARD_SECTION_CREATED;
+    properties: DashboardControlsEventBase & {
+        source: DashboardSectionCreatedSource;
+        filtersMoved: number;
+        wasTipShown: boolean;
+    };
+};
+
+type DashboardSectionsTipDismissedEvent = {
+    name: EventName.DASHBOARD_SECTIONS_TIP_DISMISSED;
+    properties: DashboardControlsEventBase;
+};
+
+type DashboardFiltersMovedEvent = {
+    name: EventName.DASHBOARD_FILTERS_MOVED;
+    properties: DashboardControlsEventBase & {
+        method: DashboardFiltersMovedMethod;
+        count: number;
+        whileEditing: boolean;
+    };
+};
+
+type DashboardFilterEditorOpenedEvent = {
+    name: EventName.DASHBOARD_FILTER_EDITOR_OPENED;
+    properties: DashboardControlsEventBase & {
+        source: 'pill' | 'add_filter' | 'section_add';
+        isNew: boolean;
+    };
+};
+
+type DashboardFilterEditorClosedEvent = {
+    name: EventName.DASHBOARD_FILTER_EDITOR_CLOSED;
+    properties: DashboardControlsEventBase & {
+        outcome: DashboardFilterEditorCloseOutcome;
+        hadChanges: boolean;
+    };
+};
+
+type DashboardFilterEditorSwitchAnsweredEvent = {
+    name: EventName.DASHBOARD_FILTER_EDITOR_SWITCH_ANSWERED;
+    properties: DashboardControlsEventBase & {
+        choice: 'apply' | 'discard' | 'withdrawn';
+    };
+};
+
+type DashboardSectionToggledEvent = {
+    name: EventName.DASHBOARD_SECTION_TOGGLED;
+    // filtersCount: the section's members
+    properties: DashboardControlsEventBase & {
+        expanded: boolean;
+        collapsedByDefault: boolean;
+    };
+};
+
 type DashboardFilterRequirementsSavedEvent = {
     name: EventName.DASHBOARD_FILTER_REQUIREMENTS_SAVED;
     properties: {
@@ -1300,6 +1378,13 @@ export type EventData =
     | TableCalculationSaveEvent
     | FormulaTableCalculationAiGenerateClickedEvent
     | DashboardFilterLockToggledEvent
+    | DashboardSectionCreatedEvent
+    | DashboardSectionsTipDismissedEvent
+    | DashboardFiltersMovedEvent
+    | DashboardFilterEditorOpenedEvent
+    | DashboardFilterEditorClosedEvent
+    | DashboardFilterEditorSwitchAnsweredEvent
+    | DashboardSectionToggledEvent
     | LearnLibraryViewedEvent
     | LearnWalkthroughStartedEvent
     | LearnWalkthroughCompletedEvent

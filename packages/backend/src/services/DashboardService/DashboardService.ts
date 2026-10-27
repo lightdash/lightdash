@@ -579,6 +579,29 @@ export class DashboardService
             dateZoomTileTargetsCount: Object.keys(
                 dashboard.config?.dateZoomConfig?.tileTargets ?? {},
             ).length,
+            ...DashboardService.getSectionEventProperties(dashboard),
+        };
+    }
+
+    // Counts only: section names never leave the dashboard
+    static getSectionEventProperties(
+        dashboard: Pick<DashboardDAO, 'config' | 'filters'>,
+    ) {
+        const controlSections = dashboard.config?.controlSections ?? [];
+        const sectionIds = new Set(controlSections.map(({ id }) => id));
+        return {
+            sectionsCount: controlSections.length,
+            // A sectionId with no matching section reads as unsectioned
+            sectionedFiltersCount: [
+                ...(dashboard.filters?.dimensions ?? []),
+                ...(dashboard.filters?.metrics ?? []),
+            ].filter(
+                ({ sectionId }) =>
+                    sectionId !== undefined && sectionIds.has(sectionId),
+            ).length,
+            collapsedByDefaultSectionsCount: controlSections.filter(
+                ({ collapsed }) => collapsed === true,
+            ).length,
         };
     }
 
@@ -2377,6 +2400,9 @@ export class DashboardService
                     ].filter(
                         (filter) => (filter.lockedTabUuids?.length ?? 0) > 0,
                     ).length,
+                    ...DashboardService.getSectionEventProperties(
+                        updatedDashboard,
+                    ),
                 },
             });
         }

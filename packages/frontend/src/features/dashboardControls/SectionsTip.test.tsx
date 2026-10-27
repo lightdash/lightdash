@@ -8,6 +8,7 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../testing/testUtils';
+import { EventName } from '../../types/Events';
 import { dashboardEditActions } from '../dashboard/store';
 import { SectionsTip } from './SectionsTip';
 
@@ -15,6 +16,14 @@ const mockOs = vi.hoisted(() => ({ current: 'macos' }));
 vi.mock('@mantine/hooks', async (importOriginal) => ({
     ...(await importOriginal<typeof MantineHooks>()),
     useOs: () => mockOs.current,
+}));
+
+vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
+    default: vi.fn((selector) => selector({ dashboard: { uuid: 'dash-1' } })),
+}));
+const mockTrack = vi.hoisted(() => vi.fn());
+vi.mock('../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: mockTrack }),
 }));
 
 const KEY = 'dashboard-controls-sections-tip-dismissed';
@@ -59,6 +68,7 @@ describe('SectionsTip', () => {
     beforeEach(() => {
         mockOs.current = 'macos';
         localStorage.removeItem(KEY);
+        mockTrack.mockClear();
     });
     afterEach(() => localStorage.removeItem(KEY));
 
@@ -104,6 +114,16 @@ describe('SectionsTip', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Dismiss tip' }));
         expect(tip()).toBeNull();
         expect(localStorage.getItem(KEY)).toBe('true');
+    });
+
+    it('tracks the dismissal once, with counts only', () => {
+        renderTip(3);
+        fireEvent.click(screen.getByRole('button', { name: 'Dismiss tip' }));
+        expect(mockTrack).toHaveBeenCalledTimes(1);
+        expect(mockTrack).toHaveBeenCalledWith({
+            name: EventName.DASHBOARD_SECTIONS_TIP_DISMISSED,
+            properties: { dashboardUuid: 'dash-1', filtersCount: 3 },
+        });
     });
 
     it('is not shown once dismissed before', () => {

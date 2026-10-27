@@ -19,6 +19,7 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../testing/testUtils';
+import { EventName } from '../../types/Events';
 import {
     dashboardFiltersActions,
     selectControlSections,
@@ -59,6 +60,11 @@ vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
     default: vi.fn((selector: (context: Record<string, unknown>) => unknown) =>
         selector(mockDashboardContext.current),
     ),
+}));
+
+const mockTrack = vi.hoisted(() => vi.fn());
+vi.mock('../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: mockTrack }),
 }));
 
 vi.mock('./useControlsSidebar', () => ({
@@ -1702,6 +1708,264 @@ describe('SectionedFilters', () => {
             expect(
                 screen.queryByRole('button', { name: /^(Expand|Collapse)/ }),
             ).not.toBeInTheDocument();
+        });
+    });
+
+    describe('tracking', () => {
+        const setDashboardFilters = vi.fn();
+        const setHaveFiltersChanged = vi.fn();
+        const TIP_KEY = 'dashboard-controls-sections-tip-dismissed';
+        const grid = document.createElement('div');
+        grid.className = 'react-grid-layout';
+        const dragEvent = (activeId: string, overId: string) =>
+            ({
+                active: { id: activeId },
+                over: { id: overId },
+            }) as DragEndEvent;
+        const tracksOf = (name: EventName) =>
+            mockTrack.mock.calls
+                .map(([event]) => event)
+                .filter((event) => event.name === name);
+        const rules = () => [
+            rule('loose', undefined),
+            rule('one', 'a'),
+            rule('two', 'a'),
+            rule('three', 'b'),
+        ];
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+            localStorage.removeItem(TIP_KEY);
+            mockDroppable.current = null;
+            document.body.appendChild(grid);
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboard: { uuid: 'dash-1' },
+                setDashboardFilters,
+                setHaveFiltersChanged,
+            };
+        });
+        // Counts, booleans and fixed values only: no filter or section names
+        const expectNoNames = () => {
+            const allowed = new Set([
+                'dash-1',
+                'add_section_icon',
+                'selection_bar',
+                'move_to_menu',
+                'drag',
+            ]);
+            mockTrack.mock.calls.forEach(([{ properties }]) =>
+                Object.values(properties).forEach((value) => {
+                    if (typeof value === 'string')
+                        expect(allowed.has(value)).toBe(true);
+                    else expect(['number', 'boolean']).toContain(typeof value);
+                }),
+            );
+        };
+        afterEach(() => {
+            expectNoNames();
+            localStorage.removeItem(TIP_KEY);
+            grid.remove();
+        });
+
+        it("tracks a viewer's fold with the section's counts, never an editor's", () => {
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            const { unmount } = renderSectioned(
+                [rule('one', 'a'), rule('two', 'a'), rule('three', 'b')],
+                'tab-1',
+            );
+            fireEvent.click(screen.getByRole('button', { name: 'Dates' }));
+            expect(mockTrack).toHaveBeenCalledTimes(1);
+            expect(mockTrack).toHaveBeenCalledWith({
+                name: EventName.DASHBOARD_SECTION_TOGGLED,
+                properties: {
+                    dashboardUuid: 'dash-1',
+                    filtersCount: 2,
+                    expanded: false,
+                    collapsedByDefault: false,
+                },
+            });
+            unmount();
+
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            fireEvent.click(foldOf('Dates'));
+            expect(mockTrack).toHaveBeenCalledTimes(1);
+        });
+
+        it('tracks a section made from Add section, with the tip on screen', async () => {
+            const user = userEvent.setup();
+            renderSectioned(
+                [rule('one', undefined), rule('two', undefined)],
+                'tab-1',
+                [],
+            );
+            await user.click(
+                screen.getByRole('button', { name: 'Add section' }),
+            );
+            await user.keyboard('Misc{Enter}');
+            expect(mockTrack).toHaveBeenCalledTimes(1);
+            expect(mockTrack).toHaveBeenCalledWith({
+                name: EventName.DASHBOARD_SECTION_CREATED,
+                properties: {
+                    dashboardUuid: 'dash-1',
+                    filtersCount: 2,
+                    source: 'add_section_icon',
+                    filtersMoved: 0,
+                    wasTipShown: true,
+                },
+            });
+        });
+
+        it('tracks a cancelled name as nothing', async () => {
+            const user = userEvent.setup();
+            renderSectioned([rule('one', undefined)], 'tab-1', []);
+            await user.click(
+                screen.getByRole('button', { name: 'Add section' }),
+            );
+            await user.keyboard('{Escape}');
+            expect(mockTrack).not.toHaveBeenCalled();
+        });
+
+        it('tracks a section made from the selection bar and its Move to menu, with the move', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(screen.getByText('pill loose'), { metaKey: true });
+            fireEvent.click(screen.getByText('pill one'), { metaKey: true });
+            await user.click(
+                await screen.findByRole('button', {
+                    name: 'Move to new section',
+                }),
+            );
+            await user.keyboard('Misc{Enter}');
+            const base = { dashboardUuid: 'dash-1', filtersCount: 4 };
+            expect(tracksOf(EventName.DASHBOARD_SECTION_CREATED)).toEqual([
+                {
+                    name: EventName.DASHBOARD_SECTION_CREATED,
+                    properties: {
+                        ...base,
+                        source: 'selection_bar',
+                        filtersMoved: 2,
+                        wasTipShown: false,
+                    },
+                },
+            ]);
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([
+                {
+                    name: EventName.DASHBOARD_FILTERS_MOVED,
+                    properties: {
+                        ...base,
+                        method: 'selection_bar',
+                        count: 2,
+                        whileEditing: false,
+                    },
+                },
+            ]);
+
+            mockTrack.mockClear();
+            fireEvent.click(screen.getByText('pill three'), { metaKey: true });
+            await user.click(
+                await screen.findByRole('button', { name: 'Move to' }),
+            );
+            await user.click(
+                screen.getByRole('menuitem', { name: 'New section' }),
+            );
+            await user.keyboard('More{Enter}');
+            expect(
+                tracksOf(EventName.DASHBOARD_SECTION_CREATED).map(
+                    ({ properties }) => properties.source,
+                ),
+            ).toEqual(['move_to_menu']);
+        });
+
+        it("tracks the selection bar's Move to with the filters that changed section", async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(screen.getByText('pill loose'), { metaKey: true });
+            fireEvent.click(screen.getByText('pill one'), { metaKey: true });
+            fireEvent.click(screen.getByText('pill three'), { metaKey: true });
+            await user.click(
+                await screen.findByRole('button', { name: 'Move to' }),
+            );
+            await user.click(
+                screen.getByRole('menuitem', { name: 'Regions · 1' }),
+            );
+            // three was in Regions already
+            expect(mockTrack).toHaveBeenCalledTimes(1);
+            expect(mockTrack).toHaveBeenCalledWith({
+                name: EventName.DASHBOARD_FILTERS_MOVED,
+                properties: {
+                    dashboardUuid: 'dash-1',
+                    filtersCount: 4,
+                    method: 'selection_bar',
+                    count: 2,
+                    whileEditing: false,
+                },
+            });
+        });
+
+        it('tracks a drag into another section, never a reorder or the edited pill', () => {
+            renderSectioned(rules(), 'tab-1');
+            act(() => mockDragEnd.handlers[0](dragEvent('one', 'two')));
+            expect(mockTrack).not.toHaveBeenCalled();
+
+            act(() => mockDragEnd.handlers[0](dragEvent('one', 'b')));
+            expect(mockTrack).toHaveBeenCalledTimes(1);
+            expect(mockTrack).toHaveBeenCalledWith({
+                name: EventName.DASHBOARD_FILTERS_MOVED,
+                properties: {
+                    dashboardUuid: 'dash-1',
+                    filtersCount: 4,
+                    method: 'drag',
+                    count: 1,
+                    whileEditing: false,
+                },
+            });
+        });
+
+        it('tracks a drag while a filter is edited, and leaves the edited pill to the editor', () => {
+            mockSidebar.current = {
+                isViewer: false,
+                isSidebarOpen: true,
+                editing: { filterId: 'one' },
+            };
+            renderSectioned(rules(), 'tab-1');
+            act(() => mockDragEnd.handlers[0](dragEvent('one', 'b')));
+            expect(mockMoveEditedFilter).toHaveBeenCalledTimes(1);
+            expect(mockTrack).not.toHaveBeenCalled();
+
+            act(() =>
+                mockDragEnd.handlers[0](
+                    dragEvent('three', 'unsectioned-target'),
+                ),
+            );
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([
+                expect.objectContaining({
+                    properties: expect.objectContaining({
+                        method: 'drag',
+                        count: 1,
+                        whileEditing: true,
+                    }),
+                }),
+            ]);
+        });
+
+        it('tracks a dragged selection once, counting what changed section', () => {
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(screen.getByText('pill loose'), { metaKey: true });
+            fireEvent.click(screen.getByText('pill three'), { metaKey: true });
+            act(() => mockDragEnd.handlers[0](dragEvent('loose', 'b')));
+            expect(mockTrack).toHaveBeenCalledTimes(1);
+            expect(mockTrack).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: EventName.DASHBOARD_FILTERS_MOVED,
+                    properties: expect.objectContaining({
+                        method: 'drag',
+                        count: 1,
+                    }),
+                }),
+            );
         });
     });
 });

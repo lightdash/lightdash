@@ -31,7 +31,10 @@ import { v4 as uuidv4 } from 'uuid';
 import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { type DashboardContextType } from '../../providers/Dashboard/types';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { type TrackingContextType } from '../../providers/Tracking/types';
+import {
+    type DashboardFilterEditorCloseOutcome,
+    type TrackingContextType,
+} from '../../providers/Tracking/types';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import {
@@ -63,7 +66,11 @@ import {
     RailContractClasses,
     type RailContractClassNames,
 } from './railContractClasses';
-import { moveRuleToSection, type RuleDropTarget } from './sections';
+import {
+    countFilters,
+    moveRuleToSection,
+    type RuleDropTarget,
+} from './sections';
 import {
     canKeepFilterRule,
     findFilterRule,
@@ -164,6 +171,8 @@ type SidebarState = {
     touchedFilterIds: string[];
     // The bar's drag moved the edited rule, so Discard puts back its place too
     isMoved: boolean;
+    // What last changed the edited rule's section, for the move event on Apply
+    sectionChangedBy: 'drag' | 'editor_section_select' | null;
 };
 
 // What Apply or Cancel would decide: a new filter with no field yet has
@@ -239,6 +248,7 @@ type Latest = {
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     track: TrackingContextType['track'];
+    dashboardUuid: string | undefined;
     undo: ApplyUndo | null;
     waiting: Waiting | null;
     activeTabUuid: string | undefined;
@@ -283,6 +293,12 @@ const getEditingRule = ({
     if (state === null) return null;
     return placeholder ?? findFilterRule(dashboardFilters, state.filterId);
 };
+
+// What every controls event carries
+const getEventBase = ({ dashboardUuid, dashboardFilters }: Latest) => ({
+    dashboardUuid,
+    filtersCount: countFilters(dashboardFilters),
+});
 
 // Operator, values and tile targets come from the field or SQL column;
 // identity, label and settings come from the placeholder, where it has them
@@ -380,6 +396,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [controlSections],
     );
     const { track } = useTracking();
+    const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const [dismissedLinks, setDismissedLinks] = useState<string[]>([]);
 
     const [state, setState] = useState<SidebarState | null>(null);
@@ -428,6 +445,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         setDashboardFilters,
         setHaveFiltersChanged,
         track,
+        dashboardUuid,
         undo,
         waiting,
         activeTabUuid,
@@ -594,7 +612,18 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 },
                 touchedFilterIds: [],
                 isMoved: false,
+                sectionChangedBy: null,
             });
+            if (!current.isPageViewer) {
+                current.track({
+                    name: EventName.DASHBOARD_FILTER_EDITOR_OPENED,
+                    properties: {
+                        ...getEventBase(latest.current),
+                        source: 'pill',
+                        isNew: false,
+                    },
+                });
+            }
         },
         [writeState, writePending, writePlaceholder, writeUndo],
     );
@@ -623,7 +652,21 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 },
                 touchedFilterIds: [],
                 isMoved: false,
+                sectionChangedBy: null,
             });
+            if (!current.isPageViewer) {
+                current.track({
+                    name: EventName.DASHBOARD_FILTER_EDITOR_OPENED,
+                    properties: {
+                        ...getEventBase(latest.current),
+                        source:
+                            sectionId === undefined
+                                ? 'add_filter'
+                                : 'section_add',
+                        isNew: true,
+                    },
+                });
+            }
         },
         [writeState, writePending, writePlaceholder, writeUndo],
     );
@@ -778,6 +821,16 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                       }
                     : waitingNow,
             );
+            if (
+                current.state?.filterId === rule.id &&
+                previous !== null &&
+                previous.sectionId !== rule.sectionId
+            ) {
+                writeState({
+                    ...current.state,
+                    sectionChangedBy: 'editor_section_select',
+                });
+            }
             writeFilters((filters) => replaceFilterRule(filters, rule));
             writeFiltersChanged(true);
         },
@@ -785,6 +838,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             writeFilters,
             writeFiltersChanged,
             writePlaceholder,
+            writeState,
             writeUndo,
             clearHighlightedField,
         ],
@@ -943,7 +997,16 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             );
             if (moved === filters) return;
             writeUndo(null);
-            writeState({ ...editingState, isMoved: true });
+            const before = findFilterRule(filters, editingState.filterId);
+            const after = findFilterRule(moved, editingState.filterId);
+            writeState({
+                ...editingState,
+                isMoved: true,
+                sectionChangedBy:
+                    before?.sectionId === after?.sectionId
+                        ? editingState.sectionChangedBy
+                        : 'drag',
+            });
             writeFilters(() => moved);
             writeFiltersChanged(true);
         },
@@ -987,6 +1050,42 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         [writeUndo],
     );
 
+    // The context's `isDirty`, read from `latest`
+    const hasUnappliedChanges = useCallback(() => {
+        const current = latest.current;
+        const { state: editingState, placeholder: editingPlaceholder } =
+            current;
+        if (editingState === null) return false;
+        return isEditUnapplied(
+            editingState,
+            editingPlaceholder !== null,
+            current.dashboardFilters,
+            toSavedNow,
+        );
+    }, [toSavedNow]);
+
+    // An editor's way out of an open edit, read before it acts
+    const trackClosed = useCallback(
+        (outcome: DashboardFilterEditorCloseOutcome) => {
+            const current = latest.current;
+            if (
+                current.state === null ||
+                current.state.isViewer ||
+                getEditingRule(current) === null
+            )
+                return;
+            current.track({
+                name: EventName.DASHBOARD_FILTER_EDITOR_CLOSED,
+                properties: {
+                    ...getEventBase(current),
+                    outcome,
+                    hadChanges: hasUnappliedChanges(),
+                },
+            });
+        },
+        [hasUnappliedChanges],
+    );
+
     // The edited rule goes and the editor's writes to other rules are undone;
     // what was written from outside the editor stays, and keeps it changed
     const removeEdited = useCallback(() => {
@@ -1009,13 +1108,14 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     const removeFilterById = useCallback(
         (filterId: string) => {
             if (latest.current.state?.filterId === filterId) {
+                trackClosed('remove');
                 removeEdited();
                 return;
             }
             writeFilters((filters) => removeFilterRule(filters, filterId));
             writeFiltersChanged(true);
         },
-        [removeEdited, writeFilters, writeFiltersChanged],
+        [removeEdited, writeFilters, writeFiltersChanged, trackClosed],
     );
 
     // The edited rule goes back to its snapshot, or out when it was new, and
@@ -1125,6 +1225,29 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                 },
             });
         }
+        // A section change made in the edit counts once it is applied
+        const savedRule = findFilterRule(
+            snapshot.dashboardFilters,
+            current.state.filterId,
+        );
+        if (
+            !current.state.isNew &&
+            !current.state.isViewer &&
+            savedRule !== null &&
+            savedRule.sectionId !== rule.sectionId
+        ) {
+            current.track({
+                name: EventName.DASHBOARD_FILTERS_MOVED,
+                properties: {
+                    ...getEventBase(current),
+                    method:
+                        current.state.sectionChangedBy ??
+                        'editor_section_select',
+                    count: 1,
+                    whileEditing: true,
+                },
+            });
+        }
         if (isDefaultValueIncomplete(rule)) {
             writeFilters((filters) =>
                 replaceFilterRule(filters, { ...rule, disabled: true }),
@@ -1150,11 +1273,12 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
     useEffect(() => {
         if (lastIsEditMode.current === isEditMode) return;
         lastIsEditMode.current = isEditMode;
+        trackClosed('mode_change');
         close();
         // The bar of the other mode has other pills: focus stays put
         focusReturn.current = null;
         if (!isEditMode) setDismissedLinks([]);
-    }, [isEditMode, close]);
+    }, [isEditMode, close, trackClosed]);
 
     // Whatever is being edited is applied first. A new control with no field
     // yet stays as it is, label included; asked for from a section, it moves
@@ -1168,25 +1292,12 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     writePlaceholder({ ...editingPlaceholder, sectionId });
                 return;
             }
+            trackClosed('switch');
             close();
             openPlaceholder(sectionId);
         },
-        [close, openPlaceholder, writePlaceholder],
+        [close, openPlaceholder, writePlaceholder, trackClosed],
     );
-
-    // The context's `isDirty`, read from `latest`
-    const hasUnappliedChanges = useCallback(() => {
-        const current = latest.current;
-        const { state: editingState, placeholder: editingPlaceholder } =
-            current;
-        if (editingState === null) return false;
-        return isEditUnapplied(
-            editingState,
-            editingPlaceholder !== null,
-            current.dashboardFilters,
-            toSavedNow,
-        );
-    }, [toSavedNow]);
 
     // A pill: with nothing edited it opens. On the edited filter it closes a
     // clean edit and hands focus to Apply otherwise; another filter switches
@@ -1201,6 +1312,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
                     focusApply();
                     return;
                 }
+                trackClosed(isOwn ? 'apply' : 'switch');
                 close();
                 if (isOwn) return;
             } else {
@@ -1209,31 +1321,61 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             }
             openExisting(filterId);
         },
-        [close, hasUnappliedChanges, openExisting, writePending],
+        [close, hasUnappliedChanges, openExisting, writePending, trackClosed],
     );
 
     // The footer's answer to a pending pill: Apply or Discard the edit, then
     // open the filter that was clicked
     const resolvePending = useCallback(
         (isApply: boolean) => {
-            const next = getPendingId(latest.current);
+            const current = latest.current;
+            const next = getPendingId(current);
             if (next === null) return;
+            if (current.state?.isViewer === false) {
+                current.track({
+                    name: EventName.DASHBOARD_FILTER_EDITOR_SWITCH_ANSWERED,
+                    properties: {
+                        ...getEventBase(current),
+                        choice: isApply ? 'apply' : 'discard',
+                    },
+                });
+            }
+            trackClosed('switch');
             if (isApply) close();
             else discard();
             openExisting(next);
         },
-        [close, discard, openExisting],
+        [close, discard, openExisting, trackClosed],
     );
 
     // Escape: a pending question is withdrawn, else the edit is cancelled
     const dismiss = useCallback(() => {
-        if (getPendingId(latest.current) === null) {
+        const current = latest.current;
+        if (getPendingId(current) === null) {
+            trackClosed('cancel');
             discard();
             return;
         }
+        if (current.state?.isViewer === false) {
+            current.track({
+                name: EventName.DASHBOARD_FILTER_EDITOR_SWITCH_ANSWERED,
+                properties: { ...getEventBase(current), choice: 'withdrawn' },
+            });
+        }
         writePending(null);
         focusApply();
-    }, [discard, writePending]);
+    }, [discard, writePending, trackClosed]);
+
+    // The rail's Apply and Cancel, tracked; the provider's own ways out
+    // call `close` and `discard` and track their own outcome
+    const apply = useCallback(() => {
+        trackClosed('apply');
+        close();
+    }, [close, trackClosed]);
+    const cancel = useCallback(() => {
+        trackClosed('cancel');
+        discard();
+    }, [discard, trackClosed]);
 
     // Derived, not reset: a rule that left the dashboard filters closes the
     // sidebar, and the next open or Add starts over
@@ -1342,8 +1484,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             updateOtherFilters,
             moveEditedFilter,
             removeFilterById,
-            discard,
-            close,
+            discard: cancel,
+            close: apply,
             // A new filter with no field yet has nothing to lose
             isDirty:
                 state !== null &&
@@ -1386,8 +1528,8 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
             updateOtherFilters,
             moveEditedFilter,
             removeFilterById,
-            discard,
-            close,
+            cancel,
+            apply,
             dashboardFilters,
             toSavedRule,
             newTileUuids,

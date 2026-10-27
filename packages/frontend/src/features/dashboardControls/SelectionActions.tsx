@@ -12,7 +12,7 @@ export type SelectionActionsProps = {
     /** Null takes the selected filters out of their sections. */
     onMove: (sectionId: string | null) => void;
     /** Names a new section, then moves the selection into it. */
-    onMoveToNewSection: () => void;
+    onMoveToNewSection: (source: 'selection_bar' | 'move_to_menu') => void;
     onRemove: () => void;
 };
 
@@ -36,7 +36,7 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
                 flex="0 0 auto"
                 leftSection={<MantineIcon icon={IconFolderPlus} size={14} />}
                 disabled={count === 0}
-                onClick={onMoveToNewSection}
+                onClick={() => onMoveToNewSection('selection_bar')}
             >
                 Move to new section
             </Button>
@@ -58,7 +58,7 @@ export const SelectionActions: FC<SelectionActionsProps> = ({
                         leftSection={
                             <MantineIcon icon={IconFolderPlus} size={14} />
                         }
-                        onClick={onMoveToNewSection}
+                        onClick={() => onMoveToNewSection('move_to_menu')}
                     >
                         New section
                     </Menu.Item>
