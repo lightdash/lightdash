@@ -7,6 +7,7 @@ import {
 } from '../types/field';
 import {
     getCurrentPeriodBounds,
+    includesFullFirstPeriod,
     isDateFilterRule,
     type DateFilterSettings,
 } from '../types/filter';
@@ -232,7 +233,11 @@ export function compareMetricAndCustomMetric({
                                 metricBounds.toDate ===
                                     customMetricBounds.toDate &&
                                 metricBounds.excludeToday ===
-                                    customMetricBounds.excludeToday;
+                                    customMetricBounds.excludeToday &&
+                                includesFullFirstPeriod(metricSettings) ===
+                                    includesFullFirstPeriod(
+                                        customMetricSettings,
+                                    );
                         }
                         return (
                             fieldRefMatch &&

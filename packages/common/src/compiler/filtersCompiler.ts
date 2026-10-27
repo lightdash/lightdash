@@ -16,6 +16,7 @@ import {
 import {
     FilterOperator,
     getCurrentPeriodBounds,
+    includesFullFirstPeriod,
     isDateFilterRule,
     isFilterTarget,
     isMetricFilterTarget,
@@ -708,20 +709,17 @@ const renderDateOrTimestampFilterSql = ({
                     ),
                 )} AND (${dimensionSql}) < ${castValue(untilDate)})`;
             }
-            const untilDate = boundaryFormatter(
-                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                    .tz(timezone)
-                    .utc()
-                    .toDate(),
-            );
+            const now = () =>
+                getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek).tz(
+                    timezone,
+                );
+            const fromMoment = now().subtract(filter.values?.[0], unitOfTime);
+            if (includesFullFirstPeriod(settings)) {
+                fromMoment.startOf(unitOfTime);
+            }
+            const untilDate = boundaryFormatter(now().utc().toDate());
             return `${not}((${dimensionSql}) >= ${castValue(
-                boundaryFormatter(
-                    getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
-                        .tz(timezone)
-                        .subtract(filter.values?.[0], unitOfTime)
-                        .utc()
-                        .toDate(),
-                ),
+                boundaryFormatter(fromMoment.utc().toDate()),
             )} AND (${dimensionSql}) <= ${castValue(untilDate)})`;
         }
         case FilterOperator.IN_THE_NEXT: {

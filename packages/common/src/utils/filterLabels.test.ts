@@ -163,6 +163,26 @@ describe('getConditionalRuleLabel composed values', () => {
         ).toEqual('3 mois révolus');
     });
 
+    it('renders in-the-last with the whole first period', () => {
+        const label = (settings: FilterRule['settings']) => {
+            const rule: FilterRule = {
+                id: 'rule-2',
+                target: { fieldId: 'field-1' },
+                operator: FilterOperator.IN_THE_PAST,
+                values: [12],
+                settings: { unitOfTime: UnitOfTime.weeks, ...settings },
+            };
+            return getConditionalRuleLabel(rule, FilterType.DATE, 'Field')
+                .value;
+        };
+        expect(
+            label({ completed: false, includeFullFirstPeriod: true }),
+        ).toEqual('12 weeks, including the whole first week');
+        expect(
+            label({ completed: true, includeFullFirstPeriod: true }),
+        ).toEqual('12 completed weeks');
+    });
+
     it('renders boolean values from defaults and resolver', () => {
         const rule: FilterRule = {
             id: 'rule-4',

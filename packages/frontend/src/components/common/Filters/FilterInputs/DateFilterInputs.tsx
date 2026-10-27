@@ -2,6 +2,8 @@ import {
     DimensionType,
     FilterOperator,
     formatDate,
+    includesFullFirstPeriod,
+    interpolateUiString,
     isCustomSqlDimension,
     isDimension,
     isFilterRule,
@@ -346,55 +348,104 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
             );
         case FilterOperator.IN_THE_PAST:
         case FilterOperator.NOT_IN_THE_PAST:
-        case FilterOperator.IN_THE_NEXT:
+        case FilterOperator.IN_THE_NEXT: {
             const parsedValue = parseInt(rule.values?.[0], 10);
+            const pastSettings = rule.settings as
+                | DateFilterSettings
+                | undefined;
+            const pastUnit = pastSettings?.unitOfTime;
+            const isCompleted = pastSettings?.completed === true;
+            const isFullFirstPeriod = includesFullFirstPeriod(pastSettings);
+            const setPastSettings = (
+                unitOfTime: UnitOfTime,
+                completed: boolean,
+                fullFirstPeriod: boolean,
+            ) =>
+                onChange({
+                    ...rule,
+                    settings: {
+                        unitOfTime,
+                        completed,
+                        ...(!completed &&
+                            fullFirstPeriod && {
+                                includeFullFirstPeriod: true,
+                            }),
+                    },
+                });
             return (
-                <Flex gap="xs" w="100%">
-                    <NumberInput
-                        size="xs"
-                        flex="1 1 auto"
-                        miw={50}
-                        placeholder={placeholder}
-                        disabled={disabled}
-                        data-autofocus
-                        value={isNaN(parsedValue) ? undefined : parsedValue}
-                        min={0}
-                        onNumberChange={(value) =>
-                            onChange({
-                                ...rule,
-                                values: value !== undefined ? [value] : [],
-                            })
-                        }
-                    />
+                <Stack gap="xs" w="100%">
+                    <Flex gap="xs" w="100%">
+                        <NumberInput
+                            size="xs"
+                            flex="1 1 auto"
+                            miw={50}
+                            placeholder={placeholder}
+                            disabled={disabled}
+                            data-autofocus
+                            value={isNaN(parsedValue) ? undefined : parsedValue}
+                            min={0}
+                            onNumberChange={(value) =>
+                                onChange({
+                                    ...rule,
+                                    values: value !== undefined ? [value] : [],
+                                })
+                            }
+                        />
 
-                    <FilterUnitOfTimeAutoComplete
-                        disabled={disabled}
-                        style={{ flexShrink: 1, flexGrow: 3 }}
-                        isTimestamp={isTimestamp}
-                        minUnitOfTime={
-                            isDimension(field) && field.timeInterval
-                                ? timeframeToUnitOfTime(field.timeInterval)
-                                : undefined
-                        }
-                        unitOfTime={rule.settings?.unitOfTime}
-                        completed={rule.settings?.completed || false}
-                        comboboxProps={{
-                            withinPortal: popoverProps?.withinPortal,
-                        }}
-                        onDropdownOpen={popoverProps?.onOpen}
-                        onDropdownClose={popoverProps?.onClose}
-                        onChange={(value) =>
-                            onChange({
-                                ...rule,
-                                settings: {
-                                    unitOfTime: value.unitOfTime,
-                                    completed: value.completed,
-                                },
-                            })
-                        }
-                    />
-                </Flex>
+                        <FilterUnitOfTimeAutoComplete
+                            disabled={disabled}
+                            style={{ flexShrink: 1, flexGrow: 3 }}
+                            isTimestamp={isTimestamp}
+                            minUnitOfTime={
+                                isDimension(field) && field.timeInterval
+                                    ? timeframeToUnitOfTime(field.timeInterval)
+                                    : undefined
+                            }
+                            unitOfTime={pastUnit}
+                            completed={isCompleted}
+                            comboboxProps={{
+                                withinPortal: popoverProps?.withinPortal,
+                            }}
+                            onDropdownOpen={popoverProps?.onOpen}
+                            onDropdownClose={popoverProps?.onClose}
+                            onChange={(value) =>
+                                setPastSettings(
+                                    value.unitOfTime,
+                                    value.completed,
+                                    isFullFirstPeriod,
+                                )
+                            }
+                        />
+                    </Flex>
+                    {rule.operator !== FilterOperator.IN_THE_NEXT &&
+                        pastUnit !== undefined &&
+                        !isCompleted && (
+                            <Checkbox
+                                size="xs"
+                                label={interpolateUiString(
+                                    getUiString(
+                                        'filters.pastPeriod.includeFullFirstPeriod',
+                                    ),
+                                    {
+                                        unit: getUiString(
+                                            `filters.unitsOfTime.${pastUnit}.singular`,
+                                        ),
+                                    },
+                                )}
+                                disabled={disabled}
+                                checked={isFullFirstPeriod}
+                                onChange={(e) =>
+                                    setPastSettings(
+                                        pastUnit,
+                                        false,
+                                        e.currentTarget.checked,
+                                    )
+                                }
+                            />
+                        )}
+                </Stack>
             );
+        }
         case FilterOperator.IN_THE_CURRENT:
         case FilterOperator.NOT_IN_THE_CURRENT: {
             const currentSettings = rule.settings as

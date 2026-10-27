@@ -20,6 +20,7 @@ import {
     FilterOperator,
     flattenFilterGroup,
     getCurrentPeriodBounds,
+    includesFullFirstPeriod,
     isAndFilterGroup,
     isFilterGroup,
     UnitOfTime,
@@ -427,6 +428,13 @@ const getCurrentPeriodBoundOrder = (
     return bounds.excludeToday ? 2 : 1;
 };
 
+const hasSameFirstPeriodStart = (
+    queryFilterRule: FilterRule,
+    preAggregateFilter: MetricFilterRule,
+): boolean =>
+    includesFullFirstPeriod(getDateFilterSettings(queryFilterRule)) ===
+    includesFullFirstPeriod(getDateFilterSettings(preAggregateFilter));
+
 const isRelativeDateFilterEquivalentOrNarrower = (
     queryFilterRule: FilterRule,
     preAggregateFilter: MetricFilterRule,
@@ -450,6 +458,11 @@ const isRelativeDateFilterEquivalentOrNarrower = (
             return (
                 preAggregateUnit === queryUnit &&
                 preAggregateCompleted === queryCompleted &&
+                (preAggregateFilter.operator === FilterOperator.IN_THE_NEXT ||
+                    hasSameFirstPeriodStart(
+                        queryFilterRule,
+                        preAggregateFilter,
+                    )) &&
                 Number.isFinite(preAggregateValue) &&
                 Number.isFinite(queryValue) &&
                 queryValue <= preAggregateValue
@@ -483,6 +496,7 @@ const isRelativeDateFilterEquivalentOrNarrower = (
                     getDateFilterUnitOfTime(preAggregateFilter) &&
                 isCompletedDateFilter(queryFilterRule) ===
                     isCompletedDateFilter(preAggregateFilter) &&
+                hasSameFirstPeriodStart(queryFilterRule, preAggregateFilter) &&
                 isValueSubset(queryFilterRule.values, preAggregateFilter.values)
             );
         default:

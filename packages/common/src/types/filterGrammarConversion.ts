@@ -4,6 +4,7 @@ import { NotImplementedError, ParameterError } from './errors';
 import {
     FilterOperator,
     getCurrentPeriodBounds,
+    includesFullFirstPeriod,
     isDateFilterRule,
     UnitOfTime,
     type DateFilterSettings,
@@ -73,6 +74,12 @@ const convertFilterOperatorToDbt = (filter: MetricFilterRule): string[] => {
                 if (settings.completed) {
                     throw new NotImplementedError(
                         'Custom metric completed filter is not supported on dbt',
+                    );
+                }
+
+                if (includesFullFirstPeriod(settings)) {
+                    throw new NotImplementedError(
+                        'Custom metric "full first period" filter is not supported on dbt',
                     );
                 }
 

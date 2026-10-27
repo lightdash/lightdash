@@ -269,3 +269,77 @@ describe('DateFilterInputs in the current period bounds', () => {
         });
     });
 });
+
+describe('DateFilterInputs in the last whole first period', () => {
+    const buildPastRule = (settings: DateFilterRule['settings']) =>
+        buildRule(settings, FilterOperator.IN_THE_PAST);
+
+    it('checking "Include the whole first week" sets the flag', async () => {
+        const user = userEvent.setup();
+        const { lastSettings } = renderInputs(
+            buildPastRule({ unitOfTime: UnitOfTime.weeks, completed: false }),
+        );
+
+        await user.click(screen.getByLabelText('Include the whole first week'));
+
+        expect(lastSettings()).toStrictEqual({
+            unitOfTime: UnitOfTime.weeks,
+            completed: false,
+            includeFullFirstPeriod: true,
+        });
+    });
+
+    it('keeps the flag when switching to another rolling unit', async () => {
+        const user = userEvent.setup();
+        const { lastSettings } = renderInputs(
+            buildPastRule({
+                unitOfTime: UnitOfTime.weeks,
+                completed: false,
+                includeFullFirstPeriod: true,
+            }),
+        );
+
+        await selectUnit(user, 'months');
+
+        expect(lastSettings()).toStrictEqual({
+            unitOfTime: UnitOfTime.months,
+            completed: false,
+            includeFullFirstPeriod: true,
+        });
+    });
+
+    it('drops the flag when switching to completed periods', async () => {
+        const user = userEvent.setup();
+        const { lastSettings } = renderInputs(
+            buildPastRule({
+                unitOfTime: UnitOfTime.weeks,
+                completed: false,
+                includeFullFirstPeriod: true,
+            }),
+        );
+
+        await selectUnit(user, 'completed weeks');
+
+        expect(lastSettings()).toStrictEqual({
+            unitOfTime: UnitOfTime.weeks,
+            completed: true,
+        });
+    });
+
+    it('does not show the checkbox for completed periods', () => {
+        renderInputs(
+            buildPastRule({ unitOfTime: UnitOfTime.weeks, completed: true }),
+        );
+        expect(screen.queryByRole('checkbox')).toBeNull();
+    });
+
+    it('does not show the checkbox for "in the next"', () => {
+        renderInputs(
+            buildRule(
+                { unitOfTime: UnitOfTime.weeks, completed: false },
+                FilterOperator.IN_THE_NEXT,
+            ),
+        );
+        expect(screen.queryByRole('checkbox')).toBeNull();
+    });
+});

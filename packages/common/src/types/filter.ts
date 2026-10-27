@@ -112,6 +112,12 @@ export const getCurrentPeriodBounds = (
     return { toDate, excludeToday: toDate && settings?.excludeToday === true };
 };
 
+/** Whether a rolling "in the last" range starts at the beginning of its first period */
+export const includesFullFirstPeriod = (
+    settings: DateFilterSettings | undefined,
+): boolean =>
+    settings?.completed !== true && settings?.includeFullFirstPeriod === true;
+
 export type FieldTarget = {
     /** Field ID to filter on */
     fieldId: string;
@@ -248,6 +254,8 @@ export type DateFilterSettings = {
     toDate?: boolean;
     /** With `toDate`, end the range at yesterday instead of today. Ignored unless `toDate` is true */
     excludeToday?: boolean;
+    /** For rolling "in the last" filters, start the range at the beginning of the first period. Ignored when `completed` is true */
+    includeFullFirstPeriod?: boolean;
 };
 
 export type DateFilterRule = FilterRule<

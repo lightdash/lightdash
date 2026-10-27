@@ -1,6 +1,7 @@
 import {
     FilterOperator,
     getCurrentPeriodBounds,
+    includesFullFirstPeriod,
     type PreAggregateMaterializationRole,
     type PreAggregateMaterializationSummary,
     type PreAggregateMaterializationWarning,
@@ -90,10 +91,16 @@ const formatFilterValue = (
         }
         case FilterOperator.IN_THE_PAST:
         case FilterOperator.NOT_IN_THE_PAST:
-        case FilterOperator.IN_THE_NEXT:
-            return `${values?.[0] ?? ''} ${
+        case FilterOperator.IN_THE_NEXT: {
+            const bound =
+                operator !== FilterOperator.IN_THE_NEXT &&
+                includesFullFirstPeriod(settings)
+                    ? ', including the whole first period'
+                    : '';
+            return `${`${values?.[0] ?? ''} ${
                 settings?.completed ? 'completed ' : ''
-            }${settings?.unitOfTime ?? ''}`.trim();
+            }${settings?.unitOfTime ?? ''}`.trim()}${bound}`;
+        }
         case FilterOperator.IN_BETWEEN:
         case FilterOperator.NOT_IN_BETWEEN:
             return values?.filter((value) => value != null).join(', ') ?? null;

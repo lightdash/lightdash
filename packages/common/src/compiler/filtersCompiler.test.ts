@@ -654,6 +654,86 @@ describe('Filter SQL', () => {
         ).toStrictEqual(TrinoInTheLast1YearFilterSQL);
     });
 
+    describe('in the last with the whole first period', () => {
+        const renderPastWeeks = (
+            settings: Record<string, unknown>,
+            operator = FilterOperator.IN_THE_PAST,
+            startOfWeek = WeekDay.MONDAY,
+        ) =>
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: {
+                    ...InThePastFilterBase,
+                    operator,
+                    values: [2],
+                    settings: { unitOfTime: UnitOfTime.weeks, ...settings },
+                },
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+                startOfWeek,
+            });
+
+        let previousTime: number;
+        beforeEach(() => {
+            previousTime = Date.now();
+            // Wednesday
+            vi.setSystemTime(new Date('08 Apr 2020 06:12:30 GMT').getTime());
+        });
+        afterEach(() => {
+            vi.setSystemTime(previousTime);
+        });
+
+        test('starts at the beginning of the first week', () => {
+            expect(
+                renderPastWeeks({
+                    completed: false,
+                    includeFullFirstPeriod: true,
+                }),
+            ).toStrictEqual(
+                `((customers.created) >= ('2020-03-23 00:00:00+00:00') AND (customers.created) <= ('2020-04-08 06:12:30+00:00'))`,
+            );
+        });
+
+        test('uses the connection start of week', () => {
+            expect(
+                renderPastWeeks(
+                    { completed: false, includeFullFirstPeriod: true },
+                    FilterOperator.IN_THE_PAST,
+                    WeekDay.SUNDAY,
+                ),
+            ).toStrictEqual(
+                `((customers.created) >= ('2020-03-22 00:00:00+00:00') AND (customers.created) <= ('2020-04-08 06:12:30+00:00'))`,
+            );
+        });
+
+        test('starts mid-week without the option', () => {
+            expect(renderPastWeeks({ completed: false })).toStrictEqual(
+                `((customers.created) >= ('2020-03-25 06:12:30+00:00') AND (customers.created) <= ('2020-04-08 06:12:30+00:00'))`,
+            );
+        });
+
+        test('is ignored for completed periods', () => {
+            expect(
+                renderPastWeeks({
+                    completed: true,
+                    includeFullFirstPeriod: true,
+                }),
+            ).toStrictEqual(renderPastWeeks({ completed: true }));
+        });
+
+        test('not in the last negates the extended range', () => {
+            expect(
+                renderPastWeeks(
+                    { completed: false, includeFullFirstPeriod: true },
+                    FilterOperator.NOT_IN_THE_PAST,
+                ),
+            ).toStrictEqual(
+                `NOT ((customers.created) >= ('2020-03-23 00:00:00+00:00') AND (customers.created) <= ('2020-04-08 06:12:30+00:00'))`,
+            );
+        });
+    });
+
     test('should return in the last completed date filter sql', () => {
         expect(
             renderDateFilterSql({

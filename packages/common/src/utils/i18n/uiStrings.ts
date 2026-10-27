@@ -201,6 +201,10 @@ export const DEFAULT_UI_STRINGS = {
     'filters.currentPeriod.toDateValue': '{unit} to date',
     'filters.currentPeriod.toDateExcludingTodayValue':
         '{unit} to date, excluding today',
+    'filters.pastPeriod.includeFullFirstPeriod':
+        'Include the whole first {unit}',
+    'filters.pastPeriod.wholeFirstPeriodValue':
+        '{range}, including the whole first {unit}',
     'filters.unitsOfTime.milliseconds.singular': 'millisecond',
     'filters.unitsOfTime.milliseconds.plural': 'milliseconds',
     'filters.unitsOfTime.milliseconds.completedSingular':

@@ -15,6 +15,7 @@ import {
     FilterOperator,
     FilterType,
     getCurrentPeriodBounds,
+    includesFullFirstPeriod,
     isFilterRule,
     UnitOfTime,
     type BaseFilterRule,
@@ -245,14 +246,32 @@ const getValueAsString = (
                         | undefined;
                     // A missing unit of time falls back to days, matching the
                     // in-the-current branch below
-                    return `${firstValue} ${resolveUiString(
-                        `filters.unitsOfTime.${
-                            settings?.unitOfTime ?? UnitOfTime.days
-                        }.${
+                    const unitOfTime = settings?.unitOfTime ?? UnitOfTime.days;
+                    const range = `${firstValue} ${resolveUiString(
+                        `filters.unitsOfTime.${unitOfTime}.${
                             settings?.completed ? 'completedPlural' : 'plural'
                         }`,
                         getUiString,
                     )}`;
+                    if (
+                        rule.operator === FilterOperator.IN_THE_NEXT ||
+                        !includesFullFirstPeriod(settings)
+                    ) {
+                        return range;
+                    }
+                    return interpolateUiString(
+                        resolveUiString(
+                            'filters.pastPeriod.wholeFirstPeriodValue',
+                            getUiString,
+                        ),
+                        {
+                            range,
+                            unit: resolveUiString(
+                                `filters.unitsOfTime.${unitOfTime}.singular`,
+                                getUiString,
+                            ),
+                        },
+                    );
                 }
                 case FilterOperator.IN_BETWEEN: {
                     const joiner = resolveUiString(
