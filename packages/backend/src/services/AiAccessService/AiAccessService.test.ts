@@ -1063,51 +1063,80 @@ describe('AiAccessService', () => {
             { action: 'manage', subject: 'Organization' },
         ]);
 
-        test('refuses managed OAuth identity changes even with human admin access', async () => {
-            const { service, organizationSettings, organizationRules } =
-                setup();
-            const policy = vi
-                .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
-                .mockResolvedValue({
-                    allowedGroupUuids: null,
-                    mode: 'managed',
-                    version: 1,
-                    allowedCapabilities: null,
-                    systemRoleMatrix: {} as never,
+        test.each(
+            (['managed', 'admission', 'people-only'] as const).flatMap((mode) =>
+                (['oauth', 'agent'] as const).map((actor) => ({ mode, actor })),
+            ),
+        )(
+            'refuses $actor identity changes in $mode mode with human admin access',
+            async ({ mode, actor }) => {
+                const { service, organizationSettings, organizationRules } =
+                    setup();
+                const policy = vi
+                    .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+                    .mockResolvedValue({
+                        allowedGroupUuids:
+                            mode === 'admission' ? ['allowed-group'] : null,
+                        mode: mode === 'managed' ? 'managed' : 'legacy',
+                        version: 1,
+                        allowedCapabilities: null,
+                        systemRoleMatrix: {} as never,
+                    });
+                const oauth = fromOauth(toSessionUser(admin), {
+                    accessToken: 'token',
+                    client: { id: 'agent' },
                 });
-            const oauth = fromOauth(toSessionUser(admin), {
-                accessToken: 'token',
-                client: { id: 'agent' },
-            });
-            const expected = {
-                refusal: {
-                    reason: 'agent_capability_denied',
-                    settingsUrl: '/generalSettings/agentIdentity',
-                },
-            };
-            await expect(
-                service.updateOrganizationSettings(oauth, {
-                    requireVerifiedAgentSessions: false,
-                }),
-            ).rejects.toMatchObject(expected);
-            await expect(
-                service.updateOrganizationRule(
-                    oauth,
-                    WarehouseTypes.SNOWFLAKE,
-                    { source: 'marked_person' } as never,
-                ),
-            ).rejects.toMatchObject(expected);
-            await expect(
-                service.saveSnowflakeAgentClient(oauth, {
-                    accountUrl: 'https://account.snowflakecomputing.com',
-                    clientId: 'client',
-                    clientSecret: 'secret',
-                }),
-            ).rejects.toMatchObject(expected);
-            expect(organizationSettings.upsert).not.toHaveBeenCalled();
-            expect(organizationRules.set).not.toHaveBeenCalled();
-            policy.mockRestore();
-        });
+                const caller = actor === 'oauth' ? oauth : admin;
+                const run = <T>(operation: () => Promise<T>) =>
+                    actor === 'oauth'
+                        ? operation()
+                        : agentExecutionContext.run(
+                              createAgentExecutionContext({
+                                  account: admin,
+                                  surface: AgentActorSurface.CLI,
+                                  clientId: 'lightdash-cli',
+                                  agentUuid: null,
+                                  agentIdentityEnabled: true,
+                              }),
+                              operation,
+                          );
+                const expected = {
+                    refusal: {
+                        reason: 'agent_capability_denied',
+                        settingsUrl: '/generalSettings/agentIdentity',
+                    },
+                };
+                await expect(
+                    run(() =>
+                        service.updateOrganizationSettings(caller, {
+                            requireVerifiedAgentSessions: false,
+                        }),
+                    ),
+                ).rejects.toMatchObject(expected);
+                await expect(
+                    run(() =>
+                        service.updateOrganizationRule(
+                            caller,
+                            WarehouseTypes.SNOWFLAKE,
+                            { source: 'marked_person' } as never,
+                        ),
+                    ),
+                ).rejects.toMatchObject(expected);
+                await expect(
+                    run(() =>
+                        service.saveSnowflakeAgentClient(caller, {
+                            accountUrl:
+                                'https://account.snowflakecomputing.com',
+                            clientId: 'client',
+                            clientSecret: 'secret',
+                        }),
+                    ),
+                ).rejects.toMatchObject(expected);
+                expect(organizationSettings.upsert).not.toHaveBeenCalled();
+                expect(organizationRules.set).not.toHaveBeenCalled();
+                policy.mockRestore();
+            },
+        );
 
         test.each([
             { previousRequired: false, required: true },
@@ -1211,17 +1240,41 @@ describe('AiAccessService', () => {
             expect(analytics.track).not.toHaveBeenCalled();
         });
 
-        test('does not save or track with the flag off', async () => {
-            const { service, organizationSettings, analytics, flags } = setup();
-            flags.get.mockResolvedValue({ enabled: false });
-            await expect(
-                service.updateOrganizationSettings(admin, {
-                    requireVerifiedAgentSessions: true,
-                }),
-            ).rejects.toMatchObject({ name: 'FeatureNotEnabledError' });
-            expect(organizationSettings.upsert).not.toHaveBeenCalled();
-            expect(analytics.track).not.toHaveBeenCalled();
-        });
+        test.each(['session', 'oauth'] as const)(
+            'does not save or track with the flag off for %s',
+            async (actor) => {
+                const {
+                    service,
+                    organizationSettings,
+                    organizationRules,
+                    analytics,
+                    flags,
+                } = setup();
+                const caller =
+                    actor === 'session'
+                        ? admin
+                        : fromOauth(toSessionUser(admin), {
+                              accessToken: 'token',
+                              client: { id: 'agent' },
+                          });
+                flags.get.mockResolvedValue({ enabled: false });
+                await expect(
+                    service.updateOrganizationSettings(caller, {
+                        requireVerifiedAgentSessions: true,
+                    }),
+                ).rejects.toMatchObject({ name: 'FeatureNotEnabledError' });
+                await expect(
+                    service.updateOrganizationRule(
+                        caller,
+                        WarehouseTypes.SNOWFLAKE,
+                        { source: 'marked_person' },
+                    ),
+                ).rejects.toBeInstanceOf(FeatureNotEnabledError);
+                expect(organizationRules.set).not.toHaveBeenCalled();
+                expect(organizationSettings.upsert).not.toHaveBeenCalled();
+                expect(analytics.track).not.toHaveBeenCalled();
+            },
+        );
 
         test('returns saved settings when tracking throws', async () => {
             const { service, analytics } = setup();
