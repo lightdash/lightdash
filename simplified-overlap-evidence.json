@@ -1,0 +1,21 @@
+{
+  "AI": {
+    "rows": 4,
+    "uniqueIdentities": 4,
+    "duplicates": 0
+  },
+  "queries": {
+    "rows": 28,
+    "uniqueIdentities": 28,
+    "duplicates": 0
+  },
+  "lateCapturedAiTokens": "999",
+  "lateCapturedQuery": {
+    "query_events_query_id": "21aa307a-edde-5f4e-9520-ba3938895066",
+    "query_events_event_name": "query.completed",
+    "query_events_status": "success",
+    "query_events_response_time_ms": "888",
+    "query_events_warehouse_execution_time_ms": "999",
+    "query_events_event_ts_raw": "2026-09-15T10:00:00Z"
+  }
+}

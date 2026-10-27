@@ -1,3 +1,24 @@
+# Simplified backfill — live recheck, 27 October 2026
+
+The simplified implementation uses its own low-priority serial queue, imports only published-event gaps, and does not write dimension snapshots. Status contains only running/completed/error.
+
+- Actual normal compaction completed while one backfill was active; a second backfill remained queued. Maximum observed active backfills: one. All seven existing dimension objects retained their ETags and modification times.
+- New-project creation returned while its automatic backfill was active, followed by successful completion. A deliberately held QA source-table lock made an earlier backfill fail; it remained retryable and was recovered through the Settings button.
+- Settings showed the failed job, disabled its action during retry, hid the card after completion and kept it hidden after reload. The running state was observed live; the captured screenshots show retry and completed states.
+- A no-op rerun preserved all 13 existing data-object SHA256 hashes. Live query results contained 28 distinct query identities and four distinct AI event identities. Late captured values took precedence over imported values.
+- 142 focused tests passed (115 backend, 14 frontend, 13 warehouse). Backend/frontend typechecks, changed-file lint, formatting, unused exports and diff checks passed.
+- Local isolated QA fixtures only. These are functional checks, not a production throughput benchmark. One shared worker slot is still used.
+
+![Failed run remains retryable](20-simplified-live-retry.jpg)
+
+![Completion persists after reload](22-simplified-live-reloaded.jpg)
+
+See `simplified-queue-evidence.json` and `simplified-overlap-evidence.json` for the measured queue and overlap checks.
+
+---
+
+## Earlier evidence (preceding implementations)
+
 # PROD-12592 live QA
 
 Isolated local Lightdash instance, 26 October 2026. Synthetic fixtures only.

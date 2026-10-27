@@ -1,0 +1,50 @@
+{
+  "startedAt": "2026-10-27T11:36:28.791Z",
+  "compactionJobId": "1062",
+  "compactionEnqueuedAt": "2026-10-27T11:36:29.609Z",
+  "compactionCompletedWhileBackfillActiveAt": "2026-10-27T11:36:30.247Z",
+  "evidenceAtCompactionCompletion": {
+    "first": {
+      "id": "1060",
+      "task_identifier": "backfillUsageQueryHistory",
+      "queue_name": "usage-history-backfill",
+      "key": "usage-query-history:172a2270-000f-42be-9c68-c4752c23ae51",
+      "attempts": 1,
+      "max_attempts": 1,
+      "last_error": null,
+      "priority": 2,
+      "locked_at": "2026-10-27T11:36:29.485Z",
+      "locked_by": "worker-844e911b88f0854113",
+      "created_at": "2026-10-27T11:36:29.477Z"
+    },
+    "second": {
+      "id": "1061",
+      "task_identifier": "backfillUsageQueryHistory",
+      "queue_name": "usage-history-backfill",
+      "key": "usage-query-history:7f73c113-f18d-4c82-b131-77ce86c900a9",
+      "attempts": 0,
+      "max_attempts": 1,
+      "last_error": null,
+      "priority": 2,
+      "locked_at": null,
+      "locked_by": null,
+      "created_at": "2026-10-27T11:36:29.585Z"
+    }
+  },
+  "lockReleasedAt": "2026-10-27T11:36:30.256Z",
+  "allJobsCompletedAt": "2026-10-27T11:36:31.675Z",
+  "maxActiveBackfills": 1,
+  "completedStatus": {
+    "status": 200,
+    "body": {
+      "status": "ok",
+      "results": {
+        "running": false,
+        "completed": true
+      }
+    }
+  },
+  "passed": true,
+  "scope": "Local isolated QA database and private bucket; normal compaction scoped to a fixture organization. Backfill temporarily held by a source-table lock.",
+  "dimensionObjectsUnchanged": true
+}
