@@ -53,7 +53,7 @@ describe('AnalyticsHistoryBackfill', () => {
         renderBackfill();
         await waitFor(() =>
             expect(
-                screen.queryByText('Checking available history…'),
+                screen.queryByText('Checking backfill status…'),
             ).not.toBeInTheDocument(),
         );
         expect(
@@ -73,99 +73,36 @@ describe('AnalyticsHistoryBackfill', () => {
         );
     });
 
-    it('shows the missing dates and overlap counts without starting automatically', async () => {
+    it('offers the action without scanning dates or counts when no completion marker exists', async () => {
+        mockedLightdashApi.mockResolvedValue({ ...covered, completed: false });
         renderBackfill();
         expect(
             await screen.findByRole('button', {
                 name: 'Backfill available history',
             }),
         ).toBeEnabled();
+        expect(screen.queryByText(/records to import/)).not.toBeInTheDocument();
         expect(
-            screen.getByText('24 records to import · 2026-09-01 to 2026-09-30'),
-        ).toBeVisible();
-        expect(screen.getByText('8 records already available.')).toBeVisible();
-        expect(
-            screen.getByText(
-                '3 captured events are awaiting processing and will be skipped.',
-            ),
-        ).toBeVisible();
-        expect(
-            screen.getByText(
-                /Not included: conversation text, historical People activity summaries, or records no longer stored\./,
-            ),
+            screen.getByText(/Existing captured queries and AI usage are kept/),
         ).toBeVisible();
         expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'POST' }),
         );
     });
 
-    it('allows existing Analytics customers to import missing retained history regardless of age', async () => {
-        mockedLightdashApi.mockResolvedValue({
-            ...available,
-            missingQueries: 2,
-            existingQueries: 23,
-            pendingQueries: 0,
-            from: '2017-01-01',
-            to: '2026-10-26',
-        });
+    it('hides the action after a completed marker even if old counts are cached', async () => {
+        mockedLightdashApi.mockResolvedValue({ ...available, completed: true });
         renderBackfill();
+        await waitFor(() =>
+            expect(
+                screen.queryByText('Checking backfill status…'),
+            ).not.toBeInTheDocument(),
+        );
         expect(
-            await screen.findByRole('button', {
+            screen.queryByRole('button', {
                 name: 'Backfill available history',
             }),
-        ).toBeEnabled();
-        expect(
-            screen.getByText('2 records to import · 2017-01-01 to 2026-10-26'),
-        ).toBeVisible();
-        expect(screen.getByText('23 records already available.')).toBeVisible();
-        expect(
-            screen.getByText(/Includes: retained queries, AI token usage/),
-        ).toBeVisible();
-        expect(
-            screen.queryByText(/completed UTC days/),
         ).not.toBeInTheDocument();
-    });
-
-    it('offers the single action when queries are covered but other retained history is missing', async () => {
-        mockedLightdashApi.mockResolvedValue({
-            ...covered,
-            missingRecords: 5,
-            existingRecords: 9,
-            pendingRecords: 2,
-            from: '2024-01-01',
-            to: '2026-10-26',
-        });
-        renderBackfill();
-        expect(
-            await screen.findByRole('button', {
-                name: 'Backfill available history',
-            }),
-        ).toBeEnabled();
-        expect(
-            screen.getByText('5 records to import · 2024-01-01 to 2026-10-26'),
-        ).toBeVisible();
-        expect(screen.getByText('9 records already available.')).toBeVisible();
-    });
-
-    it('separates singular counts from their labels', async () => {
-        mockedLightdashApi.mockResolvedValue({
-            ...available,
-            missingQueries: 1,
-            existingQueries: 1,
-            pendingQueries: 1,
-        });
-        renderBackfill();
-        expect(
-            await screen.findByText(
-                '1 record to import · 2026-09-01 to 2026-09-30',
-            ),
-        ).toBeVisible();
-        expect(screen.getByText('1 record already available.')).toBeVisible();
-        expect(
-            screen.getByText(
-                '1 captured event is awaiting processing and will be skipped.',
-            ),
-        ).toBeVisible();
     });
 
     it('shows an existing background run as disabled after loading settings', async () => {
@@ -219,7 +156,7 @@ describe('AnalyticsHistoryBackfill', () => {
         ).toHaveLength(2);
     });
 
-    it('keeps the action after partial completion and removes it only when no records are missing', async () => {
+    it('keeps partial completion retryable until the completion marker is present', async () => {
         let runs = 0;
         mockedLightdashApi.mockImplementation(async ({ method }) => {
             if (method === 'POST') {
@@ -238,11 +175,16 @@ describe('AnalyticsHistoryBackfill', () => {
                 name: 'Backfill available history',
             }),
         );
+        await waitFor(() =>
+            expect(
+                mockedLightdashApi.mock.calls.filter(
+                    ([request]) => request.method === 'GET',
+                ),
+            ).toHaveLength(2),
+        );
         expect(
-            await screen.findByText(
-                '4 records to import · 2026-09-01 to 2026-09-30',
-            ),
-        ).toBeVisible();
+            screen.getByRole('button', { name: 'Backfill available history' }),
+        ).toBeEnabled();
         await userEvent.click(
             screen.getByRole('button', { name: 'Backfill available history' }),
         );

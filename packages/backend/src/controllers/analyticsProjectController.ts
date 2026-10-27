@@ -29,7 +29,7 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Analytics project')
 export class AnalyticsProjectController extends BaseController {
-    /** @summary Check retained query history missing from Analytics */
+    /** @summary Check Analytics history backfill completion */
     @Get('/backfill')
     @Middlewares([isAuthenticated])
     @OperationId('GetAnalyticsHistoryBackfillStatus')
@@ -45,7 +45,7 @@ export class AnalyticsProjectController extends BaseController {
         };
     }
 
-    /** @summary Backfill retained query history */
+    /** @summary Backfill retained Analytics history */
     @Post('/backfill')
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @OperationId('BackfillAnalyticsHistory')

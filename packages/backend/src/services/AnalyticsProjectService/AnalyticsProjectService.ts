@@ -12,7 +12,6 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import memoize from 'lodash/memoize';
-import pLimit from 'p-limit';
 import { UsageHistoryBackfill } from '../../analytics/eventStream/UsageHistoryBackfill';
 import {
     analyticsContentAsCode,
@@ -85,15 +84,6 @@ const expectedModelCounts = memoize(() =>
 );
 
 export class AnalyticsProjectService extends BaseService {
-    // Settings checks share one bounded engine per API process; concurrent tabs
-    // for the same org share the check rather than starting another export.
-    private readonly historyCheckQueue = pLimit(1);
-
-    private readonly historyChecks = new Map<
-        string,
-        Promise<AnalyticsHistoryBackfillStatus>
-    >();
-
     constructor(private readonly dependencies: Dependencies) {
         super();
     }
@@ -134,30 +124,24 @@ export class AnalyticsProjectService extends BaseService {
             await this.dependencies.schedulerClient.getUsageHistoryBackfillJob(
                 org,
             );
-        if (job.running)
-            return {
-                running: true,
-                missingQueries: 0,
-                existingQueries: 0,
-                pendingQueries: 0,
-                from: null,
-                to: null,
-            };
-        let check = this.historyChecks.get(org);
-        if (!check) {
-            check = this.historyCheckQueue(() =>
-                new UsageHistoryBackfill(
-                    this.dependencies.lightdashConfig.usageEvents.s3!,
-                    this.dependencies.usageHistoryModel,
-                ).inspect(org),
-            ).finally(() => this.historyChecks.delete(org));
-            this.historyChecks.set(org, check);
-        }
-        const status = await check;
+        // Settings never exports DB history, lists objects or opens DuckDB.
+        const completed =
+            !job.running &&
+            !job.failed &&
+            (await new UsageHistoryBackfill(
+                this.dependencies.lightdashConfig.usageEvents.s3!,
+                this.dependencies.usageHistoryModel,
+            ).isComplete(org));
         return {
-            ...status,
-            ...(job.failed &&
-            (status.missingRecords ?? status.missingQueries) > 0
+            running: job.running,
+            completed,
+            // Retain the original API fields; exact coverage is only computed by the worker.
+            missingQueries: 0,
+            existingQueries: 0,
+            pendingQueries: 0,
+            from: null,
+            to: null,
+            ...(job.failed
                 ? {
                       error: 'The previous backfill failed. You can retry safely.',
                   }
@@ -278,7 +262,7 @@ export class AnalyticsProjectService extends BaseService {
                     },
                 );
             } catch {
-                // Creation succeeded. Settings still offers a data-derived retry.
+                // Creation succeeded. Settings still offers a retry without a completion marker.
                 this.logger.error(
                     'Failed to enqueue initial analytics history backfill',
                     {

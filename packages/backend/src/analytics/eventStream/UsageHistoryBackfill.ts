@@ -1,20 +1,54 @@
 import type { AnalyticsHistoryBackfillStatus } from '@lightdash/common';
+import { S3BaseClient } from '../../clients/Aws/S3BaseClient';
 import type { S3Config } from '../../config/parseConfig';
 import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
 import type { UsageHistoryModel } from '../../models/UsageHistoryModel';
 import { usageHistorySources } from './usageHistorySources';
 import { UsageQueryHistoryBackfill } from './UsageQueryHistoryBackfill';
 
-/** One queued operation, processing bounded sources serially. Partial success is
- * durable; a retry reconciles each source without republishing duplicate rows. */
-export class UsageHistoryBackfill {
+// A versioned success signal, not a claim that every future DB record is covered.
+export const usageHistoryCompletionKey = (org: string) => {
+    if (
+        !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(
+            org,
+        )
+    )
+        throw new Error('Invalid organization');
+    return `events/backfill/org_id=${org}/v1/complete.json`;
+};
+
+/** One queued operation, processing sources serially. Partial success is durable;
+ * a retry reconciles each source without republishing duplicate rows. */
+export class UsageHistoryBackfill extends S3BaseClient {
     constructor(
         private readonly storage: Omit<S3Config, 'expirationTime'>,
         private readonly history: Pick<
             UsageHistoryModel,
             'getQueryJsonLines' | 'getAiUsageJsonLines' | 'getActivityJsonLines'
         >,
-    ) {}
+    ) {
+        super(storage);
+    }
+
+    async isComplete(org: string): Promise<boolean> {
+        const Key = usageHistoryCompletionKey(org);
+        try {
+            await this.s3!.headObject(
+                { Bucket: this.storage.bucket, Key },
+                { abortSignal: AbortSignal.timeout(10_000) },
+            );
+            return true;
+        } catch (error) {
+            if (
+                (error as { $metadata?: { httpStatusCode?: number } }).$metadata
+                    ?.httpStatusCode === 404
+            )
+                return false;
+            throw new Error('Unable to check analytics backfill status');
+        } finally {
+            this.s3?.destroy();
+        }
+    }
 
     private async process(
         org: string,
@@ -84,6 +118,24 @@ export class UsageHistoryBackfill {
     }
 
     async run(org: string, dimensions: UsageDimensionsModel) {
-        return this.process(org, dimensions);
+        const Key = usageHistoryCompletionKey(org);
+        try {
+            const result = await this.process(org, dimensions);
+            // Publish only after every source succeeds, including empty/no-op runs.
+            await this.s3!.putObject(
+                {
+                    Bucket: this.storage.bucket,
+                    Key,
+                    Body: JSON.stringify({
+                        completedAt: new Date().toISOString(),
+                    }),
+                    ContentType: 'application/json',
+                },
+                { abortSignal: AbortSignal.timeout(10_000) },
+            );
+            return result;
+        } finally {
+            this.s3?.destroy();
+        }
     }
 }

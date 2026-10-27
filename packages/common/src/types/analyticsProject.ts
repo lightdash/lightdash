@@ -18,6 +18,8 @@ export type EnsureAnalyticsProjectResult = {
 
 export type AnalyticsHistoryBackfillStatus = {
     running: boolean;
+    /** Current backfill version completed; counts are not scanned by Settings. */
+    completed?: boolean;
     missingQueries: number;
     existingQueries: number;
     pendingQueries: number;

@@ -9,20 +9,17 @@ import { SettingsCard } from '../common/Settings/SettingsCard';
 const AnalyticsHistoryBackfill = () => {
     const status = useAnalyticsHistoryBackfill(true);
     const backfill = useBackfillAnalyticsHistory();
-    const missing =
-        status.data?.missingRecords ?? status.data?.missingQueries ?? 0;
-    const existing =
-        status.data?.existingRecords ?? status.data?.existingQueries ?? 0;
-    const pending =
-        status.data?.pendingRecords ?? status.data?.pendingQueries ?? 0;
     if (status.isLoading)
         return (
             <Text fz="sm" c="dimmed">
-                Checking available history…
+                Checking backfill status…
             </Text>
         );
-    // Derive completion from data, including after a reload or a failed job.
-    if (status.isSuccess && !status.data.running && missing === 0) return null;
+    // Legacy responses used exact counts; new responses use one durable completion signal.
+    const completed =
+        status.data?.completed ??
+        (status.data?.missingRecords ?? status.data?.missingQueries) === 0;
+    if (status.isSuccess && !status.data.running && completed) return null;
     return (
         <SettingsCard>
             <Stack gap="md">
@@ -40,27 +37,9 @@ const AnalyticsHistoryBackfill = () => {
                 </Stack>
                 <Text fz="xs" c="dimmed">
                     Queries and AI usage update existing Analytics datasets.
-                    Other records appear in Historical activity.
+                    Other records appear in Historical activity. Existing
+                    captured queries and AI usage are kept.
                 </Text>
-                {missing ? (
-                    <Text fz="sm">
-                        {`${missing.toLocaleString()} ${missing === 1 ? 'record' : 'records'} to import · ${status.data?.from} to ${status.data?.to}`}
-                    </Text>
-                ) : null}
-                {existing ? (
-                    <Text fz="xs" c="dimmed">
-                        {existing.toLocaleString()}{' '}
-                        {existing === 1 ? 'record' : 'records'} already
-                        available.
-                    </Text>
-                ) : null}
-                {pending ? (
-                    <Text fz="xs" c="dimmed">
-                        {pending.toLocaleString()} captured{' '}
-                        {pending === 1 ? 'event is' : 'events are'} awaiting
-                        processing and will be skipped.
-                    </Text>
-                ) : null}
                 {(status.isError || backfill.isError || status.data?.error) && (
                     <Callout
                         variant="danger"

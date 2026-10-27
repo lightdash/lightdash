@@ -3,10 +3,17 @@
 Organization administrators can use **Settings → Lightdash analytics → Backfill
 available history** to recover the analytics facts still retained in this
 installation's database. There is one action and one queued job covering all
-sources below. The check shows the available date range and total record counts.
-The action disappears when the retained data is covered, and reappears if a
-later check finds missing records or changed snapshots. There is no permanent
-“used” flag.
+sources below. Settings reads job status and checks one small, organization-scoped
+completion object: `events/backfill/org_id=<org>/v1/complete.json`. It never exports
+DB history, lists event files or runs DuckDB to decide whether to show the action.
+The worker writes this marker only after all sources succeed, including empty or
+already-covered sources. The action then disappears. An old event file alone is
+not evidence that all retained history has been imported.
+
+Completion means this version of the backfill succeeded, not continuous coverage
+of future database records or changed snapshots. Direct API reruns remain safe
+and supported; bump the marker version if the source set or import semantics
+change. No date cutoff is used: partially captured dates can still contain gaps.
 
 New Analytics projects queue the same combined import automatically after their
 initial event-processing job, in the existing serial queue. Project creation
@@ -146,9 +153,11 @@ The existing serial usage-compaction queue processes sources sequentially, using
 one thread and a 256 MB DuckDB memory limit. PostgreSQL reads use 1,000-row keyset
 pages in read-only transactions, with a 10-second statement timeout, a one-second
 lock timeout and explicit UTC formatting. Connections are released between
-pages; temporary files are removed after execution. Availability checks share
-one engine per API process and coalesce concurrent requests for the same org.
-Storage listing limits fail closed rather than claiming partial coverage.
+pages; temporary files are removed after execution. These expensive reads happen
+only in the background job. Storage listing limits fail closed rather than
+claiming partial coverage. Settings performs at most one HEAD request (10-second
+timeout); while a job is running it only reads job status. Only a missing object
+is treated as incomplete; storage/permission errors are shown as retryable errors.
 
 Each source is converted directly to queryable Parquet. Published history is
 available when processing finishes; it needs no overnight compaction. Current
@@ -173,7 +182,8 @@ published when a later source fails; retrying the same action reconciles them
 without duplicate records. It is one combined job, not an all-source storage
 transaction. The existing queue serializes writers.
 
-You can leave Settings while work runs. The page polls and verifies real
-coverage after execution. Failures remain manually retryable; the job does not
+You can leave Settings while work runs. The page polls job status and checks the
+completion marker after execution. Partial failures or failed marker writes do
+not produce a new success marker. Failures remain manually retryable; the job does not
 introduce another recurring schedule or an unbounded retry loop. A previous
 success or hidden button never bypasses organization authorization.

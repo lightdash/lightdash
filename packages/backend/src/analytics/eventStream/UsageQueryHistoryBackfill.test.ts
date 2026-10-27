@@ -13,7 +13,10 @@ import {
     QUERY_HISTORY_BACKFILL_EVENT,
     queryHistoryBackfillKey,
 } from './queryHistoryBackfill';
-import { UsageHistoryBackfill } from './UsageHistoryBackfill';
+import {
+    UsageHistoryBackfill,
+    usageHistoryCompletionKey,
+} from './UsageHistoryBackfill';
 import { usageHistoryKey, usageHistorySources } from './usageHistorySources';
 import { UsageQueryHistoryBackfill } from './UsageQueryHistoryBackfill';
 
@@ -23,6 +26,7 @@ const transport = vi.hoisted(() => ({
     directory: '',
     keys: new Set<string>(),
     failUpload: false,
+    failMarker: false,
     failListing: false,
     uploads: 0,
 }));
@@ -37,6 +41,10 @@ vi.mock('../../clients/Aws/S3BaseClient', () => ({
                         .filter((key) => key.startsWith(Prefix))
                         .map((Key) => ({ Key })),
                 };
+            },
+            putObject: async ({ Key }: { Key: string }) => {
+                if (transport.failMarker) throw new Error('marker unavailable');
+                transport.keys.add(Key);
             },
             destroy: vi.fn(),
         };
@@ -449,6 +457,9 @@ describe('usage history backfill reconciliation', () => {
                 'Unable to check or import retained analytics history',
             );
             expect(transport.uploads).toBe(2);
+            expect(transport.keys.has(usageHistoryCompletionKey(org))).toBe(
+                false,
+            );
             const queryBytes = await readFile(
                 path.join(
                     transport.directory,
@@ -466,8 +477,20 @@ describe('usage history backfill reconciliation', () => {
                 missingRecords: 1,
                 existingRecords: 2,
             });
+            transport.failMarker = true;
+            await expect(importer.run(org, dimensions)).rejects.toThrow(
+                'marker unavailable',
+            );
+            expect(transport.uploads).toBe(3);
+            expect(transport.keys.has(usageHistoryCompletionKey(org))).toBe(
+                false,
+            );
+            transport.failMarker = false;
             await importer.run(org, dimensions);
             expect(transport.uploads).toBe(3);
+            expect(transport.keys.has(usageHistoryCompletionKey(org))).toBe(
+                true,
+            );
             expect(
                 await readFile(
                     path.join(
@@ -489,6 +512,7 @@ describe('usage history backfill reconciliation', () => {
                 existingRecords: 3,
             });
         } finally {
+            transport.failMarker = false;
             vi.restoreAllMocks();
         }
     });
