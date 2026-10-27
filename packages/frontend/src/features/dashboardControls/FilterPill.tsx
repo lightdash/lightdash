@@ -6,7 +6,13 @@ import {
 import { Box, Tooltip } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { IconCheck } from '@tabler/icons-react';
-import { memo, type FC, type MouseEvent } from 'react';
+import {
+    memo,
+    useState,
+    type FC,
+    type MouseEvent,
+    type PointerEvent,
+} from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -94,6 +100,17 @@ export const FilterPill: FC<Props> = memo(
             kind === 'editor' && !isSidebarOpen,
             getFieldsByTile,
         );
+        // The lock, the X and the unmet requirement icon have tooltips of
+        // their own: the pill's waits meanwhile
+        const [isOnAction, setIsOnAction] = useState(false);
+        const trackAction = (event: PointerEvent<HTMLElement>) =>
+            setIsOnAction(
+                event.type === 'pointerover' &&
+                    event.target instanceof Element &&
+                    event.target.closest(
+                        'button:not([data-controls-pill]), [data-requirement-unmet] [data-requirement-icon]',
+                    ) !== null,
+            );
         const isLocked = isFilterLockedOnTab(filter, activeTabUuid, hasTabs);
         const lockKey = getFilterLockKey({
             hasTabs,
@@ -133,7 +150,7 @@ export const FilterPill: FC<Props> = memo(
             <Tooltip
                 fz="xs"
                 maw={300}
-                disabled={!isOrphaned && !isSelectable}
+                disabled={(!isOrphaned && !isSelectable) || isOnAction}
                 openDelay={isOrphaned ? 0 : 500}
                 label={
                     isOrphaned
@@ -141,7 +158,11 @@ export const FilterPill: FC<Props> = memo(
                         : `Click to edit · ${os === 'macos' ? '⌘' : 'Ctrl'} click to select`
                 }
             >
-                <Box className={classes.pill}>
+                <Box
+                    className={classes.pill}
+                    onPointerOver={trackAction}
+                    onPointerLeave={trackAction}
+                >
                     <FilterPillButton
                         {...tileHover}
                         field={field}
@@ -159,6 +180,7 @@ export const FilterPill: FC<Props> = memo(
                             e.stopPropagation();
                             toggleLock();
                         }}
+                        isLockSpaceReserved
                         readOnlyLockLabel={null}
                         onRemove={(e) => {
                             e.stopPropagation();

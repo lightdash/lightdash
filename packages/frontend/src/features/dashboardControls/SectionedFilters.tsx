@@ -106,6 +106,7 @@ const ADD_FILTER_SELECTOR =
     '[data-filter-actions] > button[data-dashboard-filter-control]';
 const ADD_SECTION_SELECTOR = '[data-add-section]';
 const pillSelector = (id: string) => `[data-controls-pill="${id}"]`;
+const sectionNameSelector = (id: string) => `[data-section-name="${id}"]`;
 
 // Focus goes back to `ref` once an input unmounts with focus (Enter or
 // Escape), never away from what a blur clicked
@@ -280,7 +281,6 @@ const SectionCapsule: FC<CapsuleProps> = ({
                                     actions.onRename(name);
                             }}
                             onCancel={() => setIsRenaming(false)}
-                            inputClassName={classes.nameInputField}
                         />
                     ) : (
                         <Button
@@ -292,6 +292,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                             fz="sm"
                             fw={600}
                             className={classes.name}
+                            data-section-name={section.id}
                             inert={actions.isLocked || undefined}
                             onClick={() => setIsRenaming(true)}
                             onKeyDown={(event) => {
@@ -375,8 +376,8 @@ const SectionCapsule: FC<CapsuleProps> = ({
     );
 };
 
-// A new section named in place, first, after "Add filter". Focus goes back to
-// "Add filter" once it is settled, or to `cancelFocusSelector` if cancelled
+// A new section named in place, first, after "Add filter". A cancel hands
+// focus to `cancelFocusSelector`; a commit leaves it to the bar
 const NewSection: FC<{
     onAdd: (name: string) => void;
     onCancel: () => void;
@@ -386,11 +387,10 @@ const NewSection: FC<{
     useEffect(
         () => () => {
             const active = document.activeElement;
+            if (!isCancelled.current) return;
             if (active !== null && active !== document.body) return;
             (
-                (isCancelled.current
-                    ? document.querySelector<HTMLElement>(cancelFocusSelector)
-                    : null) ??
+                document.querySelector<HTMLElement>(cancelFocusSelector) ??
                 document.querySelector<HTMLElement>(ADD_FILTER_SELECTOR)
             )?.focus();
         },
@@ -405,7 +405,6 @@ const NewSection: FC<{
                     isCancelled.current = true;
                     onCancel();
                 }}
-                inputClassName={classes.nameInputField}
             />
         </Box>
     );
@@ -504,6 +503,20 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
         focusAfter.current = null;
         element?.focus();
     });
+    // A new section's name takes focus once it is on screen, unless the
+    // naming blurred to something that kept it
+    const focusNewSection = useRef<string | null>(null);
+    useLayoutEffect(() => {
+        const id = focusNewSection.current;
+        if (id === null) return;
+        focusNewSection.current = null;
+        const active = document.activeElement;
+        if (active !== null && active !== document.body) return;
+        (
+            document.querySelector<HTMLElement>(sectionNameSelector(id)) ??
+            document.querySelector<HTMLElement>(ADD_FILTER_SELECTOR)
+        )?.focus();
+    });
     const dispatch = useDashboardDispatch();
     const { track } = useTracking();
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
@@ -536,9 +549,8 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
         [...overrides.dimensions, ...overrides.metrics].some(
             (override) => override.id === rule.id,
         );
-    const isLoading = useDashboardContext(
-        (c) => c.isLoadingDashboardFilters || c.isFetchingDashboardFilters,
-    );
+    // The first load only: a refetch keeps the last fields, so the capsules stay
+    const isLoading = useDashboardContext((c) => c.isLoadingDashboardFilters);
     const setDashboardFilters = useDashboardContext(
         (c) => c.setDashboardFilters,
     );
@@ -570,7 +582,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
             return next;
         });
 
-    // No groups while loading: the unsectioned pass shows the skeletons. A
+    // No groups on the first load: the unsectioned pass shows the skeletons. A
     // viewer sees only the sections with a member on this tab; an editor
     // every section, so each is a drop target
     const groups = isLoading
@@ -784,6 +796,7 @@ export const SectionedFilters: FC<Props> = ({ activeTabUuid }) => {
         <NewSection
             onAdd={(name) => {
                 const section = { id: uuidv4(), name };
+                focusNewSection.current = section.id;
                 dispatch(dashboardEditActions.prependControlSection(section));
                 const filtersMoved =
                     naming.moveIds.length > 0

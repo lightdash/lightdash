@@ -8,6 +8,7 @@ import { AddControl } from './AddControl';
 import { FilterPills } from './FilterPills';
 import { SectionedFilters } from './SectionedFilters';
 import { SectionsTip } from './SectionsTip';
+import { SettledFilterFields } from './SettledFilterFields';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 
 type Props = Omit<
@@ -30,15 +31,21 @@ export const ControlsBar: FC<Props> = (props) => {
                 // The rail is on the page: a drawer over it would hide it
                 isCompactDrawerSuppressed={isSidebarOpen}
                 filterArea={
-                    // An editor's bar is always sectioned: its selection starts the first section
-                    hasSections || props.isEditMode ? (
-                        <SectionedFilters activeTabUuid={props.activeTabUuid} />
-                    ) : (
-                        <>
-                            <AddControl />
-                            <FilterPills activeTabUuid={props.activeTabUuid} />
-                        </>
-                    )
+                    <SettledFilterFields>
+                        {/* An editor's bar is always sectioned: its selection starts the first section */}
+                        {hasSections || props.isEditMode ? (
+                            <SectionedFilters
+                                activeTabUuid={props.activeTabUuid}
+                            />
+                        ) : (
+                            <>
+                                <AddControl />
+                                <FilterPills
+                                    activeTabUuid={props.activeTabUuid}
+                                />
+                            </>
+                        )}
+                    </SettledFilterFields>
                 }
             />
         </>

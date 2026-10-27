@@ -148,6 +148,19 @@
     opacity: 1;
 }
 
+/* Reserved: the hidden lock keeps its width and only fades in */
+.lockSlot[data-reserved] {
+    max-width: none;
+}
+
+/* Touch has no hover to reveal it, so a tap there would toggle a lock no
+   one sees: show it */
+@media (hover: none) {
+    .lockSlot[data-reserved] {
+        opacity: 1;
+    }
+}
+
 .lockSlotActive {
     display: inline-flex;
     align-items: center;

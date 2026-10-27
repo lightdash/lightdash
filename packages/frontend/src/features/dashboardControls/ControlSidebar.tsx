@@ -185,7 +185,11 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule, labelId }) => {
     const isViewer = useControlsSidebarSelector((c) => c.isViewer);
     const getUiString = useUiStrings();
     useFocusLabelOnMount();
-    // The name takes focus as the edit-mode label input does (`autoFocus`).
+    const focusWithoutScroll = useCallback(
+        (node: HTMLElement | null) => node?.focus({ preventScroll: true }),
+        [],
+    );
+    // The name takes focus on mount, as the edit-mode label input does.
     // A new filter has no name to edit: once a field is picked, the value
     // does, which mounts in the same commit
     const [isOpenedNew] = useState(() => isPlaceholder);
@@ -193,14 +197,14 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule, labelId }) => {
         (node: HTMLElement | null) => {
             if (node === null) return;
             if (!isOpenedNew) {
-                node.focus();
+                node.focus({ preventScroll: true });
                 return;
             }
             node.closest('[data-controls-editor]')
                 ?.querySelector<HTMLElement>(
                     '[data-controls-value] input:not([type="hidden"])',
                 )
-                ?.focus();
+                ?.focus({ preventScroll: true });
         },
         [isOpenedNew],
     );
@@ -279,7 +283,9 @@ const FilterEditor: FC<FilterEditorProps> = ({ rule: filterRule, labelId }) => {
                             placeholder={
                                 fieldName ?? emptiedFieldLabel ?? 'Filter name'
                             }
-                            autoFocus
+                            // Focused on mount without scrolling: the rail
+                            // scrolls itself into view (`useRailIntoView`)
+                            ref={focusWithoutScroll}
                             data-controls-label
                             value={label.draft}
                             onChange={(event) =>
