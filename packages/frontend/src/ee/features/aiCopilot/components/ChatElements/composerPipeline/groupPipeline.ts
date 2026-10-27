@@ -91,7 +91,7 @@ export const groupPipeline = (
     const nodes = entries.map<PipelineNode>(({ nodeId, query }) => ({
         nodeId,
         title: query.title ?? nodeId,
-        description: query.description ?? null,
+        description: query.description?.trim() || null,
         isTerminal: nodeId === terminalNodeId,
         depth: depths.get(nodeId)!,
         readNodeIds: readNodeIdsOf(query),

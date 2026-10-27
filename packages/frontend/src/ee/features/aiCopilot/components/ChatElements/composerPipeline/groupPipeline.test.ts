@@ -157,6 +157,14 @@ describe('groupPipeline', () => {
             readNodeIds: ['simulated'],
         });
     });
+
+    it('treats a blank description as absent so the title shows', () => {
+        const [layer] = groupPipeline(
+            [{ ...sql('a', 'Orders'), description: '  ' }],
+            'a',
+        );
+        expect(layer.nodes[0].description).toBeNull();
+    });
 });
 
 describe('nodeTypeLabelOf', () => {
