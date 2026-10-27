@@ -41,7 +41,7 @@ type Props = Omit<
     /** The lock action's label; null leaves the action out. */
     lockLabel: string | null;
     onLockToggle: (e: MouseEvent) => void;
-    /** The hidden lock keeps its space, so hovering never widens the pill; default false. */
+    /** Shows the lock at all times, so hovering never widens the pill; default false. */
     isLockSpaceReserved?: boolean;
     /** The label of the read-only lock icon; null leaves it out. */
     readOnlyLockLabel: string | null;

@@ -615,7 +615,7 @@ describe('FilterPills', () => {
             );
         });
 
-        it('reserves the hidden lock its space, so a hover never widens the pill', () => {
+        it('always shows the lock, so a hover never widens the pill', () => {
             setContext({
                 dashboardTabs: tabs,
                 dashboardTiles: [tile('tile-1', 't1')],
