@@ -1,3 +1,10 @@
+## [3.69.2](https://github.com/lightdash/lightdash/compare/3.69.1...3.69.2) (2026-10-27)
+
+
+### Bug Fixes
+
+* **data-apps:** chown microVM workspace to root so Codex bwrap sandbox can run ([#31667](https://github.com/lightdash/lightdash/issues/31667)) ([c22a38c](https://github.com/lightdash/lightdash/commit/c22a38cc26e25ca9797de482291164016df2376a))
+
 ## [3.69.1](https://github.com/lightdash/lightdash/compare/3.69.0...3.69.1) (2026-10-27)
 
 
